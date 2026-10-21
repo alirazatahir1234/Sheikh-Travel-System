@@ -10,24 +10,34 @@ import { FLEET_PRIMARY, FLEET_SECONDARY } from '../fleet-dashboard.mock';
   imports: [UiChartComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-6">
-      <div class="mb-6 flex items-center justify-between">
-        <h3 class="text-lg font-bold text-fleet-text">Fuel Usage vs. Maintenance Cost</h3>
-        <div class="flex gap-4">
-          <div class="flex items-center gap-2">
-            <span class="h-3 w-3 rounded-sm" [style.background]="primary"></span>
-            <span class="text-[11px] text-fleet-text-muted">Fuel</span>
+    <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-5">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <h3 class="text-base font-bold text-fleet-text">Fuel vs Maintenance Cost</h3>
+        @if (!data().empty) {
+          <div class="flex gap-4">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm" [style.background]="primary"></span>
+              <span class="text-[11px] text-fleet-text-muted">Fuel</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm" [style.background]="secondary"></span>
+              <span class="text-[11px] text-fleet-text-muted">Maint.</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="h-3 w-3 rounded-sm" [style.background]="secondary"></span>
-            <span class="text-[11px] text-fleet-text-muted">Maint.</span>
-          </div>
-        </div>
+        }
       </div>
 
-      <div class="flex-1">
-        <ui-chart type="bar" [data]="chartData()" [options]="options" height="260px"></ui-chart>
-      </div>
+      @if (data().empty) {
+        <div class="flex flex-1 items-center justify-center rounded-lg bg-fleet-surface-muted/60 px-4 py-10 text-center">
+          <p class="text-sm text-fleet-text-muted">
+            {{ data().emptyMessage || 'No fuel or maintenance cost series for this period.' }}
+          </p>
+        </div>
+      } @else {
+        <div class="flex-1">
+          <ui-chart type="bar" [data]="chartData()" [options]="options" height="240px"></ui-chart>
+        </div>
+      }
     </section>
   `,
   styles: [`:host { display: block; height: 100%; }`]
@@ -52,7 +62,11 @@ export class FuelMaintenanceChartComponent {
     plugins: { legend: { display: false } },
     scales: {
       x: { grid: { display: false } },
-      y: { beginAtZero: true, grid: { color: 'rgba(15, 23, 42, 0.06)' }, ticks: { callback: (v) => `$${v}k` } }
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(15, 23, 42, 0.06)' },
+        ticks: { callback: (v) => `PKR ${Number(v).toLocaleString()}` }
+      }
     }
   };
 }

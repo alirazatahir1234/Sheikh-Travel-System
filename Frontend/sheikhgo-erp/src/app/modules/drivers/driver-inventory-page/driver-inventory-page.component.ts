@@ -12,6 +12,7 @@ import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUnt
 import { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui';
 import { DriverService } from '../../../core/services/driver.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels, DriversAvailabilitySummary } from '../../../core/models/driver.model';
@@ -62,6 +63,7 @@ export class DriverInventoryPageComponent implements OnInit {
   @ViewChild(DriverDetailsDrawerComponent) detailsDrawer?: DriverDetailsDrawerComponent;
 
   private readonly driverService = inject(DriverService);
+  private readonly auth = inject(AuthService);
   private readonly exportService = inject(ExportService);
   private readonly platformService = inject(PlatformService);
   private readonly confirm = inject(UiConfirmService);
@@ -102,6 +104,29 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly kpiGroups = computed(() => buildDriverKpiGroups(this.stats()));
   readonly operationsSummary = computed(() => buildOperationsSummary(this.stats()));
   readonly assignmentCoverage = computed(() => buildAssignmentCoverage(this.stats()));
+
+  readonly hasActiveFilters = computed(() => {
+    const f = this.filters();
+    return !!(
+      f.search.trim() ||
+      f.status !== 'ALL' ||
+      f.branchId !== 'ALL' ||
+      f.licenseExpiry !== 'ALL' ||
+      f.verificationStatus !== 'ALL' ||
+      f.availability !== 'ALL'
+    );
+  });
+
+  readonly resultSummary = computed(() => {
+    const total = this.pagination().total;
+    const label = total === 1 ? 'driver' : 'drivers';
+    if (this.loading() && !this.rows().length && total === 0) {
+      return 'Loading drivers…';
+    }
+    return this.hasActiveFilters()
+      ? `${total} matching ${label}`
+      : `${total} ${label}`;
+  });
 
   readonly topDrivers = computed(() =>
     this.rankPool()
@@ -210,14 +235,40 @@ export class DriverInventoryPageComponent implements OnInit {
       .map(s => ({ value: String(s), label: DriverStatusLabels[s] }))
   ];
 
-  readonly quickActions: QuickAction[] = [
-    { id: 'add',      label: 'Add Driver',      icon: 'person_add',     route: '/drivers/new', tone: 'green' },
-    { id: 'assign',   label: 'Assign Vehicle',  icon: 'directions_car', tone: 'blue' },
-    { id: 'verify',   label: 'Verify Driver',   icon: 'verified_user',  tone: 'orange' },
-    { id: 'export',   label: 'Generate Report', icon: 'file_download',  tone: 'neutral' },
-    { id: 'incident', label: 'Log Incident',    icon: 'report_problem', tone: 'red' },
-    { id: 'suspend',  label: 'Suspend Driver',  icon: 'block',          tone: 'red' },
-  ];
+  get canCreateDriver(): boolean {
+    return this.auth.hasPermission('Driver.Create');
+  }
+
+  get canUpdateDriver(): boolean {
+    return this.auth.hasPermission('Driver.Update');
+  }
+
+  get canDeleteDriver(): boolean {
+    return this.auth.hasPermission('Driver.Delete');
+  }
+
+  get canAssignDriver(): boolean {
+    return this.auth.hasPermission('Driver.Assign');
+  }
+
+  get quickActions(): QuickAction[] {
+    const actions: QuickAction[] = [];
+    if (this.canCreateDriver) {
+      actions.push({ id: 'add', label: 'Add Driver', icon: 'person_add', route: '/drivers/new', tone: 'green' });
+    }
+    if (this.canAssignDriver) {
+      actions.push({ id: 'assign', label: 'Assign Vehicle', icon: 'directions_car', tone: 'blue' });
+    }
+    if (this.canUpdateDriver) {
+      actions.push(
+        { id: 'verify', label: 'Verify Driver', icon: 'verified_user', tone: 'orange' },
+        { id: 'incident', label: 'Log Incident', icon: 'report_problem', tone: 'red' },
+        { id: 'suspend', label: 'Suspend Driver', icon: 'block', tone: 'red' }
+      );
+    }
+    actions.push({ id: 'export', label: 'Generate Report', icon: 'file_download', tone: 'neutral' });
+    return actions;
+  }
 
   ngOnInit(): void {
     this.platformService.getBranches().pipe(
@@ -343,6 +394,22 @@ export class DriverInventoryPageComponent implements OnInit {
   onSearchInput(value: string): void {
     this.filters.update(f => ({ ...f, search: value }));
     this.searchInput$.next(value);
+  }
+
+  clearSearch(): void {
+    if (!this.filters().search) return;
+    this.filters.update(f => ({ ...f, search: '' }));
+    this.searchInput$.next('');
+    this.pagination.update(p => ({ ...p, page: 1 }));
+    this.load();
+  }
+
+  clearFilters(): void {
+    if (!this.hasActiveFilters()) return;
+    this.filters.set({ ...EMPTY_DRIVER_FILTERS });
+    this.searchInput$.next('');
+    this.pagination.update(p => ({ ...p, page: 1 }));
+    this.load();
   }
 
   onStatusChange(value: string): void {

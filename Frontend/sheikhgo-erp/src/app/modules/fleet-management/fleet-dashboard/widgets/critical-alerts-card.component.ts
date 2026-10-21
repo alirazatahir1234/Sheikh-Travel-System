@@ -1,16 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CriticalAlert } from '../fleet-dashboard.model';
 
 @Component({
   selector: 'fleet-critical-alerts-card',
   standalone: true,
-  imports: [MatIconModule],
+  imports: [MatIconModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="rounded-xl border border-fleet-border bg-white p-6">
+    <section class="rounded-xl border border-fleet-border bg-white p-5">
       <div class="mb-4 flex items-center justify-between">
-        <h3 class="font-label text-[13px] font-semibold uppercase tracking-widest text-fleet-text-muted">Critical Alerts</h3>
+        <h3 class="text-[12px] font-semibold uppercase tracking-wider text-fleet-text-muted">Critical Alerts</h3>
         @if (highCount() > 0) {
           <span class="rounded-full bg-fleet-error px-2 py-0.5 text-[10px] font-bold uppercase text-white">
             {{ highCount() }} High
@@ -18,7 +19,7 @@ import { CriticalAlert } from '../fleet-dashboard.model';
         }
       </div>
 
-      <div class="space-y-4">
+      <div class="space-y-3">
         @for (alert of alerts(); track alert.id) {
           <div
             class="flex gap-3 rounded-lg border p-3"
@@ -34,8 +35,12 @@ import { CriticalAlert } from '../fleet-dashboard.model';
             <div class="min-w-0">
               <h4 class="text-[13px] font-semibold text-fleet-text">{{ alert.title }}</h4>
               <p class="mt-0.5 text-[11px] text-fleet-text-muted">{{ alert.detail }}</p>
-              @if (alert.actionLabel) {
-                <button type="button" class="mt-1 text-[11px] font-bold text-fleet-error underline">{{ alert.actionLabel }}</button>
+              @if (alert.actionLabel && alert.actionRoute) {
+                <a [routerLink]="alert.actionRoute" class="mt-1 inline-block text-[11px] font-bold text-fleet-error underline">
+                  {{ alert.actionLabel }}
+                </a>
+              } @else if (alert.actionLabel) {
+                <span class="mt-1 inline-block text-[11px] font-bold text-fleet-text-muted">{{ alert.actionLabel }}</span>
               }
             </div>
           </div>

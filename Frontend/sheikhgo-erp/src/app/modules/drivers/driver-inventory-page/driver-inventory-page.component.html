@@ -9,14 +9,18 @@
         More Actions
       </button>
       <mat-menu #bulkMenu="matMenu">
-        <button mat-menu-item (click)="importDrivers()">
-          <mat-icon>upload_file</mat-icon>
-          <span>Import Drivers</span>
-        </button>
-        <button mat-menu-item (click)="bulkAssign()">
-          <mat-icon>link</mat-icon>
-          <span>Bulk Assign</span>
-        </button>
+        @if (canCreateDriver) {
+          <button mat-menu-item (click)="importDrivers()">
+            <mat-icon>upload_file</mat-icon>
+            <span>Import Drivers</span>
+          </button>
+        }
+        @if (canAssignDriver) {
+          <button mat-menu-item (click)="bulkAssign()">
+            <mat-icon>link</mat-icon>
+            <span>Bulk Assign</span>
+          </button>
+        }
         <button mat-menu-item (click)="exportExcel()">
           <mat-icon>table_view</mat-icon>
           <span>Export Excel</span>
@@ -24,7 +28,9 @@
       </mat-menu>
 
       <ui-button variant="outline" icon="download" (clicked)="exportReport()">Generate Report</ui-button>
-      <ui-button variant="primary" icon="add" routerLink="/drivers/new">Add Driver</ui-button>
+      @if (canCreateDriver) {
+        <ui-button variant="primary" icon="add" routerLink="/drivers/new">Add Driver</ui-button>
+      }
     </div>
   </ui-page-header>
 
@@ -358,33 +364,87 @@
   <section class="table-section">
     <div class="filters-bar card">
       <div class="filters-grid">
-        <input
-          type="search"
-          class="filter-input"
-          placeholder="Search name, code, license, mobile…"
-          [value]="filters().search"
-          (input)="onSearchInput($any($event.target).value)" />
-        <select class="filter-input" [value]="filters().status === 'ALL' ? 'ALL' : statusValue(filters().status)" (change)="onStatusChange($any($event.target).value)">
-          @for (opt of statusOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+        <div class="search-field">
+          <mat-icon class="search-field__icon" aria-hidden="true">search</mat-icon>
+          <input
+            type="text"
+            class="filter-input search-field__input"
+            placeholder="Search name, code, license, mobile…"
+            autocomplete="off"
+            [value]="filters().search"
+            (input)="onSearchInput($any($event.target).value)"
+            (keydown.escape)="clearSearch()"
+            aria-label="Search drivers" />
+          @if (filters().search) {
+            <button
+              type="button"
+              class="search-field__clear"
+              (click)="clearSearch()"
+              aria-label="Clear search"
+              title="Clear search">
+              <mat-icon>close</mat-icon>
+            </button>
           }
-        </select>
-        <select class="filter-input" [value]="branchFilterValue()" (change)="onBranchChange($any($event.target).value)">
-          @for (opt of branchOptions(); track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
-          }
-        </select>
-        <select class="filter-input" [value]="filters().licenseExpiry" (change)="onLicenseFilterChange($any($event.target).value)">
-          <option value="ALL">All license states</option>
-          <option value="VALID">Valid</option>
-          <option value="EXPIRING">Expiring (30d)</option>
-          <option value="EXPIRED">Expired</option>
-        </select>
-        <select class="filter-input" [value]="filters().availability" (change)="onAvailabilityChange($any($event.target).value)">
-          @for (opt of availabilityOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
-          }
-        </select>
+        </div>
+
+        <label class="filter-field">
+          <span class="filter-field__label">Status</span>
+          <select class="filter-input" [value]="filters().status === 'ALL' ? 'ALL' : statusValue(filters().status)" (change)="onStatusChange($any($event.target).value)">
+            @for (opt of statusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="filter-field">
+          <span class="filter-field__label">Branch</span>
+          <select class="filter-input" [value]="branchFilterValue()" (change)="onBranchChange($any($event.target).value)">
+            @for (opt of branchOptions(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="filter-field">
+          <span class="filter-field__label">License</span>
+          <select class="filter-input" [value]="filters().licenseExpiry" (change)="onLicenseFilterChange($any($event.target).value)">
+            <option value="ALL">All license states</option>
+            <option value="VALID">Valid</option>
+            <option value="EXPIRING">Expiring (30d)</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+        </label>
+
+        <label class="filter-field">
+          <span class="filter-field__label">Availability</span>
+          <select class="filter-input" [value]="filters().availability" (change)="onAvailabilityChange($any($event.target).value)">
+            @for (opt of availabilityOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="filter-actions">
+          <button
+            type="button"
+            class="filter-clear-btn"
+            [disabled]="!hasActiveFilters()"
+            (click)="clearFilters()"
+            title="Clear all filters">
+            <mat-icon>filter_alt_off</mat-icon>
+            Clear
+          </button>
+          <button type="button" class="filter-refresh-btn" (click)="load()" title="Refresh">
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="filters-summary">
+        <span>{{ resultSummary() }}</span>
+        @if (hasActiveFilters()) {
+          <button type="button" class="filters-summary__reset" (click)="clearFilters()">Reset filters</button>
+        }
       </div>
     </div>
 
@@ -393,13 +453,18 @@
       [loading]="loading()"
       [error]="error()"
       [pagination]="pagination()"
+      [hasActiveFilters]="hasActiveFilters()"
+      [canCreate]="canCreateDriver"
+      [canEdit]="canUpdateDriver"
+      [canDelete]="canDeleteDriver"
       (rowClick)="openDrawer($event)"
       (view)="openDrawer($event)"
       (edit)="onEdit($event)"
       (delete)="onDelete($event)"
       (pageChange)="onPageChange($event)"
       (pageSizeChange)="onPageSizeChange($event)"
-      (retry)="load()">
+      (retry)="load()"
+      (clearFilters)="clearFilters()">
     </driver-table>
   </section>
 

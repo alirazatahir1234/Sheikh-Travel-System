@@ -38,11 +38,14 @@ public static class TenantRolePermissionTemplates
     /// Company owner (mobile SheikhGo Tracking) — full tracker parity:
     /// live map, routes/playback/stops, alerts, vehicle control, drivers, fuel.
     /// Narrower than TENANT_ADMIN (no platform user/role admin).
+    /// Includes driver create/update/delete so Owner can manage the fleet roster.
     /// </summary>
     public static readonly string[] Owner =
     [
         "Platform.Dashboard.View", "Platform.Branches.View",
-        "Vehicle.View", "Driver.View", "Driver.ViewPerformance",
+        "Vehicle.View",
+        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete",
+        "Driver.Assign", "Driver.ManageStatus", "Driver.ViewPerformance",
         "Trip.View", "Route.View", "GPS.View", "Report.View",
         "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",

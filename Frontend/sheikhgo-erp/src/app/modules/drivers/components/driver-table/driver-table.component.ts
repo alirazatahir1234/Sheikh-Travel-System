@@ -21,6 +21,10 @@ export class DriverTableComponent {
   readonly loading = input(false);
   readonly error = input<string | null>(null);
   readonly pagination = input.required<DriverPagination>();
+  readonly hasActiveFilters = input(false);
+  readonly canCreate = input(false);
+  readonly canEdit = input(true);
+  readonly canDelete = input(true);
 
   readonly rowClick = output<DriverListItem>();
   readonly view = output<DriverListItem>();
@@ -29,6 +33,7 @@ export class DriverTableComponent {
   readonly pageChange = output<number>();
   readonly pageSizeChange = output<number>();
   readonly retry = output<void>();
+  readonly clearFilters = output<void>();
 
   readonly pageSizeOptions = DRIVER_PAGE_SIZE_OPTIONS;
 

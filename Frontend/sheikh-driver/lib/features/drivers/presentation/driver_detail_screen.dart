@@ -110,14 +110,16 @@ class DriverDetailScreen extends ConsumerWidget {
         session?.hasPermission(FleetPermissions.driverAssign) ?? false;
     final canPerf =
         session?.hasPermission(FleetPermissions.driverViewPerformance) ?? false;
+    final p = context.sg;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(
         title: const Text('Driver'),
         actions: [
           if (canManage)
             PopupMenuButton<String>(
+              tooltip: 'Update status',
               onSelected: (status) async {
                 try {
                   await ref
@@ -148,19 +150,23 @@ class DriverDetailScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$e'),
-              FilledButton(
-                onPressed: () =>
-                    ref.invalidate(driverDetailProvider(driverId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: const [
+            SgSkeleton(height: 120, radius: AppRadii.lg),
+            SizedBox(height: 14),
+            SgSkeleton(height: 24, width: 160, radius: AppRadii.sm),
+            SizedBox(height: 8),
+            SgSkeleton(height: 140, radius: AppRadii.lg),
+            SizedBox(height: 14),
+            SgSkeleton(height: 24, width: 120, radius: AppRadii.sm),
+            SizedBox(height: 8),
+            SgSkeleton(height: 160, radius: AppRadii.lg),
+          ],
+        ),
+        error: (e, _) => SgErrorView(
+          message: '$e',
+          onRetry: () => ref.invalidate(driverDetailProvider(driverId)),
         ),
         data: (d) {
           final df = DateFormat('dd MMM yyyy');
@@ -168,88 +174,179 @@ class DriverDetailScreen extends ConsumerWidget {
           final displayName =
               d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim();
           final verified = _isVerified(d);
+          final licenseColor = d.licenseExpired
+              ? AppColors.error
+              : d.licenseExpiringSoon
+                  ? AppColors.warning
+                  : null;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              28 + MediaQuery.of(context).padding.bottom,
+            ),
             children: [
               SgCard(
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        SgAvatar(label: displayName, size: 56),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: Text(
-                            displayName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                      color: p.textPrimary,
+                                    ),
+                              ),
+                              if (d.driverCode != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  d.driverCode!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  StatusBadge(d.status),
+                                  if (d.verificationStatus != null &&
+                                      d.verificationStatus!.isNotEmpty)
+                                    StatusBadge(
+                                      d.verificationStatus!,
+                                      color: verified
+                                          ? AppColors.success
+                                          : AppColors.warning,
+                                    ),
+                                  if (d.gpsOnline)
+                                    const StatusBadge(
+                                      'GPS online',
+                                      color: AppColors.success,
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        StatusBadge(d.status),
                       ],
                     ),
-                    if (d.driverCode != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        d.driverCode!,
-                        style: const TextStyle(color: AppColors.textMuted),
+                    const SizedBox(height: 16),
+                    Divider(height: 1, color: p.divider),
+                    const SizedBox(height: 12),
+                    _ContactLine(
+                      icon: Icons.phone_outlined,
+                      value: d.phone,
+                    ),
+                    if (d.email != null && d.email!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _ContactLine(
+                        icon: Icons.mail_outline_rounded,
+                        value: d.email!,
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Text(d.phone,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    if (d.email != null) Text(d.email!),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              const SgSectionTitle('License & compliance'),
+              const SizedBox(height: 18),
+              const SgSectionTitle(
+                'License & compliance',
+                subtitle: 'Documents and verification',
+              ),
               const SizedBox(height: 8),
               SgCard(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: Column(
                   children: [
-                    _Row('License', d.licenseNumber),
-                    _Row(
+                    SgDetailRow('License', d.licenseNumber, showDivider: true),
+                    SgDetailRow(
                       'Expiry',
                       d.licenseExpiryDate != null
                           ? df.format(d.licenseExpiryDate!.toLocal())
                           : '—',
+                      showDivider: true,
                     ),
-                    _Row(
+                    SgDetailRow(
                       'License status',
                       d.licenseExpired
                           ? 'Expired'
                           : d.licenseExpiringSoon
                               ? 'Expiring soon'
                               : 'Valid',
+                      valueColor: licenseColor,
+                      showDivider: true,
                     ),
-                    _Row('Verification', d.verificationStatus ?? '—'),
-                    _Row('CNIC', d.cnic ?? '—'),
+                    SgDetailRow(
+                      'Verification',
+                      d.verificationStatus ?? '—',
+                      showDivider: true,
+                    ),
+                    SgDetailRow('CNIC', d.cnic ?? '—'),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              const SgSectionTitle('Assignment'),
+              const SizedBox(height: 18),
+              const SgSectionTitle(
+                'Assignment',
+                subtitle: 'Vehicle, branch, availability',
+              ),
               const SizedBox(height: 8),
               SgCard(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 onTap: d.assignedVehicleId != null
                     ? () => context
                         .push('/fleet/vehicles/${d.assignedVehicleId}')
                     : null,
                 child: Column(
                   children: [
-                    _Row(
+                    SgDetailRow(
                       'Vehicle',
                       d.assignedVehicleName ??
                           d.assignedVehicleRegistration ??
                           'Unassigned',
+                      showDivider: true,
                     ),
-                    _Row('Plate', d.assignedVehicleRegistration ?? '—'),
-                    _Row('Branch', d.branchName ?? '—'),
-                    _Row('GPS', d.gpsOnline ? 'Online' : 'Offline'),
-                    _Row('Availability', d.availabilityBucket ?? '—'),
-                    _Row(
+                    SgDetailRow(
+                      'Plate',
+                      d.assignedVehicleRegistration ?? '—',
+                      showDivider: true,
+                    ),
+                    SgDetailRow(
+                      'Branch',
+                      d.branchName ?? '—',
+                      showDivider: true,
+                    ),
+                    SgDetailRow(
+                      'GPS',
+                      d.gpsOnline ? 'Online' : 'Offline',
+                      valueColor:
+                          d.gpsOnline ? AppColors.success : p.textMuted,
+                      showDivider: true,
+                    ),
+                    SgDetailRow(
+                      'Availability',
+                      d.availabilityBucket ?? '—',
+                      showDivider: true,
+                    ),
+                    SgDetailRow(
                       'Rating',
                       d.rating != null ? d.rating!.toStringAsFixed(1) : '—',
                     ),
@@ -259,21 +356,35 @@ class DriverDetailScreen extends ConsumerWidget {
               if (canAssign) ...[
                 const SizedBox(height: 12),
                 if (!verified)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Vehicle assignment requires Verified status.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: const Text(
+                        'Vehicle assignment requires Verified status.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: FilledButton.icon(
                         onPressed: () => _assignVehicle(context, ref, d),
                         icon: const Icon(Icons.local_shipping_outlined),
                         label: Text(
@@ -282,7 +393,7 @@ class DriverDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     if (d.assignedVehicleId != null) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () => _unassignVehicle(context, ref),
@@ -295,43 +406,46 @@ class DriverDetailScreen extends ConsumerWidget {
                 ),
               ],
               if (canPerf) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 const SgSectionTitle('Performance'),
                 const SizedBox(height: 8),
                 _PerformanceCard(driverId: driverId),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 const SgSectionTitle('Violations'),
                 const SizedBox(height: 8),
                 _ViolationsCard(driverId: driverId, df: df),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 const SgSectionTitle('Attendance (30 days)'),
                 const SizedBox(height: 8),
                 _AttendanceCard(driverId: driverId, tf: tf),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
               const SgSectionTitle('Documents'),
               const SizedBox(height: 8),
               _DocumentsCard(driverId: driverId, df: df),
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
               const SgSectionTitle('Profile'),
               const SizedBox(height: 8),
               SgCard(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: Column(
                   children: [
-                    _Row('Address', d.address ?? '—'),
-                    _Row(
+                    SgDetailRow('Address', d.address ?? '—', showDivider: true),
+                    SgDetailRow(
                       'Hire date',
                       d.hireDate != null
                           ? df.format(d.hireDate!.toLocal())
                           : '—',
+                      showDivider: true,
                     ),
-                    _Row(
+                    SgDetailRow(
                       'Experience',
                       d.yearsExperience != null
                           ? '${d.yearsExperience} yrs'
                           : '—',
+                      showDivider: true,
                     ),
-                    _Row(
+                    SgDetailRow(
                       'Emergency',
                       [
                         d.emergencyContactName,
@@ -353,6 +467,33 @@ class DriverDetailScreen extends ConsumerWidget {
   }
 }
 
+class _ContactLine extends StatelessWidget {
+  const _ContactLine({required this.icon, required this.value});
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: p.textMuted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: p.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PerformanceCard extends ConsumerWidget {
   const _PerformanceCard({required this.driverId});
   final int driverId;
@@ -364,23 +505,45 @@ class _PerformanceCard extends ConsumerWidget {
       loading: () => const SgCard(
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      error: (_, __) => const SgCard(child: Text('Performance unavailable')),
+      error: (_, __) => const SgCard(
+        child: SgInlineEmpty(message: 'Performance unavailable'),
+      ),
       data: (p) {
         if (p == null) {
-          return const SgCard(child: Text('Performance unavailable'));
+          return const SgCard(
+            child: SgInlineEmpty(message: 'Performance unavailable'),
+          );
         }
         return SgCard(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Column(
             children: [
-              _Row('Trips', '${p.completedTrips} / ${p.totalTrips}'),
-              _Row(
+              SgDetailRow(
+                'Trips',
+                '${p.completedTrips} / ${p.totalTrips}',
+                showDivider: true,
+              ),
+              SgDetailRow(
                 'Completion',
                 '${p.completionRate.toStringAsFixed(0)}%',
+                showDivider: true,
               ),
-              _Row('Revenue', p.totalRevenue.toStringAsFixed(0)),
-              _Row('Violations', '${p.violationCount}'),
-              _Row('Present days', '${p.attendancePresentCount}'),
-              _Row(
+              SgDetailRow(
+                'Revenue',
+                p.totalRevenue.toStringAsFixed(0),
+                showDivider: true,
+              ),
+              SgDetailRow(
+                'Violations',
+                '${p.violationCount}',
+                showDivider: true,
+              ),
+              SgDetailRow(
+                'Present days',
+                '${p.attendancePresentCount}',
+                showDivider: true,
+              ),
+              SgDetailRow(
                 'Rating',
                 p.rating != null ? p.rating!.toStringAsFixed(1) : '—',
               ),
@@ -400,37 +563,75 @@ class _ViolationsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(driverViolationsProvider(driverId));
+    final palette = context.sg;
     return async.when(
       loading: () => const SgCard(
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      error: (_, __) => const SgCard(child: Text('No violations loaded')),
+      error: (_, __) => const SgCard(
+        child: SgInlineEmpty(message: 'No violations loaded'),
+      ),
       data: (items) {
         if (items.isEmpty) {
-          return const SgCard(child: Text('No violations'));
+          return const SgCard(
+            child: SgInlineEmpty(
+              message: 'No violations on record',
+              icon: Icons.check_circle_outline_rounded,
+            ),
+          );
         }
+        final visible = items.take(8).toList();
         return SgCard(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
           child: Column(
             children: [
-              for (final v in items.take(8))
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    v.violationType,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    [
-                      v.severity,
-                      df.format(v.occurredAt.toLocal()),
-                      v.status,
-                      if (v.description != null && v.description!.isNotEmpty)
-                        v.description!,
-                    ].join(' · '),
-                    style: const TextStyle(fontSize: 12),
+              for (var i = 0; i < visible.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: palette.divider),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SgIconWell(
+                        icon: Icons.report_outlined,
+                        color: AppColors.error,
+                        size: 34,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              visible[i].violationType,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                visible[i].severity,
+                                df.format(visible[i].occurredAt.toLocal()),
+                                visible[i].status,
+                                if (visible[i].description != null &&
+                                    visible[i].description!.isNotEmpty)
+                                  visible[i].description!,
+                              ].join(' · '),
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.35,
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ],
             ],
           ),
         );
@@ -447,37 +648,65 @@ class _AttendanceCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(driverAttendanceProvider(driverId));
+    final palette = context.sg;
     return async.when(
       loading: () => const SgCard(
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      error: (_, __) => const SgCard(child: Text('No attendance loaded')),
+      error: (_, __) => const SgCard(
+        child: SgInlineEmpty(message: 'No attendance loaded'),
+      ),
       data: (items) {
         if (items.isEmpty) {
-          return const SgCard(child: Text('No attendance records'));
+          return const SgCard(
+            child: SgInlineEmpty(message: 'No attendance records'),
+          );
         }
+        final visible = items.take(10).toList();
         return SgCard(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
           child: Column(
             children: [
-              for (final a in items.take(10))
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    DateFormat('dd MMM yyyy').format(a.attendanceDate.toLocal()),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    [
-                      a.status,
-                      if (a.checkInAt != null)
-                        'in ${tf.format(a.checkInAt!.toLocal())}',
-                      if (a.checkOutAt != null)
-                        'out ${tf.format(a.checkOutAt!.toLocal())}',
-                    ].join(' · '),
-                    style: const TextStyle(fontSize: 12),
+              for (var i = 0; i < visible.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: palette.divider),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              DateFormat('dd MMM yyyy')
+                                  .format(visible[i].attendanceDate.toLocal()),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                visible[i].status,
+                                if (visible[i].checkInAt != null)
+                                  'in ${tf.format(visible[i].checkInAt!.toLocal())}',
+                                if (visible[i].checkOutAt != null)
+                                  'out ${tf.format(visible[i].checkOutAt!.toLocal())}',
+                              ].join(' · '),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      StatusBadge(visible[i].status),
+                    ],
                   ),
                 ),
+              ],
             ],
           ),
         );
@@ -494,46 +723,78 @@ class _DocumentsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(driverDocumentsProvider(driverId));
+    final palette = context.sg;
     return async.when(
       loading: () => const SgCard(
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      error: (_, __) => const SgCard(child: Text('No documents loaded')),
+      error: (_, __) => const SgCard(
+        child: SgInlineEmpty(message: 'No documents loaded'),
+      ),
       data: (items) {
         if (items.isEmpty) {
-          return const SgCard(child: Text('No documents on file'));
+          return const SgCard(
+            child: SgInlineEmpty(message: 'No documents on file'),
+          );
         }
         return SgCard(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
           child: Column(
             children: [
-              for (final doc in items)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    doc.documentType,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    [
-                      doc.status,
-                      if (doc.expiryDate != null)
-                        'exp ${df.format(doc.expiryDate!.toLocal())}',
-                      if (doc.isExpired)
-                        'EXPIRED'
-                      else if (doc.isExpiringSoon)
-                        'expiring soon',
-                    ].join(' · '),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: doc.isExpired
-                          ? AppColors.error
-                          : doc.isExpiringSoon
-                              ? AppColors.warning
-                              : null,
-                    ),
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: palette.divider),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      SgIconWell(
+                        icon: Icons.description_outlined,
+                        color: items[i].isExpired
+                            ? AppColors.error
+                            : items[i].isExpiringSoon
+                                ? AppColors.warning
+                                : AppColors.primary,
+                        size: 34,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              items[i].documentType,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                items[i].status,
+                                if (items[i].expiryDate != null)
+                                  'exp ${df.format(items[i].expiryDate!.toLocal())}',
+                                if (items[i].isExpired)
+                                  'EXPIRED'
+                                else if (items[i].isExpiringSoon)
+                                  'expiring soon',
+                              ].join(' · '),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: items[i].isExpired
+                                    ? AppColors.error
+                                    : items[i].isExpiringSoon
+                                        ? AppColors.warning
+                                        : palette.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ],
             ],
           ),
         );
@@ -544,38 +805,4 @@ class _DocumentsCard extends ConsumerWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
-}
-
-class _Row extends StatelessWidget {
-  const _Row(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

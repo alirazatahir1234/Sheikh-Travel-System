@@ -1,42 +1,132 @@
-# Sheikh Travel API — Azure DevOps → SheikhGo Azure VM
+# SheikhGo — Azure DevOps CI/CD
 #
-# Trigger: push to GitHub branch `main` (after Azure DevOps GitHub service connection).
-# Agent: self-hosted pool `SheikhGo-VM` (runs ON 20.174.1.230) so build+deploy happen on the VM.
+# Org: Alirazatahir · Project: SheikhGo
+# Trigger: push to main (or master)
 #
-# One-time setup: see docs/deploy/azure-vm-api.md
+# Jobs (path-filtered inside each job):
+#   1) Backend → IBM Cloud (scaffold — fill IBM_* variables; see docs/deploy/ibm-vercel-cicd.md)
+#   2) Frontend → Vercel (ERP + Customer Hub via vercel CLI)
 #
-# Does not touch Traccar / SQL containers. Does not modify Railway.
+# Does NOT target Azure VM (20.174.1.230 / sheikhgo-api). Leave that service alone.
+# Does NOT delete or modify Railway.
+#
+# ADO Library variables required (Pipelines → Library → Variable group or pipeline variables):
+#   IBM_*: see docs/deploy/ibm-vercel-cicd.md (MISSING until Ali provides host/method)
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_ERP_PROJECT_ID, VERCEL_HUB_PROJECT_ID
 
 trigger:
   branches:
     include:
       - main
+      - master
   paths:
     include:
       - Backend/**
-      - deploy/azure-vm/**
+      - Frontend/sheikhgo-erp/**
+      - Frontend/sheikh-travel-customer-hub/**
+      - deploy/ibm/**
+      - deploy/vercel/**
       - azure-pipelines.yml
-      - Dockerfile.railway
 
 pr: none
 
-pool:
-  name: SheikhGo-VM
+stages:
+  - stage: Deploy
+    displayName: Deploy Backend (IBM) and Frontend (Vercel)
+    jobs:
+      # ── Backend → IBM ──────────────────────────────────────────────
+      - job: Backend_IBM
+        displayName: Backend → IBM
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 1
 
-variables:
-  DEPLOY_BRANCH: main
+          - bash: |
+              set -euo pipefail
+              if git rev-parse HEAD^ >/dev/null 2>&1; then
+                if git diff --name-only HEAD^ HEAD | grep -qE '^Backend/|^deploy/ibm/|^azure-pipelines\.yml'; then
+                  echo "##vso[task.setvariable variable=SKIP_IBM]false"
+                  echo "Backend paths changed — will deploy to IBM."
+                else
+                  echo "##vso[task.setvariable variable=SKIP_IBM]true"
+                  echo "No Backend path changes — skipping IBM deploy."
+                fi
+              else
+                echo "##vso[task.setvariable variable=SKIP_IBM]false"
+                echo "No parent commit; running IBM job."
+              fi
+            displayName: Detect Backend changes
 
-steps:
-  - checkout: self
-    clean: false
-    fetchDepth: 1
+          - task: UseDotNet@2
+            condition: ne(variables['SKIP_IBM'], 'true')
+            displayName: Install .NET SDK
+            inputs:
+              packageType: sdk
+              version: '10.0.x'
 
-  - script: |
-      set -euo pipefail
-      chmod +x "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
-      export BUILD_SOURCESDIRECTORY="$(Build.SourcesDirectory)"
-      export DEPLOY_BRANCH="$(DEPLOY_BRANCH)"
-      "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
-    displayName: Build and restart sheikhgo-api on VM
-    env:
-      DEPLOY_BRANCH: $(DEPLOY_BRANCH)
+          - bash: |
+              set -euo pipefail
+              chmod +x "$(Build.SourcesDirectory)/deploy/ibm/deploy-api.sh"
+              "$(Build.SourcesDirectory)/deploy/ibm/deploy-api.sh"
+            condition: ne(variables['SKIP_IBM'], 'true')
+            displayName: Publish and deploy API to IBM
+            env:
+              IBM_DEPLOY_METHOD: $(IBM_DEPLOY_METHOD)
+              IBM_HOST: $(IBM_HOST)
+              IBM_SSH_USER: $(IBM_SSH_USER)
+              IBM_SSH_KEY: $(IBM_SSH_KEY)
+              IBM_APP_NAME: $(IBM_APP_NAME)
+              IBM_REGION: $(IBM_REGION)
+              IBM_RESOURCE_GROUP: $(IBM_RESOURCE_GROUP)
+              IBM_API_KEY: $(IBM_API_KEY)
+              IBM_CF_ORG: $(IBM_CF_ORG)
+              IBM_CF_SPACE: $(IBM_CF_SPACE)
+              IBM_CE_PROJECT: $(IBM_CE_PROJECT)
+              IBM_REMOTE_PATH: $(IBM_REMOTE_PATH)
+              IBM_SERVICE_NAME: $(IBM_SERVICE_NAME)
+
+      # ── Frontend → Vercel ──────────────────────────────────────────
+      - job: Frontend_Vercel
+        displayName: Frontend → Vercel
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - bash: |
+              set -euo pipefail
+              if git rev-parse HEAD^ >/dev/null 2>&1; then
+                if git diff --name-only HEAD^ HEAD | grep -qE '^Frontend/sheikhgo-erp/|^Frontend/sheikh-travel-customer-hub/|^deploy/vercel/|^azure-pipelines\.yml'; then
+                  echo "##vso[task.setvariable variable=SKIP_VERCEL]false"
+                  echo "Frontend paths changed — will deploy to Vercel."
+                else
+                  echo "##vso[task.setvariable variable=SKIP_VERCEL]true"
+                  echo "No Frontend path changes — skipping Vercel deploy."
+                fi
+              else
+                echo "##vso[task.setvariable variable=SKIP_VERCEL]false"
+                echo "No parent commit; running Vercel job."
+              fi
+            displayName: Detect Frontend changes
+
+          - task: NodeTool@0
+            condition: ne(variables['SKIP_VERCEL'], 'true')
+            displayName: Install Node.js
+            inputs:
+              versionSpec: '20.x'
+
+          - bash: |
+              set -euo pipefail
+              chmod +x "$(Build.SourcesDirectory)/deploy/vercel/deploy-frontends.sh"
+              "$(Build.SourcesDirectory)/deploy/vercel/deploy-frontends.sh"
+            condition: ne(variables['SKIP_VERCEL'], 'true')
+            displayName: Deploy sheikhgo-erp + customer-hub to Vercel
+            env:
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_ERP_PROJECT_ID: $(VERCEL_ERP_PROJECT_ID)
+              VERCEL_HUB_PROJECT_ID: $(VERCEL_HUB_PROJECT_ID)
+              VERCEL_PROD: $(VERCEL_PROD)

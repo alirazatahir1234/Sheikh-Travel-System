@@ -1,5 +1,7 @@
 # SheikhGo API on Azure VM + Azure DevOps
 
+> **Note:** Primary repo CI/CD is now **Backend → IBM** and **Frontend → Vercel** — see [ibm-vercel-cicd.md](./ibm-vercel-cicd.md). Keep this VM/`sheikhgo-api` running if already live; it is not the target of the current `azure-pipelines.yml`.
+
 ## Live endpoints
 
 | Item | Value |
@@ -15,14 +17,15 @@
 | Traccar | local `127.0.0.1:8082` (untouched) |
 | Railway | **left fully intact** (still online; clients re-pointed to Azure) |
 
-## Auto-deploy (primary): Azure DevOps self-hosted agent on the VM
+## Optional path: Azure DevOps self-hosted agent on the VM
+
+(Not used by the current root `azure-pipelines.yml`, which targets IBM + Vercel.)
 
 Flow:
 
-1. Push to GitHub `main` (paths under `Backend/**`, `deploy/azure-vm/**`, or `azure-pipelines.yml`)
-2. Azure Pipelines picks up the GitHub push
-3. Job runs on pool **`SheikhGo-VM`** (agent installed **on** `20.174.1.230`)
-4. `deploy/azure-vm/deploy-api.sh` runs `dotnet publish` + `systemctl restart sheikhgo-api`
+1. Push to a branch that still uses a VM-targeted pipeline YAML
+2. Job runs on pool **`SheikhGo-VM`** (agent installed **on** `20.174.1.230`)
+3. `deploy/azure-vm/deploy-api.sh` runs `dotnet publish` + `systemctl restart sheikhgo-api`
 
 ### What Ali must click once (Azure DevOps free org)
 

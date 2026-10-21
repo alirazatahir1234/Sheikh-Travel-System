@@ -15,8 +15,8 @@ import { AssignmentItem } from '../fleet-dashboard.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="rounded-xl border border-fleet-border bg-white">
-      <div class="flex items-center justify-between border-b border-fleet-border px-6 py-4">
-        <h3 class="text-lg font-bold text-fleet-text">Active Assignments</h3>
+      <div class="flex items-center justify-between border-b border-fleet-border px-5 py-3.5">
+        <h3 class="text-base font-bold text-fleet-text">Active Assignments</h3>
         <a routerLink="/fleet/assignments" class="text-[13px] font-semibold text-fleet-primary hover:underline">View All</a>
       </div>
 
@@ -35,6 +35,11 @@ import { AssignmentItem } from '../fleet-dashboard.model';
           </div>
         </ng-template>
 
+        <ng-template uiTableCell="route" let-row>
+          <p class="text-[13px] text-fleet-text">{{ row.route }}</p>
+          <p class="text-[11px] text-fleet-text-muted">{{ row.assignmentType }}</p>
+        </ng-template>
+
         <ng-template uiTableCell="status" let-row>
           <ui-status-badge [status]="row.status"></ui-status-badge>
         </ng-template>
@@ -50,7 +55,7 @@ export class ActiveAssignmentsTableComponent {
   protected readonly columns: UiTableColumn[] = [
     { key: 'vehicleId', label: 'Vehicle', sortable: true },
     { key: 'driver', label: 'Driver', sortable: true },
-    { key: 'route', label: 'Type' },
+    { key: 'route', label: 'Route' },
     { key: 'status', label: 'Status' },
     { key: 'eta', label: 'Ends' }
   ];

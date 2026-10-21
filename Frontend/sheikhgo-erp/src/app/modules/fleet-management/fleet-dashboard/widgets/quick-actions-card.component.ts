@@ -10,8 +10,8 @@ import { QuickAction } from '../fleet-dashboard.model';
   imports: [NgClass, RouterLink, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="rounded-xl border border-fleet-border bg-white p-6">
-      <h3 class="mb-4 font-label text-[13px] font-semibold uppercase tracking-widest text-fleet-text-muted">Quick Actions</h3>
+    <section class="rounded-xl border border-fleet-border bg-white p-5">
+      <h3 class="mb-4 text-[12px] font-semibold uppercase tracking-wider text-fleet-text-muted">Quick Actions</h3>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         @for (action of actions(); track action.id) {
           @if (action.route) {
@@ -45,7 +45,7 @@ import { QuickAction } from '../fleet-dashboard.model';
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
     .quick-action-card {
       display: flex;
-      min-height: 104px;
+      min-height: 88px;
       width: 100%;
       flex-direction: column;
       align-items: center;

@@ -53,10 +53,12 @@ abstract final class FleetPermissions {
   static const gpsView = 'GPS.View';
   static const vehicleView = 'Vehicle.View';
   static const driverView = 'Driver.View';
+  static const driverCreate = 'Driver.Create';
+  static const driverUpdate = 'Driver.Update';
+  static const driverDelete = 'Driver.Delete';
   static const driverAssign = 'Driver.Assign';
   static const driverManageStatus = 'Driver.ManageStatus';
   static const driverViewPerformance = 'Driver.ViewPerformance';
-  static const driverUpdate = 'Driver.Update';
   static const fuelView = 'Fuel.View';
   static const maintenanceView = 'Maintenance.View';
   static const reportView = 'Report.View';

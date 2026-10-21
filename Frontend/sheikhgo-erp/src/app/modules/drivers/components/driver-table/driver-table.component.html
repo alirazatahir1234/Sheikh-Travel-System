@@ -87,12 +87,16 @@
                   <button type="button" class="action-btn" title="View" (click)="view.emit(row)">
                     <mat-icon>visibility</mat-icon>
                   </button>
-                  <button type="button" class="action-btn" title="Edit" (click)="edit.emit(row)">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button type="button" class="action-btn text-fleet-error" title="Delete" (click)="delete.emit(row)">
-                    <mat-icon>delete</mat-icon>
-                  </button>
+                  @if (canEdit()) {
+                    <button type="button" class="action-btn" title="Edit" (click)="edit.emit(row)">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                  }
+                  @if (canDelete()) {
+                    <button type="button" class="action-btn text-fleet-error" title="Delete" (click)="delete.emit(row)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  }
                 </div>
               </td>
             </tr>

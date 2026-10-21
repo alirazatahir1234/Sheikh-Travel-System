@@ -31,6 +31,11 @@ class DriversHubState {
   final String? statusFilter;
   final DriverLicenseAlertFilter licenseAlert;
 
+  bool get hasActiveFilters =>
+      search.trim().isNotEmpty ||
+      statusFilter != null ||
+      licenseAlert != DriverLicenseAlertFilter.none;
+
   List<DriverListItem> get visible {
     var list = drivers;
     final q = search.trim().toLowerCase();
@@ -84,6 +89,7 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
     String? status,
     bool clearStatus = false,
     DriverLicenseAlertFilter? licenseAlert,
+    String? search,
   }) async {
     final api = ref.read(driversApiProvider);
     final prev = state.valueOrNull;
@@ -131,16 +137,28 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
       drivers: drivers,
       ranking: ranking,
       rankingUnavailable: rankingUnavailable || ranking.isEmpty,
-      search: prev?.search ?? '',
+      search: search ?? prev?.search ?? '',
       statusFilter: effectiveStatus,
       licenseAlert: effectiveLicense,
     );
   }
 
+  /// Soft reload: keep prior data visible (no full-page skeleton flash).
+  Future<void> _softReload(Future<DriversHubState> Function() loader) async {
+    final previous = state.valueOrNull;
+    if (previous != null) {
+      state = const AsyncLoading<DriversHubState>().copyWithPrevious(
+        AsyncData(previous),
+      );
+    } else {
+      state = const AsyncLoading();
+    }
+    state = await AsyncValue.guard(loader);
+  }
+
   Future<void> refresh() async {
     final cur = state.valueOrNull;
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
+    await _softReload(
       () => _load(
         status: cur?.statusFilter,
         licenseAlert: cur?.licenseAlert,
@@ -160,8 +178,7 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
     final next = cur.licenseAlert == filter
         ? DriverLicenseAlertFilter.none
         : filter;
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
+    await _softReload(
       () => _load(status: cur.statusFilter, licenseAlert: next),
     );
   }
@@ -170,12 +187,30 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
     final cur = state.valueOrNull;
     if (cur == null) return;
     final next = (status == null || cur.statusFilter == status) ? null : status;
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
+    await _softReload(
       () => _load(
         status: next,
         clearStatus: next == null,
         licenseAlert: cur.licenseAlert,
+      ),
+    );
+  }
+
+  /// Clears status, license-alert, and search (state only — UI clears its controller).
+  Future<void> clearFilters() async {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    final needsReload = cur.statusFilter != null ||
+        cur.licenseAlert != DriverLicenseAlertFilter.none;
+    if (!needsReload) {
+      state = AsyncData(cur.copyWith(search: ''));
+      return;
+    }
+    await _softReload(
+      () => _load(
+        clearStatus: true,
+        licenseAlert: DriverLicenseAlertFilter.none,
+        search: '',
       ),
     );
   }

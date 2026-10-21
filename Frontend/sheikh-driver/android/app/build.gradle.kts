@@ -5,6 +5,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
 // Apply Google Services only when google-services.json is present (gitignored).
 // Without it Firebase.initializeApp() fails at runtime and push cannot get an FCM token.
 val googleServicesJson = file("google-services.json")
@@ -16,9 +19,6 @@ if (googleServicesJson.exists()) {
             "Copy the Firebase Android config into android/app/google-services.json for push.",
     )
 }
-
-import java.util.Properties
-import java.io.FileInputStream
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")

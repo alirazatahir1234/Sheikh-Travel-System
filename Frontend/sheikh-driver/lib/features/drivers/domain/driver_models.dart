@@ -84,13 +84,19 @@ class DriverDetail {
     required this.status,
     required this.isActive,
     this.driverCode,
+    this.firstName,
+    this.lastName,
     this.email,
     this.cnic,
     this.address,
+    this.nationality,
+    this.gender,
+    this.dateOfBirth,
     this.licenseExpiryDate,
     this.licenseExpired = false,
     this.licenseExpiringSoon = false,
     this.verificationStatus,
+    this.branchId,
     this.branchName,
     this.assignedVehicleId,
     this.assignedVehicleRegistration,
@@ -112,13 +118,19 @@ class DriverDetail {
   final String status;
   final bool isActive;
   final String? driverCode;
+  final String? firstName;
+  final String? lastName;
   final String? email;
   final String? cnic;
   final String? address;
+  final String? nationality;
+  final String? gender;
+  final DateTime? dateOfBirth;
   final DateTime? licenseExpiryDate;
   final bool licenseExpired;
   final bool licenseExpiringSoon;
   final String? verificationStatus;
+  final int? branchId;
   final String? branchName;
   final int? assignedVehicleId;
   final String? assignedVehicleRegistration;
@@ -142,9 +154,15 @@ class DriverDetail {
       status: (json['status'] ?? json['Status'] ?? '').toString(),
       isActive: json['isActive'] as bool? ?? json['IsActive'] as bool? ?? true,
       driverCode: json['driverCode'] as String? ?? json['DriverCode'] as String?,
+      firstName: json['firstName'] as String? ?? json['FirstName'] as String?,
+      lastName: json['lastName'] as String? ?? json['LastName'] as String?,
       email: json['email'] as String? ?? json['Email'] as String?,
       cnic: json['cnic'] as String? ?? json['CNIC'] as String?,
       address: json['address'] as String? ?? json['Address'] as String?,
+      nationality:
+          json['nationality'] as String? ?? json['Nationality'] as String?,
+      gender: json['gender'] as String? ?? json['Gender'] as String?,
+      dateOfBirth: _date(json['dateOfBirth'] ?? json['DateOfBirth']),
       licenseExpiryDate: _date(json['licenseExpiryDate'] ?? json['LicenseExpiryDate']),
       licenseExpired:
           json['licenseExpired'] as bool? ?? json['LicenseExpired'] as bool? ?? false,
@@ -153,6 +171,7 @@ class DriverDetail {
           false,
       verificationStatus: json['verificationStatus'] as String? ??
           json['VerificationStatus'] as String?,
+      branchId: json['branchId'] as int? ?? json['BranchId'] as int?,
       branchName: json['branchName'] as String? ?? json['BranchName'] as String?,
       assignedVehicleId:
           json['assignedVehicleId'] as int? ?? json['AssignedVehicleId'] as int?,

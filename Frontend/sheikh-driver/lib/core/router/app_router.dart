@@ -39,6 +39,7 @@ import '../../features/ai/presentation/ai_copilot_screen.dart';
 import '../../features/more/presentation/more_screen.dart';
 import '../../features/drivers/presentation/drivers_list_screen.dart';
 import '../../features/drivers/presentation/driver_detail_screen.dart';
+import '../../features/drivers/presentation/driver_form_screen.dart';
 import '../../features/ops_trips/presentation/trips_entry_screen.dart';
 import '../../features/ops_trips/presentation/trip_detail_entry_screen.dart';
 import '../../features/bookings/presentation/bookings_queue_screen.dart';
@@ -308,10 +309,23 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, __) => const DriversListScreen(),
                 routes: [
                   GoRoute(
+                    path: 'new',
+                    builder: (_, __) => const DriverFormScreen(),
+                  ),
+                  GoRoute(
                     path: ':id',
                     builder: (_, state) => DriverDetailScreen(
                       driverId: int.parse(state.pathParameters['id']!),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        builder: (_, state) => DriverFormScreen(
+                          driverId:
+                              int.parse(state.pathParameters['id']!),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

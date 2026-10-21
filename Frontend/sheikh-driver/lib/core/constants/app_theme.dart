@@ -162,11 +162,17 @@ abstract class AppSpacing {
 }
 
 abstract class AppShadows {
+  /// Soft ops-card lift — readable on light surface without glow stacks.
   static List<BoxShadow> get card => [
         BoxShadow(
-          color: const Color(0xFF0F1C27).withValues(alpha: 0.06),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
+          color: const Color(0xFF0F1C27).withValues(alpha: 0.045),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+        BoxShadow(
+          color: const Color(0xFF0F1C27).withValues(alpha: 0.03),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
         ),
       ];
 
@@ -368,6 +374,33 @@ abstract class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: palette.chipBg,
+        selectedColor: primary.withValues(alpha: 0.14),
+        disabledColor: palette.chipBg,
+        labelStyle: text.labelLarge?.copyWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: palette.textSecondary,
+        ),
+        secondaryLabelStyle: text.labelLarge?.copyWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: primary,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          side: BorderSide(color: palette.border.withValues(alpha: 0.8)),
+        ),
+        side: BorderSide(color: palette.border.withValues(alpha: 0.8)),
+        showCheckmark: false,
+      ),
+      dividerTheme: DividerThemeData(
+        color: palette.divider,
+        thickness: 1,
+        space: 1,
       ),
     );
   }

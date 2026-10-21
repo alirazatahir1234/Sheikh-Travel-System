@@ -47,6 +47,33 @@ class DriversApi {
     return DriverDetail.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
+  Future<int> create(Map<String, dynamic> driver) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.drivers,
+      data: {'driver': driver},
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+    final data = res.data?['data'] ?? res.data?['Data'];
+    if (data is int) return data;
+    if (data is num) return data.toInt();
+    return int.parse('$data');
+  }
+
+  Future<void> update(int id, Map<String, dynamic> driver) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      ApiEndpoints.driverById(id),
+      data: {'driver': driver},
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+  }
+
+  Future<void> delete(int id) async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      ApiEndpoints.driverById(id),
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+  }
+
   Future<void> updateStatus(int id, String status) async {
     final res = await _dio.patch<Map<String, dynamic>>(
       ApiEndpoints.driverPatchStatus(id),

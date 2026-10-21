@@ -6,6 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DriverService } from '../../../core/services/driver.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import {
   Driver,
@@ -71,12 +72,25 @@ export class DriverListComponent implements OnInit {
 
   constructor(
     private driverService: DriverService,
+    private auth: AuthService,
     private router: Router,
     private toast: UiToastService,
     private dialog: MatDialog,
     private exportService: ExportService,
     private datePipe: DatePipe
   ) {}
+
+  get canCreateDriver(): boolean {
+    return this.auth.hasPermission('Driver.Create');
+  }
+
+  get canUpdateDriver(): boolean {
+    return this.auth.hasPermission('Driver.Update');
+  }
+
+  get canDeleteDriver(): boolean {
+    return this.auth.hasPermission('Driver.Delete');
+  }
 
   ngOnInit(): void { this.load(); }
 

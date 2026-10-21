@@ -87,20 +87,20 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: dashAsync.when(
         loading: () => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: AppSpacing.screen,
           children: const [
-            SgSkeleton(height: 72),
+            SgSkeleton(height: 56, radius: AppRadii.md),
+            SizedBox(height: 14),
+            SgSkeleton(height: 110, radius: AppRadii.lg),
             SizedBox(height: 12),
-            SgSkeleton(height: 44),
+            SgSkeleton(height: 88, radius: AppRadii.lg),
             SizedBox(height: 12),
-            SgSkeleton(height: 110),
+            SgSkeleton(height: 80, radius: AppRadii.lg),
             SizedBox(height: 12),
-            SgSkeleton(height: 80),
-            SizedBox(height: 12),
-            SgSkeleton(height: 140),
+            SgSkeleton(height: 140, radius: AppRadii.lg),
           ],
         ),
-        error: (e, _) => _ErrorView(
+        error: (e, _) => SgErrorView(
           message: formatDioError(e),
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
         ),
@@ -111,13 +111,13 @@ class DashboardScreen extends ConsumerWidget {
               ref.read(dashboardProvider.notifier).refresh();
             });
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: AppSpacing.screen,
               children: const [
-                SgSkeleton(height: 72),
+                SgSkeleton(height: 56, radius: AppRadii.md),
+                SizedBox(height: 14),
+                SgSkeleton(height: 110, radius: AppRadii.lg),
                 SizedBox(height: 12),
-                SgSkeleton(height: 110),
-                SizedBox(height: 12),
-                SgSkeleton(height: 80),
+                SgSkeleton(height: 80, radius: AppRadii.lg),
               ],
             );
           }
@@ -130,9 +130,9 @@ class DashboardScreen extends ConsumerWidget {
             },
             child: ListView(
               padding: EdgeInsets.fromLTRB(
-                16,
-                8,
-                16,
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
                 100 + MediaQuery.of(context).padding.bottom,
               ),
               children: [
@@ -144,14 +144,14 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 if (data.sectionErrors.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: SectionErrorHint(
                       message: _sectionErrorMessage(data),
                     ),
                   ),
                 if (_fleetDataMissing(data, forceDriver: forceDriver))
                   const Padding(
-                    padding: EdgeInsets.only(top: 8),
+                    padding: EdgeInsets.only(top: AppSpacing.sm),
                     child: SectionErrorHint(
                       message:
                           'Fleet data could not be loaded. Check that the API is reachable '
@@ -199,7 +199,7 @@ class DashboardScreen extends ConsumerWidget {
         forceDriver: forceDriver,
       );
       out.add(w);
-      out.add(const SizedBox(height: 14));
+      out.add(const SizedBox(height: AppSpacing.lg));
     }
     return out;
   }
@@ -293,16 +293,7 @@ class DashboardScreen extends ConsumerWidget {
           onTap: () => context.push('/timeline'),
           child: Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.timeline_outlined,
-                    color: AppColors.primary),
-              ),
+              const SgIconWell(icon: Icons.timeline_outlined),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -325,7 +316,7 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: context.sg.textMuted),
+              Icon(Icons.chevron_right_rounded, color: context.sg.textMuted),
             ],
           ),
         );
@@ -378,30 +369,3 @@ class _InboxBellButton extends ConsumerWidget {
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_outlined,
-                size: 48, color: context.sg.textSecondary),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.sg.textSecondary)),
-            const SizedBox(height: 16),
-            SgPrimaryButton(label: 'Retry', onPressed: onRetry),
-          ],
-        ),
-      ),
-    );
-  }
-}

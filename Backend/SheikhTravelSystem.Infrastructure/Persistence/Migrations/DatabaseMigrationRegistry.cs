@@ -123,6 +123,7 @@ public static class DatabaseMigrationRegistry
             M("DriverSettlementsMigration", DriverSettlementsMigration.ApplyAsync),
             M("ModuleInvoicesActiveMigration", ModuleInvoicesActiveMigration.ApplyAsync),
             M("InvoiceSettlementPermissionsMigration", InvoiceSettlementPermissionsMigration.ApplyAsync),
+            M("OwnerDriverCrudPermissionsMigration", OwnerDriverCrudPermissionsMigration.ApplyAsync),
         ];
     }
 }

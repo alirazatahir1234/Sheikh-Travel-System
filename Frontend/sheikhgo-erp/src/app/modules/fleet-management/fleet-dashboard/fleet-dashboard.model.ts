@@ -21,12 +21,19 @@ export interface ChartSeries {
 export interface UtilizationChart {
   labels: string[];
   series: ChartSeries[];
+  /** Shown under the title — must match the series (e.g. GPS online %, not capacity). */
+  subtitle?: string;
+  /** When true, chart widgets show an empty state instead of a flat/fake series. */
+  empty?: boolean;
+  emptyMessage?: string;
 }
 
 export interface FuelMaintenanceChart {
   labels: string[];
   fuel: number[];
   maintenance: number[];
+  empty?: boolean;
+  emptyMessage?: string;
 }
 
 export type AlertTone = 'error' | 'warning';
@@ -38,6 +45,8 @@ export interface CriticalAlert {
   title: string;
   detail: string;
   actionLabel?: string;
+  /** Deep-link for the action button (e.g. live map, maintenance). */
+  actionRoute?: string;
 }
 
 export interface ActivityEvent {
@@ -58,10 +67,15 @@ export interface QuickAction {
 
 export interface AssignmentItem {
   id: number;
+  /** Primary vehicle label (name / plate). */
   vehicleId: string;
+  /** Secondary line under vehicle (registration / code). */
   vehicleModel: string;
   driver: string;
+  /** Pickup → drop, purpose, or em dash when unknown. */
   route: string;
+  /** Assignment type from API (Permanent, Trip, …). */
+  assignmentType: string;
   status: string;
   eta: string;
 }

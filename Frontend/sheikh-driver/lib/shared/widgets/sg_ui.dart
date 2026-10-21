@@ -25,7 +25,7 @@ class SgCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: p.border.withValues(alpha: 0.65)),
+        border: Border.all(color: p.border.withValues(alpha: 0.72)),
         boxShadow: elevated ? AppShadows.card : null,
       ),
       child: Material(
@@ -55,6 +55,7 @@ class StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: c.withValues(alpha: 0.22)),
       ),
       child: Text(
         label,
@@ -64,29 +65,200 @@ class StatusBadge extends StatelessWidget {
           color: c,
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.1,
+          letterSpacing: 0.15,
         ),
       ),
     );
   }
 }
 
+/// Initials avatar used on driver list / detail / assignment pickers.
+class SgAvatar extends StatelessWidget {
+  const SgAvatar({
+    super.key,
+    required this.label,
+    this.size = 44,
+    this.color,
+  });
+
+  final String label;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    final trimmed = label.trim();
+    final initial =
+        trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase();
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(size * 0.28),
+        border: Border.all(color: c.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: c,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.38,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// Key / value row for detail cards (license, assignment, profile).
+class SgDetailRow extends StatelessWidget {
+  const SgDetailRow(
+    this.label,
+    this.value, {
+    super.key,
+    this.valueColor,
+    this.showDivider = false,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 118,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.3,
+                    color: p.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor ?? p.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showDivider) Divider(height: 1, color: p.divider),
+      ],
+    );
+  }
+}
+
+/// Compact metric cell for horizontal stats strips (drivers hub, etc.).
+class SgMetricPill extends StatelessWidget {
+  const SgMetricPill({
+    super.key,
+    required this.label,
+    required this.value,
+    this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    final c = accent ?? AppColors.primary;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 72),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: p.border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: c,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: p.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SgSectionTitle extends StatelessWidget {
-  const SgSectionTitle(this.title, {super.key, this.action});
+  const SgSectionTitle(this.title, {super.key, this.action, this.subtitle});
   final String title;
+  final String? subtitle;
   final Widget? action;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: context.sg.textPrimary,
-                  fontWeight: FontWeight.w700,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: p.textMuted,
+                        fontSize: 12,
+                      ),
                 ),
+              ],
+            ],
           ),
         ),
         if (action != null) action!,
@@ -117,7 +289,8 @@ class SgPrimaryButton extends StatelessWidget {
           ? const SizedBox(
               height: 22,
               width: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.4, color: Colors.white),
             )
           : icon == null
               ? Text(label)
@@ -149,7 +322,8 @@ class SgDangerOutlineButton extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.error,
-        side: BorderSide(color: AppColors.error.withValues(alpha: 0.55), width: 1.4),
+        side: BorderSide(
+            color: AppColors.error.withValues(alpha: 0.55), width: 1.4),
       ),
       child: Text(label),
     );
@@ -247,7 +421,7 @@ class SgEmptyState extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(AppRadii.xl),
               ),
               child: Icon(icon, size: 32, color: AppColors.primary),
             ),
@@ -330,6 +504,74 @@ class SgStickyActionBar extends StatelessWidget {
           ),
           child: child,
         ),
+      ),
+    );
+  }
+}
+
+/// Icon well used in list rows and dashboard cards.
+class SgIconWell extends StatelessWidget {
+  const SgIconWell({
+    super.key,
+    required this.icon,
+    this.color,
+    this.size = 40,
+  });
+
+  final IconData icon;
+  final Color? color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: Icon(icon, size: size * 0.48, color: c),
+    );
+  }
+}
+
+/// Inline empty hint inside a card (not a full-screen empty state).
+class SgInlineEmpty extends StatelessWidget {
+  const SgInlineEmpty({
+    super.key,
+    required this.message,
+    this.icon,
+  });
+
+  final String message;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(
+            icon ?? Icons.info_outline_rounded,
+            size: 18,
+            color: p.textMuted,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: p.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

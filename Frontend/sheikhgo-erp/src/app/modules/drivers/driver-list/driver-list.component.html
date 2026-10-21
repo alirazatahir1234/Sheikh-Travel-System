@@ -19,9 +19,11 @@
       </button>
     </mat-menu>
 
-    <button mat-raised-button color="primary" routerLink="/drivers/new">
-      <mat-icon>add</mat-icon> Add Driver
-    </button>
+    @if (canCreateDriver) {
+      <button mat-raised-button color="primary" routerLink="/drivers/new">
+        <mat-icon>add</mat-icon> Add Driver
+      </button>
+    }
   </div>
 </div>
 
@@ -148,12 +150,16 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef class="sticky-right">Actions</th>
           <td mat-cell *matCellDef="let d" class="sticky-right">
-            <button mat-icon-button color="primary" (click)="edit(d.id)" matTooltip="Edit">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button color="warn" (click)="delete(d.id)" matTooltip="Delete">
-              <mat-icon>delete</mat-icon>
-            </button>
+            @if (canUpdateDriver) {
+              <button mat-icon-button color="primary" (click)="edit(d.id)" matTooltip="Edit">
+                <mat-icon>edit</mat-icon>
+              </button>
+            }
+            @if (canDeleteDriver) {
+              <button mat-icon-button color="warn" (click)="delete(d.id)" matTooltip="Delete">
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
           </td>
         </ng-container>
 

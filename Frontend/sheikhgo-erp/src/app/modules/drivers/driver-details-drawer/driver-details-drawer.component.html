@@ -55,12 +55,16 @@
             <div><dt>GPS Online</dt><dd>{{ d.gpsOnline ? 'Yes' : 'No' }}</dd></div>
           </dl>
           <div class="actions-row">
-            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Available)">Available</ui-button>
-            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OffDuty)">Off Duty</ui-button>
-            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OnLeave)">On Leave</ui-button>
-            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Suspended)">Suspend</ui-button>
-            <ui-button size="sm" variant="outline" (clicked)="toggleActive()">{{ d.isActive ? 'Deactivate' : 'Activate' }}</ui-button>
-            <ui-button size="sm" variant="primary" (clicked)="editDriver()">Edit Driver</ui-button>
+            @if (canManageStatus) {
+              <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Available)">Available</ui-button>
+              <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OffDuty)">Off Duty</ui-button>
+              <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OnLeave)">On Leave</ui-button>
+              <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Suspended)">Suspend</ui-button>
+              <ui-button size="sm" variant="outline" (clicked)="toggleActive()">{{ d.isActive ? 'Deactivate' : 'Activate' }}</ui-button>
+            }
+            @if (canUpdateDriver) {
+              <ui-button size="sm" variant="primary" (clicked)="editDriver()">Edit Driver</ui-button>
+            }
           </div>
         </div>
       }
@@ -111,71 +115,73 @@
               </div>
             </div>
 
-            @if (d.assignedVehicleId) {
+            @if (canAssignDriver && d.assignedVehicleId) {
               <button type="button" class="vehicle-remove-btn" (click)="removeAssignment()">
                 <mat-icon>link_off</mat-icon>
                 Remove Assignment
               </button>
             }
 
-            <div class="vehicle-divider"></div>
+            @if (canAssignDriver) {
+              <div class="vehicle-divider"></div>
 
-            <!-- Assign / Change -->
-            <div class="vehicle-assign-section">
-              <h4 class="vehicle-section-title">
-                <mat-icon>{{ d.assignedVehicleId ? 'swap_horiz' : 'add_circle' }}</mat-icon>
-                {{ d.assignedVehicleId ? 'Change Vehicle' : 'Assign Vehicle' }}
-              </h4>
+              <!-- Assign / Change -->
+              <div class="vehicle-assign-section">
+                <h4 class="vehicle-section-title">
+                  <mat-icon>{{ d.assignedVehicleId ? 'swap_horiz' : 'add_circle' }}</mat-icon>
+                  {{ d.assignedVehicleId ? 'Change Vehicle' : 'Assign Vehicle' }}
+                </h4>
 
-              <ui-select
-                label="Select vehicle"
-                placeholder="Select vehicle…"
-                [searchable]="true"
-                searchPlaceholder="Search by code, plate, or model…"
-                [options]="vehicleSelectOptions()"
-                [(ngModel)]="selectedVehicleId" />
+                <ui-select
+                  label="Select vehicle"
+                  placeholder="Select vehicle…"
+                  [searchable]="true"
+                  searchPlaceholder="Search by code, plate, or model…"
+                  [options]="vehicleSelectOptions()"
+                  [(ngModel)]="selectedVehicleId" />
 
-              <div class="vehicle-date-grid">
+                <div class="vehicle-date-grid">
+                  <label class="field-block">
+                    <span class="field-label">Effective from</span>
+                    <input
+                      type="date"
+                      class="veh-date-input"
+                      [value]="assignEffectiveFrom()"
+                      (input)="assignEffectiveFrom.set($any($event.target).value)" />
+                  </label>
+                  <label class="field-block">
+                    <span class="field-label">Effective to <span class="field-optional">(optional)</span></span>
+                    <input
+                      type="date"
+                      class="veh-date-input"
+                      [value]="assignEffectiveTo()"
+                      (input)="assignEffectiveTo.set($any($event.target).value)" />
+                  </label>
+                </div>
+
                 <label class="field-block">
-                  <span class="field-label">Effective from</span>
-                  <input
-                    type="date"
-                    class="veh-date-input"
-                    [value]="assignEffectiveFrom()"
-                    (input)="assignEffectiveFrom.set($any($event.target).value)" />
+                  <span class="field-label">Remarks <span class="field-optional">(optional)</span></span>
+                  <textarea
+                    class="veh-remarks"
+                    rows="2"
+                    placeholder="e.g. Assigned for airport transfer team"
+                    [value]="assignVehicleRemarks()"
+                    (input)="assignVehicleRemarks.set($any($event.target).value)"></textarea>
                 </label>
-                <label class="field-block">
-                  <span class="field-label">Effective to <span class="field-optional">(optional)</span></span>
-                  <input
-                    type="date"
-                    class="veh-date-input"
-                    [value]="assignEffectiveTo()"
-                    (input)="assignEffectiveTo.set($any($event.target).value)" />
-                </label>
-              </div>
 
-              <label class="field-block">
-                <span class="field-label">Remarks <span class="field-optional">(optional)</span></span>
-                <textarea
-                  class="veh-remarks"
-                  rows="2"
-                  placeholder="e.g. Assigned for airport transfer team"
-                  [value]="assignVehicleRemarks()"
-                  (input)="assignVehicleRemarks.set($any($event.target).value)"></textarea>
-              </label>
-
-              <div class="actions-row">
-                <ui-button
-                  variant="primary"
-                  [disabled]="!canSubmitVehicleChange()"
-                  (clicked)="submitVehicleChange()">
-                  {{ d.assignedVehicleId ? 'Transfer Vehicle' : 'Assign Vehicle' }}
-                </ui-button>
+                <div class="actions-row">
+                  <ui-button
+                    variant="primary"
+                    [disabled]="!canSubmitVehicleChange()"
+                    (clicked)="submitVehicleChange()">
+                    {{ d.assignedVehicleId ? 'Transfer Vehicle' : 'Assign Vehicle' }}
+                  </ui-button>
+                </div>
+                @if (!selectedVehicleId) {
+                  <p class="vehicle-hint">Select a vehicle first to enable assignment</p>
+                }
               </div>
-              @if (!selectedVehicleId) {
-                <p class="vehicle-hint">Select a vehicle first to enable assignment</p>
-              }
-            </div>
+            }
 
             <!-- Assignment History -->
             @if (assignmentTimeline().length) {

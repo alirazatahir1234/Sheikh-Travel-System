@@ -9,25 +9,33 @@ import { UtilizationChart } from '../fleet-dashboard.model';
   imports: [UiChartComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-6">
-      <div class="mb-6 flex items-center justify-between">
+    <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-5">
+      <div class="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 class="text-lg font-bold text-fleet-text">Fleet Utilization</h3>
-          <p class="text-[11px] text-fleet-text-muted">Average active capacity over the last 30 days</p>
+          <h3 class="text-base font-bold text-fleet-text">GPS Online Rate</h3>
+          <p class="text-[11px] text-fleet-text-muted">{{ data().subtitle || 'Fleet GPS online % over the last 7 days' }}</p>
         </div>
-        <div class="flex items-center gap-4">
-          @for (series of data().series; track series.label) {
-            <div class="flex items-center gap-2">
-              <span class="h-3 w-3 rounded-full" [style.background]="series.color"></span>
-              <span class="text-[11px] text-fleet-text-muted">{{ series.label }}</span>
-            </div>
-          }
-        </div>
+        @if (!data().empty) {
+          <div class="flex flex-wrap items-center gap-3">
+            @for (series of data().series; track series.label) {
+              <div class="flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full" [style.background]="series.color"></span>
+                <span class="text-[11px] text-fleet-text-muted">{{ series.label }}</span>
+              </div>
+            }
+          </div>
+        }
       </div>
 
-      <div class="flex-1">
-        <ui-chart type="line" [data]="chartData()" [options]="options" height="260px"></ui-chart>
-      </div>
+      @if (data().empty) {
+        <div class="flex flex-1 items-center justify-center rounded-lg bg-fleet-surface-muted/60 px-4 py-10 text-center">
+          <p class="text-sm text-fleet-text-muted">{{ data().emptyMessage || 'No GPS history yet for this period.' }}</p>
+        </div>
+      } @else {
+        <div class="flex-1">
+          <ui-chart type="line" [data]="chartData()" [options]="options" height="240px"></ui-chart>
+        </div>
+      }
     </section>
   `,
   styles: [`:host { display: block; height: 100%; }`]
@@ -42,9 +50,9 @@ export class UtilizationChartComponent {
       data: series.values,
       borderColor: series.color,
       backgroundColor: series.color,
-      borderWidth: series.label.toLowerCase().includes('online') || series.label === '2024' ? 3 : 2,
-      tension: 0.4,
-      pointRadius: 0,
+      borderWidth: 3,
+      tension: 0.35,
+      pointRadius: series.values.length <= 2 ? 3 : 0,
       pointHoverRadius: 4,
       fill: false
     }))

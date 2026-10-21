@@ -17,16 +17,16 @@ const TONE_ICON_CLASS: Record<KpiTone, string> = {
     <div class="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       @for (kpi of kpis(); track kpi.id) {
         <div
-          class="group rounded-xl border border-fleet-border bg-white p-5 transition-all hover:shadow-lg"
+          class="group rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-md"
           [class.border-l-4]="kpi.alert"
           [class.border-l-fleet-error]="kpi.alert">
-          <div class="mb-4 flex items-start justify-between">
-            <div class="rounded-lg p-2 transition-transform group-hover:scale-110" [class]="iconClass(kpi.tone)">
+          <div class="mb-3 flex items-start justify-between">
+            <div class="rounded-lg p-2" [class]="iconClass(kpi.tone)">
               <mat-icon>{{ kpi.icon }}</mat-icon>
             </div>
           </div>
-          <p class="mb-1 font-label text-[12px] font-bold uppercase tracking-wider text-fleet-text-muted">{{ kpi.label }}</p>
-          <h4 class="text-2xl font-bold text-fleet-text">{{ kpi.value }}</h4>
+          <p class="mb-1 text-[11px] font-semibold uppercase tracking-wider text-fleet-text-muted">{{ kpi.label }}</p>
+          <h4 class="text-xl font-bold text-fleet-text">{{ kpi.value }}</h4>
           @if (kpi.trend) {
             <p class="mt-2 flex items-center gap-1 text-[11px] font-medium"
                [class.text-fleet-primary]="kpi.trendUp"

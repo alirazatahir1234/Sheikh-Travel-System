@@ -7,6 +7,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin, of, catchError } from 'rxjs';
 import { DriverService } from '../../../core/services/driver.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { UiConfirmService } from '../../../shared/components/ui/confirm-dialog/ui-confirm.service';
 import {
@@ -74,10 +75,23 @@ export interface AssignmentTimelineEntry {
 })
 export class DriverDetailsDrawerComponent {
   private readonly driverService = inject(DriverService);
+  private readonly auth = inject(AuthService);
   private readonly vehicleService = inject(VehicleService);
   private readonly confirm = inject(UiConfirmService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
+
+  get canUpdateDriver(): boolean {
+    return this.auth.hasPermission('Driver.Update');
+  }
+
+  get canManageStatus(): boolean {
+    return this.auth.hasPermission('Driver.ManageStatus');
+  }
+
+  get canAssignDriver(): boolean {
+    return this.auth.hasPermission('Driver.Assign');
+  }
   private readonly destroyRef = inject(DestroyRef);
 
   readonly open = model(false);
