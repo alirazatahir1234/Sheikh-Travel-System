@@ -146,6 +146,7 @@ public interface IEscalationService
         int? referenceId,
         int? alertEventId = null,
         int? notificationId = null,
+        int? tenantId = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<EscalationRuleDto>> GetRulesAsync(int? tenantId = null, CancellationToken cancellationToken = default);

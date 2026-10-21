@@ -55,7 +55,7 @@ export interface ComplianceAttentionItem {
   count: number;
 }
 
-/** Client-side safety score; uses API rating when available. */
+/** Client-side compliance score; uses API rating when available. Not telematics. */
 export function computeDriverScore(row: DriverListItem): number {
   if (row.rating != null) {
     return Math.round(Math.max(0, Math.min(100, row.rating * 20)));
@@ -70,10 +70,30 @@ export function computeDriverScore(row: DriverListItem): number {
   return Math.max(0, Math.min(100, score));
 }
 
+/** Top Drivers blend: 60% GPS safety + 40% compliance when telematics score exists. */
+export const GPS_SCORE_WEIGHT = 0.6;
+export const COMPLIANCE_SCORE_WEIGHT = 0.4;
+
+export function blendDriverTopScore(complianceScore: number, gpsScore: number | null | undefined): number {
+  if (gpsScore == null || Number.isNaN(gpsScore)) {
+    return Math.round(Math.max(0, Math.min(100, complianceScore)));
+  }
+  return Math.round(Math.max(0, Math.min(100,
+    GPS_SCORE_WEIGHT * gpsScore + COMPLIANCE_SCORE_WEIGHT * complianceScore)));
+}
+
 export function scoreTone(score: number): 'success' | 'warning' | 'error' {
   if (score >= 80) return 'success';
   if (score >= 60) return 'warning';
   return 'error';
+}
+
+export interface TopDriverRankItem {
+  driver: DriverListItem;
+  score: number;
+  complianceScore: number;
+  safetyScore: number | null;
+  isPartial: boolean;
 }
 
 /**

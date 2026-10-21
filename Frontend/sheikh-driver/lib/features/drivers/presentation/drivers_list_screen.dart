@@ -614,7 +614,7 @@ class _RankingStrip extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(16, 18, 16, 18),
                     child: SgInlineEmpty(
                       message:
-                          'No ranking available yet. Scores use driver rating when set, otherwise a compliance heuristic (same as ERP).',
+                          'No ranking available yet. Top Drivers blend GPS safety (60%) with compliance (40%), same as ERP.',
                       icon: Icons.leaderboard_outlined,
                     ),
                   )

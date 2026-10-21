@@ -309,13 +309,22 @@
       <div class="card top-drivers-panel">
         <h3 class="panel-title">Top Drivers</h3>
         <p class="panel-hint" style="margin-bottom: 0.5rem;">
-          Heuristic score from up to 500 branch-scoped drivers (rating or license/status rules) — not a fleet-wide safety ranking
+          Blended score: 60% GPS safety (7d) + 40% compliance (rating/license/status). Dual breakdown shown under each name.
         </p>
         @for (item of topDrivers(); track item.driver.id; let i = $index) {
           <div class="top-driver-item" role="button" tabindex="0" (click)="openDrawer(item.driver, 'performance')" (keyup.enter)="openDrawer(item.driver, 'performance')">
             <span class="top-driver-rank">#{{ i + 1 }}</span>
             <div class="top-driver-avatar">{{ initials(item.driver.fullName) }}</div>
-            <span class="top-driver-name">{{ item.driver.fullName }}</span>
+            <div class="top-driver-meta">
+              <span class="top-driver-name">{{ item.driver.fullName }}</span>
+              <span class="top-driver-breakdown">
+                @if (item.safetyScore != null) {
+                  Safety {{ item.safetyScore }}{{ item.isPartial ? '*' : '' }} · Compliance {{ item.complianceScore }}
+                } @else {
+                  Compliance {{ item.complianceScore }} (no GPS trips)
+                }
+              </span>
+            </div>
             <span class="top-driver-score top-driver-score--{{ topDriverScoreTone(item.score) }}">{{ item.score }}/100</span>
           </div>
         }

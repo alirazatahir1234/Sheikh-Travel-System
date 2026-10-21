@@ -11,9 +11,8 @@ namespace SheikhTravelSystem.Infrastructure.Services;
 /// section (long-range charts) without scanning 90-day-purged GpsPositions or recomputing
 /// fleet-wide sums from GpsTrips on every request. Populated purely from locally-persisted data,
 /// never Traccar — a per-vehicle-per-day Traccar fetch would multiply the fan-out cost that was
-/// already removed for whole-range queries elsewhere in this module. Consequence: HarshBrakeCount/
-/// HarshAccelCount stay null forever (no local event type exists for them, only OverspeedCount does
-/// via GpsAlertEvents) — an accepted, documented gap, not a bug.
+/// already removed for whole-range queries elsewhere in this module. Overspeed + harsh brake/accel
+/// counts come from GpsAlertEvents (Traccar sync persists harsh_braking / harsh_acceleration).
 ///
 /// Runs a backfill/catch-up pass covering any day (within the last 90) missing a rollup row, then
 /// ticks daily — this means a fresh deploy or a missed tick both self-heal on the next run rather
@@ -131,6 +130,27 @@ public class GpsDailyRollupHostedService(
                 SELECT VehicleId, COUNT(*) AS OverspeedCount
                 FROM GpsAlertEvents
                 WHERE EventType IN ('overspeed', 'speed_exceeded') AND IsDeleted = 0
+                  AND Timestamp >= @Date AND Timestamp < @NextDate
+                GROUP BY VehicleId
+            ) agg ON agg.VehicleId = s.VehicleId
+            WHERE s.StatDate = @Date
+            """,
+            new { Date = date, NextDate = nextDate },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE s
+            SET s.HarshBrakeCount = agg.HarshBrakeCount,
+                s.HarshAccelCount = agg.HarshAccelCount,
+                s.UpdatedAt = GETUTCDATE()
+            FROM GpsVehicleDailyStats s
+            INNER JOIN (
+                SELECT VehicleId,
+                       SUM(CASE WHEN EventType = 'harsh_braking' THEN 1 ELSE 0 END) AS HarshBrakeCount,
+                       SUM(CASE WHEN EventType = 'harsh_acceleration' THEN 1 ELSE 0 END) AS HarshAccelCount
+                FROM GpsAlertEvents
+                WHERE EventType IN ('harsh_braking', 'harsh_acceleration') AND IsDeleted = 0
                   AND Timestamp >= @Date AND Timestamp < @NextDate
                 GROUP BY VehicleId
             ) agg ON agg.VehicleId = s.VehicleId

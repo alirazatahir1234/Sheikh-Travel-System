@@ -30,7 +30,9 @@ import { DriverTableComponent } from '../components/driver-table/driver-table.co
 import { DriverBulkAssignDialogComponent } from '../components/driver-bulk-assign-dialog/driver-bulk-assign-dialog.component';
 import { DriverLogIncidentDialogComponent, LogIncidentResult } from '../components/driver-log-incident-dialog/driver-log-incident-dialog.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
-import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, computeDriverScore, exclusiveLicenseWindows, scoreTone } from '../models/driver-inventory.model';
+import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { DriverScore } from '../../../core/models/gps-tracking.model';
+import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, blendDriverTopScore, computeDriverScore, exclusiveLicenseWindows, scoreTone, TopDriverRankItem } from '../models/driver-inventory.model';
 
 @Component({
   selector: 'app-driver-inventory-page',
@@ -64,6 +66,7 @@ export class DriverInventoryPageComponent implements OnInit {
   @ViewChild('tableSection') tableSection?: ElementRef<HTMLElement>;
 
   private readonly driverService = inject(DriverService);
+  private readonly gpsTracking = inject(GpsTrackingService);
   private readonly auth = inject(AuthService);
   private readonly exportService = inject(ExportService);
   private readonly platformService = inject(PlatformService);
@@ -81,8 +84,10 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly chartIsSampleData = false;
 
   readonly rows = signal<DriverListItem[]>([]);
-  /** Broader sample for Top Drivers (branch-scoped, up to 500). Score is client heuristic. */
+  /** Broader sample for Top Drivers (branch-scoped, up to 500). */
   readonly rankPool = signal<DriverListItem[]>([]);
+  /** GPS Analytics safety ranking (last 7 days) — blended 60/40 with compliance. */
+  readonly gpsRanking = signal<DriverScore[]>([]);
   readonly stats = signal<DriverStats | null>(null);
   readonly statsError = signal<string | null>(null);
   readonly availabilitySummary = signal<DriversAvailabilitySummary | null>(null);
@@ -140,12 +145,24 @@ export class DriverInventoryPageComponent implements OnInit {
       : `${total} ${label}`;
   });
 
-  readonly topDrivers = computed(() =>
-    this.rankPool()
-      .map(d => ({ driver: d, score: computeDriverScore(d) }))
+  readonly topDrivers = computed((): TopDriverRankItem[] => {
+    const gpsMap = new Map(this.gpsRanking().map(r => [r.driverId, r]));
+    return this.rankPool()
+      .map(d => {
+        const complianceScore = computeDriverScore(d);
+        const gps = gpsMap.get(d.id);
+        const safetyScore = gps?.score ?? null;
+        return {
+          driver: d,
+          complianceScore,
+          safetyScore,
+          isPartial: gps?.isPartial ?? false,
+          score: blendDriverTopScore(complianceScore, safetyScore)
+        };
+      })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-  );
+      .slice(0, 5);
+  });
 
   /** Exclusive license urgency tiles (Expired / ≤7d / 8–30d / 31–60d). */
   readonly complianceSeverity = computed(() => {
@@ -305,9 +322,10 @@ export class DriverInventoryPageComponent implements OnInit {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(result => {
       if (!result) return;
-      const { list, stats, statsFailed, compliance, availability, rankPool, page } = result;
+      const { list, stats, statsFailed, compliance, availability, rankPool, gpsRanking, page } = result;
       this.rows.set(list.items);
       this.rankPool.set(rankPool.items);
+      this.gpsRanking.set(gpsRanking);
       this.pagination.set({ ...page, total: list.totalCount });
       this.stats.set(stats);
       this.statsError.set(statsFailed ? 'Could not load driver stats for this scope.' : null);
@@ -349,6 +367,7 @@ export class DriverInventoryPageComponent implements OnInit {
     return forkJoin({
       list: this.driverService.getAll(this.listParams()),
       rankPool: this.driverService.getAll({ page: 1, pageSize: 500, branchId }).pipe(catchError(() => of(emptyPaged))),
+      gpsRanking: this.gpsTracking.getDriverScoreRanking({ branchId }).pipe(catchError(() => of([] as DriverScore[]))),
       statsResult: this.driverService.getStats(branchId).pipe(
         map(stats => ({ stats, failed: false as const })),
         catchError(() => of({ stats: null as DriverStats | null, failed: true as const }))
@@ -367,9 +386,10 @@ export class DriverInventoryPageComponent implements OnInit {
         catchError(() => of(emptyPaged))
       )
     }).pipe(
-      map(({ list, rankPool, statsResult, availability, compliance }) => ({
+      map(({ list, rankPool, gpsRanking, statsResult, availability, compliance }) => ({
         list,
         rankPool,
+        gpsRanking,
         stats: statsResult.stats,
         statsFailed: statsResult.failed,
         availability,

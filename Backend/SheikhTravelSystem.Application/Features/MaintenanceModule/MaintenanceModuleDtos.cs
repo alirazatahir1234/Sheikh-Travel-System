@@ -9,7 +9,25 @@ public record MaintenanceDashboardDto(
     IReadOnlyList<MaintenanceAlertDto> CriticalAlerts,
     IReadOnlyList<WorkOrderListItemDto> RecentWorkOrders,
     IReadOnlyList<UpcomingServiceDto> UpcomingServices,
-    FuelMaintenanceSummaryDto? FuelSummary);
+    FuelMaintenanceSummaryDto? FuelSummary,
+    IReadOnlyList<PredictiveMaintenanceAlertDto>? PredictiveAlerts = null);
+
+/// <summary>
+/// Rule-based prediction for oil change, tire wear, or engine end-of-life.
+/// </summary>
+public record PredictiveMaintenanceAlertDto(
+    int VehicleId,
+    string VehicleName,
+    string? VehicleRegistration,
+    string Category,
+    string Severity,
+    string Status,
+    string Title,
+    string Message,
+    DateTime? PredictedDueDate,
+    decimal? DueMileage,
+    int? ProgressPercent,
+    decimal? RemainingKm);
 
 public record MaintenanceKpiDto(
     int TotalVehicles,

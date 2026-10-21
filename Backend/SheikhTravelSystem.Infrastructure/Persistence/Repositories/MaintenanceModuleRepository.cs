@@ -358,9 +358,130 @@ public sealed class MaintenanceModuleRepository(
 
         var fuelSummary = await GetFuelSummaryAsync(connection, tenantId, from, to, request.BranchId, cancellationToken);
 
+        var predictiveAlerts = await GetPredictiveAlertsAsync(
+            connection, tenantId, request.BranchId, cancellationToken);
+
         return ApiResponse<MaintenanceDashboardDto>.SuccessResponse(new MaintenanceDashboardDto(
-            kpis, costTrend, health, alerts.ToList(), recentWorkOrders.ToList(), upcoming.ToList(), fuelSummary));
+            kpis, costTrend, health, alerts.ToList(), recentWorkOrders.ToList(), upcoming.ToList(),
+            fuelSummary, predictiveAlerts));
     
+    }
+
+    private static async Task<IReadOnlyList<PredictiveMaintenanceAlertDto>> GetPredictiveAlertsAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        int? branchId,
+        CancellationToken cancellationToken)
+    {
+        var branchClause = branchId.HasValue ? " AND v.BranchId = @BranchId" : "";
+
+        // Avg daily km from fuel odometer span over last 90 days (fallback handled in helper).
+        var rows = await connection.QueryAsync<PredictiveVehicleRow>(new CommandDefinition($"""
+            SELECT v.Id AS VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS VehicleRegistration,
+                   v.CurrentMileage, v.Year, v.PurchaseDate,
+                   v.OilIntervalKm, v.OilIntervalDays, v.LastOilChangeDate, v.LastOilChangeMileage,
+                   v.TireInstallDate, v.TireInstallMileage, v.TireExpectedLifeKm,
+                   v.EngineExpectedLifeKm, v.EngineExpectedLifeYears,
+                   oil.IntervalKm AS ScheduleOilIntervalKm,
+                   oil.IntervalDays AS ScheduleOilIntervalDays,
+                   oil.LastServiceDate AS ScheduleLastOilDate,
+                   oil.LastServiceMileage AS ScheduleLastOilMileage,
+                   tire.LastServiceDate AS ScheduleTireInstallDate,
+                   tire.LastServiceMileage AS ScheduleTireInstallMileage,
+                   fuel.AvgDailyKm
+            FROM Vehicles v
+            OUTER APPLY (
+                SELECT TOP 1
+                    CASE WHEN s.IntervalType = N'Mileage' THEN CAST(s.IntervalValue AS DECIMAL(12,2)) END AS IntervalKm,
+                    CASE
+                        WHEN s.IntervalType IN (N'Days', N'Day') THEN s.IntervalValue
+                        WHEN s.IntervalType IN (N'Months', N'Month') THEN s.IntervalValue * 30
+                    END AS IntervalDays,
+                    s.LastServiceDate, s.LastServiceMileage
+                FROM VehicleMaintenanceSchedules s
+                WHERE s.VehicleId = v.Id AND s.IsDeleted = 0 AND s.IsActive = 1
+                  AND (s.ServiceTypeName LIKE N'%oil%' OR s.ServiceTypeName LIKE N'%Oil%')
+                ORDER BY s.UpdatedAt DESC, s.Id DESC
+            ) oil
+            OUTER APPLY (
+                SELECT TOP 1 s.LastServiceDate, s.LastServiceMileage
+                FROM VehicleMaintenanceSchedules s
+                WHERE s.VehicleId = v.Id AND s.IsDeleted = 0 AND s.IsActive = 1
+                  AND (s.ServiceTypeName LIKE N'%tire%' OR s.ServiceTypeName LIKE N'%Tire%'
+                       OR s.ServiceTypeName LIKE N'%tyre%' OR s.ServiceTypeName LIKE N'%Tyre%')
+                ORDER BY s.UpdatedAt DESC, s.Id DESC
+            ) tire
+            OUTER APPLY (
+                SELECT CASE
+                    WHEN COUNT(*) >= 2 AND DATEDIFF(DAY, MIN(f.FuelDate), MAX(f.FuelDate)) >= 7
+                         AND MAX(f.OdometerReading) > MIN(f.OdometerReading)
+                    THEN CAST(MAX(f.OdometerReading) - MIN(f.OdometerReading) AS DECIMAL(12,2))
+                         / NULLIF(DATEDIFF(DAY, MIN(f.FuelDate), MAX(f.FuelDate)), 0)
+                END AS AvgDailyKm
+                FROM FuelLogs f
+                WHERE f.VehicleId = v.Id AND f.IsDeleted = 0
+                  AND f.FuelDate >= DATEADD(DAY, -90, GETUTCDATE())
+            ) fuel
+            WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
+              AND v.Status <> @Retired {branchClause}
+            """, new
+        {
+            TenantId = tenantId,
+            BranchId = branchId,
+            Retired = (int)VehicleStatus.Retired
+        }, cancellationToken: cancellationToken));
+
+        var inputs = rows.Select(r => new PredictiveVehicleInput(
+            r.VehicleId,
+            r.VehicleName ?? $"#{r.VehicleId}",
+            r.VehicleRegistration,
+            r.CurrentMileage,
+            r.Year,
+            r.PurchaseDate,
+            r.OilIntervalKm,
+            r.OilIntervalDays,
+            r.LastOilChangeDate,
+            r.LastOilChangeMileage,
+            r.TireInstallDate,
+            r.TireInstallMileage,
+            r.TireExpectedLifeKm,
+            r.EngineExpectedLifeKm,
+            r.EngineExpectedLifeYears,
+            r.ScheduleOilIntervalKm,
+            r.ScheduleOilIntervalDays,
+            r.ScheduleLastOilDate,
+            r.ScheduleLastOilMileage,
+            r.ScheduleTireInstallDate,
+            r.ScheduleTireInstallMileage,
+            r.AvgDailyKm));
+
+        return PredictiveMaintenanceHelper.ComputeAll(inputs);
+    }
+
+    private sealed class PredictiveVehicleRow
+    {
+        public int VehicleId { get; init; }
+        public string? VehicleName { get; init; }
+        public string? VehicleRegistration { get; init; }
+        public decimal CurrentMileage { get; init; }
+        public int? Year { get; init; }
+        public DateTime? PurchaseDate { get; init; }
+        public decimal? OilIntervalKm { get; init; }
+        public int? OilIntervalDays { get; init; }
+        public DateTime? LastOilChangeDate { get; init; }
+        public decimal? LastOilChangeMileage { get; init; }
+        public DateTime? TireInstallDate { get; init; }
+        public decimal? TireInstallMileage { get; init; }
+        public decimal? TireExpectedLifeKm { get; init; }
+        public decimal? EngineExpectedLifeKm { get; init; }
+        public int? EngineExpectedLifeYears { get; init; }
+        public decimal? ScheduleOilIntervalKm { get; init; }
+        public int? ScheduleOilIntervalDays { get; init; }
+        public DateTime? ScheduleLastOilDate { get; init; }
+        public decimal? ScheduleLastOilMileage { get; init; }
+        public DateTime? ScheduleTireInstallDate { get; init; }
+        public decimal? ScheduleTireInstallMileage { get; init; }
+        public decimal? AvgDailyKm { get; init; }
     }
 
     public async Task<ApiResponse<IReadOnlyList<MaintenanceAlertDto>>> GetMaintenanceAlertsAsync(GetMaintenanceAlertsQuery request, CancellationToken cancellationToken = default)

@@ -18,10 +18,9 @@ public record GetDriverScoreRankingQuery(
 
 /// <summary>
 /// Attributes GpsTrips to drivers via an AssignmentHistory time-window overlap join (GpsTrips has no
-/// DriverId column). Overspeed comes directly from GpsAlertEvents.DriverId (already resolved at
-/// write time by GpsAlertWriter — no join needed there). Idle/harsh-event factors reuse the same
-/// uncapped per-device Traccar fetch pattern as the Day 3 Idle/Stop analytics, attributed to a
-/// driver via the same vehicle+timestamp window lookup used for trips.
+/// DriverId column). Overspeed and harsh brake/accel come from GpsAlertEvents.DriverId (harsh
+/// persisted by Traccar event sync). Idle still uses live Traccar stops; live harsh is only a
+/// fallback when no local harsh rows exist yet for the range.
 /// </summary>
 public class GetDriverScoreRankingQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetDriverScoreRankingQuery, ApiResponse<List<DriverScoreDto>>>

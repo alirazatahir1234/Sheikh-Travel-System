@@ -236,6 +236,80 @@ class _DashboardTab extends ConsumerWidget {
               ),
             ),
           ),
+          if (dash.predictiveAlerts.isNotEmpty) ...[
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Text(
+                  'Predictive alerts',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+            ...dash.predictiveAlerts.take(12).map(
+                  (a) => SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: SgCard(
+                        onTap: a.vehicleId > 0
+                            ? () => context
+                                .push('/fleet/vehicles/${a.vehicleId}')
+                            : null,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                _PredictiveCategoryChip(a.categoryLabel),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    a.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                StatusBadge(a.severity),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              a.message,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (a.predictedDueDate != null ||
+                                a.remainingKm != null ||
+                                a.progressPercent != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                [
+                                  if (a.predictedDueDate != null)
+                                    'Due ${df.format(a.predictedDueDate!.toLocal())}',
+                                  if (a.remainingKm != null)
+                                    '${a.remainingKm!.round()} km left',
+                                  if (a.progressPercent != null)
+                                    '${a.progressPercent}%',
+                                ].join(' · '),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+          ],
           if (dash.criticalAlerts.isNotEmpty) ...[
             const SliverToBoxAdapter(
               child: Padding(
@@ -916,6 +990,36 @@ class _SchedulesTab extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+class _PredictiveCategoryChip extends StatelessWidget {
+  const _PredictiveCategoryChip(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (label) {
+      'Oil' => const Color(0xFFB45309),
+      'Tires' => const Color(0xFF1D4ED8),
+      'Engine' => const Color(0xFF9F1239),
+      _ => AppColors.textMuted,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
   }
 }
 

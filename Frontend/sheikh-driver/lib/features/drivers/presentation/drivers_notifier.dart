@@ -102,6 +102,7 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
     DriverStats stats = DriverStats.empty;
     List<DriverListItem> drivers = const [];
     List<DriverListItem> rankPool = const [];
+    List<DriverRankItem> gpsRanking = const [];
     var rankingUnavailable = false;
 
     await Future.wait([
@@ -126,11 +127,20 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
           rankingUnavailable = true;
         }
       }(),
+      () async {
+        // GPS Analytics safety ranking — blended 60/40 with compliance.
+        try {
+          gpsRanking = await api.ranking(limit: 100);
+        } catch (_) {
+          // Compliance-only fallback when GPS ranking is unavailable.
+        }
+      }(),
     ]);
 
+    final gpsById = {for (final r in gpsRanking) r.driverId: r};
     final ranking = rankingUnavailable
         ? const <DriverRankItem>[]
-        : buildTopDriversFromList(rankPool);
+        : buildTopDriversFromList(rankPool, gpsByDriverId: gpsById);
 
     return DriversHubState(
       stats: stats,

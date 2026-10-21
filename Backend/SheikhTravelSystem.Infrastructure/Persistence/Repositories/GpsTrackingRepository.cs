@@ -14,6 +14,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
+using SheikhTravelSystem.Application.Features.Drivers.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
@@ -37,6 +38,7 @@ public sealed partial class GpsTrackingRepository(
     IGpsDeviceTelemetryUpdater telemetryUpdater,
     IGpsTripPersistenceService tripPersistence,
     IGpsAlertWriter alertWriter,
+    IDriverTelematicsEnforcementService telematicsEnforcement,
     MediatR.IMediator mediator,
     ITraccarClient traccar,
     IReverseGeocodingService geocoder,
@@ -47,6 +49,7 @@ public sealed partial class GpsTrackingRepository(
     ILogger<GpsTrackingRepository> logger) : IGpsTrackingRepository
 {
     private readonly IGpsAlertWriter _alertWriter = alertWriter;
+    private readonly IDriverTelematicsEnforcementService _telematicsEnforcement = telematicsEnforcement;
     private readonly IOptions<TraccarOptions> _traccarOptions = traccarOptions;
     private readonly INotificationDecisionEngine _decisionEngine = decisionEngine;
     public async Task<ApiResponse<IReadOnlyList<AnalyticsReportScheduleDto>>> ListAnalyticsReportSchedulesAsync(ListAnalyticsReportSchedulesQuery request, CancellationToken cancellationToken = default)
@@ -2161,6 +2164,19 @@ public sealed partial class GpsTrackingRepository(
             new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
             cancellationToken: cancellationToken))).ToDictionary(r => r.DriverId, r => r.Count);
 
+        // Prefer locally persisted harsh events (Traccar sync → GpsAlertEvents) over live Traccar fan-out.
+        var localHarshByDriver = (await connection.QueryAsync<(int DriverId, int Count)>(new CommandDefinition(
+            """
+            SELECT e.DriverId, COUNT(*) AS Count
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+            WHERE e.EventType IN ('harsh_braking', 'harsh_acceleration') AND e.IsDeleted = 0
+              AND e.DriverId IS NOT NULL AND e.Timestamp BETWEEN @FromDate AND @ToDate
+            GROUP BY e.DriverId
+            """,
+            new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
+            cancellationToken: cancellationToken))).ToDictionary(r => r.DriverId, r => r.Count);
+
         var fuelByDriver = (await connection.QueryAsync<(int DriverId, decimal Liters)>(new CommandDefinition(
             """
             SELECT DriverId, SUM(Liters) AS Liters
@@ -2173,7 +2189,7 @@ public sealed partial class GpsTrackingRepository(
             cancellationToken: cancellationToken))).ToDictionary(r => r.DriverId, r => r.Liters);
 
         var idleMinutesByDriver = new Dictionary<int, int>();
-        var harshCountByDriver = new Dictionary<int, int>();
+        var liveHarshByDriver = new Dictionary<int, int>();
         var traccarGap = false;
 
         var opts = traccarOptions.Value;
@@ -2186,10 +2202,7 @@ public sealed partial class GpsTrackingRepository(
             {
                 var deviceToVehicle = deviceMap.ToDictionary(kv => kv.Value, kv => kv.Key);
                 var stopsTasks = deviceMap.Values.Select(id => traccar.GetStopsAsync(id, fromDate, toDate, cancellationToken));
-                var eventsTasks = deviceMap.Values.Select(id => traccar.GetEventsAsync(id, fromDate, toDate, ct: cancellationToken));
-
                 var allStops = (await Task.WhenAll(stopsTasks)).SelectMany(s => s).ToList();
-                var allEvents = (await Task.WhenAll(eventsTasks)).SelectMany(e => e).ToList();
 
                 foreach (var stop in allStops)
                 {
@@ -2201,20 +2214,36 @@ public sealed partial class GpsTrackingRepository(
                     idleMinutesByDriver[driverId.Value] = idleMinutesByDriver.GetValueOrDefault(driverId.Value) + minutes;
                 }
 
-                foreach (var evt in allEvents)
+                // Live harsh fallback only when local sync has no harsh rows yet for this range.
+                if (localHarshByDriver.Count == 0)
                 {
-                    if (!IsHarshEvent(evt.Type)) continue;
-                    if (!deviceToVehicle.TryGetValue(evt.DeviceId, out var vehicleId)) continue;
-                    var driverId = ResolveDriver(vehicleId, evt.EventTime);
-                    if (!driverId.HasValue) continue;
+                    var eventsTasks = deviceMap.Values
+                        .Select(id => traccar.GetEventsAsync(id, fromDate, toDate, ct: cancellationToken));
+                    var allEvents = (await Task.WhenAll(eventsTasks)).SelectMany(e => e).ToList();
 
-                    harshCountByDriver[driverId.Value] = harshCountByDriver.GetValueOrDefault(driverId.Value) + 1;
+                    foreach (var evt in allEvents)
+                    {
+                        if (!IsHarshEvent(evt.Type) && !TraccarHarshEventMapper.LooksLikeHarsh(evt.Attributes?.Alarm))
+                            continue;
+                        if (!deviceToVehicle.TryGetValue(evt.DeviceId, out var vehicleId)) continue;
+                        var driverId = ResolveDriver(vehicleId, evt.EventTime);
+                        if (!driverId.HasValue) continue;
+
+                        liveHarshByDriver[driverId.Value] = liveHarshByDriver.GetValueOrDefault(driverId.Value) + 1;
+                    }
                 }
             }
         }
         else
         {
             traccarGap = true;
+        }
+
+        var harshCountByDriver = new Dictionary<int, int>(localHarshByDriver);
+        foreach (var (driverId, count) in liveHarshByDriver)
+        {
+            if (!harshCountByDriver.ContainsKey(driverId))
+                harshCountByDriver[driverId] = count;
         }
 
         var results = new List<DriverScoreDto>();

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Drivers.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
@@ -475,7 +476,7 @@ public sealed class TraccarSyncOrchestrator(
                     var message = FormatEventMessage(eventType);
                     var timestamp = ev.EventTime.ToUniversalTime();
 
-                    await alertWriter.InsertAsync(
+                    var alertId = await alertWriter.InsertAsync(
                         connection,
                         device.VehicleId,
                         ev.Latitude ?? 0,
@@ -487,6 +488,21 @@ public sealed class TraccarSyncOrchestrator(
                         externalEventId: externalId,
                         cancellationToken: ct);
                     imported++;
+
+                    if (DriverTelematicsEnforcementPolicy.ShouldCreateViolation(eventType))
+                    {
+                        var enforcement = scope.ServiceProvider.GetRequiredService<IDriverTelematicsEnforcementService>();
+                        try
+                        {
+                            await enforcement.ProcessAlertAsync(connection, alertId, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex,
+                                "Telematics enforcement failed for alert {AlertId} ({EventType})",
+                                alertId, eventType);
+                        }
+                    }
                 }
 
                 _lastEventSync[device.TraccarDeviceId] = to;
@@ -507,15 +523,22 @@ public sealed class TraccarSyncOrchestrator(
         }
     }
 
-    private static string MapEventType(TraccarEvent ev) => ev.Type switch
+    private static string MapEventType(TraccarEvent ev)
     {
-        "deviceOnline" => "device_online",
-        "deviceOffline" => "device_offline",
-        "geofenceEnter" => "geofence_enter",
-        "geofenceExit" => "geofence_exit",
-        "alarm" => MapAlarmType(ev.Attributes?.Alarm),
-        _ => ev.Type.ToLowerInvariant()
-    };
+        var harsh = TraccarHarshEventMapper.TryMapCanonical(ev.Type, ev.Attributes?.Alarm);
+        if (harsh is not null)
+            return harsh;
+
+        return ev.Type switch
+        {
+            "deviceOnline" => "device_online",
+            "deviceOffline" => "device_offline",
+            "geofenceEnter" => "geofence_enter",
+            "geofenceExit" => "geofence_exit",
+            "alarm" => MapAlarmType(ev.Attributes?.Alarm),
+            _ => ev.Type.ToLowerInvariant()
+        };
+    }
 
     private static string MapAlarmType(string? alarm) => alarm?.ToLowerInvariant() switch
     {
@@ -534,6 +557,8 @@ public sealed class TraccarSyncOrchestrator(
         "sos" => "SOS / panic alarm triggered",
         "power_cut" => "External power disconnected",
         "gps_lost" => "GPS signal lost",
+        "harsh_braking" => "Harsh braking detected",
+        "harsh_acceleration" => "Harsh acceleration detected",
         "alarm" => "Device alarm",
         _ => $"Traccar event: {eventType}"
     };

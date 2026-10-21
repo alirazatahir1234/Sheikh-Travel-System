@@ -127,6 +127,34 @@ void main() {
       expect(top.first.driverId, 2);
       expect(top.first.score, 100);
     });
+
+    test('blends GPS safety 60% with compliance 40%', () {
+      expect(blendDriverTopScore(100, 50), 70);
+      final top = buildTopDriversFromList(
+        [
+          DriverListItem(
+            id: 1,
+            fullName: 'Mixed',
+            phone: '1',
+            licenseNumber: 'L1',
+            status: 'Available',
+            isActive: true,
+            rating: 5.0,
+          ),
+        ],
+        gpsByDriverId: {
+          1: const DriverRankItem(
+            driverId: 1,
+            driverName: 'Mixed',
+            score: 50,
+            rating: 'Fair',
+          ),
+        },
+      );
+      expect(top.first.score, 70);
+      expect(top.first.safetyScore, 50);
+      expect(top.first.complianceScore, 100);
+    });
   });
 
   group('licenseExpiryQuery', () {

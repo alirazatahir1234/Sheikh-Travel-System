@@ -80,6 +80,8 @@ public static class DependencyInjection
         services.AddScoped<IGpsDeviceRepository, GpsDeviceRepository>();
         services.AddScoped<IGpsTrackingRepository, GpsTrackingRepository>();
         services.AddScoped<IGpsAlertWriter, SheikhTravelSystem.Infrastructure.Services.Gps.GpsAlertWriter>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.Drivers.Services.IDriverTelematicsEnforcementService,
+            SheikhTravelSystem.Infrastructure.Services.Drivers.DriverTelematicsEnforcementService>();
         services.AddScoped<IGpsPositionIngestionHelper, SheikhTravelSystem.Infrastructure.Services.Gps.GpsPositionIngestionHelper>();
         services.AddScoped<IGpsDeviceTelemetryUpdater, SheikhTravelSystem.Infrastructure.Services.Gps.GpsDeviceTelemetryUpdater>();
         services.AddScoped<IGpsCommandSafetyChecker, SheikhTravelSystem.Infrastructure.Services.Gps.GpsCommandSafetyChecker>();

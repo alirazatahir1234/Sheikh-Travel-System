@@ -71,14 +71,15 @@ public class GpsOfflineDetectionHostedService(
             ? 120
             : gpsSettings.Value.OfflineAlertCooldownMinutes;
 
-        var staleVehicles = (await connection.QueryAsync<(int VehicleId, double Latitude, double Longitude, decimal? Speed)>(
+        var staleVehicles = (await connection.QueryAsync<(int VehicleId, int TenantId, double Latitude, double Longitude, decimal? Speed)>(
             new CommandDefinition(
                 """
-                SELECT vcl.VehicleId, vcl.Latitude, vcl.Longitude, vcl.Speed
+                SELECT vcl.VehicleId, v.TenantId, vcl.Latitude, vcl.Longitude, vcl.Speed
                 FROM VehicleCurrentLocation vcl
                 INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.IsDeleted = 0
                 AND v.Status <> 5
-                WHERE vcl.LastUpdate < DATEADD(MINUTE, -@StaleMinutes, GETUTCDATE())
+                WHERE v.TenantId IS NOT NULL AND v.TenantId > 0
+                  AND vcl.LastUpdate < DATEADD(MINUTE, -@StaleMinutes, GETUTCDATE())
                   AND NOT EXISTS (
                     SELECT 1 FROM GpsAlertEvents e
                     WHERE e.VehicleId = vcl.VehicleId AND e.EventType = 'vehicle_offline'
@@ -111,6 +112,7 @@ public class GpsOfflineDetectionHostedService(
                 NotificationType.VehicleOffline,
                 ReferenceId: v.VehicleId,
                 AlertEventId: alertId,
+                TenantId: v.TenantId,
                 SuggestedPriority: 3,
                 RequestedChannels:
                 [
@@ -118,7 +120,12 @@ public class GpsOfflineDetectionHostedService(
                     NotificationChannels.Push, NotificationChannels.Sms
                 ]), cancellationToken);
 
-            await escalation.StartAsync("vehicle_offline", v.VehicleId, alertEventId: alertId, cancellationToken: cancellationToken);
+            await escalation.StartAsync(
+                "vehicle_offline",
+                v.VehicleId,
+                alertEventId: alertId,
+                tenantId: v.TenantId,
+                cancellationToken: cancellationToken);
         }
 
         if (staleVehicles.Count > 0)

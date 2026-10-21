@@ -26,8 +26,8 @@ public sealed partial class GpsTrackingRepository
     // MaxRange already defined in GpsTrackingRepository.Helpers.cs (90-day default)
 
     private static bool IsHarshEvent(string type) =>
-        type.Contains("braking", StringComparison.OrdinalIgnoreCase) ||
-        type.Contains("acceleration", StringComparison.OrdinalIgnoreCase);
+        TraccarHarshEventMapper.IsCanonicalHarsh(type) ||
+        TraccarHarshEventMapper.LooksLikeHarsh(type);
 
     private async Task<int> CountOverspeedTodayAsync(CancellationToken cancellationToken)
     {

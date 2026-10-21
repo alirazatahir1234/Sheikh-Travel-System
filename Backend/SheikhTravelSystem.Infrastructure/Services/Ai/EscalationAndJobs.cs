@@ -130,8 +130,10 @@ public sealed class EscalationService(IDbConnectionFactory dbFactory) : IEscalat
         int? referenceId,
         int? alertEventId = null,
         int? notificationId = null,
+        int? tenantId = null,
         CancellationToken cancellationToken = default) =>
-        EscalationStarter.StartAsync(dbFactory, eventType, referenceId, alertEventId, notificationId, cancellationToken);
+        EscalationStarter.StartAsync(
+            dbFactory, eventType, referenceId, alertEventId, notificationId, tenantId, cancellationToken);
 
     public async Task<IReadOnlyList<EscalationRuleDto>> GetRulesAsync(
         int? tenantId = null, CancellationToken cancellationToken = default)
@@ -198,27 +200,47 @@ public static class EscalationStarter
         int? referenceId,
         int? alertEventId,
         int? notificationId,
+        int? tenantId = null,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+
+        var resolvedTenantId = tenantId;
+        if ((resolvedTenantId is null or <= 0) && referenceId is int vehicleId && vehicleId > 0)
+        {
+            resolvedTenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+                SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0
+                """, new { Id = vehicleId }, cancellationToken: cancellationToken));
+        }
+
+        if (resolvedTenantId is null or <= 0)
+        {
+            // Worker skips null-tenant rows; refuse to create orphan escalations.
+            return;
+        }
+
         var firstTimeout = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
             SELECT TOP 1 TimeoutMinutes FROM EscalationRules
             WHERE IsActive = 1 AND EventType = @EventType AND LevelOrder = 1
-            """, new { EventType = eventType }, cancellationToken: cancellationToken)) ?? 15;
+              AND (TenantId = @TenantId OR TenantId IS NULL)
+            ORDER BY CASE WHEN TenantId IS NULL THEN 1 ELSE 0 END
+            """, new { EventType = eventType, TenantId = resolvedTenantId }, cancellationToken: cancellationToken)) ?? 15;
 
         await connection.ExecuteAsync(new CommandDefinition("""
             IF NOT EXISTS (
                 SELECT 1 FROM EscalationState
                 WHERE Status = 'Pending' AND EventType = @EventType
+                  AND TenantId = @TenantId
                   AND ISNULL(ReferenceId,0) = ISNULL(@ReferenceId,0))
             INSERT INTO EscalationState
-                (NotificationId, AlertEventId, EventType, ReferenceId, CurrentLevel, Status, NextEscalateAt, CreatedAt)
+                (TenantId, NotificationId, AlertEventId, EventType, ReferenceId, CurrentLevel, Status, NextEscalateAt, CreatedAt)
             VALUES
-                (@NotificationId, @AlertEventId, @EventType, @ReferenceId, 0, 'Pending',
+                (@TenantId, @NotificationId, @AlertEventId, @EventType, @ReferenceId, 0, 'Pending',
                  DATEADD(MINUTE, @Timeout, GETUTCDATE()), GETUTCDATE())
             """,
             new
             {
+                TenantId = resolvedTenantId.Value,
                 NotificationId = notificationId,
                 AlertEventId = alertEventId,
                 EventType = eventType,

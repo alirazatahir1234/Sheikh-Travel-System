@@ -1339,12 +1339,27 @@ $card-pad: 1rem;    // 16px
   flex-shrink: 0;
 }
 
-.top-driver-name {
+.top-driver-meta {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.top-driver-name {
   font-size: 12px;
   font-weight: 600;
   color: var(--fleet-text, #0f172a);
-  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-driver-breakdown {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fleet-text-muted, #64748b);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

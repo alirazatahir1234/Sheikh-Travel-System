@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
@@ -118,6 +119,15 @@ public sealed partial class GpsTrackingRepository
                         NotificationChannels.InApp, NotificationChannels.Browser,
                         NotificationChannels.Push, NotificationChannels.Sms
                     ]), cancellationToken);
+
+                try
+                {
+                    await _telematicsEnforcement.ProcessAlertAsync(connection, alertId, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Telematics enforcement failed for overspeed alert {AlertId}", alertId);
+                }
             }
         }
 

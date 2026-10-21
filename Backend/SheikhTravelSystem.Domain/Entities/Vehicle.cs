@@ -20,6 +20,7 @@ public class Vehicle : BaseEntity
     public string? EngineNo { get; set; }
     public string? ChassisNo { get; set; }
     public decimal CurrentMileage { get; set; }
+    public decimal CurrentEngineHours { get; set; }
     public DateTime? InsuranceExpiryDate { get; set; }
     public int? GpsDeviceId { get; set; }
     public DateTime? PurchaseDate { get; set; }
@@ -28,6 +29,17 @@ public class Vehicle : BaseEntity
     public int? BranchId { get; set; }
     public int? DepartmentId { get; set; }
     public VehicleStatus Status { get; set; } = VehicleStatus.Available;
+
+    // Predictive maintenance (nullable → helpers apply fleet defaults)
+    public decimal? OilIntervalKm { get; set; }
+    public int? OilIntervalDays { get; set; }
+    public DateTime? LastOilChangeDate { get; set; }
+    public decimal? LastOilChangeMileage { get; set; }
+    public DateTime? TireInstallDate { get; set; }
+    public decimal? TireInstallMileage { get; set; }
+    public decimal? TireExpectedLifeKm { get; set; }
+    public decimal? EngineExpectedLifeKm { get; set; }
+    public int? EngineExpectedLifeYears { get; set; }
 
     public bool IsActive => Status != VehicleStatus.Retired;
 }

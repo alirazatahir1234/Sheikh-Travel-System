@@ -128,6 +128,8 @@ public static class DatabaseMigrationRegistry
             M("Gt06Ev26rCommandTemplatesMigration", Gt06Ev26rCommandTemplatesMigration.ApplyAsync),
             M("Gt06Ev26rDiagnosticCommandsMigration", Gt06Ev26rDiagnosticCommandsMigration.ApplyAsync),
             M("Gt06ModelSpecificCommandPanelMigration", Gt06ModelSpecificCommandPanelMigration.ApplyAsync),
+            M("PredictiveMaintenanceMigration", PredictiveMaintenanceMigration.ApplyAsync),
+            M("DriverTelematicsEnforcementMigration", DriverTelematicsEnforcementMigration.ApplyAsync),
         ];
     }
 }

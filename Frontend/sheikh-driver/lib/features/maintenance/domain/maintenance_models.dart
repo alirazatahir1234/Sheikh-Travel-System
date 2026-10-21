@@ -127,24 +127,92 @@ class UpcomingServiceItem {
   }
 }
 
+class PredictiveMaintenanceAlert {
+  const PredictiveMaintenanceAlert({
+    required this.vehicleId,
+    required this.vehicleName,
+    required this.category,
+    required this.severity,
+    required this.status,
+    required this.title,
+    required this.message,
+    this.vehicleRegistration,
+    this.predictedDueDate,
+    this.dueMileage,
+    this.progressPercent,
+    this.remainingKm,
+  });
+
+  final int vehicleId;
+  final String vehicleName;
+  final String? vehicleRegistration;
+  final String category;
+  final String severity;
+  final String status;
+  final String title;
+  final String message;
+  final DateTime? predictedDueDate;
+  final double? dueMileage;
+  final int? progressPercent;
+  final double? remainingKm;
+
+  factory PredictiveMaintenanceAlert.fromJson(Map<String, dynamic> json) {
+    return PredictiveMaintenanceAlert(
+      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
+      vehicleName: json['vehicleName'] as String? ??
+          json['VehicleName'] as String? ??
+          '',
+      vehicleRegistration: json['vehicleRegistration'] as String? ??
+          json['VehicleRegistration'] as String?,
+      category:
+          json['category'] as String? ?? json['Category'] as String? ?? '',
+      severity:
+          json['severity'] as String? ?? json['Severity'] as String? ?? '',
+      status: json['status'] as String? ?? json['Status'] as String? ?? '',
+      title: json['title'] as String? ?? json['Title'] as String? ?? '',
+      message: json['message'] as String? ?? json['Message'] as String? ?? '',
+      predictedDueDate:
+          _date(json['predictedDueDate'] ?? json['PredictedDueDate']),
+      dueMileage: (json['dueMileage'] as num? ?? json['DueMileage'] as num?)
+          ?.toDouble(),
+      progressPercent: json['progressPercent'] as int? ??
+          json['ProgressPercent'] as int?,
+      remainingKm:
+          (json['remainingKm'] as num? ?? json['RemainingKm'] as num?)
+              ?.toDouble(),
+    );
+  }
+
+  String get categoryLabel => switch (category) {
+        'OilChange' => 'Oil',
+        'TireWear' => 'Tires',
+        'EngineLife' => 'Engine',
+        _ => category,
+      };
+}
+
 class MaintenanceDashboard {
   const MaintenanceDashboard({
     required this.kpis,
     this.criticalAlerts = const [],
     this.recentWorkOrders = const [],
     this.upcomingServices = const [],
+    this.predictiveAlerts = const [],
   });
 
   final MaintenanceKpis kpis;
   final List<MaintenanceAlertItem> criticalAlerts;
   final List<WorkOrderItem> recentWorkOrders;
   final List<UpcomingServiceItem> upcomingServices;
+  final List<PredictiveMaintenanceAlert> predictiveAlerts;
 
   factory MaintenanceDashboard.fromJson(Map<String, dynamic> json) {
     final kpisRaw = json['kpis'] ?? json['Kpis'];
     final alertsRaw = json['criticalAlerts'] ?? json['CriticalAlerts'];
     final recentRaw = json['recentWorkOrders'] ?? json['RecentWorkOrders'];
     final upcomingRaw = json['upcomingServices'] ?? json['UpcomingServices'];
+    final predictiveRaw =
+        json['predictiveAlerts'] ?? json['PredictiveAlerts'];
 
     return MaintenanceDashboard(
       kpis: kpisRaw is Map
@@ -153,6 +221,8 @@ class MaintenanceDashboard {
       criticalAlerts: _mapList(alertsRaw, MaintenanceAlertItem.fromJson),
       recentWorkOrders: _mapList(recentRaw, WorkOrderItem.fromJson),
       upcomingServices: _mapList(upcomingRaw, UpcomingServiceItem.fromJson),
+      predictiveAlerts:
+          _mapList(predictiveRaw, PredictiveMaintenanceAlert.fromJson),
     );
   }
 

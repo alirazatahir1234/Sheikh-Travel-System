@@ -278,7 +278,7 @@ class DriverStats {
   );
 }
 
-/// Client-side safety score aligned with ERP `computeDriverScore`.
+/// Client-side compliance score aligned with ERP `computeDriverScore`.
 int computeDriverScore(DriverListItem row) {
   if (row.rating != null) {
     return (row.rating! * 20).round().clamp(0, 100);
@@ -304,27 +304,44 @@ int computeDriverScore(DriverListItem row) {
   return score.clamp(0, 100);
 }
 
+/// ERP-aligned Top Drivers blend: 60% GPS safety + 40% compliance.
+const double kGpsScoreWeight = 0.6;
+const double kComplianceScoreWeight = 0.4;
+
+int blendDriverTopScore(int complianceScore, int? gpsScore) {
+  if (gpsScore == null) return complianceScore.clamp(0, 100);
+  return (kGpsScoreWeight * gpsScore + kComplianceScoreWeight * complianceScore)
+      .round()
+      .clamp(0, 100);
+}
+
 List<DriverRankItem> buildTopDriversFromList(
   List<DriverListItem> drivers, {
   int limit = 5,
+  Map<int, DriverRankItem> gpsByDriverId = const {},
 }) {
-  final scored = drivers
-      .map((d) {
-        final score = computeDriverScore(d);
-        final label = score >= 80
-            ? 'Good'
-            : score >= 60
-                ? 'Fair'
-                : 'Needs attention';
-        return DriverRankItem(
-          driverId: d.id,
-          driverName:
-              d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim(),
-          score: score,
-          rating: label,
-        );
-      })
-      .toList()
+  final scored = drivers.map((d) {
+    final compliance = computeDriverScore(d);
+    final gps = gpsByDriverId[d.id];
+    final blended = blendDriverTopScore(compliance, gps?.score);
+    final label = blended >= 80
+        ? 'Good'
+        : blended >= 60
+            ? 'Fair'
+            : 'Needs attention';
+    final breakdown = gps == null
+        ? 'Compliance $compliance (no GPS)'
+        : 'Safety ${gps.score}${gps.isPartial ? '*' : ''} · Compliance $compliance';
+    return DriverRankItem(
+      driverId: d.id,
+      driverName: d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim(),
+      score: blended,
+      rating: '$label · $breakdown',
+      isPartial: gps?.isPartial ?? false,
+      safetyScore: gps?.score,
+      complianceScore: compliance,
+    );
+  }).toList()
     ..sort((a, b) => b.score.compareTo(a.score));
   if (scored.length <= limit) return scored;
   return scored.take(limit).toList();
@@ -503,6 +520,8 @@ class DriverRankItem {
     required this.score,
     required this.rating,
     this.isPartial = false,
+    this.safetyScore,
+    this.complianceScore,
   });
 
   final int driverId;
@@ -510,6 +529,8 @@ class DriverRankItem {
   final int score;
   final String rating;
   final bool isPartial;
+  final int? safetyScore;
+  final int? complianceScore;
 
   factory DriverRankItem.fromJson(Map<String, dynamic> json) {
     return DriverRankItem(
@@ -520,6 +541,7 @@ class DriverRankItem {
       rating: (json['rating'] ?? json['Rating'] ?? '').toString(),
       isPartial:
           json['isPartial'] as bool? ?? json['IsPartial'] as bool? ?? false,
+      safetyScore: json['score'] as int? ?? json['Score'] as int?,
     );
   }
 }

@@ -4,8 +4,8 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 /// <summary>
 /// Pure scoring calculator — realistically scoped to signals reliably available fleet-wide
-/// (overspeed from GpsAlertEvents.DriverId, distance/night-driving from GpsTrips via an
-/// AssignmentHistory time-window join) plus Traccar-only idle/harsh-event factors when available.
+/// (overspeed + harsh from GpsAlertEvents.DriverId, distance/night-driving from GpsTrips via an
+/// AssignmentHistory time-window join) plus Traccar idle (and live harsh fallback) when available.
 /// Seatbelt is deliberately absent — no sensor data exists anywhere in this codebase for it.
 ///
 /// Weights below are starting points (roughly equal-weighted penalty buckets), named and commented
