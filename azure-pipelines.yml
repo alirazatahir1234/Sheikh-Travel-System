@@ -74,11 +74,11 @@ stages:
             env:
               DEPLOY_BRANCH: $(DEPLOY_BRANCH)
 
-      # ── Frontend → Vercel ──────────────────────────────────────────
+      # ── Frontend → Vercel (self-hosted: avoids Microsoft-hosted parallelism) ──
       - job: Frontend_Vercel
         displayName: Frontend → Vercel
         pool:
-          vmImage: ubuntu-latest
+          name: SheikhGo-VM
         steps:
           - checkout: self
             fetchDepth: 1
