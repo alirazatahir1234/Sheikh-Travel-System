@@ -5,7 +5,7 @@ Org **Alirazatahir** · Project **SheikhGo** · Repo **SheikhGo** · Pipeline fi
 | Target | Trigger paths | How |
 |--------|---------------|-----|
 | **Azure VM** `20.174.1.230` (API) | `Backend/**`, `deploy/azure-vm/**` | Self-hosted pool `SheikhGo-VM` runs `deploy/azure-vm/deploy-api.sh` → `dotnet publish` + `systemctl restart sheikhgo-api` |
-| **Vercel** (ERP + Customer Hub) | `Frontend/sheikhgo-erp/**`, `Frontend/sheikh-travel-customer-hub/**` | `deploy/vercel/deploy-frontends.sh` via Vercel CLI on Microsoft-hosted `ubuntu-latest` |
+| **Vercel** (ERP + Customer Hub) | `Frontend/sheikhgo-erp/**`, `Frontend/sheikh-travel-customer-hub/**` | `deploy/vercel/deploy-frontends.sh` via Vercel CLI on self-hosted pool `SheikhGo-VM` |
 
 **Not** this pipeline’s target: Railway (left intact).
 
