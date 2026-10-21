@@ -89,6 +89,10 @@ export class TripCalendarComponent implements OnInit {
     return `status-${status}`;
   }
 
+  formatStatus(status: TripStatus | string): string {
+    return String(status || '').replace(/([A-Z])/g, ' $1').trim();
+  }
+
   private buildMonth(month: Date, items: TripCalendarItem[]): CalendarDay[] {
     const year = month.getFullYear();
     const m = month.getMonth();

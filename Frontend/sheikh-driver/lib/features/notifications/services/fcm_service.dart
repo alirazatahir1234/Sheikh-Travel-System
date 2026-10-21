@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../domain/notification_models.dart';
 import 'notification_deep_link.dart';
 
@@ -18,8 +21,9 @@ class FcmService {
   String? _token;
   String? get token => _token;
 
-  bool _initialized = false;
+  bool _listenersBound = false;
   bool _tapHandlersBound = false;
+  bool _backgroundHandlerBound = false;
 
   final _foregroundController =
       StreamController<ForegroundBannerEvent>.broadcast();
@@ -29,30 +33,84 @@ class FcmService {
       _foregroundController.stream;
   Stream<void> get inboxRefresh => _refreshController.stream;
 
-  Future<void> initialize({
-    required Future<void> Function(String token) onTokenRefresh,
-  }) async {
-    if (_initialized) return;
-    _initialized = true;
-
+  /// OS + FCM authorization currently granted.
+  Future<bool> hasPermission() async {
     try {
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      if (Platform.isAndroid) {
+        final status = await Permission.notification.status;
+        if (status.isGranted || status.isLimited) return true;
+      }
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (e) {
+      debugPrint('[FCM] hasPermission failed: $e');
+      if (Platform.isAndroid) {
+        try {
+          return await Permission.notification.isGranted;
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
+    }
+  }
+
+  /// Requests Android POST_NOTIFICATIONS + APNs/FCM alert permission.
+  Future<bool> requestPermission() async {
+    try {
+      if (Platform.isAndroid) {
+        final status = await Permission.notification.request();
+        if (status.isPermanentlyDenied) {
+          debugPrint('[FCM] Notification permission permanently denied');
+          return false;
+        }
+        if (!status.isGranted && !status.isLimited) {
+          // On API < 33 permission_handler may return denied; still try FCM.
+          if (status.isDenied) {
+            debugPrint('[FCM] Android notification status=$status — trying FCM');
+          }
+        }
+      }
 
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
+      final ok = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (!ok && Platform.isAndroid) {
+        // Android 13+: OS grant is enough even if FCM reports denied before init.
+        return await Permission.notification.isGranted;
+      }
+      return ok;
+    } catch (e) {
+      debugPrint('[FCM] requestPermission failed: $e');
+      if (Platform.isAndroid) {
+        try {
+          return await Permission.notification.isGranted;
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
+    }
+  }
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional) {
-        _token = await FirebaseMessaging.instance.getToken();
-        if (_token != null) await onTokenRefresh(_token!);
+  /// Initialize listeners + obtain token when permission is granted.
+  /// Safe to call repeatedly (e.g. Settings toggle ON after a failed first boot).
+  Future<void> initialize({
+    required Future<void> Function(String token) onTokenRefresh,
+  }) async {
+    try {
+      await _ensureBackgroundHandler();
+      await _bindForegroundListeners();
 
-        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-          _token = newToken;
-          await onTokenRefresh(newToken);
-        });
+      final allowed = await requestPermission();
+      if (!allowed) {
+        debugPrint('[FCM] Permission not granted — no token');
+        return;
       }
 
       await FirebaseMessaging.instance
@@ -62,6 +120,50 @@ class FcmService {
         sound: true,
       );
 
+      _token = await FirebaseMessaging.instance.getToken();
+      if (_token != null) await onTokenRefresh(_token!);
+
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        _token = newToken;
+        await onTokenRefresh(newToken);
+      });
+    } catch (e) {
+      debugPrint('[FCM] initialize failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Re-request permission and refresh the FCM token (Settings enable path).
+  Future<String?> enable({
+    required Future<void> Function(String token) onTokenRefresh,
+  }) async {
+    await initialize(onTokenRefresh: onTokenRefresh);
+    return _token;
+  }
+
+  /// Stop receiving push on this device (Settings disable path).
+  Future<void> disable() async {
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (e) {
+      debugPrint('[FCM] deleteToken failed: $e');
+    }
+    _token = null;
+  }
+
+  Future<void> _ensureBackgroundHandler() async {
+    if (_backgroundHandlerBound) return;
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      _backgroundHandlerBound = true;
+    } catch (e) {
+      debugPrint('[FCM] background handler bind failed: $e');
+    }
+  }
+
+  Future<void> _bindForegroundListeners() async {
+    if (_listenersBound) return;
+    try {
       FirebaseMessaging.onMessage.listen((message) {
         final title = message.notification?.title ??
             message.data['title']?.toString() ??
@@ -85,8 +187,9 @@ class FcmService {
         );
         _refreshController.add(null);
       });
+      _listenersBound = true;
     } catch (e) {
-      debugPrint('[FCM] initialize failed: $e');
+      debugPrint('[FCM] foreground listeners bind failed: $e');
     }
   }
 

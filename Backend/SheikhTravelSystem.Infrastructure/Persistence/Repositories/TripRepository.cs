@@ -800,34 +800,41 @@ public sealed class TripRepository(
         var tenantId = tenantContext.GetRequiredTenantId();
         var today = DateTime.UtcNow.Date;
 
-        return await connection.QuerySingleAsync<TripDashboardDto>(new CommandDefinition("""
+        var clauses = new List<string> { "t.IsDeleted = 0", "t.TenantId = @TenantId" };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            Today = today,
+            Scheduled = (int)TripStatus.Scheduled,
+            DriverAssigned = (int)TripStatus.DriverAssigned,
+            VehicleAssigned = (int)TripStatus.VehicleAssigned,
+            Started = (int)TripStatus.Started,
+            AtPickup = (int)TripStatus.AtPickup,
+            Enroute = (int)TripStatus.Enroute,
+            Delayed = (int)TripStatus.Delayed,
+            Completed = (int)TripStatus.Completed,
+            Cancelled = (int)TripStatus.Cancelled,
+            Failed = (int)TripStatus.Failed
+        });
+        await ApplyFleetScopeAsync(parameters, clauses, tenantId, cancellationToken);
+        var where = "WHERE " + string.Join(" AND ", clauses);
+
+        return await connection.QuerySingleAsync<TripDashboardDto>(new CommandDefinition($"""
             SELECT
                 COUNT(*) AS TotalTrips,
-                SUM(CASE WHEN Status IN (@Scheduled, @DriverAssigned, @VehicleAssigned) THEN 1 ELSE 0 END) AS ScheduledTrips,
-                SUM(CASE WHEN Status IN (@Started, @AtPickup, @Enroute, @Delayed) THEN 1 ELSE 0 END) AS OngoingTrips,
-                SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
-                SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END) AS CancelledTrips,
-                SUM(CASE WHEN Status = @Delayed THEN 1 ELSE 0 END) AS DelayedTrips,
-                SUM(CASE WHEN TripDate = @Today THEN 1 ELSE 0 END) AS TodaysTrips,
-                SUM(CASE WHEN TripDate > @Today AND Status NOT IN (@Completed, @Cancelled, @Failed) THEN 1 ELSE 0 END) AS UpcomingTrips
-            FROM Trips
-            WHERE IsDeleted = 0 AND TenantId = @TenantId
+                SUM(CASE WHEN t.Status IN (@Scheduled, @DriverAssigned, @VehicleAssigned) THEN 1 ELSE 0 END) AS ScheduledTrips,
+                SUM(CASE WHEN t.Status IN (@Started, @AtPickup, @Enroute, @Delayed) THEN 1 ELSE 0 END) AS OngoingTrips,
+                SUM(CASE WHEN t.Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
+                SUM(CASE WHEN t.Status = @Cancelled THEN 1 ELSE 0 END) AS CancelledTrips,
+                SUM(CASE WHEN t.Status = @Delayed THEN 1 ELSE 0 END) AS DelayedTrips,
+                SUM(CASE WHEN t.TripDate = @Today THEN 1 ELSE 0 END) AS TodaysTrips,
+                SUM(CASE WHEN t.TripDate > @Today AND t.Status NOT IN (@Completed, @Cancelled, @Failed) THEN 1 ELSE 0 END) AS UpcomingTrips
+            FROM Trips t
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {where}
             """,
-            new
-            {
-                TenantId = tenantId,
-                Today = today,
-                Scheduled = (int)TripStatus.Scheduled,
-                DriverAssigned = (int)TripStatus.DriverAssigned,
-                VehicleAssigned = (int)TripStatus.VehicleAssigned,
-                Started = (int)TripStatus.Started,
-                AtPickup = (int)TripStatus.AtPickup,
-                Enroute = (int)TripStatus.Enroute,
-                Delayed = (int)TripStatus.Delayed,
-                Completed = (int)TripStatus.Completed,
-                Cancelled = (int)TripStatus.Cancelled,
-                Failed = (int)TripStatus.Failed
-            },
+            parameters,
             cancellationToken: cancellationToken));
     }
 
@@ -835,6 +842,7 @@ public sealed class TripRepository(
         int page,
         int pageSize,
         TripStatus? status,
+        IReadOnlyList<TripStatus>? statuses,
         int? driverId,
         int? vehicleId,
         int? routeId,
@@ -852,13 +860,25 @@ public sealed class TripRepository(
         var offset = (page - 1) * pageSize;
 
         var clauses = new List<string> { "t.IsDeleted = 0", "t.TenantId = @TenantId" };
-        if (status.HasValue) clauses.Add("t.Status = @Status");
+        var statusList = statuses?.Where(s => Enum.IsDefined(typeof(TripStatus), s)).Distinct().ToArray();
+        if (statusList is { Length: > 0 })
+            clauses.Add("t.Status IN @Statuses");
+        else if (status.HasValue)
+            clauses.Add("t.Status = @Status");
         if (driverId.HasValue) clauses.Add("t.DriverId = @DriverId");
         if (vehicleId.HasValue) clauses.Add("t.VehicleId = @VehicleId");
         if (routeId.HasValue) clauses.Add("t.RouteId = @RouteId");
         if (customerId.HasValue) clauses.Add("t.CustomerId = @CustomerId");
         if (!string.IsNullOrWhiteSpace(search))
-            clauses.Add("(t.TripNumber LIKE @SearchPattern OR t.TripName LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR b.BookingNumber LIKE @SearchPattern)");
+            clauses.Add("""
+                (t.TripNumber LIKE @SearchPattern
+                 OR t.TripName LIKE @SearchPattern
+                 OR c.FullName LIKE @SearchPattern
+                 OR b.BookingNumber LIKE @SearchPattern
+                 OR d.FullName LIKE @SearchPattern
+                 OR v.Name LIKE @SearchPattern
+                 OR v.RegistrationNumber LIKE @SearchPattern)
+                """);
 
         DateTime? effectiveFrom = dateFrom;
         DateTime? dateToExclusive = dateTo?.Date.AddDays(1);
@@ -899,12 +919,10 @@ public sealed class TripRepository(
             Cancelled = (int)TripStatus.Cancelled,
             Failed = (int)TripStatus.Failed
         });
+        if (statusList is { Length: > 0 })
+            parameters.Add("Statuses", statusList.Select(s => (int)s).ToArray());
 
-        if (currentUser.UserId is int userId)
-        {
-            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
-            DataScopeSqlBuilder.ApplyLinkedFleetScope(parameters, scope, clauses, "v", "d");
-        }
+        await ApplyFleetScopeAsync(parameters, clauses, tenantId, cancellationToken);
 
         var where = "WHERE " + string.Join(" AND ", clauses);
 
@@ -930,6 +948,18 @@ public sealed class TripRepository(
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    private async Task ApplyFleetScopeAsync(
+        DynamicParameters parameters,
+        List<string> clauses,
+        int tenantId,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not int userId)
+            return;
+        var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+        DataScopeSqlBuilder.ApplyLinkedFleetScope(parameters, scope, clauses, "v", "d");
     }
 
     public async Task<TripDetailLoadResult> GetDetailAsync(int id, CancellationToken cancellationToken = default)
@@ -1041,7 +1071,23 @@ public sealed class TripRepository(
         var fromDate = from.Date;
         var toExclusive = to.Date.AddDays(1);
 
-        var items = (await connection.QueryAsync<TripCalendarItemDto>(new CommandDefinition("""
+        var clauses = new List<string>
+        {
+            "t.IsDeleted = 0",
+            "t.TenantId = @TenantId",
+            "t.TripDate >= @From",
+            "t.TripDate < @ToExclusive"
+        };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            From = fromDate,
+            ToExclusive = toExclusive
+        });
+        await ApplyFleetScopeAsync(parameters, clauses, tenantId, cancellationToken);
+        var where = "WHERE " + string.Join(" AND ", clauses);
+
+        var items = (await connection.QueryAsync<TripCalendarItemDto>(new CommandDefinition($"""
             SELECT t.Id, t.TripNumber, t.TripName, t.TripDate, t.PlannedStart, t.PlannedEnd,
                    t.Status, c.FullName AS CustomerName, d.FullName AS DriverName,
                    v.Name AS VehicleName, t.Priority
@@ -1049,11 +1095,10 @@ public sealed class TripRepository(
             LEFT JOIN Customers c ON t.CustomerId = c.Id
             LEFT JOIN Drivers d ON t.DriverId = d.Id
             LEFT JOIN Vehicles v ON t.VehicleId = v.Id
-            WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId
-              AND t.TripDate >= @From AND t.TripDate < @ToExclusive
+            {where}
             ORDER BY t.TripDate, t.PlannedStart
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken))).ToList();
 
         return items;
@@ -1066,31 +1111,38 @@ public sealed class TripRepository(
         var tenantId = tenantContext.GetRequiredTenantId();
         var today = DateTime.UtcNow.Date;
 
-        var where = """
-            WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId
-              AND t.Status NOT IN (@Completed, @Cancelled, @Failed)
-              AND (
-                    t.Status IN (@Started, @AtPickup, @Enroute, @Delayed)
-                 OR (@TodayOnly = 0)
-                 OR (t.TripDate = @Today)
-              )
-            """;
+        var clauses = new List<string>
+        {
+            "t.IsDeleted = 0",
+            "t.TenantId = @TenantId",
+            "t.Status NOT IN (@Completed, @Cancelled, @Failed)",
+            """
+            (
+                  t.Status IN (@Started, @AtPickup, @Enroute, @Delayed)
+               OR (@TodayOnly = 0)
+               OR (t.TripDate = @Today)
+            )
+            """
+        };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            Today = today,
+            TodayOnly = todayOnly ? 1 : 0,
+            Started = (int)TripStatus.Started,
+            AtPickup = (int)TripStatus.AtPickup,
+            Enroute = (int)TripStatus.Enroute,
+            Delayed = (int)TripStatus.Delayed,
+            Completed = (int)TripStatus.Completed,
+            Cancelled = (int)TripStatus.Cancelled,
+            Failed = (int)TripStatus.Failed
+        });
+        await ApplyFleetScopeAsync(parameters, clauses, tenantId, cancellationToken);
+        var where = "WHERE " + string.Join(" AND ", clauses);
 
         var items = (await connection.QueryAsync<TripListItemDto>(new CommandDefinition(
             $"{TripSql.ListSelect} {where} ORDER BY t.PlannedStart",
-            new
-            {
-                TenantId = tenantId,
-                Today = today,
-                TodayOnly = todayOnly ? 1 : 0,
-                Started = (int)TripStatus.Started,
-                AtPickup = (int)TripStatus.AtPickup,
-                Enroute = (int)TripStatus.Enroute,
-                Delayed = (int)TripStatus.Delayed,
-                Completed = (int)TripStatus.Completed,
-                Cancelled = (int)TripStatus.Cancelled,
-                Failed = (int)TripStatus.Failed
-            },
+            parameters,
             cancellationToken: cancellationToken))).ToList();
 
         return items;
@@ -1105,6 +1157,28 @@ public sealed class TripRepository(
         var fromDate = (from ?? toDate.AddDays(-29)).Date;
         var toExclusive = toDate.AddDays(1);
 
+        var clauses = new List<string>
+        {
+            "t.IsDeleted = 0",
+            "t.TenantId = @TenantId",
+            "t.TripDate >= @From",
+            "t.TripDate < @ToExclusive"
+        };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            From = fromDate,
+            ToExclusive = toExclusive,
+            Completed = (int)TripStatus.Completed,
+            Cancelled = (int)TripStatus.Cancelled,
+            Delayed = (int)TripStatus.Delayed,
+            Started = (int)TripStatus.Started,
+            AtPickup = (int)TripStatus.AtPickup,
+            Enroute = (int)TripStatus.Enroute
+        });
+        await ApplyFleetScopeAsync(parameters, clauses, tenantId, cancellationToken);
+        var where = "WHERE " + string.Join(" AND ", clauses);
+
         var summary = await connection.QuerySingleAsync<(
             int TotalTrips,
             int CompletedTrips,
@@ -1112,52 +1186,46 @@ public sealed class TripRepository(
             int DelayedTrips,
             int OngoingTrips,
             decimal? TotalPlannedDistanceKm,
-            decimal? TotalActualDistanceKm)>(new CommandDefinition("""
+            decimal? TotalActualDistanceKm)>(new CommandDefinition($"""
             SELECT
                 COUNT(*) AS TotalTrips,
-                SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
-                SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END) AS CancelledTrips,
-                SUM(CASE WHEN Status = @Delayed THEN 1 ELSE 0 END) AS DelayedTrips,
-                SUM(CASE WHEN Status IN (@Started, @AtPickup, @Enroute, @Delayed) THEN 1 ELSE 0 END) AS OngoingTrips,
-                SUM(PlannedDistanceKm) AS TotalPlannedDistanceKm,
-                SUM(ActualDistanceKm) AS TotalActualDistanceKm
-            FROM Trips
-            WHERE IsDeleted = 0 AND TenantId = @TenantId
-              AND TripDate >= @From AND TripDate < @ToExclusive
+                SUM(CASE WHEN t.Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
+                SUM(CASE WHEN t.Status = @Cancelled THEN 1 ELSE 0 END) AS CancelledTrips,
+                SUM(CASE WHEN t.Status = @Delayed THEN 1 ELSE 0 END) AS DelayedTrips,
+                SUM(CASE WHEN t.Status IN (@Started, @AtPickup, @Enroute, @Delayed) THEN 1 ELSE 0 END) AS OngoingTrips,
+                SUM(t.PlannedDistanceKm) AS TotalPlannedDistanceKm,
+                SUM(t.ActualDistanceKm) AS TotalActualDistanceKm
+            FROM Trips t
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {where}
             """,
-            new
-            {
-                TenantId = tenantId,
-                From = fromDate,
-                ToExclusive = toExclusive,
-                Completed = (int)TripStatus.Completed,
-                Cancelled = (int)TripStatus.Cancelled,
-                Delayed = (int)TripStatus.Delayed,
-                Started = (int)TripStatus.Started,
-                AtPickup = (int)TripStatus.AtPickup,
-                Enroute = (int)TripStatus.Enroute
-            },
+            parameters,
             cancellationToken: cancellationToken));
 
-        var totalExpenses = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
+        var expenseClauses = new List<string>(clauses) { "e.IsDeleted = 0" };
+        var expenseWhere = "WHERE " + string.Join(" AND ", expenseClauses);
+        var totalExpenses = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition($"""
             SELECT COALESCE(SUM(e.Amount), 0)
             FROM TripExpenses e
             INNER JOIN Trips t ON t.Id = e.TripId
-            WHERE e.IsDeleted = 0 AND t.IsDeleted = 0 AND t.TenantId = @TenantId
-              AND t.TripDate >= @From AND t.TripDate < @ToExclusive
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {expenseWhere}
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken));
 
-        var byStatus = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition("""
-            SELECT CAST(Status AS nvarchar(32)) AS Name, COUNT(*) AS Count
-            FROM Trips
-            WHERE IsDeleted = 0 AND TenantId = @TenantId
-              AND TripDate >= @From AND TripDate < @ToExclusive
-            GROUP BY Status
+        var byStatus = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition($"""
+            SELECT CAST(t.Status AS nvarchar(32)) AS Name, COUNT(*) AS Count
+            FROM Trips t
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {where}
+            GROUP BY t.Status
             ORDER BY Count DESC
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken))).ToList();
 
         byStatus = byStatus.Select(x =>
@@ -1167,43 +1235,44 @@ public sealed class TripRepository(
             return x;
         }).ToList();
 
-        var byType = (await connection.QueryAsync<(int Type, int Count)>(new CommandDefinition("""
-            SELECT TripType AS Type, COUNT(*) AS Count
-            FROM Trips
-            WHERE IsDeleted = 0 AND TenantId = @TenantId
-              AND TripDate >= @From AND TripDate < @ToExclusive
-            GROUP BY TripType
+        var byType = (await connection.QueryAsync<(int Type, int Count)>(new CommandDefinition($"""
+            SELECT t.TripType AS Type, COUNT(*) AS Count
+            FROM Trips t
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {where}
+            GROUP BY t.TripType
             ORDER BY Count DESC
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken)))
             .Select(x => new TripNamedCountDto(
                 Enum.IsDefined(typeof(TripType), x.Type) ? ((TripType)x.Type).ToString() : x.Type.ToString(),
                 x.Count))
             .ToList();
 
-        var byDriver = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition("""
+        var byDriver = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition($"""
             SELECT COALESCE(d.FullName, N'Unassigned') AS Name, COUNT(*) AS Count
             FROM Trips t
             LEFT JOIN Drivers d ON t.DriverId = d.Id
-            WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId
-              AND t.TripDate >= @From AND t.TripDate < @ToExclusive
+            LEFT JOIN Vehicles v ON t.VehicleId = v.Id
+            {where}
             GROUP BY COALESCE(d.FullName, N'Unassigned')
             ORDER BY Count DESC
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken))).Take(10).ToList();
 
-        var byVehicle = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition("""
+        var byVehicle = (await connection.QueryAsync<TripNamedCountDto>(new CommandDefinition($"""
             SELECT COALESCE(v.Name, N'Unassigned') AS Name, COUNT(*) AS Count
             FROM Trips t
+            LEFT JOIN Drivers d ON t.DriverId = d.Id
             LEFT JOIN Vehicles v ON t.VehicleId = v.Id
-            WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId
-              AND t.TripDate >= @From AND t.TripDate < @ToExclusive
+            {where}
             GROUP BY COALESCE(v.Name, N'Unassigned')
             ORDER BY COUNT(*) DESC
             """,
-            new { TenantId = tenantId, From = fromDate, ToExclusive = toExclusive },
+            parameters,
             cancellationToken: cancellationToken))).Take(10).ToList();
 
         var completionRate = summary.TotalTrips == 0

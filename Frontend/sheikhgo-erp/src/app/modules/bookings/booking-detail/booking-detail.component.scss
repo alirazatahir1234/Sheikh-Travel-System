@@ -1,39 +1,116 @@
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 20px;
-  h2 { margin: 0; }
-  .header-actions { display: flex; gap: 12px; }
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
 }
-.loading { display: flex; justify-content: center; padding: 60px; }
-.error-message { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fef2f2; color: #991b1b; border-radius: 8px; margin-bottom: 16px; }
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 60px;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
 
 .detail-page {
   max-width: 1200px;
+  min-width: 0;
 }
 
 .detail-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
+  min-width: 0;
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
 }
 
-.detail-card { }
-.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
-.detail-item { display: flex; flex-direction: column; label { font-size: 0.8rem; color: #888; margin-bottom: 4px; } span { font-size: 1rem; font-weight: 500; } }
-.status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
-.action-label { margin-left: 16px; color: #666; font-size: 0.9rem; }
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  label {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  span {
+    font-size: 1rem;
+    font-weight: 500;
+    word-break: break-word;
+  }
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.action-label {
+  color: #666;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
 
 .actions-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 8px;
+
+  button {
+    min-height: 40px;
+  }
 }
 
 .reassign-card {
@@ -58,39 +135,34 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    .full-width { width: 100%; }
+
+    .full-width {
+      width: 100%;
+    }
+
+    button {
+      min-height: 44px;
+    }
   }
 }
 
 .payment-card {
-  .payment-summary {
-    display: flex;
-    gap: 24px;
-    padding: 16px;
-    background: #f8fafc;
-    border-radius: 8px;
-    margin-bottom: 16px;
-
-    .summary-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-
-      .summary-label { font-size: 0.8rem; color: #64748b; }
-      .summary-value { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
-
-      &.paid .summary-value { color: #16a34a; }
-      &.due .summary-value { color: #dc2626; }
-      &.refund .summary-value { color: #2563eb; }
-    }
-  }
-
   .payment-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
     .payment-table {
       width: 100%;
-      .text-right { text-align: right; }
+      min-width: 480px;
+
+      .text-right {
+        text-align: right;
+      }
     }
-    .payment-status { font-weight: 500; }
+
+    .payment-status {
+      font-weight: 500;
+    }
   }
 
   .no-payments {
@@ -100,6 +172,60 @@
     gap: 8px;
     padding: 32px;
     color: #94a3b8;
-    mat-icon { font-size: 36px; width: 36px; height: 36px; }
+
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+    }
+  }
+}
+
+.wa-timeline-card {
+  .payment-table {
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.875rem;
+
+    th,
+    td {
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    .header-actions {
+      width: 100%;
+
+      button,
+      a {
+        flex: 1 1 auto;
+        min-height: 44px;
+        justify-content: center;
+      }
+    }
+  }
+
+  .actions-row {
+    flex-direction: column;
+    align-items: stretch;
+
+    .action-label {
+      margin-left: 0;
+    }
+
+    button {
+      width: 100%;
+      margin-left: 0 !important;
+    }
   }
 }

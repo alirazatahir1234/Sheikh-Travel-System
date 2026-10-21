@@ -1,10 +1,20 @@
 <div class="trip-dashboard">
   <div class="toolbar">
-    <h2>Trip Dashboard</h2>
-    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
-      <mat-icon>refresh</mat-icon> Refresh
-    </button>
+    <div>
+      <h2>Map View</h2>
+      <p>Operational KPIs and live trip positions</p>
+    </div>
+    <div class="toolbar-actions">
+      <button mat-stroked-button type="button" (click)="openFullLiveMap()">
+        <mat-icon>open_in_new</mat-icon> Full Live Map
+      </button>
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading || mapLoading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
   </div>
+
+  <div class="ops-error" *ngIf="error"><mat-icon>error</mat-icon> {{ error }}</div>
 
   <div class="loading" *ngIf="loading">
     <mat-spinner diameter="36"></mat-spinner>
@@ -23,4 +33,79 @@
       </div>
     </button>
   </div>
+
+  <section class="map-panel">
+    <header class="map-panel-head">
+      <div>
+        <h3>Live trips on map</h3>
+        <p>
+          {{ mappedTripCount }} of {{ liveTrips.length }} active trips with GPS position
+          · refreshes every 30s
+        </p>
+      </div>
+    </header>
+
+    <div class="map-layout">
+      <div class="map-stage">
+        <div class="map-loading" *ngIf="mapLoading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+
+        <div class="ops-error map-inline-error" *ngIf="!mapLoading && mapError && !mapsReady">
+          <mat-icon>error</mat-icon> {{ mapError }}
+        </div>
+
+        <google-map
+          *ngIf="mapsReady && mapsConfigured"
+          height="100%"
+          width="100%"
+          [center]="mapCenter"
+          [zoom]="mapZoom"
+          [options]="mapOptions">
+          <map-marker
+            *ngFor="let m of mapMarkers"
+            [position]="m.position"
+            [title]="m.title"
+            [options]="m.options"
+            (mapClick)="selectMarker(m)">
+          </map-marker>
+        </google-map>
+
+        <div class="map-empty" *ngIf="mapsReady && !mapLoading && !mapMarkers.length">
+          <mat-icon>location_off</mat-icon>
+          <p>No GPS positions for active trips right now.</p>
+          <button mat-stroked-button type="button" (click)="openFullLiveMap()">Open fleet live map</button>
+        </div>
+      </div>
+
+      <aside class="trip-side">
+        <h4>Active trips</h4>
+        <div class="trip-side-empty" *ngIf="!liveTrips.length && !mapLoading">No active trips</div>
+        <button
+          type="button"
+          class="trip-side-row"
+          *ngFor="let trip of liveTrips"
+          [class.active]="selectedTripId === trip.id"
+          (click)="selectTrip(trip)">
+          <div class="row-top">
+            <strong>{{ trip.tripNumber }}</strong>
+            <span class="ops-status" [ngClass]="statusTone(trip.status)">{{ formatStatus(trip.status) }}</span>
+          </div>
+          <div class="row-meta">{{ trip.vehicleName || 'No vehicle' }} · {{ trip.driverName || 'No driver' }}</div>
+          <div class="row-actions" (click)="$event.stopPropagation()">
+            <button type="button" class="ops-chip-btn ops-chip-btn--route" (click)="openTrip(trip)">
+              <mat-icon>visibility</mat-icon> Details
+            </button>
+            <button
+              type="button"
+              class="ops-chip-btn ops-chip-btn--live"
+              *ngIf="trip.vehicleId && trip.gpsOnline"
+              (click)="openLive(trip)">
+              <mat-icon>location_on</mat-icon> View Live
+            </button>
+          </div>
+        </button>
+      </aside>
+    </div>
+  </section>
 </div>

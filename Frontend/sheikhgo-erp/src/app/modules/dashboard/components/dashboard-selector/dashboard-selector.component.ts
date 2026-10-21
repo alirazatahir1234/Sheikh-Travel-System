@@ -12,9 +12,9 @@ import { DASHBOARD_OPTIONS, DashboardType } from '../../models/dashboard-type.mo
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, UiSelectComponent],
   template: `
-    <div class="flex items-center gap-2 sm:gap-3">
+    <div class="dash-selector flex items-center gap-2 sm:gap-3">
       <span class="hidden whitespace-nowrap text-sm font-semibold text-fleet-text-muted sm:inline">Dashboard</span>
-      <div class="w-48 sm:w-56">
+      <div class="dash-selector__control w-full min-w-0 sm:w-56">
         <ui-select
           [options]="selectOptions"
           [ngModel]="selected()"
@@ -24,7 +24,18 @@ import { DASHBOARD_OPTIONS, DashboardType } from '../../models/dashboard-type.mo
         </ui-select>
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    :host { display: block; min-width: 0; }
+
+    .dash-selector { min-width: 0; }
+
+    @media (max-width: 767px) {
+      :host { width: 100%; }
+      .dash-selector { width: 100%; }
+      .dash-selector__control { min-height: 44px; }
+    }
+  `]
 })
 export class DashboardSelectorComponent {
   private readonly dashboardService = inject(DashboardService);

@@ -167,4 +167,20 @@ public class DoubleBookingPreventionTests
         var dto = new AssignVehicleDto(VehicleId: 9);
         dto.VehicleId.Should().Be(9);
     }
+
+    [Fact]
+    public void UnassignDriverCommand_ShouldHoldBookingId()
+    {
+        var command = new UnassignDriverCommand(BookingId: 15);
+        command.BookingId.Should().Be(15);
+        command.AuditAction.Should().Be("UnassignDriver");
+    }
+
+    [Fact]
+    public void UnassignVehicleCommand_ShouldHoldBookingId()
+    {
+        var command = new UnassignVehicleCommand(BookingId: 22);
+        command.BookingId.Should().Be(22);
+        command.AuditAction.Should().Be("UnassignVehicle");
+    }
 }

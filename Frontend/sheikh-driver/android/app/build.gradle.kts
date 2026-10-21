@@ -5,6 +5,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Apply Google Services only when google-services.json is present (gitignored).
+// Without it Firebase.initializeApp() fails at runtime and push cannot get an FCM token.
+val googleServicesJson = file("google-services.json")
+if (googleServicesJson.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn(
+        "WARNING: android/app/google-services.json missing — Firebase/FCM disabled. " +
+            "Copy the Firebase Android config into android/app/google-services.json for push.",
+    )
+}
+
 import java.util.Properties
 import java.io.FileInputStream
 

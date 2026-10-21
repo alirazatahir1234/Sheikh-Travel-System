@@ -283,6 +283,34 @@ public sealed class BookingRepository(
         return BookingMutationResult.Ok(meta.BookingNumber, meta.DriverUserId);
     }
 
+    public async Task<BookingMutationResult> UnassignDriverAsync(
+        int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var bookingStatus = await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(
+                "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = bookingId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        if (bookingStatus is null)
+            throw new NotFoundException("Booking", bookingId);
+
+        if (bookingStatus != (int)BookingStatus.Pending && bookingStatus != (int)BookingStatus.Confirmed)
+            return BookingMutationResult.Fail("Can only unassign driver from pending or confirmed bookings.");
+
+        await connection.ExecuteAsync(
+            new CommandDefinition(
+                "UPDATE Bookings SET DriverId = NULL, UpdatedAt = @Now WHERE Id = @Id AND TenantId = @TenantId",
+                new { Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        return BookingMutationResult.Ok();
+    }
+
     public async Task<BookingMutationResult> AssignVehicleAsync(
         int bookingId,
         int vehicleId,
@@ -350,6 +378,34 @@ public sealed class BookingRepository(
             new CommandDefinition(
                 "UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = @Now WHERE Id = @Id AND TenantId = @TenantId",
                 new { VehicleId = vehicleId, Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        return BookingMutationResult.Ok();
+    }
+
+    public async Task<BookingMutationResult> UnassignVehicleAsync(
+        int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var bookingStatus = await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(
+                "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = bookingId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        if (bookingStatus is null)
+            throw new NotFoundException("Booking", bookingId);
+
+        if (bookingStatus != (int)BookingStatus.Pending && bookingStatus != (int)BookingStatus.Confirmed)
+            return BookingMutationResult.Fail("Can only unassign vehicle from pending or confirmed bookings.");
+
+        await connection.ExecuteAsync(
+            new CommandDefinition(
+                "UPDATE Bookings SET VehicleId = NULL, UpdatedAt = @Now WHERE Id = @Id AND TenantId = @TenantId",
+                new { Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return BookingMutationResult.Ok();
@@ -484,6 +540,7 @@ public sealed class BookingRepository(
         DateTime? dateTo,
         decimal? amountMin,
         decimal? amountMax,
+        string? routeName = null,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -494,7 +551,7 @@ public sealed class BookingRepository(
         if (status.HasValue)
             clauses.Add("b.Status = @Status");
         if (!string.IsNullOrWhiteSpace(search))
-            clauses.Add("(b.BookingNumber LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR r.Source LIKE @SearchPattern OR r.Destination LIKE @SearchPattern)");
+            clauses.Add("(b.BookingNumber LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR r.Source LIKE @SearchPattern OR r.Destination LIKE @SearchPattern OR (r.Source + ' -> ' + r.Destination) LIKE @SearchPattern)");
         if (dateFrom.HasValue)
             clauses.Add("b.PickupTime >= @DateFrom");
         if (dateTo.HasValue)
@@ -503,6 +560,8 @@ public sealed class BookingRepository(
             clauses.Add("b.TotalAmount >= @AmountMin");
         if (amountMax.HasValue)
             clauses.Add("b.TotalAmount <= @AmountMax");
+        if (!string.IsNullOrWhiteSpace(routeName))
+            clauses.Add("(r.Source + ' -> ' + r.Destination) = @RouteName");
 
         var parameters = new DynamicParameters(new
         {
@@ -514,7 +573,8 @@ public sealed class BookingRepository(
             DateFrom = dateFrom,
             DateTo = dateTo.HasValue ? (DateTime?)dateTo.Value.Date.AddDays(1) : null,
             AmountMin = amountMin,
-            AmountMax = amountMax
+            AmountMax = amountMax,
+            RouteName = routeName?.Trim()
         });
 
         if (currentUser.UserId is int userId)

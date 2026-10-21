@@ -56,7 +56,7 @@
               · {{ item.vehicleName || 'No vehicle' }}
             </span>
           </div>
-          <span class="badge" [ngClass]="statusClass(item.status)">{{ item.status }}</span>
+          <span class="badge" [ngClass]="statusClass(item.status)">{{ formatStatus(item.status) }}</span>
         </li>
       </ul>
     </aside>

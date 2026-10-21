@@ -25,18 +25,39 @@ import { FleetDashboardComponent } from '../../dashboards/fleet-dashboard/fleet-
     </div>
   `,
   styles: [`
-    :host { display: block; min-height: 100%; }
+    :host { display: block; min-height: 100%; min-width: 0; max-width: 100%; }
 
     .dashboard-container {
       display: flex;
       flex-direction: column;
       min-height: 100%;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .dashboard-container__header {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       padding: 16px 24px 0;
+      min-width: 0;
+    }
+
+    @media (max-width: 767px) {
+      .dashboard-container__header {
+        justify-content: stretch;
+        padding: 8px 0 0;
+      }
+
+      .dashboard-container__header > * {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 575px) {
+      .dashboard-container__header {
+        padding-top: 4px;
+      }
     }
   `]
 })

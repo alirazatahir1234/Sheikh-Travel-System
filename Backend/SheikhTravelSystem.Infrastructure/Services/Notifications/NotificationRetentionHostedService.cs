@@ -16,30 +16,34 @@ public sealed class NotificationRetentionHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(StartupDelay, stoppingToken);
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
-            {
-                var utc = DateTime.UtcNow;
-                if (utc.Hour == 2 && utc.DayOfYear != _lastRunDay)
-                {
-                    using var scope = scopeFactory.CreateScope();
-                    var retention = scope.ServiceProvider.GetRequiredService<INotificationRetentionService>();
-                    var result = await retention.RunCleanupAsync(cancellationToken: stoppingToken);
-                    _lastRunDay = utc.DayOfYear;
-                    logger.LogInformation(
-                        "Nightly notification retention finished. Archived={Archive}, Deleted={Delete}, Protected={Protected}",
-                        result.EligibleAutoArchive, result.EligibleHardDelete, result.ProtectedCritical);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "Notification retention cycle failed");
-            }
+            await Task.Delay(StartupDelay, stoppingToken);
 
-            await Task.Delay(PollInterval, stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var utc = DateTime.UtcNow;
+                    if (utc.Hour == 2 && utc.DayOfYear != _lastRunDay)
+                    {
+                        using var scope = scopeFactory.CreateScope();
+                        var retention = scope.ServiceProvider.GetRequiredService<INotificationRetentionService>();
+                        var result = await retention.RunCleanupAsync(cancellationToken: stoppingToken);
+                        _lastRunDay = utc.DayOfYear;
+                        logger.LogInformation(
+                            "Nightly notification retention finished. Archived={Archive}, Deleted={Delete}, Protected={Protected}",
+                            result.EligibleAutoArchive, result.EligibleHardDelete, result.ProtectedCritical);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Notification retention cycle failed");
+                }
+
+                await Task.Delay(PollInterval, stoppingToken);
+            }
         }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
 }

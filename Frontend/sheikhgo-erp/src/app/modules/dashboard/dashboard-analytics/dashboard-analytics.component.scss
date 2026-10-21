@@ -43,15 +43,18 @@
   h2 {
     margin: 0;
     color: var(--stb-text);
+    overflow-wrap: anywhere;
   }
 
   p {
     margin: 4px 0 0;
     font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
+    line-height: 1.4;
   }
 
   @media (max-width: 767px) {
     margin-bottom: 12px;
+    padding: 0;
   }
 }
 

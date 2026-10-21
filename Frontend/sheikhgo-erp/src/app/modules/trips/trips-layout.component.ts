@@ -38,9 +38,15 @@ export class TripsLayoutComponent implements OnInit {
     });
   }
 
-  openList(status?: string): void {
-    this.router.navigate(['/trips/list'], {
-      queryParams: status ? { status } : {}
-    });
+  openList(filter?: string): void {
+    if (!filter) {
+      this.router.navigate(['/trips/list']);
+      return;
+    }
+    if (filter === 'scheduled' || filter === 'ongoing') {
+      this.router.navigate(['/trips/list'], { queryParams: { statusGroup: filter } });
+      return;
+    }
+    this.router.navigate(['/trips/list'], { queryParams: { status: filter } });
   }
 }

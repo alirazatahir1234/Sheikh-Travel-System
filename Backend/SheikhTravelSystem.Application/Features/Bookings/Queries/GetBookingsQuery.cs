@@ -14,7 +14,8 @@ public record GetBookingsQuery(
     DateTime? DateFrom = null,
     DateTime? DateTo = null,
     decimal? AmountMin = null,
-    decimal? AmountMax = null
+    decimal? AmountMax = null,
+    string? RouteName = null
 ) : IRequest<ApiResponse<PagedResult<BookingDto>>>;
 
 public class GetBookingsQueryHandler(IBookingRepository bookingRepository)
@@ -31,6 +32,7 @@ public class GetBookingsQueryHandler(IBookingRepository bookingRepository)
             request.DateTo,
             request.AmountMin,
             request.AmountMax,
+            request.RouteName,
             cancellationToken);
 
         return ApiResponse<PagedResult<BookingDto>>.SuccessResponse(result);

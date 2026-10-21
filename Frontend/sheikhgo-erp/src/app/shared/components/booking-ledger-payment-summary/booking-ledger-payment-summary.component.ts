@@ -21,6 +21,8 @@ export class BookingLedgerPaymentSummaryComponent {
   @Input({ required: true }) bookingId!: number;
   @Input({ required: true }) totalAmount!: number;
   @Input({ required: true }) totalPaid!: number;
+  /** When false, hide the pay-remaining CTA (e.g. completed/cancelled or no Payment.Create). */
+  @Input() allowPay = true;
 
   get balanceDue(): number {
     return calculateLedgerRemaining(this.totalAmount, this.totalPaid);

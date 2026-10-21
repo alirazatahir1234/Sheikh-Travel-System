@@ -74,4 +74,6 @@ export interface BookingFilter {
   dateTo?: string;
   amountMin?: number;
   amountMax?: number;
+  /** Exact match on `Source -> Destination` (API RouteName). */
+  routeName?: string;
 }

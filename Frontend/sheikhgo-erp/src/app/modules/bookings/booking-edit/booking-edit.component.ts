@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { catchError } from 'rxjs/operators';
+import { AuthService } from '../../../core/services/auth.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { RouteService } from '../../../core/services/route.service';
 import { CustomerService } from '../../../core/services/customer.service';
@@ -48,6 +49,7 @@ export class BookingEditComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
+    private auth: AuthService,
     private bookingService: BookingService,
     private routeService: RouteService,
     private customerService: CustomerService,
@@ -69,6 +71,12 @@ export class BookingEditComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.auth.hasPermission('Booking.Update')) {
+      this.toast.error('You do not have permission to edit bookings.');
+      void this.router.navigate(['/bookings']);
+      return;
+    }
+
     this.bookingId = +this.route.snapshot.paramMap.get('id')!;
 
     forkJoin({
@@ -139,8 +147,20 @@ export class BookingEditComponent implements OnInit {
 
   submit(): void {
     if (this.editBlocked || !this.bookingId) return;
+    if (!this.auth.hasPermission('Booking.Update')) {
+      this.toast.error('You do not have permission to edit bookings.');
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.toast.warning('Please fix the highlighted fields.');
+      return;
+    }
+
+    const pickupIso = dateTimeLocalToIso(this.form.getRawValue().pickupTime);
+    if (!pickupIso) {
+      this.form.get('pickupTime')?.markAsTouched();
+      this.toast.warning('Pickup time is required.');
       return;
     }
 
@@ -150,9 +170,9 @@ export class BookingEditComponent implements OnInit {
     const dto: UpdateBookingDto = {
       customerId: f.customerId,
       routeId: f.routeId,
-      pickupTime: dateTimeLocalToIso(f.pickupTime)!,
-      passengerCount: f.passengerCount,
-      totalAmount: f.totalAmount,
+      pickupTime: pickupIso,
+      passengerCount: Number(f.passengerCount),
+      totalAmount: Number(f.totalAmount),
       vehicleId: this.normalizeOptionalEntityId(f.vehicleId, this.vehicles.map(v => v.id)),
       driverId: this.normalizeOptionalEntityId(f.driverId, this.drivers.map(d => d.id)),
       notes: f.notes?.trim() || null
@@ -169,7 +189,7 @@ export class BookingEditComponent implements OnInit {
         const message =
           (err.error && typeof err.error === 'object' && 'message' in err.error && (err.error as { message?: string }).message) ||
           'Failed to update booking.';
-        this.toast.success(message);
+        this.toast.error(message);
       }
     });
   }

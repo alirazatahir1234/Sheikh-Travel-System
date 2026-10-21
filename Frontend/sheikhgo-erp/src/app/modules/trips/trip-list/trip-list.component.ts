@@ -1,9 +1,19 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PageEvent } from '@angular/material/paginator';
-import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 import { TripService } from '../../../core/services/trip.service';
-import { TripFilter, TripListItem, TripStatus, TRIP_STATUSES } from '../../../core/models/trip.model';
+import { VehicleService } from '../../../core/services/vehicle.service';
+import { DriverService } from '../../../core/services/driver.service';
+import {
+  TripFilter,
+  TripListItem,
+  TripStatus,
+  TripStatusGroup,
+  TRIP_STATUSES,
+  formatTripStatusLabel,
+  tripStatusesForGroup
+} from '../../../core/models/trip.model';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
@@ -28,23 +38,27 @@ export class TripListComponent implements OnInit, OnDestroy {
   pageSize = 10;
   search = '';
   status = '';
-  selectedVehicle = '';
-  selectedDriver = '';
+  statusGroup: TripStatusGroup | '' = '';
+  selectedVehicleId: number | null = null;
+  selectedDriverId: number | null = null;
   dateFrom: Date | null = null;
   dateTo: Date | null = null;
   todayOnly = false;
   tomorrowOnly = false;
   upcomingOnly = false;
-  vehicleOptions: string[] = [];
-  driverOptions: string[] = [];
+  vehicleOptions: Array<{ id: number; name: string }> = [];
+  driverOptions: Array<{ id: number; fullName: string }> = [];
   readonly statusOptions = TRIP_STATUSES;
 
   private readonly searchSubject = new Subject<string>();
   private searchSub?: Subscription;
   private querySub?: Subscription;
+  private skipNextQueryLoad = false;
 
   constructor(
     private trips: TripService,
+    private vehiclesApi: VehicleService,
+    private driversApi: DriverService,
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService
@@ -57,22 +71,50 @@ export class TripListComponent implements OnInit, OnDestroy {
     return `Showing ${start}–${end} of ${this.totalCount} trips`;
   }
 
+  get activeFilterChips(): string[] {
+    const chips: string[] = [];
+    if (this.statusGroup === 'scheduled') chips.push('Scheduled group');
+    if (this.statusGroup === 'ongoing') chips.push('Ongoing group');
+    if (this.todayOnly) chips.push('Today');
+    if (this.tomorrowOnly) chips.push('Tomorrow');
+    if (this.upcomingOnly) chips.push('Upcoming');
+    return chips;
+  }
+
   ngOnInit(): void {
     this.initDefaultDateRange();
+    this.loadFilterOptions();
+
     this.searchSub = this.searchSubject.pipe(
       debounceTime(350),
       distinctUntilChanged()
     ).subscribe(term => {
       this.search = term;
-      this.load(true);
+      this.syncQueryParams({ resetPage: true });
     });
 
     this.querySub = this.route.queryParamMap.subscribe(params => {
+      if (this.skipNextQueryLoad) {
+        this.skipNextQueryLoad = false;
+        return;
+      }
+
       this.status = params.get('status') || '';
+      const group = params.get('statusGroup');
+      this.statusGroup = group === 'scheduled' || group === 'ongoing' ? group : '';
       this.todayOnly = params.get('todayOnly') === 'true';
       this.tomorrowOnly = params.get('tomorrowOnly') === 'true';
       this.upcomingOnly = params.get('upcoming') === 'true' || params.get('upcomingOnly') === 'true';
-      this.pageIndex = 0;
+      this.search = params.get('search') || this.search;
+
+      const vehicleId = Number(params.get('vehicleId'));
+      this.selectedVehicleId = Number.isFinite(vehicleId) && vehicleId > 0 ? vehicleId : null;
+      const driverId = Number(params.get('driverId'));
+      this.selectedDriverId = Number.isFinite(driverId) && driverId > 0 ? driverId : null;
+
+      const page = Number(params.get('page'));
+      this.pageIndex = Number.isFinite(page) && page > 0 ? page - 1 : 0;
+
       this.load();
     });
   }
@@ -86,20 +128,31 @@ export class TripListComponent implements OnInit, OnDestroy {
     this.searchSubject.next(term);
   }
 
+  onStatusChange(): void {
+    this.statusGroup = '';
+    this.syncQueryParams({ resetPage: true });
+  }
+
+  onVehicleChange(): void {
+    this.syncQueryParams({ resetPage: true });
+  }
+
+  onDriverChange(): void {
+    this.syncQueryParams({ resetPage: true });
+  }
+
   load(resetPage = false): void {
     if (resetPage) this.pageIndex = 0;
     this.loading = true;
     this.error = null;
 
-    const searchParts = [
-      this.search.trim(),
-      this.selectedVehicle.trim(),
-      this.selectedDriver.trim()
-    ].filter(Boolean);
-
+    const statuses = tripStatusesForGroup(this.statusGroup);
     const filter: TripFilter = {
-      status: (this.status as TripFilter['status']) || '',
-      search: searchParts.length ? searchParts.join(' ') : undefined,
+      status: statuses?.length ? '' : ((this.status as TripFilter['status']) || ''),
+      statuses: statuses ?? undefined,
+      search: this.search.trim() || undefined,
+      driverId: this.selectedDriverId,
+      vehicleId: this.selectedVehicleId,
       todayOnly: this.todayOnly || undefined,
       tomorrowOnly: this.tomorrowOnly || undefined,
       upcomingOnly: this.upcomingOnly || undefined,
@@ -109,7 +162,6 @@ export class TripListComponent implements OnInit, OnDestroy {
 
     this.trips.getAll(this.pageIndex + 1, this.pageSize, filter).subscribe({
       next: res => {
-        // Newest start time first (matches API ORDER BY PlannedStart DESC, Id DESC)
         this.items = [...res.items].sort((a, b) => {
           const ta = new Date(a.plannedStart).getTime();
           const tb = new Date(b.plannedStart).getTime();
@@ -117,11 +169,12 @@ export class TripListComponent implements OnInit, OnDestroy {
           return b.id - a.id;
         });
         this.totalCount = res.totalCount;
-        this.mergeOptions(res.items);
         this.loading = false;
       },
       error: err => {
         this.loading = false;
+        this.items = [];
+        this.totalCount = 0;
         this.error = apiErrorMessage(err, 'Failed to load trips.');
         this.toast.error(this.error);
       }
@@ -131,20 +184,22 @@ export class TripListComponent implements OnInit, OnDestroy {
   onPage(e: PageEvent): void {
     this.pageIndex = e.pageIndex;
     this.pageSize = e.pageSize;
-    this.load();
+    this.syncQueryParams();
   }
 
   clearFilters(): void {
     this.search = '';
     this.status = '';
-    this.selectedVehicle = '';
-    this.selectedDriver = '';
+    this.statusGroup = '';
+    this.selectedVehicleId = null;
+    this.selectedDriverId = null;
     this.todayOnly = false;
     this.tomorrowOnly = false;
     this.upcomingOnly = false;
     this.initDefaultDateRange();
-    this.router.navigate(['/trips/list']);
-    this.load(true);
+    this.pageIndex = 0;
+    this.skipNextQueryLoad = true;
+    void this.router.navigate(['/trips/list']).then(() => this.load(true));
   }
 
   view(id: number): void {
@@ -165,13 +220,17 @@ export class TripListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/trips', row.id]);
   }
 
-  /** Live pin only when trip is in progress AND GPS live tracking is available. */
+  /** Live pin when trip is active (incl. Delayed) AND GPS is online. */
   showViewLive(row: TripListItem): boolean {
-    return this.isInProgress(row.status) && this.hasLiveTracking(row);
+    return this.isLiveEligible(row.status) && this.hasLiveTracking(row) && !!row.vehicleId;
   }
 
   hasLiveTracking(row: TripListItem): boolean {
     return !!row.gpsOnline;
+  }
+
+  isLiveEligible(status: TripStatus): boolean {
+    return status === 'Started' || status === 'Enroute' || status === 'AtPickup' || status === 'Delayed';
   }
 
   isInProgress(status: TripStatus): boolean {
@@ -197,11 +256,8 @@ export class TripListComponent implements OnInit, OnDestroy {
     return `ops-status--${key}`;
   }
 
-  /** CamelCase → readable label, e.g. VehicleAssigned → "Vehicle Assigned". */
   formatTripStatus(status: string | TripStatus | null | undefined): string {
-    if (!status) return '';
-    if (this.isInProgress(status as TripStatus)) return 'In Progress';
-    return String(status).replace(/([A-Z])/g, ' $1').trim();
+    return formatTripStatusLabel(status);
   }
 
   formatRoute(row: TripListItem): string {
@@ -236,19 +292,46 @@ export class TripListComponent implements OnInit, OnDestroy {
     this.load(true);
   }
 
+  private loadFilterOptions(): void {
+    forkJoin({
+      vehicles: this.vehiclesApi.getAll(1, 500),
+      drivers: this.driversApi.getAll(1, 500)
+    }).subscribe({
+      next: ({ vehicles, drivers }) => {
+        this.vehicleOptions = vehicles.items
+          .map(v => ({ id: v.id, name: v.name || v.registrationNumber || `Vehicle #${v.id}` }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        this.driverOptions = drivers.items
+          .map(d => ({ id: d.id, fullName: d.fullName }))
+          .sort((a, b) => a.fullName.localeCompare(b.fullName));
+      },
+      error: () => {
+        /* keep empty dropdowns; list still loads */
+      }
+    });
+  }
+
+  private syncQueryParams(opts?: { resetPage?: boolean }): void {
+    if (opts?.resetPage) this.pageIndex = 0;
+    this.skipNextQueryLoad = true;
+    void this.router.navigate(['/trips/list'], {
+      queryParams: {
+        status: this.statusGroup ? null : (this.status || null),
+        statusGroup: this.statusGroup || null,
+        vehicleId: this.selectedVehicleId || null,
+        driverId: this.selectedDriverId || null,
+        search: this.search.trim() || null,
+        todayOnly: this.todayOnly ? true : null,
+        tomorrowOnly: this.tomorrowOnly ? true : null,
+        upcoming: this.upcomingOnly ? true : null,
+        page: this.pageIndex > 0 ? this.pageIndex + 1 : null
+      },
+      queryParamsHandling: 'merge'
+    }).then(() => this.load(opts?.resetPage));
+  }
+
   private initDefaultDateRange(): void {
     this.dateFrom = null;
     this.dateTo = null;
-  }
-
-  private mergeOptions(items: TripListItem[]): void {
-    const vehicles = new Set(this.vehicleOptions);
-    const drivers = new Set(this.driverOptions);
-    for (const row of items) {
-      if (row.vehicleName?.trim()) vehicles.add(row.vehicleName.trim());
-      if (row.driverName?.trim()) drivers.add(row.driverName.trim());
-    }
-    this.vehicleOptions = [...vehicles].sort((a, b) => a.localeCompare(b));
-    this.driverOptions = [...drivers].sort((a, b) => a.localeCompare(b));
   }
 }

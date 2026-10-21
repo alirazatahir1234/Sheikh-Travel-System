@@ -169,8 +169,12 @@ export interface CreateTripDto {
 
 export interface UpdateTripDto extends Omit<CreateTripDto, 'bookingId' | 'driverId' | 'assistantDriverId' | 'vehicleId'> {}
 
+export type TripStatusGroup = 'scheduled' | 'ongoing';
+
 export interface TripFilter {
   status?: TripStatus | '';
+  /** Multi-status filter (KPI groups). Takes precedence over `status` when non-empty. */
+  statuses?: TripStatus[];
   driverId?: number | null;
   vehicleId?: number | null;
   routeId?: number | null;
@@ -181,6 +185,33 @@ export interface TripFilter {
   todayOnly?: boolean;
   tomorrowOnly?: boolean;
   upcomingOnly?: boolean;
+}
+
+/** Backend KPI: Scheduled = Scheduled + DriverAssigned + VehicleAssigned */
+export const TRIP_SCHEDULED_STATUSES: TripStatus[] = [
+  'Scheduled',
+  'DriverAssigned',
+  'VehicleAssigned'
+];
+
+/** Backend KPI: Ongoing = Started + AtPickup + Enroute + Delayed */
+export const TRIP_ONGOING_STATUSES: TripStatus[] = [
+  'Started',
+  'AtPickup',
+  'Enroute',
+  'Delayed'
+];
+
+export function tripStatusesForGroup(group: TripStatusGroup | string | null | undefined): TripStatus[] | null {
+  if (group === 'scheduled') return [...TRIP_SCHEDULED_STATUSES];
+  if (group === 'ongoing') return [...TRIP_ONGOING_STATUSES];
+  return null;
+}
+
+/** Humanized status label (never collapses distinct statuses to "In Progress"). */
+export function formatTripStatusLabel(status: string | TripStatus | null | undefined): string {
+  if (!status) return '';
+  return String(status).replace(/([A-Z])/g, ' $1').trim();
 }
 
 export interface TripCalendarItem {

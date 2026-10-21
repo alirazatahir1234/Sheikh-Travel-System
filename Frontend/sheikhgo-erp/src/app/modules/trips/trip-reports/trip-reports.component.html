@@ -7,19 +7,29 @@
     <div class="filters">
       <label>
         From
-        <input type="date" [(ngModel)]="from" />
+        <input type="date" [(ngModel)]="from" [max]="to || null" />
       </label>
       <label>
         To
-        <input type="date" [(ngModel)]="to" />
+        <input type="date" [(ngModel)]="to" [min]="from || null" />
       </label>
-      <ui-button variant="primary" size="sm" (clicked)="load()">Apply</ui-button>
+      <ui-button variant="primary" size="sm" (clicked)="load()" [disabled]="!!loading">Apply</ui-button>
       <ui-button variant="secondary" size="sm" icon="download" (clicked)="exportSummary()" [disabled]="!analytics">Excel</ui-button>
       <ui-button variant="secondary" size="sm" icon="table_view" (clicked)="exportTripsCsv()" [disabled]="exporting">CSV</ui-button>
     </div>
   </div>
 
-  <div *ngIf="!loading && analytics; else loadingTpl">
+  <div class="ops-error" *ngIf="error && !loading">
+    <mat-icon>error</mat-icon> {{ error }}
+    <button type="button" class="ops-btn ops-btn--ghost" (click)="load()">Retry</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+    <span>Loading analytics…</span>
+  </div>
+
+  <div *ngIf="!loading && analytics">
     <div class="kpi-grid">
       <div class="kpi"><span class="label">Total</span><strong>{{ analytics.totalTrips }}</strong></div>
       <div class="kpi"><span class="label">Completed</span><strong>{{ analytics.completedTrips }}</strong></div>
@@ -28,6 +38,10 @@
       <div class="kpi"><span class="label">Ongoing</span><strong>{{ analytics.ongoingTrips }}</strong></div>
       <div class="kpi"><span class="label">Completion</span><strong>{{ analytics.completionRate }}%</strong></div>
       <div class="kpi"><span class="label">Expenses</span><strong>{{ analytics.totalExpenses | number:'1.2-2' }}</strong></div>
+      <div class="kpi">
+        <span class="label">Distance (planned)</span>
+        <strong>{{ (analytics.totalPlannedDistanceKm || 0) | number:'1.1-1' }} km</strong>
+      </div>
       <div class="kpi">
         <span class="label">Distance (actual)</span>
         <strong>{{ (analytics.totalActualDistanceKm || 0) | number:'1.1-1' }} km</strong>
@@ -76,8 +90,4 @@
       </section>
     </div>
   </div>
-
-  <ng-template #loadingTpl>
-    <div class="loading">Loading analytics…</div>
-  </ng-template>
 </div>

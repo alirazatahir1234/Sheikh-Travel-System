@@ -35,6 +35,24 @@
   cursor: pointer;
 }
 
+.ops-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 12px;
+}
+
+.ops-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .booking-direct {
   color: #888;
   font-style: italic;

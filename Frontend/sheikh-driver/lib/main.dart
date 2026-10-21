@@ -62,6 +62,11 @@ void main() async {
   final biometricLock =
       prefsBox.get(biometricLockPrefsKey, defaultValue: false) as bool? ??
           false;
+  final pushNotifications = prefsBox.get(
+        pushNotificationsPrefsKey,
+        defaultValue: true,
+      ) as bool? ??
+      true;
   runApp(ProviderScope(
     overrides: [
       darkModeProvider.overrideWith((ref) => isDark),
@@ -69,6 +74,7 @@ void main() async {
         (ref) => localeCode == 'ar' ? 'ar' : 'en',
       ),
       biometricLockEnabledProvider.overrideWith((ref) => biometricLock),
+      pushNotificationsEnabledProvider.overrideWith((ref) => pushNotifications),
     ],
     child: const SheikhGoFleetApp(),
   ));

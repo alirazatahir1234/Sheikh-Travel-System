@@ -28,14 +28,14 @@
         <span class="ops-stat-label">Total Trips</span>
       </span>
     </button>
-    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Scheduled')">
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('scheduled')">
       <span class="ops-stat-icon ops-stat-icon--amber"><mat-icon>schedule</mat-icon></span>
       <span class="ops-stat-body">
         <span class="ops-stat-value">{{ stats?.scheduledTrips ?? '—' }}</span>
         <span class="ops-stat-label">Scheduled</span>
       </span>
     </button>
-    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Started')">
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('ongoing')">
       <span class="ops-stat-icon ops-stat-icon--sky"><mat-icon>play_circle</mat-icon></span>
       <span class="ops-stat-body">
         <span class="ops-stat-value">{{ stats?.ongoingTrips ?? '—' }}</span>

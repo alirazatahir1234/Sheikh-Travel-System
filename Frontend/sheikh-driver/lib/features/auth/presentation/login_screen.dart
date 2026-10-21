@@ -28,8 +28,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = true;
   String? _error;
 
-  bool get _isEmailMode => _identifierCtrl.text.trim().contains('@');
-
   @override
   void initState() {
     super.initState();
@@ -162,24 +160,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             const SizedBox(height: 20),
-                            TextFormField(
+                            // Tap → full-width sheet: avoids Gboard side toolbar
+                            // (voice / clipboard / corrections) crushing the field.
+                            _IdentifierSheetField(
                               controller: _identifierCtrl,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autocorrect: false,
-                              enableSuggestions: false,
-                              onChanged: (_) => setState(() {}),
-                              decoration: InputDecoration(
-                                labelText: 'Email or phone',
-                                hintText: _isEmailMode
-                                    ? 'ops@company.com'
-                                    : 'email or 03021234567',
-                                prefixIcon: Icon(
-                                  _isEmailMode
-                                      ? Icons.email_outlined
-                                      : Icons.person_outline_rounded,
-                                ),
-                              ),
                               validator: (v) => (v == null || v.trim().isEmpty)
                                   ? 'Email or phone is required'
                                   : null,
@@ -188,6 +172,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             TextFormField(
                               controller: _passwordCtrl,
                               obscureText: _obscurePassword,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              enableIMEPersonalizedLearning: false,
+                              autofillHints: const [AutofillHints.password],
+                              keyboardType: TextInputType.visiblePassword,
                               decoration: InputDecoration(
                                 labelText: 'Password',
                                 prefixIcon: const Icon(Icons.lock_outline_rounded),
@@ -311,6 +300,193 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tap field → bottom-sheet text entry (avoids floating keyboard side toolbar).
+class _IdentifierSheetField extends StatelessWidget {
+  const _IdentifierSheetField({
+    required this.controller,
+    required this.validator,
+  });
+
+  final TextEditingController controller;
+  final String? Function(String?)? validator;
+
+  bool get _isEmailMode => controller.text.trim().contains('@');
+
+  Future<void> _openEditor(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _IdentifierEntrySheet(
+        title: 'Email or phone',
+        initialValue: controller.text,
+        hint: 'email or 03021234567',
+      ),
+    );
+    if (result != null) {
+      controller.text = result;
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => validator?.call(controller.text),
+      builder: (state) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final value = controller.text.trim();
+            final emailMode = _isEmailMode;
+            return InkWell(
+              onTap: () async {
+                await _openEditor(context);
+                state.didChange(controller.text);
+                state.validate();
+              },
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              child: InputDecorator(
+                isEmpty: value.isEmpty,
+                decoration: InputDecoration(
+                  labelText: 'Email or phone',
+                  hintText: emailMode
+                      ? 'ops@company.com'
+                      : 'email or 03021234567',
+                  errorText: state.errorText,
+                  prefixIcon: Icon(
+                    emailMode
+                        ? Icons.email_outlined
+                        : Icons.person_outline_rounded,
+                  ),
+                  suffixIcon: Icon(
+                    Icons.edit_outlined,
+                    size: 20,
+                    color: context.sg.textSecondary,
+                  ),
+                ),
+                child: Text(
+                  value.isEmpty ? ' ' : value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: value.isEmpty
+                        ? Colors.transparent
+                        : context.sg.textPrimary,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _IdentifierEntrySheet extends StatefulWidget {
+  const _IdentifierEntrySheet({
+    required this.title,
+    required this.initialValue,
+    this.hint,
+  });
+
+  final String title;
+  final String initialValue;
+  final String? hint;
+
+  @override
+  State<_IdentifierEntrySheet> createState() => _IdentifierEntrySheetState();
+}
+
+class _IdentifierEntrySheetState extends State<_IdentifierEntrySheet> {
+  late final TextEditingController _ctrl;
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialValue);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: bottom + MediaQuery.paddingOf(context).bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            focusNode: _focus,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            enableSuggestions: false,
+            enableIMEPersonalizedLearning: false,
+            autofillHints: const [],
+            spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              prefixIcon: Icon(
+                _ctrl.text.trim().contains('@')
+                    ? Icons.email_outlined
+                    : Icons.person_outline_rounded,
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (v) => Navigator.pop(context, v.trim()),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _ctrl.text.trim()),
+              child: const Text('Done'),
             ),
           ),
         ],

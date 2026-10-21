@@ -38,10 +38,22 @@ public interface IBookingRepository
     Task<BookingMutationResult> AssignDriverAsync(int bookingId, int driverId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Clears the driver on a pending/confirmed booking.
+    /// Throws <see cref="Exceptions.NotFoundException"/> when booking is missing.
+    /// </summary>
+    Task<BookingMutationResult> UnassignDriverAsync(int bookingId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Assigns a vehicle after conflict checks.
     /// Throws <see cref="Exceptions.NotFoundException"/> when booking or vehicle is missing.
     /// </summary>
     Task<BookingMutationResult> AssignVehicleAsync(int bookingId, int vehicleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the vehicle on a pending/confirmed booking.
+    /// Throws <see cref="Exceptions.NotFoundException"/> when booking is missing.
+    /// </summary>
+    Task<BookingMutationResult> UnassignVehicleAsync(int bookingId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Transitions booking status and syncs driver/vehicle status in one transaction.
@@ -62,6 +74,7 @@ public interface IBookingRepository
         DateTime? dateTo,
         decimal? amountMin,
         decimal? amountMax,
+        string? routeName = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

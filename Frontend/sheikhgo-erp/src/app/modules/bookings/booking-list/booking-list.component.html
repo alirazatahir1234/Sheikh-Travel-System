@@ -6,6 +6,7 @@
     </div>
     <div class="ops-page-actions">
       <button
+        *ngIf="canDelete"
         type="button"
         class="ops-btn ops-btn--danger"
         [disabled]="!selectionCount || bulkDeleting"
@@ -16,10 +17,9 @@
       </button>
       <button type="button" class="ops-btn ops-btn--ghost" (click)="exportCsv()">
         <mat-icon>download</mat-icon>
-        Export
-        <mat-icon>expand_more</mat-icon>
+        Export CSV
       </button>
-      <a class="ops-btn ops-btn--primary" routerLink="/bookings/new">
+      <a *ngIf="canCreate" class="ops-btn ops-btn--primary" routerLink="/bookings/new">
         <mat-icon>add</mat-icon>
         New Booking
       </a>
@@ -58,6 +58,17 @@
       <span class="ops-stat-body">
         <span class="ops-stat-value">{{ summary.confirmed }}</span>
         <span class="ops-stat-label">Confirmed</span>
+      </span>
+    </button>
+    <button
+      type="button"
+      class="ops-stat ops-stat--clickable"
+      [class.is-selected]="selectedStatus === 'Started'"
+      (click)="filterByStat('Started')">
+      <span class="ops-stat-icon ops-stat-icon--sky"><mat-icon>play_circle</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ summary.started }}</span>
+        <span class="ops-stat-label">Started</span>
       </span>
     </button>
     <button
@@ -132,10 +143,36 @@
       <mat-icon class="ops-filter-icon">flag</mat-icon>
       <select
         [(ngModel)]="selectedStatus"
-        (ngModelChange)="load()"
+        (ngModelChange)="onStatusFilterChange()"
         aria-label="Filter by status">
         <option *ngFor="let s of statusOptions; trackBy: trackByValue" [ngValue]="s.value">{{ s.label }}</option>
       </select>
+    </div>
+
+    <div class="ops-amount-range">
+      <div class="ops-filter-field ops-filter-field--amount">
+        <mat-icon class="ops-filter-icon">payments</mat-icon>
+        <input
+          type="number"
+          min="0"
+          step="100"
+          [ngModel]="amountMin"
+          (ngModelChange)="onAmountMinChange($event)"
+          placeholder="Min amount"
+          aria-label="Minimum amount" />
+      </div>
+      <span class="ops-date-sep">–</span>
+      <div class="ops-filter-field ops-filter-field--amount">
+        <mat-icon class="ops-filter-icon">payments</mat-icon>
+        <input
+          type="number"
+          min="0"
+          step="100"
+          [ngModel]="amountMax"
+          (ngModelChange)="onAmountMaxChange($event)"
+          placeholder="Max amount"
+          aria-label="Maximum amount" />
+      </div>
     </div>
 
     <button type="button" class="ops-btn ops-btn--ghost" (click)="clearFilters()">Reset</button>
@@ -145,7 +182,59 @@
   <div *ngIf="error" class="ops-error"><mat-icon>error</mat-icon> {{ error }}</div>
 
   <div class="ops-table-card" *ngIf="!loading && !error">
-    <div class="ops-table-wrap" *ngIf="dataSource.data.length; else emptyBookings">
+    <div class="booking-mobile-cards" *ngIf="dataSource.data.length">
+      <article
+        class="booking-mobile-card"
+        *ngFor="let b of dataSource.data; trackBy: trackById"
+        [class.booking-mobile-card--selected]="isSelected(b.id)">
+        <div class="booking-mobile-card__head">
+          <mat-checkbox
+            *ngIf="canDelete"
+            [checked]="isSelected(b.id)"
+            (change)="toggleRowSelection(b.id, $event.checked)"
+            [attr.aria-label]="'Select booking ' + b.bookingNumber">
+          </mat-checkbox>
+          <div class="booking-mobile-card__identity">
+            <strong class="booking-mobile-card__number">{{ b.bookingNumber }}</strong>
+            <span class="booking-mobile-card__customer">{{ b.customerName }}</span>
+          </div>
+          <span class="ops-status" [ngClass]="statusClass(b.status)">{{ b.status }}</span>
+        </div>
+
+        <dl class="booking-mobile-card__meta">
+          <div class="booking-mobile-card__field">
+            <dt>Route</dt>
+            <dd>{{ formatRoute(b.routeName) }}</dd>
+          </div>
+          <div class="booking-mobile-card__field">
+            <dt>Travel date</dt>
+            <dd>{{ b.pickupTime | date:'dd MMM yyyy' }}</dd>
+          </div>
+          <div class="booking-mobile-card__field">
+            <dt>Passengers</dt>
+            <dd>{{ b.passengerCount }}</dd>
+          </div>
+          <div class="booking-mobile-card__field">
+            <dt>Amount</dt>
+            <dd>{{ formatAmount(b.totalAmount) }}</dd>
+          </div>
+        </dl>
+
+        <div class="booking-mobile-card__actions">
+          <button type="button" class="ops-btn ops-btn--ghost" (click)="view(b.id)">
+            <mat-icon>visibility</mat-icon> View
+          </button>
+          <button *ngIf="canUpdate" type="button" class="ops-btn ops-btn--ghost" (click)="edit(b.id)">
+            <mat-icon>edit</mat-icon> Edit
+          </button>
+          <button *ngIf="canDelete" type="button" class="ops-btn ops-btn--danger" (click)="delete(b.id)">
+            <mat-icon>delete</mat-icon> Delete
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <div class="ops-table-wrap booking-desktop-table" *ngIf="dataSource.data.length; else emptyBookings">
       <table mat-table [dataSource]="dataSource" [trackBy]="trackById" class="ops-table">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef class="ops-select-col">
@@ -258,11 +347,11 @@
       <mat-icon>visibility</mat-icon>
       <span>View</span>
     </button>
-    <button mat-menu-item type="button" (click)="activeBooking && edit(activeBooking.id)">
+    <button mat-menu-item type="button" *ngIf="canUpdate" (click)="activeBooking && edit(activeBooking.id)">
       <mat-icon>edit</mat-icon>
       <span>Edit</span>
     </button>
-    <button mat-menu-item type="button" (click)="activeBooking && delete(activeBooking.id)">
+    <button mat-menu-item type="button" *ngIf="canDelete" (click)="activeBooking && delete(activeBooking.id)">
       <mat-icon>delete</mat-icon>
       <span>Delete</span>
     </button>

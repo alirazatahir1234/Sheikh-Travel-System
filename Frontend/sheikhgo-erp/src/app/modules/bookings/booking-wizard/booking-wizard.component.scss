@@ -504,6 +504,27 @@ mat-form-field.calculated-field {
   }
 }
 
+.payment-perm-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.4;
+
+  mat-icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
 /* ======================================================================
    Discount / charge hints
    ====================================================================== */
@@ -557,6 +578,22 @@ mat-form-field.calculated-field {
   padding: 14px;
   margin-bottom: 14px;
   background: #fff;
+}
+
+.payment-perm-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff8e1;
+  color: #e65100;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.payment-plan-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .payment-card-title {
@@ -1129,5 +1166,81 @@ mat-form-field.calculated-field {
     display: inline-block;
     margin-right: 6px;
     vertical-align: middle;
+  }
+}
+
+/* ======================================================================
+   Mobile / touch polish
+   ====================================================================== */
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    h2 {
+      font-size: clamp(1.25rem, 4vw, 1.5rem);
+    }
+  }
+
+  .form-section {
+    padding: 16px;
+  }
+
+  .mode-toggle .mode-pills {
+    display: flex;
+    width: 100%;
+
+    .mode-pill {
+      flex: 1 1 0;
+      min-height: 44px;
+      justify-content: center;
+    }
+  }
+
+  .step-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+
+    button {
+      width: 100%;
+      min-height: 48px;
+    }
+  }
+
+  .finish-row {
+    flex-direction: column-reverse;
+    align-items: stretch;
+
+    button {
+      width: 100%;
+      min-height: 48px;
+    }
+  }
+
+  .payment-plan-btn {
+    min-height: 72px;
+    text-align: left;
+  }
+
+  .confirm-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  /* Prevent iOS input zoom */
+  input.mat-mdc-input-element,
+  .mat-mdc-form-field input,
+  .mat-mdc-form-field textarea,
+  select {
+    font-size: 16px !important;
   }
 }

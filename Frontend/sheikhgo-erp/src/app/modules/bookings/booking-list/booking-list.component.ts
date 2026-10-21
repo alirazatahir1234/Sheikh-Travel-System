@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { PageEvent } from '@angular/material/paginator';
 import { Subject, Subscription, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { Booking, BookingFilter, BookingStatus } from '../../../core/models/booking.model';
 import { DEFAULT_CURRENCY } from '../../../core/models/platform.model';
@@ -18,8 +19,12 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/compo
   styleUrls: ['./booking-list.component.scss']
 })
 export class BookingListComponent implements OnInit, OnDestroy {
-  displayedColumns = [
-    'select', 'index', 'bookingNumber', 'customerName', 'routeName',
+  private readonly baseColumns = [
+    'index', 'bookingNumber', 'customerName', 'routeName',
+    'pickupTime', 'passengerCount', 'totalAmount', 'status', 'createdAt', 'actions'
+  ];
+  displayedColumns: string[] = [
+    'index', 'bookingNumber', 'customerName', 'routeName',
     'pickupTime', 'passengerCount', 'totalAmount', 'status', 'createdAt', 'actions'
   ];
   dataSource = new MatTableDataSource<Booking>();
@@ -34,12 +39,12 @@ export class BookingListComponent implements OnInit, OnDestroy {
   selectedStatus = '';
   selectedRoute = '';
   searchTerm = '';
-  dateFrom: Date | null = null;
-  dateTo: Date | null = null;
   amountMin: number | null = null;
   amountMax: number | null = null;
+  dateFrom: Date | null = null;
+  dateTo: Date | null = null;
   routeOptions: Array<{ value: string; label: string }> = [];
-  summary = { total: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+  summary = { total: 0, pending: 0, confirmed: 0, started: 0, completed: 0, cancelled: 0 };
 
   private readonly searchSubject = new Subject<string>();
   private searchSub?: Subscription;
@@ -55,12 +60,32 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   constructor(
     private bookingService: BookingService,
+    private auth: AuthService,
     private router: Router,
     private toast: UiToastService,
     private dialog: MatDialog
   ) {}
 
+  get canCreate(): boolean {
+    return this.auth.hasPermission('Booking.Create');
+  }
+
+  get canUpdate(): boolean {
+    return this.auth.hasPermission('Booking.Update');
+  }
+
+  get canDelete(): boolean {
+    return this.auth.hasPermission('Booking.Delete');
+  }
+
+  private refreshDisplayedColumns(): void {
+    this.displayedColumns = this.canDelete
+      ? ['select', ...this.baseColumns]
+      : [...this.baseColumns];
+  }
+
   ngOnInit(): void {
+    this.refreshDisplayedColumns();
     this.searchSub = this.searchSubject.pipe(
       debounceTime(350),
       distinctUntilChanged()
@@ -100,6 +125,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
       total: this.bookingService.getAll(1, 1, {}),
       pending: this.bookingService.getAll(1, 1, { status: 'Pending' }),
       confirmed: this.bookingService.getAll(1, 1, { status: 'Confirmed' }),
+      started: this.bookingService.getAll(1, 1, { status: 'Started' }),
       completed: this.bookingService.getAll(1, 1, { status: 'Completed' }),
       cancelled: this.bookingService.getAll(1, 1, { status: 'Cancelled' })
     }).subscribe({
@@ -108,6 +134,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
           total: r.total.totalCount,
           pending: r.pending.totalCount,
           confirmed: r.confirmed.totalCount,
+          started: r.started.totalCount,
           completed: r.completed.totalCount,
           cancelled: r.cancelled.totalCount
         };
@@ -136,11 +163,35 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   clearFilters(): void {
     this.searchTerm = '';
-    this.amountMin = null;
-    this.amountMax = null;
     this.selectedStatus = '';
     this.selectedRoute = '';
+    this.amountMin = null;
+    this.amountMax = null;
     this.initDefaultDateRange();
+    this.load(true);
+  }
+
+  onAmountMinChange(value: string | number | null): void {
+    if (value === '' || value == null) {
+      this.amountMin = null;
+    } else {
+      const n = Number(value);
+      this.amountMin = Number.isFinite(n) ? n : null;
+    }
+    this.load(true);
+  }
+
+  onAmountMaxChange(value: string | number | null): void {
+    if (value === '' || value == null) {
+      this.amountMax = null;
+    } else {
+      const n = Number(value);
+      this.amountMax = Number.isFinite(n) ? n : null;
+    }
+    this.load(true);
+  }
+
+  onStatusFilterChange(): void {
     this.load(true);
   }
 
@@ -181,6 +232,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   delete(id: number): void {
+    if (!this.canDelete) {
+      this.toast.error('You do not have permission to delete bookings.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this booking?')) {
       this.bookingService.delete(id).subscribe({
         next: () => {
@@ -228,6 +283,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   bulkDeleteSelected(): void {
+    if (!this.canDelete) {
+      this.toast.error('You do not have permission to delete bookings.');
+      return;
+    }
     const ids = [...this.selectedIds];
     if (!ids.length) return;
 
@@ -326,16 +385,12 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   private buildFilter(): BookingFilter {
-    const searchParts = [
-      this.searchTerm.trim(),
-      this.selectedRoute.trim()
-    ].filter(Boolean);
-
     return {
       status: this.selectedStatus || undefined,
-      search: searchParts.length ? searchParts.join(' ') : undefined,
+      search: this.searchTerm.trim() || undefined,
       dateFrom: this.dateFrom ? this.toDateInput(this.dateFrom) : undefined,
       dateTo: this.dateTo ? this.toDateInput(this.dateTo) : undefined,
+      routeName: this.selectedRoute.trim() || undefined,
       amountMin: this.amountMin ?? undefined,
       amountMax: this.amountMax ?? undefined
     };

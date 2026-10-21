@@ -10,6 +10,7 @@ import '../../../core/providers/locale_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/security/biometric_auth_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../../features/auth/domain/auth_models.dart';
 import '../../gps/services/background_gps_tracker.dart';
 import '../../notifications/services/push_registration_service.dart';
 import '../services/app_version_service.dart';
@@ -89,29 +90,56 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(l10n.security),
           Builder(
             builder: (context) {
+              final pushOn = ref.watch(pushNotificationsEnabledProvider);
               final pushIssue = ref.watch(pushRegistrationIssueProvider);
-              if (pushIssue == null) return const SizedBox.shrink();
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                color: AppColors.warning.withValues(alpha: 0.12),
-                child: ListTile(
-                  leading: const Icon(Icons.notifications_off_outlined,
-                      color: AppColors.warning),
-                  title: const Text(
-                    'Push notifications',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+              final subtitle = pushIssue ??
+                  (pushOn
+                      ? 'Trip alerts and dispatch messages'
+                      : 'Off — you will not receive push alerts');
+              return Column(
+                children: [
+                  SwitchListTile(
+                    secondary: _IconBox(
+                      icon: pushOn
+                          ? Icons.notifications_active_outlined
+                          : Icons.notifications_off_outlined,
+                      color: pushOn ? AppColors.success : AppColors.warning,
+                    ),
+                    title: Text(
+                      'Push notifications',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: context.sg.textPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: pushIssue != null
+                            ? AppColors.warning
+                            : context.sg.textSecondary,
+                      ),
+                    ),
+                    value: pushOn,
+                    activeThumbColor: AppColors.primary,
+                    activeTrackColor: AppColors.primaryLight,
+                    onChanged: (v) => _togglePushNotifications(context, ref, v),
                   ),
-                  subtitle: Text(pushIssue),
-                  trailing: IconButton(
-                    tooltip: 'Dismiss',
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      PushRegistrationService.instance.clearHint();
-                      ref.read(pushRegistrationIssueProvider.notifier).state =
-                          null;
-                    },
-                  ),
-                ),
+                  if (pushIssue != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          PushRegistrationService.instance.clearHint();
+                          ref
+                              .read(pushRegistrationIssueProvider.notifier)
+                              .state = null;
+                        },
+                        child: const Text('Dismiss warning'),
+                      ),
+                    ),
+                ],
               );
             },
           ),
@@ -267,6 +295,52 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _togglePushNotifications(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+  ) async {
+    final dio = ref.read(dioProvider);
+    final session = ref.read(authRepositoryProvider).session;
+    final appName = session != null &&
+            (session.isDriverOnly || session.authMode == AuthMode.driver)
+        ? 'driver'
+        : 'fleet';
+
+    if (!enable) {
+      await PushRegistrationService.instance.disableFromSettings();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Push notifications turned off')),
+        );
+      }
+      return;
+    }
+
+    final ok = await PushRegistrationService.instance.enableFromSettings(
+      dio: dio,
+      appName: appName,
+    );
+    if (!context.mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Push notifications enabled'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not enable notifications. Allow permission in system Settings.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _toggleBiometric(

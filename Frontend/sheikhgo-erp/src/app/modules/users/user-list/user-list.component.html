@@ -40,36 +40,46 @@
 
   <div class="user-stats" *ngIf="!loading" aria-label="User statistics">
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">groups</mat-icon>
-      <div>
+      <div class="user-stat-icon user-stat-icon--teal" aria-hidden="true">
+        <mat-icon>groups</mat-icon>
+      </div>
+      <div class="user-stat-body">
         <p class="user-stat-label">Total</p>
         <p class="user-stat-value">{{ kpiTotal }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">check_circle</mat-icon>
-      <div>
+      <div class="user-stat-icon user-stat-icon--green" aria-hidden="true">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="user-stat-body">
         <p class="user-stat-label">Active</p>
         <p class="user-stat-value">{{ kpiActive }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">pause_circle</mat-icon>
-      <div>
+      <div class="user-stat-icon user-stat-icon--slate" aria-hidden="true">
+        <mat-icon>pause_circle</mat-icon>
+      </div>
+      <div class="user-stat-body">
         <p class="user-stat-label">Inactive</p>
         <p class="user-stat-value">{{ kpiInactive }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">block</mat-icon>
-      <div>
+      <div class="user-stat-icon user-stat-icon--red" aria-hidden="true">
+        <mat-icon>block</mat-icon>
+      </div>
+      <div class="user-stat-body">
         <p class="user-stat-label">Suspended</p>
         <p class="user-stat-value">{{ kpiSuspended }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">lock</mat-icon>
-      <div>
+      <div class="user-stat-icon user-stat-icon--amber" aria-hidden="true">
+        <mat-icon>lock</mat-icon>
+      </div>
+      <div class="user-stat-body">
         <p class="user-stat-label">Locked</p>
         <p class="user-stat-value">{{ kpiLocked }}</p>
       </div>

@@ -15,6 +15,7 @@ export class TripReportsComponent implements OnInit {
   loading = true;
   exporting = false;
   analytics: TripAnalytics | null = null;
+  error: string | null = null;
   from = '';
   to = '';
 
@@ -35,7 +36,11 @@ export class TripReportsComponent implements OnInit {
   }
 
   load(): void {
+    if (!this.validateRange()) return;
+
     this.loading = true;
+    this.error = null;
+    this.analytics = null;
     this.trips.getAnalytics(this.from, this.to).subscribe({
       next: analytics => {
         this.analytics = analytics;
@@ -43,7 +48,9 @@ export class TripReportsComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        this.toast.error(apiErrorMessage(err, 'Failed to load trip analytics.'));
+        this.analytics = null;
+        this.error = apiErrorMessage(err, 'Failed to load trip analytics.');
+        this.toast.error(this.error);
       }
     });
   }
@@ -76,9 +83,16 @@ export class TripReportsComponent implements OnInit {
   }
 
   exportTripsCsv(): void {
+    if (!this.validateRange()) return;
+
     this.exporting = true;
     this.trips.getAll(1, 500, { dateFrom: this.from, dateTo: this.to }).subscribe({
       next: page => {
+        if (page.totalCount > 500) {
+          this.toast.warning(
+            `Export limited to the first 500 of ${page.totalCount} trips. Narrow the date range for a full export.`
+          );
+        }
         this.exportService.exportCsv<TripListItem>(
           page.items,
           [
@@ -106,6 +120,16 @@ export class TripReportsComponent implements OnInit {
   barWidth(count: number, list: { count: number }[]): string {
     const max = Math.max(...list.map(x => x.count), 1);
     return `${Math.round((count / max) * 100)}%`;
+  }
+
+  private validateRange(): boolean {
+    if (this.from && this.to && this.from > this.to) {
+      this.error = 'From date must be on or before To date.';
+      this.toast.warning(this.error);
+      this.loading = false;
+      return false;
+    }
+    return true;
   }
 
   private toDateInput(d: Date): string {

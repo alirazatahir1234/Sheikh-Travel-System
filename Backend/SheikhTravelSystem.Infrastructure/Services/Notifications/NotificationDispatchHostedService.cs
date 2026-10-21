@@ -17,33 +17,37 @@ public sealed class NotificationDispatchHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(StartupDelay, stoppingToken);
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            var delay = TimeSpan.FromSeconds(30);
-            try
-            {
-                using var scope = scopeFactory.CreateScope();
-                var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
-                await notifications.DispatchPendingAsync(50, stoppingToken);
+            await Task.Delay(StartupDelay, stoppingToken);
 
-                var priority = await notifications.PeekHighestPendingPriorityAsync(stoppingToken);
-                delay = priority switch
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                var delay = TimeSpan.FromSeconds(30);
+                try
                 {
-                    >= 4 => TimeSpan.FromSeconds(5),
-                    3 => TimeSpan.FromSeconds(10),
-                    2 => TimeSpan.FromSeconds(30),
-                    1 => TimeSpan.FromSeconds(60),
-                    _ => TimeSpan.FromSeconds(30)
-                };
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "Notification dispatch cycle failed");
-            }
+                    using var scope = scopeFactory.CreateScope();
+                    var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                    await notifications.DispatchPendingAsync(50, stoppingToken);
 
-            await Task.Delay(delay, stoppingToken);
+                    var priority = await notifications.PeekHighestPendingPriorityAsync(stoppingToken);
+                    delay = priority switch
+                    {
+                        >= 4 => TimeSpan.FromSeconds(5),
+                        3 => TimeSpan.FromSeconds(10),
+                        2 => TimeSpan.FromSeconds(30),
+                        1 => TimeSpan.FromSeconds(60),
+                        _ => TimeSpan.FromSeconds(30)
+                    };
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Notification dispatch cycle failed");
+                }
+
+                await Task.Delay(delay, stoppingToken);
+            }
         }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
 }

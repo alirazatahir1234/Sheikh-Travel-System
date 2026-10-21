@@ -23,6 +23,7 @@ public class DatabaseSeeder(
 
         await SeedUsersAsync(connection, cancellationToken);
         await SeedDriverManagerUserAsync(connection, cancellationToken);
+        await SeedSheikhTravelOwnerUserAsync(connection, cancellationToken);
         await SeedChandTravelsDemoUsersAsync(connection, cancellationToken);
         await SeedBranchesAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
@@ -64,7 +65,7 @@ public class DatabaseSeeder(
                 "DELETE FROM Drivers",
                 "DELETE FROM Routes",
                 // Keep admin login usable — only remove users the seeder added.
-                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com','drivermanager@sheikhtravel.com','owner@chandtravel.com','driver@chandtravel.com')"
+                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com','drivermanager@sheikhtravel.com','owner@sheikhtravel.com','owner@chandtravel.com','driver@chandtravel.com')"
             };
 
             foreach (var sql in deleteStatements)
@@ -251,6 +252,53 @@ public class DatabaseSeeder(
             """,
             new { Email = email },
             cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// Idempotent Sheikh Travel (default tenant) OWNER for mobile tracking:
+    /// owner@sheikhtravel.com — same password as Chand Travels owner seed.
+    /// Platform UserRoles.OWNER carries GPS.View / fleet map permissions.
+    /// </summary>
+    private async Task SeedSheikhTravelOwnerUserAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        const string tenantSlug = "default";
+        const string ownerEmail = "owner@sheikhtravel.com";
+        // Same credential as SeedChandTravelsDemoUsersAsync owner (do not diverge).
+        const string password = "PASS@123";
+
+        var hasTenants = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(N'Tenants', N'U') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+        if (!hasTenants) return;
+
+        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TOP 1 Id FROM Tenants WHERE Slug = @Slug",
+            new { Slug = tenantSlug },
+            cancellationToken: ct));
+        if (tenantId is null or 0)
+        {
+            logger.LogWarning(
+                "Sheikh Travel tenant (slug={Slug}) missing — skip OWNER seed.",
+                tenantSlug);
+            return;
+        }
+
+        // Legacy Users.Role has no OWNER enum; Dispatcher is a placeholder.
+        // Platform UserRoles.OWNER is the real RBAC assignment (avoid Admin→TENANT_ADMIN JWT bridge).
+        await UpsertChandTravelsStaffUserAsync(
+            connection,
+            tenantId.Value,
+            fullName: "Sheikh Travel Owner",
+            email: ownerEmail,
+            phone: "03009990000",
+            legacyRole: (int)UserRole.Dispatcher,
+            roleCode: "OWNER",
+            password: password,
+            ct);
+
+        logger.LogInformation(
+            "Sheikh Travel OWNER ready: {OwnerEmail} (tenant slug={Slug}, TenantId={TenantId}).",
+            ownerEmail, tenantSlug, tenantId.Value);
     }
 
     /// <summary>

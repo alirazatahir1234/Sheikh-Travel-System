@@ -134,6 +134,38 @@
 .footer-sub { font-size: 0.75rem; color: #999; margin: 4px 0; }
 .footer-date { font-size: 0.75rem; color: #bbb; margin-top: 8px; }
 
+/* ── Screen mobile ── */
+@media (max-width: 767px) {
+  .screen-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    button {
+      min-height: 44px;
+      width: 100%;
+    }
+  }
+
+  .invoice {
+    padding: 20px 16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .invoice-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .payment-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ── Print styles ── */
 @media print {
   .screen-controls { display: none !important; }

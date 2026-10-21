@@ -14,21 +14,25 @@ public sealed class EscalationHostedService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(TimeSpan.FromSeconds(45), stoppingToken);
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            await Task.Delay(TimeSpan.FromSeconds(45), stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
             {
-                using var scope = scopeFactory.CreateScope();
-                await ProcessAsync(scope.ServiceProvider, logger, stoppingToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "Escalation cycle failed");
-            }
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    await ProcessAsync(scope.ServiceProvider, logger, stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Escalation cycle failed");
+                }
 
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+            }
         }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
 
     private static async Task ProcessAsync(IServiceProvider sp, ILogger<EscalationHostedService> logger, CancellationToken ct)
@@ -231,39 +235,43 @@ public sealed class AiJobsHostedService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
             {
-                using var scope = scopeFactory.CreateScope();
-                var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContext>();
-                if (tenantContext.TenantId is not int tenantId || tenantId <= 0)
+                try
                 {
-                    logger.LogDebug("Skipping AI jobs cycle because tenant context is unavailable.");
-                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-                    continue;
+                    using var scope = scopeFactory.CreateScope();
+                    var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContext>();
+                    if (tenantContext.TenantId is not int tenantId || tenantId <= 0)
+                    {
+                        logger.LogDebug("Skipping AI jobs cycle because tenant context is unavailable.");
+                        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                        continue;
+                    }
+
+                    var health = scope.ServiceProvider.GetRequiredService<IFleetHealthService>();
+                    var digest = scope.ServiceProvider.GetRequiredService<IAiDigestService>();
+                    var recs = scope.ServiceProvider.GetRequiredService<IAiRecommendationService>();
+                    var preds = scope.ServiceProvider.GetRequiredService<IAiPredictionService>();
+
+                    await health.ComputeAsync(tenantId, stoppingToken);
+                    await recs.RefreshAsync(tenantId, stoppingToken);
+                    await preds.CaptureFeaturesAsync(tenantId, stoppingToken);
+                    await preds.RunHeuristicPredictionsAsync(tenantId, stoppingToken);
+
+                    if (DateTime.UtcNow.Hour == 4)
+                        await digest.GenerateMorningDigestAsync(tenantId, stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "AI jobs cycle failed");
                 }
 
-                var health = scope.ServiceProvider.GetRequiredService<IFleetHealthService>();
-                var digest = scope.ServiceProvider.GetRequiredService<IAiDigestService>();
-                var recs = scope.ServiceProvider.GetRequiredService<IAiRecommendationService>();
-                var preds = scope.ServiceProvider.GetRequiredService<IAiPredictionService>();
-
-                await health.ComputeAsync(tenantId, stoppingToken);
-                await recs.RefreshAsync(tenantId, stoppingToken);
-                await preds.CaptureFeaturesAsync(tenantId, stoppingToken);
-                await preds.RunHeuristicPredictionsAsync(tenantId, stoppingToken);
-
-                if (DateTime.UtcNow.Hour == 4)
-                    await digest.GenerateMorningDigestAsync(tenantId, stoppingToken);
+                await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "AI jobs cycle failed");
-            }
-
-            await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
         }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
 }

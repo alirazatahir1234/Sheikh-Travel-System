@@ -40,6 +40,7 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { GpsRealtimeService, GpsConnectionState } from '../../../core/services/gps-realtime.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
+import { TripService } from '../../../core/services/trip.service';
 import {
   VehicleLocation,
   PositionDto,
@@ -365,6 +366,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     private realtime: GpsRealtimeService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
+    private tripService: TripService,
     private router: Router,
     private route: ActivatedRoute,
     private googleMapsLoader: GoogleMapsLoaderService,
@@ -381,6 +383,38 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (Number.isFinite(id)) {
         this.pendingFocusVehicleId = id;
         this.selectedVehicleId = id;
+      }
+    }
+
+    // Prefer tripId when present (View Live from trips) — resolves/overrides vehicle focus.
+    const tripIdParam = this.route.snapshot.queryParamMap.get('tripId');
+    if (tripIdParam) {
+      const tripId = Number(tripIdParam);
+      if (Number.isFinite(tripId) && tripId > 0) {
+        this.tripService.getById(tripId).subscribe({
+          next: trip => {
+            if (trip.vehicleId) {
+              this.pendingFocusVehicleId = trip.vehicleId;
+              this.selectedVehicleId = trip.vehicleId;
+              this.pushEvent(
+                `Focusing trip ${trip.tripNumber}${trip.vehicleName ? ' · ' + trip.vehicleName : ''}`,
+                'info',
+                'route'
+              );
+              const already = this.locations.find(l => l.vehicleId === trip.vehicleId);
+              if (already) {
+                this.focusVehicle(already);
+                this.pendingFocusVehicleId = null;
+              }
+              this.cdr.markForCheck();
+            } else {
+              this.pushEvent('Trip has no assigned vehicle — GPS unavailable', 'warning', 'directions_car');
+            }
+          },
+          error: () => {
+            this.pushEvent('Could not load trip for live focus', 'warning', 'error');
+          }
+        });
       }
     }
 

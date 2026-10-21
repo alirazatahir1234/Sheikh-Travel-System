@@ -5,8 +5,9 @@ import { MatStepper } from '@angular/material/stepper';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Observable, Subject, firstValueFrom, forkJoin, of } from 'rxjs';
-import { finalize, map, startWith, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, finalize, map, startWith, switchMap, takeUntil, tap } from 'rxjs/operators';
 
+import { AuthService } from '../../../core/services/auth.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { PaymentService } from '../../../core/services/payment.service';
 import { RouteService } from '../../../core/services/route.service';
@@ -69,6 +70,8 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   priceBreakdown: PriceBreakdown | null = null;
   createdBooking: Booking | null = null;
+  /** True after Trip Details validation — booking is not persisted until Finish. */
+  tripDetailsReady = false;
 
   loading = false;
   /** True while assign-driver + payment API calls run from Confirm. */
@@ -119,6 +122,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
+    private auth: AuthService,
     private bookingService: BookingService,
     private paymentService: PaymentService,
     private routeService: RouteService,
@@ -186,6 +190,12 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   // ---------- Lifecycle ------------------------------------------------------
 
   ngOnInit(): void {
+    if (!this.auth.hasPermission('Booking.Create')) {
+      this.toast.error('You do not have permission to create bookings.');
+      void this.router.navigate(['/bookings']);
+      return;
+    }
+
     this.minPickupDateTime = this.getMinPickupDateTime();
     forkJoin({
       routes:    this.routeService.getAll(1, 200),
@@ -206,6 +216,10 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         this.error = this.describeBookingWizardLoadError(err);
       }
     });
+  }
+
+  get canRecordPayment(): boolean {
+    return this.auth.hasPermission('Payment.Create');
   }
 
   ngOnDestroy(): void {
@@ -341,6 +355,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       this.allowanceOverridden = false;
       this.allowanceResult = null;
       this.step1Form.patchValue({ driverAllowance: 0 });
+      this.step2Form.patchValue({ driverId: null });
     } else {
       this.refreshDriverAllowance();
     }
@@ -510,50 +525,26 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   // ---------- Submission ----------------------------------------------------
 
+  /**
+   * Advances past Trip Details without persisting.
+   * Booking is created only on Finish to avoid orphan Pending rows if the wizard is abandoned.
+   */
   createBooking(): void {
+    if (this.createdBooking) {
+      this.stepper?.next();
+      return;
+    }
     if (!this.validateStep1()) return;
 
-    this.loading = true;
+    const routeId = this.resolveRouteId();
+    const vehicleId = this.resolveVehicleId();
+    if (!routeId || !vehicleId) {
+      this.toast.warning('Please select route and vehicle from the suggestions.');
+      return;
+    }
 
-    this.ensureCustomerId().pipe(
-      takeUntil(this.destroy$),
-      switchMap(customerId => {
-        const f = this.step1Form.value;
-        const pickupIso = this.combineDateAndTime(f.pickupTime, f.pickupTimeClock);
-        return this.bookingService.create({
-          booking: {
-            customerId,
-            routeId:        f.routeId,
-            pickupTime:     pickupIso,
-            passengerCount: f.passengerCount,
-            totalAmount:    this.priceBreakdown?.totalAmount ?? 0,
-            notes:          f.notes || null
-          }
-        });
-      })
-    ).pipe(
-      takeUntil(this.destroy$),
-      switchMap((newId: number) => {
-        const vehicleId = this.step1Form.value.vehicleId;
-        const assign$ = vehicleId
-          ? this.bookingService.assignVehicle({ bookingId: newId, vehicleId })
-          : of(true as unknown as boolean);
-        return assign$.pipe(
-          switchMap(() => this.bookingService.getById(newId))
-        );
-      })
-    ).subscribe({
-      next: fullBooking => {
-        this.createdBooking = fullBooking;
-        this.loading = false;
-        this.maybeRecordWhatsAppConsent();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.loading = false;
-        this.creatingCustomer = false;
-        this.toast.error(this.extractError(err) || 'Failed to create booking');
-      }
-    });
+    this.tripDetailsReady = true;
+    Promise.resolve().then(() => this.stepper?.next());
   }
 
   private maybeRecordWhatsAppConsent(): void {
@@ -632,6 +623,15 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       return false;
     }
 
+    const vehicleId = this.resolveVehicleId();
+    const vehicle = vehicleId ? this.vehicles.find(v => v.id === vehicleId) : null;
+    const passengers = Number(this.step1Form.value.passengerCount);
+    if (vehicle?.seatingCapacity && Number.isFinite(passengers) && passengers > vehicle.seatingCapacity) {
+      this.toast.warning(
+        `Passenger count (${passengers}) exceeds vehicle capacity (${vehicle.seatingCapacity} seats).`);
+      return false;
+    }
+
     if (this.customerMode === 'EXISTING' && !this.step1Form.value.customerId) {
       this.toast.warning('Pick an existing customer or switch to New.');
       return false;
@@ -656,6 +656,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   canProceedToConfirm(): boolean {
     const plan = this.step3Form.value.paymentPlan as PaymentPlan;
     if (plan === 'PAY_LATER') return true;
+    if (!this.canRecordPayment) return false;
     if (plan === 'PARTIAL') {
       const total = this.totalBookingAmount;
       const amt = Number(this.step3Form.value.partialAmount);
@@ -665,8 +666,8 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   }
 
   assignAndFinish(): void {
-    if (!this.createdBooking) {
-      this.toast.warning('Create the booking from Trip Details first (use Next: Assign Driver).');
+    if (!this.tripDetailsReady && !this.createdBooking) {
+      this.toast.warning('Complete Trip Details first (use Next: Assign Driver).');
       return;
     }
     if (!this.canProceedToConfirm()) {
@@ -675,79 +676,150 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const driverId = this.step2Form.value.driverId;
+    const routeId = this.resolveRouteId();
+    const vehicleId = this.resolveVehicleId();
+    if (!routeId || !vehicleId) {
+      this.toast.warning('Please select route and vehicle from the suggestions.');
+      return;
+    }
+
+    const driverId = this.step1Form.value.driverRequired ? this.step2Form.value.driverId : null;
     const paymentPlan = this.step3Form.value.paymentPlan as PaymentPlan;
+
+    if (paymentPlan !== 'PAY_LATER' && !this.canRecordPayment) {
+      this.toast.error('You do not have permission to record payments. Choose Pay Later or ask an admin.');
+      this.goToPaymentStep();
+      return;
+    }
 
     const afterSuccess = () => {
       this.toast.success('Booking saved. Payment and driver updates are complete.');
       this.router.navigate(['/bookings']);
     };
 
-    const assignment$ = driverId
-      ? this.bookingService.assignDriver({ bookingId: this.createdBooking.id, driverId })
-      : of(true as unknown as boolean);
-
     this.finishing = true;
-    assignment$
-      .pipe(
-        takeUntil(this.destroy$),
-        switchMap(() => {
-          if (paymentPlan === 'PAY_LATER') return of(null);
-
-          const totalAmount = this.totalBookingAmount;
-          const paymentMethod = this.step3Form.value.paymentMethod as PaymentMethod;
-          const amount = paymentPlan === 'FULL'
-            ? totalAmount
-            : Number(this.step3Form.value.partialAmount ?? 0);
-          const paymentMethodName = (this.step3Form.value.paymentMethodName || '').trim();
-          const paymentNotes = (this.step3Form.value.paymentNotes || '').trim();
-          const composedNotes = [paymentMethodName ? `Method Name: ${paymentMethodName}` : '', paymentNotes]
-            .filter(Boolean)
-            .join(' | ');
-
-          if (paymentPlan === 'PARTIAL') {
-            if (!Number.isFinite(amount) || amount <= 0) {
-              this.toast.warning('Enter a valid partial payment amount.');
-              return of('BLOCKED' as const);
-            }
-            if (amount >= totalAmount) {
-              this.toast.warning('Partial payment must be less than total amount.');
-              return of('BLOCKED' as const);
-            }
-          }
-
-          const receiptImageData =
-            paymentMethod === 'BankTransfer' && this.bankTransferReceiptDataUrl
-              ? this.bankTransferReceiptDataUrl
-              : undefined;
-          return this.paymentService.create({
-            bookingId: this.createdBooking!.id,
-            amount,
-            paymentMethod,
-            transactionReference: (this.step3Form.value.transactionReference || '').trim() || undefined,
-            notes: composedNotes || undefined,
-            receiptImageData
-          });
-        }),
-        finalize(() => {
-          this.finishing = false;
-        })
-      )
-      .subscribe({
-        next: result => {
-          if (result === 'BLOCKED') {
-            this.goToPaymentStep();
-            return;
-          }
-          afterSuccess();
-        },
-        error: (err: unknown) => {
-          const msg = err instanceof HttpErrorResponse
-            ? this.extractError(err)
-            : 'Could not complete driver assignment or payment. Please try again.';
-          this.toast.error(msg);
+    this.ensureCustomerId().pipe(
+      takeUntil(this.destroy$),
+      switchMap(customerId => {
+        if (this.createdBooking) {
+          return of(this.createdBooking.id);
         }
-      });
+        const f = this.step1Form.value;
+        const pickupIso = this.combineDateAndTime(f.pickupTime, f.pickupTimeClock);
+        return this.bookingService.create({
+          booking: {
+            customerId,
+            routeId,
+            pickupTime: pickupIso,
+            passengerCount: Number(f.passengerCount),
+            totalAmount: this.priceBreakdown?.totalAmount ?? 0,
+            notes: f.notes || null
+          }
+        });
+      }),
+      switchMap((bookingId: number) => {
+        // Cache id immediately so a later payment failure does not double-create on retry.
+        if (!this.createdBooking) {
+          this.createdBooking = {
+            id: bookingId,
+            bookingNumber: '',
+            customerId: Number(this.step1Form.value.customerId) || 0,
+            customerName: this.getConfirmCustomerDisplay(),
+            routeId,
+            routeName: this.getConfirmRouteDisplay(),
+            vehicleId,
+            pickupTime: this.combineDateAndTime(
+              this.step1Form.value.pickupTime,
+              this.step1Form.value.pickupTimeClock
+            ),
+            passengerCount: Number(this.step1Form.value.passengerCount),
+            totalAmount: this.priceBreakdown?.totalAmount ?? 0,
+            status: 'Pending',
+            createdAt: new Date().toISOString()
+          };
+        }
+
+        // Assign requires Booking.Update; soft-fail so Create-only users still proceed.
+        const vehicleAssign$ = vehicleId
+          ? this.bookingService.assignVehicle({ bookingId, vehicleId }).pipe(
+              catchError(() => {
+                this.toast.warning('Booking created, but vehicle could not be assigned. Assign it from booking detail.');
+                return of(false);
+              })
+            )
+          : of(true as unknown as boolean);
+
+        return vehicleAssign$.pipe(
+          switchMap(() =>
+            driverId
+              ? this.bookingService.assignDriver({ bookingId, driverId }).pipe(
+                  catchError(() => {
+                    this.toast.warning('Booking created, but driver could not be assigned. Assign it from booking detail.');
+                    return of(false);
+                  })
+                )
+              : of(true as unknown as boolean)
+          ),
+          switchMap(() => {
+            this.maybeRecordWhatsAppConsent();
+            if (paymentPlan === 'PAY_LATER') return of(null);
+
+            const totalAmount = this.totalBookingAmount;
+            const paymentMethod = this.step3Form.value.paymentMethod as PaymentMethod;
+            const amount = paymentPlan === 'FULL'
+              ? totalAmount
+              : Number(this.step3Form.value.partialAmount ?? 0);
+            const paymentMethodName = (this.step3Form.value.paymentMethodName || '').trim();
+            const paymentNotes = (this.step3Form.value.paymentNotes || '').trim();
+            const composedNotes = [paymentMethodName ? `Method Name: ${paymentMethodName}` : '', paymentNotes]
+              .filter(Boolean)
+              .join(' | ');
+
+            if (paymentPlan === 'PARTIAL') {
+              if (!Number.isFinite(amount) || amount <= 0) {
+                this.toast.warning('Enter a valid partial payment amount.');
+                return of('BLOCKED' as const);
+              }
+              if (amount >= totalAmount) {
+                this.toast.warning('Partial payment must be less than total amount.');
+                return of('BLOCKED' as const);
+              }
+            }
+
+            const receiptImageData =
+              paymentMethod === 'BankTransfer' && this.bankTransferReceiptDataUrl
+                ? this.bankTransferReceiptDataUrl
+                : undefined;
+            return this.paymentService.create({
+              bookingId,
+              amount,
+              paymentMethod,
+              transactionReference: (this.step3Form.value.transactionReference || '').trim() || undefined,
+              notes: composedNotes || undefined,
+              receiptImageData
+            });
+          })
+        );
+      }),
+      finalize(() => {
+        this.finishing = false;
+        this.creatingCustomer = false;
+      })
+    ).subscribe({
+      next: result => {
+        if (result === 'BLOCKED') {
+          this.goToPaymentStep();
+          return;
+        }
+        afterSuccess();
+      },
+      error: (err: unknown) => {
+        const msg = err instanceof HttpErrorResponse
+          ? this.extractError(err)
+          : 'Could not create booking, assign resources, or record payment. Please try again.';
+        this.toast.error(msg);
+      }
+    });
   }
 
   /** Payment step index in the linear stepper (Trip=0, Driver=1, Payment=2, Confirm=3). */
@@ -760,6 +832,10 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   }
 
   selectPaymentPlan(plan: PaymentPlan): void {
+    if (plan !== 'PAY_LATER' && !this.canRecordPayment) {
+      this.toast.warning('Recording payment requires Payment.Create. Use Pay Later.');
+      plan = 'PAY_LATER';
+    }
     this.step3Form.patchValue({ paymentPlan: plan });
     if (plan !== 'PARTIAL') {
       this.step3Form.patchValue({ partialAmount: null });
@@ -846,7 +922,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       file.type === 'image/webp' ||
       (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name || ''));
     if (!isCnicPhoto) {
-      this.toast.success('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).');
+      this.toast.warning('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).');
       return;
     }
 
@@ -1116,7 +1192,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   private async ingestBankTransferReceiptFile(file: File): Promise<void> {
     if (file.size > this.bankTransferReceiptMaxBytes) {
-      this.toast.success('File must be 15 MB or smaller.');
+      this.toast.warning('File must be 15 MB or smaller.');
       return;
     }
 
@@ -1129,7 +1205,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     }
 
     if (!file.type.startsWith('image/')) {
-      this.toast.success('Please choose an image (JPEG, PNG, WebP) or a PDF.');
+      this.toast.warning('Please choose an image (JPEG, PNG, WebP) or a PDF.');
       return;
     }
 
@@ -1279,6 +1355,32 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     const id = this.step2Form?.value?.driverId as number | null | undefined;
     if (!id) return '— Not assigned yet —';
     return this.drivers.find(d => d.id === id)?.fullName ?? '—';
+  }
+
+  getConfirmCustomerDisplay(): string {
+    if (this.createdBooking?.customerName?.trim()) return this.createdBooking.customerName;
+    if (this.customerMode === 'NEW') {
+      return (this.step1Form.value.newFullName as string | null)?.trim() || '—';
+    }
+    const id = this.step1Form.value.customerId as number | null;
+    return this.customers.find(c => c.id === id)?.fullName ?? '—';
+  }
+
+  getConfirmRouteDisplay(): string {
+    if (this.createdBooking?.routeName?.trim()) return this.createdBooking.routeName;
+    const id = this.resolveRouteId();
+    const route = id ? this.routes.find(r => r.id === id) : null;
+    if (!route) return '—';
+    return route.name?.trim() || `${route.source} → ${route.destination}`;
+  }
+
+  getConfirmPickupDisplay(): string | Date {
+    if (this.createdBooking?.pickupTime) return this.createdBooking.pickupTime;
+    return this.combineDateAndTime(this.step1Form.value.pickupTime, this.step1Form.value.pickupTimeClock);
+  }
+
+  getConfirmPassengerCount(): number {
+    return Number(this.createdBooking?.passengerCount ?? this.step1Form.value.passengerCount ?? 0);
   }
 
   // ---------- Misc ----------------------------------------------------------

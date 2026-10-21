@@ -35,6 +35,7 @@ public class TripsController : BaseApiController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] TripStatus? status = null,
+        [FromQuery] TripStatus[]? statuses = null,
         [FromQuery] int? driverId = null,
         [FromQuery] int? vehicleId = null,
         [FromQuery] int? routeId = null,
@@ -46,7 +47,7 @@ public class TripsController : BaseApiController
         [FromQuery] bool tomorrowOnly = false,
         [FromQuery] bool upcomingOnly = false)
         => Ok(await Mediator.Send(new GetTripsQuery(
-            page, pageSize, status, driverId, vehicleId, routeId, customerId,
+            page, pageSize, status, statuses, driverId, vehicleId, routeId, customerId,
             dateFrom, dateTo, search, todayOnly, tomorrowOnly, upcomingOnly)));
 
     [HttpGet("{id:int}")]

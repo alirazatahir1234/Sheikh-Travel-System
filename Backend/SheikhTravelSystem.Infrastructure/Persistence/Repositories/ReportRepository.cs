@@ -7,11 +7,12 @@ using SheikhTravelSystem.Infrastructure.Persistence.Repositories.Sql;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
-public sealed class ReportRepository(IDbConnectionFactory dbFactory) : IReportRepository
+public sealed class ReportRepository(IDbConnectionFactory dbFactory, ITenantContext tenantContext) : IReportRepository
 {
     public async Task<BookingReportDto> GetBookingReportAsync(
         DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleAsync<BookingReportDto>(
             new CommandDefinition(
@@ -22,14 +23,15 @@ public sealed class ReportRepository(IDbConnectionFactory dbFactory) : IReportRe
                     SUM(CASE WHEN Status = @Pending THEN 1 ELSE 0 END) AS Pending,
                     SUM(CASE WHEN Status = @Started THEN 1 ELSE 0 END) AS Active
                   FROM Bookings
-                  WHERE CreatedAt BETWEEN @From AND @To AND IsDeleted = 0",
+                  WHERE CreatedAt BETWEEN @From AND @To AND IsDeleted = 0 AND TenantId = @TenantId",
                 new
                 {
                     Completed = (int)BookingStatus.Completed,
                     Cancelled = (int)BookingStatus.Cancelled,
                     Pending = (int)BookingStatus.Pending,
                     Started = (int)BookingStatus.Started,
-                    From = from, To = to
+                    From = from, To = to,
+                    TenantId = tenantId
                 },
                 cancellationToken: cancellationToken));
     }

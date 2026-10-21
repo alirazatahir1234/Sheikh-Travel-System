@@ -18,7 +18,7 @@
         [(ngModel)]="search"
         (keyup.enter)="load(true)"
         (ngModelChange)="onSearchChange($event)"
-        placeholder="Search by trip number, driver, vehicle..."
+        placeholder="Search trip #, name, customer, booking, driver, vehicle…"
         aria-label="Search trips" />
     </div>
 
@@ -46,7 +46,7 @@
 
     <div class="ops-filter-field">
       <mat-icon class="ops-filter-icon">flag</mat-icon>
-      <select [(ngModel)]="status" (ngModelChange)="load(true)" aria-label="Filter by status">
+      <select [(ngModel)]="status" (ngModelChange)="onStatusChange()" aria-label="Filter by status">
         <option value="">All Status</option>
         <option *ngFor="let s of statusOptions" [value]="s">{{ formatTripStatus(s) }}</option>
       </select>
@@ -54,27 +54,37 @@
 
     <div class="ops-filter-field">
       <mat-icon class="ops-filter-icon">directions_car</mat-icon>
-      <select [(ngModel)]="selectedVehicle" (ngModelChange)="load(true)" aria-label="Filter by vehicle">
-        <option value="">All Vehicles</option>
-        <option *ngFor="let v of vehicleOptions" [value]="v">{{ v }}</option>
+      <select
+        [(ngModel)]="selectedVehicleId"
+        (ngModelChange)="onVehicleChange()"
+        aria-label="Filter by vehicle">
+        <option [ngValue]="null">All Vehicles</option>
+        <option *ngFor="let v of vehicleOptions" [ngValue]="v.id">{{ v.name }}</option>
       </select>
     </div>
 
     <div class="ops-filter-field">
       <mat-icon class="ops-filter-icon">person</mat-icon>
-      <select [(ngModel)]="selectedDriver" (ngModelChange)="load(true)" aria-label="Filter by driver">
-        <option value="">All Drivers</option>
-        <option *ngFor="let d of driverOptions" [value]="d">{{ d }}</option>
+      <select
+        [(ngModel)]="selectedDriverId"
+        (ngModelChange)="onDriverChange()"
+        aria-label="Filter by driver">
+        <option [ngValue]="null">All Drivers</option>
+        <option *ngFor="let d of driverOptions" [ngValue]="d.id">{{ d.fullName }}</option>
       </select>
     </div>
 
     <button type="button" class="ops-btn ops-btn--ghost" (click)="clearFilters()">Reset</button>
   </div>
 
+  <div class="ops-filter-chips" *ngIf="activeFilterChips.length">
+    <span class="ops-chip" *ngFor="let chip of activeFilterChips">{{ chip }}</span>
+  </div>
+
   <div class="ops-error" *ngIf="error"><mat-icon>error</mat-icon> {{ error }}</div>
 
   <div class="ops-table-card" *ngIf="!loading; else loadingTpl">
-    <div class="ops-table-wrap trip-table-scroll" *ngIf="items.length; else emptyTrips">
+    <div class="ops-table-wrap trip-table-scroll" *ngIf="!error && items.length; else emptyTrips">
       <table mat-table [dataSource]="items" class="ops-table trip-table">
         <ng-container matColumnDef="index" sticky>
           <th mat-header-cell *matHeaderCellDef class="col-sticky col-index">#</th>
@@ -174,7 +184,7 @@
     </div>
 
     <ng-template #emptyTrips>
-      <div class="ops-empty">
+      <div class="ops-empty" *ngIf="!error">
         <mat-icon>map</mat-icon>
         <div>No trips found</div>
       </div>

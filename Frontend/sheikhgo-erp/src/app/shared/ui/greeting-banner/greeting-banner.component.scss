@@ -4,17 +4,18 @@
 
 .stb-greeting.is-compact {
   margin: 0;
+  min-width: 0;
 
   .g-title { font-size: 1.75rem; }
   .g-sub { font-size: .85rem; margin-top: 4px; }
 
   @media (max-width: 768px) {
-    .g-title { font-size: 1.45rem; }
+    .g-title { font-size: clamp(1.2rem, 4.5vw, 1.45rem); }
     .g-sub { font-size: 0.8rem; }
   }
 
   @media (max-width: 480px) {
-    .g-title { font-size: 1.2rem; line-height: 1.25; }
+    .g-title { font-size: clamp(1.05rem, 5vw, 1.2rem); line-height: 1.25; }
     .g-sub {
       font-size: 0.76rem;
       flex-wrap: wrap;
@@ -29,6 +30,8 @@
   font-weight: 600;
   color: var(--stb-text);
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 
   .g-name {
     font-weight: 800;
@@ -41,12 +44,14 @@
   display: inline-flex; align-items: center; gap: 6px;
   color: var(--stb-text-muted);
   font-size: .92rem;
+  max-width: 100%;
 
-  mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--stb-primary); }
+  mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--stb-primary); flex-shrink: 0; }
   .g-link {
     color: var(--stb-primary);
     font-weight: 600;
     text-decoration: underline;
     cursor: pointer;
+    padding: 4px 0;
   }
 }

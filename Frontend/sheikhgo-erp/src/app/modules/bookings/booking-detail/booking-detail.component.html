@@ -67,7 +67,7 @@
       </div>
     </mat-card-content>
     <mat-card-actions>
-      <div class="actions-row" *ngIf="getNextStatuses().length > 0">
+      <div class="actions-row" *ngIf="canUpdateBooking && getNextStatuses().length > 0">
         <span class="action-label">Update Status:</span>
         <button mat-raised-button *ngFor="let s of getNextStatuses(); trackBy: trackByStatus"
           [style.background]="getColor(s)" style="color: white; margin-left: 8px"
@@ -93,32 +93,34 @@
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Vehicle</mat-label>
             <mat-select [(ngModel)]="selectedVehicleId">
-              <mat-option [value]="null">— Not Assigned —</mat-option>
+              <mat-option [value]="null">— Unassigned —</mat-option>
               <mat-option *ngFor="let v of vehicles" [value]="v.id">
                 {{ v.name }} ({{ v.registrationNumber }})
               </mat-option>
             </mat-select>
           </mat-form-field>
-          <button mat-raised-button color="primary" [disabled]="reassigning"
+          <button mat-raised-button color="primary"
+                  [disabled]="reassigning"
                   (click)="reassignVehicle()">
             <mat-spinner *ngIf="reassigning" diameter="16"></mat-spinner>
-            Apply Vehicle
+            {{ selectedVehicleId == null ? 'Unassign Vehicle' : 'Apply Vehicle' }}
           </button>
         </div>
         <div class="reassign-item">
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Driver</mat-label>
             <mat-select [(ngModel)]="selectedDriverId">
-              <mat-option [value]="null">— Not Assigned —</mat-option>
+              <mat-option [value]="null">— Unassigned —</mat-option>
               <mat-option *ngFor="let d of drivers" [value]="d.id">
                 {{ d.fullName }}
               </mat-option>
             </mat-select>
           </mat-form-field>
-          <button mat-raised-button color="primary" [disabled]="reassigning"
+          <button mat-raised-button color="primary"
+                  [disabled]="reassigning"
                   (click)="reassignDriver()">
             <mat-spinner *ngIf="reassigning" diameter="16"></mat-spinner>
-            Apply Driver
+            {{ selectedDriverId == null ? 'Unassign Driver' : 'Apply Driver' }}
           </button>
         </div>
       </div>
@@ -134,7 +136,8 @@
       <stb-booking-ledger-payment-summary
         [bookingId]="booking.id"
         [totalAmount]="booking.totalAmount"
-        [totalPaid]="totalPaid">
+        [totalPaid]="totalPaid"
+        [allowPay]="canRecordPayment()">
       </stb-booking-ledger-payment-summary>
 
       <!-- Payment List -->

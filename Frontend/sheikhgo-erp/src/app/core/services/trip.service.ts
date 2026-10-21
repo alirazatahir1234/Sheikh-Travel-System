@@ -53,7 +53,13 @@ export class TripService {
 
   getAll(page = 1, pageSize = 20, filter?: TripFilter): Observable<PagedResult<TripListItem>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    if (filter?.status) params = params.set('status', filter.status);
+    if (filter?.statuses?.length) {
+      for (const s of filter.statuses) {
+        params = params.append('statuses', s);
+      }
+    } else if (filter?.status) {
+      params = params.set('status', filter.status);
+    }
     if (filter?.driverId != null) params = params.set('driverId', filter.driverId);
     if (filter?.vehicleId != null) params = params.set('vehicleId', filter.vehicleId);
     if (filter?.routeId != null) params = params.set('routeId', filter.routeId);

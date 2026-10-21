@@ -72,12 +72,28 @@ public class BookingsController : BaseApiController
         => Ok(await Mediator.Send(command with { BookingId = id }));
 
     /// <summary>
+    /// Clears the driver assignment on a booking.
+    /// </summary>
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
+    [HttpPut("{id:int}/unassign-driver")]
+    public async Task<IActionResult> UnassignDriver(int id)
+        => Ok(await Mediator.Send(new UnassignDriverCommand(id)));
+
+    /// <summary>
     /// Assigns a vehicle to a booking.
     /// </summary>
     [RequirePermission(OperationsPermissions.BookingUpdate)]
     [HttpPut("{id:int}/assign-vehicle")]
     public async Task<IActionResult> AssignVehicle(int id, [FromBody] AssignVehicleCommand command)
         => Ok(await Mediator.Send(command with { BookingId = id }));
+
+    /// <summary>
+    /// Clears the vehicle assignment on a booking.
+    /// </summary>
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
+    [HttpPut("{id:int}/unassign-vehicle")]
+    public async Task<IActionResult> UnassignVehicle(int id)
+        => Ok(await Mediator.Send(new UnassignVehicleCommand(id)));
 
     /// <summary>
     /// Soft-deletes a booking by identifier.

@@ -256,7 +256,9 @@ export class TripDetailComponent implements OnInit, OnDestroy {
       this.toast.warning('Assign a vehicle first to open live tracking.');
       return;
     }
-    this.router.navigate(['/gps-tracking/live'], { queryParams: { vehicleId: this.trip.vehicleId } });
+    this.router.navigate(['/gps-tracking/live'], {
+      queryParams: { tripId: this.trip.id, vehicleId: this.trip.vehicleId }
+    });
   }
 
   openAlerts(): void {

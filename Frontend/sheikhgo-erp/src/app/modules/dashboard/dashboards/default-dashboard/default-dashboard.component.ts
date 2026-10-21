@@ -24,6 +24,7 @@ import { DEFAULT_DASHBOARD_FALLBACK } from '../../data/mock-dashboard-data';
 @Component({
   selector: 'app-default-dashboard',
   standalone: true,
+  // Keep analytics in imports so @defer template type-check sees @Input bindings; Chart.js still lazy via @defer.
   imports: [SharedModule, DashboardAnalyticsComponent],
   templateUrl: './default-dashboard.component.html',
   styleUrls: ['./default-dashboard.component.scss']
@@ -73,6 +74,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   transportKpis: { icon: string; label: string; value: string | number }[] = [];
 
   private loadGeneration = 0;
+
   constructor(
     private dashboard: DashboardService,
     private bookings: BookingService,
@@ -88,12 +90,10 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     this.userName = this.auth.getCurrentUser()?.fullName?.split(' ')[0] ?? 'there';
 
     this.loadDashboardData(true);
-    this.notificationService.getStats().subscribe(s => this.notifStats = s);
 
     // Auto-refresh every 60 seconds
     interval(60000).pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.loadDashboardData(false);
-      this.notificationService.getStats().subscribe(s => this.notifStats = s);
     });
   }
 
@@ -103,37 +103,31 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadDashboardData(isInitial = false): void {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
     const gen = ++this.loadGeneration;
+    if (isInitial) this.loading = true;
 
+    // Critical path only — one bookings page (was duplicated 8 + 50).
     forkJoin({
       summary: this.dashboard.getSummary().pipe(catchError(() => of(this.fallbackSummary()))),
-      recent: this.bookings.getAll(1, 8).pipe(
+      bookings: this.bookings.getAll(1, 50).pipe(
         map(p => p?.items ?? []),
         catchError(() => of<Booking[]>([]))
       ),
-      chartBookings: this.bookings.getAll(1, 50).pipe(
-        map(p => p?.items ?? []),
-        catchError(() => of<Booking[]>([]))
-      ),
-      bookingReport: this.dashboard.getBookingStatusReport(
-        from.toISOString().slice(0, 10),
-        to.toISOString().slice(0, 10)
-      ).pipe(catchError(() => of<BookingReport[]>([]))),
-    }).subscribe({
-      next: ({ summary, recent, chartBookings, bookingReport }) => {
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ summary, bookings }) => {
         if (gen !== this.loadGeneration) return;
         this.summary = summary;
-        this.stats = this.buildStats(summary, chartBookings);
-        this.recentBookings = recent;
-        this.todoTasks = this.bookingsToTasks(recent, 5);
-        this.assignedTasks = this.bookingsToAssignedTasks(recent, 6);
+        this.stats = this.buildStats(summary, bookings);
+        this.recentBookings = bookings.slice(0, 8);
+        this.todoTasks = this.bookingsToTasks(bookings, 5);
+        this.assignedTasks = this.bookingsToAssignedTasks(bookings, 6);
         this.fleetUtilizationPct = this.calcFleetUtilization(summary);
         this.transportKpis = this.buildTransportKpis(summary);
-        this.applyChartData(chartBookings, bookingReport, summary);
+        // Provisional charts from bookings/summary so UI is interactive immediately.
+        this.applyChartData(bookings, [], summary);
         this.loading = false;
+
+        this.loadDeferredExtras(gen, bookings, summary);
       },
       error: () => {
         if (gen !== this.loadGeneration) return;
@@ -144,6 +138,31 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.applyChartData([], [], this.summary);
         this.loading = false;
       }
+    });
+  }
+
+  /** Non-blocking: booking status report + notification stats. */
+  private loadDeferredExtras(gen: number, bookings: Booking[], summary: DashboardSummary): void {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+
+    this.dashboard.getBookingStatusReport(
+      from.toISOString().slice(0, 10),
+      to.toISOString().slice(0, 10)
+    ).pipe(
+      catchError(() => of<BookingReport[]>([])),
+      takeUntil(this.destroy$)
+    ).subscribe(bookingReport => {
+      if (gen !== this.loadGeneration) return;
+      this.applyChartData(bookings, bookingReport, summary);
+    });
+
+    this.notificationService.getStats().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(s => {
+      if (gen !== this.loadGeneration) return;
+      this.notifStats = s;
     });
   }
 

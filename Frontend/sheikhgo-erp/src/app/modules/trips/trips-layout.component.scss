@@ -9,6 +9,12 @@
   padding: 0;
 }
 
+/* Stack KPI value above label so they don't run together (e.g. "8total"). */
+.ops-stat-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .trips-module-content {
   min-width: 0;
 }

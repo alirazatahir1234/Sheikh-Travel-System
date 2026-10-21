@@ -562,10 +562,9 @@
       </div><!-- /step1-layout -->
 
       <div class="step-actions">
-        <button mat-raised-button color="primary" matStepperNext type="button"
+        <button mat-raised-button color="primary" type="button"
                 [disabled]="loading || creatingCustomer || !priceBreakdown"
                 (click)="createBooking()">
-          <mat-spinner *ngIf="loading" diameter="16"></mat-spinner>
           Next: Assign Driver
         </button>
       </div>
@@ -576,7 +575,7 @@
   <mat-step [stepControl]="step2Form" label="Assign Driver">
     <form [formGroup]="step2Form">
       <div class="assign-section driver-step">
-        <div class="form-section driver-assign-card">
+        <div class="form-section driver-assign-card" *ngIf="step1Form.value.driverRequired; else selfDriveSkip">
           <div class="section-header">
             <span class="section-icon-wrap primary-icon"><mat-icon>person_pin</mat-icon></span>
             <span class="section-title">Assign driver</span>
@@ -592,6 +591,15 @@
             </mat-select>
           </mat-form-field>
         </div>
+        <ng-template #selfDriveSkip>
+          <div class="form-section driver-assign-card self-drive-card">
+            <div class="self-drive-title">
+              <mat-icon>check_circle</mat-icon>
+              Self Drive — no driver assignment needed
+            </div>
+            <p class="driver-step-hint">You selected self-drive on Trip Details. Continue to payment.</p>
+          </div>
+        </ng-template>
       </div>
       <div class="step-actions">
         <button mat-button matStepperPrevious>Back</button>
@@ -608,15 +616,20 @@
           <div class="payment-card-title">Payment Options</div>
           <div class="payment-card-subtitle">Choose how this booking should be paid.</div>
 
+          <p class="payment-perm-hint" *ngIf="!canRecordPayment">
+            You can create the booking, but recording payment requires <strong>Payment.Create</strong>. Use Pay Later.
+          </p>
           <div class="payment-plan-grid">
             <button type="button" class="payment-plan-btn"
                     [class.active]="step3Form.value.paymentPlan === 'FULL'"
+                    [disabled]="!canRecordPayment"
                     (click)="selectPaymentPlan('FULL')">
               <span class="plan-title">Full Payment</span>
               <span class="plan-desc">{{ paymentDescription('FULL') }}</span>
             </button>
             <button type="button" class="payment-plan-btn"
                     [class.active]="step3Form.value.paymentPlan === 'PARTIAL'"
+                    [disabled]="!canRecordPayment"
                     (click)="selectPaymentPlan('PARTIAL')"
                     matTooltip="Partial payment secures the booking; the remaining balance must be cleared before departure.">
               <span class="plan-title">Partial Payment</span>
@@ -642,7 +655,12 @@
             variant="compact">
           </stb-payment-plan-summary>
 
-          <div class="payment-fields" *ngIf="step3Form.value.paymentPlan !== 'PAY_LATER'">
+          <div class="payment-perm-warning" *ngIf="step3Form.value.paymentPlan !== 'PAY_LATER' && !canRecordPayment" role="alert">
+            <mat-icon>lock</mat-icon>
+            <span>You do not have Payment.Create permission. Choose Pay Later, or ask an admin to grant payment access.</span>
+          </div>
+
+          <div class="payment-fields" *ngIf="step3Form.value.paymentPlan !== 'PAY_LATER' && canRecordPayment">
             <div class="payment-method-field">
               <span class="payment-method-heading">Payment method <abbr title="required" class="req-star">*</abbr></span>
               <mat-radio-group formControlName="paymentMethod" class="payment-method-group" color="primary">
@@ -727,24 +745,28 @@
 
   <!-- STEP 4: Confirm -->
   <mat-step label="Confirm">
-    <div class="confirm-section" *ngIf="createdBooking">
+    <div class="confirm-section" *ngIf="tripDetailsReady || createdBooking; else confirmMissing">
       <mat-card class="confirm-card">
         <mat-card-header>
           <mat-card-title>
-            <mat-icon color="primary">check_circle</mat-icon>
-            Booking Created!
+            <mat-icon color="primary">{{ createdBooking ? 'check_circle' : 'fact_check' }}</mat-icon>
+            {{ createdBooking ? 'Booking Saved' : 'Review & Confirm' }}
           </mat-card-title>
           <mat-card-subtitle class="confirm-subtitle">
-            Your booking is already saved. Finish applies the driver (if selected) and payment choice, then returns you to the bookings list.
+            {{ createdBooking
+              ? 'Finish applies any remaining payment, then returns you to the bookings list.'
+              : 'Nothing is saved yet. Finish creates the booking, assigns vehicle/driver, and records payment.' }}
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <div class="confirm-row"><strong>Booking #</strong><span>{{ createdBooking.bookingNumber }}</span></div>
-          <div class="confirm-row"><strong>Customer</strong><span>{{ createdBooking.customerName }}</span></div>
+          <div class="confirm-row" *ngIf="createdBooking?.bookingNumber">
+            <strong>Booking #</strong><span>{{ createdBooking!.bookingNumber }}</span>
+          </div>
+          <div class="confirm-row"><strong>Customer</strong><span>{{ getConfirmCustomerDisplay() }}</span></div>
           <div class="confirm-row"><strong>Driver</strong><span>{{ getConfirmDriverDisplay() }}</span></div>
-          <div class="confirm-row"><strong>Route</strong><span>{{ createdBooking.routeName }}</span></div>
-          <div class="confirm-row"><strong>Pickup</strong><span>{{ createdBooking.pickupTime | date:'medium' }}</span></div>
-          <div class="confirm-row"><strong>Passengers</strong><span>{{ createdBooking.passengerCount }}</span></div>
+          <div class="confirm-row"><strong>Route</strong><span>{{ getConfirmRouteDisplay() }}</span></div>
+          <div class="confirm-row"><strong>Pickup</strong><span>{{ getConfirmPickupDisplay() | date:'medium' }}</span></div>
+          <div class="confirm-row"><strong>Passengers</strong><span>{{ getConfirmPassengerCount() }}</span></div>
           <div class="confirm-divider"></div>
           <stb-payment-plan-summary
             [paymentPlan]="step3Form.value.paymentPlan"
@@ -755,13 +777,22 @@
         </mat-card-content>
       </mat-card>
     </div>
+    <ng-template #confirmMissing>
+      <div class="confirm-section">
+        <div class="error-message">
+          <mat-icon>error</mat-icon>
+          Trip details are incomplete. Go back to Trip Details and tap Next first.
+        </div>
+      </div>
+    </ng-template>
     <div class="step-actions confirm-finish-actions">
       <p class="finish-blocked-hint" *ngIf="!canProceedToConfirm()">
         Partial payment needs an amount greater than 0 and less than the total. Tap <strong>Finish</strong> to jump to Payment and fix it, or use <strong>Back</strong>.
       </p>
       <div class="finish-row">
         <button mat-button matStepperPrevious [disabled]="finishing">Back</button>
-        <button mat-raised-button color="primary" (click)="assignAndFinish()" [disabled]="finishing">
+        <button mat-raised-button color="primary" (click)="assignAndFinish()"
+                [disabled]="finishing || !(tripDetailsReady || createdBooking)">
           <mat-spinner *ngIf="finishing" diameter="18"></mat-spinner>
           <mat-icon *ngIf="!finishing">done_all</mat-icon>
           Finish

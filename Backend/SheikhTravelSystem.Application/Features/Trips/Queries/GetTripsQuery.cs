@@ -24,6 +24,7 @@ public record GetTripsQuery(
     int Page = 1,
     int PageSize = 20,
     TripStatus? Status = null,
+    IReadOnlyList<TripStatus>? Statuses = null,
     int? DriverId = null,
     int? VehicleId = null,
     int? RouteId = null,
@@ -42,7 +43,7 @@ public class GetTripsQueryHandler(ITripRepository tripRepository)
     public async Task<ApiResponse<PagedResult<TripListItemDto>>> Handle(GetTripsQuery request, CancellationToken cancellationToken)
     {
         var result = await tripRepository.GetPagedAsync(
-            request.Page, request.PageSize, request.Status, request.DriverId, request.VehicleId,
+            request.Page, request.PageSize, request.Status, request.Statuses, request.DriverId, request.VehicleId,
             request.RouteId, request.CustomerId, request.DateFrom, request.DateTo, request.Search,
             request.TodayOnly, request.TomorrowOnly, request.UpcomingOnly, cancellationToken);
         return ApiResponse<PagedResult<TripListItemDto>>.SuccessResponse(result);

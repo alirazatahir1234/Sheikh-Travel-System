@@ -17,7 +17,7 @@
       <strong>PKR {{ (balanceDue < 0 ? -balanceDue : balanceDue) | number:'1.0-0' }}</strong>
     </div>
   </div>
-  <div class="ledger-cta" *ngIf="balanceDue > 0.009">
+  <div class="ledger-cta" *ngIf="allowPay && balanceDue > 0.009">
     <button mat-flat-button color="warn" type="button"
             [routerLink]="['/payments/new']" [queryParams]="payRemainingQuery()">
       <mat-icon>payment</mat-icon>

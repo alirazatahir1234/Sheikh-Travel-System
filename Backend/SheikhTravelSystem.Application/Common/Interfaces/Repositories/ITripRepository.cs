@@ -45,6 +45,7 @@ public interface ITripRepository
         int page,
         int pageSize,
         TripStatus? status,
+        IReadOnlyList<TripStatus>? statuses,
         int? driverId,
         int? vehicleId,
         int? routeId,

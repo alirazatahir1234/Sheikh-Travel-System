@@ -19,6 +19,7 @@ export class BookingService {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (filter?.status)    params = params.set('status', filter.status);
     if (filter?.search)    params = params.set('search', filter.search);
+    if (filter?.routeName) params = params.set('routeName', filter.routeName);
     if (filter?.dateFrom)  params = params.set('dateFrom', filter.dateFrom);
     if (filter?.dateTo)    params = params.set('dateTo', filter.dateTo);
     if (filter?.amountMin != null) params = params.set('amountMin', filter.amountMin);
@@ -51,12 +52,24 @@ export class BookingService {
     return this.http.put<boolean>(`${this.base}/${request.bookingId}/assign-driver`, { driverId: request.driverId });
   }
 
+  unassignDriver(bookingId: number): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${bookingId}/unassign-driver`, {});
+  }
+
   assignVehicle(request: AssignVehicleRequest): Observable<boolean> {
     return this.http.put<boolean>(`${this.base}/${request.bookingId}/assign-vehicle`, { vehicleId: request.vehicleId });
   }
 
+  unassignVehicle(bookingId: number): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${bookingId}/unassign-vehicle`, {});
+  }
+
   updateStatus(request: UpdateBookingStatusRequest): Observable<boolean> {
-    return this.http.put<boolean>(`${this.base}/${request.bookingId}/status`, request);
+    const body: { status: string; cancellationReason?: string } = { status: request.status };
+    if (request.cancellationReason) {
+      body.cancellationReason = request.cancellationReason;
+    }
+    return this.http.put<boolean>(`${this.base}/${request.bookingId}/status`, body);
   }
 
   calculatePrice(request: PriceCalculationRequest): Observable<PriceBreakdown> {

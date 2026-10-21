@@ -73,6 +73,14 @@ export class BookingDetailComponent implements OnInit {
     return this.auth.hasPermission('WhatsApp.Reply');
   }
 
+  get canUpdateBooking(): boolean {
+    return this.auth.hasPermission('Booking.Update');
+  }
+
+  get canRecordPaymentPerm(): boolean {
+    return this.auth.hasPermission('Payment.Create');
+  }
+
   ngOnInit(): void {
     const id = +this.route.snapshot.paramMap.get('id')!;
 
@@ -149,6 +157,10 @@ export class BookingDetailComponent implements OnInit {
 
   updateStatus(status: BookingStatus): void {
     if (!this.booking) return;
+    if (!this.canUpdateBooking) {
+      this.toast.error('You do not have permission to update booking status.');
+      return;
+    }
 
     if (status === 'Cancelled') {
       const reason = prompt('Please enter a reason for cancellation:');
@@ -198,7 +210,7 @@ export class BookingDetailComponent implements OnInit {
   }
 
   canEdit(): boolean {
-    if (!this.booking) return false;
+    if (!this.booking || !this.canUpdateBooking) return false;
     return this.booking.status !== 'Completed' && this.booking.status !== 'Cancelled';
   }
 
@@ -231,7 +243,7 @@ export class BookingDetailComponent implements OnInit {
 
   /** Recording new payments — not when trip is done or booking cancelled. */
   canRecordPayment(): boolean {
-    if (!this.booking) return false;
+    if (!this.booking || !this.canRecordPaymentPerm) return false;
     return this.booking.status !== 'Cancelled' && this.booking.status !== 'Completed';
   }
 
@@ -259,11 +271,16 @@ export class BookingDetailComponent implements OnInit {
   }
 
   openReassignPanel(): void {
+    if (!this.canUpdateBooking) {
+      this.toast.error('You do not have permission to reassign vehicle or driver.');
+      return;
+    }
     if (this.vehicles.length === 0 || this.drivers.length === 0) {
       forkJoin({
-        vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))),
-        drivers: this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
+        vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] as Vehicle[] }))),
+        drivers: this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] as Driver[] })))
       }).subscribe(({ vehicles, drivers }) => {
+        // Available (1) or OnTrip (2) — exclude maintenance/retired/draft.
         this.vehicles = vehicles.items.filter(v => v.status === 1 || v.status === 2);
         this.drivers = drivers.items.filter(d => d.isActive);
       });
@@ -279,38 +296,62 @@ export class BookingDetailComponent implements OnInit {
   }
 
   reassignVehicle(): void {
-    if (!this.booking || this.selectedVehicleId === null) return;
+    if (!this.booking || !this.canUpdateBooking) return;
     this.reassigning = true;
 
-    this.bookingService.assignVehicle({ bookingId: this.booking.id, vehicleId: this.selectedVehicleId }).subscribe({
+    const clear = this.selectedVehicleId == null || this.selectedVehicleId <= 0;
+    const req$ = clear
+      ? this.bookingService.unassignVehicle(this.booking.id)
+      : this.bookingService.assignVehicle({ bookingId: this.booking.id, vehicleId: this.selectedVehicleId! });
+
+    req$.subscribe({
       next: () => {
-        const vehicle = this.vehicles.find(v => v.id === this.selectedVehicleId);
-        this.booking!.vehicleId = this.selectedVehicleId!;
-        this.booking!.vehicleName = vehicle?.name ?? '';
-        this.toast.success('Vehicle reassigned.');
+        if (clear) {
+          this.booking!.vehicleId = undefined;
+          this.booking!.vehicleName = undefined;
+          this.selectedVehicleId = null;
+          this.toast.success('Vehicle unassigned.');
+        } else {
+          const vehicle = this.vehicles.find(v => v.id === this.selectedVehicleId);
+          this.booking!.vehicleId = this.selectedVehicleId!;
+          this.booking!.vehicleName = vehicle?.name ?? '';
+          this.toast.success('Vehicle reassigned.');
+        }
         this.reassigning = false;
       },
       error: () => {
-        this.toast.error('Failed to reassign vehicle.');
+        this.toast.error(clear ? 'Failed to unassign vehicle.' : 'Failed to reassign vehicle.');
         this.reassigning = false;
       }
     });
   }
 
   reassignDriver(): void {
-    if (!this.booking || this.selectedDriverId === null) return;
+    if (!this.booking || !this.canUpdateBooking) return;
     this.reassigning = true;
 
-    this.bookingService.assignDriver({ bookingId: this.booking.id, driverId: this.selectedDriverId }).subscribe({
+    const clear = this.selectedDriverId == null || this.selectedDriverId <= 0;
+    const req$ = clear
+      ? this.bookingService.unassignDriver(this.booking.id)
+      : this.bookingService.assignDriver({ bookingId: this.booking.id, driverId: this.selectedDriverId! });
+
+    req$.subscribe({
       next: () => {
-        const driver = this.drivers.find(d => d.id === this.selectedDriverId);
-        this.booking!.driverId = this.selectedDriverId!;
-        this.booking!.driverName = driver?.fullName ?? '';
-        this.toast.success('Driver reassigned.');
+        if (clear) {
+          this.booking!.driverId = undefined;
+          this.booking!.driverName = undefined;
+          this.selectedDriverId = null;
+          this.toast.success('Driver unassigned.');
+        } else {
+          const driver = this.drivers.find(d => d.id === this.selectedDriverId);
+          this.booking!.driverId = this.selectedDriverId!;
+          this.booking!.driverName = driver?.fullName ?? '';
+          this.toast.success('Driver reassigned.');
+        }
         this.reassigning = false;
       },
       error: () => {
-        this.toast.error('Failed to reassign driver.');
+        this.toast.error(clear ? 'Failed to unassign driver.' : 'Failed to reassign driver.');
         this.reassigning = false;
       }
     });
