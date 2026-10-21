@@ -137,9 +137,13 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        // Unread matches GetUnreadCountAsync inbox channels (InApp/Browser/Push) so the
+        // dashboard badge, greeting, and notification widget never disagree.
         return await connection.QuerySingleAsync<NotificationStatsDto>(new CommandDefinition("""
             SELECT
-                ISNULL(SUM(CASE WHEN ISNULL(r.IsRead, n.IsRead) = 0 THEN 1 ELSE 0 END), 0) AS Unread,
+                ISNULL(SUM(CASE WHEN ISNULL(r.IsRead, n.IsRead) = 0
+                    AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')
+                    THEN 1 ELSE 0 END), 0) AS Unread,
                 COUNT(*) AS Total,
                 ISNULL(SUM(CASE WHEN n.Channel = 'Email' THEN 1 ELSE 0 END), 0) AS Email,
                 ISNULL(SUM(CASE WHEN n.Channel = 'Sms' THEN 1 ELSE 0 END), 0) AS Sms,

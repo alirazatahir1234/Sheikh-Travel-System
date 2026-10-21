@@ -57,7 +57,11 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     if (
       this.viewReady &&
       (changes['revenueLabels'] ||
+        changes['revenueValues'] ||
+        changes['revenueTotal'] ||
         changes['bookingLabels'] ||
+        changes['bookingValues'] ||
+        changes['fleetLabels'] ||
         changes['fleetValues'] ||
         changes['loading'])
     ) {
@@ -107,12 +111,8 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     this.revenueChart?.destroy();
     const primary = this.primaryColor();
     const labels = this.revenueLabels.length ? this.revenueLabels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    let values = this.revenueValues.length ? [...this.revenueValues] : [];
-    if (values.every(v => v === 0) && this.revenueTotal > 0) {
-      const slice = Math.round(this.revenueTotal / 7);
-      values = labels.map((_, i) => Math.round(slice * (0.7 + (i % 3) * 0.15)));
-    }
-    if (!values.length) values = labels.map(() => 0);
+    // Never invent day-level revenue — zeros are a valid empty week.
+    const values = this.revenueValues.length ? [...this.revenueValues] : labels.map(() => 0);
 
     this.revenueChart = createAppChart(el, {
       type: 'line',
@@ -176,7 +176,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     if (!el) return;
     this.bookingsChart?.destroy();
     const labels = this.bookingLabels.length ? this.bookingLabels : ['Pending', 'Active', 'Completed', 'Cancelled'];
-    const values = this.bookingValues.length ? this.bookingValues : [1, 1, 1, 0];
+    const values = this.bookingValues.length ? this.bookingValues : labels.map(() => 0);
     const statusColors: Record<string, string> = {
       Pending: '#F59E0B',
       Active: '#3B82F6',

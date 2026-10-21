@@ -1,6 +1,6 @@
 <div class="dash stb-page" [class.dash--loading]="loading">
 
-  <div *ngIf="error" class="error-message">
+  <div *ngIf="error" class="error-message" role="alert">
     <mat-icon>warning</mat-icon> {{ error }}
   </div>
 
@@ -17,11 +17,12 @@
         [compact]="true"
         [userName]="userName"
         [notificationsCount]="(unreadCount$ | async) ?? 0"
-        subject="notifications">
+        subject="notifications"
+        notificationsLink="/notifications">
       </stb-greeting-banner>
-      <div class="ops-status" aria-live="polite">
+      <div class="ops-status" [class.ops-status--warn]="!opsHealthy" aria-live="polite">
         <span class="ops-status-dot"></span>
-        <span>System operational</span>
+        <span>{{ opsHealthy ? 'System operational' : (summaryFailed ? 'Summary unavailable' : 'Attention needed') }}</span>
       </div>
     </div>
 
@@ -30,15 +31,69 @@
         <mat-icon>notifications</mat-icon>
         <span>Notifications</span>
       </div>
-      <div class="notif-widget-unread">Unread: <strong>{{ ns.unread }}</strong></div>
-      <div class="notif-widget-channels">
+      <div class="notif-widget-unread">
+        Unread: <strong>{{ ns.unread }}</strong>
+        <span class="notif-total" *ngIf="ns.total"> of {{ ns.total }}</span>
+      </div>
+      <div class="notif-widget-channels" aria-label="Messages by channel">
         <span>Email {{ ns.email }}</span>
         <span>SMS {{ ns.sms }}</span>
         <span>Push {{ ns.push }}</span>
         <span>Browser {{ ns.browser }}</span>
         <span>WhatsApp {{ ns.whatsApp }}</span>
+        <span class="failed" *ngIf="ns.failed > 0">Failed {{ ns.failed }}</span>
       </div>
     </a>
+  </section>
+
+  <!-- Live vehicle tracking snapshot -->
+  <section
+    class="dash-section gps-strip"
+    *ngIf="gpsFleet as g"
+    role="button"
+    tabindex="0"
+    (click)="onGpsStripClick()"
+    (keydown.enter)="onGpsStripClick()"
+    (keydown.space)="$event.preventDefault(); onGpsStripClick()"
+    aria-label="Open live fleet tracking">
+    <div class="gps-strip-head">
+      <mat-icon>sensors</mat-icon>
+      <div>
+        <span class="gps-title">Vehicle tracking</span>
+        <span class="gps-sub">Live fleet status · tap to open map</span>
+      </div>
+      <a class="gps-link" routerLink="/gps-tracking/live" (click)="$event.stopPropagation()">Open map</a>
+    </div>
+    <div class="gps-metrics">
+      <div class="gps-metric">
+        <span class="gps-val">{{ g.online }}</span>
+        <span class="gps-lbl">Online</span>
+      </div>
+      <div class="gps-metric">
+        <span class="gps-val">{{ g.offline }}</span>
+        <span class="gps-lbl">Offline</span>
+      </div>
+      <div class="gps-metric">
+        <span class="gps-val">{{ g.moving }}</span>
+        <span class="gps-lbl">Moving</span>
+      </div>
+      <div class="gps-metric">
+        <span class="gps-val">{{ g.idle }}</span>
+        <span class="gps-lbl">Idle</span>
+      </div>
+      <div class="gps-metric">
+        <span class="gps-val">{{ g.parked }}</span>
+        <span class="gps-lbl">Parked</span>
+      </div>
+      <div class="gps-metric" [class.gps-metric--alert]="g.alertsToday > 0">
+        <span class="gps-val">{{ g.alertsToday }}</span>
+        <span class="gps-lbl">Alerts today</span>
+      </div>
+      <div class="gps-metric gps-metric--danger" *ngIf="g.sos > 0">
+        <span class="gps-val">{{ g.sos }}</span>
+        <span class="gps-lbl">SOS</span>
+      </div>
+    </div>
   </section>
 
   <!-- KPIs -->
@@ -72,6 +127,16 @@
     </div>
   </section>
 
+  <!-- Quick actions -->
+  <section class="dash-section quick-actions" aria-label="Quick actions">
+    <stb-quick-launch-grid
+      title="Quick actions"
+      [apps]="quickActions"
+      [actionCards]="true"
+      (launch)="onQuickAction($event)">
+    </stb-quick-launch-grid>
+  </section>
+
   <!-- Analytics: deferred so Chart.js does not block first paint -->
   @defer (on idle) {
     <app-dashboard-analytics
@@ -98,7 +163,7 @@
       icon="task_alt"
       [tasks]="todoTasks"
       (toggle)="onTaskToggle($event)"
-      emptyMessage="No pending bookings today — you're all caught up.">
+      emptyMessage="No pending or confirmed bookings needing action.">
     </stb-task-list-card>
 
     <stb-task-list-card

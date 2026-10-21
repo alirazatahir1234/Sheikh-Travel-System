@@ -48,11 +48,11 @@ export class ActiveAssignmentsTableComponent {
   readonly loading = input(false);
 
   protected readonly columns: UiTableColumn[] = [
-    { key: 'vehicleId', label: 'Vehicle ID', sortable: true },
+    { key: 'vehicleId', label: 'Vehicle', sortable: true },
     { key: 'driver', label: 'Driver', sortable: true },
-    { key: 'route', label: 'Route' },
+    { key: 'route', label: 'Type' },
     { key: 'status', label: 'Status' },
-    { key: 'eta', label: 'ETA' }
+    { key: 'eta', label: 'Ends' }
   ];
 
   initials(name: string): string {

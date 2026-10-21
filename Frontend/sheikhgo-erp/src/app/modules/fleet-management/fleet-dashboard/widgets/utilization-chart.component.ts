@@ -42,7 +42,7 @@ export class UtilizationChartComponent {
       data: series.values,
       borderColor: series.color,
       backgroundColor: series.color,
-      borderWidth: series.label === '2024' ? 3 : 2,
+      borderWidth: series.label.toLowerCase().includes('online') || series.label === '2024' ? 3 : 2,
       tension: 0.4,
       pointRadius: 0,
       pointHoverRadius: 4,

@@ -167,7 +167,10 @@
   &--teal { background: #14b8a6; }
 }
 
+/* Stack value above label — sibling <span>s are inline and concatenate without this. */
 .ops-stat-body {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 

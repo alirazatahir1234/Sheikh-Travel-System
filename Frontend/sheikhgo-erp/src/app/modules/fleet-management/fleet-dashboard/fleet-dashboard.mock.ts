@@ -26,10 +26,11 @@ export const FUEL_MAINTENANCE_MOCK: FuelMaintenanceChart = {
 };
 
 export const QUICK_ACTIONS_MOCK: QuickAction[] = [
-  { id: 'add-vehicle', label: 'Add Vehicle', icon: 'add_circle', route: '/vehicles' },
-  { id: 'add-driver', label: 'Add Driver', icon: 'person_add', route: '/drivers' },
-  { id: 'schedule-maint', label: 'Schedule Maint.', icon: 'schedule', route: '/fleet/maintenance' },
-  { id: 'assign-driver', label: 'Assign Driver', icon: 'assignment_ind', route: '/fleet/assignments' }
+  { id: 'add-vehicle', label: 'Add Vehicle', icon: 'add_circle', route: '/vehicles', tone: 'green' },
+  { id: 'add-driver', label: 'Add Driver', icon: 'person_add', route: '/drivers', tone: 'blue' },
+  { id: 'schedule-maint', label: 'Schedule Maint.', icon: 'schedule', route: '/fleet/maintenance', tone: 'orange' },
+  { id: 'assign-driver', label: 'Assign Driver', icon: 'assignment_ind', route: '/fleet/assignments', tone: 'blue' },
+  { id: 'live-map', label: 'Live Map', icon: 'map', route: '/gps-tracking/live', tone: 'green' }
 ];
 
 export const ALERTS_MOCK: CriticalAlert[] = [

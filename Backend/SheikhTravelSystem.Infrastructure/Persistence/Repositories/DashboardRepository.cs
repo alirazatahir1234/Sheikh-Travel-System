@@ -15,7 +15,10 @@ public sealed class DashboardRepository(IDbConnectionFactory dbFactory) : IDashb
             new CommandDefinition(
                 """
                 SELECT
-                  (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId) AS TotalVehicles,
+                  -- Match fleet inventory: exclude Draft + Retired so KPI agrees with /vehicles and /fleet/dashboard
+                  (SELECT COUNT(*) FROM Vehicles
+                    WHERE IsDeleted = 0 AND TenantId = @TenantId
+                      AND Status NOT IN (@VehicleRetired, @VehicleDraft)) AS TotalVehicles,
                   (SELECT COUNT(*) FROM Bookings WHERE Status = @Started AND IsDeleted = 0 AND TenantId = @TenantId) AS ActiveTrips,
                   (SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Paid AND IsDeleted = 0 AND TenantId = @TenantId) AS TotalRevenue,
                   (SELECT COUNT(*) FROM Bookings WHERE Status = @Pending AND IsDeleted = 0 AND TenantId = @TenantId) AS PendingBookings,
@@ -27,7 +30,9 @@ public sealed class DashboardRepository(IDbConnectionFactory dbFactory) : IDashb
                     TenantId = tenantId,
                     Started = (int)BookingStatus.Started,
                     Paid = (int)PaymentStatus.Paid,
-                    Pending = (int)BookingStatus.Pending
+                    Pending = (int)BookingStatus.Pending,
+                    VehicleRetired = (int)VehicleStatus.Retired,
+                    VehicleDraft = (int)VehicleStatus.Draft
                 },
                 cancellationToken: cancellationToken));
 

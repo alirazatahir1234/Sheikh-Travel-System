@@ -1,14 +1,14 @@
 import { DashboardSummary } from '../../../core/models/common.model';
 
 /**
- * Offline fallback for the default (operations) dashboard. The dashboard uses the
- * live API first and only falls back to these values when the request fails.
+ * Empty fallback when the summary API fails. Never invent demo KPIs — operators
+ * must see zeros + an error, not fabricated fleet numbers.
  */
 export const DEFAULT_DASHBOARD_FALLBACK: DashboardSummary = {
-  totalVehicles: 12,
-  activeTrips: 4,
-  totalRevenue: 450000,
-  pendingBookings: 7,
-  fuelExpense: 85000,
-  netProfit: 320000
+  totalVehicles: 0,
+  activeTrips: 0,
+  totalRevenue: 0,
+  pendingBookings: 0,
+  fuelExpense: 0,
+  netProfit: 0
 };
