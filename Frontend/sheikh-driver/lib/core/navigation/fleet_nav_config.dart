@@ -198,7 +198,7 @@ abstract final class FleetNavConfig {
     users,
   ];
 
-  /// Owner Tracking More menu — movement, fuel, drivers first.
+  /// Owner Tracking More menu — tracker parity (routes, stops, vehicle control).
   static const ownerMoreEntries = [
     MoreMenuEntry(
       label: 'Vehicles',
@@ -213,10 +213,46 @@ abstract final class FleetNavConfig {
       isVisible: _tripsMenu,
     ),
     MoreMenuEntry(
+      label: 'GPS trips',
+      icon: Icons.timeline_outlined,
+      route: '/gps/trips',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'GPS commands',
+      icon: Icons.power_settings_new_outlined,
+      route: '/gps/commands',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'Incident center',
+      icon: Icons.emergency_outlined,
+      route: '/gps/incidents',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'Geofences',
+      icon: Icons.fence_outlined,
+      route: '/gps/geofences',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
       label: 'Alerts',
       icon: Icons.warning_amber_outlined,
       route: '/alerts',
       isVisible: _alertsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Fuel analytics',
+      icon: Icons.local_gas_station_outlined,
+      route: '/gps/fuel',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'Mileage',
+      icon: Icons.speed_outlined,
+      route: '/gps/mileage',
+      isVisible: _ownerTrackerOps,
     ),
     MoreMenuEntry(
       label: 'Settlements',
@@ -606,4 +642,11 @@ abstract final class FleetNavConfig {
   static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
   static bool _gpsOperatorOps(FleetSession s) =>
       s.isGpsOperator || (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
+
+  /// Owner Tracking — GPS tracker surfaces (commands, playback, geofences).
+  static bool _ownerTrackerOps(FleetSession s) =>
+      s.isOwnerTracking &&
+      (s.hasPermission(FleetPermissions.gpsView) ||
+          s.hasPermission(FleetPermissions.gpsCommandView) ||
+          s.hasPermission(FleetPermissions.vehicleView));
 }

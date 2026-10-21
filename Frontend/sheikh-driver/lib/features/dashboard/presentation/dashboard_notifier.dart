@@ -25,7 +25,7 @@ class DashboardNotifier extends AsyncNotifier<RoleDashboardData> {
         ),
       );
     }
-    if (session.isGpsOperator) {
+    if (session.isGpsOperator || session.isOwnerTracking) {
       final timer = Timer.periodic(const Duration(seconds: 25), (_) {
         silentRefresh();
       });

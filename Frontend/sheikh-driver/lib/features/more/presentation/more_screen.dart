@@ -41,6 +41,8 @@ class MoreScreen extends ConsumerWidget {
                 session.companyContext!.branchName!,
               if (operatorShell)
                 'GPS operations'
+              else if (session.isOwnerTracking)
+                'Owner tracking'
               else if (session.isDriverOnly)
                 'Driver'
               else

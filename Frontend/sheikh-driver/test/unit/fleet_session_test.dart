@@ -212,6 +212,33 @@ void main() {
       );
     });
 
+    test('owner more menu includes tracker surfaces', () {
+      final session = _session(
+        roles: const [FleetRole.owner],
+        permissions: const [
+          FleetPermissions.gpsView,
+          FleetPermissions.gpsCommandView,
+          FleetPermissions.vehicleView,
+          FleetPermissions.driverView,
+          FleetPermissions.fuelView,
+          FleetPermissions.tripView,
+          FleetPermissions.reportView,
+          FleetPermissions.aiView,
+          FleetPermissions.paymentView,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      final routes =
+          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      expect(routes, contains('/gps/trips'));
+      expect(routes, contains('/gps/commands'));
+      expect(routes, contains('/gps/geofences'));
+      expect(routes, contains('/gps/incidents'));
+      expect(routes, contains('/gps/mileage'));
+      expect(routes, contains('/fleet'));
+    });
+
     test('tenant admin uses owner tracking shell', () {
       final tabs = FleetNavConfig.visibleTabs(
         _session(

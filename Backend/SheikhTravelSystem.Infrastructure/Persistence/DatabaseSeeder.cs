@@ -23,6 +23,7 @@ public class DatabaseSeeder(
 
         await SeedUsersAsync(connection, cancellationToken);
         await SeedDriverManagerUserAsync(connection, cancellationToken);
+        await SeedChandTravelsDemoUsersAsync(connection, cancellationToken);
         await SeedBranchesAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
@@ -63,7 +64,7 @@ public class DatabaseSeeder(
                 "DELETE FROM Drivers",
                 "DELETE FROM Routes",
                 // Keep admin login usable — only remove users the seeder added.
-                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com','drivermanager@sheikhtravel.com')"
+                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com','drivermanager@sheikhtravel.com','owner@chandtravel.com','driver@chandtravel.com')"
             };
 
             foreach (var sql in deleteStatements)
@@ -249,6 +250,217 @@ public class DatabaseSeeder(
               );
             """,
             new { Email = email },
+            cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// Idempotent Chand Travels demo users: OWNER (owner@chandtravel.com / PASS@123)
+    /// and DRIVER (driver@chandtravel.com / PASS@123) under slug chand-travels.
+    /// </summary>
+    private async Task SeedChandTravelsDemoUsersAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        const string tenantSlug = "chand-travels";
+        const string ownerEmail = "owner@chandtravel.com";
+        const string driverEmail = "driver@chandtravel.com";
+        const string password = "PASS@123";
+        const string driverPhone = "03119990001";
+
+        var hasTenants = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(N'Tenants', N'U') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+        if (!hasTenants) return;
+
+        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TOP 1 Id FROM Tenants WHERE Slug = @Slug",
+            new { Slug = tenantSlug },
+            cancellationToken: ct));
+        if (tenantId is null or 0)
+        {
+            logger.LogWarning(
+                "Chand Travels tenant (slug={Slug}) missing — skip demo users until migration runs.",
+                tenantSlug);
+            return;
+        }
+
+        // Legacy Users.Role has no OWNER enum; Dispatcher is a placeholder.
+        // Platform UserRoles.OWNER is the real RBAC assignment (avoid Admin→TENANT_ADMIN JWT bridge).
+        await UpsertChandTravelsStaffUserAsync(
+            connection,
+            tenantId.Value,
+            fullName: "Chand Travels Owner",
+            email: ownerEmail,
+            phone: "03119990000",
+            legacyRole: (int)UserRole.Dispatcher,
+            roleCode: "OWNER",
+            password: password,
+            ct);
+
+        await UpsertChandTravelsStaffUserAsync(
+            connection,
+            tenantId.Value,
+            fullName: "Chand Travels Driver",
+            email: driverEmail,
+            phone: driverPhone,
+            legacyRole: (int)UserRole.Driver,
+            roleCode: "DRIVER",
+            password: password,
+            ct);
+
+        // Ensure a Drivers row for the Chand Travels driver (mobile phone login).
+        var hasDrivers = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(N'Drivers', N'U') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+        if (!hasDrivers) return;
+
+        var hasUserIdCol = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN COL_LENGTH('Drivers', 'UserId') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+        var hasTenantCol = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN COL_LENGTH('Drivers', 'TenantId') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+
+        var driverUserId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0",
+            new { Email = driverEmail },
+            cancellationToken: ct));
+
+        var driverExists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Phone = @Phone AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { Phone = driverPhone },
+            cancellationToken: ct));
+
+        if (!driverExists)
+        {
+            if (hasTenantCol && hasUserIdCol)
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    INSERT INTO Drivers (TenantId, FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, [Address], Status, IsActive, UserId, CreatedAt, CreatedBy, IsDeleted)
+                    VALUES (@TenantId, N'Chand Travels Driver', @Phone, N'CHD-D-10001', DATEADD(year, 2, GETUTCDATE()),
+                            N'3520299000001', N'Lahore', 1, 1, @UserId, GETUTCDATE(), N'seeder', 0);
+                    """,
+                    new { TenantId = tenantId.Value, Phone = driverPhone, UserId = driverUserId },
+                    cancellationToken: ct));
+            }
+            else if (hasTenantCol)
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    INSERT INTO Drivers (TenantId, FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, [Address], Status, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                    VALUES (@TenantId, N'Chand Travels Driver', @Phone, N'CHD-D-10001', DATEADD(year, 2, GETUTCDATE()),
+                            N'3520299000001', N'Lahore', 1, 1, GETUTCDATE(), N'seeder', 0);
+                    """,
+                    new { TenantId = tenantId.Value, Phone = driverPhone },
+                    cancellationToken: ct));
+            }
+            else
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    INSERT INTO Drivers (FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, [Address], Status, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                    VALUES (N'Chand Travels Driver', @Phone, N'CHD-D-10001', DATEADD(year, 2, GETUTCDATE()),
+                            N'3520299000001', N'Lahore', 1, 1, GETUTCDATE(), N'seeder', 0);
+                    """,
+                    new { Phone = driverPhone },
+                    cancellationToken: ct));
+            }
+
+            logger.LogInformation("Seeded Chand Travels driver row for phone {Phone}", driverPhone);
+        }
+        else if (hasUserIdCol && driverUserId is > 0)
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE Drivers SET UserId = @UserId, Phone = @Phone
+                WHERE Phone = @Phone AND IsDeleted = 0;
+                """,
+                new { UserId = driverUserId, Phone = driverPhone },
+                cancellationToken: ct));
+        }
+
+        logger.LogInformation(
+            "Chand Travels demo users ready: {OwnerEmail} (OWNER) and {DriverEmail} (DRIVER).",
+            ownerEmail, driverEmail);
+    }
+
+    private async Task UpsertChandTravelsStaffUserAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        string fullName,
+        string email,
+        string phone,
+        int legacyRole,
+        string roleCode,
+        string password,
+        CancellationToken ct)
+    {
+        var hash = passwordHasher.Hash(password);
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email) THEN 1 ELSE 0 END",
+            new { Email = email },
+            cancellationToken: ct));
+
+        if (!exists)
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                VALUES (@TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, 1, GETUTCDATE(), N'seeder', 0);
+                """,
+                new
+                {
+                    TenantId = tenantId,
+                    FullName = fullName,
+                    Email = email,
+                    PasswordHash = hash,
+                    Phone = phone,
+                    Role = legacyRole
+                },
+                cancellationToken: ct));
+            logger.LogInformation("Seeded Chand Travels user {Email}", email);
+        }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE Users
+                SET TenantId = @TenantId,
+                    FullName = @FullName,
+                    PasswordHash = @PasswordHash,
+                    Phone = @Phone,
+                    Role = @Role,
+                    IsActive = 1,
+                    IsDeleted = 0
+                WHERE Email = @Email;
+                """,
+                new
+                {
+                    TenantId = tenantId,
+                    FullName = fullName,
+                    Email = email,
+                    PasswordHash = hash,
+                    Phone = phone,
+                    Role = legacyRole
+                },
+                cancellationToken: ct));
+        }
+
+        var hasUserRoles = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(N'UserRoles', N'U') IS NOT NULL THEN 1 ELSE 0 END",
+            cancellationToken: ct)) > 0;
+        if (!hasUserRoles) return;
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE ur
+            FROM UserRoles ur
+            INNER JOIN Users u ON u.Id = ur.UserId
+            INNER JOIN Roles r ON r.Id = ur.RoleId
+            WHERE u.Email = @Email AND r.Code <> @RoleCode;
+
+            INSERT INTO UserRoles (UserId, RoleId)
+            SELECT u.Id, r.Id
+            FROM Users u
+            INNER JOIN Roles r ON r.Code = @RoleCode AND r.TenantId = u.TenantId
+            WHERE u.Email = @Email AND u.IsDeleted = 0
+              AND NOT EXISTS (
+                SELECT 1 FROM UserRoles x WHERE x.UserId = u.Id AND x.RoleId = r.Id
+              );
+            """,
+            new { Email = email, RoleCode = roleCode },
             cancellationToken: ct));
     }
 

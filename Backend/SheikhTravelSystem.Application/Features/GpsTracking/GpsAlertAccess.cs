@@ -29,6 +29,14 @@ internal static class GpsAlertAccess
                 "geofence_enter", "geofence_exit",
                 "sos", "idle_vehicle", "fuel_theft", "engine_fault"
             ],
+            ["OWNER"] =
+            [
+                "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
+                "ignition_on", "ignition_off", "power_cut", "low_battery",
+                "gps_offline", "vehicle_offline", "online", "gps_online", "tow",
+                "geofence_enter", "geofence_exit",
+                "sos", "idle_vehicle", "fuel_theft", "engine_fault"
+            ],
             ["FLEET_MANAGER"] =
             [
                 "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
