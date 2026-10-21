@@ -8,7 +8,7 @@
 #      via self-hosted pool SheikhGo-VM (agent runs ON the VM)
 #   2) Frontend → Vercel (ERP + Customer Hub via vercel CLI)
 #
-# Does NOT touch Railway. Does NOT use IBM.
+# Does NOT touch Railway.
 #
 # Setup: docs/deploy/azure-vm-vercel-cicd.md
 # Required variables (pipeline or Library group "SheikhGo-Deploy"):
