@@ -1,17 +1,22 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
-public record GetVehiclesQuery(int Page = 1, int PageSize = 20, bool IncludeDrafts = false)
+public record GetVehiclesQuery(
+    int Page = 1,
+    int PageSize = 20,
+    bool IncludeDrafts = false,
+    int? TenantId = null)
     : IRequest<ApiResponse<PagedResult<VehicleListItemDto>>>;
 
 public class GetVehiclesQueryHandler(
     IVehicleRepository vehicleRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     ICurrentUserService currentUser,
     IDataScopeEngine dataScopeEngine,
     IFileStorageService fileStorage)
@@ -19,7 +24,17 @@ public class GetVehiclesQueryHandler(
 {
     public async Task<ApiResponse<PagedResult<VehicleListItemDto>>> Handle(GetVehiclesQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = tenantContext.GetRequiredTenantId();
+        int tenantId;
+        try
+        {
+            tenantId = ResolveTenantFilter(request.TenantId);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ForbiddenException(
+                "Company context is missing. Sign in again or select a company (tenant) before loading vehicles.");
+        }
+
         DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)
             scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
@@ -40,5 +55,16 @@ public class GetVehiclesQueryHandler(
             Page = request.Page,
             PageSize = request.PageSize
         });
+    }
+
+    private int ResolveTenantFilter(int? requestedTenantId)
+    {
+        if (requestedTenantId.HasValue)
+        {
+            platformScope.EnsureTenantAccess(requestedTenantId.Value);
+            return requestedTenantId.Value;
+        }
+
+        return platformScope.TenantId;
     }
 }

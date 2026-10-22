@@ -184,15 +184,17 @@ const LEGACY_TO_PRIMARY: Record<UserRole, string> = {
   [UserRole.Accountant]: 'ACCOUNTANT'
 };
 
+/** Highest privilege first — mirrors backend RoleRegistrySeed.SortOrder. */
 const PLATFORM_PRIORITY = [
+  'SUPER_ADMIN',
+  'TENANT_ADMIN',
+  'OWNER',
   'FLEET_MANAGER',
   'DRIVER_MANAGER',
   'GPS_OPERATOR',
   'DISPATCHER',
   'ACCOUNTANT',
-  'DRIVER',
-  'TENANT_ADMIN',
-  'SUPER_ADMIN'
+  'DRIVER'
 ];
 
 export function getPrimaryRoleById(id: string | null | undefined): PrimaryRoleDefinition | undefined {

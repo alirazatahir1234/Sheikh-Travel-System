@@ -43,7 +43,8 @@ public class RefreshTokenCommandHandler(
             DateTime.UtcNow.AddDays(expiryDays),
             cancellationToken);
 
-        var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
+        var orderedRoles = RoleCodePriority.OrderByPrivilege(access.RoleCodes);
+        var primaryRole = RoleCodePriority.SelectPrimary(orderedRoles) ?? user.Role.ToString();
         var response = new LoginResponse(
             accessToken,
             newRefreshToken,
@@ -53,7 +54,7 @@ public class RefreshTokenCommandHandler(
             user.Phone,
             user.TenantId,
             user.Id,
-            access.RoleCodes,
+            orderedRoles,
             access.Permissions);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Token refreshed successfully.");
     }

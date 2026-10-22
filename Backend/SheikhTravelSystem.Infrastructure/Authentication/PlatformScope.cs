@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Infrastructure.Authentication;
@@ -29,9 +30,10 @@ public class PlatformScope(IHttpContextAccessor httpContextAccessor, ITenantCont
 
     public void EnsureTenantAccess(int tenantId)
     {
+        // SUPER_ADMIN may scope lists to another tenant via ?tenantId= (ERP company deep-link).
         if (IsSuperAdmin) return;
         if (tenantId != TenantId)
-            throw new UnauthorizedAccessException("Cross-tenant access is not allowed.");
+            throw new ForbiddenException("Cross-tenant access is not allowed.");
     }
 
     private bool HasRole(string roleCode) =>

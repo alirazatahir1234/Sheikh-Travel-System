@@ -43,6 +43,7 @@ export interface DriverListParams {
   licenseExpiry?: 'VALID' | 'EXPIRING' | 'EXPIRED';
   verificationStatus?: string;
   availability?: string;
+  tenantId?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -63,6 +64,7 @@ export class DriverService {
     if (params.licenseExpiry) httpParams = httpParams.set('licenseExpiry', params.licenseExpiry);
     if (params.verificationStatus) httpParams = httpParams.set('verificationStatus', params.verificationStatus);
     if (params.availability) httpParams = httpParams.set('availability', params.availability);
+    if (params.tenantId != null) httpParams = httpParams.set('tenantId', params.tenantId);
 
     return this.http.get<PagedResult<DriverListItem>>(this.base, { params: httpParams }).pipe(
       map(result => ({ ...result, items: result.items.map(normalizeDriverListItem) }))

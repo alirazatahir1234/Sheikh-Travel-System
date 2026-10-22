@@ -22,6 +22,7 @@ public static class RoleRegistrySeed
         E("TENANT_ADMIN", "Tenant Admin", "Company Admin", "Full company administration", "Platform", 10, "System"),
         E("OWNER", "Owner", "Owner", "Company owner — full fleet tracker: live map, routes, stops, vehicle control", "Fleet", 15, "System"),
         E("FLEET_MANAGER", "Fleet Manager", "Fleet Manager", "Fleet, vehicles, drivers, GPS", "Fleet", 20, "System"),
+        E("GPS_OPERATOR", "GPS Operator", "GPS Operator", "Live map monitoring and GPS alerts", "Fleet", 22, "System"),
         E("DRIVER_MANAGER", "Driver Manager", "Driver Manager", "Driver directory and assignments", "Fleet", 25, "System"),
         E("DISPATCHER", "Dispatcher", "Dispatcher", "Bookings, trips, and dispatch", "Operations", 30, "System"),
         E("ACCOUNTANT", "Accountant", "Accountant", "Payments, invoices, and reports", "Finance", 40, "System"),

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild, OnInit, DestroyRef } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Router, RouterModule, NavigationEnd } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,6 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PagedResult } from '../../../core/models/common.model';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
+import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -81,14 +82,19 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly vehicleService = inject(VehicleService);
   private readonly fleetService = inject(FleetService);
   private readonly platformService = inject(PlatformService);
+  private readonly tenantContext = inject(PlatformTenantContextService);
   private readonly driverService = inject(DriverService);
   private readonly exportService = inject(ExportService);
   private readonly confirm = inject(UiConfirmService);
   private readonly toast = inject(UiToastService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Company filter from /vehicles?tenantId= (platform tenant detail deep-link). */
+  private companyTenantId: number | null = null;
 
   @ViewChild(VehicleAssignDialogComponent) assignDialog!: VehicleAssignDialogComponent;
 
@@ -240,6 +246,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   });
 
   constructor() {
+    this.resolveCompanyTenantFromRoute();
     this.loadBranches();
     this.loadDrivers();
   }
@@ -252,7 +259,23 @@ export class VehicleInventoryPageComponent implements OnInit {
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       filter(event => event.urlAfterRedirects === '/vehicles' || event.urlAfterRedirects.startsWith('/vehicles?')),
       takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => this.load());
+    ).subscribe(() => {
+      this.resolveCompanyTenantFromRoute();
+      this.loadBranches();
+      this.loadDrivers();
+      this.load();
+    });
+  }
+
+  private resolveCompanyTenantFromRoute(): void {
+    const raw = this.route.snapshot.queryParamMap.get('tenantId');
+    const id = raw ? Number(raw) : NaN;
+    if (Number.isFinite(id) && id > 0) {
+      this.companyTenantId = id;
+      this.tenantContext.selectTenantById(id);
+    } else {
+      this.companyTenantId = this.tenantContext.currentTenantId;
+    }
   }
 
   load(): void {
@@ -293,8 +316,9 @@ export class VehicleInventoryPageComponent implements OnInit {
   /** Fetch every page so KPIs / filters / export are not silently capped at 500. */
   private loadAllVehicles(): Observable<PagedResult<VehicleListItem>> {
     const pageSize = 200;
+    const tenantId = this.companyTenantId;
     const loadPage = (page: number, acc: VehicleListItem[]): Observable<PagedResult<VehicleListItem>> =>
-      this.vehicleService.getAll(page, pageSize, true).pipe(
+      this.vehicleService.getAll(page, pageSize, true, tenantId).pipe(
         switchMap(res => {
           const items = [...acc, ...res.items];
           const done = res.items.length === 0 || items.length >= res.totalCount;
@@ -489,13 +513,20 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   private loadBranches(): void {
-    this.platformService.getBranches().pipe(catchError(() => of([]))).subscribe(branches => {
+    const tenantId = this.companyTenantId;
+    const source = tenantId != null
+      ? this.platformService.getBranchesForTenant(tenantId)
+      : this.platformService.getBranches();
+    source.pipe(catchError(() => of([]))).subscribe(branches => {
       this.branchOptions.set(branches.map(b => ({ value: b.id, label: b.name })));
     });
   }
 
   private loadDrivers(): void {
-    this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))).subscribe(res => {
+    const params = this.companyTenantId != null
+      ? { page: 1, pageSize: 500, tenantId: this.companyTenantId }
+      : { page: 1, pageSize: 500 };
+    this.driverService.getAll(params).pipe(catchError(() => of({ items: [] }))).subscribe(res => {
       this.driverOptions.set(res.items.map(d => ({ value: String(d.id), label: d.fullName })));
     });
   }

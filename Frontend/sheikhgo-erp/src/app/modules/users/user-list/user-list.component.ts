@@ -6,6 +6,7 @@ import {
   EMPLOYEE_TYPES
 } from '../../../core/models/user.model';
 import { PlatformService } from '../../../core/services/platform.service';
+import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserService } from '../../../core/services/user.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -69,6 +70,7 @@ export class UserListComponent implements OnInit, AfterViewInit {
   readonly employeeTypes = EMPLOYEE_TYPES;
   branches: { id: number; name: string }[] = [];
   departments: { id: number; name: string }[] = [];
+  private companyTenantId: number | null = null;
   private readonly statusOrder: Record<string, number> = {
     Active: 1,
     Pending: 2,
@@ -83,6 +85,7 @@ export class UserListComponent implements OnInit, AfterViewInit {
   constructor(
     private userService: UserService,
     private platform: PlatformService,
+    private tenantContext: PlatformTenantContextService,
     private auth: AuthService,
     private exportService: ExportService,
     private router: Router,
@@ -115,7 +118,16 @@ export class UserListComponent implements OnInit, AfterViewInit {
     if (searchFromUrl?.trim()) {
       this.searchTerm = searchFromUrl.trim();
     }
-    this.platform.getBranches().subscribe({
+    const tenantRaw = this.route.snapshot.queryParamMap.get('tenantId');
+    const tenantId = tenantRaw ? Number(tenantRaw) : NaN;
+    if (Number.isFinite(tenantId) && tenantId > 0) {
+      this.companyTenantId = tenantId;
+      this.tenantContext.selectTenantById(tenantId);
+    }
+    const branches$ = this.companyTenantId != null
+      ? this.platform.getBranchesForTenant(this.companyTenantId)
+      : this.platform.getBranches();
+    branches$.subscribe({
       next: rows => { this.branches = rows.map(b => ({ id: b.id, name: b.name })); },
       error: () => { this.branches = []; }
     });
@@ -166,7 +178,7 @@ export class UserListComponent implements OnInit, AfterViewInit {
   load(): void {
     this.loading = true;
     this.selection.clear();
-    this.userService.getAll(1, 500).subscribe({
+    this.userService.getAll(1, 500, this.companyTenantId).subscribe({
       next: result => {
         this.allUsers = result.items;
         this.loading = false;

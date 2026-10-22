@@ -180,7 +180,8 @@ public class LoginCommandHandler(
             logger.LogDebug(ex, "Failed to record login audit for user {UserId}", user.Id);
         }
 
-        var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
+        var orderedRoles = RoleCodePriority.OrderByPrivilege(access.RoleCodes);
+        var primaryRole = RoleCodePriority.SelectPrimary(orderedRoles) ?? user.Role.ToString();
         var response = new LoginResponse(
             accessToken,
             refreshToken,
@@ -190,7 +191,7 @@ public class LoginCommandHandler(
             user.Phone,
             user.TenantId,
             user.Id,
-            access.RoleCodes,
+            orderedRoles,
             access.Permissions);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Login successful.");
     }

@@ -327,7 +327,10 @@ public record TenantDetailDto(
     int BranchCount,
     int DepartmentCount,
     int RoleCount,
-    string? Location)
+    string? Location,
+    int ActiveUserCount = 0,
+    int ActiveVehicleCount = 0,
+    int ActiveDriverCount = 0)
 {
     public IReadOnlyList<string> ModuleCodes { get; init; } = [];
     public TenantAdminInfoDto? AdminInfo { get; init; }

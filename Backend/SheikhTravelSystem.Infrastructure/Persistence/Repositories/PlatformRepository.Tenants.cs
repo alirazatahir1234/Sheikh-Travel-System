@@ -76,7 +76,10 @@ public sealed partial class PlatformRepository
                              WHEN br.City IS NOT NULL THEN br.City
                              WHEN br.Country IS NOT NULL THEN br.Country
                              ELSE NULL END
-                    FROM Branches br WHERE br.TenantId = t.Id ORDER BY br.Id) AS Location
+                    FROM Branches br WHERE br.TenantId = t.Id ORDER BY br.Id) AS Location,
+                   (SELECT COUNT(*) FROM Users u WHERE u.TenantId = t.Id AND u.IsDeleted = 0 AND u.IsActive = 1) AS ActiveUserCount,
+                   (SELECT COUNT(*) FROM Vehicles v WHERE v.TenantId = t.Id AND v.IsDeleted = 0) AS ActiveVehicleCount,
+                   (SELECT COUNT(*) FROM Drivers dr WHERE dr.TenantId = t.Id AND dr.IsDeleted = 0) AS ActiveDriverCount
             FROM Tenants t
             LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
             LEFT JOIN TenantBranding b ON b.TenantId = t.Id
@@ -262,8 +265,9 @@ public sealed partial class PlatformRepository
             new CommandDefinition("""
                 SELECT u.DefaultWorkspaceKey, u.HomeRoute,
                        (SELECT TOP 1 r.Code
-                        FROM UserRoles ur INNER JOIN Roles r ON r.Id = ur.RoleId
-                        WHERE ur.UserId = u.Id ORDER BY r.Id) AS RoleCode
+                        FROM UserRoles ur INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+                        WHERE ur.UserId = u.Id
+                        ORDER BY COALESCE(r.SortOrder, 9999), r.Code) AS RoleCode
                 FROM Users u
                 WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
                 """,
@@ -279,8 +283,9 @@ public sealed partial class PlatformRepository
             string? DefaultDashboardKey, string? DefaultWorkspaceKey, string? RoleCode)>(new CommandDefinition("""
             SELECT u.DefaultDashboardKey, u.DefaultWorkspaceKey,
                    (SELECT TOP 1 r.Code FROM UserRoles ur
-                    INNER JOIN Roles r ON r.Id = ur.RoleId
-                    WHERE ur.UserId = u.Id ORDER BY r.Id) AS RoleCode
+                    INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+                    WHERE ur.UserId = u.Id
+                    ORDER BY COALESCE(r.SortOrder, 9999), r.Code) AS RoleCode
             FROM Users u
             WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
             """,

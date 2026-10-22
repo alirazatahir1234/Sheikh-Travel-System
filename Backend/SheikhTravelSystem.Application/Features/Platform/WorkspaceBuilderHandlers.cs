@@ -159,6 +159,21 @@ public static class WorkspaceBuilderQueries
         };
     }
 
+    /// <summary>
+    /// When a user has multiple roles (e.g. SUPER_ADMIN + FLEET_MANAGER), prefer the
+    /// highest-privilege code (SortOrder / role code), never numeric Role.Id order.
+    /// </summary>
+    public static string? PreferElevatedRoleCode(string? profileRoleCode, IEnumerable<string>? roleCodes)
+    {
+        var combined = new List<string>();
+        if (!string.IsNullOrWhiteSpace(profileRoleCode))
+            combined.Add(profileRoleCode.Trim());
+        if (roleCodes is not null)
+            combined.AddRange(roleCodes.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()));
+
+        return RoleCodePriority.SelectPrimary(combined);
+    }
+
     public static ResolvedWorkspaceDto Resolve(
         IReadOnlyList<WorkspaceRow> catalog,
         IReadOnlyDictionary<string, bool> flags,
@@ -306,12 +321,15 @@ public class GetMyWorkspaceQueryHandler(
         var profile = await platformRepository.GetUserWorkspaceProfileAsync(userId, tenantId, cancellationToken);
         var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken);
         var flags = await platformRepository.LoadTenantWorkspaceFlagsAsync(tenantId, cancellationToken);
+        var roleCodes = currentUser.Roles ?? Array.Empty<string>();
+        var roleHint = WorkspaceBuilderQueries.PreferElevatedRoleCode(
+            profile?.RoleCode ?? currentUser.Role, roleCodes);
         var resolved = WorkspaceBuilderQueries.Resolve(
             catalog,
             flags,
             profile?.DefaultWorkspaceKey,
             profile?.HomeRoute,
-            profile?.RoleCode ?? currentUser.Role);
+            roleHint);
 
         return ApiResponse<ResolvedWorkspaceDto>.SuccessResponse(resolved);
     }

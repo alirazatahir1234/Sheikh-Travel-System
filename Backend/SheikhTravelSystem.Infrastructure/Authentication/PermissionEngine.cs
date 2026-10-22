@@ -23,10 +23,11 @@ public class PermissionEngine(IDbConnectionFactory dbFactory) : IPermissionEngin
             FROM UserRoles ur
             INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
             WHERE ur.UserId = @UserId AND r.TenantId = @TenantId
-            ORDER BY r.Code
+            ORDER BY COALESCE(r.SortOrder, 9999), r.Code
             """, new { UserId = userId, TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
 
-        var codes = roleCodes.Select(r => r.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        // Privilege order (SortOrder), not Role.Id — primary JWT/login role is First().
+        var codes = RoleCodePriority.OrderByPrivilege(roleCodes.Select(r => r.Code)).ToList();
 
         var legacyRole = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
             "SELECT Role FROM Users WHERE Id = @UserId AND IsDeleted = 0",

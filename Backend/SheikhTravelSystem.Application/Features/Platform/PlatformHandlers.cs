@@ -409,11 +409,17 @@ public class UpdateTenantCommandHandler(
     {
         platformScope.EnsureTenantAccess(request.Id);
 
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return ApiResponse<bool>.FailResponse("Company name is required.");
+
         IReadOnlyList<string>? moduleCodes = null;
         if (request.ModuleCodes is { Count: > 0 })
             moduleCodes = request.ModuleCodes;
         else if (request.EnabledModules is { Count: > 0 })
             moduleCodes = TenantModuleCatalog.CodesFromLegacyKeys(request.EnabledModules);
+
+        if (request.ModuleCodes is { Count: 0 } && request.EnabledModules is null or { Count: 0 })
+            return ApiResponse<bool>.FailResponse("Select at least one module.");
 
         await platformRepository.UpdateTenantAsync(
             request.Id,
@@ -457,18 +463,29 @@ public class GetUserMenuQueryHandler(
         var (modules, menus) = await platformRepository.LoadNavTablesAsync(activeMenusOnly: true, cancellationToken: cancellationToken);
 
         IReadOnlyList<string>? workspaceModuleKeys = null;
-        try
+        var isSystemAdmin = access.RoleCodes.Any(c =>
+            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase));
+        // System admins must see the full platform catalog (Companies, Fleet, Finance, etc.).
+        // Workspace soft-focus is for operational roles only — a wrong primary Role.Id pick
+        // (e.g. DRIVER/FLEET_MANAGER) previously narrowed ModuleKeys and hid the sidebar.
+        if (!isSystemAdmin)
         {
-            var profile = await platformRepository.GetUserWorkspaceProfileAsync(userId, tenantId, cancellationToken);
-            var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken: cancellationToken);
-            var flags = await platformRepository.LoadTenantWorkspaceFlagsAsync(tenantId, cancellationToken);
-            var resolved = WorkspaceBuilderQueries.Resolve(
-                catalog, flags, profile?.DefaultWorkspaceKey, profile?.HomeRoute, profile?.RoleCode ?? access.RoleCodes.FirstOrDefault());
-            workspaceModuleKeys = resolved.ModuleKeys;
-        }
-        catch
-        {
-            // Workspace catalog optional until Stage 10 migration applied.
+            try
+            {
+                var profile = await platformRepository.GetUserWorkspaceProfileAsync(userId, tenantId, cancellationToken);
+                var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken: cancellationToken);
+                var flags = await platformRepository.LoadTenantWorkspaceFlagsAsync(tenantId, cancellationToken);
+                var roleHint = WorkspaceBuilderQueries.PreferElevatedRoleCode(
+                    profile?.RoleCode, access.RoleCodes);
+                var resolved = WorkspaceBuilderQueries.Resolve(
+                    catalog, flags, profile?.DefaultWorkspaceKey, profile?.HomeRoute, roleHint);
+                workspaceModuleKeys = resolved.ModuleKeys;
+            }
+            catch
+            {
+                // Workspace catalog optional until Stage 10 migration applied.
+            }
         }
 
         var result = MenuBuilderQueries.BuildUserMenu(

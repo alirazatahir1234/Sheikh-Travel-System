@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Drivers.DTOs;
@@ -15,18 +16,29 @@ public record GetDriversQuery(
     int? BranchId = null,
     string? LicenseExpiry = null,
     string? VerificationStatus = null,
-    string? Availability = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
+    string? Availability = null,
+    int? TenantId = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
 
 public class GetDriversQueryHandler(
     IDriverRepository driverRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     ICurrentUserService currentUser,
     IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetDriversQuery, ApiResponse<PagedResult<DriverListItemDto>>>
 {
     public async Task<ApiResponse<PagedResult<DriverListItemDto>>> Handle(GetDriversQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = tenantContext.GetRequiredTenantId();
+        int tenantId;
+        try
+        {
+            tenantId = ResolveTenantFilter(request.TenantId);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ForbiddenException(
+                "Company context is missing. Sign in again or select a company (tenant) before loading drivers.");
+        }
+
         DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)
             scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
@@ -46,20 +58,33 @@ public class GetDriversQueryHandler(
             PageSize = request.PageSize
         });
     }
+
+    private int ResolveTenantFilter(int? requestedTenantId)
+    {
+        if (requestedTenantId.HasValue)
+        {
+            platformScope.EnsureTenantAccess(requestedTenantId.Value);
+            return requestedTenantId.Value;
+        }
+
+        return platformScope.TenantId;
+    }
 }
 
-public record GetDriverStatsQuery(int? BranchId = null) : IRequest<ApiResponse<DriverStatsDto>>;
+public record GetDriverStatsQuery(int? BranchId = null, int? TenantId = null) : IRequest<ApiResponse<DriverStatsDto>>;
 
 public class GetDriverStatsQueryHandler(
     IDriverRepository driverRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     ICurrentUserService currentUser,
     IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetDriverStatsQuery, ApiResponse<DriverStatsDto>>
 {
     public async Task<ApiResponse<DriverStatsDto>> Handle(GetDriverStatsQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = tenantContext.GetRequiredTenantId();
+        if (request.TenantId.HasValue)
+            platformScope.EnsureTenantAccess(request.TenantId.Value);
+        var tenantId = request.TenantId ?? platformScope.TenantId;
         DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)
             scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);

@@ -3,10 +3,11 @@ import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatDialog } from '@angular/material/dialog';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DriverService } from '../../../core/services/driver.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import {
   Driver,
@@ -67,6 +68,7 @@ export class DriverListComponent implements OnInit {
   ];
 
   filters: DriverFilters = this.emptyFilters();
+  private companyTenantId: number | null = null;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
@@ -74,6 +76,8 @@ export class DriverListComponent implements OnInit {
     private driverService: DriverService,
     private auth: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
+    private tenantContext: PlatformTenantContextService,
     private toast: UiToastService,
     private dialog: MatDialog,
     private exportService: ExportService,
@@ -92,14 +96,25 @@ export class DriverListComponent implements OnInit {
     return this.auth.hasPermission('Driver.Delete');
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    const raw = this.route.snapshot.queryParamMap.get('tenantId');
+    const id = raw ? Number(raw) : NaN;
+    if (Number.isFinite(id) && id > 0) {
+      this.companyTenantId = id;
+      this.tenantContext.selectTenantById(id);
+    }
+    this.load();
+  }
 
   // ---------- Data loading ---------------------------------------------------
 
   load(page = 1, pageSize = 500): void {
     this.loading = true;
     this.error = null;
-    this.driverService.getAll(page, pageSize).subscribe({
+    const params = this.companyTenantId != null
+      ? { page, pageSize, tenantId: this.companyTenantId }
+      : { page, pageSize };
+    this.driverService.getAll(params).subscribe({
       next: result => {
         this.allDrivers = result.items;
         this.totalCount = result.totalCount;

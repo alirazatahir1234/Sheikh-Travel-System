@@ -15,11 +15,12 @@ abstract final class FleetRole {
   static const driver = 'DRIVER';
   static const accountant = 'ACCOUNTANT';
 
-  /// Priority for bottom-nav shell (first match wins).
+  /// Priority for bottom-nav shell / default role (first match wins).
+  /// Privilege order by role **code**, never numeric Role.Id.
   static const navRolePriority = [
     superAdmin,
-    owner,
     tenantAdmin,
+    owner,
     fleetManager,
     driverManager,
     gpsOperator,
@@ -27,6 +28,26 @@ abstract final class FleetRole {
     accountant,
     driver,
   ];
+
+  /// Highest-privilege role first (mirrors backend RoleRegistrySeed.SortOrder).
+  static List<String> orderByPrivilege(Iterable<String> roles) {
+    final seen = <String>{};
+    final unique = <String>[];
+    for (final raw in roles) {
+      final code = raw.trim().toUpperCase();
+      if (code.isEmpty || !seen.add(code)) continue;
+      unique.add(code);
+    }
+    unique.sort((a, b) {
+      final ai = navRolePriority.indexOf(a);
+      final bi = navRolePriority.indexOf(b);
+      final ar = ai < 0 ? navRolePriority.length + 1 : ai;
+      final br = bi < 0 ? navRolePriority.length + 1 : bi;
+      if (ar != br) return ar.compareTo(br);
+      return a.compareTo(b);
+    });
+    return unique;
+  }
 
   static const managementRoles = {
     superAdmin,
@@ -108,7 +129,8 @@ class LoginRequest {
   bool get isEmailLogin => identifier.contains('@');
 
   Map<String, dynamic> toStaffJson() => {
-        'email': identifier.trim(),
+        // Backend stores emails lowercased; normalize for case-insensitive login.
+        'email': identifier.trim().toLowerCase(),
         'password': password,
       };
 
@@ -233,26 +255,42 @@ class FleetSession {
   bool get canSeeTripsTab =>
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
-  bool get canSeeAiTab =>
-      hasPermission(FleetPermissions.aiView) ||
-      hasAnyRole(const [
-        FleetRole.superAdmin,
-        FleetRole.tenantAdmin,
-        FleetRole.owner,
-        FleetRole.fleetManager,
-      ]);
+  /// Co-pilot is Admin / Fleet Manager ops intelligence — not Owner Tracking or Driver.
+  /// Pure OWNER (even with Ai.View seeded) stays off the Copilot surface this phase.
+  bool get canSeeAiTab {
+    if (isDriverOnly) return false;
+    final isPureOwner = hasRole(FleetRole.owner) &&
+        !hasAnyRole(const [
+          FleetRole.superAdmin,
+          FleetRole.tenantAdmin,
+          FleetRole.fleetManager,
+        ]);
+    if (isPureOwner) return false;
+    return hasPermission(FleetPermissions.aiView) ||
+        hasAnyRole(const [
+          FleetRole.superAdmin,
+          FleetRole.tenantAdmin,
+          FleetRole.fleetManager,
+        ]);
+  }
 
   bool get canSeeBookingsTab =>
       !isDriverOnly && hasPermission(FleetPermissions.bookingView);
 
   bool get canSeeFinanceTab =>
       !isDriverOnly &&
-      hasAnyPermission(const [
-        FleetPermissions.paymentView,
-        FleetPermissions.invoiceView,
-        FleetPermissions.reportView,
-        'Settlement.View',
-      ]);
+      (isOwnerTracking ||
+          hasAnyPermission(const [
+            FleetPermissions.paymentView,
+            FleetPermissions.invoiceView,
+            FleetPermissions.reportView,
+            'Settlement.View',
+          ]));
+
+  /// Owner earnings / finance surfaces (distinct from driver-only /earnings API).
+  bool get canSeeOwnerEarnings =>
+      !isDriverOnly &&
+      (isOwnerTracking || hasPermission('Settlement.View'));
 
   bool get canSeeUsersTab =>
       !isDriverOnly && hasPermission(FleetPermissions.platformUsersView);
@@ -267,10 +305,12 @@ class FleetSession {
         json['refreshToken'] as String? ?? json['RefreshToken'] as String? ?? '';
     final roles = _parseStringList(json['roles'] ?? json['Roles']);
     final primaryRole =
-        json['role'] as String? ?? json['Role'] as String? ?? '';
-    final mergedRoles = roles.isEmpty && primaryRole.isNotEmpty
-        ? [primaryRole]
-        : roles;
+        (json['role'] as String? ?? json['Role'] as String? ?? '').trim();
+    // Include login primary_role claim even when roles[] already has entries.
+    final mergedRoles = <String>[
+      ...roles,
+      if (primaryRole.isNotEmpty) primaryRole,
+    ];
     final permissions =
         _parseStringList(json['permissions'] ?? json['Permissions']);
     final userId = json['userId'] as int? ??
@@ -292,7 +332,8 @@ class FleetSession {
       displayName: json['fullName'] as String? ??
           json['FullName'] as String? ??
           '',
-      roles: mergedRoles.map((r) => r.toUpperCase()).toList(),
+      // Privilege order by code — never Role.Id / response array order.
+      roles: FleetRole.orderByPrivilege(mergedRoles),
       permissions: permissions,
       authMode: AuthMode.staff,
       driverId: driverId,

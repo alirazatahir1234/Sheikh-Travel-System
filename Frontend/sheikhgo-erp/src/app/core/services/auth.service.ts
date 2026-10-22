@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, LoginResponseDto } from '../models/auth.model';
 import { SecurityCompanySummary } from '../models/platform.model';
+import { orderRolesByPrivilege } from '../auth/role-priority';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -150,7 +151,9 @@ export class AuthService {
       if (stored === '/platform' || stored === '/platform/') return '/dashboard';
       return stored;
     }
-    if (this.hasRole('Driver')) return '/my-trips';
+    const roles = this.getCurrentUser()?.roles ?? [];
+    const primary = orderRolesByPrivilege(roles)[0]?.toUpperCase() ?? '';
+    if (primary === 'DRIVER' || primary === 'FIELD_DRIVER') return '/my-trips';
     return '/dashboard';
   }
 
@@ -172,11 +175,13 @@ export class AuthService {
     if (!dto?.accessToken) {
       throw new Error('Authentication failed.');
     }
-    const roles = dto.roles?.length
+    const rawRoles = dto.roles?.length
       ? dto.roles
       : dto.role
         ? [dto.role]
         : [];
+    // Highest privilege first — never Role.Id / insertion order (hides sidebar items).
+    const roles = orderRolesByPrivilege(rawRoles);
     return {
       accessToken:  dto.accessToken,
       refreshToken: dto.refreshToken,
@@ -200,7 +205,14 @@ export class AuthService {
   private getStoredUser(): LoginResponse | null {
     const stored = localStorage.getItem(this.userKey);
     if (!stored) return null;
-    try { return JSON.parse(stored) as LoginResponse; }
+    try {
+      const user = JSON.parse(stored) as LoginResponse;
+      // Re-order roles for sessions persisted before privilege sort existed.
+      if (user?.roles?.length) {
+        user.roles = orderRolesByPrivilege(user.roles);
+      }
+      return user;
+    }
     catch { return null; }
   }
 

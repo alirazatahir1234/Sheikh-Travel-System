@@ -25,8 +25,8 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.")));
 
-        var roleCodes = (access?.RoleCodes ?? []).ToList();
-        var primaryRole = roleCodes.FirstOrDefault() ?? MapLegacyRoleCode(user.Role);
+        // Privilege order (SortOrder / role code) — never Role.Id or alphabetical First().
+        var roleCodes = RoleCodePriority.OrderByPrivilege(access?.RoleCodes).ToList();
         var legacyRole = user.Role.ToString();
 
         // Prefer RBAC role codes; always bridge legacy Admin → TENANT_ADMIN claim surface.
@@ -34,9 +34,10 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             && !roleCodes.Contains(PlatformRoles.TenantAdmin, StringComparer.OrdinalIgnoreCase))
         {
             roleCodes.Add(PlatformRoles.TenantAdmin);
-            if (string.Equals(primaryRole, legacyRole, StringComparison.OrdinalIgnoreCase))
-                primaryRole = PlatformRoles.TenantAdmin;
+            roleCodes = RoleCodePriority.OrderByPrivilege(roleCodes).ToList();
         }
+
+        var primaryRole = RoleCodePriority.SelectPrimary(roleCodes) ?? MapLegacyRoleCode(user.Role);
 
         var claims = new List<Claim>
         {

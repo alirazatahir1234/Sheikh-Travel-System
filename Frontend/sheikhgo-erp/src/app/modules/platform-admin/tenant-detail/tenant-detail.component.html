@@ -27,30 +27,30 @@
   <app-brand-loader *ngIf="loading" />
 
   <div *ngIf="!loading && tenant" class="capability-strip" aria-label="Company hierarchy and capabilities">
-    <a class="capability-chip" routerLink="/platform/branches">
+    <a class="capability-chip" routerLink="/platform/branches" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>account_tree</mat-icon>
       <span>Branches</span>
       <strong>{{ tenant.branchCount }}</strong>
     </a>
-    <a class="capability-chip" routerLink="/platform/departments">
+    <a class="capability-chip" routerLink="/platform/departments" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>corporate_fare</mat-icon>
       <span>Departments</span>
       <strong>{{ tenant.departmentCount }}</strong>
     </a>
-    <a class="capability-chip" routerLink="/users">
+    <a class="capability-chip" routerLink="/users" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>groups</mat-icon>
       <span>Users</span>
-      <strong>{{ tenant.activeUserCount }}</strong>
+      <strong>{{ tenant.activeUserCount ?? 0 }}</strong>
     </a>
-    <a class="capability-chip" routerLink="/drivers">
+    <a class="capability-chip" routerLink="/drivers" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>badge</mat-icon>
       <span>Drivers</span>
-      <strong>—</strong>
+      <strong>{{ tenant.activeDriverCount ?? userSummary?.drivers ?? 0 }}</strong>
     </a>
-    <a class="capability-chip" routerLink="/vehicles">
+    <a class="capability-chip" routerLink="/vehicles" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>local_shipping</mat-icon>
       <span>Vehicles</span>
-      <strong>{{ tenant.activeVehicleCount }}</strong>
+      <strong>{{ tenant.activeVehicleCount ?? 0 }}</strong>
     </a>
     <a class="capability-chip" routerLink="/platform/module-management" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>extension</mat-icon>
@@ -169,6 +169,7 @@
           <label for="tenant-org-name">Organization Name <span class="req" aria-hidden="true">*</span></label>
           <input id="tenant-org-name" class="stb-input" type="text" formControlName="name" />
           <span class="stb-error" *ngIf="form.get('name')?.hasError('required') && form.get('name')?.touched">Name is required</span>
+          <span class="stb-error" *ngIf="form.get('name')?.hasError('maxlength') && form.get('name')?.touched">Name is too long</span>
         </div>
         <div class="field-row field-row--4">
           <div class="stb-field">
@@ -218,6 +219,7 @@
             <p class="section-sub">Choose a plan and enable modules for this company</p>
           </div>
           <button mat-stroked-button type="button" class="apply-plan-btn"
+            *ngIf="canManage"
             (click)="applyPlan(form.controls.subscriptionPlan.value ?? 'Enterprise')">
             <mat-icon>auto_fix_high</mat-icon>
             Apply Plan Defaults
@@ -226,6 +228,7 @@
         <div class="plan-cards-row">
           <button type="button" class="plan-info-card" *ngFor="let p of planTiers"
             [class.active]="form.controls.subscriptionPlan.value === p"
+            [disabled]="!canManage"
             (click)="selectPlan(p)">
             <span class="plan-radio" [class.checked]="form.controls.subscriptionPlan.value === p"></span>
             <span class="plan-chip" [ngClass]="tenantPlanMeta(p).cssClass">
@@ -279,9 +282,14 @@
           </div>
         </div>
         <p class="section-label">Module Access</p>
+        <span class="stb-error" *ngIf="form.get('moduleCodes')?.invalid && form.get('moduleCodes')?.touched">
+          Select at least one module
+        </span>
         <div class="module-cards">
           <button type="button" class="module-card" *ngFor="let m of modules"
-            [class.selected]="isModuleSelected(m.code)" (click)="toggleModule(m.code)">
+            [class.selected]="isModuleSelected(m.code)"
+            [disabled]="!canManage"
+            (click)="toggleModule(m.code)">
             <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
             <span>{{ m.name }}</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(m.code)">check_circle</mat-icon>
@@ -324,18 +332,11 @@
             </div>
             <div class="stb-field">
               <label>Password</label>
-              <div class="stb-input-wrap stb-input-wrap--suffix">
-                <input class="stb-input" [type]="hideAdminPassword ? 'password' : 'text'"
-                  [value]="hideAdminPassword ? '••••••••••••' : '••••••••••••'" readonly tabindex="-1" />
-                <button type="button" class="stb-input-suffix-btn"
-                  (click)="hideAdminPassword = !hideAdminPassword"
-                  [attr.aria-label]="hideAdminPassword ? 'Show password' : 'Hide password'">
-                  <mat-icon>{{ hideAdminPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
-                </button>
-              </div>
+              <input class="stb-input stb-input--readonly" type="password"
+                value="••••••••••••" readonly tabindex="-1" aria-label="Password is hidden" />
             </div>
           </div>
-          <div class="admin-actions">
+          <div class="admin-actions" *ngIf="canManage">
             <button mat-stroked-button type="button"
               (click)="resetAdminPassword()"
               [disabled]="resettingPassword">
@@ -396,6 +397,9 @@
             <span class="stb-error" *ngIf="form.get('supportEmail')?.hasError('email') && form.get('supportEmail')?.touched">Enter a valid email</span>
           </div>
         </div>
+        <span class="stb-error" *ngIf="form.get('logoUrl')?.hasError('url') && form.get('logoUrl')?.touched">Enter a valid URL</span>
+        <span class="stb-error" *ngIf="form.get('website')?.hasError('url') && form.get('website')?.touched">Enter a valid website URL</span>
+        <span class="stb-error" *ngIf="form.get('primaryColor')?.hasError('hexColor') && form.get('primaryColor')?.touched">Use a hex color like #007A57</span>
         <div class="field-row field-row--3">
           <div class="stb-field stb-field--searchable-select">
             <label for="tenant-country">Country</label>
@@ -458,7 +462,7 @@
 
       <div class="form-actions">
         <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="saving">
+        <button mat-flat-button color="primary" type="submit" *ngIf="canManage" [disabled]="saving || form.invalid">
           <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
           <span *ngIf="!saving">Save Changes</span>
         </button>

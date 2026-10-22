@@ -183,9 +183,6 @@ public class GetCompanyContextQueryHandler(
                 branchName = org.BranchName;
                 departmentId = org.DepartmentId;
                 departmentName = org.DepartmentName;
-                if (!string.IsNullOrWhiteSpace(org.RoleCode))
-                    roleCode = org.RoleCode;
-
                 passwordChangedAt = await companyRepository.GetPasswordChangedAtAsync(userId, cancellationToken);
 
                 currentUserProfile = new CompanyCurrentUserDto(
@@ -201,8 +198,13 @@ public class GetCompanyContextQueryHandler(
                     org.EmployeeCode);
 
                 assignedRoles = await companyRepository.GetAssignedRolesAsync(userId, cancellationToken);
-                if (assignedRoles.Count > 0 && string.IsNullOrWhiteSpace(roleCode))
-                    roleCode = assignedRoles[0].Code;
+                // Prefer SortOrder/code privilege — never lowest Role.Id from the org subquery alone.
+                roleCode = RoleCodePriority.SelectPrimary(
+                    (assignedRoles ?? []).Select(r => r.Code)
+                        .Append(org.RoleCode ?? string.Empty)
+                        .Append(currentUser.Role ?? string.Empty)
+                        .Concat(currentUser.Roles ?? Array.Empty<string>()),
+                    fallback: org.RoleCode ?? currentUser.Role);
 
                 try
                 {

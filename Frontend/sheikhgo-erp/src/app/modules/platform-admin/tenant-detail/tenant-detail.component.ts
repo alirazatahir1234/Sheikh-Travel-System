@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { AuthService } from '../../../core/services/auth.service';
 import { PlatformService } from '../../../core/services/platform.service';
+import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -28,6 +29,32 @@ import {
   AuditEventListItem
 } from '../../../core/models/platform.model';
 import { CompanyUserSummary } from '../../../core/models/user.model';
+
+const HEX_COLOR = /^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/;
+const OPTIONAL_HTTP_URL = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/i;
+
+function optionalHttpUrlValidator() {
+  return (control: { value: unknown }) => {
+    const v = String(control.value ?? '').trim();
+    if (!v) return null;
+    return OPTIONAL_HTTP_URL.test(v) ? null : { url: true };
+  };
+}
+
+function hexColorValidator() {
+  return (control: { value: unknown }) => {
+    const v = String(control.value ?? '').trim();
+    if (!v) return null;
+    return HEX_COLOR.test(v) ? null : { hexColor: true };
+  };
+}
+
+function atLeastOneModuleValidator() {
+  return (control: { value: unknown }) => {
+    const codes = control.value;
+    return Array.isArray(codes) && codes.length > 0 ? null : { required: true };
+  };
+}
 
 @Component({
   standalone: false,
@@ -63,7 +90,6 @@ export class TenantDetailComponent implements OnInit {
   timezones: string[] = [];
   countrySearch = '';
   currencySearch = '';
-  hideAdminPassword = true;
   readonly tenantDisplayCode = tenantDisplayCode;
   readonly tenantPlanMeta = tenantPlanMeta;
 
@@ -77,26 +103,32 @@ export class TenantDetailComponent implements OnInit {
     private users: UserService,
     private lookup: LookupService,
     private toast: UiToastService,
-    private dialog: MatDialog
+    private auth: AuthService,
+    private tenantContext: PlatformTenantContextService
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],
       subscriptionPlan: ['Enterprise', Validators.required],
       isActive: [true],
-      moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], Validators.required),
+      moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], atLeastOneModuleValidator()),
       maxUsers: [null as number | null, Validators.min(0)],
       maxVehicles: [null as number | null, Validators.min(0)],
       maxDrivers: [null as number | null, Validators.min(0)],
       maxBranches: [null as number | null, Validators.min(0)],
       maxGpsDevices: [null as number | null, Validators.min(0)],
-      logoUrl: [''],
-      primaryColor: ['#1d4ed8'],
-      website: [''],
+      logoUrl: ['', optionalHttpUrlValidator()],
+      primaryColor: ['#1d4ed8', hexColorValidator()],
+      website: ['', optionalHttpUrlValidator()],
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
       currencyCode: [DEFAULT_CURRENCY],
       timeZone: ['Asia/Dubai']
     });
+  }
+
+  /** Route opens with View; mutations require Manage. */
+  get canManage(): boolean {
+    return this.auth.hasPermission('Platform.Tenants.Manage');
   }
 
   ngOnInit(): void {
@@ -107,6 +139,14 @@ export class TenantDetailComponent implements OnInit {
     }
 
     this.tenantId = Number(idParam);
+    if (!Number.isFinite(this.tenantId) || this.tenantId <= 0) {
+      this.toast.error('Invalid company id.');
+      void this.router.navigate(['/platform/tenants']);
+      return;
+    }
+
+    this.tenantContext.selectTenantById(this.tenantId);
+
     forkJoin({
       tenant: this.platform.getTenantById(this.tenantId),
       modules: this.platform.getModules(),
@@ -189,6 +229,11 @@ export class TenantDetailComponent implements OnInit {
       currencyCode: tenant.currencyCode ?? DEFAULT_CURRENCY,
       timeZone: tenant.timeZone ?? 'Asia/Dubai'
     });
+    if (this.canManage) {
+      this.form.enable({ emitEvent: false });
+    } else {
+      this.form.disable({ emitEvent: false });
+    }
     this.loading = false;
   }
 
@@ -205,6 +250,7 @@ export class TenantDetailComponent implements OnInit {
   }
 
   toggleModule(code: string): void {
+    if (!this.canManage) return;
     const control = this.form.controls.moduleCodes;
     const current = control.value ?? [];
     const next = current.includes(code)
@@ -235,6 +281,10 @@ export class TenantDetailComponent implements OnInit {
   }
 
   submit(): void {
+    if (!this.canManage) {
+      this.toast.error('You do not have permission to update companies.');
+      return;
+    }
     if (this.form.invalid || !this.tenantId) {
       this.form.markAllAsTouched();
       this.toast.error('Please fix validation errors before saving.');
@@ -269,8 +319,8 @@ export class TenantDetailComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.saving = false;
-        this.toast.success('Tenant updated.');
-        void this.router.navigate(['/platform/tenants']);
+        this.toast.success('Company updated.');
+        this.reset();
       },
       error: (err: unknown) => {
         this.saving = false;
@@ -304,15 +354,18 @@ export class TenantDetailComponent implements OnInit {
   }
 
   get primaryColorPreview(): string {
-    return this.form.controls.primaryColor.value?.trim() || '#007A57';
+    const raw = this.form.controls.primaryColor.value?.trim() || '#007A57';
+    return HEX_COLOR.test(raw) ? raw : '#007A57';
   }
 
   selectPlan(planName: string): void {
+    if (!this.canManage) return;
     this.form.controls.subscriptionPlan.setValue(planName);
     this.form.markAsDirty();
   }
 
   applyPlan(planName: string): void {
+    if (!this.canManage) return;
     const def = applyPlanDefaults(planName);
     this.form.patchValue({
       maxUsers: def.quotas.maxUsers,
@@ -327,12 +380,16 @@ export class TenantDetailComponent implements OnInit {
   }
 
   resetAdminPassword(): void {
+    if (!this.canManage) {
+      this.toast.error('You do not have permission to reset admin passwords.');
+      return;
+    }
     const password = prompt(
       `Enter new password for ${this.adminInfo?.email ?? 'admin'} (min 8 characters):`
     );
     if (!password) return;
     if (password.length < 8) {
-      this.toast.success('Password must be at least 8 characters.');
+      this.toast.error('Password must be at least 8 characters.');
       return;
     }
     if (!this.tenantId) return;

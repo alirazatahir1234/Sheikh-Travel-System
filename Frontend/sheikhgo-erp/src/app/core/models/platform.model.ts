@@ -15,6 +15,7 @@ export interface Tenant {
   activeUserCount: number;
   maxUsers?: number | null;
   activeVehicleCount: number;
+  activeDriverCount?: number;
   maxVehicles?: number | null;
   moduleCodes?: string | null;
   subscriptionEndDate?: string | null;
