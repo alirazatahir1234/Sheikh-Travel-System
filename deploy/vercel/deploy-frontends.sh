@@ -128,9 +128,56 @@ EOF
       mv "${ENV_LOCAL}.tmp" "$ENV_LOCAL"
       printf 'GOOGLE_MAPS_MAP_ID=%s\n' "$GOOGLE_MAPS_MAP_ID" >> "$ENV_LOCAL"
     fi
-    # Belt-and-suspenders: patch environment.prod.ts before vercel/ng build (ERP only).
-    if [[ "$name" == "sheikhgo-erp" && -n "${GOOGLE_MAPS_API_KEY:-}" && -f Frontend/sheikhgo-erp/scripts/inject-maps-env.mjs ]]; then
-      (cd Frontend/sheikhgo-erp && node scripts/inject-maps-env.mjs)
+    # Patch environment.prod.ts before vercel/ng build (ERP). Prefer inject-maps-env.mjs when
+    # present; otherwise inline-replace googleMapsApiKey so Azure repos without that script still bake AIzaSy.
+    if [[ "$name" == "sheikhgo-erp" && -n "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+      if [[ -f Frontend/sheikhgo-erp/scripts/inject-maps-env.mjs ]]; then
+        (cd Frontend/sheikhgo-erp && node scripts/inject-maps-env.mjs)
+      else
+        ENV_PROD_TS="${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts"
+        python3 - "$ENV_PROD_TS" <<'PY'
+import re, sys
+path = sys.argv[1]
+import os
+key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+map_id = os.environ.get("GOOGLE_MAPS_MAP_ID", "").strip()
+if not key:
+    print("ERROR: GOOGLE_MAPS_API_KEY empty during inline inject", file=sys.stderr)
+    sys.exit(1)
+text = open(path, encoding="utf-8").read()
+if not re.search(r"googleMapsApiKey\s*:", text):
+    print("ERROR: environment.prod.ts missing googleMapsApiKey", file=sys.stderr)
+    sys.exit(1)
+safe = key.replace("\\", "\\\\").replace("'", "\\'")
+text2, n = re.subn(
+    r"googleMapsApiKey:\s*(?:'[^']*'|\"[^\"]*\")",
+    f"googleMapsApiKey: '{safe}'",
+    text,
+    count=1,
+)
+if n != 1:
+    print("ERROR: failed to replace googleMapsApiKey", file=sys.stderr)
+    sys.exit(1)
+if map_id:
+    mid = map_id.replace("\\", "\\\\").replace("'", "\\'")
+    if re.search(r"googleMapsMapId\s*:", text2):
+        text2 = re.sub(
+            r"googleMapsMapId:\s*(?:'[^']*'|\"[^\"]*\")",
+            f"googleMapsMapId: '{mid}'",
+            text2,
+            count=1,
+        )
+    else:
+        text2 = re.sub(
+            r"(googleMapsApiKey:\s*'[^']*')",
+            rf"\1,\n  googleMapsMapId: '{mid}'",
+            text2,
+            count=1,
+        )
+open(path, "w", encoding="utf-8").write(text2)
+print(f"Inline-patched environment.prod.ts (key len={len(key)}, mapId={'set' if map_id else 'omit'})")
+PY
+      fi
     fi
 
     vercel build "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
