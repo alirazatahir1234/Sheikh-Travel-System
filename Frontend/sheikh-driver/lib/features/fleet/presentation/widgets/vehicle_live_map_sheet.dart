@@ -11,53 +11,63 @@ import '../../../../core/constants/app_theme.dart';
 import '../../data/fleet_api.dart';
 import '../../domain/fleet_models.dart';
 import '../../domain/gps_freshness.dart';
+import '../fleet_hub_notifier.dart';
 import '../vehicle_detail_screen.dart';
 import 'fleet_kpi_strip.dart';
+import 'live_map_location.dart';
 import 'vehicle_comms_buttons.dart';
-
-/// Rounds a coordinate to ~10 m resolution so the geocode cache isn't
-/// invalidated by tiny GPS drift between consecutive position updates.
-String _coordKey(double? lat, double? lng) {
-  if (lat == null || lng == null) return '';
-  // 4 decimal places ≈ ~11 m precision — stable across normal drift
-  return '${lat.toStringAsFixed(4)},${lng.toStringAsFixed(4)}';
-}
 
 /// Cached reverse-geocode lookup; keyed by rounded coordinate string so that
 /// small position drift does not trigger a new API call on every update.
-final _reverseGeocodeCache = <String, ReverseGeocodeInfo?>{};
+final _reverseGeocodeCache = <String, ReverseGeocodeInfo>{};
 
+/// Resolves a street address for the live-map vehicle sheet.
+///
+/// Family key is only `(vehicleId, coordKey)` so SignalR `address` churn does
+/// not restart the lookup and flash raw coordinates.
 final vehicleLocationProvider = FutureProvider.autoDispose
-    .family<ReverseGeocodeInfo?, ({int vehicleId, String coordKey, String? inlineAddress})>(
+    .family<ReverseGeocodeInfo?, ({int vehicleId, String coordKey})>(
   (ref, args) async {
     // 1. Serve from memory cache first (survives rebuild / position drift)
     final cached = _reverseGeocodeCache[args.coordKey];
     if (cached != null) return cached;
 
-    // 2. If inline address is already street-level, use it directly
-    final inline = args.inlineAddress?.trim();
+    // Prefer hub roster address when already street-level (no extra API call).
+    final hubAddress = ref
+        .read(fleetHubProvider)
+        .valueOrNull
+        ?.locations
+        .where((v) => v.vehicleId == args.vehicleId)
+        .map((v) => v.address)
+        .firstOrNull;
+    final inline = hubAddress?.trim();
     if (inline != null &&
         inline.isNotEmpty &&
-        !_isCoarseAddress(inline) &&
-        !_isCoordsOnlyString(inline)) {
+        !liveMapAddressNeedsReverseGeocode(inline)) {
       final result = ReverseGeocodeInfo(formattedAddress: inline);
       _reverseGeocodeCache[args.coordKey] = result;
       return result;
     }
 
-    // 3. Fall back to API reverse geocode
     final parts = args.coordKey.split(',');
     if (parts.length != 2) return null;
     final lat = double.tryParse(parts[0]);
     final lng = double.tryParse(parts[1]);
     if (lat == null || lng == null) return null;
+
+    // Explicit marker tap: upgrade coarse / missing / coords-only cache rows.
+    final forceRefresh = liveMapAddressNeedsReverseGeocode(inline);
     try {
       final info = await ref.read(fleetApiProvider).reverseGeocodeInfo(
             lat,
             lng,
-            // Prefer GpsAddressCache / Nominatim — never bypass cache on live sheet.
-            forceRefresh: false,
+            forceRefresh: forceRefresh,
           );
+      if (info == null) return null;
+      final formatted = info.formattedAddress.trim();
+      if (formatted.isEmpty || isLiveMapCoordsOnlyAddress(formatted)) {
+        return null;
+      }
       _reverseGeocodeCache[args.coordKey] = info;
       return info;
     } catch (_) {
@@ -65,29 +75,6 @@ final vehicleLocationProvider = FutureProvider.autoDispose
     }
   },
 );
-
-bool _isCoarseAddress(String address) {
-  final lower = address.toLowerCase();
-  if (lower.contains('tehsil') ||
-      lower.contains('district') ||
-      lower.contains('division')) {
-    return true;
-  }
-  final trimmed = address.trim();
-  if (trimmed.toLowerCase().startsWith('near ') &&
-      !RegExp(r'\d').hasMatch(trimmed)) {
-    return true;
-  }
-  final parts =
-      address.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-  if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
-  return parts.length <= 3;
-}
-
-bool _isCoordsOnlyString(String address) {
-  final m = RegExp(r'^-?\d+\.\d+\s*,\s*-?\d+\.\d+$').hasMatch(address.trim());
-  return m && !address.contains(RegExp(r'[A-Za-z]'));
-}
 
 /// Cached today's trip analytics for a vehicle (keyed by vehicle + calendar day).
 final vehicleTodayAnalyticsProvider = FutureProvider.autoDispose
@@ -135,13 +122,12 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicle.vehicleId));
     final todayAsync =
         ref.watch(vehicleTodayAnalyticsProvider(vehicle.vehicleId));
-    final coordKey = _coordKey(vehicle.latitude, vehicle.longitude);
-    final locationAsync = vehicle.hasMapCoords
+    final coordKey = liveMapCoordKey(vehicle.latitude, vehicle.longitude);
+    final locationAsync = vehicle.hasMapCoords && coordKey.isNotEmpty
         ? ref.watch(
             vehicleLocationProvider((
               vehicleId: vehicle.vehicleId,
               coordKey: coordKey,
-              inlineAddress: vehicle.address,
             )),
           )
         : null;
@@ -313,7 +299,7 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   Builder(builder: (context) {
                     final waiting = locationAsync?.isLoading == true &&
                         !locationAsync!.hasValue;
-                    final display = _locationDisplayLines(
+                    final display = buildLiveMapLocationDisplay(
                       vehicle: vehicle,
                       info: locationAsync?.valueOrNull,
                       waiting: waiting,
@@ -321,29 +307,55 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (display.primary != null) ...[
-                          Text(
-                            display.primary!,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              height: 1.3,
-                            ),
+                        if (display.isResolving) ...[
+                          const Row(
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Resolving exact location…',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
+                        ] else ...[
+                          if (display.primary != null) ...[
+                            Text(
+                              display.primary!,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          if (display.secondary != null)
+                            Text(
+                              display.secondary!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: display.isUnavailable
+                                    ? AppColors.textMuted
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          if (display.primary != null ||
+                              display.secondary != null)
+                            const SizedBox(height: 6),
                         ],
-                        if (display.secondary != null)
-                          Text(
-                            display.secondary!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.35,
-                              color: display.isUnavailable
-                                  ? AppColors.textMuted
-                                  : AppColors.textPrimary,
-                            ),
-                          ),
-                        const SizedBox(height: 6),
                         SelectableText(
                           display.coords,
                           style: const TextStyle(
@@ -437,7 +449,10 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                       icon: Icons.timeline_outlined,
                       label: 'Playback',
                       onTap: () => context.push(
-                        '/fleet/vehicles/${vehicle.vehicleId}/history',
+                        Uri(
+                          path:
+                              '/fleet/vehicles/${vehicle.vehicleId}/history',
+                        ).toString(),
                       ),
                     ),
                     _ActionChip(
@@ -477,72 +492,6 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     );
   }
 
-  static _LocationDisplay _locationDisplayLines({
-    required FleetVehicleLocation vehicle,
-    required ReverseGeocodeInfo? info,
-    required bool waiting,
-  }) {
-    final coords =
-        '${vehicle.latitude!.toStringAsFixed(5)}, ${vehicle.longitude!.toStringAsFixed(5)}';
-    final place = info?.nearbyPlaceName?.trim() ?? info?.placeName?.trim();
-    var address = info?.primaryAddress?.trim();
-    final locality = info?.localityLine?.trim();
-    if ((address == null || address.isEmpty) &&
-        info?.formattedAddress.trim().isNotEmpty == true) {
-      address = info!.formattedAddress.trim();
-    }
-    if (address != null && _isCoordsOnlyString(address)) address = null;
-
-    final inline = vehicle.address?.trim();
-    final inlineOk = inline != null &&
-        inline.isNotEmpty &&
-        !_isCoarseAddress(inline) &&
-        !_isCoordsOnlyString(inline);
-
-    if ((address == null || address.isEmpty) && inlineOk) {
-      address = inline;
-    }
-
-    if (waiting && (address == null || address.isEmpty)) {
-      return _LocationDisplay(
-        primary: null,
-        secondary: 'Resolving exact location…',
-        coords: coords,
-        isUnavailable: false,
-      );
-    }
-
-    if (address == null || address.isEmpty) {
-      return _LocationDisplay(
-        primary: place != null && place.isNotEmpty ? place : null,
-        secondary: 'Address unavailable',
-        coords: coords,
-        isUnavailable: true,
-      );
-    }
-
-    // Street / locality is primary; optional Nearby place is secondary only.
-    String? secondary;
-    if (place != null &&
-        place.isNotEmpty &&
-        !address.toLowerCase().contains(place.toLowerCase())) {
-      secondary = place;
-    }
-
-    final merged = locality != null && locality.isNotEmpty
-        ? (!address.toLowerCase().contains(locality.toLowerCase())
-            ? '$address, $locality'
-            : address)
-        : address;
-
-    return _LocationDisplay(
-      primary: merged,
-      secondary: secondary,
-      coords: coords,
-      isUnavailable: false,
-    );
-  }
-
   static String _trackerLabel(VehicleGpsInfo gps) {
     final brand = gps.brandName?.trim() ?? '';
     final model = gps.modelName?.trim() ?? '';
@@ -574,9 +523,16 @@ class VehicleLiveMapSheet extends ConsumerWidget {
 
   static Future<void> _share(FleetVehicleLocation v) async {
     if (!v.hasMapCoords) return;
+    final addr = v.address?.trim();
+    final addrLine = (addr != null &&
+            addr.isNotEmpty &&
+            !liveMapAddressNeedsReverseGeocode(addr))
+        ? '$addr\n'
+        : '';
     final text =
         '${v.vehicleName} (${v.registrationNumber})\n'
-        '${v.latitude}, ${v.longitude}\n'
+        '$addrLine'
+        '${formatLiveMapCoords(v.latitude!, v.longitude!)}\n'
         'https://www.google.com/maps/search/?api=1&query=${v.latitude},${v.longitude}';
     await Share.share(text, subject: 'Vehicle location');
   }
@@ -627,20 +583,6 @@ class _DeviceFallback extends StatelessWidget {
       ],
     );
   }
-}
-
-class _LocationDisplay {
-  const _LocationDisplay({
-    required this.primary,
-    required this.secondary,
-    required this.coords,
-    required this.isUnavailable,
-  });
-
-  final String? primary;
-  final String? secondary;
-  final String coords;
-  final bool isUnavailable;
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -44,5 +44,11 @@ void main() {
     expect(ar.settings, 'الإعدادات');
     expect(en.biometricLock, isNotEmpty);
     expect(ar.offlineQueue, isNotEmpty);
+    expect(en.securityStatus, 'Security status');
+    expect(ar.securityStatus, 'حالة الأمان');
+    expect(en.backgroundGps, isNotEmpty);
+    expect(ar.activityTimeline, isNotEmpty);
+    expect(ar.privacyPolicy, isNotEmpty);
+    expect(ar.termsOfService, isNotEmpty);
   });
 }

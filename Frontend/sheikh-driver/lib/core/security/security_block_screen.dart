@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../constants/app_theme.dart';
 import 'device_integrity_service.dart';
 
@@ -15,6 +17,17 @@ class SecurityBlockScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isEmulatorBlock =
+        report.isEmulator && AppConfig.blockEmulators;
+    final title = isEmulatorBlock
+        ? 'Emulator not allowed'
+        : 'Device not allowed';
+    final body = isEmulatorBlock
+        ? 'Release builds block emulators for security. '
+            'Use a debug build for QA on the emulator '
+            '(`./scripts/run_android_emu.sh`), or install this release on a physical device.'
+        : 'SheikhGo Tracking cannot run on this device because a security check failed.';
+
     return Scaffold(
       backgroundColor: const Color(0xFF141820),
       body: SafeArea(
@@ -24,22 +37,28 @@ class SecurityBlockScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              const Icon(Icons.security, size: 64, color: AppColors.error),
+              Icon(
+                isEmulatorBlock
+                    ? Icons.phone_android_outlined
+                    : Icons.security,
+                size: 64,
+                color: AppColors.error,
+              ),
               const SizedBox(height: 20),
-              const Text(
-                'Device not allowed',
+              Text(
+                title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'SheikhGo Tracking cannot run on this device because a security check failed.',
+              Text(
+                body,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 24),
               ...report.issues.map(
@@ -59,6 +78,15 @@ class SecurityBlockScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (kDebugMode) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Debug tip: blockEmulators=${AppConfig.blockEmulators} '
+                  'ENV=${AppConfig.environmentLabel}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
               const Spacer(),
               OutlinedButton(
                 onPressed: () =>

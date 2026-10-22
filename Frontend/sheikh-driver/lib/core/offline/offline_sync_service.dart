@@ -20,9 +20,15 @@ bool isOfflineRetryExhausted(OfflineOperation op) =>
 
 final offlinePendingCountProvider = StateProvider<int>((ref) => OfflineOutbox.length);
 
+/// Bumped on every outbox mutation so queue UIs refresh even when pending count
+/// stays the same (e.g. pending → failed without removing the item).
+final offlineOutboxRevisionProvider = StateProvider<int>((ref) => 0);
+
 final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
   final service = OfflineSyncService(ref.read(dioProvider), ref);
   ref.onDispose(service.dispose);
+  // Drain any ops queued before the shell mounted (e.g. cold start online).
+  unawaited(service.syncNow());
   return service;
 });
 
@@ -48,6 +54,7 @@ class OfflineSyncService {
 
   void _notifyCount() {
     _ref.read(offlinePendingCountProvider.notifier).state = OfflineOutbox.length;
+    _ref.read(offlineOutboxRevisionProvider.notifier).state++;
   }
 
   Future<OfflineOperation> enqueue({

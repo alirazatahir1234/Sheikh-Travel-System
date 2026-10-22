@@ -1,2 +1,3 @@
-// Same key as Frontend/sheikhgo-erp/src/environments/environment.ts (googleMapsApiKey)
-GOOGLE_MAPS_API_KEY=AIzaSyCSdQx1VMXLEnatOOknoTqwwrVRiEOg3tw
+// Committed stub. Real key in Maps.local.xcconfig (gitignored).
+GOOGLE_MAPS_API_KEY=
+#include? "Maps.local.xcconfig"

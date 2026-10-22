@@ -6,15 +6,17 @@
 - [ ] `flutter analyze` clean enough for release
 - [ ] Version bumped in `pubspec.yaml` (`x.y.z+build`)
 - [ ] `store/RELEASE_NOTES.md` updated for this build
-- [ ] Prod API: `ENV=prod` (defaults to Railway HTTPS when `API_BASE_URL` omitted in `scripts/build_prod.sh`)
+- [ ] Prod API: `ENV=prod` — default is **stable** `https://20-174-1-230.sslip.io/api` (`AppConfig.defaultProductionApiBaseUrl` / `scripts/build_prod.sh`). Do **not** bake trycloudflare quick tunnels into store builds.
 - [ ] Cert pins set: `CERT_PIN_1` / `CERT_PIN_2` (recommended for store; without pins HTTPS still works)
-- [ ] `GOOGLE_MAPS_KEY` restricted to app package / bundle id
-- [ ] Firebase: `google-services.json` + `GoogleService-Info.plist` for **prod** project
+- [ ] Maps: `android/maps.properties` (or `GOOGLE_MAPS_API_KEY` env) present before `./scripts/build_prod.sh` — blank map otherwise
+- [ ] `GOOGLE_MAPS_KEY` / Maps key restricted to app package / bundle id + release SHA-1
+- [ ] Firebase: `google-services.json` + `GoogleService-Info.plist` for **prod** project (see `android/app/GOOGLE_SERVICES.md`) — missing file disables FCM but app still launches
 - [ ] Crashlytics enabled in release (`!kDebugMode`); `env` custom key set on login
 - [ ] Privacy Policy + Terms hosted on **public HTTPS** URLs
 - [ ] In-app Settings → Legal opens correct hosted URLs (`PRIVACY_URL` / `TERMS_URL`)
 - [ ] Remove debug logging of tokens / PII
 - [ ] Background location justifications match store forms
+- [ ] **Emulator QA:** use debug (`./scripts/run_android_emu.sh`). Prod release AABs block emulators (`BLOCK_EMULATORS`).
 
 ## Android (Play Store)
 
@@ -24,13 +26,14 @@
 
 ```bash
 cd Frontend/sheikh-driver
-# Preferred:
+# Preferred (injects Maps key from android/maps.properties when present):
 ./scripts/build_prod.sh android
 # Or:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
+  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
   --dart-define=TENANT_SLUG=default \
+  --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
   --dart-define=TERMS_URL=https://example.com/driver/terms
@@ -57,7 +60,7 @@ flutter build appbundle --release \
 # Or:
 flutter build ipa --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
+  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \

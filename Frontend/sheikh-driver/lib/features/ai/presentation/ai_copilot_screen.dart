@@ -215,11 +215,12 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
                   child: Row(
                     children: [
-                      const Text(
+                      Text(
                         'Recent chats',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
+                          color: ctx.sg.textPrimary,
                         ),
                       ),
                       const Spacer(),
@@ -236,10 +237,10 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                 ),
                 Expanded(
                   child: _sessions.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'No saved sessions yet',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(color: ctx.sg.textSecondary),
                           ),
                         )
                       : ListView.separated(
@@ -253,7 +254,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                             return Material(
                               color: active
                                   ? AppColors.primary.withValues(alpha: 0.08)
-                                  : AppColors.cardBg,
+                                  : ctx.sg.card,
                               borderRadius:
                                   BorderRadius.circular(AppRadii.md),
                               child: ListTile(
@@ -261,16 +262,17 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                                   s.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w600,
+                                    color: ctx.sg.textPrimary,
                                   ),
                                 ),
                                 subtitle: Text(
                                   '${s.messageCount} msgs'
                                   '${s.updatedAt != null ? ' · ${df.format(s.updatedAt!.toLocal())}' : ''}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.textSecondary,
+                                    color: ctx.sg.textSecondary,
                                   ),
                                 ),
                                 onTap: () {
@@ -359,6 +361,19 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
     );
   }
 
+  static String _copilotEmptyHint(AiProviderHealth? health) {
+    if (health == null) {
+      return 'Ops questions use fleet tools and rules. Optional LLM enhances answers when available.';
+    }
+    if (!health.configured) {
+      return 'No LLM configured — answers use validated fleet tools and rules (offline vehicles, alerts, maintenance, risk).';
+    }
+    if (!health.reachable) {
+      return 'Ollama is offline — answers use tools and rules until the LLM is reachable.';
+    }
+    return 'Ask about offline vehicles, alerts, maintenance, or driver risk. Tools always run; LLM is optional.';
+  }
+
   Widget _buildMessages() {
     final p = context.sg;
     if (_messages.isEmpty) {
@@ -394,9 +409,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _health != null && !_health!.reachable
-                ? 'Ollama is offline — answers use tools and rules until the LLM is reachable.'
-                : 'Natural language queries run through AiChatGateway and the Tool Engine.',
+            _copilotEmptyHint(_health),
             style: TextStyle(
               fontSize: 14,
               color: p.textSecondary,
@@ -414,19 +427,19 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
       itemCount: _messages.length + (_sending ? 1 : 0),
       itemBuilder: (context, index) {
         if (_sending && index == _messages.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
                   'Thinking…',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: context.sg.textSecondary),
                 ),
               ],
             ),
@@ -610,7 +623,13 @@ class _ProviderStrip extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  health.statusMessage,
+                  health.statusMessage.isNotEmpty
+                      ? health.statusMessage
+                      : (!health.configured
+                          ? 'Rules + tools mode — configure Ollama later if you want LLM chat.'
+                          : (!health.reachable
+                              ? 'LLM unreachable — Copilot still answers with tools.'
+                              : 'Provider healthy.')),
                   style: TextStyle(
                     fontSize: 12,
                     color: p.textSecondary,
@@ -646,17 +665,18 @@ class _ConfirmBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Write action needs confirmation',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'The Tool Engine prepared a change but has not applied it yet.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: context.sg.textSecondary),
           ),
           const SizedBox(height: 10),
           Row(

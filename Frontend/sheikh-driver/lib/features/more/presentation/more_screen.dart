@@ -95,15 +95,16 @@ class MoreScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               entry.label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
+                color: ctx.sg.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'This feature is coming soon.',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: ctx.sg.textSecondary),
             ),
           ],
         ),

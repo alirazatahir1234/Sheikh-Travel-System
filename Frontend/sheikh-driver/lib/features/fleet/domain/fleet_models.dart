@@ -1460,6 +1460,78 @@ class GpsDeviceCommandItem {
   }
 }
 
+class GpsCommandResponseItem {
+  const GpsCommandResponseItem({
+    required this.id,
+    required this.source,
+    required this.receivedAt,
+    this.responseCode,
+    this.responseText,
+  });
+
+  final int id;
+  final String source;
+  final DateTime receivedAt;
+  final String? responseCode;
+  final String? responseText;
+
+  factory GpsCommandResponseItem.fromJson(Map<String, dynamic> json) {
+    return GpsCommandResponseItem(
+      id: json['id'] as int? ?? json['Id'] as int? ?? 0,
+      source: json['source'] as String? ?? json['Source'] as String? ?? '',
+      responseCode:
+          json['responseCode'] as String? ?? json['ResponseCode'] as String?,
+      responseText:
+          json['responseText'] as String? ?? json['ResponseText'] as String?,
+      receivedAt: _parseDate(json['receivedAt'] ?? json['ReceivedAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+}
+
+class GpsDeviceCommandDetail {
+  const GpsDeviceCommandDetail({
+    required this.command,
+    required this.responses,
+    this.attributesJson,
+  });
+
+  final GpsDeviceCommandItem command;
+  final List<GpsCommandResponseItem> responses;
+  final String? attributesJson;
+
+  String get responseBodyText {
+    final parts = responses
+        .map((r) => (r.responseText ?? '').trim())
+        .where((t) => t.isNotEmpty);
+    return parts.join('\n\n');
+  }
+
+  factory GpsDeviceCommandDetail.fromJson(Map<String, dynamic> json) {
+    final commandRaw = json['command'] ?? json['Command'];
+    final responsesRaw = json['responses'] ?? json['Responses'];
+    final commandMap = commandRaw is Map
+        ? Map<String, dynamic>.from(commandRaw)
+        : <String, dynamic>{};
+    final responses = responsesRaw is List
+        ? responsesRaw
+            .whereType<Map>()
+            .map(
+              (e) => GpsCommandResponseItem.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList()
+        : const <GpsCommandResponseItem>[];
+    return GpsDeviceCommandDetail(
+      command: GpsDeviceCommandItem.fromJson(commandMap),
+      attributesJson: json['attributesJson'] as String? ??
+          json['AttributesJson'] as String?,
+      responses: responses,
+    );
+  }
+}
+
 class GpsGeofenceItem {
   const GpsGeofenceItem({
     required this.id,

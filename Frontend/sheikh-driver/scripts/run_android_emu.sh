@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reliable Android emulator run for SheikhGo Tracking.
+# Reliable Android emulator run for SheikhGo Tracking (local API via 10.0.2.2).
 # Avoids `flutter run -d all` (pulls in macOS) and flaky live device attach.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -7,6 +7,9 @@ cd "$(dirname "$0")/.."
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
 
+# Emulator → host loopback. Override with a stable HTTPS host if needed:
+#   API_BASE_URL=https://20-174-1-230.sslip.io/api ./scripts/run_android_emu.sh
+# Do NOT use release AAB on emulator — ENV=prod blocks emulators.
 API_BASE_URL="${API_BASE_URL:-http://10.0.2.2:5082/api}"
 
 # Routes API client fallback (map tiles already use android/maps.properties).
@@ -25,6 +28,25 @@ if ! adb devices | grep -qE 'emulator-[0-9]+[[:space:]]+device'; then
   done
 fi
 
+# Belt-and-suspenders: also map emulator localhost → host :5082 (for 127.0.0.1 overrides).
+adb reverse tcp:5082 tcp:5082 >/dev/null 2>&1 || true
+
+echo "Checking host API on :5082..."
+if curl -fsS -o /dev/null --connect-timeout 2 --max-time 5 \
+  -X POST "http://127.0.0.1:5082/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Slug: default" \
+  -d '{"email":"__probe__","password":"x"}'; then
+  :
+else
+  code=$?
+  # 22 = HTTP error from -f (API up but login rejected) — that is fine.
+  if [[ $code -ne 22 ]]; then
+    echo "WARNING: nothing answered on http://127.0.0.1:5082 — start the local API first."
+    echo "  (launchSettings binds http://0.0.0.0:5082)"
+  fi
+fi
+
 echo "Building debug APK..."
 DEFINES=(
   --dart-define=API_BASE_URL="$API_BASE_URL"
@@ -39,4 +61,10 @@ APK=build/app/outputs/flutter-apk/app-debug.apk
 echo "Installing $APK..."
 adb install -r -d "$APK"
 adb shell monkey -p com.sheikhgo.fleet -c android.intent.category.LAUNCHER 1
-echo "Android app launched. API=$API_BASE_URL"
+echo ""
+echo "Android app launched."
+echo "  API=$API_BASE_URL"
+echo "  Seed login: admin@sheikhtravel.com / Pass@123"
+echo "  (driver phone: 03021234567 / Pass@123)"
+echo "  Do NOT use release AAB/APK on emulator — prod release blocks emulators;"
+echo "  release defaults to https://20-174-1-230.sslip.io/api (physical devices)."

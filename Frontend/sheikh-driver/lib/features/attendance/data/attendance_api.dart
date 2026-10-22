@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/offline/offline_models.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../domain/attendance_model.dart';
@@ -52,7 +54,17 @@ class AttendanceApi {
       },
     );
     final body = res.data;
-    final list = (body?['data'] as List?) ?? [];
-    return list.cast<Map<String, dynamic>>().map(AttendanceRecord.fromJson).toList();
+    // Fail closed on success:false (e.g. "Driver identity required").
+    ApiResponseParser.ensureSuccess(body);
+    try {
+      final list = ApiResponseParser.dataList(body);
+      return list.map(AttendanceRecord.fromJson).toList();
+    } on AppException {
+      rethrow;
+    } catch (_) {
+      throw const UnknownException(
+        'Could not load attendance history. Please try again.',
+      );
+    }
   }
 }

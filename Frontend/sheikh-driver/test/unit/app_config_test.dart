@@ -24,11 +24,16 @@ void main() {
       expect(AppConfig.appVersion, isNotEmpty);
     });
 
-    test('default production API matches ERP host', () {
+    test('default production API is stable sslip.io HTTPS', () {
       expect(
         AppConfig.defaultProductionApiBaseUrl,
-        'https://differ-checkout-arrived-cool.trycloudflare.com/api',
+        'https://20-174-1-230.sslip.io/api',
       );
+      final url = AppConfig.defaultProductionApiBaseUrl.toLowerCase();
+      expect(url.contains('trycloudflare'), isFalse);
+      expect(url.contains('railway.app'), isFalse);
+      expect(url.startsWith('https://'), isTrue);
+      expect(url.endsWith('/api'), isTrue);
     });
 
     test('hubBaseUrl ends with tracking hub path', () {

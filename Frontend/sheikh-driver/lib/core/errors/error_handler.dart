@@ -28,11 +28,36 @@ class ErrorHandler {
 
       case DioExceptionType.badResponse:
         final status = e.response?.statusCode;
-        if (status == 401) return const AuthException();
+        final path = e.requestOptions.path.toLowerCase();
+        final isAuthPath = path.contains('/auth/');
+        if (status == 401) {
+          // Login / refresh failures should surface the API message, not
+          // "Session expired" (that copy is for mid-session 401s).
+          final msg = _bodyMessage(e.response?.data);
+          if (isAuthPath) {
+            return ValidationException(
+              msg ?? 'Invalid email or password.',
+            );
+          }
+          return AuthException(msg ?? 'Session expired. Please log in again.');
+        }
         if (status == 403) {
+          final msg = _bodyMessage(e.response?.data);
+          if (isAuthPath && msg != null) {
+            return ValidationException(msg);
+          }
           return const ForbiddenException();
         }
-        if (status == 404) return const NotFoundException();
+        if (status == 404) {
+          // Dead Railway / trycloudflare / wrong host → 404 on /auth/*.
+          // Prefer our copy over host platform messages like "Application not found".
+          if (isAuthPath) {
+            return const ValidationException(
+              'Cannot reach login API. Update the app or check network.',
+            );
+          }
+          return const NotFoundException();
+        }
         if (status == 408) {
           return const NetworkException(
             'Server is taking too long. Please try again.',
@@ -42,6 +67,13 @@ class ErrorHandler {
           final msg = _bodyMessage(e.response?.data);
           return ConflictException(
             msg ?? 'This action conflicts with the current state.',
+          );
+        }
+        if (status == 429) {
+          final msg = _bodyMessage(e.response?.data);
+          return RateLimitException(
+            msg ??
+                'Too many attempts. Please wait a minute and try again.',
           );
         }
         if (status == 400 || status == 422) {
@@ -54,6 +86,12 @@ class ErrorHandler {
               final detail =
                   first is List ? first.first?.toString() : first?.toString();
               if (detail != null) return ValidationException(detail);
+            }
+            if (errors is List && errors.isNotEmpty) {
+              final detail = errors.first?.toString();
+              if (detail != null && detail.trim().isNotEmpty) {
+                return ValidationException(detail.trim());
+              }
             }
             if (msg != null) return ValidationException(msg.toString());
           }

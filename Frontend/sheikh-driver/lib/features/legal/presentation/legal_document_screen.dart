@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
@@ -13,18 +14,23 @@ class LegalDocumentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final p = context.sg;
     final isPrivacy = kind == LegalDocumentKind.privacy;
-    final title = isPrivacy ? 'Privacy Policy' : 'Terms of Service';
-    final body = isPrivacy ? LegalDocuments.privacyBody : LegalDocuments.termsBody;
-    final url = isPrivacy ? AppConfig.privacyPolicyUrl : AppConfig.termsOfServiceUrl;
+    final title = isPrivacy ? l10n.privacyPolicy : l10n.termsOfService;
+    final body =
+        isPrivacy ? LegalDocuments.privacyBody : LegalDocuments.termsBody;
+    final url =
+        isPrivacy ? AppConfig.privacyPolicyUrl : AppConfig.termsOfServiceUrl;
 
     return Scaffold(
+      backgroundColor: p.surface,
       appBar: AppBar(
         title: Text(title),
         actions: [
           if (url.isNotEmpty)
             IconButton(
-              tooltip: 'Open in browser',
+              tooltip: l10n.openInBrowser,
               icon: const Icon(Icons.open_in_new),
               onPressed: () => _open(url),
             ),
@@ -33,10 +39,10 @@ class LegalDocumentScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          const Text(
-            'Effective ${LegalDocuments.effectiveDate}',
+          Text(
+            l10n.legalEffectiveDate(LegalDocuments.effectiveDate),
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: p.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -44,8 +50,8 @@ class LegalDocumentScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             body,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: p.textPrimary,
               fontSize: 14,
               height: 1.45,
             ),
@@ -55,7 +61,7 @@ class LegalDocumentScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => _open(url),
               icon: const Icon(Icons.public),
-              label: const Text('View hosted version'),
+              label: Text(l10n.viewHostedVersion),
             ),
           ],
         ],

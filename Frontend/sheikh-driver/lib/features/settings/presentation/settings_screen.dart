@@ -36,7 +36,7 @@ class SettingsScreen extends ConsumerWidget {
           _SettingTile(
             icon: Icons.lock_outline,
             iconColor: AppColors.primary,
-            title: 'Change Password',
+            title: l10n.changePassword,
             onTap: () => _showChangePasswordSheet(context, ref),
           ),
 
@@ -93,10 +93,10 @@ class SettingsScreen extends ConsumerWidget {
             builder: (context) {
               final pushOn = ref.watch(pushNotificationsEnabledProvider);
               final pushIssue = ref.watch(pushRegistrationIssueProvider);
-              final subtitle = pushIssue ??
+              final subtitle = pushIssue?.message ??
                   (pushOn
-                      ? 'Trip alerts and dispatch messages'
-                      : 'Off — you will not receive push alerts');
+                      ? l10n.pushNotificationsOn
+                      : l10n.pushNotificationsOff);
               return Column(
                 children: [
                   SwitchListTile(
@@ -107,7 +107,7 @@ class SettingsScreen extends ConsumerWidget {
                       color: pushOn ? AppColors.success : AppColors.warning,
                     ),
                     title: Text(
-                      'Push notifications',
+                      l10n.pushNotifications,
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
                         color: context.sg.textPrimary,
@@ -137,7 +137,7 @@ class SettingsScreen extends ConsumerWidget {
                               .read(pushRegistrationIssueProvider.notifier)
                               .state = null;
                         },
-                        child: const Text('Dismiss warning'),
+                        child: Text(l10n.dismissWarning),
                       ),
                     ),
                 ],
@@ -163,8 +163,8 @@ class SettingsScreen extends ConsumerWidget {
           _SettingTile(
             icon: Icons.security,
             iconColor: AppColors.primary,
-            title: 'Security status',
-            subtitle: 'Root, jailbreak, emulator, pinning',
+            title: l10n.securityStatus,
+            subtitle: l10n.securityStatusSubtitle,
             onTap: () => context.push('/security'),
           ),
 
@@ -180,18 +180,16 @@ class SettingsScreen extends ConsumerWidget {
           _SettingTile(
             icon: Icons.gps_fixed,
             iconColor: AppColors.primary,
-            title: 'Background GPS',
-            subtitle: 'Stop live tracking / open live map',
+            title: l10n.backgroundGps,
+            subtitle: l10n.backgroundGpsSubtitle,
             onTap: () async {
               final tracking = BackgroundGpsTracker.instance.isTracking;
               if (tracking) {
                 final stop = await showDialog<bool>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
-                    title: const Text('Stop background GPS?'),
-                    content: const Text(
-                      'Dispatch will stop receiving live location until you start tracking again.',
-                    ),
+                    title: Text(l10n.stopTrackingTitle),
+                    content: Text(l10n.stopTrackingBody),
                     actions: [
                       TextButton(
                         onPressed: () =>
@@ -201,7 +199,7 @@ class SettingsScreen extends ConsumerWidget {
                       FilledButton(
                         onPressed: () =>
                             Navigator.of(dialogContext).pop(true),
-                        child: const Text('Stop'),
+                        child: Text(l10n.stop),
                       ),
                     ],
                   ),
@@ -210,7 +208,7 @@ class SettingsScreen extends ConsumerWidget {
                   await BackgroundGpsTracker.instance.stop();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Background GPS stopped')),
+                      SnackBar(content: Text(l10n.backgroundGpsStopped)),
                     );
                   }
                 }
@@ -222,15 +220,15 @@ class SettingsScreen extends ConsumerWidget {
           _SettingTile(
             icon: Icons.history,
             iconColor: AppColors.accent,
-            title: 'Activity Timeline',
-            subtitle: 'View your trip and attendance history',
+            title: l10n.activityTimeline,
+            subtitle: l10n.activityTimelineSubtitle,
             onTap: () => context.push('/timeline'),
           ),
           _SettingTile(
             icon: Icons.fingerprint,
             iconColor: AppColors.success,
-            title: 'Attendance',
-            subtitle: 'Clock in / clock out',
+            title: l10n.attendance,
+            subtitle: l10n.attendanceSubtitle,
             onTap: () => context.push('/attendance'),
           ),
 
@@ -239,19 +237,19 @@ class SettingsScreen extends ConsumerWidget {
           _SettingTile(
             icon: Icons.privacy_tip_outlined,
             iconColor: AppColors.accent,
-            title: 'Privacy Policy',
+            title: l10n.privacyPolicy,
             onTap: () => context.push('/legal/privacy'),
           ),
           _SettingTile(
             icon: Icons.gavel_outlined,
             iconColor: context.sg.textSecondary,
-            title: 'Terms of Service',
+            title: l10n.termsOfService,
             onTap: () => context.push('/legal/terms'),
           ),
           _SettingTile(
             icon: Icons.info_outline,
             iconColor: context.sg.textSecondary,
-            title: 'Version',
+            title: l10n.version,
             trailing: FutureBuilder<String>(
               future: AppVersionService.displayVersion(),
               builder: (context, snap) => Text(
@@ -261,15 +259,17 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          _SettingTile(
-            icon: Icons.dns_outlined,
-            iconColor: AppColors.textMuted,
-            title: l10n.environmentLabel(AppConfig.environment.name),
-          ),
+          // Hide raw environment dumps from end users (dev/uat only).
+          if (!AppConfig.isProd)
+            _SettingTile(
+              icon: Icons.dns_outlined,
+              iconColor: context.sg.textMuted,
+              title: l10n.environmentLabel(AppConfig.environmentLabel),
+            ),
           _SettingTile(
             icon: Icons.system_update_outlined,
             iconColor: AppColors.accent,
-            title: 'Check for Updates',
+            title: l10n.checkForUpdates,
             onTap: () async {
               final dio = ref.read(dioProvider);
               await AppVersionService.checkAndPrompt(context, dio);
@@ -337,7 +337,7 @@ class SettingsScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            issue ??
+            issue?.message ??
                 'Could not enable notifications. Allow permission in system Settings, '
                     'or add android/app/google-services.json and rebuild.',
           ),

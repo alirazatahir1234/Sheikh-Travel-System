@@ -12,6 +12,8 @@ import '../../domain/gps_freshness.dart';
 import '../fleet_hub_notifier.dart';
 import '../vehicle_commands_sheet.dart';
 import 'fleet_kpi_strip.dart';
+import 'live_map_location.dart';
+import 'vehicle_live_map_sheet.dart';
 import 'vehicle_pulse_icons.dart';
 
 String _formatUpdateAge(DateTime? at) {
@@ -164,8 +166,42 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
   DateTime? get _lastUpdate =>
       widget.live?.lastUpdated ?? widget.gpsAsync.valueOrNull?.lastUpdate;
 
-  String? get _address =>
+  String? get _inlineAddress =>
       widget.live?.address ?? widget.gpsAsync.valueOrNull?.address;
+
+  /// Street address from reverse-geocode when inline is missing/coarse/coords.
+  String? _resolvedAddress(WidgetRef ref) {
+    final inline = _inlineAddress?.trim();
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !liveMapAddressNeedsReverseGeocode(inline)) {
+      return inline;
+    }
+    final pos = _position;
+    if (pos == null) return inline;
+    final key = liveMapCoordKey(pos.latitude, pos.longitude);
+    if (key.isEmpty) return inline;
+    final info = ref
+        .watch(
+          vehicleLocationProvider((
+            vehicleId: widget.vehicleId,
+            coordKey: key,
+          )),
+        )
+        .valueOrNull;
+    final line = info?.displayLine.trim();
+    if (line != null &&
+        line.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(line)) {
+      return line;
+    }
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(inline)) {
+      return inline;
+    }
+    return null;
+  }
 
   Future<void> _centerOnVehicle({bool animate = true}) async {
     final pos = _position;
@@ -358,7 +394,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
                     child: _LiveStatusOverlay(
                       status: _status,
                       speedKmh: _speed,
-                      address: _address,
+                      address: _resolvedAddress(ref),
                       lastUpdate: _lastUpdate,
                     ),
                   ),
@@ -607,7 +643,7 @@ class _MapFab extends StatelessWidget {
   }
 }
 
-class _TelemetryCard extends StatelessWidget {
+class _TelemetryCard extends ConsumerWidget {
   const _TelemetryCard({
     required this.vehicle,
     required this.gps,
@@ -619,7 +655,7 @@ class _TelemetryCard extends StatelessWidget {
   final FleetVehicleLocation? live;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final speed = live?.speed ?? gps.speed;
     final ignition = live?.ignition ?? gps.lastIgnition;
     final battery = live?.batteryLevel ?? gps.batteryLevel;
@@ -693,11 +729,55 @@ class _TelemetryCard extends StatelessWidget {
                 : '—',
           ),
           _metric('IMEI', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
-          if ((live?.address ?? gps.address)?.trim().isNotEmpty == true)
-            _metric('Address', live?.address ?? gps.address ?? '—'),
+          _metric(
+            'Address',
+            _telemetryAddress(ref) ?? 'Resolving…',
+          ),
         ],
       ),
     );
+  }
+
+  String? _telemetryAddress(WidgetRef ref) {
+    final inline = (live?.address ?? gps.address)?.trim();
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !liveMapAddressNeedsReverseGeocode(inline)) {
+      return inline;
+    }
+    final lat = live?.latitude ?? gps.latitude;
+    final lng = live?.longitude ?? gps.longitude;
+    if (!hasValidFleetCoords(lat, lng)) {
+      return (inline != null &&
+              inline.isNotEmpty &&
+              !isLiveMapCoordsOnlyAddress(inline))
+          ? inline
+          : null;
+    }
+    final key = liveMapCoordKey(lat, lng);
+    final async = ref.watch(
+      vehicleLocationProvider((
+        vehicleId: vehicle.id,
+        coordKey: key,
+      )),
+    );
+    final line = async.valueOrNull?.displayLine.trim();
+    if (line != null &&
+        line.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(line)) {
+      return line;
+    }
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(inline)) {
+      return inline;
+    }
+    // Still loading → null so the metric shows "Resolving…"
+    if (async.isLoading && !async.hasValue) return null;
+    if (lat != null && lng != null) {
+      return formatLiveMapCoords(lat, lng);
+    }
+    return null;
   }
 
   Widget _metric(String label, String value) {
@@ -836,6 +916,48 @@ class _LiveMapFullscreenPageState
     return LatLng(lat!, lng!);
   }
 
+  String? _fullscreenAddress(
+    WidgetRef ref,
+    FleetVehicleLocation? live,
+    VehicleGpsInfo? gps,
+    LatLng? pos,
+  ) {
+    final inline = (live?.address ?? gps?.address)?.trim();
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !liveMapAddressNeedsReverseGeocode(inline)) {
+      return inline;
+    }
+    if (pos == null) {
+      return (inline != null &&
+              inline.isNotEmpty &&
+              !isLiveMapCoordsOnlyAddress(inline))
+          ? inline
+          : null;
+    }
+    final key = liveMapCoordKey(pos.latitude, pos.longitude);
+    final info = ref
+        .watch(
+          vehicleLocationProvider((
+            vehicleId: widget.vehicleId,
+            coordKey: key,
+          )),
+        )
+        .valueOrNull;
+    final line = info?.displayLine.trim();
+    if (line != null &&
+        line.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(line)) {
+      return line;
+    }
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !isLiveMapCoordsOnlyAddress(inline)) {
+      return inline;
+    }
+    return null;
+  }
+
   Future<void> _loadIcon([FleetTrackStatus? status]) async {
     final s = status ?? FleetTrackStatus.offline;
     final icon = await VehiclePulseIcons.iconFor(
@@ -885,7 +1007,7 @@ class _LiveMapFullscreenPageState
     final heading = live?.heading ?? gps?.heading ?? 0;
     final speed = live?.speed ?? gps?.speed ?? 0;
     final lastUpdate = live?.lastUpdated ?? gps?.lastUpdate;
-    final address = live?.address ?? gps?.address;
+    final address = _fullscreenAddress(ref, live, gps, pos);
     final status = live?.status ??
         resolveFleetStatus(
           speed: live?.speed ?? gps?.speed,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
@@ -26,6 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
   bool _rememberMe = true;
+  bool _obscurePassword = true;
   String? _error;
 
   @override
@@ -51,6 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _loading = true;
       _error = null;
@@ -68,6 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(tripsProvider);
       if (mounted) context.go('/dashboard');
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = formatDioError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -166,25 +170,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                             ),
                             const SizedBox(height: 20),
-                            // Tap → full-width sheet: avoids Gboard side toolbar
-                            // (voice / clipboard / corrections) crushing the field.
-                            SgSheetTextFormField(
+                            // Inline fields on login — sheet entry is awkward on
+                            // emulator / first-run and blocked adb/UI automation.
+                            sgImeSafeTextFormField(
                               controller: _identifierCtrl,
-                              label: 'Email or phone',
-                              hint: 'email or 03021234567',
                               keyboardType: TextInputType.emailAddress,
-                              prefixIcon: Icons.person_outline_rounded,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.username],
+                              decoration: const InputDecoration(
+                                labelText: 'Email or phone',
+                                hintText: 'email or 03021234567',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              ),
                               validator: (v) => (v == null || v.trim().isEmpty)
                                   ? 'Email or phone is required'
                                   : null,
                             ),
                             const SizedBox(height: 12),
-                            SgSheetTextFormField(
+                            sgImeSafeTextFormField(
                               controller: _passwordCtrl,
-                              label: 'Password',
-                              obscureText: true,
+                              obscureText: _obscurePassword,
                               keyboardType: TextInputType.visiblePassword,
-                              prefixIcon: Icons.lock_outline_rounded,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.password],
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                suffixIcon: IconButton(
+                                  tooltip: _obscurePassword ? 'Show' : 'Hide',
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
+                              ),
                               validator: (v) => (v == null || v.isEmpty)
                                   ? 'Password is required'
                                   : null,
@@ -271,7 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextButton(
                             onPressed: () => context.push('/legal/terms'),
                             child: Text(
-                              'Terms',
+                              AppLocalizations.of(context).termsShort,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: p.textSecondary,
@@ -282,7 +305,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextButton(
                             onPressed: () => context.push('/legal/privacy'),
                             child: Text(
-                              'Privacy',
+                              AppLocalizations.of(context).privacyShort,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: p.textSecondary,
@@ -292,7 +315,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                       Text(
-                        'v${AppConfig.appVersion}',
+                        // Prod: version only. Non-prod: include host for local debugging.
+                        AppConfig.isProd
+                            ? 'v${AppConfig.appVersion}'
+                            : 'v${AppConfig.appVersion} · ${Uri.tryParse(AppConfig.apiOrigin)?.host ?? AppConfig.apiOrigin}',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 11, color: p.textMuted),
                       ),

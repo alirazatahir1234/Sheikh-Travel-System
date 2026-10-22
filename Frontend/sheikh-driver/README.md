@@ -65,7 +65,7 @@ Resolution order:
 
 | Target | Default |
 |--------|---------|
-| `ENV=prod` / `ENV=uat` | `https://sheikh-travel-system-production.up.railway.app/api` |
+| `ENV=prod` / `ENV=uat` | `https://20-174-1-230.sslip.io/api` (stable Azure VM HTTPS) |
 | Physical phone + `DEV_LAN_HOST` / `API_BASE_URL` | `http://{MacLAN}:5082/api` |
 | Android emulator (`ENV=dev`, no LAN define) | `http://10.0.2.2:5082/api` |
 | iOS Simulator / desktop (`ENV=dev`) | `http://localhost:5082/api` |
@@ -93,14 +93,24 @@ From `Frontend/sheikh-driver` (or use the absolute path below).
 
 ### Android emulator
 
-No dart-define required (uses `10.0.2.2`):
+Local API must be listening on `0.0.0.0:5082`. Emulator reaches the Mac via `10.0.2.2` (not `localhost`).
 
 ```bash
-flutter devices
-flutter run -d <android-emulator-id>
-# or
+# Preferred (builds debug APK, installs, prints seed credentials)
 ./scripts/run_android_emu.sh
+
+# Or hot-reload:
+flutter devices
+flutter run -d <android-emulator-id> \
+  --dart-define=ENV=dev \
+  --dart-define=API_BASE_URL=http://10.0.2.2:5082/api
 ```
+
+Seed login (DatabaseSeeder): **`admin@sheikhtravel.com` / `Pass@123`**  
+Driver phone: `03021234567` / `Pass@123`  
+(Do not use `Admin@123` — that is outdated Postman copy.)
+
+Debug login shows the resolved API URL under the password field. Use a **debug** build on emulators — release AAB/APK (`ENV=prod`) blocks emulators and points at `https://20-174-1-230.sslip.io/api`.
 
 ### Physical / wireless Android (Samsung A05)
 
@@ -217,16 +227,25 @@ cd ios && pod install && cd ..
 
 Trip detail → **Open Trip Map** opens in-app Google Maps with live location, route line, traffic toggle, ETA (`GET /gps/eta`), and deep links to Google Maps / Apple Maps / Waze.
 
-Set your Maps API key:
+Set your Maps API key (native SDK + optional Dart Directions):
 
 ```bash
-# Android — android/local.properties
-GOOGLE_MAPS_API_KEY=your_key_here
+# Android — preferred (gitignored):
+cp android/maps.properties.example android/maps.properties
+# edit GOOGLE_MAPS_API_KEY=...
+
+# Or android/local.properties:
+# GOOGLE_MAPS_API_KEY=your_key_here
 
 # iOS — set GMSApiKey in Info.plist or Xcode build setting GOOGLE_MAPS_API_KEY
 # Run with:
 flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api --dart-define=GOOGLE_MAPS_KEY=your_key_here
+
+# Release builds: ./scripts/build_prod.sh auto-loads maps.properties into
+# --dart-define=GOOGLE_MAPS_KEY and exports GOOGLE_MAPS_API_KEY for Gradle.
 ```
+
+**FCM / Crashlytics:** place `android/app/google-services.json` (see `android/app/GOOGLE_SERVICES.md`). Missing file → app still launches; push is disabled.
 
 - `POST /api/driver-app/auth/login`
 - `GET /api/driver-app/profile`
@@ -257,11 +276,12 @@ See `store/` for privacy, terms, listing copy, screenshots guide, release notes,
 - **Prod builds** — `scripts/build_prod.sh`
 
 ```bash
-# Release APK for any physical device (defaults to Production Railway API)
+# Release APK for any physical device (defaults to sslip.io HTTPS)
 ./scripts/run_prod_device.sh
 
 # Android App Bundle (requires android/key.properties — see key.properties.example)
-# API_BASE_URL defaults to https://sheikh-travel-system-production.up.railway.app/api
+# API_BASE_URL defaults to https://20-174-1-230.sslip.io/api
+# Ensure android/maps.properties exists (or export GOOGLE_MAPS_API_KEY)
 export PRIVACY_URL=https://example.com/fleet/privacy
 export TERMS_URL=https://example.com/fleet/terms
 export CERT_PIN_1=YOUR_SHA256_HEX   # optional; without pins HTTPS still works, pinning is off
@@ -270,7 +290,8 @@ export CERT_PIN_1=YOUR_SHA256_HEX   # optional; without pins HTTPS still works, 
 # Or direct flutter:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
+  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
   --dart-define=PRIVACY_URL=https://example.com/fleet/privacy \
   --dart-define=TERMS_URL=https://example.com/fleet/terms \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX

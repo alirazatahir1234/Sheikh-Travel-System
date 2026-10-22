@@ -326,6 +326,18 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// No description provided for @retryAllFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry all failed'**
+  String get retryAllFailed;
+
+  /// No description provided for @retryStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry started — check remaining items'**
+  String get retryStarted;
+
   /// No description provided for @signOut.
   ///
   /// In en, this message translates to:
@@ -355,6 +367,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Environment: {env}'**
   String environmentLabel(String env);
+
+  /// No description provided for @changePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Password'**
+  String get changePassword;
+
+  /// No description provided for @pushNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get pushNotifications;
+
+  /// No description provided for @pushNotificationsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip alerts and dispatch messages'**
+  String get pushNotificationsOn;
+
+  /// No description provided for @pushNotificationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off — you will not receive push alerts'**
+  String get pushNotificationsOff;
+
+  /// No description provided for @dismissWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss warning'**
+  String get dismissWarning;
+
+  /// No description provided for @securityStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Security status'**
+  String get securityStatus;
+
+  /// No description provided for @securityStatusSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Root, jailbreak, emulator, pinning'**
+  String get securityStatusSubtitle;
+
+  /// No description provided for @backgroundGps.
+  ///
+  /// In en, this message translates to:
+  /// **'Background GPS'**
+  String get backgroundGps;
+
+  /// No description provided for @backgroundGpsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop live tracking / open live map'**
+  String get backgroundGpsSubtitle;
+
+  /// No description provided for @backgroundGpsStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Background GPS stopped'**
+  String get backgroundGpsStopped;
+
+  /// No description provided for @activityTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity Timeline'**
+  String get activityTimeline;
+
+  /// No description provided for @activityTimelineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View your trip and attendance history'**
+  String get activityTimelineSubtitle;
+
+  /// No description provided for @attendance.
+  ///
+  /// In en, this message translates to:
+  /// **'Attendance'**
+  String get attendance;
+
+  /// No description provided for @attendanceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock in / clock out'**
+  String get attendanceSubtitle;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfService.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfService;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for Updates'**
+  String get checkForUpdates;
+
+  /// No description provided for @openInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get openInBrowser;
+
+  /// No description provided for @viewHostedVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'View hosted version'**
+  String get viewHostedVersion;
+
+  /// No description provided for @legalEffectiveDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Effective {date}'**
+  String legalEffectiveDate(String date);
+
+  /// No description provided for @termsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get termsShort;
+
+  /// No description provided for @privacyShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get privacyShort;
+
+  /// No description provided for @clockedInSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Clocked in successfully'**
+  String get clockedInSuccess;
+
+  /// No description provided for @clockedOutSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Clocked out successfully'**
+  String get clockedOutSuccess;
+
+  /// No description provided for @noAttendanceRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'No attendance records'**
+  String get noAttendanceRecords;
+
+  /// No description provided for @checkIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Check In'**
+  String get checkIn;
+
+  /// No description provided for @checkOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Out'**
+  String get checkOut;
+
+  /// No description provided for @checkInCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'CHECK IN'**
+  String get checkInCaps;
+
+  /// No description provided for @checkOutCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'CHECK OUT'**
+  String get checkOutCaps;
+
+  /// No description provided for @checkedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked In'**
+  String get checkedIn;
+
+  /// No description provided for @notCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked in'**
+  String get notCheckedIn;
+
+  /// No description provided for @stopTrackingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop background GPS?'**
+  String get stopTrackingTitle;
+
+  /// No description provided for @stopTrackingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location sharing with dispatch will stop until you start tracking again.'**
+  String get stopTrackingBody;
+
+  /// No description provided for @stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get stop;
 }
 
 class _AppLocalizationsDelegate

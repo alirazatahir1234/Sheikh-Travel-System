@@ -1,0 +1,10 @@
+# Copy to maps.properties (gitignored) and set your restricted Android Maps key.
+# Never commit real keys.
+#
+# Used by:
+#   - android/app/build.gradle.kts → AndroidManifest GOOGLE_MAPS_API_KEY placeholder
+#   - scripts/build_prod.sh / run_android_*.sh → --dart-define=GOOGLE_MAPS_KEY
+#
+# Restrict the key in Google Cloud Console to package com.sheikhgo.fleet +
+# your debug + Play App Signing SHA-1 fingerprints.
+GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY

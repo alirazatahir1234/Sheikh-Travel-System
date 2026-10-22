@@ -7,6 +7,9 @@ class DriverSettlementItem {
     required this.status,
     this.paidAt,
     this.reference,
+    this.driverId,
+    this.driverName,
+    this.grossCollected,
   });
 
   final int id;
@@ -16,6 +19,9 @@ class DriverSettlementItem {
   final String status;
   final DateTime? paidAt;
   final String? reference;
+  final int? driverId;
+  final String? driverName;
+  final double? grossCollected;
 
   factory DriverSettlementItem.fromJson(Map<String, dynamic> json) {
     DateTime? parseDt(dynamic v) {
@@ -25,12 +31,17 @@ class DriverSettlementItem {
 
     return DriverSettlementItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      periodStart: parseDt(json['periodStart']) ?? DateTime.fromMillisecondsSinceEpoch(0),
-      periodEnd: parseDt(json['periodEnd']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      periodStart:
+          parseDt(json['periodStart']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      periodEnd:
+          parseDt(json['periodEnd']) ?? DateTime.fromMillisecondsSinceEpoch(0),
       payable: (json['payable'] as num?)?.toDouble() ?? 0,
       status: json['status']?.toString() ?? '',
       paidAt: parseDt(json['paidAt']),
       reference: json['reference']?.toString(),
+      driverId: (json['driverId'] as num?)?.toInt(),
+      driverName: json['driverName']?.toString(),
+      grossCollected: (json['grossCollected'] as num?)?.toDouble(),
     );
   }
 }

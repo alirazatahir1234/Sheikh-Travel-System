@@ -58,6 +58,8 @@
   "conflictsSection": "Conflicts (needs review)",
   "conflictsHint": "Server rejected these after reconnect. Remove after checking ERP state.",
   "retry": "Retry",
+  "retryAllFailed": "Retry all failed",
+  "retryStarted": "Retry started — check remaining items",
   "signOut": "Sign Out",
   "signOutConfirmTitle": "Sign out",
   "signOutConfirmBody": "Are you sure you want to sign out?",
@@ -67,5 +69,45 @@
     "placeholders": {
       "env": { "type": "String" }
     }
-  }
+  },
+  "changePassword": "Change Password",
+  "pushNotifications": "Push notifications",
+  "pushNotificationsOn": "Trip alerts and dispatch messages",
+  "pushNotificationsOff": "Off — you will not receive push alerts",
+  "dismissWarning": "Dismiss warning",
+  "securityStatus": "Security status",
+  "securityStatusSubtitle": "Root, jailbreak, emulator, pinning",
+  "backgroundGps": "Background GPS",
+  "backgroundGpsSubtitle": "Stop live tracking / open live map",
+  "backgroundGpsStopped": "Background GPS stopped",
+  "activityTimeline": "Activity Timeline",
+  "activityTimelineSubtitle": "View your trip and attendance history",
+  "attendance": "Attendance",
+  "attendanceSubtitle": "Clock in / clock out",
+  "privacyPolicy": "Privacy Policy",
+  "termsOfService": "Terms of Service",
+  "version": "Version",
+  "checkForUpdates": "Check for Updates",
+  "openInBrowser": "Open in browser",
+  "viewHostedVersion": "View hosted version",
+  "legalEffectiveDate": "Effective {date}",
+  "@legalEffectiveDate": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "termsShort": "Terms",
+  "privacyShort": "Privacy",
+  "clockedInSuccess": "Clocked in successfully",
+  "clockedOutSuccess": "Clocked out successfully",
+  "noAttendanceRecords": "No attendance records",
+  "checkIn": "Check In",
+  "checkOut": "Check Out",
+  "checkInCaps": "CHECK IN",
+  "checkOutCaps": "CHECK OUT",
+  "checkedIn": "Checked In",
+  "notCheckedIn": "Not checked in",
+  "stopTrackingTitle": "Stop background GPS?",
+  "stopTrackingBody": "Live location sharing with dispatch will stop until you start tracking again.",
+  "stop": "Stop"
 }

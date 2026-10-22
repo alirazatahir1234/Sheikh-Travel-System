@@ -34,10 +34,28 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
           );
       if (mounted) setState(() => _report = report);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() => _error = _friendlyError(e));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _friendlyError(Object e) {
+    final raw = e.toString();
+    if (raw.contains('403') || raw.toLowerCase().contains('forbidden')) {
+      return 'You do not have permission to view reports.';
+    }
+    if (raw.contains('401') || raw.toLowerCase().contains('unauthorized')) {
+      return 'Session expired. Please sign in again.';
+    }
+    if (raw.toLowerCase().contains('socket') ||
+        raw.toLowerCase().contains('timeout') ||
+        raw.toLowerCase().contains('connection')) {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
+    return 'Could not load this report. Try again.';
   }
 
   Future<void> _pickFrom() async {
@@ -63,7 +81,7 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('dd MMM yyyy');
-    final currency = NumberFormat.compactCurrency(symbol: '');
+    final currency = NumberFormat.compactCurrency(symbol: 'PKR ');
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -71,31 +89,6 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          const SgSectionTitle('Operator presets'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ActionChip(
-                label: const Text('Alert summary'),
-                onPressed: () => setState(() => _type = 'alert'),
-              ),
-              ActionChip(
-                label: const Text('Mileage'),
-                onPressed: () => setState(() => _type = 'mileage'),
-              ),
-              ActionChip(
-                label: const Text('Fuel'),
-                onPressed: () => setState(() => _type = 'fuel'),
-              ),
-              ActionChip(
-                label: const Text('Geofence'),
-                onPressed: () => setState(() => _type = 'geofence'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
           const SgSectionTitle('Report type'),
           const SizedBox(height: 8),
           Wrap(
@@ -138,7 +131,21 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: AppColors.error)),
+            SgCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: AppColors.error, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
           if (_report != null) ...[
             const SizedBox(height: 20),
@@ -151,15 +158,17 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Total ${currency.format(_report!.totalValue)} · ${_report!.rows.length} rows',
+              _report!.totalValue > 0
+                  ? '${currency.format(_report!.totalValue)} · ${_report!.rows.length} rows'
+                  : '${_report!.rows.length} rows',
               style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             if (_report!.rows.isEmpty)
-              const SgCard(child: Text('No rows for this range'))
+              const SgCard(child: Text('No rows for this date range.'))
             else
               ..._report!.rows.map((row) {
-                final previewCols = _report!.columns.take(3).toList();
+                final previewCols = _report!.columns.take(4).toList();
                 return SgCard(
                   margin: const EdgeInsets.only(bottom: 10),
                   child: Column(
@@ -178,20 +187,24 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
+                              height: 1.35,
                             ),
                           ),
                         ),
                       if (row.count > 0 || row.totalValue > 0)
-                        Text(
-                          [
-                            if (row.count > 0) 'Count ${row.count}',
-                            if (row.totalValue > 0)
-                              currency.format(row.totalValue),
-                          ].join(' · '),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            [
+                              if (row.count > 0) 'Count ${row.count}',
+                              if (row.totalValue > 0)
+                                currency.format(row.totalValue),
+                            ].join(' · '),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                     ],
@@ -207,7 +220,7 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
   String _formatField(Object? value, String format) {
     if (value == null) return '—';
     if (format == 'currency' && value is num) {
-      return NumberFormat.compactCurrency(symbol: '').format(value);
+      return NumberFormat.compactCurrency(symbol: 'PKR ').format(value);
     }
     if (format == 'number' && value is num) {
       return value.toStringAsFixed(value is int ? 0 : 1);

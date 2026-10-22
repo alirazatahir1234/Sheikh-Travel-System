@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../domain/notification_models.dart';
 import 'notification_deep_link.dart';
+import 'push_setup_issue.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -22,12 +23,17 @@ class FcmService {
   String? _token;
   String? get token => _token;
 
+  /// Last Firebase.initializeApp failure (null when init succeeded or not attempted).
+  Object? _firebaseInitError;
+  Object? get firebaseInitError => _firebaseInitError;
+
   /// True when [Firebase.initializeApp] succeeded (needs `google-services.json` on Android).
   bool get isFirebaseReady => Firebase.apps.isNotEmpty;
 
   bool _listenersBound = false;
   bool _tapHandlersBound = false;
   bool _backgroundHandlerBound = false;
+  StreamSubscription<String>? _tokenRefreshSub;
 
   final _foregroundController =
       StreamController<ForegroundBannerEvent>.broadcast();
@@ -36,6 +42,29 @@ class FcmService {
   Stream<ForegroundBannerEvent> get foregroundBanners =>
       _foregroundController.stream;
   Stream<void> get inboxRefresh => _refreshController.stream;
+
+  /// Record startup [Firebase.initializeApp] outcome from `main()`.
+  void recordFirebaseInitSuccess() {
+    _firebaseInitError = null;
+  }
+
+  void recordFirebaseInitFailure(Object error) {
+    _firebaseInitError = error;
+    debugPrint('[FCM] Firebase init failure recorded: $error');
+  }
+
+  /// User-facing issue when Firebase never came up (missing google-services.json).
+  PushSetupIssue? firebaseNotReadyIssue({required bool showSnackBar}) {
+    if (isFirebaseReady) return null;
+    return PushSetupIssue(
+      message:
+          'Push needs Firebase config: add android/app/google-services.json '
+          'for package com.sheikhgo.fleet, then rebuild the app. '
+          'See android/app/GOOGLE_SERVICES.md.',
+      reason: PushSetupReason.firebaseNotInitialized,
+      showSnackBar: showSnackBar,
+    );
+  }
 
   /// OS + FCM authorization currently granted.
   Future<bool> hasPermission() async {
@@ -130,10 +159,18 @@ class FcmService {
         sound: true,
       );
 
-      _token = await FirebaseMessaging.instance.getToken();
+      try {
+        _token = await FirebaseMessaging.instance.getToken();
+      } catch (e) {
+        debugPrint('[FCM] getToken failed: $e');
+        // Re-throw so callers can classify GMS vs other failures accurately.
+        throw StateError('FCM getToken failed: $e');
+      }
       if (_token != null) await onTokenRefresh(_token!);
 
-      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      await _tokenRefreshSub?.cancel();
+      _tokenRefreshSub =
+          FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         _token = newToken;
         await onTokenRefresh(newToken);
       });
@@ -154,7 +191,9 @@ class FcmService {
   /// Stop receiving push on this device (Settings disable path).
   Future<void> disable() async {
     try {
-      await FirebaseMessaging.instance.deleteToken();
+      if (isFirebaseReady) {
+        await FirebaseMessaging.instance.deleteToken();
+      }
     } catch (e) {
       debugPrint('[FCM] deleteToken failed: $e');
     }

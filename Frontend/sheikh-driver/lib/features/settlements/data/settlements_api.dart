@@ -2,21 +2,32 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/auth_models.dart';
 import '../domain/settlement_models.dart';
 
 final settlementsApiProvider =
-    Provider<SettlementsApi>((ref) => SettlementsApi(ref.read(dioProvider)));
+    Provider<SettlementsApi>((ref) => SettlementsApi(
+          ref.read(dioProvider),
+          () => ref.read(fleetSessionProvider),
+        ));
 
 class SettlementsApi {
-  SettlementsApi(this._dio);
+  SettlementsApi(this._dio, this._session);
   final Dio _dio;
+  final FleetSession? Function() _session;
 
   Future<List<DriverSettlementItem>> getMySettlements({
     int page = 1,
     int pageSize = 50,
   }) async {
+    final session = _session();
+    final useStaff = session != null &&
+        !session.isDriverSession &&
+        session.canSeeOwnerEarnings;
+
     final res = await _dio.get<Map<String, dynamic>>(
-      ApiEndpoints.settlements,
+      useStaff ? ApiEndpoints.staffSettlements : ApiEndpoints.settlements,
       queryParameters: {'page': page, 'pageSize': pageSize},
     );
     final data = res.data?['data'];

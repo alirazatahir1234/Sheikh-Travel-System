@@ -75,12 +75,52 @@ void main() {
       expect(ErrorHandler.fromDio(e), isA<AuthException>());
     });
 
+    test('401 on /auth/login → ValidationException with API message', () {
+      final e = DioException(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        type: DioExceptionType.badResponse,
+        response: Response(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          statusCode: 401,
+          data: {'success': false, 'message': 'Invalid email or password.'},
+        ),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<ValidationException>());
+      expect(ex.message, 'Invalid email or password.');
+    });
+
+    test('429 response → RateLimitException', () {
+      final e = _makeDioException(
+        type: DioExceptionType.badResponse,
+        statusCode: 429,
+        responseData: {'message': 'Rate limit exceeded.'},
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<RateLimitException>());
+      expect(ex.message, 'Rate limit exceeded.');
+    });
+
     test('404 response → NotFoundException', () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,
         statusCode: 404,
       );
       expect(ErrorHandler.fromDio(e), isA<NotFoundException>());
+    });
+
+    test('404 on /auth/login → actionable ValidationException', () {
+      final e = DioException(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        type: DioExceptionType.badResponse,
+        response: Response(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          statusCode: 404,
+        ),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<ValidationException>());
+      expect(ex.message.toLowerCase(), contains('login api'));
     });
 
     test('403 response → ForbiddenException', () {

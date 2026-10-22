@@ -10,6 +10,7 @@ import '../../../core/offline/connectivity_provider.dart';
 
 final offlineQueueProvider = Provider<List<OfflineOperation>>((ref) {
   ref.watch(offlinePendingCountProvider);
+  ref.watch(offlineOutboxRevisionProvider);
   return OfflineOutbox.all();
 });
 
@@ -111,7 +112,7 @@ class OfflineQueueScreen extends ConsumerWidget {
                                     content: Text(
                                       n > 0
                                           ? l10n.syncedItems(n)
-                                          : 'Retry started — check remaining items',
+                                          : l10n.retryStarted,
                                     ),
                                   ),
                                 );
@@ -119,7 +120,7 @@ class OfflineQueueScreen extends ConsumerWidget {
                             }
                           : null,
                       icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Retry all failed'),
+                      label: Text(l10n.retryAllFailed),
                     ),
                   ],
                 ),
@@ -176,6 +177,9 @@ class OfflineQueueScreen extends ConsumerWidget {
                             ref
                                 .read(offlinePendingCountProvider.notifier)
                                 .state = OfflineOutbox.length;
+                            ref
+                                .read(offlineOutboxRevisionProvider.notifier)
+                                .state++;
                           },
                         ),
                       ],
@@ -223,6 +227,9 @@ class OfflineQueueScreen extends ConsumerWidget {
                           ref
                               .read(offlinePendingCountProvider.notifier)
                               .state = OfflineOutbox.length;
+                          ref
+                              .read(offlineOutboxRevisionProvider.notifier)
+                              .state++;
                         },
                       ),
                     ],

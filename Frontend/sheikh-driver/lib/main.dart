@@ -36,6 +36,7 @@ void main() async {
 
   try {
     await Firebase.initializeApp();
+    FcmService.instance.recordFirebaseInitSuccess();
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
@@ -46,6 +47,7 @@ void main() async {
     await AnalyticsService.instance.init();
   } catch (e) {
     debugPrint('[Firebase] Init skipped: $e');
+    FcmService.instance.recordFirebaseInitFailure(e);
   }
 
   await Hive.initFlutter();
@@ -258,15 +260,20 @@ class _PushRegistrationHintHostState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(pushRegistrationIssueProvider, (prev, next) {
-      if (next == null || next == _shownFor || !mounted) return;
-      _shownFor = next;
+    ref.listen(pushRegistrationIssueProvider, (prev, next) {
+      if (next == null ||
+          !next.showSnackBar ||
+          next.message == _shownFor ||
+          !mounted) {
+        return;
+      }
+      _shownFor = next.message;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final messenger = ScaffoldMessenger.maybeOf(context);
         messenger?.showSnackBar(
           SnackBar(
-            content: Text(next),
+            content: Text(next.message),
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'Settings',

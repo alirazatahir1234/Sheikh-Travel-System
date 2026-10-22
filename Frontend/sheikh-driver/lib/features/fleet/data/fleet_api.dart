@@ -442,6 +442,13 @@ class FleetApi {
         .toList();
   }
 
+  Future<GpsDeviceCommandDetail> getCommandById(int commandId) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      ApiEndpoints.gpsCommandById(commandId),
+    );
+    return GpsDeviceCommandDetail.fromJson(ApiResponseParser.dataMap(res.data));
+  }
+
   Future<List<GpsGeofenceItem>> getGeofences() async {
     final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.gpsGeofences);
     final data = res.data?['data'];

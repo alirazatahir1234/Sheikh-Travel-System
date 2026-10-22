@@ -136,6 +136,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get retryAllFailed => 'Retry all failed';
+
+  @override
+  String get retryStarted => 'Retry started — check remaining items';
+
+  @override
   String get signOut => 'Sign Out';
 
   @override
@@ -151,4 +157,113 @@ class AppLocalizationsEn extends AppLocalizations {
   String environmentLabel(String env) {
     return 'Environment: $env';
   }
+
+  @override
+  String get changePassword => 'Change Password';
+
+  @override
+  String get pushNotifications => 'Push notifications';
+
+  @override
+  String get pushNotificationsOn => 'Trip alerts and dispatch messages';
+
+  @override
+  String get pushNotificationsOff => 'Off — you will not receive push alerts';
+
+  @override
+  String get dismissWarning => 'Dismiss warning';
+
+  @override
+  String get securityStatus => 'Security status';
+
+  @override
+  String get securityStatusSubtitle => 'Root, jailbreak, emulator, pinning';
+
+  @override
+  String get backgroundGps => 'Background GPS';
+
+  @override
+  String get backgroundGpsSubtitle => 'Stop live tracking / open live map';
+
+  @override
+  String get backgroundGpsStopped => 'Background GPS stopped';
+
+  @override
+  String get activityTimeline => 'Activity Timeline';
+
+  @override
+  String get activityTimelineSubtitle =>
+      'View your trip and attendance history';
+
+  @override
+  String get attendance => 'Attendance';
+
+  @override
+  String get attendanceSubtitle => 'Clock in / clock out';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfService => 'Terms of Service';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get checkForUpdates => 'Check for Updates';
+
+  @override
+  String get openInBrowser => 'Open in browser';
+
+  @override
+  String get viewHostedVersion => 'View hosted version';
+
+  @override
+  String legalEffectiveDate(String date) {
+    return 'Effective $date';
+  }
+
+  @override
+  String get termsShort => 'Terms';
+
+  @override
+  String get privacyShort => 'Privacy';
+
+  @override
+  String get clockedInSuccess => 'Clocked in successfully';
+
+  @override
+  String get clockedOutSuccess => 'Clocked out successfully';
+
+  @override
+  String get noAttendanceRecords => 'No attendance records';
+
+  @override
+  String get checkIn => 'Check In';
+
+  @override
+  String get checkOut => 'Check Out';
+
+  @override
+  String get checkInCaps => 'CHECK IN';
+
+  @override
+  String get checkOutCaps => 'CHECK OUT';
+
+  @override
+  String get checkedIn => 'Checked In';
+
+  @override
+  String get notCheckedIn => 'Not checked in';
+
+  @override
+  String get stopTrackingTitle => 'Stop background GPS?';
+
+  @override
+  String get stopTrackingBody =>
+      'Live location sharing with dispatch will stop until you start tracking again.';
+
+  @override
+  String get stop => 'Stop';
 }

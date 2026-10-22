@@ -18,6 +18,12 @@ class AuthException extends AppException {
   ]);
 }
 
+class RateLimitException extends AppException {
+  const RateLimitException([
+    super.message = 'Too many attempts. Please wait a minute and try again.',
+  ]);
+}
+
 class ServerException extends AppException {
   const ServerException([
     super.message = 'Server error. Please try again later.',

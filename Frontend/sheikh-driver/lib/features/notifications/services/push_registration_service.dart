@@ -8,13 +8,16 @@ import 'package:hive/hive.dart';
 import '../../../core/analytics/analytics_service.dart';
 import '../../../core/api/api_endpoints.dart';
 import 'fcm_service.dart';
+import 'push_setup_issue.dart';
 
 /// Hive key for user preference: push notifications enabled.
 const pushNotificationsPrefsKey = 'pushNotificationsEnabled';
 
 /// Non-blocking hint after FCM/token registration fails post-login.
-/// Settings (and optional banner) can show this once; clear after dismiss.
-final pushRegistrationIssueProvider = StateProvider<String?>((ref) => null);
+/// Settings always shows [PushSetupIssue.message]; SnackBar only when
+/// [PushSetupIssue.showSnackBar] is true.
+final pushRegistrationIssueProvider =
+    StateProvider<PushSetupIssue?>((ref) => null);
 
 /// Mirrors the Settings push toggle (persisted in Hive).
 final pushNotificationsEnabledProvider = StateProvider<bool>((ref) => true);
@@ -59,6 +62,9 @@ class PushRegistrationService {
   }
 
   /// Called after login. Honours the Settings preference.
+  ///
+  /// Missing Firebase config / Play Services gaps are recorded for Settings
+  /// without a scary login SnackBar (see [PushSetupIssue.showSnackBar]).
   Future<void> start(Dio dio, {String appName = 'fleet'}) async {
     _dio = dio;
     _appName = appName;
@@ -69,24 +75,46 @@ class PushRegistrationService {
       return;
     }
 
+    final notReady = FcmService.instance.firebaseNotReadyIssue(
+      // Dev/misconfig is expected until google-services.json is present —
+      // do not popup on every login; Settings shows the actionable hint.
+      showSnackBar: false,
+    );
+    if (notReady != null) {
+      debugPrint('[Push] FCM skipped — Firebase not initialized');
+      _reportIssue(notReady);
+      return;
+    }
+
     try {
       await FcmService.instance.initialize(onTokenRefresh: _registerToken);
       if (FcmService.instance.token == null) {
-        _reportFailure(
-          'Push notifications are not enabled on this device. '
-          'Turn on the toggle in Settings and allow notifications when prompted.',
-          reason: 'no_token',
+        final allowed = await FcmService.instance.hasPermission();
+        _reportIssue(
+          PushSetupIssue(
+            message: allowed
+                ? 'Permission granted, but no FCM token yet. '
+                    'Confirm google-services.json matches package '
+                    'com.sheikhgo.fleet, use a Google Play emulator image, '
+                    'then retry in Settings.'
+                : 'Push notifications are not enabled on this device. '
+                    'Turn on the toggle in Settings and allow notifications '
+                    'when prompted.',
+            reason: allowed
+                ? PushSetupReason.noToken
+                : PushSetupReason.permissionDenied,
+            // Permission prompt is user-actionable; soft-hint only for token gaps.
+            showSnackBar: !allowed,
+          ),
         );
       } else {
         _container?.read(pushRegistrationIssueProvider.notifier).state = null;
       }
     } catch (e) {
       debugPrint('[Push] FCM init skipped: $e');
-      _reportFailure(
-        'Could not set up push notifications. Check Firebase config '
-        '(google-services.json) and try the Settings toggle again.',
-        reason: 'init_failed',
-      );
+      // Login path: classify accurately; avoid false "check Firebase config"
+      // when the real issue is missing Play Services on an AOSP emulator.
+      _reportIssue(classifyPushFailure(e, showSnackBar: false));
     }
   }
 
@@ -102,14 +130,12 @@ class PushRegistrationService {
 
     await _persistPreference(true);
 
-    if (!FcmService.instance.isFirebaseReady) {
+    final notReady = FcmService.instance.firebaseNotReadyIssue(
+      showSnackBar: true,
+    );
+    if (notReady != null) {
       await _persistPreference(false);
-      _reportFailure(
-        'Push needs Firebase config: add android/app/google-services.json '
-        'for package com.sheikhgo.fleet, then rebuild the app. '
-        'See android/app/GOOGLE_SERVICES.md.',
-        reason: 'firebase_not_initialized',
-      );
+      _reportIssue(notReady);
       return false;
     }
 
@@ -117,10 +143,13 @@ class PushRegistrationService {
       final allowed = await FcmService.instance.requestPermission();
       if (!allowed) {
         await _persistPreference(false);
-        _reportFailure(
-          'Notification permission was denied. Enable it in system Settings, '
-          'then turn this toggle on again.',
-          reason: 'permission_denied',
+        _reportIssue(
+          const PushSetupIssue(
+            message:
+                'Notification permission was denied. Enable it in system '
+                'Settings, then turn this toggle on again.',
+            reason: PushSetupReason.permissionDenied,
+          ),
         );
         return false;
       }
@@ -129,13 +158,16 @@ class PushRegistrationService {
         onTokenRefresh: _registerToken,
       );
       if (token == null) {
-        // OS permission OK but FCM token missing (often missing google-services.json).
         await _persistPreference(false);
-        _reportFailure(
-          'Permission granted, but no FCM token. Confirm google-services.json '
-          'matches package com.sheikhgo.fleet and rebuild. '
-          'See android/app/GOOGLE_SERVICES.md.',
-          reason: 'no_token',
+        _reportIssue(
+          const PushSetupIssue(
+            message:
+                'Permission granted, but no FCM token. Confirm '
+                'google-services.json matches package com.sheikhgo.fleet, '
+                'use a Google Play system-image emulator (or a device), '
+                'then rebuild and retry. See android/app/GOOGLE_SERVICES.md.',
+            reason: PushSetupReason.noToken,
+          ),
         );
         return false;
       }
@@ -144,10 +176,7 @@ class PushRegistrationService {
       return true;
     } catch (e) {
       debugPrint('[Push] enableFromSettings failed: $e');
-      _reportFailure(
-        'Could not enable push: $e',
-        reason: 'enable_failed',
-      );
+      _reportIssue(classifyPushFailure(e, showSnackBar: true));
       await _persistPreference(false);
       return false;
     }
@@ -179,23 +208,32 @@ class PushRegistrationService {
       _container?.read(pushRegistrationIssueProvider.notifier).state = null;
     } catch (e) {
       debugPrint('[Push] Token registration failed: $e');
-      _reportFailure(
-        'Push registration failed. Notifications may not arrive until the next login.',
-        reason: 'register_failed',
+      _reportIssue(
+        const PushSetupIssue(
+          message:
+              'Push registration failed. Notifications may not arrive until '
+              'the next login.',
+          reason: PushSetupReason.registerFailed,
+          // Backend blips should not hijack login UX.
+          showSnackBar: false,
+        ),
       );
     }
   }
 
-  void _reportFailure(String message, {required String reason}) {
-    debugPrint('[Push] Failure ($reason): $message');
+  void _reportIssue(PushSetupIssue issue) {
+    debugPrint('[Push] Failure (${issue.reason}): ${issue.message}');
     // ignore: unawaited_futures
-    AnalyticsService.instance.log('push_registration_failed', {'reason': reason});
+    AnalyticsService.instance.log('push_registration_failed', {
+      'reason': issue.reason,
+      'snackbar': issue.showSnackBar,
+    });
     if (_hintQueued) return;
     _hintQueued = true;
     final c = _container;
     if (c == null) return;
     try {
-      c.read(pushRegistrationIssueProvider.notifier).state = message;
+      c.read(pushRegistrationIssueProvider.notifier).state = issue;
     } catch (e) {
       debugPrint('[Push] Could not publish UI hint: $e');
     }

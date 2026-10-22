@@ -1,12 +1,14 @@
 # FCM / `google-services.json` setup (SheikhGo Tracking)
 
-**Status:** Push toggle stays off until this file exists. Do **not** invent fake Firebase keys — Gradle/runtime will break.
+**Status:** Push cannot obtain an FCM token until this file exists. Do **not** invent fake Firebase keys — Gradle/runtime will break.
 
-## Why the Settings toggle fails
+`google-services.json` is **gitignored** and is not in this repo. Place your real Firebase Android config locally (or from your private secrets store).
 
-1. `android/app/google-services.json` is missing (gitignored; not in this repo).
-2. Without it, `Firebase.initializeApp()` fails at startup and no FCM token can be issued.
-3. Package / applicationId: **`com.sheikhgo.fleet`**.
+## Why push fails
+
+1. `android/app/google-services.json` is missing → `Firebase.initializeApp()` fails at startup.
+2. Package / applicationId must be **`com.sheikhgo.fleet`** (must match the Firebase Android app).
+3. Emulator without **Google Play** services → FCM `getToken()` fails (`SERVICE_NOT_AVAILABLE`), even when Firebase init succeeded.
 
 ## Steps for Ali (Firebase Console)
 
@@ -24,7 +26,21 @@
    flutter run -d <device>
    ```
 6. Settings → enable **Push notifications** → allow OS permission when prompted.
-7. Confirm logcat shows an FCM token and API `POST .../device-token` succeeds.
+7. Confirm logcat shows an FCM token and API `POST .../ai/device-tokens` succeeds.
+
+## Emulator requirements (FCM)
+
+Use an AVD that includes **Google Play** (Play Store icon in the AVD Manager), for example:
+
+- Pixel 6 / Pixel 7 — system image **Google Play** (API 34+)
+- Not: “Google APIs” only, AOSP, or images without Play Services
+
+Physical devices with Play Store also work.
+
+After placing `google-services.json` and using a Play-capable AVD:
+
+- Login should **not** show a scary push popup when config is still missing (hint stays in Settings).
+- With config + Play Services present, login registers the token silently; Settings toggle retries permission/token/API registration.
 
 ## Optional: Firebase CLI
 
@@ -34,7 +50,7 @@ firebase login
 firebase apps:sdkconfig android <APP_ID> > android/app/google-services.json
 ```
 
-(`gcloud` on this machine had expired auth — run `gcloud auth login` / `firebase login` first.)
+(`gcloud` / `firebase` must be authenticated on this machine first.)
 
 ## After the file is present
 

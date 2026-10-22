@@ -147,8 +147,11 @@ class _AppLockLifecycleState extends ConsumerState<AppLockLifecycle>
     final session = ref.read(fleetSessionProvider);
     if (!enabled || session == null) return;
 
+    // Only treat true backgrounding as a lock trigger. Biometric / system
+    // dialogs fire `inactive` without leaving the app — locking on inactive
+    // re-locks immediately after a successful unlock.
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+        state == AppLifecycleState.hidden) {
       _pausedAt ??= DateTime.now();
       return;
     }

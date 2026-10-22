@@ -134,6 +134,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get retry => 'إعادة المحاولة';
 
   @override
+  String get retryAllFailed => 'إعادة محاولة الكل';
+
+  @override
+  String get retryStarted => 'بدأت إعادة المحاولة — تحقق من العناصر المتبقية';
+
+  @override
   String get signOut => 'تسجيل الخروج';
 
   @override
@@ -149,4 +155,113 @@ class AppLocalizationsAr extends AppLocalizations {
   String environmentLabel(String env) {
     return 'البيئة: $env';
   }
+
+  @override
+  String get changePassword => 'تغيير كلمة المرور';
+
+  @override
+  String get pushNotifications => 'إشعارات الدفع';
+
+  @override
+  String get pushNotificationsOn => 'تنبيهات الرحلات ورسائل الإرسال';
+
+  @override
+  String get pushNotificationsOff => 'متوقف — لن تستلم تنبيهات الدفع';
+
+  @override
+  String get dismissWarning => 'تجاهل التحذير';
+
+  @override
+  String get securityStatus => 'حالة الأمان';
+
+  @override
+  String get securityStatusSubtitle => 'الجذر، كسر الحماية، المحاكي، التثبيت';
+
+  @override
+  String get backgroundGps => 'GPS في الخلفية';
+
+  @override
+  String get backgroundGpsSubtitle =>
+      'إيقاف التتبع المباشر / فتح الخريطة المباشرة';
+
+  @override
+  String get backgroundGpsStopped => 'تم إيقاف GPS في الخلفية';
+
+  @override
+  String get activityTimeline => 'الجدول الزمني للنشاط';
+
+  @override
+  String get activityTimelineSubtitle => 'عرض سجل الرحلات والحضور';
+
+  @override
+  String get attendance => 'الحضور';
+
+  @override
+  String get attendanceSubtitle => 'تسجيل الدخول / تسجيل الخروج';
+
+  @override
+  String get privacyPolicy => 'سياسة الخصوصية';
+
+  @override
+  String get termsOfService => 'شروط الخدمة';
+
+  @override
+  String get version => 'الإصدار';
+
+  @override
+  String get checkForUpdates => 'التحقق من التحديثات';
+
+  @override
+  String get openInBrowser => 'فتح في المتصفح';
+
+  @override
+  String get viewHostedVersion => 'عرض النسخة المستضافة';
+
+  @override
+  String legalEffectiveDate(String date) {
+    return 'ساري من $date';
+  }
+
+  @override
+  String get termsShort => 'الشروط';
+
+  @override
+  String get privacyShort => 'الخصوصية';
+
+  @override
+  String get clockedInSuccess => 'تم تسجيل الحضور بنجاح';
+
+  @override
+  String get clockedOutSuccess => 'تم تسجيل الانصراف بنجاح';
+
+  @override
+  String get noAttendanceRecords => 'لا توجد سجلات حضور';
+
+  @override
+  String get checkIn => 'تسجيل حضور';
+
+  @override
+  String get checkOut => 'تسجيل انصراف';
+
+  @override
+  String get checkInCaps => 'تسجيل حضور';
+
+  @override
+  String get checkOutCaps => 'تسجيل انصراف';
+
+  @override
+  String get checkedIn => 'تم الحضور';
+
+  @override
+  String get notCheckedIn => 'لم يتم الحضور';
+
+  @override
+  String get stopTrackingTitle => 'إيقاف GPS في الخلفية؟';
+
+  @override
+  String get stopTrackingBody =>
+      'سيتوقف مشاركة الموقع المباشر مع الإرسال حتى تعيد التتبع.';
+
+  @override
+  String get stop => 'إيقاف';
 }

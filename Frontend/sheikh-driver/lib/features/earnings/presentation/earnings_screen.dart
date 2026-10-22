@@ -3,12 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_ui.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../settlements/presentation/settlements_screen.dart';
 import '../data/earnings_api.dart';
 import '../domain/earnings_models.dart';
+import '../domain/owner_earnings_models.dart';
 
 final earningsProvider = FutureProvider.autoDispose<EarningsSummary>(
   (ref) => ref.read(earningsApiProvider).getEarnings(),
+);
+
+final ownerEarningsProvider =
+    FutureProvider.autoDispose<OwnerEarningsSummary>(
+  (ref) => ref.read(earningsApiProvider).getOwnerEarnings(),
 );
 
 class EarningsScreen extends ConsumerWidget {
@@ -16,36 +24,292 @@ class EarningsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(earningsProvider);
+    final session = ref.watch(fleetSessionProvider);
+    final ownerMode = session != null &&
+        !session.isDriverSession &&
+        session.canSeeOwnerEarnings;
+
+    if (ownerMode) {
+      return const _OwnerEarningsBody();
+    }
+    return const _DriverEarningsBody();
+  }
+}
+
+class _OwnerEarningsBody extends ConsumerWidget {
+  const _OwnerEarningsBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(ownerEarningsProvider);
     final fmt = NumberFormat('#,##0');
+    final p = context.sg;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
+      appBar: AppBar(
+        title: const Text('Owner earnings'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(ownerEarningsProvider),
+          ),
+        ],
+      ),
+      body: async.when(
+        loading: () => ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            SgSkeleton(height: 120),
+            SizedBox(height: 12),
+            SgSkeleton(height: 88),
+            SizedBox(height: 12),
+            SgSkeleton(height: 100),
+          ],
+        ),
+        error: (e, _) => SgErrorView(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(ownerEarningsProvider),
+        ),
+        data: (summary) => RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => ref.invalidate(ownerEarningsProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _OwnerShareHero(summary: summary, fmt: fmt),
+              const SizedBox(height: 16),
+              _OwnerSplitRow(summary: summary, fmt: fmt),
+              const SizedBox(height: 16),
+              _OwnerPeriodGrid(summary: summary, fmt: fmt),
+              const SizedBox(height: 16),
+              const _SettlementsTeaser(ownerMode: true),
+              const SizedBox(height: 16),
+              _OwnerBreakdownCard(summary: summary, fmt: fmt),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerShareHero extends StatelessWidget {
+  const _OwnerShareHero({required this.summary, required this.fmt});
+  final OwnerEarningsSummary summary;
+  final NumberFormat fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Card(
+      color: AppColors.primary.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your remaining share',
+              style: TextStyle(
+                fontSize: 13,
+                color: p.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'PKR ${fmt.format(summary.ownerRemaining)}',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Trip gross PKR ${fmt.format(summary.grossTripRevenue)}'
+              ' − driver share PKR ${fmt.format(summary.driverShare)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: p.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerSplitRow extends StatelessWidget {
+  const _OwnerSplitRow({required this.summary, required this.fmt});
+  final OwnerEarningsSummary summary;
+  final NumberFormat fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StatusAmountCard(
+            label: 'Trip gross',
+            amount: summary.grossTripRevenue,
+            icon: Icons.receipt_long_outlined,
+            color: AppColors.accent,
+            fmt: fmt,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatusAmountCard(
+            label: 'Driver share',
+            amount: summary.driverShare,
+            icon: Icons.person_outline,
+            color: AppColors.warning,
+            fmt: fmt,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OwnerPeriodGrid extends StatelessWidget {
+  const _OwnerPeriodGrid({required this.summary, required this.fmt});
+  final OwnerEarningsSummary summary;
+  final NumberFormat fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 0.95,
+      children: [
+        _MoneyTile(
+          label: 'Today',
+          amount: summary.todayOwnerRemaining,
+          color: AppColors.primary,
+          fmt: fmt,
+        ),
+        _MoneyTile(
+          label: 'This week',
+          amount: summary.thisWeekOwnerRemaining,
+          color: AppColors.accent,
+          fmt: fmt,
+        ),
+        _MoneyTile(
+          label: 'This month',
+          amount: summary.thisMonthOwnerRemaining,
+          color: AppColors.primaryLight,
+          fmt: fmt,
+        ),
+      ],
+    );
+  }
+}
+
+class _OwnerBreakdownCard extends StatelessWidget {
+  const _OwnerBreakdownCard({required this.summary, required this.fmt});
+  final OwnerEarningsSummary summary;
+  final NumberFormat fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Card(
+      color: p.card,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Breakdown',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: p.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _BreakdownRow(
+              icon: Icons.route,
+              label: 'Completed trips',
+              value: '${summary.completedTripCount}',
+            ),
+            _BreakdownRow(
+              icon: Icons.local_gas_station,
+              label: 'Fuel cost',
+              value: 'PKR ${fmt.format(summary.fuelCost)}',
+            ),
+            _BreakdownRow(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Settlements in range',
+              value: '${summary.settlementCount}',
+            ),
+            _BreakdownRow(
+              icon: Icons.info_outline,
+              label: 'Driver share source',
+              value: summary.driverShareSource,
+              isLast: !summary.dailyDriverShareIsEstimate,
+            ),
+            if (summary.dailyDriverShareIsEstimate)
+              const _BreakdownRow(
+                icon: Icons.timeline_outlined,
+                label: 'Daily split',
+                value: 'Estimated (settlements allocated by trip gross)',
+                isLast: true,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverEarningsBody extends ConsumerWidget {
+  const _DriverEarningsBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(earningsProvider);
+    final fmt = NumberFormat('#,##0');
+    final p = context.sg;
+
+    return Scaffold(
+      backgroundColor: p.surface,
       appBar: AppBar(
         title: const Text('Earnings'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.invalidate(earningsProvider),
           ),
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$e', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () => ref.invalidate(earningsProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            SgSkeleton(height: 100),
+            SizedBox(height: 12),
+            SgSkeleton(height: 88),
+            SizedBox(height: 12),
+            SgSkeleton(height: 160),
+          ],
+        ),
+        error: (e, _) => SgErrorView(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(earningsProvider),
         ),
         data: (summary) => RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () async => ref.invalidate(earningsProvider),
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -54,7 +318,7 @@ class EarningsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _PaidPendingRow(summary: summary, fmt: fmt),
               const SizedBox(height: 16),
-              _SettlementsTeaser(),
+              const _SettlementsTeaser(ownerMode: false),
               const SizedBox(height: 16),
               _ChartCard(summary: summary, fmt: fmt),
               const SizedBox(height: 16),
@@ -69,6 +333,9 @@ class EarningsScreen extends ConsumerWidget {
 }
 
 class _SettlementsTeaser extends ConsumerWidget {
+  const _SettlementsTeaser({required this.ownerMode});
+  final bool ownerMode;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(settlementsProvider);
@@ -77,12 +344,22 @@ class _SettlementsTeaser extends ConsumerWidget {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.account_balance_wallet_outlined),
-        title: const Text('Settlements'),
+        title: Text(ownerMode ? 'Driver settlements' : 'Settlements'),
         subtitle: async.when(
           data: (items) {
-            if (items.isEmpty) return const Text('No settlements yet');
+            if (items.isEmpty) {
+              return Text(
+                ownerMode ? 'No settlements yet' : 'No settlements yet',
+              );
+            }
             final latest = items.first;
-            return Text('${latest.status} · PKR ${money.format(latest.payable)}');
+            final name = ownerMode &&
+                    (latest.driverName?.trim().isNotEmpty ?? false)
+                ? '${latest.driverName} · '
+                : '';
+            return Text(
+              '$name${latest.status} · PKR ${money.format(latest.payable)}',
+            );
           },
           loading: () => const Text('Loading…'),
           error: (_, __) => const Text('Tap to open'),
@@ -335,7 +612,8 @@ class _BarChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (days.isEmpty) return;
 
-    final maxVal = days.map((d) => d.amount).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxVal =
+        days.map((d) => d.amount).fold<double>(0, (a, b) => a > b ? a : b);
     final peak = maxVal <= 0 ? 1.0 : maxVal;
     final barWidth = size.width / (days.length * 1.8);
     final gap = barWidth * 0.8;
@@ -347,7 +625,12 @@ class _BarChartPainter extends CustomPainter {
       final h = (days[i].amount / peak) * size.height;
       final x = i * (barWidth + gap) + gap * 0.5;
       final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, size.height - h, barWidth, h < 2 && days[i].amount > 0 ? 2 : h),
+        Rect.fromLTWH(
+          x,
+          size.height - h,
+          barWidth,
+          h < 2 && days[i].amount > 0 ? 2 : h,
+        ),
         const Radius.circular(4),
       );
       canvas.drawRRect(rect, paint);
@@ -425,28 +708,35 @@ class _BreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: AppColors.textSecondary),
+              Icon(icon, size: 20, color: p.textSecondary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: p.textPrimary),
                 ),
               ),
-              Text(
-                value,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: p.textPrimary,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        if (!isLast) const Divider(height: 1),
+        if (!isLast) Divider(height: 1, color: p.border),
       ],
     );
   }

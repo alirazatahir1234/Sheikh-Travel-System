@@ -71,6 +71,10 @@ abstract class ApiEndpoints {
   // Earnings
   static const earnings = '/driver-app/earnings';
   static const settlements = '/driver-app/settlements';
+  /// Tenant-wide settlements (Owner / Settlement.View) — not driver-scoped.
+  static const staffSettlements = '/settlements';
+  /// Owner remaining share after driver share (Settlement.View).
+  static const ownerEarnings = '/settlements/owner-earnings';
 
   // Device registration / security
   static const deviceRegister = '/driver-app/devices/register';
@@ -106,6 +110,7 @@ abstract class ApiEndpoints {
   static const gpsCommandsSend = '/gps/commands/send';
   static String gpsCommandsByVehicle(int vehicleId) =>
       '/gps/commands/vehicle/$vehicleId';
+  static String gpsCommandById(int id) => '/gps/commands/item/$id';
   static String gpsCommandApprove(int id) => '/gps/commands/$id/approve';
   static String gpsCommandCancel(int id) => '/gps/commands/$id/cancel';
 

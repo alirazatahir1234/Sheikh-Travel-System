@@ -91,7 +91,7 @@ class DriverProfile {
     }
     final roleLabel = _prettyRole(
       roleFromApi ??
-          (session.roles.isNotEmpty ? session.roles.first : 'Staff'),
+          (session.roles.isNotEmpty ? session.primaryNavRole : 'Staff'),
     );
     final active = json['isActive'] as bool? ?? true;
 
@@ -114,7 +114,7 @@ class DriverProfile {
 
   factory DriverProfile.fromStaffSession(FleetSession session) {
     final roleLabel = _prettyRole(
-      session.roles.isNotEmpty ? session.roles.first : 'Staff',
+      session.roles.isNotEmpty ? session.primaryNavRole : 'Staff',
     );
     return DriverProfile(
       id: session.userId,

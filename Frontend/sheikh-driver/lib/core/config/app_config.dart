@@ -11,11 +11,11 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
-  /// Same host as ERP `environment.prod.ts` — baked in for release APKs.
-  /// HTTPS via free Cloudflare quick tunnel; Kestrel HTTP :5082 for LAN overrides.
-  /// Caveat: trycloudflare.com URL usually changes when sheikhgo-cloudflared restarts.
+  /// Stable Azure VM HTTPS (Caddy → Kestrel). Used by release APKs / AABs when
+  /// `API_BASE_URL` is omitted. Prefer this over ephemeral trycloudflare tunnels.
+  /// Override anytime with `--dart-define=API_BASE_URL=...`.
   static const String defaultProductionApiBaseUrl =
-      'https://differ-checkout-arrived-cool.trycloudflare.com/api';
+      'https://20-174-1-230.sslip.io/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

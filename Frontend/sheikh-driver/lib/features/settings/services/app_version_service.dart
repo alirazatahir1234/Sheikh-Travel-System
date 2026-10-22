@@ -25,7 +25,8 @@ class AppVersionService {
   static Future<String> displayVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      _cachedVersion = '${info.version}+${info.buildNumber}';
+      // User-facing: marketing version only (hide +build clutter).
+      _cachedVersion = info.version;
       return _cachedVersion!;
     } catch (_) {
       return AppConfig.appVersion;
