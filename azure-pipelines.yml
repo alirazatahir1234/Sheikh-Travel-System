@@ -77,14 +77,13 @@ stages:
             env:
               DEPLOY_BRANCH: $(DEPLOY_BRANCH)
 
-      # ── Frontend → Vercel (self-hosted SheikhGo-VM — same agent as Backend) ──
-      # Runs after Backend so API + ng build never contend for the ~4Gi RAM agent.
+      # ── Frontend → Vercel (Microsoft-hosted — avoids SheikhGo-VM OOM exit 137) ──
+      # ng build needs more RAM than the ~4Gi self-hosted agent can spare alongside
+      # SQL/Traccar/API. Keep NODE_OPTIONS + worker cap as belt-and-suspenders.
       - job: Frontend_Vercel
         displayName: Frontend → Vercel
-        dependsOn: Backend_AzureVM
-        condition: always()
         pool:
-          name: SheikhGo-VM
+          vmImage: ubuntu-latest
         steps:
           - checkout: self
             clean: true
