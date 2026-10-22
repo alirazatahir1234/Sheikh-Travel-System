@@ -100,6 +100,9 @@ EOF
     cd "$ROOT"
     export VERCEL_PROJECT_ID="$project_id"
     # Ensure Maps inject sees ADO/Vercel secret during `vercel build` → npm run build:prod.
+    # Note: `vercel build` off-Vercel does NOT inherit shell env ("System environment variables
+    # will not be available"). We must write the key into .vercel/.env.production.local and/or
+    # pre-run inject-maps-env.mjs so the Angular prod bundle actually bakes AIzaSy…
     if [[ -n "${GOOGLE_MAPS_API_KEY:-}" ]]; then
       export GOOGLE_MAPS_API_KEY
     fi
@@ -109,6 +112,27 @@ EOF
     # Drop leftover app-subdir links so CLI uses repo-root + rootDirectory.
     rm -rf Frontend/sheikhgo-erp/.vercel/project.json Frontend/sheikh-travel-customer-hub/.vercel/project.json 2>/dev/null || true
     vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+
+    # After pull, force ADO/shell Maps secrets into the env file vercel build loads.
+    ENV_LOCAL="${ROOT}/.vercel/.env.production.local"
+    mkdir -p "${ROOT}/.vercel"
+    touch "$ENV_LOCAL"
+    if [[ -n "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+      grep -vE '^GOOGLE_MAPS_API_KEY=' "$ENV_LOCAL" > "${ENV_LOCAL}.tmp" || true
+      mv "${ENV_LOCAL}.tmp" "$ENV_LOCAL"
+      printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> "$ENV_LOCAL"
+      echo "Wrote GOOGLE_MAPS_API_KEY into .vercel/.env.production.local (len=${#GOOGLE_MAPS_API_KEY})"
+    fi
+    if [[ -n "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
+      grep -vE '^GOOGLE_MAPS_MAP_ID=' "$ENV_LOCAL" > "${ENV_LOCAL}.tmp" || true
+      mv "${ENV_LOCAL}.tmp" "$ENV_LOCAL"
+      printf 'GOOGLE_MAPS_MAP_ID=%s\n' "$GOOGLE_MAPS_MAP_ID" >> "$ENV_LOCAL"
+    fi
+    # Belt-and-suspenders: patch environment.prod.ts before vercel/ng build (ERP only).
+    if [[ "$name" == "sheikhgo-erp" && -n "${GOOGLE_MAPS_API_KEY:-}" && -f Frontend/sheikhgo-erp/scripts/inject-maps-env.mjs ]]; then
+      (cd Frontend/sheikhgo-erp && node scripts/inject-maps-env.mjs)
+    fi
+
     vercel build "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
 
     if [[ ! -d .vercel/output/static ]] && [[ ! -d .vercel/output/functions ]]; then
@@ -118,10 +142,15 @@ EOF
     fi
 
     # Safety net: never ship Mixed Content HTTP API URL.
-    # Prefer Cloudflare quick tunnel from environment.prod.ts when present.
+    # Prefer Cloudflare quick tunnel from environment.prod.ts when present;
+    # otherwise fall back to stable Caddy/sslip HTTPS (not ephemeral).
     if [[ -d .vercel/output/static ]]; then
+      ENV_PROD="${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts"
+      if [[ "$name" == "sheikhgo-erp" ]] && grep -qE "apiUrl:[[:space:]]*'http://20\\.174\\.1\\.230:5082" "$ENV_PROD" 2>/dev/null; then
+        echo "WARN: environment.prod.ts still has raw HTTP apiUrl — will rewrite build output to HTTPS." >&2
+      fi
       TUNNEL_HOST="$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' \
-        "${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts" 2>/dev/null | head -1 || true)"
+        "$ENV_PROD" 2>/dev/null | head -1 || true)"
       REWRITE_TO="${TUNNEL_HOST:-https://20-174-1-230.sslip.io}"
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "Rewriting baked http://20.174.1.230:5082 → ${REWRITE_TO} in build output"
@@ -134,6 +163,11 @@ EOF
       fi
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "ERROR: HTTP API URL still present after rewrite — refusing deploy." >&2
+        exit 1
+      fi
+      # Refuse any remaining non-HTTPS API host for ERP (defense in depth).
+      if [[ "$name" == "sheikhgo-erp" ]] && grep -RqlE 'http://20\.174\.1\.230(:[0-9]+)?' .vercel/output/static --include='*.js' 2>/dev/null; then
+        echo "ERROR: Non-HTTPS Azure VM API host still present in ERP build — refusing deploy." >&2
         exit 1
       fi
       # ERP must not ship an empty Maps key (live map init fails).
