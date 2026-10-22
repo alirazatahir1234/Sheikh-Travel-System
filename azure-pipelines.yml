@@ -77,13 +77,17 @@ stages:
             env:
               DEPLOY_BRANCH: $(DEPLOY_BRANCH)
 
-      # ── Frontend → Vercel (self-hosted: avoids Microsoft-hosted parallelism) ──
+      # ── Frontend → Vercel (self-hosted SheikhGo-VM — same agent as Backend) ──
+      # Runs after Backend so API + ng build never contend for the ~4Gi RAM agent.
       - job: Frontend_Vercel
         displayName: Frontend → Vercel
+        dependsOn: Backend_AzureVM
+        condition: always()
         pool:
           name: SheikhGo-VM
         steps:
           - checkout: self
+            clean: true
             fetchDepth: 1
 
           - bash: |
@@ -102,6 +106,33 @@ stages:
               fi
             displayName: Detect Frontend changes
 
+          - bash: |
+              set -euo pipefail
+              echo "=== SheikhGo-VM memory hygiene (pre-Node) ==="
+              free -h
+              swapon --show || true
+              # Reclaim orphaned CLI leftovers from canceled runs (never touch Agent.Listener).
+              pkill -f 'vercel deploy' 2>/dev/null || true
+              pkill -f 'ng build' 2>/dev/null || true
+              # Backend job leaves nodeReuse MSBuild/VBCSCompiler — free RAM before ng build.
+              pkill -f 'VBCSCompiler' 2>/dev/null || true
+              pkill -f 'MSBuild.dll' 2>/dev/null || true
+              sleep 1
+              sync || true
+              if [[ -w /proc/sys/vm/drop_caches ]]; then
+                echo 3 > /proc/sys/vm/drop_caches || true
+              else
+                sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
+              fi
+              free -h
+              AVAIL_MB=$(free -m | awk '/^Mem:/{print $7}')
+              echo "MemAvailable=${AVAIL_MB}Mi"
+              if [[ "${AVAIL_MB}" -lt 800 ]]; then
+                echo "##vso[task.logissue type=warning]Low MemAvailable (${AVAIL_MB}Mi) before Angular build — risk of exit 137 OOM."
+              fi
+            condition: ne(variables['SKIP_VERCEL'], 'true')
+            displayName: Free memory check (pre-build)
+
           - task: NodeTool@0
             condition: ne(variables['SKIP_VERCEL'], 'true')
             displayName: Install Node.js
@@ -115,6 +146,9 @@ stages:
             condition: ne(variables['SKIP_VERCEL'], 'true')
             displayName: Deploy sheikhgo-erp + customer-hub to Vercel
             env:
+              # Cap Node heap below full RAM on ~4Gi SheikhGo-VM (exit 137 = OOM).
+              NODE_OPTIONS: --max-old-space-size=3072
+              NG_BUILD_MAX_WORKERS: '1'
               VERCEL_TOKEN: $(VERCEL_TOKEN)
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
               VERCEL_ERP_PROJECT_ID: $(VERCEL_ERP_PROJECT_ID)

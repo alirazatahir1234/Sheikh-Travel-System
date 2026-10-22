@@ -16,6 +16,19 @@ ROOT="${BUILD_SOURCESDIRECTORY:-$(cd "$(dirname "$0")/../.." && pwd)}"
 : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
 : "${VERCEL_ERP_PROJECT_ID:?VERCEL_ERP_PROJECT_ID is required (sheikh-travel-system)}"
 
+# Angular/Node OOM guard (exit 137 / SIGKILL on SheikhGo-VM ~4Gi RAM).
+# Cap heap below full RAM; rely on swap for peak. Do not set to full physical RAM.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3072}"
+# Limit Angular esbuild/webpack parallel workers on the small self-hosted agent.
+export NG_BUILD_MAX_WORKERS="${NG_BUILD_MAX_WORKERS:-1}"
+export NODE_ENV="${NODE_ENV:-production}"
+
+echo "=== Agent memory before frontend build ==="
+free -h || true
+swapon --show || true
+echo "NODE_OPTIONS=${NODE_OPTIONS}"
+echo "NG_BUILD_MAX_WORKERS=${NG_BUILD_MAX_WORKERS}"
+
 # Browser Maps key — required for ERP live map. Prefer ADO/Vercel secret; local secrets.local is fallback inside inject-maps-env.mjs.
 if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
   echo "WARN: GOOGLE_MAPS_API_KEY unset — ERP build will use environment.secrets.local.ts if present, else fail."
