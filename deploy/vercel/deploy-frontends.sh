@@ -104,6 +104,24 @@ EOF
       ls -la .vercel/output 2>/dev/null || true
       exit 1
     fi
+
+    # Safety net: ADO repo can lag GitHub; never ship Mixed Content HTTP API URL.
+    if [[ -d .vercel/output/static ]]; then
+      if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
+        echo "Rewriting baked http://20.174.1.230:5082 → https://20-174-1-230.sslip.io in build output"
+        find .vercel/output/static -type f -name '*.js' -print0 \
+          | xargs -0 grep -l 'http://20\.174\.1\.230:5082' \
+          | while read -r f; do
+              sed -i 's|http://20\.174\.1\.230:5082|https://20-174-1-230.sslip.io|g' "$f"
+              echo "  patched $f"
+            done
+      fi
+      if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
+        echo "ERROR: HTTP API URL still present after rewrite — refusing deploy." >&2
+        exit 1
+      fi
+    fi
+
     assert_no_oversized_files
     echo "Build output OK:"
     du -sh .vercel/output/static 2>/dev/null || true
