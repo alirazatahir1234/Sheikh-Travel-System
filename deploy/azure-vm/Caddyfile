@@ -1,0 +1,50 @@
+# SheikhGo API TLS terminator (Let's Encrypt).
+# Proxies to Kestrel on :5082; leave HTTP :5082 open for mobile / LAN if needed.
+#
+# Hosts:
+#   api.sheikhgo.com          — preferred (add DNS A → 20.174.1.230)
+#   20-174-1-230.sslip.io     — works without custom DNS (real LE cert)
+
+api.sheikhgo.com, 20-174-1-230.sslip.io {
+	encode gzip zstd
+
+	# ACME HTTP-01 is handled by Caddy on :80 automatically.
+
+	handle /health {
+		reverse_proxy 127.0.0.1:5082
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:5082
+	}
+
+	handle /uploads/* {
+		reverse_proxy 127.0.0.1:5082
+	}
+
+	handle /hubs/* {
+		reverse_proxy 127.0.0.1:5082 {
+			# SignalR / WebSockets
+			transport http {
+				read_timeout 3600s
+				write_timeout 3600s
+			}
+		}
+	}
+
+	handle /t/* {
+		reverse_proxy 127.0.0.1:5082
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:5082
+	}
+
+	header {
+		# HSTS only after HTTPS is confirmed stable
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Access logs go to journald via systemd (avoids /var/log permission issues).
+}

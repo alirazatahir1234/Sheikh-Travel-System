@@ -27,7 +27,7 @@ void main() {
     test('default production API matches ERP host', () {
       expect(
         AppConfig.defaultProductionApiBaseUrl,
-        'http://20.174.1.230:5082/api',
+        'https://20-174-1-230.sslip.io/api',
       );
     });
 

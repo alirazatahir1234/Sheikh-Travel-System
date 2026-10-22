@@ -16,7 +16,8 @@ TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
 # Same host as ERP environment.prod.ts when unset.
-DEFAULT_PROD_API='http://20.174.1.230:5082/api'
+# After DNS A api → 20.174.1.230: https://api.sheikhgo.com/api
+DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 
 DEFINES=(

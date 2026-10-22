@@ -11,7 +11,8 @@ Org **Alirazatahir** · Project **SheikhGo** · Repo **SheikhGo** · Pipeline fi
 
 Trigger branches: **main** and **master**.
 
-Live API: `http://20.174.1.230:5082` · systemd unit: `sheikhgo-api` · health: `/health`
+Live API HTTPS: `https://20-174-1-230.sslip.io` (Caddy → Kestrel) · HTTP kept: `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy` · health: `/health`  
+Preferred host after DNS: `https://api.sheikhgo.com` — see [azure-vm-api.md](./azure-vm-api.md).
 
 ---
 
@@ -65,6 +66,7 @@ Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pip
 
 ## Verify
 
-- Backend: `curl -s http://20.174.1.230:5082/health` → `Healthy`
+- Backend HTTPS: `curl -s https://20-174-1-230.sslip.io/health` → `Healthy`
+- Backend HTTP (kept): `curl -s http://20.174.1.230:5082/health` → `Healthy`
 - Logs: `journalctl -u sheikhgo-api -f` on the VM
 - Frontend: Vercel dashboard deployment for ERP / customer-hub
