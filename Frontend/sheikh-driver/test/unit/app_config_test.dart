@@ -27,7 +27,7 @@ void main() {
     test('default production API matches ERP host', () {
       expect(
         AppConfig.defaultProductionApiBaseUrl,
-        'https://20-174-1-230.sslip.io/api',
+        'https://differ-checkout-arrived-cool.trycloudflare.com/api',
       );
     });
 

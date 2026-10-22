@@ -12,10 +12,10 @@ class AppConfig {
       };
 
   /// Same host as ERP `environment.prod.ts` — baked in for release APKs.
-  /// HTTPS via Caddy; Kestrel HTTP :5082 remains for LAN / cleartext overrides.
-  /// After DNS A `api` → 20.174.1.230, switch to https://api.sheikhgo.com/api.
+  /// HTTPS via free Cloudflare quick tunnel; Kestrel HTTP :5082 for LAN overrides.
+  /// Caveat: trycloudflare.com URL usually changes when sheikhgo-cloudflared restarts.
   static const String defaultProductionApiBaseUrl =
-      'https://20-174-1-230.sslip.io/api';
+      'https://differ-checkout-arrived-cool.trycloudflare.com/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

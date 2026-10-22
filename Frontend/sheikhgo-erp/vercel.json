@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build -- --configuration=production",
+  "buildCommand": "npm run build:prod",
   "outputDirectory": "dist/sheikhgo-erp/browser",
   "rewrites": [
     {

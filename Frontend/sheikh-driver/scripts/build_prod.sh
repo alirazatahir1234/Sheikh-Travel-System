@@ -15,9 +15,9 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-# Same host as ERP environment.prod.ts when unset.
-# After DNS A api → 20.174.1.230: https://api.sheikhgo.com/api
-DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
+# Same host as ERP environment.prod.ts when unset (Cloudflare quick tunnel).
+# Caveat: trycloudflare.com URL usually changes when sheikhgo-cloudflared restarts.
+DEFAULT_PROD_API='https://differ-checkout-arrived-cool.trycloudflare.com/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 
 DEFINES=(

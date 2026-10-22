@@ -1,12 +1,12 @@
 export const environment = {
   production: true,
   /**
-   * HTTPS API (Caddy → Kestrel :5082 on Azure VM). Real Let’s Encrypt cert.
-   * After Spaceship DNS A `api` → 20.174.1.230 propagates, switch to:
-   *   apiUrl: 'https://api.sheikhgo.com/api'
-   * (Caddy already serves that host.)
+   * HTTPS API via free Cloudflare quick tunnel → Kestrel :5082 on Azure VM.
+   * Caveat: trycloudflare.com URL usually changes when sheikhgo-cloudflared restarts.
+   * Current URL on VM: /var/lib/sheikhgo/cloudflared-quick-url.txt
+   * Caddy/sslip.io remains available as backup: https://20-174-1-230.sslip.io/api
    */
-  apiUrl: 'https://20-174-1-230.sslip.io/api',
+  apiUrl: 'https://differ-checkout-arrived-cool.trycloudflare.com/api',
   /** Same host as SPA; absolute API origin used for /uploads when filesBaseUrl is empty. */
   filesBaseUrl: '',
   tenantSlug: 'default',

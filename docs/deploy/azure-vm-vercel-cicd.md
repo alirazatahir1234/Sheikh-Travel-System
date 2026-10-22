@@ -48,6 +48,8 @@ unset AZP_TOKEN
 | `VERCEL_ERP_PROJECT_ID` | sheikhgo-erp project settings |
 | `VERCEL_HUB_PROJECT_ID` | customer-hub project settings (optional; `PLACEHOLDER` skips hub so ERP still deploys) |
 | `VERCEL_PROD` | `true` (default) |
+| `GOOGLE_MAPS_API_KEY` | SheikhGo-Frontend browser key (**secret**) — injected into `environment.prod.ts` at build |
+| `GOOGLE_MAPS_MAP_ID` | Optional Map ID for Advanced Markers |
 
 Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pipeline.
 

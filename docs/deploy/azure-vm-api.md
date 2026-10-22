@@ -6,13 +6,15 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 
 | Item | Value |
 |------|--------|
-| **HTTPS API (clients)** | `https://20-174-1-230.sslip.io` (Let’s Encrypt via Caddy) |
-| **Preferred HTTPS host** | `https://api.sheikhgo.com` — add DNS A `api` → `20.174.1.230`, then flip frontend env URLs |
+| **HTTPS API (clients, current)** | Cloudflare quick tunnel `https://<random>.trycloudflare.com` (see `/var/lib/sheikhgo/cloudflared-quick-url.txt` on VM) |
+| **HTTPS backup (Caddy)** | `https://20-174-1-230.sslip.io` (Let’s Encrypt; kept) |
+| **Preferred HTTPS host later** | `https://api.sheikhgo.com` — add DNS A `api` → `20.174.1.230`, then flip frontend env URLs (paid/custom domain — not required for tunnel) |
 | HTTP API (Kestrel, kept for mobile/LAN) | `http://20.174.1.230:5082` |
-| API base (HTTPS clients) | `https://20-174-1-230.sslip.io/api` |
-| Health (HTTPS) | `https://20-174-1-230.sslip.io/health` |
+| API base (HTTPS clients) | `https://<tunnel-host>/api` |
+| Health (tunnel) | `https://<tunnel-host>/health` |
+| Health (Caddy) | `https://20-174-1-230.sslip.io/health` |
 | Health (HTTP) | `http://20.174.1.230:5082/health` |
-| systemd units | `sheikhgo-api` (Kestrel), `caddy` (TLS proxy) |
+| systemd units | `sheikhgo-api` (Kestrel), `caddy` (TLS proxy), `sheikhgo-cloudflared` (free quick tunnel) |
 | Env file | `/etc/sheikhgo/api.env` (chmod 600) |
 | Releases | `/opt/sheikhgo-api/releases/<stamp>` → `/opt/sheikhgo-api/current` |
 | Swap | 2G `/swapfile` |
@@ -22,24 +24,49 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 
 ## HTTPS / Mixed Content (ERP on Vercel)
 
-`https://www.sheikhgo.com` must call an **HTTPS** API. Caddy terminates TLS on **:443** and proxies to Kestrel **:5082**.
+`https://www.sheikhgo.com` must call an **HTTPS** API (never `http://20.174.1.230:5082`).
 
-One-time / re-run on the VM:
+### Cloudflare quick tunnel (free, current clients)
+
+Free `*.trycloudflare.com` tunnel to Kestrel — **no paid domain**.
+
+| Item | Value |
+|------|--------|
+| Unit | `sheikhgo-cloudflared` |
+| Wrapper | `/usr/local/bin/sheikhgo-cloudflared-quick.sh` |
+| Current URL file | `/var/lib/sheikhgo/cloudflared-quick-url.txt` |
+| Target | `http://127.0.0.1:5082` |
+| Clients | ERP `environment.prod.ts` + Flutter `AppConfig.defaultProductionApiBaseUrl` |
 
 ```bash
-# From repo on the VM (or scp deploy/azure-vm/*):
+# Install (once) + start
+# cloudflared from GitHub .deb; systemd enables sheikhgo-cloudflared
+sudo systemctl status sheikhgo-cloudflared
+cat /var/lib/sheikhgo/cloudflared-quick-url.txt
+curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"
+```
+
+**Caveat:** quick-tunnel URLs usually change whenever `sheikhgo-cloudflared` restarts. After a restart, update ERP + Flutter prod URLs to the new host and redeploy. Caddy/sslip.io remains as backup.
+
+Named Cloudflare tunnels with a stable hostname require a zone in a Cloudflare account (still free plan possible) — not configured here.
+
+### Caddy / sslip.io (backup, kept)
+
+Caddy terminates TLS on **:443** and proxies to Kestrel **:5082**.
+
+```bash
 chmod +x deploy/azure-vm/install-caddy-tls.sh
 ./deploy/azure-vm/install-caddy-tls.sh
 ```
 
 Azure NSG must allow **80** (ACME) and **443** (HTTPS). Rules: `Allow-HTTP-80`, `Allow-HTTPS-443`.
 
-### Switch to `api.sheikhgo.com`
+### Switch to `api.sheikhgo.com` (optional later)
 
 1. Spaceship DNS → A record: `api` → `20.174.1.230` (TTL 300).
 2. Wait for `dig +short api.sheikhgo.com` → `20.174.1.230`.
 3. Caddy auto-issues the cert (same Caddyfile already lists the host).
-4. Update ERP / Hub / Flutter prod URLs from `https://20-174-1-230.sslip.io` → `https://api.sheikhgo.com`.
+4. Update ERP / Hub / Flutter prod URLs → `https://api.sheikhgo.com`.
 5. Redeploy ERP to Vercel.
 
 ## Azure DevOps self-hosted agent on the VM
@@ -77,9 +104,10 @@ unset AZP_TOKEN
 ### How to trigger / verify
 
 - **Trigger:** `git push` to `main`/`master` (with matching path changes), or **Run pipeline** in Azure DevOps.
-- **Verify HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → `Healthy`
+- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → `Healthy`
+- **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → `Healthy`
 - **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → `Healthy`
-- **Logs:** `journalctl -u sheikhgo-api -f` / `journalctl -u caddy -f`
+- **Logs:** `journalctl -u sheikhgo-api -f` / `journalctl -u caddy -f` / `journalctl -u sheikhgo-cloudflared -f`
 - **Agent:** Azure DevOps → Agent pools → SheikhGo-VM → agent online
 
 ### Manual deploy (no ADO)

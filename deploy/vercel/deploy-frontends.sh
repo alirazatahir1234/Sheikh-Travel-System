@@ -16,6 +16,11 @@ ROOT="${BUILD_SOURCESDIRECTORY:-$(cd "$(dirname "$0")/../.." && pwd)}"
 : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
 : "${VERCEL_ERP_PROJECT_ID:?VERCEL_ERP_PROJECT_ID is required (sheikh-travel-system)}"
 
+# Browser Maps key — required for ERP live map. Prefer ADO/Vercel secret; local secrets.local is fallback inside inject-maps-env.mjs.
+if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+  echo "WARN: GOOGLE_MAPS_API_KEY unset — ERP build will use environment.secrets.local.ts if present, else fail."
+fi
+
 is_placeholder_id() {
   local id="${1:-}"
   [[ -z "$id" ]] && return 0
@@ -94,6 +99,13 @@ EOF
   (
     cd "$ROOT"
     export VERCEL_PROJECT_ID="$project_id"
+    # Ensure Maps inject sees ADO/Vercel secret during `vercel build` → npm run build:prod.
+    if [[ -n "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+      export GOOGLE_MAPS_API_KEY
+    fi
+    if [[ -n "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
+      export GOOGLE_MAPS_MAP_ID
+    fi
     # Drop leftover app-subdir links so CLI uses repo-root + rootDirectory.
     rm -rf Frontend/sheikhgo-erp/.vercel/project.json Frontend/sheikh-travel-customer-hub/.vercel/project.json 2>/dev/null || true
     vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
@@ -105,20 +117,31 @@ EOF
       exit 1
     fi
 
-    # Safety net: ADO repo can lag GitHub; never ship Mixed Content HTTP API URL.
+    # Safety net: never ship Mixed Content HTTP API URL.
+    # Prefer Cloudflare quick tunnel from environment.prod.ts when present.
     if [[ -d .vercel/output/static ]]; then
+      TUNNEL_HOST="$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' \
+        "${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts" 2>/dev/null | head -1 || true)"
+      REWRITE_TO="${TUNNEL_HOST:-https://20-174-1-230.sslip.io}"
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
-        echo "Rewriting baked http://20.174.1.230:5082 → https://20-174-1-230.sslip.io in build output"
+        echo "Rewriting baked http://20.174.1.230:5082 → ${REWRITE_TO} in build output"
         find .vercel/output/static -type f -name '*.js' -print0 \
           | xargs -0 grep -l 'http://20\.174\.1\.230:5082' \
           | while read -r f; do
-              sed -i 's|http://20\.174\.1\.230:5082|https://20-174-1-230.sslip.io|g' "$f"
+              sed -i "s|http://20\\.174\\.1\\.230:5082|${REWRITE_TO}|g" "$f"
               echo "  patched $f"
             done
       fi
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "ERROR: HTTP API URL still present after rewrite — refusing deploy." >&2
         exit 1
+      fi
+      # ERP must not ship an empty Maps key (live map init fails).
+      if [[ "$name" == "sheikhgo-erp" ]]; then
+        if ! grep -Rql 'AIzaSy' .vercel/output/static --include='*.js' 2>/dev/null; then
+          echo "ERROR: No Google Maps API key baked into ERP build — set GOOGLE_MAPS_API_KEY (ADO/Vercel) or secrets.local." >&2
+          exit 1
+        fi
       fi
     fi
 
