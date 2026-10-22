@@ -261,10 +261,16 @@ abstract final class FleetNavConfig {
       isVisible: _ownerTrackerOps,
     ),
     MoreMenuEntry(
+      label: 'My earnings',
+      icon: Icons.payments_outlined,
+      route: '/earnings',
+      isVisible: _ownerFinance,
+    ),
+    MoreMenuEntry(
       label: 'Settlements',
       icon: Icons.account_balance_wallet_outlined,
       route: '/finance',
-      isVisible: _financeMenu,
+      isVisible: _ownerFinance,
     ),
     MoreMenuEntry(
       label: 'Reports',
@@ -278,12 +284,7 @@ abstract final class FleetNavConfig {
       route: '/notifications',
       isVisible: _alwaysEntry,
     ),
-    MoreMenuEntry(
-      label: 'AI Copilot',
-      icon: Icons.auto_awesome_outlined,
-      route: '/ai',
-      isVisible: _aiMenu,
-    ),
+    // Co-pilot is Admin/FM — omitted from Owner Tracking More (see FleetSession.canSeeAiTab).
     MoreMenuEntry(
       label: 'Profile',
       icon: Icons.person_outline_rounded,
@@ -593,19 +594,32 @@ abstract final class FleetNavConfig {
 
   /// Picks the best bottom-nav index for [loc] (longest path match wins).
   static int indexForLocation(List<FleetNavTab> tabs, String loc) {
-    // GPS trip history/playback lives under /fleet/vehicles/:id/history but is a
-    // Trips experience — prefer the Trips tab when it exists in the shell.
+    // GPS trip history/playback lives under /fleet/vehicles/:id/history.
+    // Never highlight Live Map (/fleet/map) for that path — Owner Tracking's
+    // primary tab is Live Map, and a longest-prefix mistake felt like a redirect.
     final isVehicleHistory =
         RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc);
-    if (isVehicleHistory || loc == '/gps/trips' || loc.startsWith('/gps/trips/')) {
+    if (isVehicleHistory ||
+        loc == '/gps/trips' ||
+        loc.startsWith('/gps/trips/')) {
       final tripsIdx = tabs.indexWhere((t) => t.id == 'trips');
       if (tripsIdx >= 0) return tripsIdx;
+      final fleetIdx = tabs.indexWhere((t) => t.id == 'fleet');
+      if (fleetIdx >= 0) return fleetIdx;
+      final moreIdx = tabs.indexWhere((t) => t.id == 'more');
+      if (moreIdx >= 0) return moreIdx;
     }
 
     var bestIndex = -1;
     var bestLength = -1;
     for (var i = 0; i < tabs.length; i++) {
       final tab = tabs[i];
+      // Live Map must not steal highlight from vehicle detail/history under /fleet/.
+      if (tab.id == 'map' &&
+          loc.startsWith('/fleet/vehicles/') &&
+          !loc.startsWith('/fleet/map')) {
+        continue;
+      }
       final candidates = [tab.path, ...tab.matchPaths];
       for (final p in candidates) {
         if (loc == p || loc.startsWith('$p/')) {
@@ -669,6 +683,7 @@ abstract final class FleetNavConfig {
   static bool _driverWorkflow(FleetSession s) => s.isDriverSession;
   static bool _bookingsMenu(FleetSession s) => s.canSeeBookingsTab;
   static bool _financeMenu(FleetSession s) => s.canSeeFinanceTab;
+  static bool _ownerFinance(FleetSession s) => s.canSeeOwnerEarnings;
   static bool _usersMenu(FleetSession s) => s.canSeeUsersTab;
   static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
   static bool _gpsOperatorOps(FleetSession s) =>

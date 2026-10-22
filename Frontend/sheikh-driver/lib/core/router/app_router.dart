@@ -99,7 +99,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/bookings') && !session.canSeeBookingsTab) {
           return '/dashboard';
         }
-        if (loc.startsWith('/finance') && !session.canSeeFinanceTab) {
+        if (loc.startsWith('/finance') &&
+            !session.canSeeFinanceTab &&
+            !session.canSeeOwnerEarnings) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/earnings') &&
+            !session.isDriverSession &&
+            !session.canSeeOwnerEarnings) {
           return '/dashboard';
         }
         if (loc.startsWith('/users') && !session.canSeeUsersTab) {
@@ -219,26 +226,29 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ),
                 ],
               ),
+              // History is a sibling of vehicle detail (not nested under it).
+              // Nesting kept VehicleDetailScreen (Live/tracker tabs) in the stack
+              // when opening playback from Live Map, which felt like a redirect.
+              GoRoute(
+                path: 'vehicles/:id/history',
+                builder: (_, state) {
+                  final q = state.uri.queryParameters;
+                  return VehicleHistoryScreen(
+                    vehicleId: int.parse(state.pathParameters['id']!),
+                    tripKey: q['tripKey'],
+                    initialPreset: q['preset'],
+                    initialFrom: DateTime.tryParse(q['from'] ?? ''),
+                    initialTo: DateTime.tryParse(q['to'] ?? ''),
+                    autoPlayFull: (q['play'] ?? '').toLowerCase() == 'full',
+                  );
+                },
+              ),
               GoRoute(
                 path: 'vehicles/:id',
                 builder: (_, state) => VehicleDetailScreen(
                   vehicleId: int.parse(state.pathParameters['id']!),
                 ),
                 routes: [
-                  GoRoute(
-                    path: 'history',
-                    builder: (_, state) {
-                      final q = state.uri.queryParameters;
-                      return VehicleHistoryScreen(
-                        vehicleId: int.parse(state.pathParameters['id']!),
-                        tripKey: q['tripKey'],
-                        initialPreset: q['preset'],
-                        initialFrom: DateTime.tryParse(q['from'] ?? ''),
-                        initialTo: DateTime.tryParse(q['to'] ?? ''),
-                        autoPlayFull: (q['play'] ?? '').toLowerCase() == 'full',
-                      );
-                    },
-                  ),
                   GoRoute(
                     path: 'device',
                     builder: (_, state) => DeviceHealthScreen(

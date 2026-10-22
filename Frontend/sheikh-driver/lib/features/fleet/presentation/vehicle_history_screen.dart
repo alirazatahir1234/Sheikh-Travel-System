@@ -117,7 +117,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   TripDetailBundle? _tripDetail;
   List<TripStop> _allStops = const [];
   TripListFilter _tripFilter = TripListFilter.moving;
-  bool _showStopMarkers = false;
+  /// Match web history: stop/parking markers on by default.
+  bool _showStopMarkers = true;
   bool _playingFullRange = false;
   bool _loadingTripDetail = false;
 
@@ -314,7 +315,20 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   List<TripEvent> get _filteredEvents {
     final b = _bundle;
     if (b == null) return const [];
+    // Stops live in `bundle.stops` (Traccar report), not event types — hide
+    // unrelated event pins when the Stops chip is selected.
+    if (_eventFilter == TripEventFilter.stops) return const [];
     return filterEvents(b.events, _eventFilter);
+  }
+
+  /// Stops drawn on the map (toggle + Stops filter), with valid coords only.
+  List<TripStop> get _mapStops {
+    if (!_showStopMarkers && _eventFilter != TripEventFilter.stops) {
+      return const [];
+    }
+    return _allStops
+        .where((s) => isValidPlaybackCoord(s.latitude, s.longitude))
+        .toList(growable: false);
   }
 
   List<int> get _eventIndices {
@@ -397,7 +411,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       buildPlaybackStaticMarkers(
         trail: b.trailPoints,
         playback: _playbackPoints,
-        stops: b.stops,
+        stops: _mapStops,
         events: _filteredEvents,
         devicePixelRatio: _devicePixelRatio,
         vehiclePoint: _playbackPoints.isEmpty
@@ -759,11 +773,13 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     TripDetailBundle? detail,
     required bool fullRange,
   }) {
+    // Always keep full stops on the bundle (KPI / sheet / timeline). Map pins
+    // are gated separately via `_mapStops` / `_showStopMarkers`.
     _allStops = detail?.stops ?? bundle.stops;
     final filtered = HistoryReplayBundle(
       route: bundle.route,
       playback: bundle.playback,
-      stops: _showStopMarkers ? _allStops : const [],
+      stops: _allStops,
       events: bundle.events,
       summary: bundle.summary,
       statistics: bundle.statistics,
@@ -983,21 +999,6 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
 
   void _toggleIncludeStops(bool value) {
     setState(() => _showStopMarkers = value);
-    final b = _bundle;
-    if (b == null) return;
-    setState(() {
-      _bundle = HistoryReplayBundle(
-        route: b.route,
-        playback: b.playback,
-        stops: value ? _allStops : const [],
-        events: b.events,
-        summary: b.summary,
-        statistics: b.statistics,
-        mileageKm: b.mileageKm,
-        vehicle: b.vehicle,
-        gpsDeviceId: b.gpsDeviceId,
-      );
-    });
     _rebuildMapLayers(full: true);
   }
 
@@ -1168,8 +1169,11 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     Share.share(buildTripNarrative(b));
   }
 
-  void _showStopsSheet(HistoryReplayBundle b) {
-    if (b.stops.isEmpty) {
+  void _showStopsSheet([HistoryReplayBundle? bundle]) {
+    final stops = _allStops.isNotEmpty
+        ? _allStops
+        : (bundle?.stops ?? _bundle?.stops ?? const <TripStop>[]);
+    if (stops.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No stops in this range')),
       );
@@ -1183,7 +1187,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         initialChildSize: 0.5,
         maxChildSize: 0.9,
         builder: (_, scroll) => FutureBuilder<List<String>>(
-          future: _resolveStopAddresses(b),
+          future: _resolveStopAddresses(stops),
           builder: (context, snap) {
             final addresses = snap.data;
             return ListView(
@@ -1191,29 +1195,29 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  'Stops & parking (${b.stops.length})',
+                  'Stops & parking (${stops.length})',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
-                for (var i = 0; i < b.stops.length; i++)
+                for (var i = 0; i < stops.length; i++)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      backgroundColor: b.stops[i].durationMinutes >= 120
+                      backgroundColor: stops[i].durationMinutes >= 120
                           ? const Color(0xFFDBEAFE)
                           : const Color(0xFFE0F2FE),
                       child: Icon(
-                        b.stops[i].durationMinutes >= 120
+                        stops[i].durationMinutes >= 120
                             ? Icons.local_parking
                             : Icons.pause_circle,
-                        color: b.stops[i].durationMinutes >= 120
+                        color: stops[i].durationMinutes >= 120
                             ? const Color(0xFF1D4ED8)
                             : const Color(0xFF0C4A6E),
                         size: 18,
                       ),
                     ),
                     title: Text(
-                      b.stops[i].durationMinutes >= 120 ? 'Parking' : 'Stop',
+                      stops[i].durationMinutes >= 120 ? 'Parking' : 'Stop',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
@@ -1221,42 +1225,53 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                         playbackAddressPrimary(
                           addresses != null && i < addresses.length
                               ? addresses[i]
-                              : b.stops[i].address,
-                          lat: b.stops[i].latitude,
-                          lng: b.stops[i].longitude,
+                              : stops[i].address,
+                          lat: stops[i].latitude,
+                          lng: stops[i].longitude,
                         ),
                         if (playbackNearbyLine(
                               addresses != null && i < addresses.length
                                   ? addresses[i]
-                                  : b.stops[i].address,
+                                  : stops[i].address,
                             )
                             case final nearby?)
                           nearby,
                         if (playbackAddressSecondary(
                               addresses != null && i < addresses.length
                                   ? addresses[i]
-                                  : b.stops[i].address,
+                                  : stops[i].address,
                             )
                             case final locality?)
                           locality,
                         formatStopWindow(
-                          startTime: b.stops[i].startTime,
-                          endTime: b.stops[i].endTime,
+                          startTime: stops[i].startTime,
+                          endTime: stops[i].endTime,
                         ),
-                        'Duration: ${formatDurationMinutesCompact(b.stops[i].durationMinutes)}',
+                        'Duration: ${formatDurationMinutesCompact(stops[i].durationMinutes)}',
                       ].join('\n'),
                     ),
-                    isThreeLine: false,
+                    isThreeLine: true,
                     onTap: () {
                       Navigator.pop(ctx);
-                      final idx = indexForTimestamp(
-                        _playbackPoints.isNotEmpty ? _playbackPoints : b.points,
-                        b.stops[i].startTime,
-                      );
-                      _setIndex(idx);
+                      final stop = stops[i];
+                      final points = _playbackPoints.isNotEmpty
+                          ? _playbackPoints
+                          : (_bundle?.points ?? const <HistoryReplayPoint>[]);
+                      if (points.isNotEmpty) {
+                        _setIndex(indexForTimestamp(points, stop.startTime));
+                      }
+                      if (!isValidPlaybackCoord(
+                        stop.latitude,
+                        stop.longitude,
+                      )) {
+                        return;
+                      }
+                      if (!_showStopMarkers) {
+                        _toggleIncludeStops(true);
+                      }
                       _map?.animateCamera(
                         CameraUpdate.newLatLngZoom(
-                          LatLng(b.stops[i].latitude, b.stops[i].longitude),
+                          LatLng(stop.latitude, stop.longitude),
                           16,
                         ),
                       );
@@ -1270,14 +1285,18 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     );
   }
 
-  Future<List<String>> _resolveStopAddresses(HistoryReplayBundle b) async {
+  Future<List<String>> _resolveStopAddresses(List<TripStop> stops) async {
     final out = <String>[];
-    for (final s in b.stops) {
+    for (final s in stops) {
       final inline = s.address?.trim();
       if (inline != null &&
           inline.isNotEmpty &&
           !isCoarsePlaybackAddress(inline)) {
         out.add(inline);
+        continue;
+      }
+      if (!isValidPlaybackCoord(s.latitude, s.longitude)) {
+        out.add(formatPlaybackCoords(s.latitude, s.longitude));
         continue;
       }
       final key =
@@ -1288,6 +1307,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         continue;
       }
       try {
+        // Existing reverse-geocode path — do not forceRefresh (cost control).
         final resolved = await ref.read(fleetApiProvider).reverseGeocode(
               s.latitude,
               s.longitude,
@@ -1330,31 +1350,18 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             const SizedBox(height: 12),
             PlaybackSummaryCard(bundle: b),
             const SizedBox(height: 12),
-            if (b.stops.isNotEmpty) ...[
-              const SgSectionTitle('Stops'),
-              for (final s in b.stops)
-                ListTile(
-                  title: Text(s.durationMinutes >= 120 ? 'Parking' : 'Stop'),
-                  subtitle: Text(
-                    [
-                      playbackAddressPrimary(
-                        s.address,
-                        lat: s.latitude,
-                        lng: s.longitude,
-                      ),
-                      if (playbackNearbyLine(s.address) case final nearby?)
-                        nearby,
-                      if (playbackAddressSecondary(s.address) case final locality?)
-                        locality,
-                      formatStopWindow(
-                        startTime: s.startTime,
-                        endTime: s.endTime,
-                      ),
-                      'Duration: ${formatDurationMinutesCompact(s.durationMinutes)}',
-                    ].join('\n'),
-                  ),
-                ),
-            ],
+            if (_allStops.isNotEmpty)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.pause_circle_outline),
+                title: Text('${_allStops.length} stops & parking'),
+                subtitle: const Text('Open list for address, time, and duration'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showStopsSheet();
+                },
+              ),
             const SizedBox(height: 8),
             SgPrimaryButton(
               label: 'Explain this trip',
@@ -1746,7 +1753,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _showStopsSheet(b),
-                        child: _kpiTile('${b.stops.length}', 'Stops'),
+                        child: _kpiTile('${_allStops.length}', 'Stops'),
                       ),
                     ),
                     Expanded(
@@ -1778,8 +1785,13 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                         _bumpChromeInteraction();
                         setState(() {
                           _eventFilter = f;
+                          if (f == TripEventFilter.stops) {
+                            _showStopMarkers = true;
+                          }
                           _rebuildMapLayers(full: true);
                         });
+                        // Stops chip filters map markers only — list opens via
+                        // KPI tap / menu (auto-sheet felt like leaving playback).
                       },
                       visualDensity: VisualDensity.compact,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2250,8 +2262,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: Text(inList
-            ? 'Trips'
-            : (_playingFullRange ? 'Full range' : 'Trip playback')),
+            ? 'Trip history'
+            : (_playingFullRange ? 'Playback' : 'Trip playback')),
         leading: !inList
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -2318,6 +2330,9 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 case 'stops':
                   _toggleIncludeStops(!_showStopMarkers);
                   break;
+                case 'stopsList':
+                  _showStopsSheet();
+                  break;
               }
             },
             itemBuilder: (_) => [
@@ -2339,9 +2354,14 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                   child: Text(
                     _showStopMarkers
                         ? 'Hide stop markers'
-                        : 'Include stop markers',
+                        : 'Show stop markers',
                   ),
                 ),
+                if (_allStops.isNotEmpty)
+                  const PopupMenuItem(
+                    value: 'stopsList',
+                    child: Text('Stops & parking list'),
+                  ),
                 const PopupMenuItem(
                   value: 'trips',
                   child: Text('Back to trip list'),

@@ -977,15 +977,27 @@ class TripStop {
   final int durationMinutes;
 
   factory TripStop.fromJson(Map<String, dynamic> json) {
+    // Prefer latitude/longitude (API TripStopDto / ResolvedLat|Lon); fall back
+    // to legacy Traccar lat/lon aliases if a raw payload ever leaks through.
+    final lat = (json['latitude'] as num? ??
+            json['Latitude'] as num? ??
+            json['lat'] as num? ??
+            json['Lat'] as num? ??
+            0)
+        .toDouble();
+    final lon = (json['longitude'] as num? ??
+            json['Longitude'] as num? ??
+            json['lon'] as num? ??
+            json['Lon'] as num? ??
+            0)
+        .toDouble();
     return TripStop(
       startTime: _parseDate(json['startTime'] ?? json['StartTime']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       endTime: _parseDate(json['endTime'] ?? json['EndTime']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
-      latitude:
-          (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0).toDouble(),
-      longitude: (json['longitude'] as num? ?? json['Longitude'] as num? ?? 0)
-          .toDouble(),
+      latitude: lat,
+      longitude: lon,
       address: json['address'] as String? ?? json['Address'] as String?,
       durationMinutes:
           json['durationMinutes'] as int? ?? json['DurationMinutes'] as int? ?? 0,

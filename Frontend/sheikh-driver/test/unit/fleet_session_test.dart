@@ -60,6 +60,43 @@ void main() {
       expect(session.primaryNavRole, FleetRole.owner);
       expect(session.isOwnerTracking, isTrue);
     });
+
+    test('tenant admin wins over driver (not Role.Id order)', () {
+      final session = _session(
+        roles: const [FleetRole.driver, FleetRole.tenantAdmin],
+        permissions: const [FleetPermissions.tripView, FleetPermissions.gpsView],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      expect(session.primaryNavRole, FleetRole.tenantAdmin);
+      expect(session.isDriverOnly, isFalse);
+    });
+
+    test('orderByPrivilege puts system admin first', () {
+      expect(
+        FleetRole.orderByPrivilege(const [
+          FleetRole.driver,
+          FleetRole.fleetManager,
+          FleetRole.tenantAdmin,
+        ]),
+        [FleetRole.tenantAdmin, FleetRole.fleetManager, FleetRole.driver],
+      );
+    });
+
+    test('fromStaffJson sorts roles by privilege not response order', () {
+      final session = FleetSession.fromStaffJson({
+        'accessToken': 'eyJhbGciOiJub25lIn0.e30.',
+        'refreshToken': 'r',
+        'fullName': 'Admin',
+        'role': FleetRole.driver,
+        'roles': [FleetRole.driver, FleetRole.fleetManager, FleetRole.tenantAdmin],
+        'permissions': [FleetPermissions.tripView],
+        'userId': 1,
+        'tenantId': 1,
+      });
+      expect(session.roles.first, FleetRole.tenantAdmin);
+      expect(session.primaryNavRole, FleetRole.tenantAdmin);
+    });
   });
 
   group('FleetSession permissions', () {
@@ -105,6 +142,22 @@ void main() {
       expect(session.canSeeAiTab, isFalse);
       expect(session.canSeeFleetTab, isTrue);
     });
+
+    test('pure OWNER does not see Co-pilot even with Ai.View', () {
+      final session = _session(
+        roles: const [FleetRole.owner],
+        permissions: const [
+          FleetPermissions.aiView,
+          FleetPermissions.gpsView,
+          FleetPermissions.driverView,
+          FleetPermissions.fuelView,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      expect(session.canSeeOwnerEarnings, isTrue);
+      expect(session.canSeeAiTab, isFalse);
+    });
   });
 
   group('FleetNavConfig role shells', () {
@@ -131,7 +184,7 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'fleet', 'trips', 'more'],
+        ['dashboard', 'map', 'fleet', 'trips', 'more'],
       );
     });
 
@@ -237,6 +290,8 @@ void main() {
       expect(routes, contains('/gps/incidents'));
       expect(routes, contains('/gps/mileage'));
       expect(routes, contains('/fleet'));
+      expect(routes, isNot(contains('/ai')));
+      expect(routes, contains('/earnings'));
     });
 
     test('tenant admin uses owner tracking shell', () {
@@ -268,6 +323,43 @@ void main() {
         ),
       );
       expect(FleetNavConfig.indexForLocation(tabs, '/fleet/map'), 3);
+    });
+
+    test('vehicle history never highlights Live Map tab', () {
+      final ownerTabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.owner],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.driverView,
+            FleetPermissions.fuelView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      final historyIdx =
+          FleetNavConfig.indexForLocation(ownerTabs, '/fleet/vehicles/42/history');
+      expect(ownerTabs[historyIdx].id, isNot('map'));
+      expect(ownerTabs[historyIdx].id, 'more');
+
+      final fmTabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.fleetManager],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.vehicleView,
+            FleetPermissions.tripView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      final fmHistoryIdx =
+          FleetNavConfig.indexForLocation(fmTabs, '/fleet/vehicles/7/history');
+      // Fleet managers with Trips tab prefer Trips for history/playback.
+      expect(fmTabs[fmHistoryIdx].id, anyOf('trips', 'fleet'));
+      expect(fmTabs[fmHistoryIdx].id, isNot('map'));
     });
   });
 }

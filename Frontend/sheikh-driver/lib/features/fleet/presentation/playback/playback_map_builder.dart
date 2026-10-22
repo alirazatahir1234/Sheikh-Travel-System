@@ -29,6 +29,14 @@ typedef PlaybackMarkerTapCallback = void Function(PlaybackMarkerTap tap);
 String formatPlaybackCoords(double latitude, double longitude) =>
     '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
 
+/// Same null-island / missing-coord guard as backend `TraccarStop.HasValidCoordinates`
+/// and web `isValidMapCoord` (legacy Traccar lat/lon mapping bugs).
+bool isValidPlaybackCoord(double latitude, double longitude) {
+  if (latitude.isNaN || longitude.isNaN) return false;
+  if (!latitude.isFinite || !longitude.isFinite) return false;
+  return latitude.abs() > 0.00001 || longitude.abs() > 0.00001;
+}
+
 String? sanitizePlaybackAddress(String? address) {
   final raw = address?.trim();
   if (raw == null || raw.isEmpty) return null;
@@ -778,6 +786,8 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
 
   for (var i = 0; i < stops.length; i++) {
     final s = stops[i];
+    // Skip null-island / missing coords (legacy Traccar lat/lon mapping bugs).
+    if (!isValidPlaybackCoord(s.latitude, s.longitude)) continue;
     if (nearVehicle(s.latitude, s.longitude)) continue;
     final stopIdx =
         playback.isEmpty ? 0 : indexForTimestamp(playback, s.startTime);
@@ -788,18 +798,15 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
         icon: stopIcon,
         infoWindow: InfoWindow(
           title: s.durationMinutes >= 120 ? 'Parking' : 'Stop',
+          // Compact pin callout — full address/time lives in the stops list.
           snippet: [
+            formatDurationMinutesCompact(s.durationMinutes),
             playbackAddressPrimary(
               s.address,
               lat: s.latitude,
               lng: s.longitude,
             ),
-            if (playbackNearbyLine(s.address) case final nearby?) nearby,
-            if (playbackAddressSecondary(s.address) case final locality?)
-              locality,
-            formatStopWindow(startTime: s.startTime, endTime: s.endTime),
-            'Duration: ${formatDurationMinutesCompact(s.durationMinutes)}',
-          ].join('\n'),
+          ].join(' · '),
         ),
         zIndexInt: 2,
         onTap: tapHandler(PlaybackMarkerTap(
@@ -814,6 +821,8 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
   for (var i = 0; i < events.length; i++) {
     final e = events[i];
     if (e.latitude == null || e.longitude == null) continue;
+    // Same null-island guard as stops (legacy Traccar lat/lon bugs).
+    if (!isValidPlaybackCoord(e.latitude!, e.longitude!)) continue;
     if (nearVehicle(e.latitude!, e.longitude!)) continue;
     final evtIdx = playback.isEmpty ? 0 : indexForTimestamp(playback, e.time);
     markers.add(

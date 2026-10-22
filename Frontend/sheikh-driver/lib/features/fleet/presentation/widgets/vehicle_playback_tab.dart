@@ -219,8 +219,13 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
       }
       if (playFull) params['play'] = 'full';
     }
-    final q = Uri(queryParameters: params).query;
-    context.push('/fleet/vehicles/${widget.vehicleId}/history?$q');
+    // Explicit history path (sibling of vehicle detail) — never /fleet/map.
+    context.push(
+      Uri(
+        path: '/fleet/vehicles/${widget.vehicleId}/history',
+        queryParameters: params.isEmpty ? null : params,
+      ).toString(),
+    );
   }
 
   void _openTrip(GpsTrip trip) {
@@ -230,14 +235,17 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
       return;
     }
     // No trip key — open range playback scoped to trip window via custom range.
-    final params = <String, String>{
-      'preset': 'custom',
-      'from': trip.startTime.toUtc().toIso8601String(),
-      'to': trip.endTime.toUtc().toIso8601String(),
-      'play': 'full',
-    };
-    final q = Uri(queryParameters: params).query;
-    context.push('/fleet/vehicles/${widget.vehicleId}/history?$q');
+    context.push(
+      Uri(
+        path: '/fleet/vehicles/${widget.vehicleId}/history',
+        queryParameters: {
+          'preset': 'custom',
+          'from': trip.startTime.toUtc().toIso8601String(),
+          'to': trip.endTime.toUtc().toIso8601String(),
+          'play': 'full',
+        },
+      ).toString(),
+    );
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sheikh_go_driver/features/fleet/domain/fleet_models.dart';
 import 'package:sheikh_go_driver/features/fleet/presentation/playback/playback_helpers.dart';
+import 'package:sheikh_go_driver/features/fleet/presentation/playback/playback_map_builder.dart';
 
 void main() {
   test('HistoryReplayBundle parses stops events summary', () {
@@ -196,5 +197,33 @@ void main() {
     expect(stats.sosCount, 1);
     expect(stats.fuelEvents, 1);
     expect(stats.ignitionEvents, 1);
+  });
+
+  test('TripStop.fromJson prefers latitude/longitude then lat/lon', () {
+    final fromApi = TripStop.fromJson({
+      'startTime': '2026-07-22T10:00:00Z',
+      'endTime': '2026-07-22T10:15:00Z',
+      'latitude': 32.2554,
+      'longitude': 74.6482,
+      'durationMinutes': 15,
+      'address': 'Near Main Rd',
+    });
+    expect(fromApi.latitude, closeTo(32.2554, 0.0001));
+    expect(fromApi.longitude, closeTo(74.6482, 0.0001));
+
+    final legacy = TripStop.fromJson({
+      'startTime': '2026-07-22T10:00:00Z',
+      'endTime': '2026-07-22T10:15:00Z',
+      'lat': 32.1,
+      'lon': 74.2,
+      'durationMinutes': 15,
+    });
+    expect(legacy.latitude, closeTo(32.1, 0.0001));
+    expect(legacy.longitude, closeTo(74.2, 0.0001));
+  });
+
+  test('isValidPlaybackCoord rejects null island', () {
+    expect(isValidPlaybackCoord(0, 0), isFalse);
+    expect(isValidPlaybackCoord(32.25, 74.64), isTrue);
   });
 }
