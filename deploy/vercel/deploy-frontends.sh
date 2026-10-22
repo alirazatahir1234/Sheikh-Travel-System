@@ -129,54 +129,28 @@ EOF
       printf 'GOOGLE_MAPS_MAP_ID=%s\n' "$GOOGLE_MAPS_MAP_ID" >> "$ENV_LOCAL"
     fi
     # Patch environment.prod.ts before vercel/ng build (ERP). Prefer inject-maps-env.mjs when
-    # present; otherwise inline-replace googleMapsApiKey so Azure repos without that script still bake AIzaSy.
+    # present; otherwise sed-replace googleMapsApiKey (Azure repo may lack the inject script).
     if [[ "$name" == "sheikhgo-erp" && -n "${GOOGLE_MAPS_API_KEY:-}" ]]; then
       if [[ -f Frontend/sheikhgo-erp/scripts/inject-maps-env.mjs ]]; then
         (cd Frontend/sheikhgo-erp && node scripts/inject-maps-env.mjs)
       else
         ENV_PROD_TS="${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts"
-        python3 - "$ENV_PROD_TS" <<'PY'
-import re, sys
-path = sys.argv[1]
-import os
-key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
-map_id = os.environ.get("GOOGLE_MAPS_MAP_ID", "").strip()
-if not key:
-    print("ERROR: GOOGLE_MAPS_API_KEY empty during inline inject", file=sys.stderr)
-    sys.exit(1)
-text = open(path, encoding="utf-8").read()
-if not re.search(r"googleMapsApiKey\s*:", text):
-    print("ERROR: environment.prod.ts missing googleMapsApiKey", file=sys.stderr)
-    sys.exit(1)
-safe = key.replace("\\", "\\\\").replace("'", "\\'")
-text2, n = re.subn(
-    r"googleMapsApiKey:\s*(?:'[^']*'|\"[^\"]*\")",
-    f"googleMapsApiKey: '{safe}'",
-    text,
-    count=1,
-)
-if n != 1:
-    print("ERROR: failed to replace googleMapsApiKey", file=sys.stderr)
-    sys.exit(1)
-if map_id:
-    mid = map_id.replace("\\", "\\\\").replace("'", "\\'")
-    if re.search(r"googleMapsMapId\s*:", text2):
-        text2 = re.sub(
-            r"googleMapsMapId:\s*(?:'[^']*'|\"[^\"]*\")",
-            f"googleMapsMapId: '{mid}'",
-            text2,
-            count=1,
-        )
-    else:
-        text2 = re.sub(
-            r"(googleMapsApiKey:\s*'[^']*')",
-            rf"\1,\n  googleMapsMapId: '{mid}'",
-            text2,
-            count=1,
-        )
-open(path, "w", encoding="utf-8").write(text2)
-print(f"Inline-patched environment.prod.ts (key len={len(key)}, mapId={'set' if map_id else 'omit'})")
-PY
+        if ! grep -qE 'googleMapsApiKey[[:space:]]*:' "$ENV_PROD_TS"; then
+          echo "ERROR: environment.prod.ts missing googleMapsApiKey" >&2
+          exit 1
+        fi
+        # Keys are AIzaSy + [A-Za-z0-9_-] — safe for sed delimiter |
+        sed -i -E "s|googleMapsApiKey:[[:space:]]*'[^']*'|googleMapsApiKey: '${GOOGLE_MAPS_API_KEY}'|" "$ENV_PROD_TS"
+        if [[ -n "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
+          if grep -qE 'googleMapsMapId[[:space:]]*:' "$ENV_PROD_TS"; then
+            sed -i -E "s|googleMapsMapId:[[:space:]]*'[^']*'|googleMapsMapId: '${GOOGLE_MAPS_MAP_ID}'|" "$ENV_PROD_TS"
+          fi
+        fi
+        if ! grep -qE "googleMapsApiKey:[[:space:]]*'AIzaSy" "$ENV_PROD_TS"; then
+          echo "ERROR: sed failed to bake GOOGLE_MAPS_API_KEY into environment.prod.ts" >&2
+          exit 1
+        fi
+        echo "Sed-patched environment.prod.ts googleMapsApiKey (len=${#GOOGLE_MAPS_API_KEY})"
       fi
     fi
 
