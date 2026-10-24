@@ -105,7 +105,7 @@ public class GpsFleetStatusBucketsTests
     }
 
     [Fact]
-    public void Ignition_null_low_speed_is_unknown()
+    public void Ignition_null_low_speed_is_parked()
     {
         var bucket = GpsFleetStatusBuckets.Classify(
             hasGpsDevice: true,
@@ -115,7 +115,22 @@ public class GpsFleetStatusBucketsTests
             alarmType: null,
             utcNow: Now);
 
-        Assert.Equal("unknown", bucket);
+        Assert.Equal("parked", bucket);
+    }
+
+    [Fact]
+    public void Motion_false_overrides_stuck_ignition_on_to_parked()
+    {
+        var bucket = GpsFleetStatusBuckets.Classify(
+            hasGpsDevice: true,
+            lastUpdateUtc: Now.AddMinutes(-1),
+            speedKmh: 0,
+            ignition: true,
+            alarmType: null,
+            utcNow: Now,
+            motion: false);
+
+        Assert.Equal("parked", bucket);
     }
 
     [Fact]

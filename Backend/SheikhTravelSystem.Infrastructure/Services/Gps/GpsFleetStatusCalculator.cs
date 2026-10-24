@@ -39,7 +39,8 @@ public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
                    AND ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'unknown'
               WHEN ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'moving'
               WHEN COALESCE(vcl.Ignition, gd.LastIgnition) = 1 THEN 'idle'
-              ELSE 'unknown'
+              -- Null / unwired ACC at rest → Parked (not Unknown/Idle). Jimi without ACC wire.
+              ELSE 'parked'
             END
             """;
     }

@@ -11,8 +11,14 @@ public static class GpsFleetStatusBuckets
 
     /// <summary>
     /// Connectivity first, then operational when online:
-    /// never_seen → offline → sos → parked → unknown → moving → idle → unknown.
+    /// never_seen → offline → sos → parked → unknown → moving → idle → parked.
     /// </summary>
+    /// <param name="motion">
+    /// Optional Traccar <c>attributes.motion</c>. When false at low speed, classify as
+    /// Parked even if ignition is stuck ON (common on Jimi/GT06 with ACC miswired).
+    /// Prefer normalizing ignition via <see cref="GpsTelemetryNormalizer"/> at ingest;
+    /// this parameter covers callers that still have raw motion.
+    /// </param>
     public static string Classify(
         bool hasGpsDevice,
         DateTime? lastUpdateUtc,
@@ -22,7 +28,8 @@ public static class GpsFleetStatusBuckets
         DateTime utcNow,
         int offlineStaleMinutes = DefaultOfflineStaleMinutes,
         decimal movingThresholdKmh = DefaultMovingSpeedKmh,
-        IReadOnlyCollection<string>? sosAlarmValues = null)
+        IReadOnlyCollection<string>? sosAlarmValues = null,
+        bool? motion = null)
     {
         var sos = sosAlarmValues is { Count: > 0 }
             ? sosAlarmValues
@@ -40,22 +47,25 @@ public static class GpsFleetStatusBuckets
             return "sos";
 
         var speed = speedKmh ?? 0m;
+        var effectiveIgnition = GpsTelemetryNormalizer.ResolveIgnition(
+            ignition, motion, speed, movingThresholdKmh);
 
         // Ignition OFF + below moving threshold → parked (speed 0 and low GPS drift).
-        if (ignition == false && speed < movingThresholdKmh)
+        if (effectiveIgnition == false && speed < movingThresholdKmh)
             return "parked";
 
         // Ignition OFF + high speed → contradictory.
-        if (ignition == false && speed >= movingThresholdKmh)
+        if (effectiveIgnition == false && speed >= movingThresholdKmh)
             return "unknown";
 
         if (speed >= movingThresholdKmh)
             return "moving";
 
-        if (ignition == true)
+        if (effectiveIgnition == true)
             return "idle";
 
-        // Ignition null / unwired with low speed — insufficient telemetry.
-        return "unknown";
+        // Ignition null / unwired with low speed — treat as parked (stationary), not Idle.
+        // Jimi units without a working ACC wire otherwise stuck on Idle forever.
+        return "parked";
     }
 }

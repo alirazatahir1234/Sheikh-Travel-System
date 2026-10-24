@@ -81,13 +81,13 @@ describe('resolveFleetStatus', () => {
     ).toBe('unknown');
   });
 
-  it('ignition null + low speed is unknown (insufficient telemetry)', () => {
+  it('ignition null + low speed is parked (stationary without ACC)', () => {
     expect(
       resolveFleetStatus(
         { hasGps: true, lastUpdated: fresh, speed: 0, ignition: null },
         nowMs
       )
-    ).toBe('unknown');
+    ).toBe('parked');
   });
 
   it('speed >= 10 with unknown ignition is moving', () => {

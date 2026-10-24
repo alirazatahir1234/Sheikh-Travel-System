@@ -15,7 +15,8 @@ bool isSosAlarm(String? alarmType, [List<String> sosValues = defaultSosAlarmValu
 }
 
 /// Single source of truth for deriving a live-map vehicle status from telemetry.
-/// Priority when online: SOS → Parked (ignition off) → Moving (>=10) → Idle.
+/// Priority when online: SOS → Parked (ignition off or null at rest) → Moving (>=10) → Idle.
+/// Backend clears stuck Jimi ACC via Traccar motion=false before ignition is stored.
 FleetTrackStatus resolveFleetStatus({
   double? speed,
   bool? ignition,
@@ -38,7 +39,9 @@ FleetTrackStatus resolveFleetStatus({
 
   if (spd >= movingThresholdKmh) return FleetTrackStatus.moving;
 
-  return FleetTrackStatus.idle;
+  // Engine ON at rest → Idle. Null / unwired ACC at rest → Parked (not Idle).
+  if (ignition == true) return FleetTrackStatus.idle;
+  return FleetTrackStatus.parked;
 }
 
 /// Maps a `GET /gps/live/fleet` row (ERP GpsLiveFleetVehicleDto).
