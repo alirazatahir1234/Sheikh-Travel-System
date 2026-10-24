@@ -96,8 +96,13 @@ public sealed class TraccarSyncOrchestrator(
 
         if (pos is not null)
         {
-            var ignition = pos.Attributes.Ignition;
             var speedKmh = (decimal)(pos.Speed * 1.852);
+            var movingThreshold = options.Value.MovingSpeedKmh > 0
+                ? options.Value.MovingSpeedKmh
+                : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
+            // Jimi/GT06: ACC often stuck ON while parked — trust Traccar motion=false.
+            var ignition = GpsTelemetryNormalizer.ResolveIgnition(
+                pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
             var battery = pos.Attributes.BatteryLevel;
             var rssi = pos.Attributes.Rssi;
             var recordedAt = pos.FixTime.ToUniversalTime();
@@ -285,8 +290,13 @@ public sealed class TraccarSyncOrchestrator(
                 if (!allDevices.TryGetValue(pos.DeviceId, out var device))
                     continue;
 
-                var ignition = pos.Attributes.Ignition;
                 var speedKmh = (decimal)(pos.Speed * 1.852);
+                var movingThreshold = options.Value.MovingSpeedKmh > 0
+                    ? options.Value.MovingSpeedKmh
+                    : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
+                // Jimi/GT06: ACC often stuck ON while parked — trust Traccar motion=false.
+                var ignition = GpsTelemetryNormalizer.ResolveIgnition(
+                    pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
                 adaptiveSamples.Add(new TraccarAdaptiveInterval.Sample(speedKmh, ignition, pos.Attributes.Alarm));
 
                 if (_lastIngested.TryGetValue(pos.DeviceId, out var last) && pos.FixTime <= last)

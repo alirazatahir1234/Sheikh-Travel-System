@@ -35,7 +35,9 @@ FleetTrackStatus resolveFleetStatus({
   }
   if (speedKmh > movingThresholdKmh) return FleetTrackStatus.moving;
   if (ignition == false) return FleetTrackStatus.parked;
-  return FleetTrackStatus.idle;
+  // Engine ON at rest → Idle. Null ACC at rest → Parked (Jimi without wire).
+  if (ignition == true) return FleetTrackStatus.idle;
+  return FleetTrackStatus.parked;
 }
 
 int colorForStatus(FleetTrackStatus status) => switch (status) {

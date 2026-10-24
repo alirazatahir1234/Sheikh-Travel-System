@@ -85,7 +85,7 @@ void main() {
       );
     });
 
-    test('idle otherwise', () {
+    test('idle when ignition on at rest', () {
       expect(
         resolveFleetStatus(
           speed: 2,
@@ -94,6 +94,18 @@ void main() {
           now: now,
         ),
         FleetTrackStatus.idle,
+      );
+    });
+
+    test('parked when ignition null at rest (Jimi without ACC)', () {
+      expect(
+        resolveFleetStatus(
+          speed: 0,
+          ignition: null,
+          lastUpdated: now,
+          now: now,
+        ),
+        FleetTrackStatus.parked,
       );
     });
   });

@@ -50,11 +50,13 @@ export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFA
  * 2. offline — last fix older than offline threshold
  * 3. sos — SOS/panic while otherwise online
  * 4. parked — ignition OFF + speed &lt; moving threshold (covers speed 0 + low GPS drift)
- * 5. unknown — ignition OFF + speed ≥ threshold (contradictory), or ignition null + low speed
+ * 5. unknown — ignition OFF + speed ≥ threshold (contradictory)
  * 6. moving — speed ≥ moving threshold
  * 7. idle — ignition ON + speed &lt; threshold
+ * 8. parked — ignition null / unwired ACC at low speed (Jimi without ACC must not stay Idle)
  *
  * Do not derive status from reverse-geocoded address text.
+ * Backend also forces ignition OFF when Traccar motion=false (stuck ACC on Jimi/GT06).
  */
 export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.now()): FleetTrackStatus {
   if (!input.hasGps || !input.lastUpdated) {
@@ -90,8 +92,8 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'idle';
   }
 
-  // Ignition unwired / null with low speed — insufficient telemetry.
-  return 'unknown';
+  // Ignition unwired / null with low speed — Parked (stationary), not Idle/Unknown.
+  return 'parked';
 }
 
 /**
