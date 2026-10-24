@@ -141,8 +141,8 @@
         </div>
         <p class="section-label">Select Modules</p>
         <p class="stb-hint">
-          <strong>AAS Assistant (AI)</strong> is a premium add-on — leave it unchecked unless this company should have assistant access.
-          It is never included in plan defaults.
+          <strong>Bookings &amp; Trips</strong> and <strong>SheikhGo AI Assistant (AI)</strong> are opt-in — leave them unchecked unless this company should receive those resources.
+          <strong>Routes</strong> covers roads/route catalog only. SheikhGo AI Assistant is never included in plan defaults.
         </p>
         <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
         <div class="modules-empty" *ngIf="!loadingModules && !modules.length">
@@ -154,10 +154,12 @@
           <button type="button" class="module-card" *ngFor="let mod of modules"
             [class.selected]="isModuleSelected(mod.code)"
             [class.premium]="mod.code === 'AI'"
+            [class.opt-in]="mod.code === 'BOOKINGS' || mod.code === 'AI'"
             (click)="toggleModule(mod.code)">
             <mat-icon>{{ moduleIcon(mod.code) }}</mat-icon>
-            <span>{{ mod.name }}</span>
+            <span>{{ mod.displayName || mod.name }}</span>
             <span class="premium-chip" *ngIf="mod.code === 'AI'">Premium</span>
+            <span class="opt-in-chip" *ngIf="mod.code === 'BOOKINGS'">Opt-in</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(mod.code)">check_circle</mat-icon>
           </button>
         </div>

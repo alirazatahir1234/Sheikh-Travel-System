@@ -20,10 +20,35 @@ public class ModuleRegistrySeedTests
     {
         var ai = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "AI").Subject;
         ai.Status.Should().Be("Active");
-        ai.DisplayName.Should().Be("AAS Assistant");
+        ai.DisplayName.Should().Be("SheikhGo AI Assistant");
         ModuleRegistrySeed.IsEnableable("AI").Should().BeTrue();
         TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("AI");
         TenantModuleCatalog.All.Should().Contain(m => m.Code == "AI");
+    }
+
+    [Fact]
+    public void Bookings_IsActiveEnableable_TravelIsRoutesOnly()
+    {
+        var travel = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "TRAVEL").Subject;
+        travel.LegacyKeys.Should().BeEquivalentTo(["routes"]);
+        travel.DisplayName.Should().Be("Routes");
+        ModuleRegistrySeed.IsEnableable("TRAVEL").Should().BeTrue();
+
+        var bookings = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "BOOKINGS").Subject;
+        bookings.Status.Should().Be("Active");
+        bookings.DisplayName.Should().Be("Bookings & Trips");
+        bookings.LegacyKeys.Should().BeEquivalentTo(["bookings", "trips"]);
+        ModuleRegistrySeed.IsEnableable("BOOKINGS").Should().BeTrue();
+        ModuleRegistrySeed.IsToggleable(bookings).Should().BeTrue();
+        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("BOOKINGS");
+    }
+
+    [Fact]
+    public void Trips_IsCatalogOnly_UnderBookings()
+    {
+        var trips = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "TRIPS").Subject;
+        trips.Dependencies.Should().Contain("BOOKINGS");
+        ModuleRegistrySeed.IsEnableable("TRIPS").Should().BeFalse();
     }
 
     [Fact]

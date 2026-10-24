@@ -35,6 +35,18 @@ dotnet user-secrets set "PortalAuth:DevOtpCode" "<six-digit-code>"
 # Optional AI Assistant hosted LLM (DeepInfra + Qwen 3):
 dotnet user-secrets set "DeepInfra:ApiKey" "<deepinfra-api-key>"
 # Or: DEEPINFRA_API_KEY in secrets/local.env (gitignored) / host env
+
+# Optional SheikhGo MCP bridge for /api/ai/chat (opt-in; ADR-AI-001 read-only tools only):
+dotnet user-secrets set "Ai:McpBridge:Enabled" "true"
+dotnet user-secrets set "Ai:McpBridge:Command" "node"
+dotnet user-secrets set "Ai:McpBridge:Args:0" "/absolute/path/to/SheikhGo-MCP/dist/index.js"
+dotnet user-secrets set "Ai:McpBridge:RepositoryPath" "/absolute/path/to/Sheikh-Travel-System"
+# Or host env (preferred for process spawn):
+#   SHEIKHGO_MCP_COMMAND=node
+#   SHEIKHGO_MCP_ARGS=/absolute/path/to/SheikhGo-MCP/dist/index.js
+#   SHEIKHGO_REPOSITORY=/absolute/path/to/Sheikh-Travel-System
+#   SHEIKHGO_DB_CONNECTION=<read-only SQL connection for live MCP SELECT tools>
+# Never set SHEIKHGO_ALLOW_WRITES=true for the SheikhGo AI Assistant MCP bridge (API forces false).
 ```
 
 

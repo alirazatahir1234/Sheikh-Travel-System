@@ -1,7 +1,8 @@
 .ai-page {
-  padding: 24px;
+  padding: 8px 4px 24px;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: 480px;
 }
 
 .ai-header {
@@ -9,7 +10,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 
   h1 {
     margin: 0 0 4px;
@@ -25,10 +26,53 @@
   }
 }
 
+.ai-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+
+  mat-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &--error {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+  }
+}
+
+.ai-tabs {
+  background: transparent;
+
+  /* Keep tab panels from collapsing / overlapping under Material defaults */
+  ::ng-deep .mat-mdc-tab-body-wrapper {
+    min-height: 360px;
+  }
+
+  ::ng-deep .mat-mdc-tab-header {
+    margin-bottom: 4px;
+  }
+
+  ::ng-deep .mat-mdc-tab-labels {
+    flex-wrap: wrap;
+  }
+}
+
 .ai-loading {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
   padding: 48px;
+  color: #64748b;
 }
 
 .health-strip {

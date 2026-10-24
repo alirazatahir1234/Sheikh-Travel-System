@@ -41,15 +41,15 @@ const MCP_NAV_ITEM: NavItem = {
   label: 'MCP Console',
   icon: 'hub',
   route: '/mcp',
-  moduleKey: 'dashboard'
+  moduleKey: 'ai'
 };
 
 const AI_NAV_ITEM: NavItem = {
   id: 'ai-center',
-  label: 'AI Management',
+  label: 'SheikhGo AI Assistant',
   icon: 'smart_toy',
   route: '/ai',
-  moduleKey: 'dashboard'
+  moduleKey: 'ai'
 };
 
 @Injectable({ providedIn: 'root' })
@@ -63,8 +63,8 @@ export class MenuService {
     return this.http
       .get<MenuModuleDto[]>(`${environment.apiUrl}/platform/menus/me`)
       .pipe(
-        map(modules => this.ensureMcpNav(this.fromApi(modules ?? []))),
-        catchError(() => of(this.ensureMcpNav(this.fallbackMenu(roles, enabledModules))))
+        map(modules => this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules)),
+        catchError(() => of(this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules)))
       );
   }
 
@@ -84,10 +84,15 @@ export class MenuService {
     return { groups, standaloneItems: [], isDriverLayout: false };
   }
 
-  /** Guarantee MCP Console (and AI Management) appear under Administration in the sidebar. */
-  private ensureMcpNav(menu: ResolvedMenu): ResolvedMenu {
+  /**
+   * Align MCP / AI sidebar links with permissionGuard on /mcp and /ai
+   * (Ai.View + tenant module legacy key `ai`).
+   */
+  private ensureMcpNav(menu: ResolvedMenu, enabledModules: string[] = []): ResolvedMenu {
     if (menu.isDriverLayout) return menu;
-    if (!this.canSeeMcp()) return menu;
+    if (!this.canSeeMcp(enabledModules)) {
+      return this.stripAiModuleNav(menu);
+    }
 
     const groups = menu.groups.map(g => ({ ...g, items: [...g.items] }));
     const alreadyHasMcp = groups.some(g =>
@@ -121,8 +126,39 @@ export class MenuService {
     return { ...menu, groups };
   }
 
-  private canSeeMcp(): boolean {
-    if (this.auth.hasPermission('Ai.View')) return true;
+  /** Hide MCP Console / SheikhGo AI Assistant links when AI module is off (same gate as /mcp and /ai routes). */
+  private stripAiModuleNav(menu: ResolvedMenu): ResolvedMenu {
+    const isAiNav = (i: NavItem) =>
+      i.id === 'mcp-console'
+      || i.id === 'ai-center'
+      || i.route === '/mcp'
+      || i.route.startsWith('/mcp/')
+      || i.route === '/ai'
+      || i.route.startsWith('/ai/');
+
+    return {
+      ...menu,
+      groups: menu.groups
+        .map(g => ({ ...g, items: g.items.filter(i => !isAiNav(i)) }))
+        .filter(g => g.items.length > 0),
+      standaloneItems: (menu.standaloneItems ?? []).filter(i => !isAiNav(i))
+    };
+  }
+
+  private canSeeMcp(enabledModules: string[]): boolean {
+    return this.canAccessAiAssistant(enabledModules);
+  }
+
+  /**
+   * SheikhGo AI Assistant / MCP visibility — same gate as `/ai` routes + floating FAB:
+   * tenant module `ai`/`AI` + (Ai.View | Ai.Chat | elevated admin).
+   */
+  canAccessAiAssistant(enabledModules: string[] = []): boolean {
+    if (!this.isAiModuleEnabled(enabledModules)) return false;
+
+    if (this.auth.hasPermission('Ai.View') || this.auth.hasPermission('Ai.Chat')) {
+      return true;
+    }
     const roles = this.auth.getCurrentUser()?.roles ?? [];
     return roles.some(r => {
       const code = r.toUpperCase();
@@ -131,6 +167,10 @@ export class MenuService {
         || code === 'TENANT_ADMIN'
         || code === 'SUPERADMIN';
     });
+  }
+
+  isAiModuleEnabled(enabledModules: string[]): boolean {
+    return (enabledModules ?? []).some(e => e.toLowerCase() === 'ai');
   }
 
   private toNavItem(item: MenuItemDto): NavItem {

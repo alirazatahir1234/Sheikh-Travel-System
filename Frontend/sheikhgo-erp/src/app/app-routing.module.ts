@@ -143,19 +143,19 @@ const routes: Routes = [
       {
         path: 'routes',
         canActivate: [permissionGuard],
-        data: { permissions: ['Route.View'] },
+        data: { permissions: ['Route.View'], modules: ['routes'] },
         loadChildren: () => import('./modules/routes/routes.module').then(m => m.RoutesModule)
       },
       {
         path: 'bookings',
         canActivate: [permissionGuard],
-        data: { permissions: ['Booking.View'] },
+        data: { permissions: ['Booking.View'], modules: ['bookings'] },
         loadChildren: () => import('./modules/bookings/bookings.module').then(m => m.BookingsModule)
       },
       {
         path: 'trips',
         canActivate: [permissionGuard],
-        data: { permissions: ['Trip.View'] },
+        data: { permissions: ['Trip.View'], modules: ['trips'] },
         loadChildren: () => import('./modules/trips/trips.module').then(m => m.TripsModule)
       },
       {
@@ -258,13 +258,13 @@ const routes: Routes = [
       {
         path: 'ai',
         canActivate: [permissionGuard],
-        data: { permissions: ['Ai.View'], modules: ['ai'] },
+        data: { permissions: ['Ai.View', 'Ai.Chat'], modules: ['ai'] },
         loadChildren: () => import('./modules/ai/ai.module').then(m => m.AiModule)
       },
       {
         path: 'mcp',
         canActivate: [permissionGuard],
-        data: { permissions: ['Ai.View'], modules: ['ai'] },
+        data: { permissions: ['Ai.View', 'Ai.Chat'], modules: ['ai'] },
         loadChildren: () => import('./modules/mcp/mcp.module').then(m => m.McpModule)
       },
       {

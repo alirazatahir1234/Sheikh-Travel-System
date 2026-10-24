@@ -238,6 +238,12 @@ public static class DependencyInjection
         services.AddScoped<IAiToolEngine, AiToolEngine>();
         services.AddScoped<IAiAssistantGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiAssistantGateway>();
 
+        // SheikhGo MCP bridge (opt-in; ADR-AI-001 allowlisted reporting tools only)
+        services.Configure<SheikhTravelSystem.Application.Common.AiMcpBridgeOptions>(
+            configuration.GetSection(SheikhTravelSystem.Application.Common.AiMcpBridgeOptions.SectionName));
+        services.AddSingleton<SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.SheikhGoMcpStdioClient>();
+        services.AddSingleton<ISheikhGoMcpBridge, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.SheikhGoMcpBridge>();
+
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider>();
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.DeepInfraAiProvider>();
         services.AddScoped<IAiProviderResolver,

@@ -146,7 +146,7 @@ public class LoginCommandHandler(
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
         var refreshExpiry = DateTime.UtcNow.AddDays(expiryDays);
 
-        // Tenant-wide max 2 concurrent sessions — block 3rd login (do not kick existing).
+        // Tenant-wide concurrent sessions — block when over AuthSessionLimits cap (0 = unlimited).
         var session = await authSessions.CreateSessionAsync(
             user.TenantId,
             user.Id,

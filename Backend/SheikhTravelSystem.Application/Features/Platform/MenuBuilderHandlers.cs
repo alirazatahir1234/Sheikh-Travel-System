@@ -69,7 +69,7 @@ public static class MenuBuilderQueries
         moduleKey switch
         {
             "dashboard" => enabled.Contains("dashboard", StringComparer.OrdinalIgnoreCase),
-            "operations" => enabled.Any(k => k is "bookings" or "routes"),
+            "operations" => enabled.Any(k => k is "bookings" or "routes" or "trips"),
             "fleet" => enabled.Any(k => k is "vehicles" or "drivers" or "gps-tracking" or "fuel-logs" or "maintenance"),
             "customers" => enabled.Contains("customers", StringComparer.OrdinalIgnoreCase),
             "finance" => enabled.Contains("payments", StringComparer.OrdinalIgnoreCase),

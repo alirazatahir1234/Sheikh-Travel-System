@@ -67,7 +67,7 @@ public static class MenuRegistrySeed
         M("/platform/migrations", "Migration Manager", "Migrations", "Schema migrations", "Platform", null, null, false),
         M("/platform/maintenance", "Database Reset", "Database Reset", "Dev/staging reset", "Platform", null, null, false),
         M("/platform/menu-management", "Menus", "Menus", "Navigation catalog", "Platform", null, null, false),
-        M("/ai", "AAS Assistant", "AAS Assistant", "Premium AAS assistant chat and tools", "Platform", "ai-copilot", "AI", false),
+        M("/ai", "SheikhGo AI Assistant", "SheikhGo AI Assistant", "Premium SheikhGo AI Assistant chat and tools", "Platform", "ai-copilot", "AI", false),
         M("/mcp", "MCP Console", "MCP Console", "SheikhGo MCP control plane", "Platform", "ai-copilot", "AI", false),
         M("/whatsapp", "WhatsApp Inbox", "Inbox", "Multi-number WhatsApp Business inbox", "Communications", "whatsapp", "whatsapp", false),
         M("/whatsapp/accounts", "WhatsApp Accounts", "Accounts", "WhatsApp Business accounts", "Communications", "whatsapp", "whatsapp", false),

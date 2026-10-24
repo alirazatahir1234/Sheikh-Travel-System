@@ -10,6 +10,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Ai;
 
 /// <summary>
 /// Phase 1–3 AI Gateway: chat memory + Ollama/DeepInfra + tool engine + confirm-write execution.
+/// Optional MCP bridge (Ai:McpBridge) adds allowlisted SheikhGo MCP tool-calling for Qwen/DeepInfra.
 /// </summary>
 public sealed class AiChatGateway(
     IDbConnectionFactory dbFactory,
@@ -19,6 +20,7 @@ public sealed class AiChatGateway(
     IFleetHealthService fleetHealth,
     IAiManagementService aiManagement,
     ICurrentUserService currentUser,
+    ISheikhGoMcpBridge mcpBridge,
     ILogger<AiChatGateway> logger) : IAiChatGateway
 {
     private static readonly TimeSpan PendingTtl = TimeSpan.FromMinutes(15);
@@ -116,45 +118,45 @@ public sealed class AiChatGateway(
                 llmMessages.AddRange(history.TakeLast(20));
 
                 var modelName = ResolveModelName(config.Provider, config.ModelName);
-                logger.LogInformation("AI calling LLM provider={Provider} model={Model}", provider.ProviderName, modelName);
-                var result = await provider.ChatAsync(
-                    new AiProviderChatRequest(
-                        modelName,
-                        llmMessages,
-                        ResolveProviderBase(config.Provider, config.ApiEndpoint)),
-                    cancellationToken);
+                var baseUrl = ResolveProviderBase(config.Provider, config.ApiEndpoint);
 
-                if (result.Success)
+                // Prefer MCP tool-calling loop when bridge is enabled (DeepInfra/Qwen).
+                if (mcpBridge.IsEnabled &&
+                    string.Equals(provider.ProviderName, "DeepInfra", StringComparison.OrdinalIgnoreCase))
                 {
-                    answer = result.Content;
-                    mode = "llm";
-                    usedLlm = true;
-                    model = result.Model;
-                    tools.Add("llm_chat");
-                    await aiManagement.RecordUsageAsync(
-                        tenantId, "chat", result.Provider,
-                        result.PromptTokens + result.CompletionTokens,
-                        costUsd: 0,
-                        cancellationToken);
-                }
-                else
-                {
-                    logger.LogInformation("LLM unavailable ({Error}); falling back to tool summaries", result.Error);
-                    if (toolResults.Any(t => t.Success))
+                    var mcpTurn = await RunMcpToolCallingLoopAsync(
+                        provider, tenantId, modelName, baseUrl, llmMessages, tools, cancellationToken);
+                    if (mcpTurn is not null)
                     {
-                        answer = string.Join("\n\n", toolResults.Where(t => t.Success).Select(t => t.Summary))
-                                 + $"\n\n_(LLM offline: {result.Error})_";
-                        mode = "tools_only";
-                        tools.Add("llm_fallback");
+                        answer = mcpTurn.Value.Answer;
+                        mode = mcpTurn.Value.Mode;
+                        usedLlm = true;
+                        model = mcpTurn.Value.Model;
+                        await aiManagement.RecordUsageAsync(
+                            tenantId, "chat", provider.ProviderName,
+                            mcpTurn.Value.Tokens, costUsd: 0, cancellationToken);
                     }
                     else
                     {
-                        var fallback = await ruleCopilot.AskAsync(tenantId, userId, message, cancellationToken);
-                        answer = $"{fallback.Answer}\n\n_(LLM note: {result.Error})_";
-                        mode = "rules_fallback";
-                        tools.AddRange(fallback.ToolsUsed);
-                        tools.Add("llm_fallback");
+                        // Fall through to plain LLM polish with keyword tool data
+                        var plain = await CallPlainLlmAsync(
+                            provider, tenantId, userId, modelName, baseUrl, llmMessages,
+                            toolResults, tools, cancellationToken);
+                        answer = plain.Answer;
+                        mode = plain.Mode;
+                        usedLlm = plain.UsedLlm;
+                        model = plain.Model ?? model;
                     }
+                }
+                else
+                {
+                    var plain = await CallPlainLlmAsync(
+                        provider, tenantId, userId, modelName, baseUrl, llmMessages,
+                        toolResults, tools, cancellationToken);
+                    answer = plain.Answer;
+                    mode = plain.Mode;
+                    usedLlm = plain.UsedLlm;
+                    model = plain.Model ?? model;
                 }
             }
             else if (provider is not null && pendingPreviews.Count > 0)
@@ -395,11 +397,11 @@ public sealed class AiChatGateway(
         CancellationToken ct)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("You are SheikhGo AI, a helpful fleet management assistant for SheikhGo ERP.");
-        sb.AppendLine("Answer clearly and concisely in the same language as the user's question.");
+        sb.AppendLine("You are SheikhGo AI Assistant for company owners and fleet managers.");
+        sb.AppendLine("Answer the user's question directly in plain language. Lead with the answer (counts, names, company).");
         sb.AppendLine("Base answers strictly on the tool data provided below. Do not invent vehicle IDs, driver names, plate numbers, or GPS coordinates.");
-        sb.AppendLine("If data is missing or unknown, say so and suggest which ERP screen to check.");
-        sb.AppendLine("Stay on topic: fleet, GPS, bookings, maintenance, drivers, compliance, and reports.");
+        sb.AppendLine("Do not dump menus of reports or tool names. Do not mention providers, models, or LLM.");
+        sb.AppendLine("If data is missing, say so briefly. Stay on topic: fleet, GPS, bookings, maintenance, drivers, and compliance.");
 
         var succeeded = toolResults.Where(t => t.Success && !t.PendingConfirmation).ToList();
         if (succeeded.Count > 0)
@@ -487,6 +489,216 @@ public sealed class AiChatGateway(
             """, new { SessionId = sessionId }, cancellationToken: ct));
         return rows.Select(r => new AiChatMessageDto(r.Role, r.Content)).ToList();
     }
+
+    private async Task<(string Answer, string Mode, bool UsedLlm, string? Model)> CallPlainLlmAsync(
+        IAiProvider provider,
+        int tenantId,
+        int userId,
+        string modelName,
+        string baseUrl,
+        List<AiChatMessageDto> llmMessages,
+        IReadOnlyList<AiToolExecutionResult> toolResults,
+        List<string> tools,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("AI calling LLM provider={Provider} model={Model}", provider.ProviderName, modelName);
+        var result = await provider.ChatAsync(
+            new AiProviderChatRequest(modelName, llmMessages, baseUrl),
+            cancellationToken);
+
+        if (result.Success)
+        {
+            tools.Add("llm_chat");
+            await aiManagement.RecordUsageAsync(
+                tenantId, "chat", result.Provider,
+                result.PromptTokens + result.CompletionTokens,
+                costUsd: 0,
+                cancellationToken);
+            return (result.Content, "llm", true, result.Model);
+        }
+
+        logger.LogInformation("LLM unavailable ({Error}); falling back to tool summaries", result.Error);
+        if (toolResults.Any(t => t.Success))
+        {
+            tools.Add("llm_fallback");
+            return (
+                string.Join("\n\n", toolResults.Where(t => t.Success).Select(t => t.Summary))
+                + $"\n\n_(LLM offline: {result.Error})_",
+                "tools_only",
+                false,
+                null);
+        }
+
+        var fallback = await ruleCopilot.AskAsync(tenantId, userId, llmMessages.LastOrDefault(m => m.Role == "user")?.Content ?? "", cancellationToken);
+        tools.AddRange(fallback.ToolsUsed);
+        tools.Add("llm_fallback");
+        return ($"{fallback.Answer}\n\n_(LLM note: {result.Error})_", "rules_fallback", false, null);
+    }
+
+    /// <summary>
+    /// DeepInfra/Qwen tool-calling loop against allowlisted MCP tools. Returns null to fall back.
+    /// </summary>
+    private async Task<(string Answer, string Mode, string? Model, int Tokens)?> RunMcpToolCallingLoopAsync(
+        IAiProvider provider,
+        int tenantId,
+        string modelName,
+        string baseUrl,
+        List<AiChatMessageDto> seedMessages,
+        List<string> toolsUsed,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AiLlmToolDefinition> mcpTools;
+        try
+        {
+            mcpTools = await mcpBridge.GetAllowlistedLlmToolsAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "MCP schemas unavailable; skipping tool-calling loop");
+            return null;
+        }
+
+        if (mcpTools.Count == 0)
+        {
+            logger.LogInformation("MCP bridge enabled but no allowlisted schemas; skipping loop");
+            return null;
+        }
+
+        // Instruct model to use tools for live ops data; never invent tenant scope
+        var mcpSystem = new AiChatMessageDto(
+            "system",
+            "You are SheikhGo AI Assistant for fleet operators. " +
+            "Use the provided tools for live operational data (trips, fuel, GPS, alerts, bookings). " +
+            "Do not invent numbers. Tenant scope is applied by the server — never ask for or pass tenantId. " +
+            "Do not attempt Architecture, code, scaffold, or write tools. " +
+            "After tools return, answer concisely in the user's language.");
+
+        var messages = new List<AiChatMessageDto> { mcpSystem };
+        // Keep prior system (keyword tool data) as extra context, then history
+        messages.AddRange(seedMessages);
+
+        var totalTokens = 0;
+        string? lastModel = modelName;
+        const int maxRounds = 3;
+
+        for (var round = 0; round < maxRounds; round++)
+        {
+            logger.LogInformation(
+                "AI MCP tool-calling round={Round} provider={Provider} model={Model} tools={ToolCount}",
+                round + 1, provider.ProviderName, modelName, mcpTools.Count);
+
+            var result = await provider.ChatAsync(
+                new AiProviderChatRequest(
+                    modelName,
+                    messages,
+                    baseUrl,
+                    Temperature: 0.2,
+                    MaxTokens: 1024,
+                    Tools: mcpTools,
+                    ToolChoice: "auto"),
+                cancellationToken);
+
+            totalTokens += result.PromptTokens + result.CompletionTokens;
+            lastModel = result.Model;
+
+            if (!result.Success)
+            {
+                logger.LogInformation("MCP LLM round failed: {Error}", result.Error);
+                return null;
+            }
+
+            toolsUsed.Add("llm_chat");
+            toolsUsed.Add("mcp_bridge");
+
+            if (result.ToolCalls is not { Count: > 0 })
+            {
+                if (string.IsNullOrWhiteSpace(result.Content))
+                    return null;
+
+                toolsUsed.Add("mcp_tool_loop");
+                return (result.Content.Trim(), "mcp+llm", lastModel, totalTokens);
+            }
+
+            // Append assistant tool_calls message, then execute each allowlisted tool
+            messages.Add(new AiChatMessageDto(
+                "assistant",
+                result.Content ?? string.Empty,
+                ToolCalls: result.ToolCalls));
+
+            foreach (var call in result.ToolCalls)
+            {
+                toolsUsed.Add($"mcp:{call.Name}");
+                var args = ParseToolArguments(call.ArgumentsJson);
+                McpToolCallResult mcpResult;
+                try
+                {
+                    mcpResult = await mcpBridge.CallAsync(tenantId, call.Name, args, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "MCP execute failed for {Tool}", call.Name);
+                    mcpResult = new McpToolCallResult(false, call.Name, string.Empty, ex.Message);
+                }
+
+                var payload = mcpResult.Success
+                    ? mcpResult.Content
+                    : $"ERROR: {mcpResult.Error ?? "tool failed"}";
+
+                messages.Add(new AiChatMessageDto(
+                    "tool",
+                    TruncateForLlm(payload, 8000),
+                    ToolCallId: call.Id));
+            }
+        }
+
+        // Final wording pass without tools if we exhausted rounds with pending tool data
+        var final = await provider.ChatAsync(
+            new AiProviderChatRequest(modelName, messages, baseUrl, Temperature: 0.2, MaxTokens: 768),
+            cancellationToken);
+        totalTokens += final.PromptTokens + final.CompletionTokens;
+        if (!final.Success || string.IsNullOrWhiteSpace(final.Content))
+            return null;
+
+        toolsUsed.Add("mcp_tool_loop");
+        return (final.Content.Trim(), "mcp+llm", final.Model, totalTokens);
+    }
+
+    private static Dictionary<string, object?> ParseToolArguments(string? argumentsJson)
+    {
+        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(argumentsJson))
+            return dict;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(argumentsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return dict;
+
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                dict[prop.Name] = prop.Value.ValueKind switch
+                {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number when prop.Value.TryGetInt64(out var l) => l,
+                    JsonValueKind.Number when prop.Value.TryGetDouble(out var d) => d,
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    JsonValueKind.Null => null,
+                    _ => prop.Value.GetRawText()
+                };
+            }
+        }
+        catch (JsonException)
+        {
+            // leave empty — bridge still injects tenantId
+        }
+
+        return dict;
+    }
+
+    private static string TruncateForLlm(string value, int max)
+        => value.Length <= max ? value : value[..max] + "…";
 
     private static string ResolveProviderBase(string? provider, string? endpoint)
     {

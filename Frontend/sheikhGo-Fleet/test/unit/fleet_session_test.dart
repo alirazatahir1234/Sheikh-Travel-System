@@ -7,7 +7,7 @@ CompanyContext _aiEntitledContext() => const CompanyContext(
       tenantId: 1,
       companyName: 'Test Co',
       modules: [
-        CompanyModule(moduleCode: 'AI', name: 'AAS Assistant'),
+        CompanyModule(moduleCode: 'AI', name: 'SheikhGo AI Assistant'),
       ],
     );
 

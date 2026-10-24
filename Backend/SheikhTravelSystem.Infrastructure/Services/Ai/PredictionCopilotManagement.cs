@@ -312,16 +312,25 @@ public sealed class AiCopilotService(
         var tools = new List<string>();
 
         // Structured tool routing — LLM only if enabled (otherwise rule-based answers)
-        if (q.Contains("offline"))
+        if (q.Contains("offline") || q.Contains("not reporting") || q.Contains("no gps"))
         {
             tools.Add("offline_vehicles");
             using var connection = dbFactory.CreateConnection();
+            var companyName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+                "SELECT TOP 1 Name FROM Tenants WHERE Id = @TenantId",
+                new { TenantId = tenantId },
+                cancellationToken: cancellationToken));
+            companyName = string.IsNullOrWhiteSpace(companyName) ? "your company" : companyName.Trim();
             var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-                SELECT COUNT(*) FROM VehicleCurrentLocation vcl
-                INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId
-                WHERE vcl.LastUpdate < DATEADD(MINUTE, -30, GETUTCDATE())
+                SELECT COUNT(*)
+                FROM Vehicles v
+                LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
+                  AND (vcl.LastUpdate IS NULL OR vcl.LastUpdate < DATEADD(MINUTE, -30, GETUTCDATE()))
                 """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
-            var answer = $"{count} vehicle(s) appear offline (no GPS for 30+ minutes).";
+            var answer = count == 0
+                ? $"For {companyName}: no vehicles are offline right now."
+                : $"For {companyName}: {count} vehicle{(count == 1 ? "" : "s")} offline (no GPS for 30+ minutes).";
             await MaybeBillAsync(tenantId, config, cancellationToken);
             return new AiCopilotResponse(answer, config.CopilotEnabled && config.IsEnabled ? "hybrid" : "rules", tools, false);
         }
@@ -376,10 +385,7 @@ public sealed class AiCopilotService(
 
         tools.Add("help");
         return new AiCopilotResponse(
-            "I can answer: offline vehicles, critical alerts, maintenance priorities, fleet health, driver overspeed risk. " +
-            (config.CopilotEnabled
-                ? "LLM copilot is enabled — connect Azure OpenAI credentials in AI Management for natural-language narratives."
-                : "LLM copilot is disabled; answers use SheikhGo rule engines only."),
+            "I am not sure what you need yet. Try asking: “How many vehicles are offline?”, “How healthy is my fleet?”, “Any critical alerts?”, or “What maintenance is due?”",
             "rules", tools, false);
     }
 

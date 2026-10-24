@@ -75,7 +75,7 @@ const fleetAdminGroup: NavGroup = {
     { id: 'tracker-config', label: 'Tracker Configuration', icon: 'settings_input_antenna', route: '/gps-tracking/devices', moduleKey: 'gps-tracking' },
     { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'ai-center', label: 'SheikhGo AI Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
     { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' },
     { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
   ]
@@ -133,7 +133,7 @@ const analyticsGroup: NavGroup = {
     { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/analytics', moduleKey: 'gps-tracking' },
     { id: 'audit-logs', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'ai-center', label: 'SheikhGo AI Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
     { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' }
   ]
 };
@@ -207,7 +207,7 @@ const administrationGroup: NavGroup = {
   items: [
     // Platform owns Settings + Database Reset. Keep operational / AI tools here.
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'ai-center', label: 'SheikhGo AI Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
     { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' }
   ]
 };

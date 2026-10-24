@@ -532,10 +532,11 @@
   gap: 12px;
   position: sticky;
   top: 0;
-  z-index: 4;
+  /* Above page content/cards (rail=5); below mobile nav (90/100) and notif popups (1190+) */
+  z-index: 50;
   box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: visible;
+  /* Must stay visible: overflow-x:hidden forces overflow-y to auto and clips .search-dropdown */
+  overflow: visible;
 }
 
 .stb-search {
@@ -558,6 +559,7 @@
   &.active {
     border-color: var(--stb-primary);
     background: #fff;
+    z-index: 2; /* keep dropdown above sibling topbar controls */
   }
 
   > mat-icon:first-child {
@@ -645,7 +647,8 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   max-height: 400px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 200; /* within topbar stacking context; parent .stb-topbar is z-index 50 vs page */
+  pointer-events: auto;
 }
 
 .search-empty {
@@ -1007,6 +1010,168 @@
 @media (max-width: 400px) {
   .stb-search {
     margin-top: 6px;
+  }
+}
+
+/* ---------- SheikhGo AI Assistant FAB + slide-over (WhatsApp-style) ---------- */
+.stb-ai-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 28px;
+  z-index: 160; /* above page content; below Material dialogs (~1000) */
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(145deg, #0d9488 0%, #0f766e 55%, #115e59 100%);
+  box-shadow:
+    0 10px 28px rgba(15, 118, 110, 0.38),
+    0 2px 8px rgba(15, 23, 42, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  mat-icon {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+  }
+
+  &:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow:
+      0 14px 32px rgba(15, 118, 110, 0.45),
+      0 4px 10px rgba(15, 23, 42, 0.14);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #99f6e4;
+    outline-offset: 3px;
+  }
+}
+
+.stb-ai-chat-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.stb-ai-chat-panel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(420px, calc(100vw - 24px));
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+  animation: stb-ai-panel-in 0.2s ease-out;
+}
+
+@keyframes stb-ai-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stb-ai-chat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 10px 12px 14px;
+  background: linear-gradient(135deg, #0f766e, #134e4a);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.stb-ai-chat-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+
+  > mat-icon {
+    flex-shrink: 0;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  span {
+    display: block;
+    font-size: 0.72rem;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+  }
+}
+
+.stb-ai-chat-panel-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  button {
+    color: #fff;
+  }
+}
+
+.stb-ai-chat-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+
+  /* Compact mode is driven by [compact] on app-ai-chat */
+  > app-ai-chat {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::ng-deep .chat-shell.is-compact {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .stb-ai-fab {
+    right: 16px;
+    bottom: 20px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .stb-ai-chat-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border-radius: 0;
   }
 }
 

@@ -22,6 +22,9 @@ public sealed class AiAssistantGateway(
         "GetOverdueInvoices",
         "GetTripSummary",
         "GetVehicleUtilizationSummary",
+        // Operational GPS / fleet status (owner-facing)
+        "GetOfflineVehicles",
+        "GetFleetHealth",
         // Batch 1
         "GetRevenueAnalytics",
         "GetFuelUsageTopVehicle",
@@ -39,6 +42,15 @@ public sealed class AiAssistantGateway(
         "GetMaintenanceRiskForecast",
         "GetTripDelayRisk",
         "GetFuelAnomalyInvestigation"
+    ];
+
+    private static readonly string[] OwnerFacingExamples =
+    [
+        "How many vehicles are offline?",
+        "What is our daily, weekly, and monthly revenue?",
+        "Which vehicles have maintenance due?",
+        "Who is the best performing driver today?",
+        "How healthy is my fleet today?"
     ];
 
     private readonly IReadOnlyDictionary<string, IAiTool> _allowlisted = tools
@@ -72,26 +84,17 @@ public sealed class AiAssistantGateway(
         var tool = SelectTool(question, isPlatformSuperAdmin);
         if (tool is null)
         {
-            warnings.Add("No matching reporting tool; listing capabilities.");
             var help = new StringBuilder();
-            help.AppendLine("I can answer operational questions using these reports:");
-            foreach (var name in AllowlistedToolNames)
-            {
-                if (name == "GetTenantComparison" && !isPlatformSuperAdmin)
-                    continue;
-                help.AppendLine($"• {name}");
-            }
-            help.AppendLine();
-            help.AppendLine(
-                "Try: “What is our daily, weekly, and monthly revenue?”, “Which vehicles are at maintenance risk?”, " +
-                "or “Which trips are at risk of delay?”");
+            help.AppendLine("I am not sure what you need yet. Ask a clear question about your fleet, for example:");
+            foreach (var example in OwnerFacingExamples)
+                help.AppendLine($"• {example}");
 
             return new AiAssistantQueryResponse(
                 help.ToString().Trim(),
                 period,
                 null,
                 null,
-                warnings,
+                Array.Empty<string>(),
                 UsedLlm: false,
                 Mode: "help");
         }
@@ -117,26 +120,24 @@ public sealed class AiAssistantGateway(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "AI assistant tool {Tool} failed", tool.Name);
-            warnings.Add("Reporting query failed; see logs for details.");
             return new AiAssistantQueryResponse(
-                "I could not retrieve that report right now. Please try again or open the standard reports page.",
+                "I could not retrieve that information right now. Please try again in a moment.",
                 period,
                 tool.Name,
                 null,
-                warnings,
+                Array.Empty<string>(),
                 UsedLlm: false,
                 Mode: "error");
         }
 
         if (!result.Success)
         {
-            warnings.Add(result.Error ?? "Tool returned an error.");
             return new AiAssistantQueryResponse(
-                result.Error ?? "Unable to run that report.",
+                result.Error ?? "I could not answer that right now. Please try again.",
                 period,
                 tool.Name,
                 null,
-                warnings,
+                Array.Empty<string>(),
                 UsedLlm: false,
                 Mode: "tool_error");
         }
@@ -166,12 +167,15 @@ public sealed class AiAssistantGateway(
                         [
                             new AiChatMessageDto(
                                 "system",
-                                "You are SheikhGo AI Assistant. Answer ONLY from the TOOL DATA below. " +
-                                "Do not invent numbers, vehicles, or invoices. If data is empty, say so. " +
-                                "Keep the answer concise. Never mention other tenants."),
+                                "You are SheikhGo AI Assistant for company owners and fleet managers. " +
+                                "Rewrite the TOOL DATA into a short, plain-language answer to the user's question. " +
+                                "Lead with the direct answer (counts, names, company). Use everyday words. " +
+                                "Do not invent numbers or vehicles. Do not list internal tool or report names. " +
+                                "Do not dump menus of other questions unless the user asked what you can do. " +
+                                "Never mention providers, models, LLM, SQL, or other tenants."),
                             new AiChatMessageDto(
                                 "user",
-                                $"Question: {question}\n\nTOOL ({tool.Name}) DATA:\n{grounded}")
+                                $"Question: {question}\n\nTOOL DATA:\n{grounded}")
                         ],
                         endpoint,
                         Temperature: 0.2,
@@ -184,20 +188,11 @@ public sealed class AiAssistantGateway(
                     usedLlm = true;
                     mode = "tools+llm";
                 }
-                else
-                {
-                    warnings.Add("LLM unavailable; returning grounded tool summary.");
-                }
             }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "LLM polish skipped");
-                warnings.Add("LLM unavailable; returning grounded tool summary.");
             }
-        }
-        else
-        {
-            warnings.Add("LLM not configured — returning grounded tool summary. Configure AI provider for natural-language polish.");
         }
 
         // Soft usage ping (non-blocking for assistant flow)
@@ -211,12 +206,15 @@ public sealed class AiAssistantGateway(
             // ignore learning failures
         }
 
+        // Never surface internal diagnostics (provider/LLM/config) to the chat UI.
+        _ = warnings;
+
         return new AiAssistantQueryResponse(
             grounded,
             period,
             tool.Name,
             result.Data,
-            warnings,
+            Array.Empty<string>(),
             usedLlm,
             mode);
     }
@@ -224,6 +222,16 @@ public sealed class AiAssistantGateway(
     private IAiTool? SelectTool(string question, bool isPlatformSuperAdmin)
     {
         var q = question.ToLowerInvariant();
+
+        // Offline / GPS connectivity — highest priority for owner phrasing
+        if (ContainsAny(q,
+                "offline", "off line", "no gps", "not reporting", "disconnected",
+                "gps offline", "vehicles offline", "vehicle offline", "how many offline",
+                "which vehicles are offline", "which vehicle is offline", "not online"))
+            return Get("GetOfflineVehicles");
+
+        if (ContainsAny(q, "fleet health", "how healthy", "fleet overview", "fleet status", "gps online rate"))
+            return Get("GetFleetHealth");
 
         // Explicit priority for common operational phrasing (more specific first)
         if (ContainsAny(q, "tenant comparison", "compare tenants", "across tenants", "cross-tenant", "all tenants")

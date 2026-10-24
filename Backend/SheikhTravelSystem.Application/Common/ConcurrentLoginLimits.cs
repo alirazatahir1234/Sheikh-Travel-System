@@ -1,9 +1,10 @@
 namespace SheikhTravelSystem.Application.Common;
 
 /// <summary>
-/// Tenant-wide concurrent authenticated session cap (max 2).
+/// Tenant-wide concurrent authenticated session cap
+/// (<see cref="AuthSessionLimits.MaxActiveSessionsPerTenant"/>; 0 = unlimited).
 /// Enforcement lives in <see cref="Interfaces.IAuthSessionService"/> (AuthSessions table):
-/// a third login is blocked; existing sessions stay active.
+/// when capped, excess logins are blocked; existing sessions stay active.
 /// </summary>
 public static class ConcurrentLoginLimits
 {

@@ -330,7 +330,8 @@ textarea.nc-input {
 .nc-card {
   position: relative;
   display: grid;
-  grid-template-columns: auto auto auto 1fr auto;
+  /* check | icon | body | aside — body takes remaining width */
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   gap: 0.9rem 1rem;
   align-items: start;
   padding: 1.05rem 1.2rem 1.05rem 1.35rem;
@@ -352,6 +353,12 @@ textarea.nc-input {
 
   &--unread {
     background: rgba(15, 118, 110, 0.03);
+  }
+
+  &--expanded {
+    .nc-actions {
+      opacity: 1;
+    }
   }
 }
 
@@ -394,14 +401,24 @@ textarea.nc-input {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
+  min-width: 0;
 
   h3 {
     margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 0.98rem;
     font-weight: 700;
     color: var(--nc-text);
     line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
+}
+
+.nc-new,
+.nc-unread-dot {
+  flex: 0 0 auto;
 }
 
 .nc-new {
@@ -603,6 +620,10 @@ textarea.nc-input {
     margin: 0;
     font-size: 0.875rem;
   }
+
+  .nc-btn {
+    margin-top: 0.75rem;
+  }
 }
 
 .nc-prefs {
@@ -690,13 +711,14 @@ mat-paginator {
   }
 
   .nc-card {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas:
-      "icon body"
-      "aside aside"
-      "detail detail";
+      "check icon body"
+      "aside aside aside"
+      "detail detail detail";
   }
 
+  .nc-card-check { grid-area: check; padding-top: 0.15rem; }
   .nc-card-icon { grid-area: icon; }
   .nc-card-body { grid-area: body; }
   .nc-card-aside {
@@ -707,9 +729,24 @@ mat-paginator {
     min-width: 0;
     width: 100%;
   }
-  .nc-card-detail { grid-column: 1 / -1; }
+  .nc-card-detail { grid-area: detail; }
   .nc-actions { opacity: 1; }
   .nc-time { text-align: left; }
+}
+
+@media (max-width: 640px) {
+  .nc-header {
+    flex-direction: column;
+  }
+
+  .nc-header-actions {
+    width: 100%;
+  }
+
+  .nc-card-aside {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
 }
 
 /* —— Compose drawer —— */

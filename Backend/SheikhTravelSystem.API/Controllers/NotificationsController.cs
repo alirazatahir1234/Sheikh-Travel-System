@@ -38,10 +38,11 @@ public class NotificationsController : BaseApiController
         [FromQuery] string? module = null,
         [FromQuery] bool archived = false,
         [FromQuery] bool trash = false,
-        [FromQuery] string? datePreset = null)
+        [FromQuery] string? datePreset = null,
+        [FromQuery] bool failedOnly = false)
         => Ok(await Mediator.Send(new GetNotificationsQuery(
             CurrentTenantId(platformScope), CurrentUserId, page, pageSize, unreadOnly, isSent, channel, priority, search,
-            fromDate, toDate, module, archived, datePreset, trash)));
+            fromDate, toDate, module, archived, datePreset, trash, failedOnly)));
 
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats([FromServices] IPlatformScope platformScope)

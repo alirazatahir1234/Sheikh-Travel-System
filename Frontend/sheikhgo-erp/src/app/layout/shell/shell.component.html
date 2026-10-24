@@ -272,17 +272,60 @@
     </main>
   </section>
 
+  <!-- SheikhGo AI Assistant floating bubble (WhatsApp-style) -->
+  <button
+    *ngIf="showAiAssistantFab"
+    type="button"
+    class="stb-ai-fab"
+    matTooltip="SheikhGo AI Assistant"
+    matTooltipPosition="left"
+    aria-label="Open SheikhGo AI Assistant chat"
+    (click)="openAiChat($event)">
+    <mat-icon>smart_toy</mat-icon>
+  </button>
+
+  <div class="stb-ai-chat-backdrop" *ngIf="aiChatOpen" (click)="closeAiChat()" aria-hidden="true"></div>
+  <aside
+    class="stb-ai-chat-panel"
+    *ngIf="aiChatOpen"
+    role="dialog"
+    aria-label="SheikhGo AI Assistant"
+    (click)="$event.stopPropagation()">
+    <div class="stb-ai-chat-panel-header">
+      <div class="stb-ai-chat-panel-title">
+        <mat-icon>smart_toy</mat-icon>
+        <div>
+          <strong>SheikhGo AI Assistant</strong>
+          <span>Ask about fleet, fuel, trips, and reports</span>
+        </div>
+      </div>
+      <div class="stb-ai-chat-panel-actions">
+        <button mat-icon-button type="button" matTooltip="Open full page" (click)="openAiChatFullPage()" aria-label="Open full page chat">
+          <mat-icon>open_in_full</mat-icon>
+        </button>
+        <button mat-icon-button type="button" (click)="closeAiChat()" aria-label="Close assistant">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div class="stb-ai-chat-panel-body">
+      <app-ai-chat [compact]="true"></app-ai-chat>
+    </div>
+  </aside>
+
   <!-- Floating notification drawer (bell) -->
   <div class="notif-drawer-backdrop" *ngIf="notifPanelOpen" (click)="closeNotifPanel()" aria-hidden="true"></div>
   <aside class="notif-drawer" *ngIf="notifPanelOpen" role="dialog" aria-label="Notifications" (click)="$event.stopPropagation()">
     <div class="notif-drawer-header">
-      <div class="notif-drawer-title-row">
-        <h2 class="notif-drawer-title">Notifications</h2>
-        <span class="notif-drawer-count" *ngIf="(bellBadgeCount$ | async) as count">{{ count }}</span>
+      <div class="notif-drawer-header-main">
+        <div class="notif-drawer-title-row">
+          <h2 class="notif-drawer-title">Notifications</h2>
+          <span class="notif-drawer-count" *ngIf="(bellBadgeCount$ | async) as count">{{ count }}</span>
+        </div>
+        <p class="notif-drawer-ops-hint" *ngIf="(smartAlertNewCount$ | async) as opsNew">
+          {{ opsNew }} new operations alert{{ opsNew === 1 ? '' : 's' }} — see Dashboard
+        </p>
       </div>
-      <p class="notif-drawer-ops-hint" *ngIf="(smartAlertNewCount$ | async) as opsNew">
-        {{ opsNew }} new operations alert{{ opsNew === 1 ? '' : 's' }} — see Dashboard
-      </p>
       <div class="notif-drawer-header-actions">
         <button type="button" class="notif-drawer-mark-all" (click)="markAllAsRead()"
                 *ngIf="(unreadCount$ | async) as count" matTooltip="Mark all as read">
@@ -331,8 +374,8 @@
 
             <p class="notif-card-message" *ngIf="previewMessage(n.message) as msg">{{ msg }}</p>
 
-            <ul class="notif-card-meta" *ngIf="notifMeta(n) as meta">
-              <li *ngFor="let row of meta">
+            <ul class="notif-card-meta" *ngIf="expandedMetaRows.length">
+              <li *ngFor="let row of expandedMetaRows; trackBy: trackByMetaLabel">
                 <mat-icon>{{ row.icon }}</mat-icon>
                 <span class="meta-label">{{ row.label }}</span>
                 <span class="meta-value" [class.is-critical]="row.critical">{{ row.value }}</span>

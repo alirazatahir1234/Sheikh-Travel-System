@@ -56,6 +56,10 @@ Recommend the correct module/layer and note related services, tables, and depend
 const GROUP_KEYWORDS: { id: string; words: string[] }[] = [
   { id: 'fleet', words: ['fleet', 'vehicle', 'driver', 'maintenance', 'fuel', 'assignment'] },
   { id: 'gps', words: ['gps', 'traccar', 'tracking', 'geofence', 'position', 'live track'] },
+  {
+    id: 'smartops',
+    words: ['smartops', 'smart alert', 'smartalert', 'maintenance due', 'trip delay', 'delay risk']
+  },
   { id: 'database', words: ['database', 'sql', 'table', 'schema', 'column', 'query'] },
   { id: 'testing', words: ['test', 'unit test', 'coverage', 'spec'] },
   { id: 'logs', words: ['log', 'error', 'exception', 'slow request'] },

@@ -34,8 +34,11 @@ public static class ModuleRegistrySeed
             ["DASHBOARD"], true, true, false, true, "Active", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
         E("GPS", "Fleet Tracking", "GPS", "Live tracking and GPS telemetry", "Fleet", "my_location", "/gps-tracking", 30,
             ["FLEET"], true, true, false, true, "Active", ["gps-tracking"]),
-        E("TRAVEL", "Travel Agency", "Travel", "Bookings, routes, and trips", "Travel", "flight", "/bookings", 50,
-            ["DASHBOARD"], true, true, false, false, "Active", ["bookings", "routes", "trips"]),
+        E("TRAVEL", "Routes", "Routes", "Roads and route catalog (independent of bookings/trips)", "Travel", "alt_route", "/routes", 50,
+            ["DASHBOARD"], true, true, false, false, "Active", ["routes"]),
+        // Opt-in: bookings + trips (not in DefaultModuleCodes — avoid over-provisioning)
+        E("BOOKINGS", "Bookings & Trips", "Bookings & Trips", "Booking and trip workflows — enable per company", "Travel", "event_note", "/bookings", 51,
+            ["DASHBOARD"], true, true, false, false, "Active", ["bookings", "trips"]),
         E("CRM", "CRM", "Customers", "Customer relationship management", "CRM", "groups", "/customers", 60,
             [], true, false, false, false, "Active", ["customers"]),
         E("FINANCE", "Finance", "Finance", "Payments and financial operations", "Finance", "payments", "/payments", 70,
@@ -48,10 +51,8 @@ public static class ModuleRegistrySeed
         // Active catalog-only (shipped under parent TenantModuleCatalog toggles — not separately enableable)
         E("PLATFORM", "Platform", "Platform", "Platform administration shell", "Platform", "settings_applications", "/platform", 5,
             [], true, false, false, false, "Active", []),
-        E("BOOKINGS", "Bookings", "Bookings", "Travel booking workflows (included in Travel)", "Travel", "event_note", "/bookings", 51,
-            ["TRAVEL"], true, true, false, false, "Active", []),
-        E("TRIPS", "Trips", "Trips", "Trip lifecycle and dispatch (included in Travel)", "Travel", "route", "/trips", 52,
-            ["TRAVEL"], true, true, false, false, "Active", []),
+        E("TRIPS", "Trips", "Trips", "Trip lifecycle and dispatch (included in Bookings & Trips)", "Travel", "route", "/trips", 52,
+            ["BOOKINGS"], true, true, false, false, "Active", []),
         E("DRIVERS", "Drivers", "Drivers", "Driver directory (included in Fleet)", "Fleet", "badge", "/drivers", 21,
             ["FLEET"], true, true, false, false, "Active", []),
         E("VEHICLES", "Vehicles", "Vehicles", "Vehicle registry (included in Fleet)", "Fleet", "local_shipping", "/vehicles", 22,
@@ -70,7 +71,7 @@ public static class ModuleRegistrySeed
             [], true, true, true, false, "Beta", []),
 
         // Premium enableable (TenantModuleCatalog) — default off for new/existing tenants
-        E("AI", "AAS Assistant", "AAS Assistant", "Premium AI assistant (AAS) for operations chat and tools", "Platform", "smart_toy", "/ai", 120,
+        E("AI", "SheikhGo AI Assistant", "SheikhGo AI Assistant", "Premium SheikhGo AI Assistant for operations chat and tools", "Platform", "smart_toy", "/ai", 120,
             ["DASHBOARD"], true, true, true, false, "Active", ["ai"]),
 
         // Coming soon / roadmap catalog-only product modules

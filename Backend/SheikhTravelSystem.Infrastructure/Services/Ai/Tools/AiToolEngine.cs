@@ -123,7 +123,7 @@ public sealed class AiToolEngine(
         {
             return JsonSerializer.SerializeToElement(new
             {
-                title = "SheikhGo AI reminder",
+                title = "SheikhGo AI Assistant reminder",
                 message = userMessage.Length > 200 ? userMessage[..200] : userMessage
             });
         }
@@ -218,15 +218,22 @@ public sealed class GetFleetHealthTool(IFleetHealthService fleetHealth) : IAiToo
 public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAiTool
 {
     public string Name => "GetOfflineVehicles";
-    public string Description => "Lists vehicles with no GPS update for 30+ minutes.";
+    public string Description => "Lists vehicles with no GPS update for 30+ minutes, including company name.";
     public string Kind => "read";
     public bool RequiresConfirmation => false;
-    public IReadOnlyList<string> TriggerKeywords { get; } = ["offline", "no gps", "not reporting", "disconnected"];
+    public IReadOnlyList<string> TriggerKeywords { get; } =
+        ["offline", "no gps", "not reporting", "disconnected", "gps offline", "vehicles offline", "how many offline"];
 
     public async Task<AiToolExecutionResult> ExecuteAsync(
         AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var companyName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            "SELECT TOP 1 Name FROM Tenants WHERE Id = @TenantId",
+            new { context.TenantId },
+            cancellationToken: cancellationToken));
+        companyName = string.IsNullOrWhiteSpace(companyName) ? "your company" : companyName.Trim();
+
         var rows = (await connection.QueryAsync<(int Id, string PlateNumber, string? Make, string? Model, DateTime? LastUpdate)>(
             new CommandDefinition("""
                 SELECT TOP 25 v.Id, v.PlateNumber, v.Make, v.Model, vcl.LastUpdate
@@ -238,17 +245,32 @@ public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAi
                 """, new { context.TenantId }, cancellationToken: cancellationToken))).ToList();
 
         if (rows.Count == 0)
-            return new AiToolExecutionResult(Name, true, "No vehicles appear offline (all reported GPS within 30 minutes).", rows);
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"{rows.Count} vehicle(s) offline / not reporting:");
-        foreach (var r in rows.Take(15))
         {
-            var ago = r.LastUpdate is null ? "never" : r.LastUpdate.Value.ToString("u");
-            sb.AppendLine($"• #{r.Id} {r.PlateNumber} ({r.Make} {r.Model}) — last GPS: {ago}");
+            var allClear =
+                $"For {companyName}: no vehicles are offline right now. All tracked vehicles reported GPS within the last 30 minutes.";
+            return new AiToolExecutionResult(Name, true, allClear, new { companyName, count = 0, vehicles = rows });
         }
 
-        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), rows);
+        var sb = new StringBuilder();
+        sb.AppendLine($"For {companyName}: {rows.Count} vehicle{(rows.Count == 1 ? "" : "s")} offline (no GPS for 30+ minutes).");
+        foreach (var r in rows.Take(15))
+        {
+            var label = string.Join(' ', new[] { r.Make, r.Model }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            var ago = r.LastUpdate is null
+                ? "never reported"
+                : $"last seen {r.LastUpdate.Value:yyyy-MM-dd HH:mm} UTC";
+            sb.AppendLine(string.IsNullOrEmpty(label)
+                ? $"• {r.PlateNumber} — {ago}"
+                : $"• {r.PlateNumber} ({label}) — {ago}");
+        }
+        if (rows.Count > 15)
+            sb.AppendLine($"…and {rows.Count - 15} more.");
+
+        return new AiToolExecutionResult(
+            Name,
+            true,
+            sb.ToString().Trim(),
+            new { companyName, count = rows.Count, vehicles = rows });
     }
 }
 
@@ -457,8 +479,8 @@ public sealed class SendNotificationTool(INotificationService notifications) : I
     public async Task<AiToolExecutionResult> ExecuteAsync(
         AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
     {
-        var title = "SheikhGo AI reminder";
-        var message = "You asked SheikhGo AI to notify you.";
+        var title = "SheikhGo AI Assistant reminder";
+        var message = "You asked SheikhGo AI Assistant to notify you.";
         if (args is { } el && el.ValueKind == JsonValueKind.Object)
         {
             if (el.TryGetProperty("title", out var t)) title = t.GetString() ?? title;

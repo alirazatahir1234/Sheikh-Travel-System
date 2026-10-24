@@ -8,7 +8,8 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Infrastructure.Authentication;
 
 /// <summary>
-/// SQL-backed auth sessions with tenant-wide max-2 concurrency (block 3rd login).
+/// SQL-backed auth sessions with optional tenant-wide concurrency
+/// (<see cref="AuthSessionLimits.MaxActiveSessionsPerTenant"/>; 0 = unlimited).
 /// </summary>
 public sealed class AuthSessionService(
     IDbConnectionFactory dbFactory,
@@ -28,24 +29,28 @@ public sealed class AuthSessionService(
 
         using var tx = connection.BeginTransaction();
 
-        var activeCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(1)
-            FROM dbo.AuthSessions WITH (UPDLOCK, HOLDLOCK)
-            WHERE TenantId = @TenantId
-              AND RevokedAtUtc IS NULL
-              AND RefreshTokenExpiryUtc > SYSUTCDATETIME()
-            """,
-            new { TenantId = tenantId },
-            transaction: tx,
-            cancellationToken: cancellationToken));
-
-        if (activeCount >= AuthSessionLimits.MaxActiveSessionsPerTenant)
+        var maxSessions = AuthSessionLimits.MaxActiveSessionsPerTenant;
+        if (maxSessions > 0)
         {
-            tx.Rollback();
-            logger.LogInformation(
-                "Blocked login for tenant {TenantId}: already {ActiveCount} active sessions (limit {Limit})",
-                tenantId, activeCount, AuthSessionLimits.MaxActiveSessionsPerTenant);
-            return AuthSessionCreateResult.Blocked();
+            var activeCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                SELECT COUNT(1)
+                FROM dbo.AuthSessions WITH (UPDLOCK, HOLDLOCK)
+                WHERE TenantId = @TenantId
+                  AND RevokedAtUtc IS NULL
+                  AND RefreshTokenExpiryUtc > SYSUTCDATETIME()
+                """,
+                new { TenantId = tenantId },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            if (activeCount >= maxSessions)
+            {
+                tx.Rollback();
+                logger.LogInformation(
+                    "Blocked login for tenant {TenantId}: already {ActiveCount} active sessions (limit {Limit})",
+                    tenantId, activeCount, maxSessions);
+                return AuthSessionCreateResult.Blocked();
+            }
         }
 
         var sessionId = Guid.NewGuid();
@@ -206,7 +211,10 @@ public sealed class AuthSessionService(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleOrDefaultAsync<(DateTime? RevokedAtUtc, string? RevokeReason, DateTime RefreshTokenExpiryUtc)?>(
+        // Dapper 2.0.x returns null for QuerySingleOrDefaultAsync<TNullableValueTuple?> even when a
+        // row exists — that made every JWT with a sid claim look like AuthSessionStatus.Missing.
+        // Map to a reference type so "no row" is a real null and active sessions validate.
+        var row = await connection.QuerySingleOrDefaultAsync<SessionStatusRow>(
             new CommandDefinition("""
                 SELECT RevokedAtUtc, RevokeReason, RefreshTokenExpiryUtc
                 FROM dbo.AuthSessions WHERE Id = @Id
@@ -217,18 +225,24 @@ public sealed class AuthSessionService(
         if (row is null)
             return AuthSessionStatus.Missing;
 
-        var (revokedAt, reason, expiry) = row.Value;
-        if (revokedAt is not null)
+        if (row.RevokedAtUtc is not null)
         {
-            return string.Equals(reason, AuthSessionLimits.RevokeReasonSuperseded, StringComparison.OrdinalIgnoreCase)
+            return string.Equals(row.RevokeReason, AuthSessionLimits.RevokeReasonSuperseded, StringComparison.OrdinalIgnoreCase)
                 ? AuthSessionStatus.Superseded
                 : AuthSessionStatus.Revoked;
         }
 
-        if (expiry <= DateTime.UtcNow)
+        if (row.RefreshTokenExpiryUtc <= DateTime.UtcNow)
             return AuthSessionStatus.Expired;
 
         return AuthSessionStatus.Active;
+    }
+
+    private sealed class SessionStatusRow
+    {
+        public DateTime? RevokedAtUtc { get; init; }
+        public string? RevokeReason { get; init; }
+        public DateTime RefreshTokenExpiryUtc { get; init; }
     }
 
     public async Task TouchAsync(Guid sessionId, CancellationToken cancellationToken = default)

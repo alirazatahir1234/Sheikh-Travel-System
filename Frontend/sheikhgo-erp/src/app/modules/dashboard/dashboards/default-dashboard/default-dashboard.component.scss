@@ -637,16 +637,26 @@
   }
 }
 
+.ops-alert-main {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
 .ops-alert-rule {
+  display: inline-block;
+  max-width: 100%;
   font-size: 0.75rem;
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #334155;
   margin-right: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ops-alert-status {
+  display: inline-block;
   font-size: 0.72rem;
   color: #64748b;
 }
@@ -656,6 +666,8 @@
   font-size: 0.9rem;
   color: #0f172a;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ops-alert-actions {
@@ -663,4 +675,5 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  flex: 0 0 auto;
 }

@@ -6,10 +6,10 @@ namespace SheikhTravelSystem.Application.Common.Interfaces;
 public interface IAuthSessionService
 {
     /// <summary>
-    /// Creates a new active session when the tenant is under
-    /// <see cref="AuthSessionLimits.MaxActiveSessionsPerTenant"/> active sessions.
-    /// When already at the cap, returns <see cref="AuthSessionCreateResult.LimitReached"/>
-    /// without creating a session or revoking existing ones.
+    /// Creates a new active session. When
+    /// <see cref="AuthSessionLimits.MaxActiveSessionsPerTenant"/> is &gt; 0 and the tenant
+    /// is already at the cap, returns blocked without creating a session or revoking existing ones.
+    /// When the max is 0, the concurrency check is skipped (unlimited).
     /// Also mirrors the refresh token onto <c>Users</c> for legacy callers when created.
     /// </summary>
     Task<AuthSessionCreateResult> CreateSessionAsync(

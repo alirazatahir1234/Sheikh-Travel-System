@@ -24,6 +24,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         string? module,
         bool archived,
         bool trash,
+        bool failedOnly = false,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -63,8 +64,20 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
             {mailbox}
             """;
 
+        // unreadOnly: true = unread, false = read-only, null = all
         if (unreadOnly == true)
             where += " AND ISNULL(r.IsRead, n.IsRead) = 0";
+        else if (unreadOnly == false)
+            where += " AND ISNULL(r.IsRead, n.IsRead) = 1";
+        if (failedOnly)
+        {
+            where += """
+                 AND (
+                        ISNULL(r.DeliveryStatus, n.DeliveryStatus) = 'Failed'
+                     OR (ISNULL(n.IsSent, 0) = 0 AND ISNULL(n.Channel, 'InApp') <> 'InApp')
+                 )
+                """;
+        }
         if (isSent == true) where += " AND n.IsSent = 1";
         if (isSent == false) where += " AND n.IsSent = 0";
         if (!string.IsNullOrWhiteSpace(channel)) where += " AND n.Channel = @Channel";

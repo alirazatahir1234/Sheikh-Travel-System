@@ -67,10 +67,9 @@ public class GpsOfflineDetectionHostedService(
         using var connection = dbFactory.CreateConnection();
 
         var staleMinutes = gpsSettings.Value.OfflineStaleMinutes;
-        var cooldownMinutes = gpsSettings.Value.OfflineAlertCooldownMinutes <= 0
-            ? 120
-            : gpsSettings.Value.OfflineAlertCooldownMinutes;
 
+        // Once-until-online: suppress while any open (unacknowledged) vehicle_offline exists.
+        // IngestPositionCommand acknowledges those rows when GPS resumes, allowing a fresh fire.
         var staleVehicles = (await connection.QueryAsync<(int VehicleId, int TenantId, double Latitude, double Longitude, decimal? Speed)>(
             new CommandDefinition(
                 """
@@ -84,10 +83,10 @@ public class GpsOfflineDetectionHostedService(
                     SELECT 1 FROM GpsAlertEvents e
                     WHERE e.VehicleId = vcl.VehicleId AND e.EventType = 'vehicle_offline'
                       AND e.IsDeleted = 0
-                      AND e.Timestamp > DATEADD(MINUTE, -@CooldownMinutes, GETUTCDATE())
+                      AND e.IsAcknowledged = 0
                   )
                 """,
-                new { StaleMinutes = staleMinutes, CooldownMinutes = cooldownMinutes },
+                new { StaleMinutes = staleMinutes },
                 cancellationToken: cancellationToken))).ToList();
 
         foreach (var v in staleVehicles)

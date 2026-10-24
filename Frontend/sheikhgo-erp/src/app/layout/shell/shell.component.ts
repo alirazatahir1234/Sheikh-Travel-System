@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError, take } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError, take } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -57,7 +57,12 @@ export class ShellComponent implements OnInit, OnDestroy {
   /** Unread inbox + new Smart Ops alerts for the top-bar bell badge. */
   bellBadgeCount$!: Observable<number>;
   notifPanelOpen = false;
+  /** WhatsApp-style SheikhGo AI Assistant slide-over from the floating bubble. */
+  aiChatOpen = false;
+  aiAssistantAllowed = false;
   expandedNotifId: number | null = null;
+  /** Stable meta rows for the expanded card — never rebuild during change detection. */
+  expandedMetaRows: NotifMetaRow[] = [];
   @ViewChild('mainContent') mainContent!: ElementRef<HTMLElement>;
 
   expandedGroupIds = new Set<string>();
@@ -110,7 +115,8 @@ export class ShellComponent implements OnInit, OnDestroy {
 
     this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
       tap(() => { this.menuLoading = true; }),
-      exhaustMap(([user, enabledModules]) => {
+      // switchMap so branding enabledModules (incl. ai) is not dropped while menus/me is in flight.
+      switchMap(([user, enabledModules]) => {
         const roles = user?.roles ?? [];
         const tenantType = resolveTenantType(roles);
 
@@ -148,6 +154,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       if (b?.enabledModules?.length) {
         this.enabledModules$.next(b.enabledModules);
       }
+      this.refreshAiAssistantGate(b?.enabledModules ?? []);
       // Company timezone wins over user preference for display clocks.
       this.localTime.setCompanyTimeZone(b?.timeZone);
     });
@@ -159,10 +166,13 @@ export class ShellComponent implements OnInit, OnDestroy {
           void this.notificationService.requestBrowserPermission();
           this.smartAlertService.refresh();
           this.loadUserTimeZonePreference();
+          this.refreshAiAssistantGate(this.enabledModules$.value);
         });
       } else {
         this.notificationService.reset();
         this.localTime.setUserTimeZone(null);
+        this.aiAssistantAllowed = false;
+        this.aiChatOpen = false;
       }
     });
 
@@ -178,6 +188,10 @@ export class ShellComponent implements OnInit, OnDestroy {
       this.closeMobileNav();
       if (this.latestMenu) {
         this.ensureActiveGroupExpanded(this.latestMenu);
+      }
+      // Full AI pages already host chat — close the float panel to avoid double UI.
+      if (this.isAiRoute(this.router.url)) {
+        this.aiChatOpen = false;
       }
       this.mainContent?.nativeElement?.scrollTo({ top: 0, behavior: 'instant' });
     });
@@ -452,8 +466,46 @@ export class ShellComponent implements OnInit, OnDestroy {
     return NotificationTypeColors[type] ?? '#64748B';
   }
 
+  /** Floating bubble: AI module on + permission/admin, and not already on /ai. */
+  get showAiAssistantFab(): boolean {
+    if (!this.aiAssistantAllowed || this.aiChatOpen) return false;
+    if (this.isDriverUser) return false;
+    return !this.isAiRoute(this.router.url);
+  }
+
+  openAiChat(event?: Event): void {
+    event?.stopPropagation();
+    this.closeNotifPanel();
+    this.aiChatOpen = true;
+  }
+
+  closeAiChat(): void {
+    this.aiChatOpen = false;
+  }
+
+  openAiChatFullPage(): void {
+    this.aiChatOpen = false;
+    void this.router.navigate(['/ai/chat']);
+  }
+
+  private refreshAiAssistantGate(enabledModules: string[]): void {
+    this.aiAssistantAllowed = this.menuService.canAccessAiAssistant(enabledModules);
+    if (!this.aiAssistantAllowed) {
+      this.aiChatOpen = false;
+    }
+  }
+
+  private isAiRoute(url: string): boolean {
+    const path = (url || '').split('?')[0];
+    return path === '/ai' || path.startsWith('/ai/');
+  }
+
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.aiChatOpen) {
+      this.closeAiChat();
+      return;
+    }
     if (this.notifPanelOpen) {
       this.closeNotifPanel();
     }
@@ -465,10 +517,16 @@ export class ShellComponent implements OnInit, OnDestroy {
       this.closeNotifPanel();
       return;
     }
+    this.closeAiChat();
     this.notifPanelOpen = true;
     this.notifications$.pipe(take(1)).subscribe(list => {
-      const firstUnread = list.find(n => !n.isRead);
-      this.expandedNotifId = (firstUnread ?? list[0])?.id ?? null;
+      const first = list.find(n => !n.isRead) ?? list[0];
+      if (first) {
+        this.expandNotif(first);
+      } else {
+        this.expandedNotifId = null;
+        this.expandedMetaRows = [];
+      }
     });
   }
 
@@ -478,6 +536,13 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   expandNotif(n: Notification): void {
     this.expandedNotifId = n.id;
+    // Compute once on expand. Calling notifMeta() from the template returned a new
+    // array every CD cycle; *ngFor then tore down/recreated mat-icons → main-thread freeze.
+    this.expandedMetaRows = this.buildNotifMeta(n);
+  }
+
+  trackByMetaLabel(_i: number, row: NotifMetaRow): string {
+    return row.label;
   }
 
   displayTitle(n: Notification): string {
@@ -504,7 +569,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  notifMeta(n: Notification): NotifMetaRow[] | null {
+  private buildNotifMeta(n: Notification): NotifMetaRow[] {
     const rows: NotifMetaRow[] = [];
     const plain = this.previewMessage(n.message);
     const pick = (label: string, icon: string) => {
@@ -536,7 +601,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       critical: (n.priority ?? 2) >= 4
     });
 
-    return rows.length ? rows : null;
+    return rows;
   }
 
   markAsRead(n: Notification, event: Event): void {

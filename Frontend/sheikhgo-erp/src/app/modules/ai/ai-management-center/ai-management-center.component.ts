@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { forkJoin, of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -42,7 +44,9 @@ import { AiChatComponent } from '../ai-chat/ai-chat.component';
   styleUrls: ['./ai-management-center.component.scss']
 })
 export class AiManagementCenterComponent implements OnInit {
+  /** Management data load only — Chat tab is never gated on this. */
   loading = true;
+  loadError: string | null = null;
   health: FleetHealth | null = null;
   recommendations: AiRecommendation[] = [];
   predictions: AiPrediction[] = [];
@@ -72,37 +76,47 @@ export class AiManagementCenterComponent implements OnInit {
 
   reload(): void {
     this.loading = true;
-    this.ai.getHealth().subscribe({
-      next: h => (this.health = h),
-      error: () => this.toast.error('Failed to load fleet health')
-    });
-    this.ai.getRecommendations().subscribe({
-      next: r => (this.recommendations = r),
-      error: () => {}
-    });
-    this.ai.getPredictions().subscribe({
-      next: p => (this.predictions = p),
-      error: () => {}
-    });
-    this.ai.getDatasets().subscribe({
-      next: d => (this.datasets = d),
-      error: () => {}
-    });
-    this.ai.getConfig().subscribe({
-      next: c => (this.config = { ...c }),
-      error: () => {}
-    });
-    this.ai.getEscalationRules().subscribe({
-      next: r => (this.rules = r),
-      error: () => {}
-    });
-    this.ai.getPendingEscalations().subscribe({
-      next: p => {
-        this.pending = p;
-        this.loading = false;
-      },
-      error: () => (this.loading = false)
-    });
+    this.loadError = null;
+
+    forkJoin({
+      health: this.ai.getHealth().pipe(catchError(() => of(null))),
+      recommendations: this.ai.getRecommendations().pipe(catchError(() => of([] as AiRecommendation[]))),
+      predictions: this.ai.getPredictions().pipe(catchError(() => of([] as AiPrediction[]))),
+      datasets: this.ai.getDatasets().pipe(catchError(() => of([] as { name: string; rowCount: number; lastCapturedAt?: string; freshness: string }[]))),
+      config: this.ai.getConfig().pipe(
+        catchError(() =>
+          of({
+            provider: 'None',
+            isEnabled: false,
+            copilotEnabled: false,
+            decisionEngineEnabled: true,
+            digestEnabled: true,
+            predictionsEnabled: true
+          } as AiProviderConfig)
+        )
+      ),
+      rules: this.ai.getEscalationRules().pipe(catchError(() => of([] as EscalationRule[]))),
+      pending: this.ai.getPendingEscalations().pipe(catchError(() => of([] as EscalationPending[])))
+    })
+      .pipe(finalize(() => { this.loading = false; }))
+      .subscribe({
+        next: result => {
+          this.health = result.health;
+          this.recommendations = result.recommendations ?? [];
+          this.predictions = result.predictions ?? [];
+          this.datasets = result.datasets ?? [];
+          this.config = { ...result.config };
+          this.rules = result.rules ?? [];
+          this.pending = result.pending ?? [];
+          if (!result.health) {
+            this.loadError =
+              'Some AI management data could not be loaded. Chat still works if the AI module is enabled.';
+          }
+        },
+        error: () => {
+          this.loadError = 'Failed to load AI Management Center. Try Refresh, or open the Chat tab.';
+        }
+      });
   }
 
   saveConfig(): void {

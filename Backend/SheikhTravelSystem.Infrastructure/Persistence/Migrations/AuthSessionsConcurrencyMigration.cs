@@ -5,7 +5,7 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 
 /// <summary>
-/// AuthSessions table for tenant-wide concurrent login limit (max 2 active; 3rd blocked).
+/// AuthSessions table for tenant-wide concurrent login limit (cap from AuthSessionLimits; 0 = unlimited).
 /// </summary>
 public static class AuthSessionsConcurrencyMigration
 {

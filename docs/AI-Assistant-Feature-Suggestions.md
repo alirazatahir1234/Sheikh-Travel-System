@@ -1,12 +1,12 @@
-# AI Assistant — Feature Suggestions
+# SheikhGo AI Assistant — Feature Suggestions
 
-Proposed capabilities for the SheikhGo AI assistant. These are suggestions for review—not yet built unless already covered by Phase 2 tools.
+Proposed capabilities for SheikhGo AI Assistant. These are suggestions for review—not yet built unless already covered by Phase 2 tools.
 
 ---
 
 ## Hard constraint — LLM providers
 
-**Do not use OpenAI, Azure OpenAI, or Azure AI** for AI Assistant work (including Phase 3 predictive features and any future chat/LLM integration).
+**Do not use OpenAI, Azure OpenAI, or Azure AI** for SheikhGo AI Assistant work (including Phase 3 predictive features and any future chat/LLM integration).
 
 | Allowed | Not allowed |
 |---------|-------------|

@@ -23,7 +23,8 @@ public record GetNotificationsQuery(
     string? Module = null,
     bool Archived = false,
     string? DatePreset = null,
-    bool Trash = false)
+    bool Trash = false,
+    bool FailedOnly = false)
     : IRequest<ApiResponse<PagedResult<NotificationDto>>>;
 
 public class GetNotificationsQueryHandler(INotificationRepository notificationRepository)
@@ -35,21 +36,22 @@ public class GetNotificationsQueryHandler(INotificationRepository notificationRe
         var (fromDate, toDate) = ResolveDateRange(request.DatePreset, request.FromDate, request.ToDate);
 
         var result = await notificationRepository.GetPagedAsync(
-            request.TenantId,
-            request.UserId,
-            request.Page,
-            request.PageSize,
-            request.UnreadOnly,
-            request.IsSent,
-            request.Channel,
-            request.Priority,
-            request.Search,
-            fromDate,
-            toDate,
-            request.Module,
-            request.Archived,
-            request.Trash,
-            cancellationToken);
+            tenantId: request.TenantId,
+            userId: request.UserId,
+            page: request.Page,
+            pageSize: request.PageSize,
+            unreadOnly: request.UnreadOnly,
+            isSent: request.IsSent,
+            channel: request.Channel,
+            priority: request.Priority,
+            search: request.Search,
+            fromDate: fromDate,
+            toDate: toDate,
+            module: request.Module,
+            archived: request.Archived,
+            trash: request.Trash,
+            failedOnly: request.FailedOnly,
+            cancellationToken: cancellationToken);
 
         return ApiResponse<PagedResult<NotificationDto>>.SuccessResponse(result);
     }

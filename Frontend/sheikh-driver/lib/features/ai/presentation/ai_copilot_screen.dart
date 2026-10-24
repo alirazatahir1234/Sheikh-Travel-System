@@ -299,7 +299,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
       backgroundColor: p.surface,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('SheikhGo AI'),
+        title: const Text('SheikhGo AI Assistant'),
         actions: [
           IconButton(
             tooltip: 'Chat history',
@@ -520,7 +520,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                     textCapitalization: TextCapitalization.sentences,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
-                      hintText: 'Message SheikhGo AI…',
+                      hintText: 'Message SheikhGo AI Assistant…',
                       hintStyle: TextStyle(
                         color: p.textMuted,
                         fontWeight: FontWeight.w500,

@@ -24,6 +24,7 @@ public interface INotificationRepository
         string? module,
         bool archived,
         bool trash,
+        bool failedOnly = false,
         CancellationToken cancellationToken = default);
 
     Task<NotificationStatsDto> GetStatsAsync(

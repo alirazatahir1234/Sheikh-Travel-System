@@ -110,11 +110,11 @@ public static class PermissionRegistrySeed
             || code.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
             return ("Fleet", "GPS", "gps-tracking");
         if (code.StartsWith("Booking.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "TRAVEL", "bookings");
+            return ("Operations", "BOOKINGS", "bookings");
         if (code.StartsWith("Trip.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "TRAVEL", "trips");
+            return ("Operations", "BOOKINGS", "trips");
         if (code.StartsWith("Route.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "TRAVEL", null);
+            return ("Operations", "TRAVEL", "routes");
         if (code.StartsWith("Fuel.", StringComparison.OrdinalIgnoreCase))
             return ("Finance", "FLEET", "fuel-logs");
         if (code.StartsWith("Payment.", StringComparison.OrdinalIgnoreCase)

@@ -47,7 +47,7 @@ public class DriverLoginCommandHandler(
 
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var refreshExpiry = DateTime.UtcNow.AddDays(30);
-        // Tenant-wide max 2 (web + driver share AuthSessions); block 3rd login.
+        // Tenant-wide AuthSessions cap (web + driver share; 0 = unlimited).
         var session = await authSessions.CreateSessionAsync(
             row.TenantId,
             row.UserId,

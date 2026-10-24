@@ -58,7 +58,7 @@ export class FeaturesPage implements OnInit {
     { title: 'Fuel Management', text: 'Entries, cost, efficiency and reports.', link: '/features' },
     { title: 'Alerts & Notifications', text: 'Offline, overspeed, geofence and maintenance alerts.', link: '/gps-tracking' },
     { title: 'Reports & Analytics', text: 'Utilization, distance, speed, fuel and ops analytics.', link: '/features' },
-    { title: 'SheikhGo AI', text: 'Ask operational questions across fleet data.', link: '/features' },
+    { title: 'SheikhGo AI Assistant', text: 'Ask operational questions across fleet data.', link: '/features' },
     { title: 'Security & Access', text: 'RBAC, tenant isolation, JWT and audit logging.', link: '/about' },
     { title: 'Mobile Apps', text: 'Driver and fleet apps connected to the same platform.', link: '/contact' },
   ];

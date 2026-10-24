@@ -255,7 +255,7 @@ class FleetSession {
   bool get canSeeTripsTab =>
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
-  /// Premium AAS Assistant module (TenantModules code `AI` / legacy key `ai`).
+  /// Premium SheikhGo AI Assistant module (TenantModules code `AI` / legacy key `ai`).
   /// Default off — company must opt in at provision or via module management.
   bool get hasAiAssistantModule {
     final ctx = companyContext;

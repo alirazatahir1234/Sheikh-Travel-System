@@ -294,7 +294,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('SheikhGo AI'),
+        title: const Text('SheikhGo AI Assistant'),
         actions: [
           IconButton(
             tooltip: 'Chat history',
@@ -473,7 +473,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
                 decoration: InputDecoration(
-                  hintText: 'Message SheikhGo AI…',
+                  hintText: 'Message SheikhGo AI Assistant…',
                   filled: true,
                   fillColor: AppColors.cardBg,
                   contentPadding: const EdgeInsets.symmetric(

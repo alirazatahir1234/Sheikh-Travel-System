@@ -95,7 +95,8 @@ public class AiAssistantGatewayTests
         response.Answer.Should().Contain("100");
         response.UsedLlm.Should().BeFalse();
         seenTenant.Should().Be(99);
-        response.Warnings.Should().Contain(w => w.Contains("LLM", StringComparison.OrdinalIgnoreCase));
+        // Owner-facing chat must not dump provider/LLM diagnostics.
+        response.Warnings.Should().BeEmpty();
     }
 
     [Fact]
@@ -140,6 +141,8 @@ public class AiAssistantGatewayTests
             "GetOverdueInvoices",
             "GetTripSummary",
             "GetVehicleUtilizationSummary",
+            "GetOfflineVehicles",
+            "GetFleetHealth",
             "GetRevenueAnalytics",
             "GetFuelUsageTopVehicle",
             "GetBestDriverPerformance",
@@ -157,6 +160,10 @@ public class AiAssistantGatewayTests
     }
 
     [Theory]
+    [InlineData("how much vehicles is offline and which company", "GetOfflineVehicles")]
+    [InlineData("How many vehicles are offline?", "GetOfflineVehicles")]
+    [InlineData("Which vehicles are offline?", "GetOfflineVehicles")]
+    [InlineData("How healthy is my fleet today?", "GetFleetHealth")]
     [InlineData("What is our daily weekly and monthly revenue?", "GetRevenueAnalytics")]
     [InlineData("Which vehicle consumed the most fuel this month?", "GetFuelUsageTopVehicle")]
     [InlineData("Who is the best performing driver today?", "GetBestDriverPerformance")]
@@ -324,6 +331,8 @@ public class AiAssistantGatewayTests
             new AiAssistantQueryRequest("Compare tenants across the platform", IsPlatformSuperAdmin: false),
             CancellationToken.None);
         denied.ToolUsed.Should().NotBe("GetTenantComparison");
+        denied.Answer.Should().NotContain("GetTenantComparison");
+        denied.Answer.Should().NotContain("I can answer operational questions using these reports");
 
         var allowed = await gateway.QueryAsync(
             1, 1,
@@ -331,6 +340,34 @@ public class AiAssistantGatewayTests
             CancellationToken.None);
         allowed.ToolUsed.Should().Be("GetTenantComparison");
         allowed.Answer.Should().Contain("GetTenantComparison ok");
+    }
+
+    [Fact]
+    public async Task Gateway_help_is_owner_friendly_not_tool_catalog()
+    {
+        var tools = AiAssistantGateway.AllowlistedToolNames
+            .Select(name => CreateStubTool(name).Object)
+            .ToArray();
+
+        var provider = new Mock<IAiProviderResolver>();
+        provider.Setup(p => p.ResolveAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((null, new AiProviderConfigDto()));
+
+        var gateway = new AiAssistantGateway(
+            tools,
+            provider.Object,
+            new Mock<IAiManagementService>().Object,
+            NullLogger<AiAssistantGateway>.Instance);
+
+        var response = await gateway.QueryAsync(
+            1, 1, new AiAssistantQueryRequest("asdf qwerty nonsense"), CancellationToken.None);
+
+        response.Mode.Should().Be("help");
+        response.ToolUsed.Should().BeNull();
+        response.Answer.Should().Contain("not sure");
+        response.Answer.Should().NotContain("GetFuelCostSummary");
+        response.Answer.Should().NotContain("reports:");
+        response.Warnings.Should().BeEmpty();
     }
 
     [Fact]

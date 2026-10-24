@@ -134,34 +134,46 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
-// Rate Limiting (built-in)
+// Rate Limiting (built-in). Development uses NoLimiter so local login/retry
+// loops are not blocked by the tight production auth window (10/min → 429).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("general", opt =>
+
+    if (builder.Environment.IsDevelopment())
     {
-        opt.PermitLimit = 60;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
-    options.AddFixedWindowLimiter("auth", opt =>
+        options.AddPolicy("general", _ => RateLimitPartition.GetNoLimiter("dev-general"));
+        options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("dev-auth"));
+        options.AddPolicy("portal", _ => RateLimitPartition.GetNoLimiter("dev-portal"));
+        options.AddPolicy("public", _ => RateLimitPartition.GetNoLimiter("dev-public"));
+    }
+    else
     {
-        opt.PermitLimit = 10;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
-    options.AddFixedWindowLimiter("portal", opt =>
-    {
-        opt.PermitLimit = 40;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
-    options.AddFixedWindowLimiter("public", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+        options.AddFixedWindowLimiter("general", opt =>
+        {
+            opt.PermitLimit = 60;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
+        options.AddFixedWindowLimiter("auth", opt =>
+        {
+            opt.PermitLimit = 10;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
+        options.AddFixedWindowLimiter("portal", opt =>
+        {
+            opt.PermitLimit = 40;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
+        options.AddFixedWindowLimiter("public", opt =>
+        {
+            opt.PermitLimit = 5;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
+    }
 });
 
 // CORS — production frontends at https://sheikhgo.com (+ subdomains); Vercel previews + local dev below.

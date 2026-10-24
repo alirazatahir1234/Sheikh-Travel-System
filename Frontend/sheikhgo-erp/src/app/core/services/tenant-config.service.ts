@@ -19,6 +19,7 @@ export interface TenantBranding {
 const MODULE_ROUTE_MAP: Record<string, string> = {
   dashboard: '/dashboard',
   bookings: '/bookings',
+  trips: '/trips',
   vehicles: '/vehicles',
   drivers: '/drivers',
   customers: '/customers',
@@ -33,7 +34,7 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   'driver-allowance-rules': '/driver-allowance-rules',
   users: '/users',
   'audit-logs': '/platform/audit-center',
-  /** Premium AAS Assistant (TenantModuleCatalog code AI / legacy key ai). */
+  /** Premium SheikhGo AI Assistant (TenantModuleCatalog code AI / legacy key ai). */
   ai: '/ai'
 };
 

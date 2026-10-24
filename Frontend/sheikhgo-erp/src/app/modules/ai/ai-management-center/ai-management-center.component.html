@@ -1,50 +1,64 @@
 <div class="ai-page">
   <header class="ai-header">
     <div>
-      <h1>AI Management Center</h1>
-      <p>Decision engine, fleet intelligence, predictions, and optional LLM copilot — rules first.</p>
+      <h1>SheikhGo AI Assistant</h1>
+      <p>Chat with your fleet data, then manage providers, predictions, and escalations.</p>
     </div>
-    <button mat-stroked-button type="button" (click)="reload()">
+    <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading">
       <mat-icon>refresh</mat-icon> Refresh
     </button>
   </header>
 
-  <div class="ai-loading" *ngIf="loading">
-    <mat-spinner diameter="36"></mat-spinner>
+  <div class="ai-banner ai-banner--error" *ngIf="loadError" role="status">
+    <mat-icon>info</mat-icon>
+    <span>{{ loadError }}</span>
   </div>
 
-  <ng-container *ngIf="!loading">
-    <section class="health-strip" *ngIf="health as h">
-      <div class="health-card primary">
-        <span class="label">Fleet Health</span>
-        <strong>{{ h.healthPercent | number:'1.0-1' }}%</strong>
-        <small>{{ h.summary }}</small>
+  <mat-tab-group animationDuration="0ms" class="ai-tabs">
+    <mat-tab label="Chat">
+      <div class="panel chat-panel">
+        <app-ai-chat [compact]="false"></app-ai-chat>
       </div>
-      <div class="health-card">
-        <span class="label">GPS Online</span>
-        <strong>{{ h.gpsOnlineRate | number:'1.0-1' }}%</strong>
-      </div>
-      <div class="health-card">
-        <span class="label">Maintenance</span>
-        <strong>{{ h.maintenanceScore | number:'1.0-1' }}%</strong>
-      </div>
-      <div class="health-card">
-        <span class="label">Compliance</span>
-        <strong>{{ h.complianceScore | number:'1.0-1' }}%</strong>
-      </div>
-      <div class="health-card">
-        <span class="label">Driver Score</span>
-        <strong>{{ h.driverScore | number:'1.0-1' }}</strong>
-      </div>
-      <div class="health-card alert" *ngIf="h.criticalAlerts > 0">
-        <span class="label">Critical</span>
-        <strong>{{ h.criticalAlerts }}</strong>
-      </div>
-    </section>
+    </mat-tab>
 
-    <mat-tab-group animationDuration="0ms">
-      <mat-tab label="Management">
-        <div class="panel">
+    <mat-tab label="Management">
+      <div class="panel">
+        <div class="ai-loading" *ngIf="loading">
+          <mat-spinner diameter="36"></mat-spinner>
+          <p>Loading configuration…</p>
+        </div>
+
+        <ng-container *ngIf="!loading">
+          <section class="health-strip" *ngIf="health as h">
+            <div class="health-card primary">
+              <span class="label">Fleet Health</span>
+              <strong>{{ h.healthPercent | number:'1.0-1' }}%</strong>
+              <small>{{ h.summary }}</small>
+            </div>
+            <div class="health-card">
+              <span class="label">GPS Online</span>
+              <strong>{{ h.gpsOnlineRate | number:'1.0-1' }}%</strong>
+            </div>
+            <div class="health-card">
+              <span class="label">Maintenance</span>
+              <strong>{{ h.maintenanceScore | number:'1.0-1' }}%</strong>
+            </div>
+            <div class="health-card">
+              <span class="label">Compliance</span>
+              <strong>{{ h.complianceScore | number:'1.0-1' }}%</strong>
+            </div>
+            <div class="health-card">
+              <span class="label">Driver Score</span>
+              <strong>{{ h.driverScore | number:'1.0-1' }}</strong>
+            </div>
+            <div class="health-card alert" *ngIf="h.criticalAlerts > 0">
+              <span class="label">Critical</span>
+              <strong>{{ h.criticalAlerts }}</strong>
+            </div>
+          </section>
+
+          <p class="empty" *ngIf="!health">Fleet health is unavailable. Provider settings below still load when permitted.</p>
+
           <h3>Provider &amp; feature toggles</h3>
           <div class="form-grid">
             <mat-form-field appearance="outline">
@@ -82,35 +96,34 @@
             <button mat-stroked-button type="button" (click)="generateDigest()">Send morning digest</button>
             <button mat-stroked-button type="button" (click)="runPredictions()">Run predictions</button>
           </div>
-        </div>
-      </mat-tab>
+        </ng-container>
+      </div>
+    </mat-tab>
 
-      <mat-tab label="Chat">
-        <div class="panel chat-panel">
-          <app-ai-chat></app-ai-chat>
+    <mat-tab label="Copilot (legacy)">
+      <div class="panel">
+        <h3>Fleet assistant</h3>
+        <p class="hint">Ask about offline vehicles, critical alerts, maintenance, fleet health, or driver risk. Answers come from SheikhGo engines — LLM only formats when enabled.</p>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Question</mat-label>
+          <input matInput [(ngModel)]="question" (keyup.enter)="ask()" placeholder="How many vehicles are offline?" />
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="button" [disabled]="asking" (click)="ask()">
+          {{ asking ? 'Thinking…' : 'Ask' }}
+        </button>
+        <div class="answer" *ngIf="copilotAnswer as a">
+          <pre>{{ a.answer }}</pre>
+          <small>Mode: {{ a.mode }} · Tools: {{ a.toolsUsed?.join(', ') || 'none' }} · LLM: {{ a.usedLlm ? 'yes' : 'no' }}</small>
         </div>
-      </mat-tab>
+      </div>
+    </mat-tab>
 
-      <mat-tab label="Copilot (legacy)">
-        <div class="panel">
-          <h3>Fleet assistant</h3>
-          <p class="hint">Ask about offline vehicles, critical alerts, maintenance, fleet health, or driver risk. Answers come from SheikhGo engines — LLM only formats when enabled.</p>
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Question</mat-label>
-            <input matInput [(ngModel)]="question" (keyup.enter)="ask()" placeholder="How many vehicles are offline?" />
-          </mat-form-field>
-          <button mat-flat-button color="primary" type="button" [disabled]="asking" (click)="ask()">
-            {{ asking ? 'Thinking…' : 'Ask' }}
-          </button>
-          <div class="answer" *ngIf="copilotAnswer as a">
-            <pre>{{ a.answer }}</pre>
-            <small>Mode: {{ a.mode }} · Tools: {{ a.toolsUsed.join(', ') || 'none' }} · LLM: {{ a.usedLlm ? 'yes' : 'no' }}</small>
-          </div>
+    <mat-tab label="Recommendations">
+      <div class="panel">
+        <div class="ai-loading" *ngIf="loading">
+          <mat-spinner diameter="32"></mat-spinner>
         </div>
-      </mat-tab>
-
-      <mat-tab label="Recommendations">
-        <div class="panel">
+        <ng-container *ngIf="!loading">
           <div class="card-list" *ngIf="recommendations.length; else noRecs">
             <article *ngFor="let r of recommendations" class="rec-card" [attr.data-sev]="r.severity">
               <header>
@@ -122,11 +135,16 @@
             </article>
           </div>
           <ng-template #noRecs><p class="empty">No active recommendations.</p></ng-template>
-        </div>
-      </mat-tab>
+        </ng-container>
+      </div>
+    </mat-tab>
 
-      <mat-tab label="Predictions">
-        <div class="panel">
+    <mat-tab label="Predictions">
+      <div class="panel">
+        <div class="ai-loading" *ngIf="loading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+        <ng-container *ngIf="!loading">
           <h3>AI datasets</h3>
           <div class="table-wrap" *ngIf="datasets.length">
             <table>
@@ -153,11 +171,16 @@
             </article>
           </div>
           <ng-template #noPreds><p class="empty">No predictions yet — run predictions from Management.</p></ng-template>
-        </div>
-      </mat-tab>
+        </ng-container>
+      </div>
+    </mat-tab>
 
-      <mat-tab label="Escalation">
-        <div class="panel">
+    <mat-tab label="Escalation">
+      <div class="panel">
+        <div class="ai-loading" *ngIf="loading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+        <ng-container *ngIf="!loading">
           <h3>Awaiting acknowledgement</h3>
           <div class="table-wrap" *ngIf="pending.length; else noPending">
             <table>
@@ -178,7 +201,7 @@
           <ng-template #noPending><p class="empty">No pending escalations.</p></ng-template>
 
           <h3>Rules</h3>
-          <div class="table-wrap" *ngIf="rules.length">
+          <div class="table-wrap" *ngIf="rules.length; else noRules">
             <table>
               <thead>
                 <tr><th>Event</th><th>Level</th><th>Role</th><th>Timeout</th><th>Channel</th><th>Active</th><th></th></tr>
@@ -196,8 +219,9 @@
               </tbody>
             </table>
           </div>
-        </div>
-      </mat-tab>
-    </mat-tab-group>
-  </ng-container>
+          <ng-template #noRules><p class="empty">No escalation rules configured.</p></ng-template>
+        </ng-container>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
 </div>

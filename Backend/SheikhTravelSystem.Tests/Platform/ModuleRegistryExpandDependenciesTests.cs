@@ -26,12 +26,24 @@ public class ModuleRegistryExpandDependenciesTests
     }
 
     [Fact]
-    public void IsToggleable_ComingSoonFalse_AiTrue()
+    public void IsToggleable_ComingSoonFalse_AiAndBookingsTrue()
     {
         var rental = ModuleRegistrySeed.All.Single(e => e.Code == "RENTAL");
         ModuleRegistrySeed.IsToggleable(rental).Should().BeFalse();
 
         var ai = ModuleRegistrySeed.All.Single(e => e.Code == "AI");
         ModuleRegistrySeed.IsToggleable(ai).Should().BeTrue();
+
+        var bookings = ModuleRegistrySeed.All.Single(e => e.Code == "BOOKINGS");
+        ModuleRegistrySeed.IsToggleable(bookings).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Expand_BookingsDoesNotPullTravelRoutes()
+    {
+        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["BOOKINGS"]);
+
+        expanded.Should().Contain(["BOOKINGS", "DASHBOARD"]);
+        expanded.Should().NotContain("TRAVEL");
     }
 }

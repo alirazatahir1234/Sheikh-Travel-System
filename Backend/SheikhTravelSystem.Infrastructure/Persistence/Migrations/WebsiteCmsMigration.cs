@@ -342,9 +342,9 @@ public static class WebsiteCmsMigration
                 ("Reports", "More than GPS tracking", "Reports & analytics",
                     "Operational analytics across fleet, trips, utilization, fuel and maintenance.",
                     "Explore Analytics", "/features", null, null, 80),
-                ("AI", "Turn fleet data into actionable insights", "SheikhGo AI",
+                ("AI", "Turn fleet data into actionable insights", "SheikhGo AI Assistant",
                     "Early AI capabilities help operators ask operational questions across fleet data. Capabilities continue to expand.",
-                    "Explore SheikhGo AI", "/features", null, null, 90),
+                    "Explore SheikhGo AI Assistant", "/features", null, null, 90),
                 ("Integrations", "Built on a real GPS stack", "Integrations",
                     "Jimi GPS → Traccar → SheikhGo GPS Engine → ERP / Mobile. Also supported: maps, Azure hosting, email and SMS.",
                     null, null, null, null, 100),
@@ -392,7 +392,7 @@ public static class WebsiteCmsMigration
                 ("Fuel Management", "Monitor fuel usage, costs and vehicle fuel performance.", "local_gas_station", "/features", 60),
                 ("Alerts", "Offline, overspeed, geofence and maintenance alerts.", "notifications_active", "/gps-tracking", 70),
                 ("Reports & Analytics", "Utilization, distance, speed, fuel and ops analytics.", "analytics", "/features", 80),
-                ("SheikhGo AI", "Ask operational questions across fleet data.", "smart_toy", "/features", 90),
+                ("SheikhGo AI Assistant", "Ask operational questions across fleet data.", "smart_toy", "/features", 90),
             };
             foreach (var f in features)
             {

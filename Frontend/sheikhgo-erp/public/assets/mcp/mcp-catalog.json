@@ -1,8 +1,8 @@
 {
-  "version": "0.5.0",
+  "version": "0.12.0",
   "protocol": "MCP (stdio)",
   "package": "sheikhgo-mcp",
-  "exportedAt": "2026-09-20T11:54:54.218Z",
+  "exportedAt": "2026-10-24T11:31:48.379Z",
   "discoveredTools": [
     "get_repository_index",
     "analyze_architecture",
@@ -29,6 +29,46 @@
     "map_feature_across_stack",
     "find_sql_usage",
     "get_database_schema",
+    "list_tables",
+    "describe_table",
+    "run_readonly_query",
+    "db_connection_status",
+    "get_bookings_domain",
+    "list_bookings",
+    "get_booking",
+    "list_trips",
+    "get_trip",
+    "list_routes",
+    "get_route",
+    "summarize_booking_statuses",
+    "summarize_trip_statuses",
+    "get_booking_links",
+    "get_fleet_domain",
+    "list_vehicles",
+    "get_vehicle",
+    "list_drivers",
+    "get_driver",
+    "list_vehicle_assignments",
+    "get_vehicles_on_trips",
+    "get_maintenance_due",
+    "get_fleet_status",
+    "list_fuel_records",
+    "get_gps_domain",
+    "get_devices",
+    "get_live_positions",
+    "get_vehicle_history",
+    "get_geofences",
+    "get_geofence_events",
+    "get_gps_trips",
+    "get_traccar_status",
+    "get_security_domain",
+    "scan_secrets",
+    "audit_permissions",
+    "audit_api_auth",
+    "get_smartops_domain",
+    "list_smart_alerts",
+    "get_maintenance_reminders",
+    "get_trip_delays",
     "get_server_info",
     "get_write_policy",
     "draft_adr",
@@ -37,10 +77,10 @@
     "write_architecture_note"
   ],
   "summary": {
-    "toolCount": 31,
-    "runningGroups": 2,
-    "plannedGroups": 9,
-    "stoppedGroups": 1
+    "toolCount": 71,
+    "runningGroups": 8,
+    "plannedGroups": 6,
+    "stoppedGroups": 0
   },
   "suggestions": [
     "Analyze the Trip module",
@@ -72,11 +112,39 @@
       "groupId": "database"
     },
     {
+      "id": "bookings",
+      "label": "Bookings",
+      "icon": "event_note",
+      "prompt": "Summarize booking statuses and list recent trips with linked routes",
+      "groupId": "bookings"
+    },
+    {
       "id": "fleet",
       "label": "Track fleet",
       "icon": "local_shipping",
-      "prompt": "Map trips across backend, Angular, Flutter, and database",
+      "prompt": "Which vehicles need maintenance and what is live fleet status?",
       "groupId": "fleet"
+    },
+    {
+      "id": "gps",
+      "label": "Live GPS",
+      "icon": "gps_fixed",
+      "prompt": "Show live vehicle positions and recent geofence enter/exit events",
+      "groupId": "gps"
+    },
+    {
+      "id": "smartops",
+      "label": "SmartOps alerts",
+      "icon": "notification_important",
+      "prompt": "Show active SmartAlerts, maintenance dues, and trips at delay risk",
+      "groupId": "smartops"
+    },
+    {
+      "id": "security",
+      "label": "Security scan",
+      "icon": "security",
+      "prompt": "Scan for secrets (redacted), audit permission templates, and list unexpected unauthenticated API endpoints",
+      "groupId": "security"
     },
     {
       "id": "tests",
@@ -137,44 +205,90 @@
       "name": "Database MCP",
       "description": "Query and analyze SQL Server database (read-only).",
       "icon": "storage",
-      "status": "planned",
+      "status": "running",
       "tools": [
         "analyze_database",
         "find_table_usage",
         "find_sql_usage",
-        "get_database_schema"
+        "get_database_schema",
+        "list_tables",
+        "describe_table",
+        "run_readonly_query",
+        "db_connection_status"
       ],
-      "note": "File-based schema analysis exists today; live SELECT-only SQL comes next."
+      "note": "File-based schema tools plus live SELECT-only SQL (SHEIKHGO_DB_CONNECTION). Writes blocked."
+    },
+    {
+      "id": "bookings",
+      "name": "Bookings MCP",
+      "description": "Bookings, trips, and routes/roads — live read-only operator data.",
+      "icon": "event_note",
+      "status": "running",
+      "tools": [
+        "get_bookings_domain",
+        "list_bookings",
+        "get_booking",
+        "list_trips",
+        "get_trip",
+        "list_routes",
+        "get_route",
+        "summarize_booking_statuses",
+        "summarize_trip_statuses",
+        "get_booking_links"
+      ],
+      "note": "Live SELECT via SHEIKHGO_DB_CONNECTION (same as Database MCP). Always pass tenantId. No mutations."
     },
     {
       "id": "fleet",
       "name": "Fleet MCP",
-      "description": "Vehicles, drivers, trips and fleet operations.",
+      "description": "Vehicles, drivers, assignments, trip linkage, maintenance due, and live fleet status (read-only).",
       "icon": "local_shipping",
-      "status": "planned",
-      "tools": [],
-      "plannedTools": [
-        "get_vehicles",
-        "get_drivers",
-        "get_vehicle_assignments",
-        "get_maintenance_records",
-        "get_fuel_records"
-      ]
+      "status": "running",
+      "tools": [
+        "get_fleet_domain",
+        "list_vehicles",
+        "get_vehicle",
+        "list_drivers",
+        "get_driver",
+        "list_vehicle_assignments",
+        "get_vehicles_on_trips",
+        "get_maintenance_due",
+        "get_fleet_status",
+        "list_fuel_records"
+      ],
+      "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Lat/lng from VehicleCurrentLocation only — no Maps keys."
     },
     {
       "id": "gps",
       "name": "GPS / Traccar MCP",
-      "description": "Live tracking, positions and device management.",
+      "description": "Live locations, track history, geofences, geofence events, and GPS devices (read-only).",
       "icon": "gps_fixed",
-      "status": "planned",
-      "tools": [],
-      "plannedTools": [
+      "status": "running",
+      "tools": [
+        "get_gps_domain",
         "get_devices",
         "get_live_positions",
-        "get_trips",
+        "get_vehicle_history",
         "get_geofences",
-        "get_vehicle_history"
-      ]
+        "get_geofence_events",
+        "get_gps_trips",
+        "get_traccar_status"
+      ],
+      "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Optional Traccar via SHEIKHGO_TRACCAR_*. No Maps / Google Maps API keys."
+    },
+    {
+      "id": "smartops",
+      "name": "SmartOps MCP",
+      "description": "Operational SmartAlerts, maintenance reminders/dues, and schedule-based trip delay risk (read-only).",
+      "icon": "notification_important",
+      "status": "running",
+      "tools": [
+        "get_smartops_domain",
+        "list_smart_alerts",
+        "get_maintenance_reminders",
+        "get_trip_delays"
+      ],
+      "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Trip delay uses schedule only — no Maps ETA / Maps keys."
     },
     {
       "id": "testing",
@@ -219,17 +333,16 @@
     {
       "id": "security",
       "name": "Security MCP",
-      "description": "Security analysis and vulnerability checks.",
+      "description": "Secrets scan (redacted), permission registry audit, and unauthenticated API endpoint exposure (read-only).",
       "icon": "security",
-      "status": "stopped",
-      "tools": [],
-      "plannedTools": [
-        "scan_authentication",
+      "status": "running",
+      "tools": [
+        "get_security_domain",
         "scan_secrets",
-        "scan_api_endpoints",
-        "scan_permissions"
+        "audit_permissions",
+        "audit_api_auth"
       ],
-      "note": "Not enabled in v1 — planned static analysis group."
+      "note": "File-based scanners over Sheikh-Travel-System. Never prints secret values (file:line + type). Optional DB for permission compare. No Maps keys / no mutations. Distinct from architecture review_change."
     },
     {
       "id": "analytics",
@@ -260,13 +373,12 @@
     {
       "id": "crm",
       "name": "CRM MCP",
-      "description": "Customers, bookings and relationship data.",
+      "description": "Customers and relationship data (bookings ops live under Bookings MCP).",
       "icon": "groups",
       "status": "planned",
       "tools": [],
       "plannedTools": [
         "get_customers",
-        "get_customer_bookings",
         "get_customer_activity"
       ]
     }

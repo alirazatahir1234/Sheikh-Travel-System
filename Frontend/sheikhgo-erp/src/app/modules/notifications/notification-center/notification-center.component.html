@@ -209,11 +209,11 @@
 
           <div class="nc-card-body">
             <div class="nc-card-title-row">
-              <h3>{{ n.title }}</h3>
+              <h3>{{ previewText(n.title) || n.title }}</h3>
               <span class="nc-new" *ngIf="!n.isRead && tab !== 'trash' && tab !== 'archived'">NEW</span>
               <span class="nc-unread-dot" *ngIf="!n.isRead && tab !== 'trash' && tab !== 'archived'"></span>
             </div>
-            <p class="nc-card-message">{{ n.message }}</p>
+            <p class="nc-card-message">{{ previewText(n.message) }}</p>
             <div class="nc-meta">
               <span class="nc-badge nc-badge--module">{{ n.module || 'System' }}</span>
               <span class="nc-badge">{{ channelLabel(n.channel) }}</span>
@@ -261,12 +261,21 @@
               <div><label>Priority</label><span>{{ priorityLabel(n) }}</span></div>
               <div *ngIf="n.retentionCategory"><label>Retention</label><span>{{ n.retentionCategory }}</span></div>
             </div>
-            <p>{{ n.message }}</p>
+            <p>{{ previewText(n.message) || n.message }}</p>
           </div>
         </article>
       </div>
 
-      <div class="nc-empty" *ngIf="!loading && items.length === 0">
+      <div class="nc-empty" *ngIf="!loading && loadError">
+        <mat-icon>error_outline</mat-icon>
+        <h3>Couldn’t load notifications</h3>
+        <p>Check your connection and try again.</p>
+        <button type="button" class="nc-btn nc-btn--primary" (click)="load(); loadStats()">
+          <mat-icon>refresh</mat-icon> Retry
+        </button>
+      </div>
+
+      <div class="nc-empty" *ngIf="!loading && !loadError && items.length === 0">
         <mat-icon>notifications_off</mat-icon>
         <h3>No notifications match your filters</h3>
         <p>Try clearing filters or check another tab.</p>

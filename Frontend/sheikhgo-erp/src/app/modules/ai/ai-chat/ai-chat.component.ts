@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostBinding, Input, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,26 +6,19 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatChipsModule } from '@angular/material/chips';
 import {
   AiAssistantQueryResponse,
   AiChatSession,
   AiChatTurnResponse,
   AiPendingAction,
-  AiPlatformService,
-  AiProviderHealth
+  AiPlatformService
 } from '../../../core/services/ai-platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 
 interface ChatBubble {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  mode?: string;
-  usedLlm?: boolean;
-  tools?: string[];
   period?: { start: string; end: string };
-  warnings?: string[];
-  data?: unknown;
 }
 
 @Component({
@@ -38,13 +31,20 @@ interface ChatBubble {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatProgressSpinnerModule,
-    MatChipsModule
+    MatProgressSpinnerModule
   ],
   templateUrl: './ai-chat.component.html',
   styleUrls: ['./ai-chat.component.scss']
 })
 export class AiChatComponent implements OnInit {
+  /** Narrow slide-over / FAB embed — tighter layout, fewer chips. */
+  @Input() compact = false;
+
+  @HostBinding('class.is-host-compact')
+  get hostCompact(): boolean {
+    return this.compact;
+  }
+
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
 
   loading = true;
@@ -54,26 +54,26 @@ export class AiChatComponent implements OnInit {
   pendingAction: AiPendingAction | null = null;
   messages: ChatBubble[] = [];
   sessions: AiChatSession[] = [];
+  /** Set when sessions API returns 403 (module off / no chat permission). */
+  accessDeniedMessage: string | null = null;
   /** Default to Phase 2 assistant (allowlisted reports). Toggle keeps legacy chat/writes. */
   useAssistant = true;
-  suggestions: string[] = [
+  /** User-facing connection strip only — no provider/model/diagnostics. */
+  connectionState: 'connecting' | 'connected' = 'connecting';
+
+  private readonly defaultSuggestions: string[] = [
+    'How many vehicles are offline?',
+    'How healthy is my fleet today?',
     'What is our daily, weekly, and monthly revenue?',
-    'Which vehicle consumed the most fuel this month?',
+    'Which vehicles have maintenance due?',
     'Who is the best performing driver today?',
     'Show trip and booking analytics this month.',
     'What is our cost per kilometer this month?',
-    'What is our fleet utilization rate this month?',
-    'Summarize overspeed and geofence violations this month.',
-    'Which vehicles have maintenance due?',
-    'Which vehicles are at maintenance risk?',
-    'Which trips are at risk of delay?',
-    'Show fuel anomaly investigation for this month.',
-    'Show idle time report this month.',
     'Any SOS events this month?',
-    'Summarize expenses this month.',
     'What are our peak booking hours this month?'
   ];
-  providerHealth: AiProviderHealth | null = null;
+
+  suggestions: string[] = [...this.defaultSuggestions];
 
   constructor(
     private ai: AiPlatformService,
@@ -84,27 +84,56 @@ export class AiChatComponent implements OnInit {
     this.refresh();
   }
 
+  /** Suggestion chips — always visible when idle; compact drawer shows fewer. */
+  get visibleSuggestions(): string[] {
+    if (this.sending || !!this.accessDeniedMessage || !this.suggestions.length) return [];
+    const limit = this.compact ? 5 : 8;
+    return this.suggestions.slice(0, limit);
+  }
+
+  get hasSessions(): boolean {
+    return !this.accessDeniedMessage && this.sessions.length > 0;
+  }
+
   refresh(): void {
     this.loading = true;
-    this.ai.getProviderHealth().subscribe({
-      next: h => (this.providerHealth = h),
-      error: () => {}
-    });
+    this.connectionState = 'connecting';
+    this.accessDeniedMessage = null;
+    this.loadSessions(true);
+  }
+
+  /** Reload session list without blanking the message pane (after a chat turn). */
+  private reloadSessionsQuietly(): void {
+    this.loadSessions(false);
+  }
+
+  private loadSessions(showLoading: boolean): void {
+    if (showLoading) {
+      this.loading = true;
+      this.connectionState = 'connecting';
+    }
+
     this.ai.listChatSessions().subscribe({
       next: s => {
-        this.sessions = s;
+        this.sessions = s ?? [];
         this.loading = false;
+        this.connectionState = 'connected';
       },
       error: err => {
         this.loading = false;
+        this.sessions = [];
         const status = err?.status ?? err?.statusCode;
         if (status === 403) {
-          this.toast.error(
-            'AAS Assistant is not enabled for this company. Ask a platform admin to enable the AI module.'
-          );
+          this.accessDeniedMessage =
+            'SheikhGo AI Assistant is not enabled for this company, or you lack chat permission. Ask a platform admin to enable the AI module.';
+          this.toast.error(this.accessDeniedMessage);
           return;
         }
-        this.toast.error('Could not load chat sessions');
+        // Sessions failed but chat may still work — keep a connected UI, toast only.
+        this.connectionState = 'connected';
+        if (showLoading) {
+          this.toast.error('Could not load chat sessions');
+        }
       }
     });
   }
@@ -114,6 +143,7 @@ export class AiChatComponent implements OnInit {
     this.messages = [];
     this.draft = '';
     this.pendingAction = null;
+    this.suggestions = [...this.defaultSuggestions];
   }
 
   openSession(session: AiChatSession): void {
@@ -122,7 +152,7 @@ export class AiChatComponent implements OnInit {
     this.pendingAction = null;
     this.ai.getChatMessages(session.id).subscribe({
       next: rows => {
-        this.messages = rows
+        this.messages = (rows ?? [])
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
         this.scrollToBottom();
@@ -156,7 +186,7 @@ export class AiChatComponent implements OnInit {
         next: (res: AiAssistantQueryResponse) => this.onAssistantReply(res),
         error: err => {
           this.sending = false;
-          this.toast.error(this.aiErrorMessage(err, 'Assistant request failed'));
+          this.toast.error(this.aiErrorMessage(err, 'Could not get a reply. Please try again.'));
         }
       });
       return;
@@ -166,7 +196,7 @@ export class AiChatComponent implements OnInit {
       next: (res: AiChatTurnResponse) => this.onReply(res),
       error: err => {
         this.sending = false;
-        this.toast.error(this.aiErrorMessage(err, 'Chat request failed'));
+        this.toast.error(this.aiErrorMessage(err, 'Could not get a reply. Please try again.'));
       }
     });
   }
@@ -174,7 +204,7 @@ export class AiChatComponent implements OnInit {
   private aiErrorMessage(err: { status?: number; error?: { message?: string } }, fallback: string): string {
     if (err?.status === 403) {
       return err.error?.message
-        ?? 'AAS Assistant is not enabled for this company. Ask a platform admin to enable the AI module.';
+        ?? 'SheikhGo AI Assistant is not enabled for this company. Ask a platform admin to enable the AI module.';
     }
     return fallback;
   }
@@ -183,15 +213,17 @@ export class AiChatComponent implements OnInit {
     this.sending = false;
     this.messages.push({
       role: 'assistant',
-      content: res.answer,
-      mode: res.mode,
-      usedLlm: res.usedLlm,
-      tools: res.toolUsed ? [res.toolUsed] : [],
-      period: res.period,
-      warnings: res.warnings ?? [],
-      data: res.data
+      content: res?.answer ?? 'No answer returned.',
+      period: this.shouldShowPeriod(res) ? res.period : undefined
     });
     this.scrollToBottom();
+  }
+
+  private shouldShowPeriod(res: AiAssistantQueryResponse): boolean {
+    const tool = (res.toolUsed ?? '').toLowerCase();
+    if (!tool) return false;
+    if (tool === 'getofflinevehicles' || tool === 'getfleethealth') return false;
+    return !!res.period?.start && !!res.period?.end;
   }
 
   confirmWrite(): void {
@@ -208,23 +240,16 @@ export class AiChatComponent implements OnInit {
     if (res.suggestedPrompts?.length) {
       this.suggestions = res.suggestedPrompts;
     }
-    const tools =
-      res.toolsUsed?.filter(t =>
-        !['llm_chat', 'llm_fallback', 'pending_confirm', 'confirm_executed', 'confirm_failed'].includes(t)
-      ) ?? [];
     this.messages.push({
       role: 'assistant',
-      content: res.answer,
-      mode: res.mode,
-      usedLlm: res.usedLlm,
-      tools
+      content: res?.answer ?? 'No answer returned.'
     });
     this.pendingAction = res.pendingAction ?? null;
     if (res.mode === 'confirm_executed') {
       this.pendingAction = null;
       this.toast.success('Action applied');
     }
-    this.refresh();
+    this.reloadSessionsQuietly();
     this.scrollToBottom();
   }
 

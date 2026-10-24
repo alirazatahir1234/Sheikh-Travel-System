@@ -6,10 +6,10 @@ namespace SheikhTravelSystem.Tests.Auth;
 public class ConcurrentLoginLimitsTests
 {
     [Fact]
-    public void MaxActiveSessionsPerTenant_IsTwo()
+    public void MaxActiveSessionsPerTenant_IsUnlimited_WhenZero()
     {
-        ConcurrentLoginLimits.MaxActiveSessionsPerTenant.Should().Be(2);
-        AuthSessionLimits.MaxActiveSessionsPerTenant.Should().Be(2);
+        ConcurrentLoginLimits.MaxActiveSessionsPerTenant.Should().Be(0);
+        AuthSessionLimits.MaxActiveSessionsPerTenant.Should().Be(0);
     }
 
     [Fact]

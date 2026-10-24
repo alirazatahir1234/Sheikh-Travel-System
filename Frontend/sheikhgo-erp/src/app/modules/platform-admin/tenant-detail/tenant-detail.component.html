@@ -288,7 +288,8 @@
         </div>
         <p class="section-label">Module Access</p>
         <p class="stb-hint">
-          <strong>AAS Assistant (AI)</strong> is premium — enable only when this company is entitled.
+          <strong>Bookings &amp; Trips</strong> is opt-in (independent of <strong>Routes</strong>).
+          <strong>SheikhGo AI Assistant (AI)</strong> is premium — enable only when this company is entitled.
         </p>
         <span class="stb-error" *ngIf="form.get('moduleCodes')?.invalid && form.get('moduleCodes')?.touched">
           Select at least one module
@@ -297,11 +298,13 @@
           <button type="button" class="module-card" *ngFor="let m of modules"
             [class.selected]="isModuleSelected(m.code)"
             [class.premium]="m.code === 'AI'"
+            [class.opt-in]="m.code === 'BOOKINGS' || m.code === 'AI'"
             [disabled]="!canManage"
             (click)="toggleModule(m.code)">
             <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
-            <span>{{ m.name }}</span>
+            <span>{{ m.displayName || m.name }}</span>
             <span class="premium-chip" *ngIf="m.code === 'AI'">Premium</span>
+            <span class="opt-in-chip" *ngIf="m.code === 'BOOKINGS'">Opt-in</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(m.code)">check_circle</mat-icon>
           </button>
         </div>

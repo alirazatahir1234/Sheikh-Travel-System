@@ -7,8 +7,17 @@ public static class TenantModuleCatalog
 {
     public record ModuleDefinition(string Code, string Name, string[] LegacyKeys);
 
-    /// <summary>Premium AAS Assistant module — opt-in only; never in <see cref="DefaultModuleCodes"/>.</summary>
+    /// <summary>Premium SheikhGo AI Assistant module — opt-in only; never in <see cref="DefaultModuleCodes"/>.</summary>
     public const string AiAssistantModuleCode = "AI";
+
+    /// <summary>Bookings workflows — opt-in; not bundled with routes or trips.</summary>
+    public const string BookingsModuleCode = "BOOKINGS";
+
+    /// <summary>Trip lifecycle / dispatch — opt-in; independent of bookings.</summary>
+    public const string TripsModuleCode = "TRIPS";
+
+    /// <summary>Roads / routes catalog — independent of bookings/trips.</summary>
+    public const string TravelRoutesModuleCode = "TRAVEL";
 
     public static readonly ModuleDefinition[] All =
     [
@@ -16,19 +25,24 @@ public static class TenantModuleCatalog
         new("FLEET", "Fleet Management", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
         new("GPS", "Fleet Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
-        new("TRAVEL", "Travel Agency", ["bookings", "routes", "trips"]),
+        // Roads/routes only — bookings & trips are separate opt-in modules.
+        new(TravelRoutesModuleCode, "Routes", ["routes"]),
+        new(BookingsModuleCode, "Bookings", ["bookings"]),
+        new(TripsModuleCode, "Trips", ["trips"]),
         new("CRM", "CRM", ["customers"]),
         new("FINANCE", "Finance", ["payments"]),
         new("HR", "HR", ["hr"]),
         new("ANALYTICS", "Analytics Pro", ["reports", "audit-logs"]),
         new("ACCESS", "Access Control", ["users", "driver-allowance-rules"]),
-        // Premium: AAS Assistant — enable only via explicit company opt-in (provision / module management).
-        new(AiAssistantModuleCode, "AAS Assistant", ["ai"]),
+        // Premium: SheikhGo AI Assistant — enable only via explicit company opt-in (provision / module management).
+        new(AiAssistantModuleCode, "SheikhGo AI Assistant", ["ai"]),
     ];
 
     /// <summary>
     /// Modules enabled for new tenants when none are specified.
-    /// Does <b>not</b> include <see cref="AiAssistantModuleCode"/> (premium opt-in).
+    /// Does <b>not</b> include <see cref="AiAssistantModuleCode"/>, <see cref="BookingsModuleCode"/>,
+    /// or <see cref="TripsModuleCode"/> (opt-in).
+    /// Includes <see cref="TravelRoutesModuleCode"/> (roads/routes) only.
     /// </summary>
     public static IReadOnlyList<string> DefaultModuleCodes { get; } =
         ["DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"];

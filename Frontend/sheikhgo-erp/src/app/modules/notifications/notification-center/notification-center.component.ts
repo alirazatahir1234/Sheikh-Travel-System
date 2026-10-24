@@ -1,6 +1,8 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { DatePipe } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -32,14 +34,18 @@ type ComposeRecipient = { id: number; fullName: string; email: string };
   styleUrls: ['./notification-center.component.scss'],
   providers: [DatePipe]
 })
-export class NotificationCenterComponent implements OnInit {
+export class NotificationCenterComponent implements OnInit, OnDestroy {
   items: Notification[] = [];
   stats: NotificationStats | null = null;
   loading = true;
+  loadError = false;
   totalCount = 0;
   pageSize = 20;
   pageIndex = 0;
   expandedId: number | null = null;
+  private focusId: number | null = null;
+  private routeSub: Subscription | null = null;
+  private loadSub: Subscription | null = null;
 
   section: ViewSection = 'inbox';
   tab: TabFilter = 'all';
@@ -136,13 +142,28 @@ export class NotificationCenterComponent implements OnInit {
     private notifications: NotificationService,
     private exportService: ExportService,
     private toast: UiToastService,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     void this.notifications.requestBrowserPermission();
+    this.routeSub = this.route.queryParamMap.subscribe(params => {
+      const raw = params.get('id');
+      const id = raw != null ? Number(raw) : NaN;
+      this.focusId = Number.isFinite(id) && id > 0 ? id : null;
+      if (this.focusId != null) {
+        this.applyFocus(this.items);
+      }
+    });
     this.loadStats();
     this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.routeSub?.unsubscribe();
+    this.loadSub?.unsubscribe();
+    if (this.undoTimer) clearTimeout(this.undoTimer);
   }
 
   get readCount(): number {
@@ -191,11 +212,16 @@ export class NotificationCenterComponent implements OnInit {
   }
 
   loadStats(): void {
-    this.notifications.getStats().subscribe(s => this.stats = s);
+    this.notifications.getStats().subscribe({
+      next: s => this.stats = s,
+      error: () => { /* stats chips stay hidden / stale */ }
+    });
   }
 
   load(): void {
+    this.loadSub?.unsubscribe();
     this.loading = true;
+    this.loadError = false;
     const filter: NotificationFilter = {
       page: this.pageIndex + 1,
       pageSize: this.pageSize,
@@ -215,27 +241,34 @@ export class NotificationCenterComponent implements OnInit {
     };
 
     if (this.tab === 'unread') filter.unreadOnly = true;
-    if (this.tab === 'failed') filter.isSent = false;
+    if (this.tab === 'read') filter.unreadOnly = false;
+    if (this.tab === 'failed') filter.failedOnly = true;
 
-    this.notifications.getAll(filter).subscribe({
+    this.loadSub = this.notifications.getAll(filter).subscribe({
       next: res => {
-        let rows = res.items;
-        if (this.tab === 'read') rows = rows.filter(n => n.isRead);
-        if (this.tab === 'failed') {
-          rows = rows.filter(n =>
-            n.deliveryStatus === 'Failed' ||
-            (n.isSent === false && (n.channel ?? 'InApp') !== 'InApp'));
-        }
-        this.items = rows;
-        this.totalCount = this.tab === 'read' || this.tab === 'failed' ? rows.length : res.totalCount;
+        this.items = res.items ?? [];
+        this.totalCount = res.totalCount ?? this.items.length;
         this.selectedIds = [];
         this.loading = false;
+        this.loadError = false;
+        this.applyFocus(this.items);
       },
       error: () => {
+        this.items = [];
+        this.totalCount = 0;
         this.loading = false;
+        this.loadError = true;
         this.toast.error('Failed to load notifications');
       }
     });
+  }
+
+  private applyFocus(rows: Notification[]): void {
+    if (this.focusId == null) return;
+    const hit = rows.find(n => n.id === this.focusId);
+    if (!hit) return;
+    this.expandedId = hit.id;
+    if (!hit.isRead) this.markRead(hit);
   }
 
   loadPreferences(): void {
@@ -337,9 +370,21 @@ export class NotificationCenterComponent implements OnInit {
 
   markRead(n: Notification): void {
     if (n.isRead) return;
+    // Optimistic — avoid full list reload (collapse flicker) on expand.
+    n.isRead = true;
     this.notifications.markAsRead([n.id]).subscribe({
-      next: () => { this.load(); this.loadStats(); },
-      error: () => this.toast.error('Could not mark as read')
+      next: () => {
+        this.loadStats();
+        if (this.tab === 'unread') {
+          this.items = this.items.filter(x => x.id !== n.id);
+          this.totalCount = Math.max(0, this.totalCount - 1);
+          if (this.expandedId === n.id) this.expandedId = null;
+        }
+      },
+      error: () => {
+        n.isRead = false;
+        this.toast.error('Could not mark as read');
+      }
     });
   }
 
@@ -349,7 +394,8 @@ export class NotificationCenterComponent implements OnInit {
         this.toast.success('All notifications marked as read');
         this.load();
         this.loadStats();
-      }
+      },
+      error: () => this.toast.error('Could not mark all as read')
     });
   }
 
@@ -421,7 +467,8 @@ export class NotificationCenterComponent implements OnInit {
         this.selectedIds = [];
         this.load();
         this.loadStats();
-      }
+      },
+      error: () => this.toast.error('Could not mark as read')
     });
   }
 
@@ -636,6 +683,20 @@ export class NotificationCenterComponent implements OnInit {
     const days = Math.floor(hours / 24);
     if (days < 7) return `${days}d ago`;
     return this.formatAbsolute(iso);
+  }
+
+  /** Strip HTML / template placeholders for safe list preview (primitives only — no CD freeze). */
+  previewText(text?: string | null): string {
+    if (!text) return '';
+    return text
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\{\{\s*[\w.]+\s*\}\}/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   trackById(_: number, n: Notification): number {

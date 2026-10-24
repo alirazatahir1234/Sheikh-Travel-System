@@ -1,12 +1,18 @@
 namespace SheikhTravelSystem.Application.Common;
 
 /// <summary>
-/// Product concurrency: at most two active authenticated sessions per company (tenant).
-/// A third login attempt is blocked; existing sessions are not kicked or invalidated.
+/// Product concurrency for authenticated sessions per company (tenant).
+/// When <see cref="MaxActiveSessionsPerTenant"/> is &gt; 0, a login that would exceed the
+/// cap is blocked; existing sessions are not kicked or invalidated.
+/// When the max is 0, concurrent login limiting is disabled (unlimited).
 /// </summary>
 public static class AuthSessionLimits
 {
-    public const int MaxActiveSessionsPerTenant = 2;
+    /// <summary>
+    /// Max active sessions per tenant. <c>0</c> = unlimited (limit check skipped).
+    /// Temporarily disabled so local/dev and multi-device use are not blocked.
+    /// </summary>
+    public const int MaxActiveSessionsPerTenant = 0;
 
     public const string ClaimSessionId = "sid";
 
@@ -22,10 +28,10 @@ public static class AuthSessionLimits
     public const string SessionEndedSuperseded = "superseded";
 
     /// <summary>
-    /// Shown when a third concurrent login is attempted (HTTP 200 + success:false).
+    /// Shown when a concurrent login is blocked (HTTP 200 + success:false).
     /// </summary>
     public const string LimitReachedMessage =
-        "This company already has 2 active logins. Log out from another device first, then try again.";
+        "This company already has the maximum active logins. Log out from another device first, then try again.";
 
     public const string LimitReachedCode = "SESSION_LIMIT_REACHED";
 

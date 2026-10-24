@@ -161,6 +161,7 @@ export interface NotificationDeliveryLog {
 export interface NotificationFilter {
   page?: number;
   pageSize?: number;
+  /** true = unread only; false = read only; omit = all */
   unreadOnly?: boolean;
   isSent?: boolean;
   channel?: string;
@@ -172,4 +173,5 @@ export interface NotificationFilter {
   archived?: boolean;
   trash?: boolean;
   datePreset?: string;
+  failedOnly?: boolean;
 }

@@ -133,6 +133,8 @@ public static class DatabaseMigrationRegistry
             M("DriverTelematicsEnforcementMigration", DriverTelematicsEnforcementMigration.ApplyAsync),
             M("SmartOperationsAutomationMigration", SmartOperationsAutomationMigration.ApplyAsync),
             M("AuthSessionsConcurrencyMigration", AuthSessionsConcurrencyMigration.ApplyAsync),
+            M("ModuleAiAssistantActiveMigration", ModuleAiAssistantActiveMigration.ApplyAsync),
+            M("BookingsTripsModuleSplitMigration", BookingsTripsModuleSplitMigration.ApplyAsync),
         ];
     }
 }

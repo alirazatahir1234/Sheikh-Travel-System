@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, interval, switchMap, tap, catchError, of, Subscription, Subject, map } from 'rxjs';
+import { BehaviorSubject, Observable, interval, switchMap, tap, catchError, of, Subscription, Subject, map, throwError } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../models/common.model';
@@ -69,8 +69,8 @@ export class NotificationService implements OnDestroy {
       .set('page', filter.page ?? 1)
       .set('pageSize', filter.pageSize ?? 20);
 
-    if (filter.unreadOnly != null) params = params.set('unreadOnly', filter.unreadOnly);
-    if (filter.isSent != null) params = params.set('isSent', filter.isSent);
+    if (filter.unreadOnly != null) params = params.set('unreadOnly', String(filter.unreadOnly));
+    if (filter.isSent != null) params = params.set('isSent', String(filter.isSent));
     if (filter.channel) params = params.set('channel', filter.channel);
     if (filter.priority != null) params = params.set('priority', filter.priority);
     if (filter.search) params = params.set('search', filter.search);
@@ -80,11 +80,16 @@ export class NotificationService implements OnDestroy {
     if (filter.archived) params = params.set('archived', true);
     if (filter.trash) params = params.set('trash', true);
     if (filter.datePreset) params = params.set('datePreset', filter.datePreset);
+    if (filter.failedOnly) params = params.set('failedOnly', true);
 
     return this.http.get<PagedResult<AppNotification>>(this.base, { params }).pipe(
       catchError(err => {
-        if (err instanceof HttpErrorResponse && err.status === 401) this.onUnauthorized(err);
-        return of(this.emptyPaged(filter.page ?? 1, filter.pageSize ?? 20));
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          this.onUnauthorized(err);
+          return of(this.emptyPaged(filter.page ?? 1, filter.pageSize ?? 20));
+        }
+        // Let callers (e.g. Notification Center) show an error; polling catches locally.
+        return throwError(() => err);
       })
     );
   }
@@ -254,8 +259,9 @@ export class NotificationService implements OnDestroy {
       this.unreadCount$.next(0);
       return;
     }
-    this.getAll({ page: 1, pageSize: 50 }).subscribe(res => {
-      this.notifications$.next(res.items);
+    this.getAll({ page: 1, pageSize: 50 }).subscribe({
+      next: res => this.notifications$.next(res.items),
+      error: () => { /* keep last known list; badge still refreshes */ }
     });
     this.refreshUnreadCount();
   }
@@ -285,7 +291,9 @@ export class NotificationService implements OnDestroy {
     this.pollSub = interval(intervalMs).pipe(
       switchMap(() => {
         if (!this.auth.getToken()) return of(this.emptyPaged(1, 50));
-        return this.getAll({ page: 1, pageSize: 50 });
+        return this.getAll({ page: 1, pageSize: 50 }).pipe(
+          catchError(() => of(this.emptyPaged(1, 50)))
+        );
       })
     ).subscribe(res => {
       this.notifications$.next(res.items);

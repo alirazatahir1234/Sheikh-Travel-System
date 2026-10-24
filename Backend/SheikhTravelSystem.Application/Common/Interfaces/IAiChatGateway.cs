@@ -17,9 +17,15 @@ public record AiProviderChatRequest(
     IReadOnlyList<AiChatMessageDto> Messages,
     string? BaseUrl = null,
     double Temperature = 0.3,
-    int? MaxTokens = 1024);
+    int? MaxTokens = 1024,
+    IReadOnlyList<AiLlmToolDefinition>? Tools = null,
+    string? ToolChoice = null);
 
-public record AiChatMessageDto(string Role, string Content);
+public record AiChatMessageDto(
+    string Role,
+    string Content,
+    string? ToolCallId = null,
+    IReadOnlyList<AiToolCallDto>? ToolCalls = null);
 
 public record AiProviderChatResult(
     bool Success,
@@ -28,7 +34,8 @@ public record AiProviderChatResult(
     string Model,
     int PromptTokens = 0,
     int CompletionTokens = 0,
-    string? Error = null);
+    string? Error = null,
+    IReadOnlyList<AiToolCallDto>? ToolCalls = null);
 
 /// <summary>SheikhGo AI Gateway — memory + provider + rule fallback. Phase 1 = chat only.</summary>
 public interface IAiChatGateway

@@ -167,6 +167,7 @@ export interface ModuleRegistryEntry {
   isLicensed?: boolean;
 }
 
+/** Defaults for new companies — Bookings & Trips and SheikhGo AI Assistant are opt-in (not listed). */
 export const DEFAULT_TENANT_MODULE_CODES = [
   'DASHBOARD', 'FLEET', 'GPS', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS'
 ] as const;
@@ -205,6 +206,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
     description: 'Unlimited — all modules',
     bestFor: 'Large organizations',
     quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: null },
+    // Routes (TRAVEL) included; Bookings & Trips + SheikhGo AI Assistant stay manual opt-in checkboxes.
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'HR', 'ANALYTICS', 'ACCESS']
   }
 };
@@ -239,13 +241,16 @@ export const MODULE_ICONS: Record<string, string> = {
   FLEET: 'local_shipping',
   GPS: 'my_location',
   RENTAL: 'car_rental',
-  TRAVEL: 'flight',
+  /** Roads / route catalog — independent of Bookings & Trips. */
+  TRAVEL: 'alt_route',
+  /** Opt-in bookings + trips (not in DEFAULT_TENANT_MODULE_CODES). */
+  BOOKINGS: 'event_note',
   CRM: 'groups',
   FINANCE: 'account_balance_wallet',
   HR: 'badge',
   ANALYTICS: 'bar_chart',
   ACCESS: 'admin_panel_settings',
-  /** Premium AAS Assistant — opt-in only; not in DEFAULT_TENANT_MODULE_CODES or plan defaults. */
+  /** Premium SheikhGo AI Assistant — opt-in only; not in DEFAULT_TENANT_MODULE_CODES or plan defaults. */
   AI: 'smart_toy'
 };
 
@@ -355,13 +360,15 @@ export function formatModuleBadge(code: string): string {
     DASHBOARD: 'Dashboard',
     FLEET: 'Fleet',
     GPS: 'GPS',
-    TRAVEL: 'Travel',
+    TRAVEL: 'Routes',
+    BOOKINGS: 'Bookings & Trips',
     CRM: 'CRM',
     FINANCE: 'Finance',
     ANALYTICS: 'Analytics',
     ACCESS: 'Access',
     HR: 'HR',
-    RENTAL: 'Rental'
+    RENTAL: 'Rental',
+    AI: 'SheikhGo AI Assistant'
   };
   return map[code] ?? code;
 }

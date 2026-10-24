@@ -12,7 +12,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Ai.Providers;
 /// <summary>
 /// Hosted LLM via DeepInfra OpenAI-compatible API. Recommended model: Qwen/Qwen3-32B.
 /// API key from env / user-secrets only (never tenant DB or committed config).
-/// Predictions remain rules/stats — this provider is optional language polish only.
+/// Supports optional OpenAI-style <c>tools</c> / <c>tool_calls</c> for the MCP bridge.
 /// </summary>
 public sealed class DeepInfraAiProvider(
     IHttpClientFactory httpClientFactory,
@@ -75,15 +75,43 @@ public sealed class DeepInfraAiProvider(
         try
         {
             var http = httpClientFactory.CreateClient(HttpClientName);
-            // Qwen3 may spend max_tokens on reasoning; disable thinking for polish replies.
-            var payload = new
+            var messages = request.Messages.Select(SerializeMessage).ToList();
+
+            object payload;
+            if (request.Tools is { Count: > 0 })
             {
-                model,
-                temperature = request.Temperature,
-                max_tokens = request.MaxTokens ?? 1024,
-                messages = request.Messages.Select(m => new { role = m.Role, content = m.Content }).ToList(),
-                chat_template_kwargs = new { enable_thinking = false }
-            };
+                payload = new
+                {
+                    model,
+                    temperature = request.Temperature,
+                    max_tokens = request.MaxTokens ?? 1024,
+                    messages,
+                    tools = request.Tools.Select(t => new
+                    {
+                        type = "function",
+                        function = new
+                        {
+                            name = t.Name,
+                            description = t.Description,
+                            parameters = t.ParametersSchema
+                        }
+                    }).ToList(),
+                    tool_choice = string.IsNullOrWhiteSpace(request.ToolChoice) ? "auto" : request.ToolChoice,
+                    chat_template_kwargs = new { enable_thinking = false }
+                };
+            }
+            else
+            {
+                // Qwen3 may spend max_tokens on reasoning; disable thinking for polish replies.
+                payload = new
+                {
+                    model,
+                    temperature = request.Temperature,
+                    max_tokens = request.MaxTokens ?? 1024,
+                    messages,
+                    chat_template_kwargs = new { enable_thinking = false }
+                };
+            }
 
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions")
             {
@@ -104,15 +132,45 @@ public sealed class DeepInfraAiProvider(
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
             var content = string.Empty;
+            List<AiToolCallDto>? toolCalls = null;
+
             if (root.TryGetProperty("choices", out var choices) &&
                 choices.ValueKind == JsonValueKind.Array &&
                 choices.GetArrayLength() > 0)
             {
                 var first = choices[0];
-                if (first.TryGetProperty("message", out var msg) &&
-                    msg.TryGetProperty("content", out var c))
+                if (first.TryGetProperty("message", out var msg))
                 {
-                    content = c.GetString() ?? string.Empty;
+                    if (msg.TryGetProperty("content", out var c) && c.ValueKind != JsonValueKind.Null)
+                        content = c.GetString() ?? string.Empty;
+
+                    if (msg.TryGetProperty("tool_calls", out var tc) &&
+                        tc.ValueKind == JsonValueKind.Array &&
+                        tc.GetArrayLength() > 0)
+                    {
+                        toolCalls = [];
+                        foreach (var call in tc.EnumerateArray())
+                        {
+                            var id = call.TryGetProperty("id", out var idEl)
+                                ? idEl.GetString() ?? Guid.NewGuid().ToString("N")
+                                : Guid.NewGuid().ToString("N");
+                            var name = string.Empty;
+                            var argsJson = "{}";
+                            if (call.TryGetProperty("function", out var fn))
+                            {
+                                name = fn.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                if (fn.TryGetProperty("arguments", out var a))
+                                {
+                                    argsJson = a.ValueKind == JsonValueKind.String
+                                        ? (a.GetString() ?? "{}")
+                                        : a.GetRawText();
+                                }
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(name))
+                                toolCalls.Add(new AiToolCallDto(id, name, argsJson));
+                        }
+                    }
                 }
             }
 
@@ -127,13 +185,22 @@ public sealed class DeepInfraAiProvider(
             }
 
             content = StripThinking(content);
-            if (string.IsNullOrWhiteSpace(content))
+
+            // Tool-only turns may have empty content — that is success when tool_calls present
+            if (string.IsNullOrWhiteSpace(content) && (toolCalls is null || toolCalls.Count == 0))
             {
                 return new AiProviderChatResult(false, string.Empty, ProviderName, model,
                     Error: "Empty response from DeepInfra.");
             }
 
-            return new AiProviderChatResult(true, content.Trim(), ProviderName, model, promptTokens, completionTokens);
+            return new AiProviderChatResult(
+                true,
+                content?.Trim() ?? string.Empty,
+                ProviderName,
+                model,
+                promptTokens,
+                completionTokens,
+                ToolCalls: toolCalls);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -146,6 +213,36 @@ public sealed class DeepInfraAiProvider(
             return new AiProviderChatResult(false, string.Empty, ProviderName, model,
                 Error: $"Cannot reach DeepInfra at {baseUrl}.");
         }
+    }
+
+    private static object SerializeMessage(AiChatMessageDto m)
+    {
+        if (string.Equals(m.Role, "tool", StringComparison.OrdinalIgnoreCase))
+        {
+            return new
+            {
+                role = "tool",
+                content = m.Content,
+                tool_call_id = m.ToolCallId ?? string.Empty
+            };
+        }
+
+        if (m.ToolCalls is { Count: > 0 })
+        {
+            return new
+            {
+                role = m.Role,
+                content = string.IsNullOrEmpty(m.Content) ? null : m.Content,
+                tool_calls = m.ToolCalls.Select(tc => new
+                {
+                    id = tc.Id,
+                    type = "function",
+                    function = new { name = tc.Name, arguments = tc.ArgumentsJson }
+                }).ToList()
+            };
+        }
+
+        return new { role = m.Role, content = m.Content };
     }
 
     public bool HasApiKeyConfigured() => !string.IsNullOrWhiteSpace(ResolveApiKey());

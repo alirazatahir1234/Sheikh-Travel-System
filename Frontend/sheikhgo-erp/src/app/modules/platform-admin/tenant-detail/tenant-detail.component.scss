@@ -801,19 +801,29 @@
     mat-icon:first-child { color: #166534; }
   }
 
-  &.premium {
+  &.premium,
+  &.opt-in {
     border-style: dashed;
   }
 
-  .premium-chip {
+  .premium-chip,
+  .opt-in-chip {
     font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #92400e;
-    background: #fef3c7;
     border-radius: 4px;
     padding: 1px 6px;
+  }
+
+  .premium-chip {
+    color: #92400e;
+    background: #fef3c7;
+  }
+
+  .opt-in-chip {
+    color: #1e3a5f;
+    background: #e0f2fe;
   }
 
   &:hover { border-color: #86efac; }

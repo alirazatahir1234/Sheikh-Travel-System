@@ -9,7 +9,9 @@ public class GpsSettings
     public int OfflineStaleMinutes { get; set; } = 30;
 
     /// <summary>
-    /// Minimum cooldown before raising another vehicle_offline event for the same vehicle.
+    /// Unused by offline detection. GpsOfflineDetectionHostedService dedups via open
+    /// (IsAcknowledged = 0) vehicle_offline alerts until the vehicle comes back online.
+    /// Kept for backward-compatible config binding only.
     /// </summary>
     public int OfflineAlertCooldownMinutes { get; set; } = 120;
 

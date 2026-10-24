@@ -7,11 +7,11 @@
        (click)="launch.emit(app)"
        [matTooltip]="app.label"
        matTooltipPosition="below">
-      <span class="ql-bubble" [class.is-solid]="!actionCards" [ngClass]="'stb-accent-' + app.color">
+      <span class="ql-bubble is-solid" [ngClass]="'stb-accent-' + app.color">
         <mat-icon>{{ app.icon }}</mat-icon>
         <span class="ql-plus" *ngIf="actionCards">+</span>
       </span>
-      <span class="ql-label">{{ actionCards ? app.label : app.label }}</span>
+      <span class="ql-label">{{ app.label }}</span>
     </a>
   </div>
 </div>

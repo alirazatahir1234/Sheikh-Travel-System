@@ -1,8 +1,16 @@
-<div class="chat-shell">
-  <aside class="sessions" *ngIf="sessions.length">
+<div
+  class="chat-shell"
+  [class.has-sessions]="hasSessions"
+  [class.is-compact]="compact">
+  <div class="access-denied" *ngIf="accessDeniedMessage" role="status">
+    <mat-icon>lock</mat-icon>
+    <p>{{ accessDeniedMessage }}</p>
+  </div>
+
+  <aside class="sessions" *ngIf="hasSessions">
     <div class="sessions-head">
       <strong>Recent</strong>
-      <button mat-icon-button type="button" (click)="newChat()" title="New chat">
+      <button mat-icon-button type="button" (click)="newChat()" title="New chat" aria-label="New chat">
         <mat-icon>add</mat-icon>
       </button>
     </div>
@@ -17,16 +25,20 @@
     </button>
   </aside>
 
-  <section class="chat-main">
-    <div class="provider-strip" *ngIf="providerHealth as h">
-      <mat-icon [class.ok]="h.reachable" [class.warn]="!h.reachable">
-        {{ h.reachable ? 'check_circle' : 'error_outline' }}
-      </mat-icon>
-      <div>
-        <strong>{{ h.provider }}</strong>
-        <span *ngIf="h.model"> · {{ h.model }}</span>
-        <p>{{ h.statusMessage }}</p>
-      </div>
+  <section class="chat-main" *ngIf="!accessDeniedMessage">
+    <div class="connection-strip" [attr.data-state]="connectionState" role="status">
+      <mat-icon>{{ connectionState === 'connected' ? 'check_circle' : 'hourglass_empty' }}</mat-icon>
+      <span>{{ connectionState === 'connected' ? 'Connected' : 'Connecting…' }}</span>
+      <button
+        *ngIf="!hasSessions"
+        mat-icon-button
+        type="button"
+        class="new-chat-btn"
+        (click)="newChat()"
+        title="New chat"
+        aria-label="New chat">
+        <mat-icon>add</mat-icon>
+      </button>
     </div>
 
     <div class="chat-loading" *ngIf="loading">
@@ -38,10 +50,7 @@
         <mat-icon>smart_toy</mat-icon>
         <h3>SheikhGo AI Assistant</h3>
         <p>Ask about fuel costs, maintenance due, overdue invoices, trips, and vehicle utilization for your company.</p>
-        <p class="hint" *ngIf="providerHealth && !providerHealth.reachable">
-          LLM offline — grounded reporting tools still answer from your database.
-        </p>
-        <label class="mode-toggle">
+        <label class="mode-toggle" *ngIf="!compact">
           <input type="checkbox" [(ngModel)]="useAssistant" />
           Use read-only Assistant (recommended)
         </label>
@@ -54,15 +63,8 @@
         [class.assistant]="m.role === 'assistant'">
         <pre>{{ m.content }}</pre>
         <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
-          <small>Period: {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+          <small>{{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
         </div>
-        <ul class="warn-list" *ngIf="m.warnings?.length">
-          <li *ngFor="let w of m.warnings">{{ w }}</li>
-        </ul>
-        <footer *ngIf="m.role === 'assistant' && m.mode">
-          {{ m.mode }}<span *ngIf="m.usedLlm"> · LLM</span>
-          <span *ngIf="m.tools && m.tools.length"> · {{ m.tools.join(', ') }}</span>
-        </footer>
       </article>
 
       <div class="typing" *ngIf="sending">
@@ -72,11 +74,12 @@
       <div #scrollAnchor></div>
     </div>
 
-    <div class="suggestions" *ngIf="!sending && suggestions.length">
+    <div class="suggestions" *ngIf="visibleSuggestions.length" role="list" aria-label="Suggested questions">
       <button
-        mat-stroked-button
         type="button"
-        *ngFor="let s of suggestions"
+        class="suggestion-chip"
+        role="listitem"
+        *ngFor="let s of visibleSuggestions"
         (click)="useSuggestion(s)">
         {{ s }}
       </button>
@@ -84,7 +87,7 @@
 
     <div class="confirm-bar" *ngIf="pendingAction && !sending">
       <div>
-        <strong>Confirm: {{ pendingAction.toolName }}</strong>
+        <strong>Confirm this action</strong>
         <p>{{ pendingAction.summary }}</p>
         <small>Expires {{ pendingAction.expiresAt | date:'short' }} · or type CONFIRM</small>
       </div>
@@ -95,17 +98,24 @@
     </div>
 
     <form class="composer" (ngSubmit)="send()">
-      <mat-form-field appearance="outline" class="composer-field">
-        <mat-label>Message SheikhGo AI</mat-label>
+      <mat-form-field appearance="outline" class="composer-field" subscriptSizing="dynamic">
+        <!-- Compact FAB: short label fits ~360px panel; full page keeps branded label. -->
+        <mat-label>{{ compact ? 'Message…' : 'Message SheikhGo AI Assistant' }}</mat-label>
         <input
           matInput
           [(ngModel)]="draft"
           name="draft"
-          [disabled]="sending"
+          [disabled]="sending || !!accessDeniedMessage"
           (keydown.enter)="$event.preventDefault(); send()"
+          [attr.aria-label]="compact ? 'Message SheikhGo AI Assistant' : null"
           placeholder="How healthy is my fleet today?" />
       </mat-form-field>
-      <button mat-flat-button color="primary" type="submit" [disabled]="sending || !draft.trim()">
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="sending || !draft.trim() || !!accessDeniedMessage"
+        aria-label="Send">
         <mat-icon>send</mat-icon>
       </button>
     </form>
