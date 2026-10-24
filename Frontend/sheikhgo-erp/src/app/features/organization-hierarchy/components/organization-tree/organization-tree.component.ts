@@ -6,6 +6,7 @@ import {
   input,
   output,
   ViewChild,
+  effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,79 +22,56 @@ import { HierarchyMinimapComponent } from '../hierarchy-minimap/hierarchy-minima
   imports: [CommonModule, FormsModule, TreeNodeComponent, UnassignedDepartmentComponent, ContextMenuComponent, HierarchyMinimapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-white rounded-lg shadow border border-border overflow-hidden h-full flex flex-col">
+    <div class="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col min-h-[28rem]">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between gap-2 mb-3">
           <h3 class="text-sm font-semibold text-text">Organization Tree</h3>
           <div class="flex items-center gap-1">
             <button
               type="button"
               (click)="expandAll()"
-              class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-text-muted hover:text-text hover:bg-surface-alt rounded transition-colors"
+              class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-text-muted hover:text-text hover:bg-surface-alt rounded-md transition-colors"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-              EXPAND
+              Expand
             </button>
             <button
               type="button"
               (click)="collapseAll()"
-              class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-text-muted hover:text-text hover:bg-surface-alt rounded transition-colors"
+              class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-text-muted hover:text-text hover:bg-surface-alt rounded-md transition-colors"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              COLLAPSE
+              Collapse
             </button>
           </div>
         </div>
 
         <!-- Action Toolbar -->
         <div class="flex flex-wrap items-center gap-2 mb-3">
-          <button
-            type="button"
-            (click)="addBranch.emit()"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Branch
-          </button>
-          <button
-            type="button"
-            (click)="addDepartment.emit()"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Department
-          </button>
-          <button
-            type="button"
-            (click)="addTeam.emit()"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-muted bg-surface-alt border border-border rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Team
-          </button>
+          @if (canManageBranches()) {
+            <button
+              type="button"
+              (click)="addBranch.emit()"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Branch
+            </button>
+          }
+          @if (canManageDepartments()) {
+            <button
+              type="button"
+              (click)="addDepartment.emit()"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Department
+            </button>
+          }
           <div class="flex-1"></div>
-          <button
-            type="button"
-            (click)="importHierarchy.emit()"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-muted hover:text-text hover:bg-surface-alt rounded-lg transition-colors"
-            title="Import hierarchy from file"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Import
-          </button>
           <button
             type="button"
             (click)="exportHierarchy.emit()"
@@ -173,7 +151,7 @@ import { HierarchyMinimapComponent } from '../hierarchy-minimap/hierarchy-minima
 
       <!-- Bulk Action Bar -->
       @if (selectedNodeIds().size > 0) {
-        <div class="px-3 py-2 bg-primary-50 border-y border-primary-100 flex items-center justify-between">
+        <div class="px-3 py-2 bg-primary-50 border-y border-primary-100 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2 text-sm text-primary-700">
             <span class="font-medium">{{ selectedNodeIds().size }} selected</span>
             <button
@@ -184,54 +162,71 @@ import { HierarchyMinimapComponent } from '../hierarchy-minimap/hierarchy-minima
               Clear
             </button>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-1">
             <button
               type="button"
               (click)="bulkMove.emit(getSelectedNodes())"
-              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded transition-colors"
+              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded-md transition-colors"
             >
               Move
             </button>
             <button
               type="button"
               (click)="bulkArchive.emit(getSelectedNodes())"
-              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded transition-colors"
+              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded-md transition-colors"
             >
               Archive
             </button>
             <button
               type="button"
               (click)="bulkExport.emit(getSelectedNodes())"
-              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded transition-colors"
+              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded-md transition-colors"
             >
               Export
             </button>
             <button
               type="button"
               (click)="bulkAssignManager.emit(getSelectedNodes())"
-              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded transition-colors"
+              class="px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 rounded-md transition-colors"
             >
-              Assign Manager
+              Assign manager
             </button>
           </div>
         </div>
       }
 
       <!-- Tree Content -->
-      <div class="flex-1 overflow-y-auto p-2">
-        @for (node of filteredNodes(); track node.id) {
-          <app-tree-node
-            [node]="node"
-            [level]="0"
-            [selectedNodeId]="selectedNodeId()"
-            [expandedNodeIds]="expandedNodeIds()"
-            [multiSelectEnabled]="multiSelectMode()"
-            [checkedNodeIds]="selectedNodeIds()"
-            (nodeSelect)="onNodeSelect($event)"
-            (nodeToggle)="onNodeToggle($event)"
-            (nodeCheck)="onNodeCheck($event)"
-            (nodeContextMenu)="onNodeContextMenu($event)"
-          />
+      <div class="flex-1 overflow-y-auto p-2 min-h-[12rem]">
+        @if (filteredNodes().length === 0) {
+          <div class="flex flex-col items-center justify-center text-center px-4 py-10">
+            <div class="w-10 h-10 rounded-lg bg-surface-alt flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-text-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            @if (searchQuery().trim()) {
+              <p class="text-sm font-medium text-text">No matches</p>
+              <p class="text-xs text-text-muted mt-1">Try a different branch or department name.</p>
+            } @else {
+              <p class="text-sm font-medium text-text">No hierarchy yet</p>
+              <p class="text-xs text-text-muted mt-1">Add a branch to start building this company tree.</p>
+            }
+          </div>
+        } @else {
+          @for (node of filteredNodes(); track node.id) {
+            <app-tree-node
+              [node]="node"
+              [level]="0"
+              [selectedNodeId]="selectedNodeId()"
+              [expandedNodeIds]="expandedNodeIds()"
+              [multiSelectEnabled]="multiSelectMode()"
+              [checkedNodeIds]="selectedNodeIds()"
+              (nodeSelect)="onNodeSelect($event)"
+              (nodeToggle)="onNodeToggle($event)"
+              (nodeCheck)="onNodeCheck($event)"
+              (nodeContextMenu)="onNodeContextMenu($event)"
+            />
+          }
         }
       </div>
 
@@ -270,6 +265,8 @@ export class OrganizationTreeComponent {
   readonly nodes = input.required<OrganizationNode[]>();
   readonly unassignedDepartments = input<Department[]>([]);
   readonly selectedNodeId = input<string | null>(null);
+  readonly canManageBranches = input(true);
+  readonly canManageDepartments = input(true);
 
   readonly nodeSelected = output<OrganizationNode>();
   readonly departmentSelected = output<Department>();
@@ -285,10 +282,13 @@ export class OrganizationTreeComponent {
   readonly contextMenuAction = output<{ action: string; node: OrganizationNode }>();
 
   readonly searchQuery = signal<string>('');
-  readonly expandedNodeIds = signal<Set<string>>(new Set(['tenant-1', 'branch-1']));
+  readonly expandedNodeIds = signal<Set<string>>(new Set());
   readonly selectedNodeIds = signal<Set<string>>(new Set());
   readonly multiSelectMode = signal<boolean>(true);
   readonly searchFocused = signal<boolean>(false);
+
+  /** Tracks which tree root signature we last auto-expanded for. */
+  private readonly expandedForTreeKey = signal<string | null>(null);
 
   readonly filteredNodes = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
@@ -305,6 +305,40 @@ export class OrganizationTreeComponent {
     this.collectSearchResults(this.nodes(), query, [], results);
     return results.slice(0, 10);
   });
+
+  constructor() {
+    effect(
+      () => {
+        const currentNodes = this.nodes();
+        if (currentNodes.length === 0) {
+          this.expandedForTreeKey.set(null);
+          this.expandedNodeIds.set(new Set());
+          return;
+        }
+
+        // Include all node ids so newly added branches/departments re-seed expansion.
+        const treeKey = this.collectAllNodeIds(currentNodes).join('|');
+        if (this.expandedForTreeKey() === treeKey) return;
+
+        this.expandedForTreeKey.set(treeKey);
+        this.expandedNodeIds.set(new Set(this.collectExpandedIds(currentNodes)));
+      },
+      { allowSignalWrites: true }
+    );
+  }
+
+  private collectExpandedIds(nodes: OrganizationNode[]): string[] {
+    const ids: string[] = [];
+    for (const node of nodes) {
+      if (node.isExpanded || node.type === 'tenant' || node.type === 'branch') {
+        ids.push(node.id);
+      }
+      if (node.children.length > 0) {
+        ids.push(...this.collectExpandedIds(node.children));
+      }
+    }
+    return ids;
+  }
 
   private filterNodes(nodes: OrganizationNode[], query: string): OrganizationNode[] {
     return nodes

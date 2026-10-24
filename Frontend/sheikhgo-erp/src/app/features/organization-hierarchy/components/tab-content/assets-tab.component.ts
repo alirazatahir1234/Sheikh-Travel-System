@@ -22,7 +22,7 @@ export interface AssetCategory {
   template: `
     <div>
       <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h3 class="text-lg font-semibold text-text">Assets</h3>
           <p class="text-sm text-text-muted">Vehicles, drivers, and GPS devices in this branch</p>
@@ -32,19 +32,22 @@ export interface AssetCategory {
           (click)="addAsset.emit()"
           class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add Asset
+          Add asset
         </button>
       </div>
 
       <!-- Asset Categories Grid -->
-      <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
         @for (category of categories(); track category.id) {
           <div
-            class="p-4 bg-surface-alt rounded-lg border border-border/50 hover:border-border cursor-pointer transition-colors"
+            class="p-4 bg-surface-alt rounded-lg border border-border hover:border-primary-200 cursor-pointer transition-colors"
             (click)="categorySelected.emit(category.id)"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="categorySelected.emit(category.id)"
           >
             <div class="flex items-center gap-3">
               <div [class]="getIconBgClass(category.icon)">
@@ -83,16 +86,16 @@ export interface AssetCategory {
       </div>
 
       <!-- Placeholder Notice -->
-      <div class="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+      <div class="p-4 bg-primary-50 border border-primary-100 rounded-lg">
         <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <p class="text-sm font-medium text-blue-900">Asset Management</p>
-            <p class="text-sm text-blue-700 mt-1">
-              Branch-level asset counts are derived from tenant quotas. For detailed asset management,
-              please use the dedicated Fleet Management module.
+            <p class="text-sm font-medium text-primary-700">Asset management</p>
+            <p class="text-sm text-primary-700/80 mt-1">
+              Branch-level asset counts are derived from company quotas. For detailed asset management,
+              use the Fleet Management module.
             </p>
           </div>
         </div>

@@ -904,11 +904,26 @@ public class SetTenantModulesCommandHandler(
         platformScope.EnsureTenantAccess(request.TenantId);
         await platformRepository.EnsureTenantExistsAsync(request.TenantId, cancellationToken);
 
-        var validCodes = TenantModuleCatalog.All.Select(m => m.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var moduleCodes = (request.ModuleCodes ?? Array.Empty<string>())
-            .Where(c => validCodes.Contains(c))
+        // Seed is the toggle contract (Active + TenantModuleCatalog). Catalog UI may show more rows.
+        var enableableCodes = ModuleRegistrySeed.All
+            .Where(ModuleRegistrySeed.IsToggleable)
+            .Select(e => e.Code)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var requested = (request.ModuleCodes ?? Array.Empty<string>())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        var rejected = requested.Where(c => !enableableCodes.Contains(c)).ToList();
+        if (rejected.Count > 0)
+        {
+            return ApiResponse<bool>.FailResponse(
+                $"Cannot enable module(s): {string.Join(", ", rejected)}. Only Active catalog modules can be toggled.");
+        }
+
+        var moduleCodes = ModuleRegistrySeed.ExpandToggleableWithDependencies(requested);
 
         await platformRepository.ReplaceTenantModulesAsync(request.TenantId, moduleCodes, cancellationToken);
         await tenantModuleService.SyncLegacyJsonAsync(request.TenantId, moduleCodes, cancellationToken);

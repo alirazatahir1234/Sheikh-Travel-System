@@ -255,10 +255,23 @@ class FleetSession {
   bool get canSeeTripsTab =>
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
+  /// Premium AAS Assistant module (TenantModules code `AI` / legacy key `ai`).
+  /// Default off — company must opt in at provision or via module management.
+  bool get hasAiAssistantModule {
+    final ctx = companyContext;
+    if (ctx == null) return false;
+    if (ctx.modules.any((m) => m.moduleCode.toUpperCase() == 'AI')) {
+      return true;
+    }
+    return ctx.enabledModuleKeys.any((k) => k.toLowerCase() == 'ai');
+  }
+
   /// Co-pilot is Admin / Fleet Manager ops intelligence — not Owner Tracking or Driver.
   /// Pure OWNER (even with Ai.View seeded) stays off the Copilot surface this phase.
+  /// Also requires company AI module entitlement (premium).
   bool get canSeeAiTab {
     if (isDriverOnly) return false;
+    if (!hasAiAssistantModule) return false;
     final isPureOwner = hasRole(FleetRole.owner) &&
         !hasAnyRole(const [
           FleetRole.superAdmin,

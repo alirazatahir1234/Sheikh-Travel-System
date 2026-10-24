@@ -7,12 +7,15 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Infrastructure.Services.Ai.Providers;
 
 /// <summary>
-/// Local LLM via Ollama HTTP API. Recommended Phase 1 model: mistral / mistral-nemo.
+/// Local LLM via Ollama HTTP API. Recommended chat-polish model: qwen3:8b (Qwen 3).
+/// Predictions remain rules/stats — this provider is optional language polish only.
 /// </summary>
 public sealed class OllamaAiProvider(IHttpClientFactory httpClientFactory, ILogger<OllamaAiProvider> logger) : IAiProvider
 {
     public const string HttpClientName = "OllamaAi";
     public const string DefaultBaseUrl = "http://127.0.0.1:11434";
+    /// <summary>Default Ollama tag when tenant ModelName is unset. Pull with: ollama pull qwen3:8b</summary>
+    public const string DefaultModel = "qwen3:8b";
     public string ProviderName => "Ollama";
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -40,15 +43,17 @@ public sealed class OllamaAiProvider(IHttpClientFactory httpClientFactory, ILogg
         AiProviderChatRequest request,
         CancellationToken cancellationToken = default)
     {
-        var model = string.IsNullOrWhiteSpace(request.Model) ? "mistral" : request.Model.Trim();
+        var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
         var baseUrl = NormalizeBase(request.BaseUrl);
         try
         {
             var http = httpClientFactory.CreateClient(HttpClientName);
+            // think:false — Qwen 3 otherwise fills message.thinking and leaves content empty.
             var payload = new
             {
                 model,
                 stream = false,
+                think = false,
                 options = new { temperature = request.Temperature, num_predict = request.MaxTokens ?? 1024 },
                 messages = request.Messages.Select(m => new { role = m.Role, content = m.Content }).ToList()
             };
@@ -65,9 +70,15 @@ public sealed class OllamaAiProvider(IHttpClientFactory httpClientFactory, ILogg
 
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
-            var content = root.TryGetProperty("message", out var msg) && msg.TryGetProperty("content", out var c)
-                ? c.GetString() ?? string.Empty
-                : string.Empty;
+            var content = string.Empty;
+            if (root.TryGetProperty("message", out var msg))
+            {
+                if (msg.TryGetProperty("content", out var c))
+                    content = c.GetString() ?? string.Empty;
+                // Fallback if a thinking model ignores think:false
+                if (string.IsNullOrWhiteSpace(content) && msg.TryGetProperty("thinking", out var thinking))
+                    content = thinking.GetString() ?? string.Empty;
+            }
 
             var promptTokens = root.TryGetProperty("prompt_eval_count", out var pe) ? pe.GetInt32() : 0;
             var completionTokens = root.TryGetProperty("eval_count", out var ec) ? ec.GetInt32() : 0;
@@ -99,9 +110,10 @@ public sealed class OllamaAiProvider(IHttpClientFactory httpClientFactory, ILogg
         => value.Length <= max ? value : value[..max] + "…";
 }
 
-/// <summary>Resolves the active provider from tenant AI config. Phase 1: Ollama.</summary>
+/// <summary>Resolves the active provider from tenant AI config (Ollama local or DeepInfra hosted).</summary>
 public sealed class AiProviderResolver(
     OllamaAiProvider ollama,
+    DeepInfraAiProvider deepInfra,
     IAiManagementService aiManagement) : IAiProviderResolver
 {
     public async Task<(IAiProvider? Provider, AiProviderConfigDto Config)> ResolveAsync(
@@ -115,6 +127,8 @@ public sealed class AiProviderResolver(
         return config.Provider?.Trim() switch
         {
             "Ollama" => (ollama, config),
+            "DeepInfra" or "HostedLLM" => (deepInfra, config),
+            // Cloud OpenAI / Azure adapters intentionally not wired.
             "OpenAI" or "AzureOpenAI" => (null, config),
             _ => (null, config)
         };

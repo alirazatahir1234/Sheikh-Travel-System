@@ -13,17 +13,18 @@ import { AuditLog } from '../../models/organization.models';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-white rounded-xl border border-border overflow-hidden">
+    <div class="bg-white rounded-lg border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border flex items-center justify-between">
         <h3 class="text-sm font-semibold text-text">Operational Logs</h3>
         <button
           type="button"
           (click)="refresh.emit()"
-          class="w-6 h-6 rounded-lg hover:bg-surface-alt flex items-center justify-center text-text-muted hover:text-text transition-colors"
+          class="w-7 h-7 rounded-lg hover:bg-surface-alt flex items-center justify-center text-text-muted hover:text-text transition-colors"
           title="Refresh"
+          aria-label="Refresh logs"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
@@ -31,31 +32,38 @@ import { AuditLog } from '../../models/organization.models';
 
       <!-- Content -->
       <div class="p-4">
-        <div class="relative">
-          <!-- Timeline Line -->
-          <div class="absolute left-[7px] top-2 bottom-2 w-0.5 bg-border"></div>
-
-          <!-- Log Items -->
-          <div class="space-y-4">
-            @for (log of logs(); track log.id) {
-              <div class="relative flex gap-3">
-                <!-- Timeline Dot -->
-                <div [class]="getDotClasses(log.severity)"></div>
-
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
-                  <div class="text-xs text-text-muted mb-1">
-                    {{ formatTime(log.timestamp) }}
-                  </div>
-                  <p class="text-sm text-text leading-snug">
-                    <span class="font-semibold">{{ log.userName }}</span>
-                    {{ getActionText(log) }}
-                  </p>
-                </div>
-              </div>
-            }
+        @if (logs().length === 0) {
+          <div class="py-6 text-center">
+            <p class="text-sm font-medium text-text">No recent activity</p>
+            <p class="text-xs text-text-muted mt-1">Structural changes will appear here.</p>
           </div>
-        </div>
+        } @else {
+          <div class="relative">
+            <!-- Timeline Line -->
+            <div class="absolute left-[7px] top-2 bottom-2 w-0.5 bg-border"></div>
+
+            <!-- Log Items -->
+            <div class="space-y-4">
+              @for (log of logs(); track log.id) {
+                <div class="relative flex gap-3">
+                  <!-- Timeline Dot -->
+                  <div [class]="getDotClasses(log.severity)"></div>
+
+                  <!-- Content -->
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs text-text-muted mb-1">
+                      {{ formatTime(log.timestamp) }}
+                    </div>
+                    <p class="text-sm text-text leading-snug">
+                      <span class="font-semibold">{{ log.userName }}</span>
+                      {{ getActionText(log) }}
+                    </p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <!-- View Full Audit Trail -->
         <button
@@ -63,7 +71,7 @@ import { AuditLog } from '../../models/organization.models';
           (click)="viewFullAuditTrail.emit()"
           class="mt-4 w-full py-2.5 px-4 bg-primary-50 text-primary-700 text-sm font-medium rounded-lg hover:bg-primary-100 transition-colors"
         >
-          VIEW FULL AUDIT TRAIL
+          View full audit trail
         </button>
       </div>
     </div>

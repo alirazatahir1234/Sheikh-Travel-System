@@ -2,6 +2,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Reports.DTOs;
+using SheikhTravelSystem.Application.Features.Reports.Fleet;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Queries;
 
@@ -18,11 +19,8 @@ public class GetBookingReportQueryHandler(IReportRepository reportRepository)
 {
     public async Task<ApiResponse<BookingReportDto>> Handle(GetBookingReportQuery request, CancellationToken cancellationToken)
     {
-        // Default to recent 1-month window when filters are not provided.
-        var from = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
-        var to = request.ToDate ?? DateTime.UtcNow;
-
-        var report = await reportRepository.GetBookingReportAsync(from, to, cancellationToken);
+        var (from, toExclusive) = FleetReportHelper.ResolveDateRange(request.FromDate, request.ToDate);
+        var report = await reportRepository.GetBookingReportAsync(from, toExclusive, cancellationToken);
         return ApiResponse<BookingReportDto>.SuccessResponse(report);
     }
 }
@@ -40,10 +38,8 @@ public class GetRevenueReportQueryHandler(IReportRepository reportRepository)
 {
     public async Task<ApiResponse<RevenueReportDto>> Handle(GetRevenueReportQuery request, CancellationToken cancellationToken)
     {
-        var from = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
-        var to = request.ToDate ?? DateTime.UtcNow;
-
-        var report = await reportRepository.GetRevenueReportAsync(from, to, cancellationToken);
+        var (from, toExclusive) = FleetReportHelper.ResolveDateRange(request.FromDate, request.ToDate);
+        var report = await reportRepository.GetRevenueReportAsync(from, toExclusive, cancellationToken);
         return ApiResponse<RevenueReportDto>.SuccessResponse(report);
     }
 }
@@ -62,10 +58,8 @@ public class GetVehicleProfitQueryHandler(IReportRepository reportRepository)
 {
     public async Task<ApiResponse<List<VehicleProfitDto>>> Handle(GetVehicleProfitQuery request, CancellationToken cancellationToken)
     {
-        var from = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
-        var to = request.ToDate ?? DateTime.UtcNow;
-
-        var results = await reportRepository.GetVehicleProfitAsync(from, to, request.VehicleId, cancellationToken);
+        var (from, toExclusive) = FleetReportHelper.ResolveDateRange(request.FromDate, request.ToDate);
+        var results = await reportRepository.GetVehicleProfitAsync(from, toExclusive, request.VehicleId, cancellationToken);
         return ApiResponse<List<VehicleProfitDto>>.SuccessResponse(results.ToList());
     }
 }
@@ -84,10 +78,8 @@ public class GetDriverPerformanceQueryHandler(IReportRepository reportRepository
 {
     public async Task<ApiResponse<List<DriverPerformanceDto>>> Handle(GetDriverPerformanceQuery request, CancellationToken cancellationToken)
     {
-        var from = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
-        var to = request.ToDate ?? DateTime.UtcNow;
-
-        var results = await reportRepository.GetDriverPerformanceAsync(from, to, cancellationToken);
+        var (from, toExclusive) = FleetReportHelper.ResolveDateRange(request.FromDate, request.ToDate);
+        var results = await reportRepository.GetDriverPerformanceAsync(from, toExclusive, cancellationToken);
         return ApiResponse<List<DriverPerformanceDto>>.SuccessResponse(results.ToList());
     }
 }

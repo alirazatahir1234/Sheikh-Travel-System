@@ -1,6 +1,5 @@
 import { Injectable, inject, signal, computed, effect } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { forkJoin, of, switchMap, catchError, map } from 'rxjs';
+import { Observable, forkJoin, of, catchError, tap, map } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import {
@@ -10,14 +9,13 @@ import {
   Tenant as BackendTenant,
   TenantDetail,
 } from '../../../core/models/platform.model';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   Tenant,
   Branch,
   Department,
   OrganizationNode,
-  NodeStats,
   BranchCapacity,
-  CapacityMetric,
   AuditLog,
   UserPreview,
   User,
@@ -306,15 +304,22 @@ export class OrganizationHierarchyService {
     }, { allowSignalWrites: true });
   }
 
-  loadTenants(): void {
-    this.platform.getTenants().subscribe({
-      next: (tenants) => {
-        this.tenantsCache.set(tenants.filter(t => t.isActive));
-      },
-      error: (err) => {
-        console.error('Failed to load tenants:', err);
-      },
-    });
+  loadTenants(): Observable<BackendTenant[]> {
+    return this.platform.getTenants().pipe(
+      tap({
+        next: (tenants) => {
+          this.tenantsCache.set(tenants.filter(t => t.isActive));
+        },
+        error: () => {
+          this.tenantsCache.set([]);
+        },
+      }),
+      map((tenants) => tenants.filter(t => t.isActive)),
+      catchError(() => {
+        this.tenantsCache.set([]);
+        return of([]);
+      })
+    );
   }
 
   loadData(tenantId: number): void {
@@ -326,7 +331,7 @@ export class OrganizationHierarchyService {
       tenant: this.platform.getTenantById(tenantId),
     }).pipe(
       catchError((err) => {
-        this.error.set(err?.message ?? 'Failed to load organization data');
+        this.error.set(apiErrorMessage(err, 'Failed to load organization data'));
         return of(null);
       })
     ).subscribe({
@@ -351,6 +356,11 @@ export class OrganizationHierarchyService {
     this.tenantContext.selectTenantById(tenantId);
     this.selectedBranchId.set(null);
     this.selectedDepartmentId.set(null);
+    this.activeTab.set('overview');
+    // Clear previous tenant payload so the UI does not flash another org's tree.
+    this.rawOrgTree.set(null);
+    this.rawTenantDetail.set(null);
+    this.error.set(null);
     this.loadData(tenantId);
   }
 
@@ -362,6 +372,11 @@ export class OrganizationHierarchyService {
 
   selectDepartment(departmentId: number): void {
     this.selectedDepartmentId.set(departmentId);
+    const dept = this.departments().find(d => d.id === departmentId);
+    if (dept?.branchId) {
+      this.selectedBranchId.set(dept.branchId);
+      this.activeTab.set('departments');
+    }
   }
 
   setActiveTab(tabId: string): void {
@@ -373,15 +388,105 @@ export class OrganizationHierarchyService {
     this.selectedDepartmentId.set(null);
   }
 
-  saveConfiguration(): void {
-    console.log('Saving configuration...');
-    this.pendingChanges.set([]);
-    this.lastAutoSaved.set(new Date().toLocaleTimeString('en-US', { hour12: false }));
+  deleteBranch(branchId: number): Observable<boolean> {
+    const tenantId = this.rawTenantDetail()?.id;
+    if (!tenantId) return of(false);
+
+    return this.platform.deleteBranchForTenant(tenantId, branchId).pipe(
+      tap(() => {
+        if (this.selectedBranchId() === branchId) {
+          this.clearSelection();
+        }
+        this.loadData(tenantId);
+      })
+    );
   }
 
-  discardChanges(): void {
-    console.log('Discarding changes...');
+  createDepartment(name: string, branchId: number | null): Observable<number> {
+    const tenantId = this.rawTenantDetail()?.id;
+    if (!tenantId) {
+      return new Observable(subscriber => {
+        subscriber.error(new Error('No tenant selected'));
+      });
+    }
+
+    return this.platform.createDepartmentForTenant(tenantId, {
+      name,
+      branchId,
+      departmentHeadUserId: null,
+    }).pipe(
+      tap(() => this.loadData(tenantId))
+    );
+  }
+
+  updateDepartment(departmentId: number, name: string, branchId: number | null, isActive: boolean): Observable<boolean> {
+    const tenantId = this.rawTenantDetail()?.id;
+    if (!tenantId) {
+      return new Observable(subscriber => {
+        subscriber.error(new Error('No tenant selected'));
+      });
+    }
+
+    return this.platform.updateDepartmentForTenant(
+      tenantId,
+      departmentId,
+      { name, branchId, departmentHeadUserId: null },
+      isActive
+    ).pipe(
+      tap(() => this.loadData(tenantId))
+    );
+  }
+
+  deleteDepartment(departmentId: number): Observable<boolean> {
+    const tenantId = this.rawTenantDetail()?.id;
+    if (!tenantId) return of(false);
+
+    return this.platform.deleteDepartmentForTenant(tenantId, departmentId).pipe(
+      tap(() => {
+        if (this.selectedDepartmentId() === departmentId) {
+          this.selectedDepartmentId.set(null);
+        }
+        this.loadData(tenantId);
+      })
+    );
+  }
+
+  getHierarchyExportPayload(): object | null {
+    const tree = this.rawOrgTree();
+    if (!tree) return null;
+
+    return {
+      tenant: tree.tenantName,
+      branches: tree.branches.map(b => ({
+        code: b.branchCode,
+        name: b.name,
+        type: b.branchType,
+        city: b.city,
+        country: b.country,
+        departments: b.departments.map(d => ({ name: d.name, staffCount: d.staffCount })),
+      })),
+      unassignedDepartments: tree.unassignedDepartments.map(d => ({
+        name: d.name,
+        staffCount: d.staffCount,
+      })),
+    };
+  }
+
+  saveConfiguration(): boolean {
+    if (this.pendingChanges().length === 0) {
+      return false;
+    }
     this.pendingChanges.set([]);
+    this.lastAutoSaved.set(new Date().toLocaleTimeString('en-US', { hour12: false }));
+    return true;
+  }
+
+  discardChanges(): boolean {
+    if (this.pendingChanges().length === 0) {
+      return false;
+    }
+    this.pendingChanges.set([]);
+    return true;
   }
 
   getBranchHealth(branch: Branch): BranchHealth {
@@ -428,14 +533,15 @@ export class OrganizationHierarchyService {
     };
   }
 
+  /** Maps API BranchStatus (Active=1 … Closed=4) to hierarchy UI labels. */
   private mapBranchStatus(status: number, isActive: boolean): BranchStatus {
     if (!isActive) return 'Inactive';
     switch (status) {
-      case 0: return 'Active';
-      case 1: return 'Inactive';
-      case 2: return 'Maintenance';
-      case 3: return 'Closed';
-      default: return 'Active';
+      case 1: return 'Active';
+      case 2: return 'Inactive';
+      case 3: return 'Maintenance';
+      case 4: return 'Closed';
+      default: return isActive ? 'Active' : 'Inactive';
     }
   }
 

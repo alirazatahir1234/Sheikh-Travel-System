@@ -1,12 +1,11 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ValidationErrors, Validators } from '@angular/forms';
 import { MatPaginator } from '@angular/material/paginator';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatTableDataSource } from '@angular/material/table';
 import { PlatformService } from '../../../core/services/platform.service';
 import { UserService } from '../../../core/services/user.service';
 import { Department } from '../../../core/models/platform.model';
-import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 type DeptStatusFilter = 'all' | 'active' | 'inactive';
@@ -16,6 +15,17 @@ interface DepartmentFilters {
   status: DeptStatusFilter;
 }
 
+interface ManagerOption {
+  id: number;
+  fullName: string;
+  isActive: boolean;
+}
+
+/** Reject null/empty/whitespace-only names (API also trims). */
+function requiredTrimmed(control: AbstractControl): ValidationErrors | null {
+  return String(control.value ?? '').trim() ? null : { required: true };
+}
+
 @Component({
   standalone: false,
   selector: 'app-department-list',
@@ -23,12 +33,25 @@ interface DepartmentFilters {
   styleUrls: ['./department-list.component.scss']
 })
 export class DepartmentListComponent implements OnInit {
-  @ViewChild(MatPaginator) paginator?: MatPaginator;
+  private _paginator?: MatPaginator;
+
+  /** Re-bind whenever *ngIf recreates the paginator after filter changes. */
+  @ViewChild(MatPaginator)
+  set paginator(p: MatPaginator | undefined) {
+    this._paginator = p;
+    if (p) {
+      this.dataSource.paginator = p;
+    }
+  }
 
   loading = true;
   saving = false;
   showFilters = false;
-  managers: User[] = [];
+  /** Row id with an in-flight activate/deactivate or delete. */
+  busyId: number | null = null;
+  /** When set, sidebar form updates this department instead of creating. */
+  editingId: number | null = null;
+  managers: ManagerOption[] = [];
   departments: Department[] = [];
   dataSource = new MatTableDataSource<Department>([]);
   readonly pageSize = 5;
@@ -48,7 +71,7 @@ export class DepartmentListComponent implements OnInit {
     private toast: UiToastService
   ) {
     this.form = this.fb.group({
-      name: ['', [Validators.required, Validators.maxLength(100)]],
+      name: ['', [requiredTrimmed, Validators.maxLength(100)]],
       departmentHeadUserId: [null as number | null]
     });
     this.dataSource.filterPredicate = (dept, raw) => this.matchesFilters(dept, raw);
@@ -56,10 +79,19 @@ export class DepartmentListComponent implements OnInit {
 
   ngOnInit(): void {
     this.userService.getAll(1, 500).subscribe({
-      next: res => { this.managers = res.items.filter(u => u.isActive); },
-      error: () => {}
+      next: res => {
+        // Active users only; inactive/missing heads are injected in startEdit when needed.
+        this.managers = res.items
+          .filter(u => u.isActive)
+          .map(u => ({ id: u.id, fullName: u.fullName, isActive: u.isActive }));
+      },
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Failed to load managers.'))
     });
     this.load();
+  }
+
+  get isEditing(): boolean {
+    return this.editingId != null;
   }
 
   get activeCount(): number {
@@ -93,7 +125,6 @@ export class DepartmentListComponent implements OnInit {
         this.departments = rows;
         this.dataSource.data = rows;
         this.applyFilters();
-        setTimeout(() => { if (this.paginator) this.dataSource.paginator = this.paginator; });
         this.loading = false;
       },
       error: (err) => {
@@ -109,8 +140,8 @@ export class DepartmentListComponent implements OnInit {
 
   applyFilters(): void {
     this.dataSource.filter = JSON.stringify(this.filters);
-    if (this.paginator) {
-      this.paginator.firstPage();
+    if (this._paginator) {
+      this._paginator.firstPage();
     }
   }
 
@@ -139,14 +170,59 @@ export class DepartmentListComponent implements OnInit {
     return true;
   }
 
-  create(): void {
+  startEdit(dept: Department): void {
+    this.editingId = dept.id;
+    this.form.reset({
+      name: dept.name,
+      departmentHeadUserId: dept.departmentHeadUserId ?? null
+    });
+    // Ensure current head remains selectable even if inactive / not in the user page.
+    if (
+      dept.departmentHeadUserId != null &&
+      !this.managers.some(u => u.id === dept.departmentHeadUserId)
+    ) {
+      this.managers = [
+        ...this.managers,
+        {
+          id: dept.departmentHeadUserId,
+          fullName: dept.departmentHeadName || `User #${dept.departmentHeadUserId}`,
+          isActive: false
+        }
+      ];
+    }
+    // Mobile: list is above the form — bring the editor into view.
+    setTimeout(() => {
+      const el = document.getElementById('dept-name');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus();
+    });
+  }
+
+  cancelEdit(): void {
+    this.editingId = null;
+    this.form.reset({ name: '', departmentHeadUserId: null });
+  }
+
+  submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.toast.warning('Department name is required.');
+      if (this.form.get('name')?.hasError('maxlength')) {
+        this.toast.warning('Department name must be 100 characters or fewer.');
+      } else {
+        this.toast.warning('Department name is required.');
+      }
       return;
     }
     if (this.saving) return;
 
+    if (this.editingId != null) {
+      this.saveEdit();
+    } else {
+      this.create();
+    }
+  }
+
+  private create(): void {
     const v = this.form.getRawValue();
     const payload = {
       name: v.name!.trim(),
@@ -156,7 +232,7 @@ export class DepartmentListComponent implements OnInit {
     this.saving = true;
     this.platform.createDepartment(payload).subscribe({
       next: () => {
-        this.form.reset();
+        this.form.reset({ name: '', departmentHeadUserId: null });
         this.saving = false;
         this.toast.success('Department created.');
         this.load();
@@ -168,7 +244,42 @@ export class DepartmentListComponent implements OnInit {
     });
   }
 
+  private saveEdit(): void {
+    const id = this.editingId;
+    if (id == null) return;
+
+    const existing = this.departments.find(d => d.id === id);
+    if (!existing) {
+      this.cancelEdit();
+      this.toast.error('Department no longer exists. Refresh and try again.');
+      return;
+    }
+
+    const v = this.form.getRawValue();
+    const payload = {
+      name: v.name!.trim(),
+      departmentHeadUserId: v.departmentHeadUserId ?? null
+    };
+
+    this.saving = true;
+    this.platform.updateDepartment(id, payload, existing.isActive).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingId = null;
+        this.form.reset({ name: '', departmentHeadUserId: null });
+        this.toast.success('Department updated.');
+        this.load();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.toast.error(apiErrorMessage(err, 'Update failed.'));
+      }
+    });
+  }
+
   toggleActive(dept: Department): void {
+    if (this.busyId != null) return;
+    this.busyId = dept.id;
     this.platform.updateDepartment(dept.id, {
       name: dept.name,
       departmentHeadUserId: dept.departmentHeadUserId ?? null
@@ -177,16 +288,33 @@ export class DepartmentListComponent implements OnInit {
         dept.isActive = !dept.isActive;
         this.dataSource.data = [...this.departments];
         this.applyFilters();
+        this.busyId = null;
+        this.toast.success(dept.isActive ? 'Department activated.' : 'Department deactivated.');
       },
-      error: (err) => this.toast.error(apiErrorMessage(err, 'Update failed.'))
+      error: (err) => {
+        this.busyId = null;
+        this.toast.error(apiErrorMessage(err, 'Update failed.'));
+      }
     });
   }
 
   remove(dept: Department): void {
+    if (this.busyId != null) return;
     if (!confirm(`Delete department "${dept.name}"?`)) return;
+    this.busyId = dept.id;
     this.platform.deleteDepartment(dept.id).subscribe({
-      next: () => this.load(),
-      error: (err) => this.toast.error(apiErrorMessage(err, 'Delete failed.'))
+      next: () => {
+        if (this.editingId === dept.id) {
+          this.cancelEdit();
+        }
+        this.busyId = null;
+        this.toast.success('Department deleted.');
+        this.load();
+      },
+      error: (err) => {
+        this.busyId = null;
+        this.toast.error(apiErrorMessage(err, 'Delete failed.'));
+      }
     });
   }
 
@@ -194,12 +322,17 @@ export class DepartmentListComponent implements OnInit {
     this.toast.warning('Bulk import will be available in a future release.');
   }
 
+  managerLabel(u: ManagerOption): string {
+    return u.isActive ? u.fullName : `${u.fullName} (inactive)`;
+  }
+
   initials(name: string): string {
     return name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?';
   }
 
   avatarColor(name: string): string {
-    const palette = ['#166534', '#1d4ed8', '#7c3aed', '#b45309', '#be123c', '#0f766e'];
+    // Teal-first ERP palette (matches --stb-primary family; avoids purple-on-white drift)
+    const palette = ['#0F766E', '#0D6B64', '#1B7F75', '#115E59', '#0E7490', '#155E75'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
     return palette[Math.abs(hash) % palette.length];

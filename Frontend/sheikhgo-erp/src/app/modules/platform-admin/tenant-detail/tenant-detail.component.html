@@ -24,7 +24,12 @@
     </button>
   </header>
 
-  <app-brand-loader *ngIf="loading" />
+  <div *ngIf="loading" class="detail-loading" aria-busy="true" aria-label="Loading company">
+    <span class="stb-shimmer-block detail-skeleton__header"></span>
+    <span class="stb-shimmer-block detail-skeleton__strip"></span>
+    <span class="stb-shimmer-block detail-skeleton__card"></span>
+    <span class="stb-shimmer-block detail-skeleton__card"></span>
+  </div>
 
   <div *ngIf="!loading && tenant" class="capability-strip" aria-label="Company hierarchy and capabilities">
     <a class="capability-chip" routerLink="/platform/branches" [queryParams]="{ tenantId: tenantId }">
@@ -149,7 +154,7 @@
       <span class="eyebrow">Administrators</span>
       <strong>{{ userSummary.administrators }}</strong>
     </a>
-    <a class="users-summary__chip" routerLink="/platform/departments">
+    <a class="users-summary__chip" routerLink="/platform/departments" [queryParams]="{ tenantId: tenantId }">
       <span class="eyebrow">Departments</span>
       <strong>{{ userSummary.departmentCount }}</strong>
     </a>
@@ -282,16 +287,21 @@
           </div>
         </div>
         <p class="section-label">Module Access</p>
+        <p class="stb-hint">
+          <strong>AAS Assistant (AI)</strong> is premium — enable only when this company is entitled.
+        </p>
         <span class="stb-error" *ngIf="form.get('moduleCodes')?.invalid && form.get('moduleCodes')?.touched">
           Select at least one module
         </span>
         <div class="module-cards">
           <button type="button" class="module-card" *ngFor="let m of modules"
             [class.selected]="isModuleSelected(m.code)"
+            [class.premium]="m.code === 'AI'"
             [disabled]="!canManage"
             (click)="toggleModule(m.code)">
             <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
             <span>{{ m.name }}</span>
+            <span class="premium-chip" *ngIf="m.code === 'AI'">Premium</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(m.code)">check_circle</mat-icon>
           </button>
         </div>
@@ -379,7 +389,8 @@
               <input id="tenant-color" class="stb-input" type="text" formControlName="primaryColor" placeholder="#007A57" />
               <span class="color-swatch-wrap stb-input-suffix-btn color-swatch-btn">
                 <input type="color" class="color-native" [value]="primaryColorPreview"
-                  (input)="form.controls.primaryColor.setValue($any($event.target).value); form.controls.primaryColor.markAsDirty()"
+                  [disabled]="!canManage"
+                  (input)="onPrimaryColorPicked($any($event.target).value)"
                   aria-label="Pick brand color" />
                 <span class="color-swatch" [style.background]="primaryColorPreview"></span>
               </span>
@@ -440,9 +451,14 @@
             <mat-icon>arrow_forward</mat-icon>
           </a>
         </div>
-        <div *ngIf="featuresLoading" class="features-loading">Loading features…</div>
+        <div *ngIf="featuresLoading" class="features-loading" aria-busy="true">
+          <mat-icon>hourglass_empty</mat-icon>
+          <span>Loading features…</span>
+        </div>
         <div *ngIf="!featuresLoading && features.length === 0" class="features-empty">
-          No feature metadata found for this company yet.
+          <mat-icon>tune</mat-icon>
+          <p>No features configured</p>
+          <span>Feature metadata for this company will appear here once available.</span>
         </div>
         <div *ngIf="!featuresLoading && featureGroups.length" class="feature-groups">
           <div class="feature-group" *ngFor="let group of featureGroups">

@@ -97,6 +97,8 @@ public sealed class DriverLoginRow
     public string FullName { get; set; } = "";
     public string Phone { get; set; } = "";
     public string PasswordHash { get; set; } = "";
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
 }
 
 public sealed class DriverDashboardStatsRow

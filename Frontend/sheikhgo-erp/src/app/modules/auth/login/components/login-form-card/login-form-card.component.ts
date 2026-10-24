@@ -14,6 +14,8 @@ export class LoginFormCardComponent {
   @Input() loading = false;
   @Input() hidePassword = true;
   @Input() rememberMe = true;
+  /** Server-side login failure (e.g. concurrent session limit). */
+  @Input() serverError: string | null = null;
 
   @Output() hidePasswordChange = new EventEmitter<boolean>();
   @Output() rememberMeChange = new EventEmitter<boolean>();

@@ -191,13 +191,24 @@ class FleetSession {
   bool get canSeeTripsTab =>
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
+  /// Premium AAS Assistant module (TenantModules code `AI` / legacy key `ai`).
+  bool get hasAiAssistantModule {
+    final ctx = companyContext;
+    if (ctx == null) return false;
+    if (ctx.modules.any((m) => m.moduleCode.toUpperCase() == 'AI')) {
+      return true;
+    }
+    return ctx.enabledModuleKeys.any((k) => k.toLowerCase() == 'ai');
+  }
+
   bool get canSeeAiTab =>
-      hasPermission(FleetPermissions.aiView) ||
-      hasAnyRole(const [
-        FleetRole.superAdmin,
-        FleetRole.tenantAdmin,
-        FleetRole.fleetManager,
-      ]);
+      hasAiAssistantModule &&
+      (hasPermission(FleetPermissions.aiView) ||
+          hasAnyRole(const [
+            FleetRole.superAdmin,
+            FleetRole.tenantAdmin,
+            FleetRole.fleetManager,
+          ]));
 
   bool get canSeeBookingsTab =>
       !isDriverOnly && hasPermission(FleetPermissions.bookingView);

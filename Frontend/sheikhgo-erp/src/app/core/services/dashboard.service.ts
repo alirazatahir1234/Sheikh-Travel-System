@@ -38,12 +38,16 @@ export class DashboardService {
 
     return this.http.get<BookingReportDto>(`${environment.apiUrl}/reports/bookings`, { params }).pipe(
       map(dto => {
-        const total = dto.totalBookings || 1;
+        const completed = dto.completed ?? 0;
+        const pending = dto.pending ?? 0;
+        const active = dto.active ?? 0;
+        const cancelled = dto.cancelled ?? 0;
+        const total = dto.totalBookings || completed + pending + active + cancelled || 1;
         return [
-          { status: 'Completed', count: dto.completed, percentage: Math.round((dto.completed / total) * 100) },
-          { status: 'Pending', count: dto.pending, percentage: Math.round((dto.pending / total) * 100) },
-          { status: 'Active', count: dto.active, percentage: Math.round((dto.active / total) * 100) },
-          { status: 'Cancelled', count: dto.cancelled, percentage: Math.round((dto.cancelled / total) * 100) }
+          { status: 'Completed', count: completed, percentage: Math.round((completed / total) * 100) },
+          { status: 'Pending', count: pending, percentage: Math.round((pending / total) * 100) },
+          { status: 'Active', count: active, percentage: Math.round((active / total) * 100) },
+          { status: 'Cancelled', count: cancelled, percentage: Math.round((cancelled / total) * 100) }
         ];
       })
     );

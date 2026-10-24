@@ -1,8 +1,13 @@
 <div class="analytics-page">
   <div class="page-header">
     <div>
-      <h2 class="page-title">Analytics</h2>
-      <p class="page-sub">Fleet performance, driver scoring, and business insights</p>
+      <h2 class="page-title">Fleet Analytics</h2>
+      <p class="page-sub">Performance, cost, and safety insights for management</p>
+      <p class="period-chip" *ngIf="from && to">
+        <mat-icon>date_range</mat-icon>
+        {{ periodLabel }}
+        <span class="period-range">{{ from | date: 'mediumDate' }} – {{ to | date: 'mediumDate' }}</span>
+      </p>
     </div>
     <div class="header-actions" *ngIf="overview">
       <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="overviewExportMenu">
@@ -33,8 +38,11 @@
         <mat-label>To</mat-label>
         <input matInput type="datetime-local" [(ngModel)]="to">
       </mat-form-field>
-      <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
+      <button type="button" class="btn btn-primary" (click)="load()">Apply</button>
     </div>
+
+    <p class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</p>
+    <p class="filter-note" *ngIf="!dateRangeError && rangeClampedNote">{{ rangeClampedNote }}</p>
   </div>
 
   <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
@@ -47,21 +55,39 @@
   </div>
 
   <ng-container *ngIf="!loading && !loadError && overview">
-    <section class="kpi-strip">
-      <div *ngFor="let t of fleetStatusTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
-        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+    <section class="kpi-section">
+      <div class="section-label">
+        <h3>Live fleet status</h3>
+        <span>Snapshot now — not affected by the date filter</span>
+      </div>
+      <div class="kpi-strip">
+        <div *ngFor="let t of fleetStatusTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+          <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+        </div>
       </div>
     </section>
 
-    <section class="kpi-strip">
-      <div *ngFor="let t of totalsTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
-        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+    <section class="kpi-section">
+      <div class="section-label">
+        <h3>Selected period</h3>
+        <span>{{ periodLabel }}</span>
+      </div>
+      <div class="kpi-strip">
+        <div *ngFor="let t of totalsTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+          <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+        </div>
       </div>
     </section>
 
-    <section class="kpi-strip">
-      <div *ngFor="let t of todayTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
-        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+    <section class="kpi-section">
+      <div class="section-label">
+        <h3>Today</h3>
+        <span>Calendar day (UTC) — always today’s activity</span>
+      </div>
+      <div class="kpi-strip">
+        <div *ngFor="let t of todayTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+          <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+        </div>
       </div>
     </section>
   </ng-container>
@@ -160,7 +186,7 @@
       <h3 class="chart-title">Fuel Trend</h3>
       <ui-chart type="bar" [data]="fuelChartData" height="180px"></ui-chart>
       <div class="metric-row"><span>Total Fuel</span><strong>{{ fuel.totalLiters.toFixed(1) }} L</strong></div>
-      <div class="metric-row"><span>Total Cost</span><strong>{{ fuel.totalCost.toFixed(0) }}</strong></div>
+      <div class="metric-row"><span>Total Cost</span><strong>{{ formatMoney(fuel.totalCost) }}</strong></div>
       <div class="metric-row"><span>Fleet Economy</span><strong>{{ fuel.fleetLitersPer100Km != null ? fuel.fleetLitersPer100Km.toFixed(1) + ' L/100km' : '—' }}</strong></div>
     </div>
   </section>
@@ -183,7 +209,7 @@
         <a class="drill-link" (click)="goToVehicleTrips(row.vehicleId)">{{ row.vehicleName ?? ('Vehicle #' + row.vehicleId) }}</a>
       </ng-template>
       <ng-template uiTableCell="liters" let-row>{{ row.liters.toFixed(1) }}</ng-template>
-      <ng-template uiTableCell="cost" let-row>{{ row.cost.toFixed(0) }}</ng-template>
+      <ng-template uiTableCell="cost" let-row>{{ formatMoney(row.cost) }}</ng-template>
       <ng-template uiTableCell="economy" let-row>{{ row.litersPer100Km != null ? row.litersPer100Km.toFixed(1) : '—' }}</ng-template>
     </ui-data-table>
   </section>
@@ -221,8 +247,8 @@
 
   <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <h3 class="chart-title">Heatmap — Most Driven Routes</h3>
-    <p class="muted-note" style="text-align: left; padding: 0 0 12px;">
-      Select up to {{ heatmapMaxVehicles }} vehicles ({{ selectedHeatmapVehicleIds.length }}/{{ heatmapMaxVehicles }} selected). Full-fleet heatmaps aren't supported yet — see the vehicle picker below.
+    <p class="muted-note muted-note--left">
+      Select up to {{ heatmapMaxVehicles }} vehicles ({{ selectedHeatmapVehicleIds.length }}/{{ heatmapMaxVehicles }} selected).
     </p>
     <div class="heatmap-vehicle-picker">
       <label class="heatmap-vehicle-chip" *ngFor="let d of devices">
@@ -232,8 +258,9 @@
           (change)="toggleHeatmapVehicle(d.vehicleId!, $any($event.target).checked)">
         {{ d.vehicleName ?? d.name }}
       </label>
+      <p *ngIf="!devices.length" class="muted-note">No GPS-linked vehicles available.</p>
     </div>
-    <button type="button" class="btn btn-secondary" style="margin: 12px 0"
+    <button type="button" class="btn btn-secondary heatmap-load-btn"
       [disabled]="!selectedHeatmapVehicleIds.length || heatmapLoading" (click)="loadHeatmap()">
       {{ heatmapLoading ? 'Loading…' : 'Load Heatmap' }}
     </button>
@@ -293,7 +320,7 @@
       <ng-template uiTableCell="distance" let-row>{{ row.distanceKm.toFixed(1) }} km</ng-template>
       <ng-template uiTableCell="trips" let-row>{{ row.tripCount }}</ng-template>
       <ng-template uiTableCell="avgSpeed" let-row>{{ row.avgSpeedKmh.toFixed(0) }} km/h</ng-template>
-      <ng-template uiTableCell="cost" let-row>{{ (row.fuelCost + row.maintenanceCost).toFixed(0) }}</ng-template>
+      <ng-template uiTableCell="cost" let-row>{{ formatMoney(row.fuelCost + row.maintenanceCost) }}</ng-template>
       <ng-template uiTableCell="costPerKm" let-row>{{ row.costPerKm != null ? row.costPerKm.toFixed(2) : 'N/A' }}</ng-template>
     </ui-data-table>
   </section>
@@ -301,11 +328,11 @@
   <section class="idle-stop-grid" *ngIf="!loading && !loadError && overview">
     <div class="metric-card" *ngIf="costAnalytics as cost">
       <h3 class="chart-title">Operational Cost</h3>
-      <div class="metric-row"><span>Fuel Cost</span><strong>{{ cost.totalFuelCost.toFixed(0) }}</strong></div>
-      <div class="metric-row"><span>Maintenance Cost</span><strong>{{ cost.totalMaintenanceCost.toFixed(0) }}</strong></div>
-      <div class="metric-row"><span>Total Cost</span><strong>{{ cost.totalCost.toFixed(0) }}</strong></div>
-      <div class="metric-row"><span>Cost per KM</span><strong>{{ cost.costPerKm != null ? cost.costPerKm.toFixed(2) : 'N/A' }}</strong></div>
-      <p class="muted-note">{{ cost.costBasisNote }}</p>
+      <div class="metric-row"><span>Fuel Cost</span><strong>{{ formatMoney(cost.totalFuelCost) }}</strong></div>
+      <div class="metric-row"><span>Maintenance Cost</span><strong>{{ formatMoney(cost.totalMaintenanceCost) }}</strong></div>
+      <div class="metric-row"><span>Total Cost</span><strong>{{ formatMoney(cost.totalCost) }}</strong></div>
+      <div class="metric-row"><span>Cost per KM</span><strong>{{ cost.costPerKm != null ? formatMoney(cost.costPerKm) : 'N/A' }}</strong></div>
+      <p class="muted-note muted-note--left">{{ cost.costBasisNote }}</p>
     </div>
 
     <div class="metric-card" *ngIf="comparative as comp">
@@ -326,12 +353,26 @@
           <div class="metric-row"><span>Overspeed</span><strong>{{ b.overspeedCount }}</strong></div>
         </div>
       </div>
+      <div class="delta-row" *ngIf="comp.periodB as b">
+        <div class="delta-item">
+          <span>Distance</span>
+          <strong [ngClass]="deltaClass(comp.periodA.distanceKm, b.distanceKm)">{{ formatDelta(comp.periodA.distanceKm, b.distanceKm) }}</strong>
+        </div>
+        <div class="delta-item">
+          <span>Trips</span>
+          <strong [ngClass]="deltaClass(comp.periodA.tripCount, b.tripCount)">{{ formatDelta(comp.periodA.tripCount, b.tripCount) }}</strong>
+        </div>
+        <div class="delta-item">
+          <span>Overspeed</span>
+          <strong [ngClass]="deltaClass(comp.periodA.overspeedCount, b.overspeedCount, true)">{{ formatDelta(comp.periodA.overspeedCount, b.overspeedCount) }}</strong>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <div class="metric-card-header">
-      <h3 class="chart-title">Distance Trend (6 months)</h3>
+      <h3 class="chart-title">Distance Trend — {{ trendsLookbackLabel }}</h3>
       <div class="preset-row">
         <button type="button" class="preset-chip" [class.active]="trendGranularity === 'daily'" (click)="onTrendGranularityChange('daily')">Daily</button>
         <button type="button" class="preset-chip" [class.active]="trendGranularity === 'weekly'" (click)="onTrendGranularityChange('weekly')">Weekly</button>
@@ -345,11 +386,8 @@
     <analytics-report-schedules></analytics-report-schedules>
   </section>
 
-  <section class="widgets-grid">
-    <fleet-quick-actions-card [actions]="quickActions"></fleet-quick-actions-card>
+  <section class="widgets-grid" *ngIf="!loading && !loadError && overview">
     <fleet-critical-alerts-card [alerts]="criticalAlerts"></fleet-critical-alerts-card>
     <fleet-recent-activities-card [events]="recentActivities"></fleet-recent-activities-card>
   </section>
-
-  <fleet-active-assignments-table [rows]="assignments" [loading]="assignmentsLoading"></fleet-active-assignments-table>
 </div>

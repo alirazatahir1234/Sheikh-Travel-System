@@ -117,7 +117,7 @@ export class TenantDetailComponent implements OnInit {
       maxBranches: [null as number | null, Validators.min(0)],
       maxGpsDevices: [null as number | null, Validators.min(0)],
       logoUrl: ['', optionalHttpUrlValidator()],
-      primaryColor: ['#1d4ed8', hexColorValidator()],
+      primaryColor: ['#007A57', hexColorValidator()],
       website: ['', optionalHttpUrlValidator()],
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
@@ -222,7 +222,7 @@ export class TenantDetailComponent implements OnInit {
       maxBranches: tenant.maxBranches ?? null,
       maxGpsDevices: tenant.maxGpsDevices ?? null,
       logoUrl: tenant.logoUrl ?? '',
-      primaryColor: tenant.primaryColor ?? '#1d4ed8',
+      primaryColor: tenant.primaryColor ?? '#007A57',
       website: tenant.website ?? '',
       supportEmail: tenant.supportEmail ?? '',
       country: tenant.country ?? 'United Arab Emirates',
@@ -356,6 +356,12 @@ export class TenantDetailComponent implements OnInit {
   get primaryColorPreview(): string {
     const raw = this.form.controls.primaryColor.value?.trim() || '#007A57';
     return HEX_COLOR.test(raw) ? raw : '#007A57';
+  }
+
+  onPrimaryColorPicked(value: string): void {
+    if (!this.canManage) return;
+    this.form.controls.primaryColor.setValue(value);
+    this.form.controls.primaryColor.markAsDirty();
   }
 
   selectPlan(planName: string): void {

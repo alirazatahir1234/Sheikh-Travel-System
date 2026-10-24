@@ -45,7 +45,8 @@ public record AiToolExecutionContext(
     int UserId,
     bool AllowWriteTools = false,
     bool ConfirmWrite = false,
-    bool CanExecuteWrite = false);
+    bool CanExecuteWrite = false,
+    bool IsPlatformSuperAdmin = false);
 
 public record AiToolExecutionResult(
     string ToolName,

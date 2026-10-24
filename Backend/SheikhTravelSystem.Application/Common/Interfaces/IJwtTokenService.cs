@@ -11,7 +11,8 @@ public interface IJwtTokenService
     /// <summary>
     /// Generates a signed access token for the specified user.
     /// </summary>
-    string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null);
+    /// <param name="sessionId">Optional auth session id (<c>sid</c> claim) for concurrency enforcement.</param>
+    string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null, Guid? sessionId = null);
     /// <summary>
     /// Generates a cryptographically secure refresh token.
     /// </summary>
@@ -22,5 +23,5 @@ public interface IJwtTokenService
     /// </summary>
     string GeneratePortalAccessToken(string phone, string fullName, int tenantId, int? customerId = null);
 
-    string GenerateDriverAccessToken(int driverId, int userId, int tenantId, string fullName, string phone);
+    string GenerateDriverAccessToken(int driverId, int userId, int tenantId, string fullName, string phone, Guid? sessionId = null);
 }

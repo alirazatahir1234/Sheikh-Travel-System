@@ -59,6 +59,11 @@ export class AuditLogListComponent implements OnInit {
   }
 
   load(): void {
+    if (this.fromDateStr && this.toDateStr && this.fromDateStr > this.toDateStr) {
+      this.toast.error('From date must be on or before To date.');
+      return;
+    }
+
     this.loading = true;
 
     const filter: AuditLogFilter = {
@@ -73,8 +78,8 @@ export class AuditLogListComponent implements OnInit {
 
     this.auditLogService.getAll(filter).subscribe({
       next: res => {
-        this.logs = res.items;
-        this.totalCount = res.totalCount;
+        this.logs = res?.items ?? [];
+        this.totalCount = res?.totalCount ?? 0;
         this.loading = false;
       },
       error: () => {
@@ -91,6 +96,10 @@ export class AuditLogListComponent implements OnInit {
   }
 
   applyFilters(): void {
+    if (this.fromDateStr && this.toDateStr && this.fromDateStr > this.toDateStr) {
+      this.toast.error('From date must be on or before To date.');
+      return;
+    }
     this.pageIndex = 0;
     this.load();
   }
@@ -103,6 +112,17 @@ export class AuditLogListComponent implements OnInit {
     this.toDateStr = '';
     this.pageIndex = 0;
     this.load();
+  }
+
+  /** True when any filter is active (for empty-state CTA). */
+  get hasActiveFilters(): boolean {
+    return !!(
+      this.actionFilter ||
+      this.entityFilter ||
+      this.userFilter != null ||
+      this.fromDateStr ||
+      this.toDateStr
+    );
   }
 
   getActionChipClass(action: string): string {

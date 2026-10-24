@@ -18,11 +18,34 @@ public static class FleetReportHelper
         _ => reportType.ToLowerInvariant()
     };
 
-    public static (DateTime From, DateTime To) ResolveDateRange(DateTime? from, DateTime? to)
+    /// <summary>
+    /// Resolves an inclusive calendar date range into a half-open [from, toExclusive) window.
+    /// Date-only "to" values (midnight) are treated as that calendar day inclusive.
+    /// </summary>
+    public static (DateTime From, DateTime ToExclusive) ResolveDateRange(DateTime? from, DateTime? to)
     {
-        var resolvedFrom = from ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var resolvedTo = to ?? DateTime.UtcNow.Date.AddDays(1);
-        return (resolvedFrom, resolvedTo);
+        var resolvedFrom = from?.Date
+            ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        DateTime toExclusive;
+        if (!to.HasValue)
+        {
+            toExclusive = DateTime.UtcNow.Date.AddDays(1);
+        }
+        else if (to.Value.TimeOfDay == TimeSpan.Zero)
+        {
+            // Frontend date pickers send YYYY-MM-DD → midnight; include the full day.
+            toExclusive = to.Value.Date.AddDays(1);
+        }
+        else
+        {
+            toExclusive = to.Value;
+        }
+
+        if (toExclusive <= resolvedFrom)
+            toExclusive = resolvedFrom.AddDays(1);
+
+        return (resolvedFrom, toExclusive);
     }
 
     public static ReportRowDto Row(

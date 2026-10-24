@@ -31,6 +31,7 @@ public static class TenantRolePermissionTemplates
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
         "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
         "Notification.View", "Notification.Manage",
+        "SmartOps.AlertView", "SmartOps.AlertManage",
         "Website.View", "Website.Edit", "Website.Publish", "Website.Media",
         "Website.ContactRequests", "Website.DemoRequests", "Website.Legal", "Website.Settings"
     ];
@@ -57,7 +58,8 @@ public static class TenantRolePermissionTemplates
         "Maintenance.View", "Maintenance.Report.View",
         "Settlement.View", "Payment.View", "Invoice.View",
         "Ai.View", "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
-        "Notification.View"
+        "Notification.View",
+        "SmartOps.AlertView", "SmartOps.AlertManage"
     ];
 
     public static readonly string[] FleetManager =
@@ -73,7 +75,8 @@ public static class TenantRolePermissionTemplates
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
         "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
-        "Notification.View", "Notification.Manage"
+        "Notification.View", "Notification.Manage",
+        "SmartOps.AlertView", "SmartOps.AlertManage"
     ];
 
     public static readonly string[] DriverManager =
@@ -98,7 +101,8 @@ public static class TenantRolePermissionTemplates
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
         "Ai.View",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
-        "Notification.View"
+        "Notification.View",
+        "SmartOps.AlertView", "SmartOps.AlertManage"
     ];
 
     /// <summary>

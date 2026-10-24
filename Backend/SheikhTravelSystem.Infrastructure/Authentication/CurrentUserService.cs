@@ -37,6 +37,16 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         }
     }
 
+    public Guid? SessionId
+    {
+        get
+        {
+            var claim = httpContextAccessor.HttpContext?.User
+                .FindFirst(AuthSessionLimits.ClaimSessionId)?.Value;
+            return Guid.TryParse(claim, out var id) ? id : null;
+        }
+    }
+
     public bool HasPermission(string permission)
     {
         var user = httpContextAccessor.HttpContext?.User;

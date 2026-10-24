@@ -162,7 +162,7 @@ public sealed class WhatsAppAiAssistRunner(
 
             var userPrompt = buildUserPrompt(facts);
             var chatRequest = new AiProviderChatRequest(
-                Model: model ?? "mistral",
+                Model: model ?? "qwen3:8b",
                 Messages:
                 [
                     new AiChatMessageDto("system", systemPrompt),

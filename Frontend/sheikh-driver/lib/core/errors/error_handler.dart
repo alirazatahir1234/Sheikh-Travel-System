@@ -34,9 +34,18 @@ class ErrorHandler {
           // Login / refresh failures should surface the API message, not
           // "Session expired" (that copy is for mid-session 401s).
           final msg = _bodyMessage(e.response?.data);
+          final sessionEnded = e.response?.headers.value('x-session-ended');
           if (isAuthPath) {
             return ValidationException(
               msg ?? 'Invalid email or password.',
+            );
+          }
+          if (sessionEnded == 'superseded' ||
+              (msg != null &&
+                  msg.toLowerCase().contains('another login'))) {
+            // Legacy kick-oldest path (no longer issued on new logins).
+            return AuthException(
+              msg ?? 'Your session is no longer valid. Please log in again.',
             );
           }
           return AuthException(msg ?? 'Session expired. Please log in again.');

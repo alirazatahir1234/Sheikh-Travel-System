@@ -42,6 +42,33 @@ export const HISTORY_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'custom', label: 'Custom' }
 ];
 
+/**
+ * Management-focused presets for Fleet Analytics.
+ * Omits noisy short windows and "This Year" (silently clamped to 30 days and misleading).
+ */
+export const ANALYTICS_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'last7Days', label: 'Last 7 Days' },
+  { id: 'last30Days', label: 'Last 30 Days' },
+  { id: 'thisMonth', label: 'This Month' },
+  { id: 'previousMonth', label: 'Last Month' },
+  { id: 'custom', label: 'Custom' }
+];
+
+/** Validate a custom analytics date range against the trip-backed 30-day API limit. */
+export function validateAnalyticsDateRange(from: string, to: string): string | null {
+  if (!from || !to) return 'Select both From and To dates.';
+  const f = new Date(from);
+  const t = new Date(to);
+  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return 'Invalid date values.';
+  if (t.getTime() < f.getTime()) return 'End date must be on or after the start date.';
+  if (t.getTime() - f.getTime() > TRIP_DATE_MAX_RANGE_MS) {
+    return 'Date range cannot exceed 30 days for trip-based analytics.';
+  }
+  return null;
+}
+
 export function toDatetimeLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;

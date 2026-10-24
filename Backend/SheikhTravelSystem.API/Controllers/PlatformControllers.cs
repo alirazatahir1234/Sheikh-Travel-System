@@ -275,8 +275,10 @@ public class PlatformAuditController : BaseApiController
         var result = await Mediator.Send(new ExportAuditEventsQuery(
             tenantId, userId, category, eventKey, entityType, severity, success,
             fromDate, toDate, search, format));
+        // Clients request a file blob; return 400 JSON on failure so the UI can surface the message
+        // instead of downloading an ApiResponse envelope as a fake CSV.
         if (!result.Success || result.Data is null)
-            return Ok(result);
+            return BadRequest(result);
         return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
     }
 

@@ -226,4 +226,48 @@ void main() {
     expect(isValidPlaybackCoord(0, 0), isFalse);
     expect(isValidPlaybackCoord(32.25, 74.64), isTrue);
   });
+
+  test('buildPlaybackPolylines is fully green at start, blue grows with progress', () {
+    final trail = List.generate(
+      5,
+      (i) => HistoryReplayPoint(
+        timestamp: DateTime.utc(2026, 7, 22, 10, i),
+        latitude: 24.86 + i * 0.01,
+        longitude: 67.0 + i * 0.01,
+        speedKmh: 40,
+      ),
+    );
+
+    final atStart = buildPlaybackPolylines(
+      trail: trail,
+      trailIndex: 0,
+      stops: const [],
+    );
+    expect(atStart.length, 1);
+    expect(atStart.single.polylineId.value, 'remaining_route');
+    expect(atStart.single.color, kPlaybackRemainingColor);
+    expect(atStart.single.points.length, 5);
+
+    final mid = buildPlaybackPolylines(
+      trail: trail,
+      trailIndex: 2,
+      stops: const [],
+    );
+    final byId = {for (final p in mid) p.polylineId.value: p};
+    expect(byId.keys, containsAll(['remaining_route', 'travelled_route']));
+    expect(byId['travelled_route']!.color, kPlaybackTravelledColor);
+    expect(byId['remaining_route']!.color, kPlaybackRemainingColor);
+    expect(byId['travelled_route']!.points.length, 3);
+    expect(byId['remaining_route']!.points.length, 3);
+
+    final atEnd = buildPlaybackPolylines(
+      trail: trail,
+      trailIndex: 4,
+      stops: const [],
+    );
+    expect(atEnd.length, 1);
+    expect(atEnd.single.polylineId.value, 'travelled_route');
+    expect(atEnd.single.color, kPlaybackTravelledColor);
+    expect(atEnd.single.points.length, 5);
+  });
 }

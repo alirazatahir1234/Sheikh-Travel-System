@@ -85,6 +85,30 @@ public sealed class AuthRepository(IDbConnectionFactory dbFactory) : IAuthReposi
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<int> CountActiveRefreshSessionsForTenantAsync(
+        int tenantId,
+        int? excludeUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(
+                """
+                SELECT COUNT(1)
+                FROM Users
+                WHERE TenantId = @TenantId
+                  AND IsDeleted = 0
+                  AND IsActive = 1
+                  AND RefreshToken IS NOT NULL
+                  AND LTRIM(RTRIM(RefreshToken)) <> ''
+                  AND RefreshTokenExpiryTime IS NOT NULL
+                  AND RefreshTokenExpiryTime > @Now
+                  AND (@ExcludeUserId IS NULL OR Id <> @ExcludeUserId)
+                """,
+                new { TenantId = tenantId, ExcludeUserId = excludeUserId, Now = DateTime.UtcNow },
+                cancellationToken: cancellationToken));
+    }
+
     public async Task<User?> FindUserByValidRefreshTokenAsync(
         string refreshToken,
         CancellationToken cancellationToken = default)
@@ -96,6 +120,20 @@ public sealed class AuthRepository(IDbConnectionFactory dbFactory) : IAuthReposi
                   RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted
                   FROM Users WHERE RefreshToken = @RefreshToken AND RefreshTokenExpiryTime > @Now AND IsDeleted = 0",
                 new { RefreshToken = refreshToken, Now = DateTime.UtcNow },
+                cancellationToken: cancellationToken));
+    }
+
+    public async Task<User?> GetActiveUserByIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<User>(
+            new CommandDefinition(
+                @"SELECT Id, TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive,
+                  RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted
+                  FROM Users WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
+                new { Id = userId },
                 cancellationToken: cancellationToken));
     }
 

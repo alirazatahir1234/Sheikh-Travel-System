@@ -168,7 +168,7 @@ public static class DashboardBuilderQueries
 
         if (!string.IsNullOrWhiteSpace(widget.ModuleKey) &&
             enabledModules.Count > 0 &&
-            !enabledModules.Contains(widget.ModuleKey))
+            !TenantModuleCatalog.IsEntitled(widget.ModuleKey, enabledModules))
             return false;
 
         if (!string.IsNullOrWhiteSpace(widget.FeatureKey) && featureFlags.Count > 0)

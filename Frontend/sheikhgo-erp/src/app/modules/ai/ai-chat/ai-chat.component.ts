@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import {
-  AiChatMessage,
+  AiAssistantQueryResponse,
   AiChatSession,
   AiChatTurnResponse,
   AiPendingAction,
@@ -23,6 +23,9 @@ interface ChatBubble {
   mode?: string;
   usedLlm?: boolean;
   tools?: string[];
+  period?: { start: string; end: string };
+  warnings?: string[];
+  data?: unknown;
 }
 
 @Component({
@@ -51,11 +54,24 @@ export class AiChatComponent implements OnInit {
   pendingAction: AiPendingAction | null = null;
   messages: ChatBubble[] = [];
   sessions: AiChatSession[] = [];
+  /** Default to Phase 2 assistant (allowlisted reports). Toggle keeps legacy chat/writes. */
+  useAssistant = true;
   suggestions: string[] = [
-    'How healthy is my fleet today?',
-    'Which vehicles are offline?',
-    'Show critical GPS alerts',
-    'What maintenance is overdue?'
+    'What is our daily, weekly, and monthly revenue?',
+    'Which vehicle consumed the most fuel this month?',
+    'Who is the best performing driver today?',
+    'Show trip and booking analytics this month.',
+    'What is our cost per kilometer this month?',
+    'What is our fleet utilization rate this month?',
+    'Summarize overspeed and geofence violations this month.',
+    'Which vehicles have maintenance due?',
+    'Which vehicles are at maintenance risk?',
+    'Which trips are at risk of delay?',
+    'Show fuel anomaly investigation for this month.',
+    'Show idle time report this month.',
+    'Any SOS events this month?',
+    'Summarize expenses this month.',
+    'What are our peak booking hours this month?'
   ];
   providerHealth: AiProviderHealth | null = null;
 
@@ -79,8 +95,15 @@ export class AiChatComponent implements OnInit {
         this.sessions = s;
         this.loading = false;
       },
-      error: () => {
+      error: err => {
         this.loading = false;
+        const status = err?.status ?? err?.statusCode;
+        if (status === 403) {
+          this.toast.error(
+            'AAS Assistant is not enabled for this company. Ask a platform admin to enable the AI module.'
+          );
+          return;
+        }
         this.toast.error('Could not load chat sessions');
       }
     });
@@ -128,13 +151,47 @@ export class AiChatComponent implements OnInit {
     this.sending = true;
     this.scrollToBottom();
 
+    if (this.useAssistant && !confirmWrite) {
+      this.ai.assistantQuery(text).subscribe({
+        next: (res: AiAssistantQueryResponse) => this.onAssistantReply(res),
+        error: err => {
+          this.sending = false;
+          this.toast.error(this.aiErrorMessage(err, 'Assistant request failed'));
+        }
+      });
+      return;
+    }
+
     this.ai.chat(text, this.sessionId, confirmWrite).subscribe({
       next: (res: AiChatTurnResponse) => this.onReply(res),
-      error: () => {
+      error: err => {
         this.sending = false;
-        this.toast.error('Chat request failed');
+        this.toast.error(this.aiErrorMessage(err, 'Chat request failed'));
       }
     });
+  }
+
+  private aiErrorMessage(err: { status?: number; error?: { message?: string } }, fallback: string): string {
+    if (err?.status === 403) {
+      return err.error?.message
+        ?? 'AAS Assistant is not enabled for this company. Ask a platform admin to enable the AI module.';
+    }
+    return fallback;
+  }
+
+  private onAssistantReply(res: AiAssistantQueryResponse): void {
+    this.sending = false;
+    this.messages.push({
+      role: 'assistant',
+      content: res.answer,
+      mode: res.mode,
+      usedLlm: res.usedLlm,
+      tools: res.toolUsed ? [res.toolUsed] : [],
+      period: res.period,
+      warnings: res.warnings ?? [],
+      data: res.data
+    });
+    this.scrollToBottom();
   }
 
   confirmWrite(): void {

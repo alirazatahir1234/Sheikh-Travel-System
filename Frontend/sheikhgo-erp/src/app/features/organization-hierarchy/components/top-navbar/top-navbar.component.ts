@@ -21,108 +21,90 @@ export interface BreadcrumbItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="bg-white border-b border-border sticky top-0 z-40">
-      <div class="px-6 py-4">
-        <div class="flex items-center justify-between">
+      <div class="px-4 py-3 md:px-6 md:py-4">
+        <div class="flex items-center justify-between gap-3">
           <!-- Left: Back Button & Breadcrumb -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3 md:gap-4 min-w-0">
             <button
               type="button"
               (click)="back.emit()"
-              class="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-alt transition-colors"
+              class="w-8 h-8 flex-shrink-0 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-alt transition-colors"
+              aria-label="Back to companies"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
 
-            <div>
-              <nav class="flex items-center gap-2 text-sm text-text-muted mb-0.5 flex-wrap">
+            <div class="min-w-0">
+              <nav class="hidden sm:flex items-center gap-2 text-sm text-text-muted mb-0.5 flex-wrap" aria-label="Breadcrumb">
                 <span>Platform</span>
                 @for (item of breadcrumb(); track item.label; let isLast = $last) {
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                   @if (isLast) {
-                    <span class="text-primary-600 font-medium">{{ item.label }}</span>
+                    <span class="text-primary-600 font-medium truncate">{{ item.label }}</span>
                   } @else {
                     <button
                       type="button"
                       (click)="breadcrumbClick.emit(item)"
-                      class="hover:text-text hover:underline transition-colors"
+                      class="hover:text-text hover:underline transition-colors truncate max-w-[10rem]"
                     >
                       {{ item.label }}
                     </button>
                   }
                 }
                 @if (breadcrumb().length === 0) {
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                   <span class="text-primary-600 font-medium">Organization Hierarchy</span>
                 }
               </nav>
-              <h1 class="text-lg font-bold text-text">{{ pageTitle() }}</h1>
+              <h1 class="text-base md:text-lg font-bold text-text truncate">{{ pageTitle() }}</h1>
             </div>
           </div>
 
           <!-- Right: View Toggle & Actions -->
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <!-- View Mode Toggle -->
-            <div class="flex items-center bg-surface-alt rounded-lg p-1">
+            <div class="flex items-center bg-surface-alt rounded-lg p-1" role="group" aria-label="View mode">
               <button
                 type="button"
                 (click)="viewModeChange.emit('tree')"
                 [class]="getViewButtonClasses('tree')"
+                [attr.aria-pressed]="viewMode() === 'tree'"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
-                Tree
+                <span class="hidden sm:inline">Tree</span>
               </button>
               <button
                 type="button"
                 (click)="viewModeChange.emit('diagram')"
                 [class]="getViewButtonClasses('diagram')"
+                [attr.aria-pressed]="viewMode() === 'diagram'"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                 </svg>
-                Diagram
+                <span class="hidden sm:inline">Diagram</span>
               </button>
             </div>
-
-            <!-- Notification Bell -->
-            <button
-              type="button"
-              class="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-alt transition-colors relative"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-
-            <!-- Settings -->
-            <button
-              type="button"
-              class="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-alt transition-colors"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
 
             <!-- Commit Changes Button -->
             <button
               type="button"
               (click)="commitChanges.emit()"
-              class="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              class="flex items-center gap-2 px-3 py-2 md:px-4 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              Commit Changes
+              <span class="hidden md:inline">Commit Changes</span>
+              <span class="md:hidden">Commit</span>
             </button>
           </div>
         </div>

@@ -9,13 +9,16 @@ import { ExportService, ExportColumn, ExportMeta } from '../../../core/services/
 import { AnalyticsOverview, GpsAlertEvent, IdleAnalytics, StopAnalytics, DriverScore, FleetUtilization, FuelAnalytics, GeofenceAnalytics, AlertEventStats, HeatmapPoint, GpsVehicleHealth, GpsDevice, VehicleRanking, CostAnalytics, ComparativeAnalytics, VehicleFuel } from '../../../core/models/gps-tracking.model';
 import { UiTableColumn } from '../../../shared/components/ui';
 import { AccentColor } from '../../../shared/ui/ui.types';
-import { FleetService } from '../../fleet-management/services/fleet.service';
-import { QuickAction, CriticalAlert, ActivityEvent, AssignmentItem } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
+import { CriticalAlert, ActivityEvent } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   TripDatePreset,
-  TRIP_DATE_PRESETS,
+  ANALYTICS_DATE_PRESETS,
   applyTripDatePreset,
-  toDatetimeLocalInput
+  toDatetimeLocalInput,
+  formatPeriodLabel,
+  validateAnalyticsDateRange,
+  TRIP_DATE_MAX_RANGE_MS
 } from '../utils/trip-date-preset.util';
 
 interface KpiTile {
@@ -35,38 +38,25 @@ interface KpiTile {
 })
 export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('heatmapMap') heatmapMapEl?: ElementRef<HTMLDivElement>;
-  readonly datePresets = TRIP_DATE_PRESETS;
+  readonly datePresets = ANALYTICS_DATE_PRESETS;
   datePreset: TripDatePreset = 'last7Days';
   from = '';
   to = '';
+  dateRangeError: string | null = null;
+  rangeClampedNote: string | null = null;
 
   loading = false;
   loadError: string | null = null;
   overview: AnalyticsOverview | null = null;
 
-  // Precomputed stable fields, set once per load — never a getter/inline template call. Binding a
-  // method call here would recompute (and, once sparklines are added in later stages, redraw
-  // stb-stat-tile's sparkline canvas) on every change-detection pass instead of only on data load
-  // (see live-map.component.ts's kpiTiles field for the documented incident this avoids).
+  // Precomputed stable fields, set once per load — never a getter/inline template call.
   fleetStatusTiles: KpiTile[] = [];
   totalsTiles: KpiTile[] = [];
   todayTiles: KpiTile[] = [];
 
-  readonly quickActions: QuickAction[] = [
-    { id: 'live-map', label: 'Live Map', icon: 'my_location', route: '/gps-tracking/live', tone: 'blue' },
-    { id: 'send-command', label: 'Send Command', icon: 'power_settings_new', route: '/gps-tracking/commands', tone: 'orange' },
-    { id: 'add-geofence', label: 'Add Geofence', icon: 'fence', route: '/gps-tracking/geofences', tone: 'green' },
-    { id: 'register-device', label: 'Register Device', icon: 'sensors', route: '/gps-tracking/devices/register', tone: 'neutral' }
-  ];
-
   criticalAlerts: CriticalAlert[] = [];
   recentActivities: ActivityEvent[] = [];
-  assignments: AssignmentItem[] = [];
-  assignmentsLoading = false;
 
-  // Precomputed stable ChartData fields — same discipline as the KPI tiles above; ui-chart
-  // re-renders whenever its [data] input's reference changes, so these must only be reassigned
-  // after a real data load, never derived inline in the template.
   distanceChartData: ChartData = { labels: [], datasets: [] };
   speedHistogramChartData: ChartData = { labels: [], datasets: [] };
   idleAnalytics: IdleAnalytics | null = null;
@@ -140,7 +130,6 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private gps: GpsTrackingService,
-    private fleet: FleetService,
     private exportService: ExportService,
     private router: Router,
     private googleMapsLoader: GoogleMapsLoaderService
@@ -161,6 +150,12 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.teardownHeatmapMap();
+  }
+
+  get periodLabel(): string {
+    const preset = this.datePresets.find(p => p.id === this.datePreset);
+    if (preset && this.datePreset !== 'custom') return preset.label;
+    return formatPeriodLabel(this.from, this.to);
   }
 
   private async initHeatmapMap(): Promise<void> {
@@ -233,10 +228,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   loadHeatmap(): void {
     if (this.selectedHeatmapVehicleIds.length === 0) return;
     this.heatmapLoading = true;
-    const filters = {
-      from: this.from ? new Date(this.from).toISOString() : undefined,
-      to: this.to ? new Date(this.to).toISOString() : undefined
-    };
+    const filters = this.buildFilters();
     this.gps.getPositionHeatmap(this.selectedHeatmapVehicleIds, filters).subscribe({
       next: points => {
         this.heatmapPoints = points;
@@ -263,7 +255,6 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     for (const point of this.heatmapPoints) {
       const intensity = point.count / maxCount;
-      // Geographic radius so dots remain visible at regional zoom (Leaflet used px markers).
       const radiusMeters = 250 + intensity * 900;
       const fillColor = intensity > 0.66 ? '#ef4444' : intensity > 0.33 ? '#f59e0b' : '#0f766e';
       const circle = new google.maps.Circle({
@@ -308,10 +299,33 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   applyPreset(preset: TripDatePreset): void {
     this.datePreset = preset;
-    if (preset === 'custom') return;
-    const range = applyTripDatePreset(preset);
-    this.from = toDatetimeLocalInput(range.from);
-    this.to = toDatetimeLocalInput(range.to);
+    this.dateRangeError = null;
+    if (preset === 'custom') {
+      this.rangeClampedNote = null;
+      return;
+    }
+    const requested = applyTripDatePreset(preset);
+    this.from = toDatetimeLocalInput(requested.from);
+    this.to = toDatetimeLocalInput(requested.to);
+
+    // applyTripDatePreset clamps to 30 days — warn when month presets lose early days.
+    const wouldClamp =
+      (preset === 'thisMonth' || preset === 'previousMonth') &&
+      this.rawMonthSpanMs(preset) > TRIP_DATE_MAX_RANGE_MS;
+    this.rangeClampedNote = wouldClamp
+      ? 'Trip metrics are limited to a 30-day window. This month preset is capped to the most recent 30 days.'
+      : null;
+  }
+
+  private rawMonthSpanMs(preset: 'thisMonth' | 'previousMonth'): number {
+    const now = new Date();
+    if (preset === 'thisMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return now.getTime() - start.getTime();
+    }
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    return end.getTime() - start.getTime();
   }
 
   onPresetChange(preset: TripDatePreset): void {
@@ -319,13 +333,20 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (preset !== 'custom') this.load();
   }
 
-  load(): void {
-    this.loading = true;
-    this.loadError = null;
-    const filters = {
+  private buildFilters(): { from?: string; to?: string } {
+    return {
       from: this.from ? new Date(this.from).toISOString() : undefined,
       to: this.to ? new Date(this.to).toISOString() : undefined
     };
+  }
+
+  load(): void {
+    this.dateRangeError = validateAnalyticsDateRange(this.from, this.to);
+    if (this.dateRangeError) return;
+
+    this.loading = true;
+    this.loadError = null;
+    const filters = this.buildFilters();
     this.loadTrends();
 
     this.gps.getAnalyticsOverview(filters).subscribe({
@@ -337,7 +358,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       error: err => {
         this.loading = false;
         this.overview = null;
-        this.loadError = err?.error?.message || err?.message || 'Failed to load analytics overview.';
+        this.loadError = apiErrorMessage(err, 'Failed to load analytics overview.');
       }
     });
 
@@ -456,10 +477,11 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadTrends(): void {
-    const fromIso = this.from
-      ? new Date(this.from).toISOString()
-      : new Date(Date.now() - 30 * 86_400_000).toISOString();
-    const toIso = this.to ? new Date(this.to).toISOString() : undefined;
+    // Longer lookback for trend chart — independent of the KPI filter window.
+    const lookbackDays = this.trendGranularity === 'monthly' ? 180 : this.trendGranularity === 'weekly' ? 90 : 30;
+    const toIso = this.to ? new Date(this.to).toISOString() : new Date().toISOString();
+    const toDate = new Date(toIso);
+    const fromIso = new Date(toDate.getTime() - lookbackDays * 86_400_000).toISOString();
     this.gps.getAnalyticsTrends({ from: fromIso, to: toIso }, this.trendGranularity).subscribe({
       next: data => {
         this.trendsChartData = {
@@ -483,6 +505,12 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadTrends();
   }
 
+  get trendsLookbackLabel(): string {
+    if (this.trendGranularity === 'monthly') return 'Last 6 months';
+    if (this.trendGranularity === 'weekly') return 'Last 90 days';
+    return 'Last 30 days';
+  }
+
   loadComparative(): void {
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -496,6 +524,30 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       next: data => { this.comparative = data; },
       error: () => { this.comparative = null; }
     });
+  }
+
+  percentChange(current: number, previous: number): number | null {
+    if (previous === 0) return current === 0 ? 0 : null;
+    return Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10;
+  }
+
+  deltaClass(current: number, previous: number, invert = false): string {
+    const pct = this.percentChange(current, previous);
+    if (pct == null || pct === 0) return 'delta-flat';
+    const up = pct > 0;
+    const good = invert ? !up : up;
+    return good ? 'delta-up' : 'delta-down';
+  }
+
+  formatDelta(current: number, previous: number): string {
+    const pct = this.percentChange(current, previous);
+    if (pct == null) return 'n/a';
+    if (pct === 0) return '0%';
+    return `${pct > 0 ? '+' : ''}${pct}%`;
+  }
+
+  formatMoney(value: number): string {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   }
 
   utilizationBadgeClass(label: string): string {
@@ -544,12 +596,12 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     ];
 
     this.todayTiles = [
-      { label: 'Trips Today', value: o.tripsToday, icon: 'route', color: 'teal', route: '/gps-tracking/trips' },
-      { label: 'Stops Today', value: o.stopsToday, icon: 'stop_circle', color: 'blue', route: '/gps-tracking/trips' },
+      { label: 'Trips', value: o.tripsToday, icon: 'route', color: 'teal', route: '/gps-tracking/trips' },
+      { label: 'Stops', value: o.stopsToday, icon: 'stop_circle', color: 'blue', route: '/gps-tracking/trips' },
       { label: 'Geofence Entries', value: o.geofenceEntriesToday, icon: 'fence', color: 'sky', route: '/gps-tracking/geofences' },
       { label: 'Overspeed Events', value: o.overspeedEventsToday, icon: 'warning', color: 'rose', route: '/gps-tracking/alerts' },
       { label: 'Engine Hours', value: o.engineHours != null ? o.engineHours.toFixed(1) : '—', icon: 'timelapse', color: 'amber' },
-      { label: 'Utilization', value: o.utilizationPercent != null ? o.utilizationPercent.toFixed(0) : '—', icon: 'insights', color: 'green', suffix: o.utilizationPercent != null ? '%' : '' }
+      { label: 'Live Utilization', value: o.utilizationPercent != null ? o.utilizationPercent.toFixed(0) : '—', icon: 'insights', color: 'green', suffix: o.utilizationPercent != null ? '%' : '' }
     ];
   }
 
@@ -568,27 +620,6 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.gps.getAlertEvents(undefined, undefined, undefined, undefined, 8).subscribe({
       next: events => { this.recentActivities = events.map(e => this.toActivityEvent(e)); },
       error: () => { this.recentActivities = []; }
-    });
-
-    this.assignmentsLoading = true;
-    this.fleet.getAssignments().subscribe({
-      next: rows => {
-        this.assignments = rows.map(r => ({
-          id: r.id,
-          vehicleId: r.vehicleName,
-          vehicleModel: '—',
-          driver: r.driverName ?? '—',
-          route: '—',
-          assignmentType: r.assignmentType || '—',
-          status: r.status,
-          eta: r.endAt ? new Date(r.endAt).toLocaleDateString() : '—'
-        } satisfies AssignmentItem));
-        this.assignmentsLoading = false;
-      },
-      error: () => {
-        this.assignments = [];
-        this.assignmentsLoading = false;
-      }
     });
   }
 
@@ -641,11 +672,6 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   goToDriverTrips(driverId: number): void {
     this.router.navigate(['/gps-tracking/trips'], { queryParams: { driverId } });
-  }
-
-  private get periodLabel(): string {
-    const preset = this.datePresets.find(p => p.id === this.datePreset);
-    return preset ? preset.label : `${this.from} — ${this.to}`;
   }
 
   exportOverview(kind: 'excel' | 'pdf' | 'csv'): void {

@@ -14,13 +14,14 @@ import { TabItem } from '../../models/organization.models';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="px-6 border-t border-border">
-      <nav class="flex gap-1 -mb-px">
+    <div class="px-4 md:px-6 border-t border-border overflow-x-auto">
+      <nav class="flex gap-1 -mb-px min-w-max" aria-label="Branch sections">
         @for (tab of tabs(); track tab.id) {
           <button
             type="button"
             (click)="tabChange.emit(tab.id)"
             [class]="getTabClasses(tab.id)"
+            [attr.aria-selected]="activeTab() === tab.id"
           >
             {{ tab.label }}
             @if (tab.count !== undefined) {

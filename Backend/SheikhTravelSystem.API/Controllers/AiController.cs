@@ -20,6 +20,7 @@ public class AiController(
     IAiPredictionService predictions,
     IAiCopilotService copilot,
     IAiChatGateway chatGateway,
+    IAiAssistantGateway assistantGateway,
     IAiToolEngine toolEngine,
     IAiManagementService management,
     INotificationDecisionEngine decisionEngine,
@@ -27,10 +28,26 @@ public class AiController(
     IUserPresenceService presence,
     IEscalationService escalation,
     ITenantContext tenantContext,
-    ICurrentUserService currentUser) : BaseApiController
+    ICurrentUserService currentUser,
+    ITenantModuleService tenantModuleService) : BaseApiController
 {
     private int TenantId => tenantContext.TenantId ?? 1;
     private int UserId => currentUser.UserId ?? throw new UnauthorizedAccessException();
+
+    /// <summary>
+    /// Premium AAS Assistant entitlement — required even when the user has Ai.Chat.
+    /// </summary>
+    private async Task<IActionResult?> RequireAiAssistantModuleAsync(CancellationToken ct)
+    {
+        if (await tenantModuleService.IsModuleEnabledAsync(
+                TenantId, TenantModuleCatalog.AiAssistantModuleCode, ct))
+            return null;
+
+        return StatusCode(StatusCodes.Status403Forbidden, new
+        {
+            message = "AAS Assistant is not enabled for this company. Ask a platform admin to enable the AI module."
+        });
+    }
 
     [RequirePermission(AiPermissions.View)]
     [HttpGet("health")]
@@ -83,9 +100,34 @@ public class AiController(
     [HttpPost("copilot/ask")]
     public async Task<IActionResult> Ask([FromBody] AiAskRequest request, CancellationToken ct)
     {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
         if (string.IsNullOrWhiteSpace(request.Question))
             return BadRequest(new { message = "Question is required." });
         return Ok(await copilot.AskAsync(TenantId, UserId, request.Question, ct));
+    }
+
+    /// <summary>Phase 2 AI Assistant — allowlisted read-only reporting tools.</summary>
+    [RequirePermission(AiPermissions.Chat)]
+    [HttpPost("assistant/query")]
+    public async Task<IActionResult> AssistantQuery([FromBody] AiAskRequest request, CancellationToken ct)
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        var result = await Mediator.Send(
+            new QueryAiAssistantCommand(
+                TenantId,
+                UserId,
+                request.Question ?? string.Empty,
+                currentUser.IsPlatformSuperAdmin),
+            ct);
+        return FromAiResponse(result);
+    }
+
+    [RequirePermission(AiPermissions.Chat)]
+    [HttpGet("assistant/tools")]
+    public async Task<IActionResult> AssistantTools(CancellationToken ct)
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        return Ok(assistantGateway.ListAllowlistedTools());
     }
 
     /// <summary>AI Gateway chat. CQRS: SendAiChatCommand → IAiChatGateway.</summary>
@@ -93,6 +135,7 @@ public class AiController(
     [HttpPost("chat")]
     public async Task<IActionResult> Chat([FromBody] AiChatRequest request, CancellationToken ct)
     {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
         var result = await Mediator.Send(
             new SendAiChatCommand(
                 TenantId,
@@ -108,30 +151,43 @@ public class AiController(
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/pending")]
     public async Task<IActionResult> GetPendingAction(Guid sessionId, CancellationToken ct)
-        => Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        return Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
+    }
 
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions")]
     public async Task<IActionResult> ListChatSessions(CancellationToken ct)
-        => Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        return Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
+    }
 
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/messages")]
     public async Task<IActionResult> GetChatMessages(Guid sessionId, CancellationToken ct)
-        => Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        return Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
+    }
 
     [RequirePermission(AiPermissions.ViewProviderHealth)]
     [HttpGet("chat/provider-health")]
     public async Task<IActionResult> GetChatProviderHealth(CancellationToken ct)
     {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
         var result = await Mediator.Send(new GetAiProviderHealthQuery(TenantId), ct);
         return FromAiResponse(result);
     }
 
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/tools")]
-    public IActionResult ListTools()
-        => Ok(toolEngine.ListTools(includeWriteTools: true));
+    public async Task<IActionResult> ListTools(CancellationToken ct)
+    {
+        if (await RequireAiAssistantModuleAsync(ct) is { } denied) return denied;
+        return Ok(toolEngine.ListTools(includeWriteTools: true));
+    }
 
     [RequirePermission(AiPermissions.ManageProviders)]
     [HttpGet("management/config")]

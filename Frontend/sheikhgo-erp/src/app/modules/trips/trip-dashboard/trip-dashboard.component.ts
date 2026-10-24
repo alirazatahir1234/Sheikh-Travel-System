@@ -1,5 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { GoogleMap } from '@angular/google-maps';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { TripService } from '../../../core/services/trip.service';
@@ -29,6 +30,8 @@ interface MapTripMarker {
   styleUrls: ['./trip-dashboard.component.scss']
 })
 export class TripDashboardComponent implements OnInit, OnDestroy {
+  @ViewChild(GoogleMap) googleMap?: GoogleMap;
+
   loading = true;
   mapLoading = true;
   error: string | null = null;
@@ -266,13 +269,36 @@ export class TripDashboardComponent implements OnInit, OnDestroy {
 
     this.mapMarkers = markers;
     if (markers.length) {
-      const avgLat = markers.reduce((s, m) => s + m.position.lat, 0) / markers.length;
-      const avgLng = markers.reduce((s, m) => s + m.position.lng, 0) / markers.length;
-      this.mapCenter = { lat: avgLat, lng: avgLng };
-      this.mapZoom = markers.length === 1 ? 13 : 11;
+      // Average+fixed zoom left distant trip pins off-screen; fit all markers.
+      this.fitMapToMarkers(markers);
       if (this.selectedTripId != null && !markers.some(m => m.trip.id === this.selectedTripId)) {
         this.selectedTripId = null;
       }
     }
+  }
+
+  private fitMapToMarkers(markers: MapTripMarker[]): void {
+    if (!markers.length) return;
+    if (markers.length === 1) {
+      this.mapCenter = markers[0].position;
+      this.mapZoom = 13;
+      return;
+    }
+    const avgLat = markers.reduce((s, m) => s + m.position.lat, 0) / markers.length;
+    const avgLng = markers.reduce((s, m) => s + m.position.lng, 0) / markers.length;
+    this.mapCenter = { lat: avgLat, lng: avgLng };
+    // Defer until <google-map> has a native map instance.
+    setTimeout(() => {
+      const map = this.googleMap?.googleMap;
+      if (!map) return;
+      const bounds = new google.maps.LatLngBounds();
+      markers.forEach(m => bounds.extend(m.position));
+      map.fitBounds(bounds, 48);
+      const z = map.getZoom();
+      if (z != null && z > 14) map.setZoom(14);
+      this.mapZoom = map.getZoom() ?? this.mapZoom;
+      const c = map.getCenter();
+      if (c) this.mapCenter = { lat: c.lat(), lng: c.lng() };
+    }, 200);
   }
 }

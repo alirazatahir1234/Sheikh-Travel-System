@@ -419,7 +419,7 @@ public sealed class MaintenanceModuleRepository(
                          / NULLIF(DATEDIFF(DAY, MIN(f.FuelDate), MAX(f.FuelDate)), 0)
                 END AS AvgDailyKm
                 FROM FuelLogs f
-                WHERE f.VehicleId = v.Id AND f.IsDeleted = 0
+                WHERE f.VehicleId = v.Id AND f.TenantId = @TenantId AND f.IsDeleted = 0
                   AND f.FuelDate >= DATEADD(DAY, -90, GETUTCDATE())
             ) fuel
             WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
@@ -1748,7 +1748,8 @@ public sealed class MaintenanceModuleRepository(
                 UNION ALL SELECT DATEADD(MONTH, 4, DATEFROMPARTS(YEAR(@From), MONTH(@From), 1))
                 UNION ALL SELECT DATEADD(MONTH, 5, DATEFROMPARTS(YEAR(@From), MONTH(@From), 1))
             ) d
-            LEFT JOIN FuelLogs f ON DATEFROMPARTS(YEAR(f.FuelDate), MONTH(f.FuelDate), 1) = d.MonthDate AND f.IsDeleted = 0
+            LEFT JOIN FuelLogs f ON DATEFROMPARTS(YEAR(f.FuelDate), MONTH(f.FuelDate), 1) = d.MonthDate
+                AND f.IsDeleted = 0 AND f.TenantId = @TenantId
             LEFT JOIN Vehicles vf ON vf.Id = f.VehicleId AND vf.TenantId = @TenantId {branchClause.Replace("v.", "vf.")}
             LEFT JOIN Maintenance m ON DATEFROMPARTS(YEAR(m.MaintenanceDate), MONTH(m.MaintenanceDate), 1) = d.MonthDate AND m.IsDeleted = 0
             LEFT JOIN Vehicles vm ON vm.Id = m.VehicleId AND vm.TenantId = @TenantId {branchClause.Replace("v.", "vm.")}
@@ -1763,10 +1764,10 @@ public sealed class MaintenanceModuleRepository(
             SELECT TOP 5 VehicleId, VehicleName, FuelCost, MaintenanceCost
             FROM (
                 SELECT v.Id AS VehicleId, v.Name AS VehicleName,
-                    ISNULL((SELECT SUM(f.TotalCost) FROM FuelLogs f WHERE f.VehicleId = v.Id AND f.IsDeleted = 0
+                    ISNULL((SELECT SUM(f.TotalCost) FROM FuelLogs f WHERE f.VehicleId = v.Id AND f.TenantId = @TenantId AND f.IsDeleted = 0
                         AND f.FuelDate >= @From AND f.FuelDate < @To), 0) AS FuelCost,
                     ISNULL((SELECT SUM(m.Cost + ISNULL(m.LaborCost,0) + ISNULL(m.PartsCost,0)) FROM Maintenance m
-                        WHERE m.VehicleId = v.Id AND m.IsDeleted = 0 AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @To), 0) AS MaintenanceCost
+                        WHERE m.VehicleId = v.Id AND m.TenantId = @TenantId AND m.IsDeleted = 0 AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @To), 0) AS MaintenanceCost
                 FROM Vehicles v
                 WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId {branchClause}
             ) ranked

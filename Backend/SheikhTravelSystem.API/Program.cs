@@ -10,6 +10,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
 using SheikhTravelSystem.Application;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Configuration;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
@@ -75,6 +76,40 @@ builder.Services.AddAuthentication(options =>
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = async context =>
+        {
+            var sid = context.Principal?.FindFirst(AuthSessionLimits.ClaimSessionId)?.Value;
+            if (!Guid.TryParse(sid, out var sessionId))
+                return; // Legacy tokens without sid remain valid until expiry.
+
+            var sessions = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionService>();
+            var status = await sessions.GetStatusAsync(sessionId, context.HttpContext.RequestAborted);
+            if (status is AuthSessionStatus.Active)
+            {
+                await sessions.TouchAsync(sessionId, context.HttpContext.RequestAborted);
+                return;
+            }
+
+            if (status is AuthSessionStatus.Superseded)
+            {
+                context.HttpContext.Items[AuthSessionLimits.SessionEndedHeader] =
+                    AuthSessionLimits.SessionEndedSuperseded;
+                context.Fail(AuthSessionLimits.SessionSupersededMessage);
+                return;
+            }
+
+            context.Fail("Session is no longer valid.");
+        },
+        OnChallenge = context =>
+        {
+            if (context.HttpContext.Items.TryGetValue(AuthSessionLimits.SessionEndedHeader, out var ended)
+                && ended is string reason)
+            {
+                context.Response.Headers[AuthSessionLimits.SessionEndedHeader] = reason;
             }
 
             return Task.CompletedTask;
@@ -187,6 +222,7 @@ builder.Services.AddCors(options =>
             })
             .AllowAnyMethod()
             .AllowAnyHeader()
+            .WithExposedHeaders(AuthSessionLimits.SessionEndedHeader)
             .AllowCredentials());
 });
 

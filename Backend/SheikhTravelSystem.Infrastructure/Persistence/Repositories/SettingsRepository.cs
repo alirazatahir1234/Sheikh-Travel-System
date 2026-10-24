@@ -32,6 +32,9 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
             await OverlaySecurityAsync(connection, tenantId, values, cancellationToken);
         else if (string.Equals(category, SettingsCategories.Branding, StringComparison.OrdinalIgnoreCase))
             await OverlayBrandingAsync(connection, tenantId, values, cancellationToken);
+        else if (string.Equals(category, SettingsCategories.General, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(category, SettingsCategories.Localization, StringComparison.OrdinalIgnoreCase))
+            await OverlayCompanyTimeZoneAsync(connection, tenantId, values, cancellationToken);
 
         return values;
     }
@@ -64,6 +67,9 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
             await SaveSecurityAsync(connection, tenantId, values, cancellationToken);
         else if (isBranding)
             await SaveBrandingAsync(connection, tenantId, values, cancellationToken);
+        else if (string.Equals(category, SettingsCategories.General, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(category, SettingsCategories.Localization, StringComparison.OrdinalIgnoreCase))
+            await SaveCompanyTimeZoneFromSettingsAsync(connection, tenantId, values, cancellationToken);
     }
 
     private static async Task<Dictionary<string, string?>> LoadGenericAsync(
@@ -170,6 +176,37 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
         target["Country"] = b.Country;
         target["CurrencyCode"] = b.CurrencyCode;
         target["TimeZone"] = b.TimeZone;
+    }
+
+    /// <summary>
+    /// Company timezone lives on TenantBranding; General/Localization schemas use key "Timezone".
+    /// Prefer the branding column so Settings UI and branding stay aligned.
+    /// </summary>
+    private static async Task OverlayCompanyTimeZoneAsync(
+        System.Data.IDbConnection connection, int tenantId, Dictionary<string, string?> target, CancellationToken ct)
+    {
+        var tz = await connection.ExecuteScalarAsync<string?>(new CommandDefinition("""
+            SELECT TOP 1 TimeZone FROM TenantBranding WHERE TenantId = @TenantId
+            """, new { TenantId = tenantId }, cancellationToken: ct));
+
+        if (!string.IsNullOrWhiteSpace(tz))
+            target["Timezone"] = tz;
+    }
+
+    private static async Task SaveCompanyTimeZoneFromSettingsAsync(
+        System.Data.IDbConnection connection, int tenantId,
+        IReadOnlyDictionary<string, string?> values, CancellationToken ct)
+    {
+        var tz = Get(values, "Timezone") ?? Get(values, "TimeZone");
+        if (tz is null) return;
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF EXISTS (SELECT 1 FROM TenantBranding WHERE TenantId = @TenantId)
+                UPDATE TenantBranding SET TimeZone = @TimeZone WHERE TenantId = @TenantId;
+            ELSE
+                INSERT INTO TenantBranding (TenantId, TimeZone)
+                VALUES (@TenantId, @TimeZone);
+            """, new { TenantId = tenantId, TimeZone = tz }, cancellationToken: ct));
     }
 
     private static async Task SaveBrandingAsync(

@@ -18,7 +18,11 @@ export const AuditActions = [
   'Login',
   'Logout',
   'PasswordReset',
-  'StatusChange'
+  'StatusChange',
+  'Assign',
+  'Unassign',
+  'Approve',
+  'Void'
 ] as const;
 
 export const AuditEntities = [
@@ -30,5 +34,9 @@ export const AuditEntities = [
   'User',
   'FuelLog',
   'Maintenance',
-  'Payment'
+  'Payment',
+  'Invoice',
+  'Trip',
+  'Settlement',
+  'Assignment'
 ] as const;

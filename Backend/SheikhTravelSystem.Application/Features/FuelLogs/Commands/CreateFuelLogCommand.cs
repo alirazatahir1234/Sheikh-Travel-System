@@ -25,12 +25,18 @@ public class CreateFuelLogCommandValidator : AbstractValidator<CreateFuelLogComm
     }
 }
 
-public class CreateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository, ITenantContext tenantContext)
+public class CreateFuelLogCommandHandler(
+    IFuelLogRepository fuelLogRepository,
+    IVehicleRepository vehicleRepository,
+    ITenantContext tenantContext)
     : IRequestHandler<CreateFuelLogCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateFuelLogCommand request, CancellationToken cancellationToken)
     {
-        var id = await fuelLogRepository.CreateAsync(tenantContext.GetRequiredTenantId(), request.FuelLog, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        // Reject cross-tenant vehicle IDs so fuel rows cannot be attached to another company.
+        await vehicleRepository.EnsureExistsAsync(request.FuelLog.VehicleId, tenantId, cancellationToken);
+        var id = await fuelLogRepository.CreateAsync(tenantId, request.FuelLog, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Fuel log created successfully.");
     }
 }

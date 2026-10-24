@@ -35,6 +35,7 @@ public static class MenuRegistrySeed
         new("organization", "Organization", "Companies, branches, hierarchy"),
         new("access_control", "Access Control", "Roles, permissions, policies"),
         new("platform", "Platform", "Platform administration hub"),
+        new("whatsapp", "WhatsApp", "WhatsApp inbox, accounts, templates, and automations"),
     ];
 
     public static IReadOnlyList<MenuEntry> Menus { get; } =
@@ -66,8 +67,13 @@ public static class MenuRegistrySeed
         M("/platform/migrations", "Migration Manager", "Migrations", "Schema migrations", "Platform", null, null, false),
         M("/platform/maintenance", "Database Reset", "Database Reset", "Dev/staging reset", "Platform", null, null, false),
         M("/platform/menu-management", "Menus", "Menus", "Navigation catalog", "Platform", null, null, false),
-        M("/ai", "AI Management", "AI Management", "AI copilots and assistants", "Platform", "AI", "AI", false),
-        M("/mcp", "MCP Console", "MCP Console", "SheikhGo MCP control plane", "Platform", "AI", "AI", false),
+        M("/ai", "AAS Assistant", "AAS Assistant", "Premium AAS assistant chat and tools", "Platform", "ai-copilot", "AI", false),
+        M("/mcp", "MCP Console", "MCP Console", "SheikhGo MCP control plane", "Platform", "ai-copilot", "AI", false),
+        M("/whatsapp", "WhatsApp Inbox", "Inbox", "Multi-number WhatsApp Business inbox", "Communications", "whatsapp", "whatsapp", false),
+        M("/whatsapp/accounts", "WhatsApp Accounts", "Accounts", "WhatsApp Business accounts", "Communications", "whatsapp", "whatsapp", false),
+        M("/whatsapp/templates", "WhatsApp Templates", "Templates", "Message template catalog", "Communications", "whatsapp", "whatsapp", false),
+        M("/whatsapp/automations", "WhatsApp Automations", "Automations", "Booking/trip automation rules", "Communications", "whatsapp", "whatsapp", false),
+        M("/whatsapp/webhook-logs", "WhatsApp Webhooks", "Webhooks", "Inbound webhook logs", "Communications", "whatsapp", "whatsapp", false),
     ];
 
     private static MenuEntry M(

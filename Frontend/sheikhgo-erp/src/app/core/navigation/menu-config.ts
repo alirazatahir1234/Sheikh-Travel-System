@@ -75,14 +75,23 @@ const fleetAdminGroup: NavGroup = {
     { id: 'tracker-config', label: 'Tracker Configuration', icon: 'settings_input_antenna', route: '/gps-tracking/devices', moduleKey: 'gps-tracking' },
     { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: 'chat', route: '/whatsapp', moduleKey: 'whatsapp' },
-    { id: 'whatsapp-accounts', label: 'WhatsApp Accounts', icon: 'phonelink_setup', route: '/whatsapp/accounts', moduleKey: 'whatsapp' },
-    { id: 'whatsapp-templates', label: 'WhatsApp Templates', icon: 'description', route: '/whatsapp/templates', moduleKey: 'whatsapp' },
-    { id: 'whatsapp-automations', label: 'WhatsApp Automations', icon: 'auto_awesome', route: '/whatsapp/automations', moduleKey: 'whatsapp' },
-    { id: 'whatsapp-webhook-logs', label: 'WhatsApp Webhooks', icon: 'receipt_long', route: '/whatsapp/webhook-logs', moduleKey: 'whatsapp' },
-    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
-    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' },
+    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' },
     { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
+  ]
+};
+
+const whatsappGroup: NavGroup = {
+  id: 'whatsapp',
+  label: 'WhatsApp',
+  icon: 'chat',
+  collapsible: true,
+  items: [
+    { id: 'whatsapp-inbox', label: 'Inbox', icon: 'chat', route: '/whatsapp', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-accounts', label: 'Accounts', icon: 'phonelink_setup', route: '/whatsapp/accounts', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-templates', label: 'Templates', icon: 'description', route: '/whatsapp/templates', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-automations', label: 'Automations', icon: 'auto_awesome', route: '/whatsapp/automations', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-webhook-logs', label: 'Webhooks', icon: 'receipt_long', route: '/whatsapp/webhook-logs', moduleKey: 'whatsapp' }
   ]
 };
 
@@ -120,13 +129,12 @@ const analyticsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'reports', label: 'Reports', icon: 'insights', route: '/reports', moduleKey: 'reports' },
-    { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/reports', moduleKey: 'reports' },
-    { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports', moduleKey: 'reports' },
+    { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/gps-tracking/analytics', moduleKey: 'gps-tracking' },
+    { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/analytics', moduleKey: 'gps-tracking' },
     { id: 'audit-logs', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
-    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' },
-    { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
+    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' }
   ]
 };
 
@@ -199,8 +207,8 @@ const administrationGroup: NavGroup = {
   items: [
     // Platform owns Settings + Database Reset. Keep operational / AI tools here.
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
-    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
-    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' }
+    { id: 'ai-center', label: 'AAS Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'ai' }
   ]
 };
 
@@ -233,6 +241,7 @@ const allGroups: NavGroup[] = [
   financeGroup,
   analyticsGroup,
   websiteGroup,
+  whatsappGroup,
   organizationGroup,
   identityGroup,
   platformGroup,
@@ -250,8 +259,8 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control', 'administration'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
@@ -295,6 +304,11 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'tracker-config',
     'geofencing',
     'notifications',
+    'whatsapp-inbox',
+    'whatsapp-accounts',
+    'whatsapp-templates',
+    'whatsapp-automations',
+    'whatsapp-webhook-logs',
     'ai-center',
     'mcp-console',
     'fleet-settings',

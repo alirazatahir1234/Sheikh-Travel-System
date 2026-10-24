@@ -25,6 +25,7 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   totalCount = 0;
   page = 1;
   pageSize = 20;
+  readonly pageSizeOptions = [10, 20, 50, 100];
 
   categoryFilter = '';
   severityFilter = '';
@@ -38,7 +39,11 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   categories: string[] = [];
   drawerOpen = false;
   detail: AuditEventDetail | null = null;
+  detailError = '';
+  detailLoading = false;
   retentionLabel = '';
+  retentionDays: number | null = null;
+  auditEnabled = true;
 
   private destroy$ = new Subject<void>();
 
@@ -60,6 +65,12 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
     this.categoryFilter = q.get('category') || '';
     this.eventKeyFilter = q.get('eventKey') || '';
     this.entityTypeFilter = q.get('entity') || q.get('entityType') || '';
+    this.severityFilter = q.get('severity') || '';
+    const successQ = q.get('success');
+    if (successQ === 'true' || successQ === 'false') this.successFilter = successQ;
+    this.fromDate = q.get('from') || '';
+    this.toDate = q.get('to') || '';
+    this.searchFilter = q.get('search') || '';
 
     this.platform
       .getAuditCatalog(true)
@@ -82,6 +93,8 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
       } else {
         this.items = [];
         this.totalCount = 0;
+        this.retentionLabel = '';
+        this.retentionDays = null;
       }
     });
   }
@@ -100,9 +113,72 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil(this.totalCount / this.pageSize));
   }
 
+  get hasActiveFilters(): boolean {
+    return !!(
+      this.categoryFilter ||
+      this.severityFilter ||
+      this.successFilter ||
+      this.eventKeyFilter ||
+      this.entityTypeFilter ||
+      this.searchFilter ||
+      this.fromDate ||
+      this.toDate
+    );
+  }
+
+  get pageFailedCount(): number {
+    return this.items.filter(i => !i.success).length;
+  }
+
+  get pageCriticalCount(): number {
+    return this.items.filter(i => (i.severity || '').toLowerCase() === 'critical').length;
+  }
+
+  get dateRangeInvalid(): boolean {
+    return !!(this.fromDate && this.toDate && this.fromDate > this.toDate);
+  }
+
   applyFilters(): void {
+    if (this.dateRangeInvalid) {
+      this.toast.error('From date must be on or before To date.');
+      return;
+    }
     this.page = 1;
     this.load();
+  }
+
+  clearFilters(): void {
+    this.categoryFilter = '';
+    this.severityFilter = '';
+    this.successFilter = '';
+    this.eventKeyFilter = '';
+    this.entityTypeFilter = '';
+    this.searchFilter = '';
+    this.fromDate = '';
+    this.toDate = '';
+    this.page = 1;
+    this.load();
+  }
+
+  setQuickRange(days: number): void {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - (days - 1));
+    this.toDate = this.toInputDate(to);
+    this.fromDate = this.toInputDate(from);
+    this.applyFilters();
+  }
+
+  onPageSizeChange(): void {
+    this.page = 1;
+    this.load();
+  }
+
+  private toInputDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   private loadRetention(tenantId: number): void {
@@ -111,33 +187,54 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: r => {
-          this.retentionLabel = r
-            ? `Retention ${r.retentionDays}d · Level ${r.auditLevel}${r.auditEnabled ? '' : ' (disabled)'}`
-            : '';
+          if (!r) {
+            this.retentionLabel = '';
+            this.retentionDays = null;
+            this.auditEnabled = true;
+            return;
+          }
+          this.retentionDays = r.retentionDays;
+          this.auditEnabled = r.auditEnabled;
+          this.retentionLabel = `Retention ${r.retentionDays}d · Level ${r.auditLevel}${
+            r.auditEnabled ? '' : ' (disabled)'
+          }`;
         },
-        error: () => (this.retentionLabel = '')
+        error: () => {
+          this.retentionLabel = '';
+          this.retentionDays = null;
+        }
       });
+  }
+
+  private buildFilterPayload() {
+    return {
+      tenantId: this.selectedTenant!.id,
+      category: this.categoryFilter || undefined,
+      eventKey: this.eventKeyFilter || undefined,
+      entityType: this.entityTypeFilter.trim() || undefined,
+      severity: this.severityFilter || undefined,
+      success:
+        this.successFilter === ''
+          ? undefined
+          : this.successFilter === 'true',
+      fromDate: this.fromDate ? new Date(`${this.fromDate}T00:00:00`).toISOString() : undefined,
+      toDate: this.toDate ? new Date(`${this.toDate}T23:59:59`).toISOString() : undefined,
+      search: this.searchFilter.trim() || undefined
+    };
   }
 
   load(): void {
     if (!this.selectedTenant) return;
+    if (this.dateRangeInvalid) {
+      this.toast.error('From date must be on or before To date.');
+      return;
+    }
     this.loading = true;
     this.platform
       .searchAuditEvents({
         page: this.page,
         pageSize: this.pageSize,
-        tenantId: this.selectedTenant.id,
-        category: this.categoryFilter || undefined,
-        eventKey: this.eventKeyFilter || undefined,
-        entityType: this.entityTypeFilter || undefined,
-        severity: this.severityFilter || undefined,
-        success:
-          this.successFilter === ''
-            ? undefined
-            : this.successFilter === 'true',
-        fromDate: this.fromDate ? new Date(`${this.fromDate}T00:00:00`).toISOString() : undefined,
-        toDate: this.toDate ? new Date(`${this.toDate}T23:59:59`).toISOString() : undefined,
-        search: this.searchFilter || undefined
+        ...this.buildFilterPayload()
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -156,18 +253,29 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   openDetail(row: AuditEventListItem): void {
     this.drawerOpen = true;
     this.detail = null;
+    this.detailError = '';
+    this.detailLoading = true;
     this.platform
       .getAuditEventById(row.id, this.selectedTenant?.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: d => (this.detail = d),
-        error: err => this.toast.error(apiErrorMessage(err, 'Failed to load event detail.'))
+        next: d => {
+          this.detail = d;
+          this.detailLoading = false;
+        },
+        error: err => {
+          this.detailLoading = false;
+          this.detailError = apiErrorMessage(err, 'Failed to load event detail.');
+          this.toast.error(this.detailError);
+        }
       });
   }
 
   closeDrawer(): void {
     this.drawerOpen = false;
     this.detail = null;
+    this.detailError = '';
+    this.detailLoading = false;
   }
 
   prevPage(): void {
@@ -184,42 +292,65 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
 
   exportCsv(): void {
     if (!this.selectedTenant) return;
+    if (this.dateRangeInvalid) {
+      this.toast.error('From date must be on or before To date.');
+      return;
+    }
     this.exporting = true;
     this.platform
-      .exportAuditEvents(
-        {
-          tenantId: this.selectedTenant.id,
-          category: this.categoryFilter || undefined,
-          eventKey: this.eventKeyFilter || undefined,
-          entityType: this.entityTypeFilter || undefined,
-          severity: this.severityFilter || undefined,
-          success:
-            this.successFilter === ''
-              ? undefined
-              : this.successFilter === 'true',
-          fromDate: this.fromDate ? new Date(`${this.fromDate}T00:00:00`).toISOString() : undefined,
-          toDate: this.toDate ? new Date(`${this.toDate}T23:59:59`).toISOString() : undefined,
-          search: this.searchFilter || undefined
-        },
-        'csv'
-      )
+      .exportAuditEvents(this.buildFilterPayload(), 'csv')
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: blob => {
+        next: async blob => {
           this.exporting = false;
+          if (await this.isJsonErrorBlob(blob)) {
+            this.toast.error('Export failed.');
+            return;
+          }
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `audit-export-${Date.now()}.csv`;
+          a.download = `audit-export-${this.selectedTenant!.id}-${Date.now()}.csv`;
           a.click();
           URL.revokeObjectURL(url);
           this.toast.success('Export downloaded.');
         },
-        error: err => {
+        error: async err => {
           this.exporting = false;
-          this.toast.error(apiErrorMessage(err, 'Export failed.'));
+          const fromBlob = await this.messageFromErrorBlob(err);
+          this.toast.error(fromBlob || apiErrorMessage(err, 'Export failed.'));
         }
       });
+  }
+
+  /** Detect JSON error envelopes mistakenly returned as blobs. */
+  private async isJsonErrorBlob(blob: Blob): Promise<boolean> {
+    const type = (blob.type || '').toLowerCase();
+    if (type.includes('application/json') || type.includes('text/json')) return true;
+    if (blob.size > 0 && blob.size < 4096 && (!type || type.includes('text/plain'))) {
+      try {
+        const text = await blob.slice(0, 64).text();
+        return text.trimStart().startsWith('{') && text.includes('"success"');
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private async messageFromErrorBlob(err: unknown): Promise<string | null> {
+    const blob =
+      err && typeof err === 'object' && 'error' in err && (err as { error: unknown }).error instanceof Blob
+        ? ((err as { error: Blob }).error as Blob)
+        : null;
+    if (!blob) return null;
+    try {
+      const text = await blob.text();
+      const parsed = JSON.parse(text) as { message?: string };
+      return parsed?.message?.trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   formatDate(value: string): string {
@@ -227,6 +358,30 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
       return new Date(value).toLocaleString();
     } catch {
       return value;
+    }
+  }
+
+  formatJson(value: string | null | undefined): string {
+    if (!value) return '—';
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+
+  severityClass(severity: string | null | undefined): string {
+    switch ((severity || '').toLowerCase()) {
+      case 'critical':
+        return 'sev-critical';
+      case 'error':
+        return 'sev-error';
+      case 'warning':
+        return 'sev-warning';
+      case 'information':
+        return 'sev-info';
+      default:
+        return 'sev-default';
     }
   }
 

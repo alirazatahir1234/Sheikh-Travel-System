@@ -15,6 +15,8 @@ import { APP_LOGO_PATH, COMPANY_NAME, COMPANY_ADDRESS } from '../../../../core/c
       <div class="empty">Select a report and click Preview to load data.</div>
     } @else if (loading()) {
       <app-brand-loader message="Loading report…" />
+    } @else if (error()) {
+      <div class="empty empty--error">{{ error() }}</div>
     } @else if (report()) {
       <div class="preview" id="fleet-report-print-area">
         <header class="print-letterhead">
@@ -68,6 +70,7 @@ import { APP_LOGO_PATH, COMPANY_NAME, COMPANY_ADDRESS } from '../../../../core/c
   `,
   styles: [`
     .empty, .loading { text-align: center; color: #94a3b8; padding: 2.5rem; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; }
+    .empty--error { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
     .preview { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
     .print-letterhead, .print-footer { display: none; }
     .preview-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
@@ -98,6 +101,7 @@ export class FleetReportPreviewComponent {
   readonly report = input<FleetReport | null>(null);
   readonly loading = input(false);
   readonly hasPreview = input(false);
+  readonly error = input('');
 
   readonly logo = APP_LOGO_PATH;
   readonly companyName = COMPANY_NAME;

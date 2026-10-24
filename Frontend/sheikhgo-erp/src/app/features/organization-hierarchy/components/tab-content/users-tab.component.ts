@@ -15,7 +15,7 @@ import { User } from '../../models/organization.models';
   template: `
     <div>
       <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h3 class="text-lg font-semibold text-text">Users</h3>
           <p class="text-sm text-text-muted">{{ totalCount() }} user(s) in this branch</p>
@@ -25,19 +25,22 @@ import { User } from '../../models/organization.models';
           (click)="addUser.emit()"
           class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add User
+          Add user
         </button>
       </div>
 
       @if (users().length === 0 && !isPlaceholder()) {
-        <div class="bg-surface-alt rounded-lg p-8 text-center">
-          <svg class="w-12 h-12 mx-auto mb-3 text-text-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <p class="text-sm text-text-muted">No users assigned to this branch yet.</p>
+        <div class="bg-surface-alt rounded-lg border border-dashed border-border p-8 text-center">
+          <div class="mx-auto mb-3 w-12 h-12 rounded-lg bg-white border border-border flex items-center justify-center">
+            <svg class="w-6 h-6 text-text-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <p class="text-sm font-medium text-text">No users yet</p>
+          <p class="text-sm text-text-muted mt-1">No users are assigned to this branch.</p>
           <button
             type="button"
             (click)="addUser.emit()"
@@ -59,7 +62,7 @@ import { User } from '../../models/organization.models';
         <div class="space-y-2">
           @for (user of users(); track user.id) {
             <div
-              class="flex items-center justify-between p-3 bg-surface-alt rounded-lg border border-border/50 hover:border-border transition-colors"
+              class="flex items-center justify-between gap-3 p-3 bg-surface-alt rounded-lg border border-border hover:border-primary-200 transition-colors"
             >
               <div class="flex items-center gap-3">
                 @if (user.avatarUrl) {

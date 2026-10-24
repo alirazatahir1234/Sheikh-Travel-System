@@ -63,8 +63,8 @@ public static class FeatureRegistrySeed
         // Catalog-only / future capability metadata (not toggleable until Active)
         E("booking-import", "TRAVEL", "Booking Import", "Booking Import", "Import bookings from external sources",
             "Bookings", "upload_file", null, 53, true, "ComingSoon", false, false, false),
-        E("ai-copilot", "AI", "AI Copilot", "AI Copilot", "In-app AI assistant for operations",
-            "AI", "smart_toy", "/ai", 120, true, "Beta", true, true, false),
+        E("ai-copilot", "AI", "AAS Assistant", "AAS Assistant", "Premium in-app AAS assistant for operations",
+            "AI", "smart_toy", "/ai", 120, true, "Active", true, true, false),
     ];
 
     private static Entry E(

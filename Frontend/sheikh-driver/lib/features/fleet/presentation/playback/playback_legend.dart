@@ -15,7 +15,8 @@ class PlaybackLegend extends StatelessWidget {
           spacing: 8,
           runSpacing: 6,
           children: [
-            _LegendItem(color: const Color(0xFF1D4ED8), label: 'Route'),
+            _LegendItem(color: kPlaybackRemainingColor, label: 'Remaining'),
+            _LegendItem(color: kPlaybackTravelledColor, label: 'Travelled'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.vehicle), label: 'Vehicle'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.start), label: 'Start'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.finish), label: 'End'),

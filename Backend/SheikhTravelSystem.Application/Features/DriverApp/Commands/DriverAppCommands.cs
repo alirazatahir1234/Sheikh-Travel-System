@@ -33,6 +33,7 @@ public class DriverLoginCommandHandler(
     IDriverAppRepository repository,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
+    IAuthSessionService authSessions,
     ITenantContext tenantContext)
     : IRequestHandler<DriverLoginCommand, ApiResponse<DriverAuthResultDto>>
 {
@@ -44,12 +45,25 @@ public class DriverLoginCommandHandler(
         if (row is null || !passwordHasher.Verify(request.Password, row.PasswordHash))
             return ApiResponse<DriverAuthResultDto>.FailResponse("Invalid phone or password.");
 
-        var accessToken = jwtTokenService.GenerateDriverAccessToken(
-            row.DriverId, row.UserId, row.TenantId, row.FullName, row.Phone);
         var refreshToken = jwtTokenService.GenerateRefreshToken();
+        var refreshExpiry = DateTime.UtcNow.AddDays(30);
+        // Tenant-wide max 2 (web + driver share AuthSessions); block 3rd login.
+        var session = await authSessions.CreateSessionAsync(
+            row.TenantId,
+            row.UserId,
+            refreshToken,
+            refreshExpiry,
+            AuthSessionLimits.ClientKindDriver,
+            cancellationToken);
+        if (session.LimitReached)
+        {
+            return ApiResponse<DriverAuthResultDto>.FailResponse(
+                AuthSessionLimits.LimitReachedMessage,
+                code: AuthSessionLimits.LimitReachedCode);
+        }
 
-        await repository.UpdateUserRefreshTokenAsync(
-            row.UserId, refreshToken, DateTime.UtcNow.AddDays(30), cancellationToken);
+        var accessToken = jwtTokenService.GenerateDriverAccessToken(
+            row.DriverId, row.UserId, row.TenantId, row.FullName, row.Phone, session.SessionId);
 
         return ApiResponse<DriverAuthResultDto>.SuccessResponse(
             new DriverAuthResultDto(accessToken, refreshToken, row.DriverId, row.FullName, row.Phone),

@@ -51,18 +51,19 @@
               <mat-label>Provider</mat-label>
               <mat-select [(ngModel)]="config.provider" (selectionChange)="onProviderChange()">
                 <mat-option value="None">None (rules only)</mat-option>
-                <mat-option value="AzureOpenAI">Azure OpenAI</mat-option>
-                <mat-option value="OpenAI">OpenAI</mat-option>
-                <mat-option value="Ollama">Ollama (local · Mistral)</mat-option>
+                <mat-option value="DeepInfra">DeepInfra (hosted · Qwen 3)</mat-option>
+                <mat-option value="Ollama">Ollama (local · Qwen 3)</mat-option>
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Model</mat-label>
-              <input matInput [(ngModel)]="config.modelName" [placeholder]="config.provider === 'Ollama' ? 'mistral' : 'gpt-4o-mini'" />
+              <input matInput [(ngModel)]="config.modelName"
+                [placeholder]="config.provider === 'DeepInfra' ? 'Qwen/Qwen3-32B' : (config.provider === 'Ollama' ? 'qwen3:8b' : '')" />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Endpoint</mat-label>
-              <input matInput [(ngModel)]="config.apiEndpoint" [placeholder]="config.provider === 'Ollama' ? 'http://127.0.0.1:11434' : ''" />
+              <input matInput [(ngModel)]="config.apiEndpoint"
+                [placeholder]="config.provider === 'DeepInfra' ? 'https://api.deepinfra.com/v1/openai' : (config.provider === 'Ollama' ? 'http://127.0.0.1:11434' : '')" />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Monthly budget (USD)</mat-label>

@@ -9,7 +9,7 @@ using SheikhTravelSystem.Infrastructure.Services.Ai.Providers;
 namespace SheikhTravelSystem.Infrastructure.Services.Ai;
 
 /// <summary>
-/// Phase 1–3 AI Gateway: chat memory + Ollama/Mistral + tool engine + confirm-write execution.
+/// Phase 1–3 AI Gateway: chat memory + Ollama/DeepInfra + tool engine + confirm-write execution.
 /// </summary>
 public sealed class AiChatGateway(
     IDbConnectionFactory dbFactory,
@@ -115,12 +115,13 @@ public sealed class AiChatGateway(
                 var llmMessages = new List<AiChatMessageDto> { new("system", system) };
                 llmMessages.AddRange(history.TakeLast(20));
 
-                logger.LogInformation("AI calling LLM provider={Provider} model={Model}", provider.ProviderName, config.ModelName);
+                var modelName = ResolveModelName(config.Provider, config.ModelName);
+                logger.LogInformation("AI calling LLM provider={Provider} model={Model}", provider.ProviderName, modelName);
                 var result = await provider.ChatAsync(
                     new AiProviderChatRequest(
-                        string.IsNullOrWhiteSpace(config.ModelName) ? "mistral" : config.ModelName!,
+                        modelName,
                         llmMessages,
-                        ResolveOllamaBase(config.ApiEndpoint)),
+                        ResolveProviderBase(config.Provider, config.ApiEndpoint)),
                     cancellationToken);
 
                 if (result.Success)
@@ -182,7 +183,7 @@ public sealed class AiChatGateway(
                 tools.AddRange(fallback.ToolsUsed);
                 if (config.Provider is "OpenAI" or "AzureOpenAI")
                 {
-                    answer += "\n\n_(Cloud LLM adapters ship in Phase 2. For Phase 1 use Provider = Ollama with model `mistral`.)_";
+                    answer += "\n\n_(OpenAI/Azure adapters are not used. Configure Provider = DeepInfra with model `Qwen/Qwen3-32B`, or Ollama with `qwen3:8b`.)_";
                 }
             }
         }
@@ -257,10 +258,8 @@ public sealed class AiChatGateway(
         int tenantId, CancellationToken cancellationToken = default)
     {
         var (provider, config) = await providerResolver.ResolveAsync(tenantId, cancellationToken);
-        var endpoint = string.IsNullOrWhiteSpace(config.ApiEndpoint)
-            ? "http://127.0.0.1:11434"
-            : config.ApiEndpoint!.Trim().TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(config.ModelName) ? "mistral" : config.ModelName;
+        var endpoint = ResolveProviderBase(config.Provider, config.ApiEndpoint);
+        var model = ResolveModelName(config.Provider, config.ModelName);
 
         if (!config.IsEnabled || string.Equals(config.Provider, "None", StringComparison.OrdinalIgnoreCase))
         {
@@ -271,19 +270,31 @@ public sealed class AiChatGateway(
         if (provider is null)
         {
             return new AiProviderHealthDto(config.Provider, model, endpoint, true, false,
-                $"Provider '{config.Provider}' is configured but not available in Phase 1. Use Ollama + Mistral.");
+                $"Provider '{config.Provider}' is not wired. Use DeepInfra (`Qwen/Qwen3-32B`) or Ollama (`qwen3:8b`).");
         }
 
         var reachable = await provider.IsAvailableAsync(endpoint, cancellationToken);
+        var status = provider.ProviderName switch
+        {
+            "DeepInfra" when reachable =>
+                $"DeepInfra reachable. Model hint: {model}. API key loaded from user-secrets/env.",
+            "DeepInfra" =>
+                "Cannot reach DeepInfra (or API key missing). Set DeepInfra:ApiKey / DEEPINFRA_API_KEY and check network.",
+            "Ollama" when reachable =>
+                $"Ollama reachable. Model hint: {model} (run `ollama pull {model}` if missing).",
+            "Ollama" =>
+                $"Cannot reach Ollama. Start with `ollama serve`, then `ollama pull {Providers.OllamaAiProvider.DefaultModel}`.",
+            _ when reachable => $"{provider.ProviderName} reachable. Model hint: {model}.",
+            _ => $"Cannot reach {provider.ProviderName}."
+        };
+
         return new AiProviderHealthDto(
             provider.ProviderName,
             model,
             endpoint,
             true,
             reachable,
-            reachable
-                ? $"Ollama reachable. Model hint: {model} (run `ollama pull {model}` if missing)."
-                : "Cannot reach Ollama. Start with `ollama serve`, then `ollama pull mistral`.");
+            status);
     }
 
     private async Task<(string Answer, string Mode, List<string> ToolsUsed)> ExecutePendingActionAsync(
@@ -477,6 +488,27 @@ public sealed class AiChatGateway(
         return rows.Select(r => new AiChatMessageDto(r.Role, r.Content)).ToList();
     }
 
-    private static string ResolveOllamaBase(string? endpoint)
-        => string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint.Trim().TrimEnd('/');
+    private static string ResolveProviderBase(string? provider, string? endpoint)
+    {
+        if (!string.IsNullOrWhiteSpace(endpoint))
+            return endpoint.Trim().TrimEnd('/');
+
+        return provider?.Trim() switch
+        {
+            "DeepInfra" or "HostedLLM" => Providers.DeepInfraAiProvider.DefaultBaseUrl,
+            _ => Providers.OllamaAiProvider.DefaultBaseUrl
+        };
+    }
+
+    private static string ResolveModelName(string? provider, string? modelName)
+    {
+        if (!string.IsNullOrWhiteSpace(modelName))
+            return modelName.Trim();
+
+        return provider?.Trim() switch
+        {
+            "DeepInfra" or "HostedLLM" => Providers.DeepInfraAiProvider.DefaultModel,
+            _ => Providers.OllamaAiProvider.DefaultModel
+        };
+    }
 }

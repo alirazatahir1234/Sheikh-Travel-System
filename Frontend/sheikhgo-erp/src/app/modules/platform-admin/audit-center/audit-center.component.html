@@ -1,22 +1,32 @@
 <div class="pa-page audit-center">
   <ui-page-header
     title="Audit Center"
-    subtitle="Search company audit events. Retention and write level are controlled in Security Center."
+    subtitle="Immutable activity trail for compliance review. Retention and write level are managed in Security Center."
   >
     <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
     <button
       appUiButton
       variant="secondary"
       type="button"
+      aria-label="Refresh audit events"
+      [disabled]="!selectedTenant || loading"
+      (click)="load()"
+    >
+      Refresh
+    </button>
+    <button
+      appUiButton
+      variant="secondary"
+      type="button"
       aria-label="Export audit events as CSV"
-      [disabled]="!selectedTenant || exporting"
+      [disabled]="!selectedTenant || exporting || dateRangeInvalid"
       (click)="exportCsv()"
     >
-      Export CSV
+      {{ exporting ? 'Exporting…' : 'Export CSV' }}
     </button>
   </ui-page-header>
 
-  <div class="filters">
+  <div class="filters" role="search" aria-label="Audit event filters">
     <label>
       Category
       <select [(ngModel)]="categoryFilter" (change)="applyFilters()">
@@ -35,7 +45,7 @@
       </select>
     </label>
     <label>
-      Success
+      Outcome
       <select [(ngModel)]="successFilter" (change)="applyFilters()">
         <option value="">All</option>
         <option value="true">Success</option>
@@ -44,32 +54,98 @@
     </label>
     <label>
       Entity
-      <input [(ngModel)]="entityTypeFilter" (keyup.enter)="applyFilters()" placeholder="User, Vehicle…" />
+      <input
+        [(ngModel)]="entityTypeFilter"
+        (keyup.enter)="applyFilters()"
+        placeholder="User, Vehicle…"
+        autocomplete="off"
+      />
     </label>
     <label>
       From
-      <input type="date" [(ngModel)]="fromDate" (change)="applyFilters()" />
+      <input
+        type="date"
+        [(ngModel)]="fromDate"
+        [max]="toDate || null"
+        (change)="applyFilters()"
+      />
     </label>
     <label>
       To
-      <input type="date" [(ngModel)]="toDate" (change)="applyFilters()" />
+      <input
+        type="date"
+        [(ngModel)]="toDate"
+        [min]="fromDate || null"
+        (change)="applyFilters()"
+      />
     </label>
     <label class="grow">
       Search
-      <input [(ngModel)]="searchFilter" (keyup.enter)="applyFilters()" placeholder="Action, message…" />
+      <input
+        [(ngModel)]="searchFilter"
+        (keyup.enter)="applyFilters()"
+        placeholder="Action, message, event key…"
+        autocomplete="off"
+      />
     </label>
-    <button appUiButton variant="primary" type="button" (click)="applyFilters()" [disabled]="!selectedTenant">
-      Apply
-    </button>
+    <div class="filter-actions">
+      <button appUiButton variant="primary" type="button" (click)="applyFilters()" [disabled]="!selectedTenant">
+        Apply
+      </button>
+      <button
+        appUiButton
+        variant="ghost"
+        type="button"
+        (click)="clearFilters()"
+        [disabled]="!selectedTenant || !hasActiveFilters"
+      >
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <div class="quick-ranges" *ngIf="selectedTenant">
+    <span class="muted">Quick range:</span>
+    <button type="button" class="chip-btn" (click)="setQuickRange(1)">Today</button>
+    <button type="button" class="chip-btn" (click)="setQuickRange(7)">Last 7 days</button>
+    <button type="button" class="chip-btn" (click)="setQuickRange(30)">Last 30 days</button>
+    <span class="filter-chip" *ngIf="eventKeyFilter">
+      Event: {{ eventKeyFilter }}
+      <button type="button" class="chip-x" aria-label="Clear event key filter" (click)="eventKeyFilter = ''; applyFilters()">×</button>
+    </span>
   </div>
 
   <div class="meta-row">
     <span class="tenant-chip" *ngIf="selectedTenant">Company: {{ selectedTenant.name }}</span>
     <span class="muted" *ngIf="retentionLabel">{{ retentionLabel }}</span>
+    <span class="warn-chip" *ngIf="selectedTenant && !auditEnabled">Auditing disabled for this company</span>
     <a class="link" routerLink="/platform/security-center" [queryParams]="selectedTenant ? { tenantId: selectedTenant.id } : {}">
       Security policies
     </a>
   </div>
+
+  <div class="summary-strip" *ngIf="selectedTenant && !loading">
+    <div class="summary-card">
+      <span class="label">Matching events</span>
+      <strong>{{ totalCount | number }}</strong>
+    </div>
+    <div class="summary-card" [class.alert]="pageFailedCount > 0">
+      <span class="label">Failed (this page)</span>
+      <strong>{{ pageFailedCount }}</strong>
+    </div>
+    <div class="summary-card" [class.critical]="pageCriticalCount > 0">
+      <span class="label">Critical (this page)</span>
+      <strong>{{ pageCriticalCount }}</strong>
+    </div>
+    <div class="summary-card" *ngIf="retentionDays != null">
+      <span class="label">Retention</span>
+      <strong>{{ retentionDays }}d</strong>
+    </div>
+  </div>
+
+  <p class="range-error" *ngIf="dateRangeInvalid" role="alert">
+    From date must be on or before To date.
+  </p>
 
   <div class="loading" *ngIf="loading">Loading events…</div>
   <div class="empty" *ngIf="!loading && !selectedTenant">
@@ -77,41 +153,53 @@
   </div>
   <div class="empty" *ngIf="!loading && selectedTenant && items.length === 0">
     No audit events match these filters.
+    <button *ngIf="hasActiveFilters" type="button" class="link" (click)="clearFilters()">Clear filters</button>
   </div>
 
   <div class="table-wrap" *ngIf="!loading && items.length">
     <table class="audit-table">
       <thead>
         <tr>
-          <th>Date</th>
+          <th>When</th>
           <th>User</th>
-          <th>Company</th>
           <th>Category</th>
           <th>Action</th>
           <th>Entity</th>
-          <th>Success</th>
+          <th>Outcome</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of items" (click)="openDetail(row)" class="clickable">
-          <td>{{ formatDate(row.createdOn) }}</td>
-          <td>{{ row.userName || '—' }}</td>
-          <td>{{ row.companyName || '—' }}</td>
+        <tr
+          *ngFor="let row of items"
+          (click)="openDetail(row)"
+          (keyup.enter)="openDetail(row)"
+          class="clickable"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'Open detail for ' + (row.displayName || row.action || row.eventKey)"
+        >
+          <td>
+            <div class="when">{{ formatDate(row.createdOn) }}</div>
+          </td>
+          <td>{{ row.userName || 'System' }}</td>
           <td>
             <span class="badge">{{ row.category }}</span>
-            <div class="muted">{{ row.severity }}</div>
+            <div>
+              <span class="sev-pill" [ngClass]="severityClass(row.severity)">{{ row.severity }}</span>
+            </div>
           </td>
           <td>
             <strong>{{ row.displayName || row.action }}</strong>
             <div class="muted">{{ row.eventKey }}</div>
+            <div class="muted msg" *ngIf="row.message">{{ row.message }}</div>
           </td>
           <td>
             {{ row.entityType || '—' }}
-            <span *ngIf="row.entityId != null">#{{ row.entityId }}</span>
+            <span class="entity-id" *ngIf="row.entityId != null">#{{ row.entityId }}</span>
           </td>
           <td>
-            <span class="ok" *ngIf="row.success">Yes</span>
-            <span class="fail" *ngIf="!row.success">No</span>
+            <span class="ok" *ngIf="row.success">Success</span>
+            <span class="fail" *ngIf="!row.success">Failed</span>
           </td>
         </tr>
       </tbody>
@@ -119,37 +207,56 @@
   </div>
 
   <div class="pager" *ngIf="selectedTenant && totalCount > 0">
-    <button type="button" class="link" [disabled]="page <= 1" (click)="prevPage()">Previous</button>
-    <span>Page {{ page }} / {{ totalPages }} · {{ totalCount }} events</span>
-    <button type="button" class="link" [disabled]="page >= totalPages" (click)="nextPage()">Next</button>
+    <button type="button" class="link" [disabled]="page <= 1 || loading" (click)="prevPage()">Previous</button>
+    <span>Page {{ page }} / {{ totalPages }} · {{ totalCount | number }} events</span>
+    <label class="page-size">
+      Rows
+      <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" [disabled]="loading">
+        <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+      </select>
+    </label>
+    <button type="button" class="link" [disabled]="page >= totalPages || loading" (click)="nextPage()">Next</button>
   </div>
 </div>
 
-<aside class="drawer" *ngIf="drawerOpen" role="dialog" aria-modal="true" aria-label="Audit event detail">
-  <div class="drawer-panel">
+<aside
+  class="drawer"
+  *ngIf="drawerOpen"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Audit event detail"
+  (click)="closeDrawer()"
+>
+  <div class="drawer-panel" (click)="$event.stopPropagation()">
     <header>
       <h2>Audit detail</h2>
       <button type="button" class="link" aria-label="Close audit detail" (click)="closeDrawer()">Close</button>
     </header>
-    <div *ngIf="!detail" class="muted">Loading…</div>
+
+    <div *ngIf="detailLoading" class="muted">Loading…</div>
+    <div *ngIf="!detailLoading && detailError" class="detail-error" role="alert">{{ detailError }}</div>
+
     <ng-container *ngIf="detail">
       <p><strong>{{ detail.displayName }}</strong></p>
-      <p class="muted">{{ detail.eventKey }} · {{ detail.category }} · {{ detail.severity }}</p>
+      <p class="muted">{{ detail.eventKey }} · {{ detail.category }}</p>
+      <span class="sev-pill" [ngClass]="severityClass(detail.severity)">{{ detail.severity }}</span>
+      <span class="ok outcome" *ngIf="detail.success">Success</span>
+      <span class="fail outcome" *ngIf="!detail.success">Failed</span>
+
       <dl class="meta">
         <dt>When</dt><dd>{{ formatDate(detail.createdOn) }}</dd>
-        <dt>User</dt><dd>{{ detail.userName || '—' }}</dd>
+        <dt>User</dt><dd>{{ detail.userName || 'System' }}</dd>
         <dt>Company</dt><dd>{{ detail.companyName || '—' }}</dd>
         <dt>Entity</dt><dd>{{ detail.entityType || '—' }} <span *ngIf="detail.entityId != null">#{{ detail.entityId }}</span></dd>
-        <dt>Success</dt><dd>{{ detail.success ? 'Yes' : 'No' }}</dd>
         <dt>IP</dt><dd>{{ detail.ipAddress || '—' }}</dd>
         <dt>Browser</dt><dd class="break">{{ detail.userAgent || '—' }}</dd>
         <dt>Correlation</dt><dd class="break">{{ detail.correlationId || '—' }}</dd>
         <dt>Message</dt><dd>{{ detail.message || '—' }}</dd>
       </dl>
       <h3>Before</h3>
-      <pre class="json">{{ detail.oldValues || '—' }}</pre>
+      <pre class="json">{{ formatJson(detail.oldValues) }}</pre>
       <h3>After</h3>
-      <pre class="json">{{ detail.newValues || '—' }}</pre>
+      <pre class="json">{{ formatJson(detail.newValues) }}</pre>
     </ng-container>
   </div>
 </aside>

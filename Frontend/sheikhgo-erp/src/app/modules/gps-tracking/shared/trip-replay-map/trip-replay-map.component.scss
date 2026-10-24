@@ -432,7 +432,14 @@
   }
 }
 
-.legend-item--route i {
+.legend-item--remaining i {
+  background: #22c55e;
+  border-radius: 2px;
+  width: 14px;
+  height: 4px;
+}
+
+.legend-item--travelled i {
   background: #1d4ed8;
   border-radius: 2px;
   width: 14px;

@@ -14,31 +14,37 @@ import { UserListItemComponent } from '../user-list-item/user-list-item.componen
   imports: [CommonModule, UserListItemComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-white rounded-xl border border-border overflow-hidden">
+    <div class="bg-white rounded-lg border border-border overflow-hidden">
       <!-- Header -->
-      <div class="px-4 py-3 border-b border-border flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-text">Users (Preview)</h3>
+      <div class="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold text-text">Users preview</h3>
         <button
           type="button"
           (click)="addUser.emit()"
           class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors"
         >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add User
+          Add user
         </button>
       </div>
 
       <!-- Content -->
-      <div class="divide-y divide-border">
-        @for (user of preview().users; track user.id) {
-          <app-user-list-item
-            [user]="user"
-            (userAction)="onUserAction($event, user)"
-          />
-        }
-      </div>
+      @if (preview().users.length === 0) {
+        <div class="px-4 py-8 text-center">
+          <p class="text-sm text-text-muted">No users to preview for this branch.</p>
+        </div>
+      } @else {
+        <div class="divide-y divide-border">
+          @for (user of preview().users; track user.id) {
+            <app-user-list-item
+              [user]="user"
+              (userAction)="onUserAction($event, user)"
+            />
+          }
+        </div>
+      }
 
       <!-- View All Link -->
       <div class="px-4 py-3 border-t border-border">
@@ -47,7 +53,7 @@ import { UserListItemComponent } from '../user-list-item/user-list-item.componen
           (click)="viewAllUsers.emit()"
           class="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
         >
-          VIEW ALL {{ preview().totalCount }} USERS
+          View all {{ preview().totalCount }} users
         </button>
       </div>
     </div>

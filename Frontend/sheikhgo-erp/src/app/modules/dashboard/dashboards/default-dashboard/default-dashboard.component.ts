@@ -10,10 +10,12 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
 import { BookingService } from '../../../../core/services/booking.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { SmartAlertService } from '../../../../core/services/smart-alert.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { DashboardSummary } from '../../../../core/models/common.model';
 import { Booking } from '../../../../core/models/booking.model';
 import { NotificationStats } from '../../../../core/models/notification.model';
+import { SmartAlert } from '../../../../core/models/smart-alert.model';
 import { GpsFleetStatusLocal } from '../../../../core/models/gps-tracking.model';
 import {
   StatTile, TaskItem, DataTableColumn, QuickLaunchApp
@@ -43,6 +45,9 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   unreadCount$: Observable<number>;
   notifStats: NotificationStats | null = null;
   gpsFleet: GpsFleetStatusLocal | null = null;
+  smartAlerts: SmartAlert[] = [];
+  smartAlertNewCount = 0;
+  smartAlertBusyId: number | null = null;
   private destroy$ = new Subject<void>();
 
   /** Summary KPI row (mirrors DashboardSummaryDto). */
@@ -95,6 +100,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     private bookings: BookingService,
     private auth: AuthService,
     private notificationService: NotificationService,
+    private smartAlertsApi: SmartAlertService,
     private gps: GpsTrackingService,
     private router: Router
   ) {
@@ -104,10 +110,39 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.userName = this.resolveDisplayName(this.auth.getCurrentUser()?.fullName);
     this.loadDashboardData(true);
+    this.smartAlertsApi.refresh();
+
+    this.smartAlertsApi.summary.pipe(takeUntil(this.destroy$)).subscribe(s => {
+      this.smartAlerts = s.items ?? [];
+      this.smartAlertNewCount = s.newCount ?? 0;
+      if (this.smartAlertNewCount > 0) this.opsHealthy = false;
+    });
 
     interval(60000).pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.loadDashboardData(false);
+      this.smartAlertsApi.refresh();
     });
+  }
+
+  acknowledgeSmartAlert(alert: SmartAlert): void {
+    this.smartAlertBusyId = alert.id;
+    this.smartAlertsApi.acknowledge(alert.id).pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.smartAlertBusyId = null;
+    });
+  }
+
+  resolveSmartAlert(alert: SmartAlert): void {
+    this.smartAlertBusyId = alert.id;
+    this.smartAlertsApi.resolve(alert.id).pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.smartAlertBusyId = null;
+    });
+  }
+
+  severityClass(severity: string): string {
+    const s = (severity || '').toLowerCase();
+    if (s === 'critical') return 'sev-critical';
+    if (s === 'info') return 'sev-info';
+    return 'sev-warning';
   }
 
   ngOnDestroy(): void {

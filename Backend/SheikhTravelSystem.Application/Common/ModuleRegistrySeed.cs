@@ -68,8 +68,10 @@ public static class ModuleRegistrySeed
         // Beta
         E("NOTIFICATIONS", "Notifications", "Notifications", "Notification center and push", "Platform", "notifications", "/notifications", 110,
             [], true, true, true, false, "Beta", []),
-        E("AI", "AI", "AI", "AI copilots and assistants", "Platform", "smart_toy", "/ai", 120,
-            ["DASHBOARD"], true, true, true, false, "Beta", []),
+
+        // Premium enableable (TenantModuleCatalog) — default off for new/existing tenants
+        E("AI", "AAS Assistant", "AAS Assistant", "Premium AI assistant (AAS) for operations chat and tools", "Platform", "smart_toy", "/ai", 120,
+            ["DASHBOARD"], true, true, true, false, "Active", ["ai"]),
 
         // Coming soon / roadmap catalog-only product modules
         E("RENTAL", "Vehicle Rental", "Rental", "Vehicle hire and rental workflows", "Fleet", "car_rental", null, 40,
@@ -112,4 +114,40 @@ public static class ModuleRegistrySeed
     public static bool IsEnableable(string code)
         => TenantModuleCatalog.All.Any(m =>
             string.Equals(m.Code, code, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Whether a registry entry can be toggled for a tenant (Active + in <see cref="TenantModuleCatalog"/>).
+    /// </summary>
+    public static bool IsToggleable(Entry entry)
+        => IsEnableable(entry.Code)
+           && string.Equals(entry.Status, "Active", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Expands requested enableable codes with transitive Active-catalog dependencies
+    /// (e.g. GPS → FLEET → DASHBOARD). Non-toggleable codes are ignored.
+    /// </summary>
+    public static IReadOnlyList<string> ExpandToggleableWithDependencies(IEnumerable<string> requestedCodes)
+    {
+        var byCode = All
+            .GroupBy(e => e.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string code)
+        {
+            if (!byCode.TryGetValue(code, out var entry) || !IsToggleable(entry) || !result.Add(entry.Code))
+                return;
+            foreach (var dep in entry.Dependencies)
+                Add(dep);
+        }
+
+        foreach (var code in requestedCodes ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(code))
+                Add(code.Trim());
+        }
+
+        return result.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 }

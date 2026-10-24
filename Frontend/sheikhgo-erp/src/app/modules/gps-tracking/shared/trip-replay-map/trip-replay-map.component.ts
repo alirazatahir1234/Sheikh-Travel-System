@@ -86,9 +86,14 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private themeHandle: GmapThemeHandle | null = null;
   private infoWindow: google.maps.InfoWindow | null = null;
   private plannedPolyline: google.maps.Polyline | null = null;
-  private actualPolyline: google.maps.Polyline | null = null;
+  /** GPS path still ahead of the vehicle — green (full route at t=0). */
+  private remainingPolyline: google.maps.Polyline | null = null;
+  /** GPS path already driven — blue (grows as replay advances). */
+  private travelledPolyline: google.maps.Polyline | null = null;
   private snappedPolyline: google.maps.Polyline | null = null;
   private heatmapPolylines: google.maps.Polyline[] = [];
+  /** Downsampled actual path used for progress coloring. */
+  private progressDrawPath: TripReplayPosition[] = [];
   private overlayMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
   private overlayListeners: google.maps.MapsEventListener[] = [];
   private pointsCluster: FleetMarkerClusterer | null = null;
@@ -474,8 +479,11 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private clearRouteOverlays(): void {
     this.plannedPolyline?.setMap(null);
     this.plannedPolyline = null;
-    this.actualPolyline?.setMap(null);
-    this.actualPolyline = null;
+    this.remainingPolyline?.setMap(null);
+    this.remainingPolyline = null;
+    this.travelledPolyline?.setMap(null);
+    this.travelledPolyline = null;
+    this.progressDrawPath = [];
     this.snappedPolyline?.setMap(null);
     this.snappedPolyline = null;
     this.heatmapPolylines.forEach(p => p.setMap(null));
@@ -591,10 +599,11 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
           ]
         });
       } else if (hasPlanned && !hasActual) {
+        // No GPS trail yet — show full planned path as remaining (green).
         this.plannedPolyline = new google.maps.Polyline({
           map: this.map,
           path: drawPlanned.map(p => this.toLatLng(p)),
-          strokeColor: '#1d4ed8',
+          strokeColor: '#22c55e',
           strokeOpacity: 1,
           strokeWeight: 7,
           geodesic: true,
@@ -602,20 +611,31 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
         });
       }
 
-      // Actual GPS track (or sole path when no separate planned route).
+      // Actual GPS track: remaining=green, travelled=blue (updated during replay).
       if (hasActual) {
         if (this.showHeatmap) {
           this.drawSpeedHeatmap(drawActual);
         } else {
-          this.actualPolyline = new google.maps.Polyline({
+          this.progressDrawPath = drawActual;
+          this.remainingPolyline = new google.maps.Polyline({
             map: this.map,
-            path: drawActual.map(p => this.toLatLng(p)),
+            path: [],
+            strokeColor: '#22c55e',
+            strokeOpacity: 1,
+            strokeWeight: 7,
+            geodesic: true,
+            zIndex: 2
+          });
+          this.travelledPolyline = new google.maps.Polyline({
+            map: this.map,
+            path: [],
             strokeColor: '#1d4ed8',
             strokeOpacity: 1,
             strokeWeight: 7,
             geodesic: true,
             zIndex: 3
           });
+          this.updateProgressPolylines();
         }
         if (this.showSnappedLayer) {
           this.loadSnappedOverlay(drawActual);
@@ -930,10 +950,50 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       this.replayMarker.position = this.toLatLng(row);
       this.replayMarker.content = this.buildVehicleContent(row);
     }
+    this.updateProgressPolylines();
     if (this.followVehicle) {
       this.map.panTo(this.toLatLng(row));
     }
     this.positionSelected.emit(row);
+  }
+
+  /**
+   * Remaining (ahead) = green; travelled (behind) = blue.
+   * At replayIndex 0 the entire GPS path is green.
+   */
+  private updateProgressPolylines(): void {
+    if (!this.remainingPolyline || !this.travelledPolyline) return;
+    const pts = this.progressDrawPath;
+    if (pts.length < 2) return;
+
+    const idx = this.displayIndexForReplay(pts);
+    const remaining =
+      idx < pts.length - 1 ? pts.slice(idx).map(p => this.toLatLng(p)) : [];
+    const travelled =
+      idx > 0 ? pts.slice(0, idx + 1).map(p => this.toLatLng(p)) : [];
+
+    this.remainingPolyline.setPath(remaining.length >= 2 ? remaining : []);
+    this.travelledPolyline.setPath(travelled.length >= 2 ? travelled : []);
+  }
+
+  /** Map current replayIndex (on full positions) onto the downsampled draw path. */
+  private displayIndexForReplay(drawPath: TripReplayPosition[]): number {
+    if (!drawPath.length) return 0;
+    if (!this.positions.length) return 0;
+    if (drawPath.length === this.positions.length) {
+      return Math.max(0, Math.min(this.replayIndex, drawPath.length - 1));
+    }
+    const target = new Date(this.positions[this.replayIndex]?.timestamp ?? 0).getTime();
+    let best = 0;
+    let bestDiff = Number.MAX_SAFE_INTEGER;
+    for (let i = 0; i < drawPath.length; i++) {
+      const diff = Math.abs(new Date(drawPath[i].timestamp).getTime() - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = i;
+      }
+    }
+    return best;
   }
 
   private stopReplayTimer(): void {

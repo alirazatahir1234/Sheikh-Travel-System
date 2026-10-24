@@ -63,11 +63,11 @@ interface DriverOption { id: number; fullName: string; }
         @if (preset() === 'custom') {
           <label>
             <span>From</span>
-            <input type="date" [ngModel]="filters().from | slice:0:10" (ngModelChange)="patch({ from: $event })" />
+            <input type="date" [ngModel]="filters().from | slice:0:10" (ngModelChange)="onFromDate($event)" />
           </label>
           <label>
             <span>To</span>
-            <input type="date" [ngModel]="filters().to | slice:0:10" (ngModelChange)="patch({ to: $event })" />
+            <input type="date" [ngModel]="filters().to | slice:0:10" [attr.min]="filters().from | slice:0:10" (ngModelChange)="onToDate($event)" />
           </label>
         }
         @if (showStatus()) {
@@ -146,10 +146,48 @@ export class FleetReportFiltersComponent {
     this.filtersChange.emit({ ...this.filters(), ...partial });
   }
 
+  onFromDate(value: string): void {
+    if (!value) return;
+    const from = new Date(`${value}T00:00:00`);
+    this.patch({ from: from.toISOString() });
+  }
+
+  onToDate(value: string): void {
+    if (!value) return;
+    const to = new Date(`${value}T23:59:59.999`);
+    this.patch({ to: to.toISOString() });
+  }
+
   onPreset(preset: TripDatePreset): void {
     this.presetChange.emit(preset);
     if (preset === 'custom') return;
+    // Management / fuel / maintenance reports need full calendar windows.
+    // GPS trip/speed/idle/stop still clamp via applyTripDatePreset (30-day MaxRange).
+    const gpsLimited = ['trip', 'speed', 'idle', 'stop', 'event'].includes(this.reportType());
     const range = applyTripDatePreset(preset);
+    if (!gpsLimited && (preset === 'thisYear' || preset === 'thisMonth' || preset === 'previousMonth')) {
+      // Re-expand without the trip 30-day clamp for non-GPS report families.
+      const unclamped = applyManagementDatePreset(preset);
+      this.patch({ from: unclamped.from.toISOString(), to: unclamped.to.toISOString() });
+      return;
+    }
     this.patch({ from: range.from.toISOString(), to: range.to.toISOString() });
+  }
+}
+
+function applyManagementDatePreset(preset: TripDatePreset, now = new Date()): { from: Date; to: Date } {
+  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  switch (preset) {
+    case 'thisMonth':
+      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+    case 'previousMonth': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return { from: start, to: end };
+    }
+    case 'thisYear':
+      return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
+    default:
+      return applyTripDatePreset(preset, now);
   }
 }

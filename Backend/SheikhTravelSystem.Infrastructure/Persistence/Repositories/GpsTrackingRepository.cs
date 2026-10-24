@@ -72,7 +72,13 @@ public sealed partial class GpsTrackingRepository(
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         var body = request.Body;
-        var nextRun = AnalyticsReportHelper.ComputeNextRunAt(body.Frequency);
+        var validationError = AnalyticsReportHelper.ValidateScheduleInput(body.ReportType, body.Frequency, body.Recipients);
+        if (validationError is not null)
+            return ApiResponse<int>.FailResponse(validationError);
+
+        var normalizedFrequency = AnalyticsReportHelper.NormalizeFrequency(body.Frequency);
+        var recipients = AnalyticsReportHelper.NormalizeRecipients(body.Recipients);
+        var nextRun = AnalyticsReportHelper.ComputeNextRunAt(normalizedFrequency);
         var filtersJson = AnalyticsReportHelper.SerializeFilters(body.Filters);
         var createdBy = currentUser.UserId?.ToString() ?? "system";
 
@@ -88,8 +94,8 @@ public sealed partial class GpsTrackingRepository(
             TenantId = tenantId,
             ReportType = AnalyticsReportHelper.NormalizeReportType(body.ReportType),
             FiltersJson = filtersJson,
-            body.Frequency,
-            body.Recipients,
+            Frequency = normalizedFrequency,
+            Recipients = recipients,
             NextRunAt = nextRun,
             CreatedBy = createdBy
         }, cancellationToken: cancellationToken));
@@ -109,8 +115,29 @@ public sealed partial class GpsTrackingRepository(
         if (exists == 0) throw new NotFoundException("AnalyticsReportSchedule", request.Id);
 
         var body = request.Body;
-        var nextRun = body.Frequency is not null
-            ? AnalyticsReportHelper.ComputeNextRunAt(body.Frequency)
+        string? normalizedFrequency = null;
+        string? normalizedRecipients = null;
+
+        if (body.Frequency is not null || body.Recipients is not null)
+        {
+            var current = await connection.QuerySingleAsync<(string Frequency, string Recipients)>(new CommandDefinition(
+                "SELECT Frequency, Recipients FROM GpsAnalyticsReportSchedules WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { request.Id, TenantId = tenantId }, cancellationToken: cancellationToken));
+
+            var freq = body.Frequency ?? current.Frequency;
+            var recipients = body.Recipients ?? current.Recipients;
+            var validationError = AnalyticsReportHelper.ValidateFrequencyAndRecipients(freq, recipients);
+            if (validationError is not null)
+                return ApiResponse<bool>.FailResponse(validationError);
+
+            if (body.Frequency is not null)
+                normalizedFrequency = AnalyticsReportHelper.NormalizeFrequency(freq);
+            if (body.Recipients is not null)
+                normalizedRecipients = AnalyticsReportHelper.NormalizeRecipients(recipients);
+        }
+
+        var nextRun = normalizedFrequency is not null
+            ? AnalyticsReportHelper.ComputeNextRunAt(normalizedFrequency)
             : (DateTime?)null;
 
         await connection.ExecuteAsync(new CommandDefinition("""
@@ -127,8 +154,8 @@ public sealed partial class GpsTrackingRepository(
         {
             request.Id,
             TenantId = tenantId,
-            body.Frequency,
-            body.Recipients,
+            Frequency = normalizedFrequency,
+            Recipients = normalizedRecipients,
             FiltersJson = body.Filters is null ? null : AnalyticsReportHelper.SerializeFilters(body.Filters),
             body.IsActive,
             NextRunAt = nextRun,
@@ -2072,7 +2099,8 @@ public sealed partial class GpsTrackingRepository(
             SELECT ISNULL(SUM(f.TotalCost), 0)
             FROM FuelLogs f
             INNER JOIN Vehicles v ON v.Id = f.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
-            WHERE f.IsDeleted = 0 AND f.FuelDate >= @FromDate AND f.FuelDate < @ToDate {branchClause} {departmentClause}
+            WHERE f.TenantId = @TenantId AND f.IsDeleted = 0
+              AND f.FuelDate >= @FromDate AND f.FuelDate < @ToDate {branchClause} {departmentClause}
             """,
             new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate, request.BranchId, request.DepartmentId },
             cancellationToken: cancellationToken));
@@ -2087,13 +2115,16 @@ public sealed partial class GpsTrackingRepository(
             new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate, request.BranchId, request.DepartmentId },
             cancellationToken: cancellationToken));
 
-        var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, null, Unpaged: true),
-            cancellationToken);
-
-        var totalDistance = tripsResponse is { Success: true, Data: not null }
-            ? (decimal)tripsResponse.Data.Items.Sum(t => t.DistanceKm)
-            : 0;
+        // SQL aggregate — do not route through GetGpsTripsQuery (30-day MaxRange + reverse-geocode cost).
+        var totalDistance = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
+            $"""
+            SELECT ISNULL(SUM(t.DistanceKm), 0)
+            FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE t.StartTime >= @FromDate AND t.StartTime < @ToDate {branchClause} {departmentClause}
+            """,
+            new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate, request.BranchId, request.DepartmentId },
+            cancellationToken: cancellationToken));
 
         var totalCost = fuelCost + maintenanceCost;
         var costPerKm = totalDistance > 0 ? Math.Round(totalCost / totalDistance, 2) : (decimal?)null;
@@ -2445,6 +2476,87 @@ public sealed partial class GpsTrackingRepository(
         return ApiResponse<AnalyticsOverviewDto>.SuccessResponse(dto);
         }
 
+    public async Task<ApiResponse<ComparativeAnalyticsDto>> GetComparativeAnalyticsAsync(
+        GetComparativeAnalyticsQuery request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.ToDateA < request.FromDateA)
+            return ApiResponse<ComparativeAnalyticsDto>.FailResponse("'toA' must be on or after 'fromA'.");
+
+        if (request.FromDateB.HasValue && request.ToDateB.HasValue && request.ToDateB < request.FromDateB)
+            return ApiResponse<ComparativeAnalyticsDto>.FailResponse("'toB' must be on or after 'fromB'.");
+
+        // Allow full calendar months (and a bit more) without the trip-list 30-day cap.
+        var maxRange = TimeSpan.FromDays(400);
+        if (request.ToDateA - request.FromDateA > maxRange)
+            return ApiResponse<ComparativeAnalyticsDto>.FailResponse("Period A cannot exceed 400 days.");
+        if (request.FromDateB.HasValue && request.ToDateB.HasValue && request.ToDateB.Value - request.FromDateB.Value > maxRange)
+            return ApiResponse<ComparativeAnalyticsDto>.FailResponse("Period B cannot exceed 400 days.");
+
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var periodA = await LoadComparativePeriodAsync(
+            connection, tenantId, "This period", request.FromDateA, request.ToDateA,
+            request.BranchId, request.DepartmentId, cancellationToken);
+
+        ComparativePeriodDto? periodB = null;
+        if (request.FromDateB.HasValue && request.ToDateB.HasValue)
+        {
+            periodB = await LoadComparativePeriodAsync(
+                connection, tenantId, "Prior period", request.FromDateB.Value, request.ToDateB.Value,
+                request.BranchId, request.DepartmentId, cancellationToken);
+        }
+
+        return ApiResponse<ComparativeAnalyticsDto>.SuccessResponse(new ComparativeAnalyticsDto(periodA, periodB));
+    }
+
+    private async Task<ComparativePeriodDto> LoadComparativePeriodAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        string label,
+        DateTime fromDate,
+        DateTime toDate,
+        int? branchId,
+        int? departmentId,
+        CancellationToken cancellationToken)
+    {
+        var branchClause = branchId.HasValue ? " AND v.BranchId = @BranchId" : "";
+        var departmentClause = departmentId.HasValue ? " AND v.DepartmentId = @DepartmentId" : "";
+        var args = new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate, BranchId = branchId, DepartmentId = departmentId };
+
+        var tripStats = await connection.QuerySingleAsync<(int TripCount, decimal DistanceKm, decimal AvgSpeedKmh)>(new CommandDefinition(
+            $"""
+            SELECT
+                COUNT(1) AS TripCount,
+                ISNULL(SUM(t.DistanceKm), 0) AS DistanceKm,
+                ISNULL(AVG(CASE WHEN t.AvgSpeedKmh > 0 THEN t.AvgSpeedKmh END), 0) AS AvgSpeedKmh
+            FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE t.StartTime >= @FromDate AND t.StartTime <= @ToDate {branchClause} {departmentClause}
+            """,
+            args, cancellationToken: cancellationToken));
+
+        var overspeedCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"""
+            SELECT COUNT(1)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE e.IsDeleted = 0
+              AND e.EventType IN ('overspeed', 'speed_exceeded')
+              AND e.Timestamp >= @FromDate AND e.Timestamp <= @ToDate
+              {branchClause} {departmentClause}
+            """,
+            args, cancellationToken: cancellationToken));
+
+        return new ComparativePeriodDto(
+            label,
+            Math.Round(tripStats.DistanceKm, 1),
+            tripStats.TripCount,
+            Math.Round(tripStats.AvgSpeedKmh, 1),
+            overspeedCount);
+    }
+
     public async Task<ApiResponse<List<VehicleRankingDto>>> GetVehicleRankingAsync(GetVehicleRankingQuery request, CancellationToken cancellationToken = default)
     {
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
@@ -2467,10 +2579,10 @@ public sealed partial class GpsTrackingRepository(
         var costs = (await connection.QueryAsync<(int VehicleId, decimal FuelCost, decimal MaintenanceCost)>(new CommandDefinition(
             $"""
             SELECT v.Id AS VehicleId,
-                ISNULL((SELECT SUM(f.TotalCost) FROM FuelLogs f WHERE f.VehicleId = v.Id AND f.IsDeleted = 0
+                ISNULL((SELECT SUM(f.TotalCost) FROM FuelLogs f WHERE f.VehicleId = v.Id AND f.TenantId = @TenantId AND f.IsDeleted = 0
                     AND f.FuelDate >= @FromDate AND f.FuelDate < @ToDate), 0) AS FuelCost,
                 ISNULL((SELECT SUM(m.Cost + ISNULL(m.LaborCost,0) + ISNULL(m.PartsCost,0)) FROM Maintenance m
-                    WHERE m.VehicleId = v.Id AND m.IsDeleted = 0 AND m.MaintenanceDate >= @FromDate AND m.MaintenanceDate < @ToDate), 0) AS MaintenanceCost
+                    WHERE m.VehicleId = v.Id AND m.TenantId = @TenantId AND m.IsDeleted = 0 AND m.MaintenanceDate >= @FromDate AND m.MaintenanceDate < @ToDate), 0) AS MaintenanceCost
             FROM Vehicles v
             WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId {branchClause} {departmentClause}
             """,

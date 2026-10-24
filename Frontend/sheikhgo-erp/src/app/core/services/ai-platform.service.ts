@@ -58,6 +58,21 @@ export interface AiCopilotResponse {
   usedLlm: boolean;
 }
 
+export interface AiAssistantPeriod {
+  start: string;
+  end: string;
+}
+
+export interface AiAssistantQueryResponse {
+  answer: string;
+  period: AiAssistantPeriod;
+  toolUsed?: string | null;
+  data?: unknown;
+  warnings: string[];
+  usedLlm: boolean;
+  mode: string;
+}
+
 export interface AiChatMessage {
   role: string;
   content: string;
@@ -149,6 +164,15 @@ export class AiPlatformService {
 
   ask(question: string): Observable<AiCopilotResponse> {
     return this.http.post<AiCopilotResponse>(`${this.base}/copilot/ask`, { question });
+  }
+
+  /** Phase 2 AI Assistant — allowlisted read-only reporting tools. */
+  assistantQuery(question: string): Observable<AiAssistantQueryResponse> {
+    return this.http.post<AiAssistantQueryResponse>(`${this.base}/assistant/query`, { question });
+  }
+
+  assistantTools(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.base}/assistant/tools`);
   }
 
   chat(

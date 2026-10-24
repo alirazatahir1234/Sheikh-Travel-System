@@ -1,19 +1,26 @@
 <div class="branch-form-page">
   <header class="form-header">
     <div class="form-header-left">
-      <button mat-icon-button type="button" routerLink="/platform/branches" aria-label="Back">
+      <button
+        mat-icon-button
+        type="button"
+        routerLink="/platform/branches"
+        [queryParams]="listQueryParams"
+        aria-label="Back">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
         <nav class="breadcrumb">
           <span>Organization</span>
           <mat-icon>chevron_right</mat-icon>
-          <a routerLink="/platform/branches">Branches</a>
+          <a routerLink="/platform/branches" [queryParams]="listQueryParams">Branches</a>
           <mat-icon>chevron_right</mat-icon>
           <span class="current">{{ isEdit ? 'Edit Branch' : 'Add Branch' }}</span>
         </nav>
         <h1>{{ isEdit ? 'Edit Branch' : 'Add New Branch' }}</h1>
-        <p class="subtitle">Configure a new operational location for the fleet network.</p>
+        <p class="subtitle">
+          {{ isEdit ? 'Update this operational location.' : 'Configure a new operational location for the fleet network.' }}
+        </p>
       </div>
     </div>
     <button mat-stroked-button type="button" (click)="reset()" [disabled]="loading || saving">
@@ -188,7 +195,7 @@
         <label
           *ngFor="let opt of statusOptions"
           class="status-card"
-          [class.selected]="form.get('status')?.value === opt.value">
+          [class.selected]="isStatusSelected(opt.value)">
           <input type="radio" formControlName="status" [value]="opt.value" />
           <strong>{{ opt.label }}</strong>
           <span>{{ opt.hint }}</span>

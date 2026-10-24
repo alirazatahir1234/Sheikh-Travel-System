@@ -146,6 +146,7 @@
       <tr class="empty-row" *matNoDataRow>
         <td [attr.colspan]="displayedColumns.length">
           No audit logs found matching your filters.
+          <button *ngIf="hasActiveFilters" type="button" mat-button (click)="clearFilters()">Clear filters</button>
         </td>
       </tr>
     </table>

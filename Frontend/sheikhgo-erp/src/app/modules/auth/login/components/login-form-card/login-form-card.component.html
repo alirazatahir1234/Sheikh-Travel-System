@@ -45,6 +45,10 @@
         <button type="button" class="ac-link" (click)="forgotPasswordClick.emit()">Forgot password?</button>
       </div>
 
+      <div class="ac-server-error" *ngIf="serverError" role="alert">
+        {{ serverError }}
+      </div>
+
       <button mat-flat-button type="submit" class="full-width ac-submit" [disabled]="loading || form.invalid">
         <mat-spinner *ngIf="loading" diameter="20" class="ac-spinner"></mat-spinner>
         <span *ngIf="!loading" class="submit-label">

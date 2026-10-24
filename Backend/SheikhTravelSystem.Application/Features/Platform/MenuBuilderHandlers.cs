@@ -45,8 +45,20 @@ public static class MenuBuilderQueries
         return enabled;
     }
 
-    public static bool IsMenuItemEnabledByModule(string? permissionCode, IReadOnlyList<string> enabled)
+    public static bool IsMenuItemEnabledByModule(
+        string? permissionCode,
+        IReadOnlyList<string> enabled,
+        string? productModuleKey = null)
     {
+        if (!string.IsNullOrWhiteSpace(productModuleKey)
+            && TenantModuleCatalog.All.Any(m =>
+                string.Equals(m.Code, productModuleKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Product module keys (e.g. AI) must be entitled via TenantModuleCatalog legacy mapping.
+            if (enabled.Count > 0 && !TenantModuleCatalog.IsEntitled(productModuleKey, enabled))
+                return false;
+        }
+
         if (string.IsNullOrWhiteSpace(permissionCode)) return true;
         if (permissionCode.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
             return enabled.Contains("gps-tracking", StringComparer.OrdinalIgnoreCase);
@@ -101,7 +113,7 @@ public static class MenuBuilderQueries
             var items = menus
                 .Where(m => m.ModuleId == module.Id && m.IsActive && m.Visible)
                 .Where(m => string.IsNullOrEmpty(m.PermissionCode) || permissionSet.Contains(m.PermissionCode))
-                .Where(m => IsMenuItemEnabledByModule(m.PermissionCode, enabledModules))
+                .Where(m => IsMenuItemEnabledByModule(m.PermissionCode, enabledModules, m.ModuleKey))
                 .Where(m => PassesFeatureGate(m.FeatureKey, featureFlags))
                 .Select(m =>
                 {

@@ -122,10 +122,20 @@ class AppConfig {
     return '$trimmed/hubs/tracking';
   }
 
+  /// Optional white-label slug via `--dart-define=TENANT_SLUG=...`.
+  /// Empty by default so the multi-tenant app does not advertise Sheikh's
+  /// legacy `default` slug on every request (JWT tenant_id is authoritative).
   static const String tenantSlug = String.fromEnvironment(
     'TENANT_SLUG',
-    defaultValue: 'default',
+    defaultValue: '',
   );
+
+  /// True when a non-empty / non-legacy slug was compile-time configured.
+  static bool get hasExplicitTenantSlug {
+    final slug = tenantSlug.trim();
+    if (slug.isEmpty) return false;
+    return slug.toLowerCase() != 'default';
+  }
 
   static const String googleMapsApiKey = String.fromEnvironment(
     'GOOGLE_MAPS_KEY',

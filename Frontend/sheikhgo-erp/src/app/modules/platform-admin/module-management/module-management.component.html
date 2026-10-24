@@ -1,22 +1,28 @@
 <div class="page-container">
   <header class="page-header">
     <div class="header-left">
-      <button mat-icon-button (click)="goBack()" class="back-btn">
+      <button mat-icon-button type="button" (click)="goBack()" class="back-btn" aria-label="Back to Platform">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
-        <nav class="breadcrumb">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
           <span>Platform</span>
           <mat-icon>chevron_right</mat-icon>
-          <span class="current">Module Management</span>
+          <span class="current">Module Registry</span>
         </nav>
         <h2>Module Registry</h2>
-        <p class="page-sub">Enable Active parent modules for the selected company. Capability rows marked Active but non-toggleable are included in a parent module. Coming Soon means not built yet.</p>
+        <p class="page-sub">
+          Enable Active parent modules for the selected company. Capability rows marked Active but non-toggleable are included in a parent module. Coming Soon means not built yet.
+        </p>
       </div>
     </div>
     <div class="header-right">
       <app-tenant-picker></app-tenant-picker>
-      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!overview || loading">
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="refresh()"
+        [disabled]="!selectedTenantId || loading || saving">
         <mat-icon>refresh</mat-icon> Refresh
       </button>
     </div>
@@ -25,10 +31,23 @@
   <app-brand-loader *ngIf="loading" />
 
   <ng-container *ngIf="!loading">
-    <div class="content-placeholder" *ngIf="!overview">
+    <div class="content-placeholder" *ngIf="!selectedTenantId">
       <mat-icon>extension</mat-icon>
       <h3>Select a Company</h3>
       <p>Choose a company from the picker above to manage module configuration.</p>
+    </div>
+
+    <div class="content-placeholder content-placeholder--error" *ngIf="selectedTenantId && loadError && !overview">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Could not load modules</h3>
+      <p>
+        Something went wrong loading the module overview
+        <ng-container *ngIf="selectedTenant"> for {{ selectedTenant.name }}</ng-container>.
+        Try again.
+      </p>
+      <button mat-stroked-button type="button" color="primary" (click)="refresh()">
+        <mat-icon>refresh</mat-icon> Try again
+      </button>
     </div>
 
     <div class="module-layout" *ngIf="overview">
@@ -40,63 +59,122 @@
               <mat-card-subtitle>
                 {{ overview.tenantName }}
                 <span class="plan-chip" *ngIf="overview.planName">{{ overview.planName }}</span>
+                <span class="readonly-chip" *ngIf="!canManage">View only</span>
               </mat-card-subtitle>
             </div>
             <div class="filter-chips" role="group" aria-label="Module filter">
-              <button type="button" class="filter-chip" [class.active]="filter === 'all'" (click)="filter = 'all'">All</button>
-              <button type="button" class="filter-chip" [class.active]="filter === 'installed'" (click)="filter = 'installed'">Installed</button>
-              <button type="button" class="filter-chip" [class.active]="filter === 'comingSoon'" (click)="filter = 'comingSoon'">Coming Soon</button>
+              <button
+                type="button"
+                class="filter-chip"
+                [class.active]="filter === 'all'"
+                (click)="filter = 'all'">
+                All <span class="filter-count">{{ filterCount('all') }}</span>
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                [class.active]="filter === 'installed'"
+                (click)="filter = 'installed'">
+                Installed <span class="filter-count">{{ filterCount('installed') }}</span>
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                [class.active]="filter === 'comingSoon'"
+                (click)="filter = 'comingSoon'">
+                Coming Soon <span class="filter-count">{{ filterCount('comingSoon') }}</span>
+              </button>
             </div>
           </div>
         </mat-card-header>
         <mat-card-content>
-          <div class="module-grid">
-            <div class="module-item" *ngFor="let module of filteredModules"
-                 [class.enabled]="module.isEnabled"
-                 [class.readonly]="!canToggle(module)">
-              <div class="module-info">
-                <mat-icon>{{ moduleIcon(module) }}</mat-icon>
-                <div class="module-copy">
-                  <div class="module-title-row">
-                    <strong>{{ module.displayName || module.name }}</strong>
-                    <span class="status-badge" [attr.data-status]="module.status || 'Active'">{{ formatStatus(module.status) }}</span>
-                  </div>
-                  <p class="module-code">{{ module.code }} · {{ module.category || 'General' }} · v{{ module.version || '1.0.0' }}</p>
-                  <p class="module-desc" *ngIf="module.description">{{ module.description }}</p>
-                  <div class="module-meta">
-                    <span class="meta-chip" *ngIf="module.isInstalled || module.isEnabled">Installed</span>
-                    <span class="meta-chip meta-chip--licensed" *ngIf="module.isLicensed || module.isEnabled">Licensed</span>
-                    <span class="meta-chip meta-chip--bundled" *ngIf="isBundledActive(module) && includedInLabel(module)">
-                      {{ includedInLabel(module) }}
-                    </span>
-                    <span class="meta-chip" *ngIf="module.isMobileSupported">Mobile</span>
-                    <span class="meta-chip" *ngIf="module.isAISupported">AI</span>
-                    <span class="meta-chip" *ngIf="module.isGPSSupported">GPS</span>
-                    <span class="meta-chip meta-chip--deps" *ngIf="module.dependencies?.length && !isBundledActive(module)">
-                      Depends: {{ module.dependencies!.join(', ') }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <mat-slide-toggle
-                *ngIf="canToggle(module); else readonlyLabel"
-                [checked]="module.isEnabled"
-                (change)="toggleModule(module, $event.checked)">
-                {{ module.isEnabled ? 'Enabled' : 'Disabled' }}
-              </mat-slide-toggle>
-              <ng-template #readonlyLabel>
-                <span class="coming-soon-label" [class.bundled-label]="isBundledActive(module)">
-                  {{ readonlyActionLabel(module) }}
-                </span>
-              </ng-template>
-            </div>
+          <div *ngIf="filteredModules.length === 0" class="empty-state">
+            No modules match this filter.
           </div>
 
-          <div class="module-actions">
-            <button mat-stroked-button type="button" (click)="resetModules()" [disabled]="saving || !hasChanges">
+          <section class="category-block" *ngFor="let category of categories">
+            <h3 class="category-title">{{ category }}</h3>
+            <div class="module-grid">
+              <div
+                class="module-item"
+                *ngFor="let module of modulesInCategory(category); trackBy: trackByCode"
+                [class.enabled]="module.isEnabled"
+                [class.readonly]="!canToggle(module)">
+                <div class="module-info">
+                  <mat-icon>{{ moduleIcon(module) }}</mat-icon>
+                  <div class="module-copy">
+                    <div class="module-title-row">
+                      <strong>{{ module.displayName || module.name }}</strong>
+                      <span class="status-badge" [attr.data-status]="module.status || 'Active'">
+                        {{ formatStatus(module.status) }}
+                      </span>
+                    </div>
+                    <p class="module-code">
+                      {{ module.code }} · {{ module.category || 'General' }} · v{{ module.version || '1.0.0' }}
+                    </p>
+                    <p class="module-desc" *ngIf="module.description">{{ module.description }}</p>
+                    <div class="module-meta">
+                      <span class="meta-chip" *ngIf="module.isInstalled || module.isEnabled">Installed</span>
+                      <span class="meta-chip meta-chip--licensed" *ngIf="module.isLicensed">Licensed</span>
+                      <span
+                        class="meta-chip meta-chip--unlicensed"
+                        *ngIf="module.isLicensed === false && (module.isEnabled || module.canToggle)">
+                        Outside plan
+                      </span>
+                      <span
+                        class="meta-chip meta-chip--bundled"
+                        *ngIf="isBundledActive(module) && includedInLabel(module)">
+                        {{ includedInLabel(module) }}
+                      </span>
+                      <span class="meta-chip" *ngIf="module.isMobileSupported">Mobile</span>
+                      <span class="meta-chip" *ngIf="module.isAISupported">AI</span>
+                      <span class="meta-chip" *ngIf="module.isGPSSupported">GPS</span>
+                      <span
+                        class="meta-chip meta-chip--deps"
+                        *ngIf="module.dependencies?.length && !isBundledActive(module) && isEnableable(module)">
+                        Depends: {{ module.dependencies!.join(', ') }}
+                      </span>
+                      <a
+                        class="meta-chip meta-chip--docs"
+                        *ngIf="module.documentationUrl"
+                        [href]="module.documentationUrl"
+                        target="_blank"
+                        rel="noopener noreferrer">
+                        Docs
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <mat-slide-toggle
+                  *ngIf="canToggle(module); else readonlyLabel"
+                  [checked]="module.isEnabled"
+                  [disabled]="saving"
+                  (change)="toggleModule(module, $event.checked)">
+                  {{ module.isEnabled ? 'Enabled' : 'Disabled' }}
+                </mat-slide-toggle>
+                <ng-template #readonlyLabel>
+                  <span class="coming-soon-label" [class.bundled-label]="isBundledActive(module)">
+                    {{ readonlyActionLabel(module) }}
+                  </span>
+                </ng-template>
+              </div>
+            </div>
+          </section>
+
+          <div class="module-actions" *ngIf="canManage">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="resetModules()"
+              [disabled]="saving || !hasChanges">
               Reset
             </button>
-            <button mat-raised-button color="primary" type="button" (click)="saveModules()" [disabled]="saving || !hasChanges">
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              (click)="saveModules()"
+              [disabled]="saving || !hasChanges">
               {{ saving ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
@@ -109,16 +187,22 @@
           <mat-card-subtitle>Live usage vs subscription limits</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
+          <div class="empty-state empty-state--compact" *ngIf="!overview.licenseLimits?.length">
+            No license limits available for this company.
+          </div>
           <div class="limit-item" *ngFor="let limit of overview.licenseLimits">
             <div class="limit-top">
               <span class="limit-label">{{ limit.resource }}</span>
               <span class="limit-value">
                 {{ limit.used | number }}<ng-container *ngIf="limit.limit"> / {{ limit.limit | number }}</ng-container>
-                <span class="unlimited" *ngIf="!limit.limit">/ ∞</span>
+                <span class="unlimited" *ngIf="!limit.limit"> / ∞</span>
               </span>
             </div>
-            <div class="limit-bar">
-              <span class="limit-fill" [ngClass]="usageClass(limit)" [style.width.%]="usagePercent(limit)"></span>
+            <div class="limit-bar" [attr.aria-label]="limit.resource + ' usage'">
+              <span
+                class="limit-fill"
+                [ngClass]="usageClass(limit)"
+                [style.width.%]="usageBarWidth(limit)"></span>
             </div>
           </div>
         </mat-card-content>

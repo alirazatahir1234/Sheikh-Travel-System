@@ -67,9 +67,9 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
                          f.CreatedAt, f.ReceiptUrl
                   FROM FuelLogs f
                   LEFT JOIN Vehicles v ON v.Id = f.VehicleId AND v.IsDeleted = 0
-                    AND (v.TenantId = f.TenantId OR v.TenantId IS NULL OR f.TenantId IS NULL)
+                    AND v.TenantId = f.TenantId
                   LEFT JOIN Drivers d ON d.Id = f.DriverId AND d.IsDeleted = 0
-                    AND (d.TenantId = f.TenantId OR d.TenantId IS NULL OR f.TenantId IS NULL)";
+                    AND d.TenantId = f.TenantId";
 
     public async Task<PagedResult<FuelLogDto>> GetPagedAsync(
         int tenantId,

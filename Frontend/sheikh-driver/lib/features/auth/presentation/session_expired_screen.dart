@@ -33,7 +33,7 @@ class SessionExpiredScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Your sign-in expired or was revoked. Sign in again to continue monitoring the fleet.',
+                'Your sign-in expired or is no longer valid. Sign in again to continue monitoring the fleet.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary, height: 1.4),
               ),

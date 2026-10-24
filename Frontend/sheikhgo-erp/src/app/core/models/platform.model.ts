@@ -244,7 +244,9 @@ export const MODULE_ICONS: Record<string, string> = {
   FINANCE: 'account_balance_wallet',
   HR: 'badge',
   ANALYTICS: 'bar_chart',
-  ACCESS: 'admin_panel_settings'
+  ACCESS: 'admin_panel_settings',
+  /** Premium AAS Assistant — opt-in only; not in DEFAULT_TENANT_MODULE_CODES or plan defaults. */
+  AI: 'smart_toy'
 };
 
 export interface ProvisionTenantRequest {
@@ -412,6 +414,8 @@ export interface BranchPayload {
 export interface Department {
   id: number;
   tenantId: number;
+  /** Present when assigned via Hierarchy; null/omitted = unassigned. */
+  branchId?: number | null;
   name: string;
   departmentHeadUserId?: number | null;
   departmentHeadName?: string | null;
@@ -1204,8 +1208,34 @@ export const BRANCH_STATUS_OPTIONS: { value: BranchStatus; label: string; hint: 
   { value: BranchStatus.Closed, label: 'Closed', hint: 'Permanently closed' }
 ];
 
-export function branchStatusLabel(status: BranchStatus): string {
-  return BRANCH_STATUS_OPTIONS.find(o => o.value === status)?.label ?? 'Unknown';
+/** Coerce API/form status (number, numeric string, or enum name) to BranchStatus. */
+export function normalizeBranchStatus(
+  value: unknown,
+  fallback: BranchStatus = BranchStatus.Active
+): BranchStatus {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    const byName = (BranchStatus as unknown as Record<string, BranchStatus | string>)[trimmed];
+    if (typeof byName === 'number') return byName;
+    const byLabel = BRANCH_STATUS_OPTIONS.find(
+      o => o.label.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (byLabel) return byLabel.value;
+  }
+  const n = Number(value);
+  return (Object.values(BranchStatus) as Array<string | number>).includes(n)
+    ? (n as BranchStatus)
+    : fallback;
+}
+
+export function branchStatusLabel(status: BranchStatus | string | number | null | undefined): string {
+  const normalized = normalizeBranchStatus(status);
+  return BRANCH_STATUS_OPTIONS.find(o => o.value === normalized)?.label ?? 'Unknown';
+}
+
+export function normalizeBranch(branch: Branch): Branch {
+  return { ...branch, status: normalizeBranchStatus(branch.status) };
 }
 
 // Stage 16 — GPS Device Control Center

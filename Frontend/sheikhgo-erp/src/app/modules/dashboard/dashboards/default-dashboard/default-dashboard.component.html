@@ -96,6 +96,37 @@
     </div>
   </section>
 
+  <!-- Smart Operations alerts -->
+  <section class="dash-section ops-alerts" *ngIf="smartAlerts.length" aria-label="Operations alerts">
+    <div class="ops-alerts-head">
+      <div>
+        <h2 class="ops-alerts-title">
+          <mat-icon>campaign</mat-icon>
+          Operations alerts
+        </h2>
+        <p class="ops-alerts-sub">Deterministic rule engine · {{ smartAlertNewCount }} new</p>
+      </div>
+    </div>
+    <ul class="ops-alerts-list">
+      <li *ngFor="let a of smartAlerts" class="ops-alert" [class]="severityClass(a.severity)">
+        <div class="ops-alert-main">
+          <span class="ops-alert-rule">{{ a.ruleType }}</span>
+          <span class="ops-alert-status">{{ a.status }}</span>
+          <p class="ops-alert-msg">{{ a.message }}</p>
+        </div>
+        <div class="ops-alert-actions">
+          <button mat-stroked-button type="button"
+                  *ngIf="a.status === 'New'"
+                  [disabled]="smartAlertBusyId === a.id"
+                  (click)="acknowledgeSmartAlert(a)">Acknowledge</button>
+          <button mat-flat-button color="primary" type="button"
+                  [disabled]="smartAlertBusyId === a.id"
+                  (click)="resolveSmartAlert(a)">Resolve</button>
+        </div>
+      </li>
+    </ul>
+  </section>
+
   <!-- KPIs -->
   <section class="dash-section stats-row">
     <stb-stat-tile

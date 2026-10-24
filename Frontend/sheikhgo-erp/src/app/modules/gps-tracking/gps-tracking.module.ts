@@ -7,10 +7,8 @@ import { UiSelectComponent } from '../../shared/components/ui/select/ui-select.c
 import { UiChartComponent } from '../../shared/components/ui/chart/ui-chart.component';
 import { UiDataTableComponent } from '../../shared/components/ui/data-table/ui-data-table.component';
 import { UiTableCellDirective } from '../../shared/components/ui/data-table/ui-table-cell.directive';
-import { QuickActionsCardComponent } from '../fleet-management/fleet-dashboard/widgets/quick-actions-card.component';
 import { CriticalAlertsCardComponent } from '../fleet-management/fleet-dashboard/widgets/critical-alerts-card.component';
 import { RecentActivitiesCardComponent } from '../fleet-management/fleet-dashboard/widgets/recent-activities-card.component';
-import { ActiveAssignmentsTableComponent } from '../fleet-management/fleet-dashboard/widgets/active-assignments-table.component';
 import { GpsTrackingLayoutComponent } from './gps-tracking-layout.component';
 import { LiveMapComponent } from './live-map/live-map.component';
 import { FleetKpiStripComponent } from './live-map/fleet-kpi-strip/fleet-kpi-strip.component';
@@ -79,7 +77,7 @@ const routes: Routes = [
   imports: [
     SharedModule, UiInputComponent, UiSelectComponent, UiChartComponent, ScrollingModule,
     UiDataTableComponent, UiTableCellDirective,
-    QuickActionsCardComponent, CriticalAlertsCardComponent, RecentActivitiesCardComponent, ActiveAssignmentsTableComponent,
+    CriticalAlertsCardComponent, RecentActivitiesCardComponent,
     AnalyticsReportSchedulesComponent,
     RouterModule.forChild(routes)
   ]

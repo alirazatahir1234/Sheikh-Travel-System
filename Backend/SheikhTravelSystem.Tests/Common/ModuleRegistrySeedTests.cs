@@ -12,8 +12,19 @@ public class ModuleRegistrySeedTests
     [
         "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
         "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
-        "PAYMENTS", "INVOICES", "SETTINGS",
+        "PAYMENTS", "INVOICES", "SETTINGS", "AI",
     ];
+
+    [Fact]
+    public void AiAssistant_IsActiveEnableable_NotInDefaultModuleCodes()
+    {
+        var ai = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "AI").Subject;
+        ai.Status.Should().Be("Active");
+        ai.DisplayName.Should().Be("AAS Assistant");
+        ModuleRegistrySeed.IsEnableable("AI").Should().BeTrue();
+        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("AI");
+        TenantModuleCatalog.All.Should().Contain(m => m.Code == "AI");
+    }
 
     [Fact]
     public void RentalAndHr_AreComingSoon_WithNullRoute()

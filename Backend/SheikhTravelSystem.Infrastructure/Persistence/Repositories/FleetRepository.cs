@@ -22,7 +22,7 @@ public sealed class FleetRepository(IDbConnectionFactory dbFactory) : IFleetRepo
                 (SELECT COUNT(*) FROM Maintenance m INNER JOIN Vehicles v ON m.VehicleId = v.Id
                     WHERE m.IsDeleted = 0 AND v.TenantId = @TenantId AND m.Status IN (1, 2)) AS MaintenanceDue,
                 (SELECT ISNULL(SUM(f.TotalCost), 0) FROM FuelLogs f INNER JOIN Vehicles v ON f.VehicleId = v.Id
-                    WHERE f.IsDeleted = 0 AND v.TenantId = @TenantId
+                    WHERE f.IsDeleted = 0 AND f.TenantId = @TenantId AND v.TenantId = @TenantId
                       AND f.FuelDate >= DATEFROMPARTS(YEAR(GETUTCDATE()), MONTH(GETUTCDATE()), 1)) AS MonthlyFuelCost,
                 (SELECT COUNT(*) FROM ComplianceDocuments WHERE IsDeleted = 0 AND TenantId = @TenantId
                     AND ExpiryDate IS NOT NULL AND ExpiryDate <= DATEADD(DAY, 30, GETUTCDATE())) AS ComplianceAlerts

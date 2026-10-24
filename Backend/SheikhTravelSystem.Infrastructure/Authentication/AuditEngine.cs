@@ -192,8 +192,8 @@ public class AuditEngine(
         }
         if (!string.IsNullOrWhiteSpace(filter.EntityType))
         {
-            where.Add("e.EntityType = @EntityType");
-            p.Add("EntityType", filter.EntityType);
+            where.Add("e.EntityType LIKE @EntityType");
+            p.Add("EntityType", "%" + filter.EntityType.Trim() + "%");
         }
         if (filter.EntityId is int eid)
         {

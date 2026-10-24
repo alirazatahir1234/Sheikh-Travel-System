@@ -126,11 +126,32 @@
     color: #b45309;
   }
 
+  .mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 0.85rem;
+    color: #334155;
+  }
+
   code {
     background: #f1f5f9;
     padding: 1px 4px;
     border-radius: 4px;
   }
+}
+
+.meta-block {
+  margin-top: 6px;
+  color: #64748b;
+}
+
+.warn-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: #b45309;
+  font-size: 0.8rem;
 }
 
 .bubble {

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/errors/app_exception.dart';
 import '../domain/auth_models.dart';
 
 final authApiProvider = Provider<AuthApi>((ref) => AuthApi(ref.read(dioProvider)));
@@ -62,9 +63,11 @@ class AuthApi {
   }
 
   Map<String, dynamic> _unwrapData(Map<String, dynamic>? body) {
-    if (body == null) throw Exception('Empty response');
+    if (body == null) throw const UnknownException('Empty response');
     if (body['success'] == false) {
-      throw Exception(body['message']?.toString() ?? 'Login failed');
+      throw ValidationException(
+        body['message']?.toString() ?? 'Login failed',
+      );
     }
     return (body['data'] as Map<String, dynamic>?) ?? body;
   }

@@ -75,6 +75,17 @@ public sealed class AiToolEngine(
         string userMessage,
         CancellationToken cancellationToken)
     {
+        if (toolName is "GetFuelCostSummary" or "GetTripSummary" or "GetVehicleUtilizationSummary"
+            or "GetRevenueAnalytics" or "GetFuelUsageTopVehicle" or "GetBestDriverPerformance"
+            or "GetCostPerKilometer" or "GetOverspeedGeofenceSummary"
+            or "GetIdleTimeReport" or "GetSosEventsSummary" or "GetExpenseTracking"
+            or "GetTenantComparison" or "GetPeakHoursAnalysis"
+            or "GetFuelAnomalyInvestigation")
+        {
+            var (from, to, _) = AssistantPeriodHelper.Resolve(userMessage, null);
+            return AssistantPeriodHelper.PeriodArgs(from, to);
+        }
+
         if (toolName == "GetVehicleStatus")
         {
             var plate = ExtractPlateHint(userMessage);

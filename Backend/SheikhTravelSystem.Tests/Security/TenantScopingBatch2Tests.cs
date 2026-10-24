@@ -20,16 +20,20 @@ public class TenantScopingBatch2Tests
     public async Task CreateFuelLog_passes_tenantId_into_repository()
     {
         var repo = new Mock<IFuelLogRepository>();
+        var vehicles = new Mock<IVehicleRepository>();
         var tenant = new Mock<ITenantContext>();
         tenant.Setup(t => t.GetRequiredTenantId()).Returns(11);
+        vehicles.Setup(v => v.EnsureExistsAsync(1, 11, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         repo.Setup(r => r.CreateAsync(11, It.IsAny<CreateFuelLogDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(55);
 
-        var handler = new CreateFuelLogCommandHandler(repo.Object, tenant.Object);
+        var handler = new CreateFuelLogCommandHandler(repo.Object, vehicles.Object, tenant.Object);
         var dto = new CreateFuelLogDto(1, null, 10m, 280m, 1000m, FuelType.Petrol, DateTime.UtcNow, null);
         var result = await handler.Handle(new CreateFuelLogCommand(dto), CancellationToken.None);
 
         result.Success.Should().BeTrue();
+        vehicles.Verify(v => v.EnsureExistsAsync(1, 11, It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.CreateAsync(11, It.IsAny<CreateFuelLogDto>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -94,6 +98,7 @@ public class TenantScopingBatch2Tests
         var root = FindRepoRoot();
         AssertContains(root, "FuelLogRepository.cs", "INSERT INTO FuelLogs (TenantId,");
         AssertContains(root, "FuelLogRepository.cs", "WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0");
+        AssertContains(root, "VehicleRepository.cs", "WHERE IsDeleted = 0 AND VehicleId = @VehicleId AND TenantId = @TenantId");
         AssertContains(root, "MaintenanceRepository.cs", "INSERT INTO Maintenance (TenantId,");
         AssertContains(root, "MaintenanceRepository.cs", "WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0");
         AssertContains(root, "RouteRepository.cs", "INSERT INTO Routes (TenantId,");

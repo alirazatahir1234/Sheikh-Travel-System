@@ -258,13 +258,13 @@ const routes: Routes = [
       {
         path: 'ai',
         canActivate: [permissionGuard],
-        data: { permissions: ['Ai.View'] },
+        data: { permissions: ['Ai.View'], modules: ['ai'] },
         loadChildren: () => import('./modules/ai/ai.module').then(m => m.AiModule)
       },
       {
         path: 'mcp',
         canActivate: [permissionGuard],
-        data: { permissions: ['Ai.View'] },
+        data: { permissions: ['Ai.View'], modules: ['ai'] },
         loadChildren: () => import('./modules/mcp/mcp.module').then(m => m.McpModule)
       },
       {

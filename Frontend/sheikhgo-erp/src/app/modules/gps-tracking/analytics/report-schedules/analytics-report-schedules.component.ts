@@ -135,13 +135,26 @@ export class AnalyticsReportSchedulesComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.recipients.trim()) return;
+    const emails = this.recipients
+      .split(/[,\s;]+/)
+      .map(e => e.trim())
+      .filter(Boolean);
+    if (!emails.length) {
+      this.toast.error('Add at least one recipient email.');
+      return;
+    }
+    const invalid = emails.find(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (invalid) {
+      this.toast.error(`Invalid recipient email: ${invalid}`);
+      return;
+    }
+
     this.saving = true;
     this.gps.createAnalyticsReportSchedule({
       reportType: this.reportType,
       filters: {},
       frequency: this.frequency,
-      recipients: this.recipients.trim()
+      recipients: emails.join(', ')
     }).subscribe({
       next: () => {
         this.saving = false;

@@ -186,41 +186,14 @@ public record GetComparativeAnalyticsQuery(
     : IRequest<ApiResponse<ComparativeAnalyticsDto>>;
 
 /// <summary>
-/// Period-vs-period comparison (e.g. this month vs last month), reusing GetFleetTripSummaryQuery's
-/// existing Branch/Department filter pattern for each side. Branch-vs-branch/department-vs-department
-/// comparison is achievable today by calling this (or the overview) once per BranchId/DepartmentId
-/// from the frontend — a dedicated grouped-by-branch endpoint was scoped out to keep this handler
-/// focused on the period-comparison case the spec's examples ("current vs previous month") ask for.
+/// Period-vs-period comparison (e.g. this month vs last month) via SQL aggregates on GpsTrips /
+/// GpsAlertEvents — intentionally does NOT go through GetFleetTripSummaryQuery / GetGpsTripsQuery,
+/// which enforce a 30-day MaxRange and break full-month comparisons for 31-day months.
+/// Branch-vs-branch comparison remains a frontend multi-call pattern (scoped out of this handler).
 /// </summary>
-public class GetComparativeAnalyticsQueryHandler(IMediator mediator)
+public class GetComparativeAnalyticsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetComparativeAnalyticsQuery, ApiResponse<ComparativeAnalyticsDto>>
 {
-    public async Task<ApiResponse<ComparativeAnalyticsDto>> Handle(GetComparativeAnalyticsQuery request, CancellationToken cancellationToken)
-    {
-        var summaryA = await mediator.Send(
-            new GetFleetTripSummaryQuery(request.FromDateA, request.ToDateA, request.BranchId, request.DepartmentId, null),
-            cancellationToken);
-
-        if (!summaryA.Success || summaryA.Data is null)
-            return ApiResponse<ComparativeAnalyticsDto>.FailResponse(summaryA.Message ?? "Failed to load period A.");
-
-        var periodA = new ComparativePeriodDto(
-            "Period A", (decimal)summaryA.Data.DistanceKm, summaryA.Data.TripCount, summaryA.Data.AvgSpeedKmh, summaryA.Data.OverspeedCount);
-
-        ComparativePeriodDto? periodB = null;
-        if (request.FromDateB.HasValue && request.ToDateB.HasValue)
-        {
-            var summaryB = await mediator.Send(
-                new GetFleetTripSummaryQuery(request.FromDateB, request.ToDateB, request.BranchId, request.DepartmentId, null),
-                cancellationToken);
-
-            if (summaryB is { Success: true, Data: not null })
-            {
-                periodB = new ComparativePeriodDto(
-                    "Period B", (decimal)summaryB.Data.DistanceKm, summaryB.Data.TripCount, summaryB.Data.AvgSpeedKmh, summaryB.Data.OverspeedCount);
-            }
-        }
-
-        return ApiResponse<ComparativeAnalyticsDto>.SuccessResponse(new ComparativeAnalyticsDto(periodA, periodB));
-    }
+    public Task<ApiResponse<ComparativeAnalyticsDto>> Handle(GetComparativeAnalyticsQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetComparativeAnalyticsAsync(request, cancellationToken);
 }

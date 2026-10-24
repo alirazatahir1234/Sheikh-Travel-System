@@ -30,4 +30,5 @@ public sealed record TenantBrandingRow(
     string Name,
     string Slug,
     string? LogoUrl,
-    string? PrimaryColor);
+    string? PrimaryColor,
+    string? TimeZone = null);

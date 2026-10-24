@@ -3,7 +3,9 @@ import { Router } from '@angular/router';
 import { MatPaginator } from '@angular/material/paginator';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatTableDataSource } from '@angular/material/table';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { AuthService } from '../../../core/services/auth.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import {
   Tenant,
@@ -82,10 +84,16 @@ export class TenantListComponent implements OnInit {
 
   constructor(
     private platform: PlatformService,
+    private auth: AuthService,
     private router: Router,
     private toast: UiToastService
   ) {
     this.dataSource.filterPredicate = (tenant, raw) => this.matchesFilters(tenant, raw);
+  }
+
+  /** List route allows View; mutations require Manage. */
+  get canManage(): boolean {
+    return this.auth.hasPermission('Platform.Tenants.Manage');
   }
 
   ngOnInit(): void { this.load(); }
@@ -94,21 +102,27 @@ export class TenantListComponent implements OnInit {
     this.loading = true;
     forkJoin({
       tenants: this.platform.getTenants(),
-      stats: this.platform.getTenantManagementStats(),
-      modules: this.platform.getModules()
+      stats: this.platform.getTenantManagementStats().pipe(
+        catchError(() => of(null as TenantManagementStats | null))
+      ),
+      modules: this.platform.getModules().pipe(
+        catchError(() => of([] as TenantModuleDefinition[]))
+      )
     }).subscribe({
       next: ({ tenants, stats, modules }) => {
         this.tenants = tenants;
-        this.stats = normalizeTenantManagementStats(stats as unknown as Record<string, unknown>);
+        this.stats = normalizeTenantManagementStats(
+          (stats ?? undefined) as unknown as Record<string, unknown> | undefined
+        );
         this.modules = modules;
         this.dataSource.data = tenants;
         this.applyFilters();
         setTimeout(() => { if (this.paginator) this.dataSource.paginator = this.paginator; });
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.toast.error('Failed to load tenants.');
+        this.toast.error(apiErrorMessage(err, 'Failed to load companies.'));
       }
     });
   }
@@ -161,13 +175,10 @@ export class TenantListComponent implements OnInit {
   }
 
   tenantGrowthPercent(): string {
-    if (!this.stats.activeTenants || !this.stats.tenantsAddedThisMonth) return '+0% this month';
+    if (!this.stats.tenantsAddedThisMonth) return 'No new this month';
+    if (!this.stats.activeTenants) return `${this.stats.tenantsAddedThisMonth} added this month`;
     const pct = Math.round((this.stats.tenantsAddedThisMonth / this.stats.activeTenants) * 100);
     return `+${pct}% this month`;
-  }
-
-  revenueTrendLabel(): string {
-    return '+5% vs target';
   }
 
   initials(name: string): string {
@@ -191,6 +202,10 @@ export class TenantListComponent implements OnInit {
   }
 
   openAddTenant(): void {
+    if (!this.canManage) {
+      this.toast.error('You do not have permission to add companies.');
+      return;
+    }
     void this.router.navigate(['/platform/tenants/new']);
   }
 
@@ -203,6 +218,10 @@ export class TenantListComponent implements OnInit {
   }
 
   toggleActive(tenant: Tenant): void {
+    if (!this.canManage) {
+      this.toast.error('You do not have permission to update companies.');
+      return;
+    }
     this.platform.updateTenant(tenant.id, {
       name: tenant.name,
       subscriptionPlan: tenant.subscriptionPlan ?? undefined,
@@ -212,22 +231,32 @@ export class TenantListComponent implements OnInit {
         tenant.isActive = !tenant.isActive;
         this.dataSource.data = [...this.tenants];
         this.applyFilters();
-        this.toast.success(tenant.isActive ? 'Tenant activated.' : 'Tenant suspended.');
+        this.toast.success(tenant.isActive ? 'Company activated.' : 'Company suspended.');
       },
       error: (err) => this.toast.error(apiErrorMessage(err, 'Update failed.'))
     });
   }
 
-  manageUsers(): void {
-    void this.router.navigate(['/users']);
+  manageUsers(tenant?: Tenant | null): void {
+    const id = tenant?.id ?? this.selectedRow?.id;
+    void this.router.navigate(
+      ['/users'],
+      id != null ? { queryParams: { tenantId: id } } : undefined
+    );
   }
 
   openBilling(tenant: Tenant): void {
-    void this.router.navigate(['/platform/tenants', tenant.id], { queryParams: { tab: 'subscription' } });
+    void this.router.navigate(['/platform/subscription-management'], {
+      queryParams: { tenantId: tenant.id }
+    });
   }
 
-  openAuditLogs(): void {
-    void this.router.navigate(['/platform/audit-center']);
+  openAuditLogs(tenant?: Tenant | null): void {
+    const id = tenant?.id ?? this.selectedRow?.id;
+    void this.router.navigate(
+      ['/platform/audit-center'],
+      id != null ? { queryParams: { tenantId: id } } : undefined
+    );
   }
 
   isSelected(tenant: Tenant): boolean {
@@ -262,9 +291,13 @@ export class TenantListComponent implements OnInit {
   }
 
   private bulkSetActive(active: boolean): void {
+    if (!this.canManage) {
+      this.toast.error('You do not have permission to update companies.');
+      return;
+    }
     const targets = this.tenants.filter(t => this.selectedIds.has(t.id) && t.isActive !== active);
     if (!targets.length) {
-      this.toast.warning('No tenants selected for this action.');
+      this.toast.warning('No companies selected for this action.');
       return;
     }
 
@@ -294,16 +327,16 @@ export class TenantListComponent implements OnInit {
     this.applyFilters();
     const action = active ? 'activated' : 'suspended';
     if (failed) {
-      this.toast.error(`${done} tenant(s) ${action}, ${failed} failed.`);
+      this.toast.error(`${done} company(ies) ${action}, ${failed} failed.`);
     } else {
-      this.toast.success(`${done} tenant(s) ${action}.`);
+      this.toast.success(`${done} company(ies) ${action}.`);
     }
   }
 
   exportCsv(): void {
     const rows = this.dataSource.filteredData;
     if (!rows.length) {
-      this.toast.warning('No tenants to export.');
+      this.toast.warning('No companies to export.');
       return;
     }
     const header = ['Code', 'Name', 'Type', 'Country', 'Modules', 'Plan', 'Usage', 'Health'];

@@ -7,12 +7,15 @@ import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
 import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
 import { OcrMode } from '../../../core/models/ocr.model';
+import { LookupService, TimezoneOption } from '../../../core/services/lookup.service';
+import { LocalTimeContextService } from '../../../core/services/local-time-context.service';
 
 interface ProfileUser {
   fullName: string;
   roles?: string[];
   email?: string;
   phoneNumber?: string;
+  timeZone?: string | null;
 }
 
 @Component({
@@ -34,6 +37,7 @@ export class ProfilePageComponent implements OnInit {
   hideConfirmPassword = true;
 
   currentUser: ProfileUser | null = null;
+  timezones: TimezoneOption[] = [];
   ocrSettingsForm: FormGroup;
   readonly ocrModes: Array<{ value: OcrMode; label: string }> = [
     { value: 'HYBRID', label: 'Hybrid Mode (Recommended)' },
@@ -47,11 +51,14 @@ export class ProfilePageComponent implements OnInit {
     private http: HttpClient,
     private auth: AuthService,
     private ocrSettingsService: OcrSettingsService,
+    private lookup: LookupService,
+    private localTime: LocalTimeContextService,
     private toast: UiToastService) {
     this.profileForm = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(200)]],
       phoneNumber: ['', Validators.maxLength(30)],
-      email: [{ value: '', disabled: true }]
+      email: [{ value: '', disabled: true }],
+      timeZone: ['']
     });
 
     this.passwordForm = this.fb.group({
@@ -91,6 +98,10 @@ export class ProfilePageComponent implements OnInit {
       azureTimeoutSeconds: 5
     });
 
+    this.lookup.getTimezones().subscribe(list => {
+      this.timezones = list ?? [];
+    });
+
     this.auth.currentUser$.subscribe(user => {
       if (user) {
         this.currentUser = {
@@ -105,6 +116,25 @@ export class ProfilePageComponent implements OnInit {
           email: user.email || ''
         });
       }
+    });
+
+    this.http.get<{
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      timeZone?: string | null;
+    }>(`${environment.apiUrl}/users/profile`).subscribe({
+      next: profile => {
+        if (!profile) return;
+        this.profileForm.patchValue({
+          fullName: profile.fullName || this.profileForm.value.fullName,
+          phoneNumber: profile.phone || '',
+          email: profile.email || this.profileForm.getRawValue().email,
+          timeZone: profile.timeZone || ''
+        });
+        this.localTime.setUserTimeZone(profile.timeZone);
+      },
+      error: () => { /* keep auth session values */ }
     });
   }
 
@@ -121,24 +151,25 @@ export class ProfilePageComponent implements OnInit {
     }
 
     this.savingProfile = true;
-    const { fullName, phoneNumber } = this.profileForm.value;
+    const { fullName, phoneNumber, timeZone } = this.profileForm.getRawValue();
 
     this.http.put(`${environment.apiUrl}/users/profile`, {
       userId: 0, // Backend uses token
       fullName,
-      phoneNumber: phoneNumber || null
+      phoneNumber: phoneNumber || null,
+      timeZone: timeZone || null
     }).subscribe({
       next: () => {
         this.savingProfile = false;
         this.toast.success('Profile updated successfully.');
-        
-        // Update local user and persist to session
+        this.localTime.setUserTimeZone(timeZone);
+
         if (this.currentUser) {
           this.currentUser.fullName = fullName;
           this.currentUser.phoneNumber = phoneNumber;
+          this.currentUser.timeZone = timeZone || null;
         }
-        
-        // Update the auth session so the header refreshes
+
         const current = this.auth.getCurrentUser();
         if (current) {
           const updated = {

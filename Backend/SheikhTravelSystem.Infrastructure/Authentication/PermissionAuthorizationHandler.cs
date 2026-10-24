@@ -86,7 +86,8 @@ public static class PermissionPolicyRegistration
             .Concat(AiPermissions.All)
             .Concat(NotificationPermissions.All)
             .Concat(WebsitePermissions.All)
-            .Concat(WhatsAppPermissions.All))
+            .Concat(WhatsAppPermissions.All)
+            .Concat(SmartOpsPermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

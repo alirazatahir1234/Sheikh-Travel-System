@@ -12,6 +12,8 @@ export interface TenantBranding {
   logoUrl: string | null;
   primaryColor: string | null;
   enabledModules: string[];
+  /** Company IANA timezone from TenantBranding.TimeZone when set. */
+  timeZone?: string | null;
 }
 
 const MODULE_ROUTE_MAP: Record<string, string> = {
@@ -30,7 +32,9 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   reports: '/reports',
   'driver-allowance-rules': '/driver-allowance-rules',
   users: '/users',
-  'audit-logs': '/platform/audit-center'
+  'audit-logs': '/platform/audit-center',
+  /** Premium AAS Assistant (TenantModuleCatalog code AI / legacy key ai). */
+  ai: '/ai'
 };
 
 @Injectable({ providedIn: 'root' })

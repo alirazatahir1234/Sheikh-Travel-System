@@ -1416,7 +1416,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private applyVisibleMarkers(): void {
     this.rebuildListDerivedState({ rebuildFilter: true, forceKpis: true });
-    this.updateMarkers(this.mappableLocations(this.filteredLocationsCache));
+    const mappable = this.mappableLocations(this.filteredLocationsCache);
+    this.updateMarkers(mappable);
+    // Search/filter updates the side list + markers, but without fitting the
+    // viewport filtered pins stay off-screen ("results not on the map").
+    this.fitMapToLocations(mappable, { focusSingle: this.hasActiveFilters });
   }
 
   private persistFilters(): void {
@@ -1857,18 +1861,39 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   centerMap(): void {
+    const source = this.hasActiveFilters ? this.filteredLocationsCache : this.locations;
+    this.fitMapToLocations(this.mappableLocations(source), {
+      focusSingle: this.hasActiveFilters,
+      maxZoom: this.hasActiveFilters ? 14 : 12,
+      fallbackPakistan: true
+    });
+  }
+
+  /** Fit (or focus) the map so given GPS locations are visible in the viewport. */
+  private fitMapToLocations(
+    locs: VehicleLocation[],
+    opts: { focusSingle?: boolean; maxZoom?: number; fallbackPakistan?: boolean } = {}
+  ): void {
     if (!this.map) return;
-    const gps = this.locations.filter(l => l.hasGps && l.latitude && l.longitude);
-    if (!gps.length) {
-      this.map.panTo({ lat: 30.3753, lng: 69.3451 });
-      this.map.setZoom(6);
+    if (!locs.length) {
+      if (opts.fallbackPakistan) {
+        this.map.panTo({ lat: 30.3753, lng: 69.3451 });
+        this.map.setZoom(6);
+      }
+      return;
+    }
+    if (opts.focusSingle && locs.length === 1) {
+      const loc = locs[0];
+      this.map.panTo({ lat: loc.latitude, lng: loc.longitude });
+      this.map.setZoom(14);
       return;
     }
     const bounds = new google.maps.LatLngBounds();
-    gps.forEach(l => bounds.extend({ lat: l.latitude, lng: l.longitude }));
+    locs.forEach(l => bounds.extend({ lat: l.latitude, lng: l.longitude }));
     this.map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+    const maxZoom = opts.maxZoom ?? 14;
     const z = this.map.getZoom();
-    if (z != null && z > 12) this.map.setZoom(12);
+    if (z != null && z > maxZoom) this.map.setZoom(maxZoom);
   }
 
   resetZoom(): void {
@@ -2812,7 +2837,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const { AdvancedMarkerElement } = google.maps.marker;
+    const bounds = new google.maps.LatLngBounds();
     for (const place of places) {
+      if (!this.isValidCoord(place.latitude, place.longitude)) continue;
       const el = document.createElement('div');
       el.className = 'nearby-place-marker';
       el.title = place.name;
@@ -2822,9 +2849,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         `<span class="nearby-place-marker__chip" aria-hidden="true">` +
         `<span class="material-icons nearby-place-marker__icon">${icon}</span>` +
         `</span>`;
+      const position = { lat: place.latitude, lng: place.longitude };
       const marker = new AdvancedMarkerElement({
         map: this.map,
-        position: { lat: place.latitude, lng: place.longitude },
+        position,
         content: el,
         title: place.name,
         zIndex: 500
@@ -2833,9 +2861,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.nearbyMarkerListeners.push(listener);
       this.nearbyMarkers.push(marker);
       this.nearbyMarkerByPlaceId.set(place.placeId, marker);
+      bounds.extend(position);
     }
     if (this.selectedNearbyPlace) {
       this.applyNearbyMarkerHighlight(this.selectedNearbyPlace.placeId);
+    }
+    if (!bounds.isEmpty()) {
+      this.map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+      const z = this.map.getZoom();
+      if (z != null && z > 15) this.map.setZoom(15);
     }
   }
 

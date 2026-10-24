@@ -19,16 +19,16 @@ interface StatCard {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
       @for (stat of stats(); track stat.label) {
-        <div class="bg-white rounded-xl border border-border p-4 hover:shadow-sm transition-shadow">
+        <div class="bg-surface-alt rounded-lg border border-border p-3 md:p-4">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold text-text-muted uppercase tracking-wide">
               {{ stat.label }}
             </span>
           </div>
-          <div class="flex items-end justify-between">
-            <span class="text-2xl font-bold text-text">
+          <div class="flex items-end justify-between gap-2">
+            <span class="text-xl md:text-2xl font-bold text-text">
               {{ stat.value }}{{ stat.suffix || '' }}
             </span>
             <div [class]="getIconContainerClass(stat.icon)">

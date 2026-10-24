@@ -54,8 +54,15 @@ public sealed class AuditLogRepository(IDbConnectionFactory dbFactory) : IAuditL
 
         if (toDate.HasValue)
         {
-            whereConditions.Add("a.CreatedAt <= @ToDate");
-            parameters.Add("ToDate", toDate.Value.Date.AddDays(1));
+            // Inclusive calendar day when time is midnight; otherwise use the provided instant.
+            var inclusiveTo = toDate.Value.TimeOfDay == TimeSpan.Zero
+                ? toDate.Value.Date.AddDays(1)
+                : toDate.Value;
+            whereConditions.Add(
+                toDate.Value.TimeOfDay == TimeSpan.Zero
+                    ? "a.CreatedAt < @ToDate"
+                    : "a.CreatedAt <= @ToDate");
+            parameters.Add("ToDate", inclusiveTo);
         }
 
         var whereClause = string.Join(" AND ", whereConditions);

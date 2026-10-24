@@ -68,11 +68,16 @@ public class SearchAuditEventsQueryHandler(
     public async Task<ApiResponse<PagedResult<AuditEventListItemDto>>> Handle(
         SearchAuditEventsQuery request, CancellationToken cancellationToken)
     {
+        var rangeError = AuditEngineRules.ValidateDateRange(request.FromDate, request.ToDate);
+        if (rangeError is not null)
+            return ApiResponse<PagedResult<AuditEventListItemDto>>.FailResponse(rangeError);
+
         var tenantId = ResolveTenant(request.TenantId, tenantContext, platformScope);
+        var toDate = AuditEngineRules.NormalizeToDateInclusive(request.ToDate);
         var (items, total) = await auditEngine.SearchAsync(new AuditEventSearchFilter(
             request.Page, request.PageSize, tenantId, request.UserId, request.Category,
             request.EventKey, request.EntityType, request.EntityId, request.Severity,
-            request.Success, request.FromDate, request.ToDate, request.Search), cancellationToken);
+            request.Success, request.FromDate, toDate, request.Search), cancellationToken);
 
         return ApiResponse<PagedResult<AuditEventListItemDto>>.SuccessResponse(
             new PagedResult<AuditEventListItemDto>
@@ -161,8 +166,13 @@ public class ExportAuditEventsQueryHandler(
     public async Task<ApiResponse<AuditExportResultDto>> Handle(
         ExportAuditEventsQuery request, CancellationToken cancellationToken)
     {
+        var rangeError = AuditEngineRules.ValidateDateRange(request.FromDate, request.ToDate);
+        if (rangeError is not null)
+            return ApiResponse<AuditExportResultDto>.FailResponse(rangeError);
+
         var tenantId = SearchAuditEventsQueryHandler.ResolveTenant(
             request.TenantId, tenantContext, platformScope);
+        var toDate = AuditEngineRules.NormalizeToDateInclusive(request.ToDate);
         var (items, _) = await auditEngine.SearchAsync(new AuditEventSearchFilter(
             Page: 1,
             PageSize: ExportCap,
@@ -174,7 +184,7 @@ public class ExportAuditEventsQueryHandler(
             Severity: request.Severity,
             Success: request.Success,
             FromDate: request.FromDate,
-            ToDate: request.ToDate,
+            ToDate: toDate,
             Search: request.Search,
             ForExport: true), cancellationToken);
 
@@ -182,14 +192,14 @@ public class ExportAuditEventsQueryHandler(
         var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
         return ApiResponse<AuditExportResultDto>.SuccessResponse(new AuditExportResultDto(
             $"audit-export-{DateTime.UtcNow:yyyyMMddHHmmss}.csv",
-            "text/csv",
+            "text/csv; charset=utf-8",
             bytes));
     }
 
     internal static string BuildCsv(IEnumerable<AuditEventListItemDto> rows)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Id,CreatedOn,Company,User,Category,Event,Action,Entity,EntityId,Success,IpAddress,Message");
+        sb.AppendLine("Id,CreatedOn,Company,User,Category,Severity,EventKey,Event,Action,Entity,EntityId,Success,IpAddress,Message");
         foreach (var r in rows)
         {
             sb.Append(r.Id).Append(',')
@@ -197,6 +207,8 @@ public class ExportAuditEventsQueryHandler(
                 .Append(Csv(r.CompanyName)).Append(',')
                 .Append(Csv(r.UserName)).Append(',')
                 .Append(Csv(r.Category)).Append(',')
+                .Append(Csv(r.Severity)).Append(',')
+                .Append(Csv(r.EventKey)).Append(',')
                 .Append(Csv(r.DisplayName)).Append(',')
                 .Append(Csv(r.Action)).Append(',')
                 .Append(Csv(r.EntityType)).Append(',')

@@ -32,7 +32,11 @@ dotnet user-secrets set "GoogleMaps:ApiKey" "<sheikhgo-backend-maps-key>"
 # Optional portal OTP bypass (Development only — ignored in Production/Staging):
 dotnet user-secrets set "PortalAuth:DevMode" "true"
 dotnet user-secrets set "PortalAuth:DevOtpCode" "<six-digit-code>"
+# Optional AI Assistant hosted LLM (DeepInfra + Qwen 3):
+dotnet user-secrets set "DeepInfra:ApiKey" "<deepinfra-api-key>"
+# Or: DEEPINFRA_API_KEY in secrets/local.env (gitignored) / host env
 ```
+
 
 Alternatively, copy [`docs/local-dev-config.example.json`](docs/local-dev-config.example.json) into a
 gitignored `SheikhTravelSystem.API/appsettings.Development.json` and add connection/JWT/Maps values

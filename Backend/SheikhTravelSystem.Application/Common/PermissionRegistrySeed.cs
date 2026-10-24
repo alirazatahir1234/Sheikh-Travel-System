@@ -61,6 +61,7 @@ public static class PermissionRegistrySeed
             .Concat(AnalyticsPermissions.All)
             .Concat(AiPermissions.All)
             .Concat(NotificationPermissions.All)
+            .Concat(SmartOpsPermissions.All)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -128,6 +129,8 @@ public static class PermissionRegistrySeed
             return ("AI", "AI", null);
         if (code.StartsWith("Notification.", StringComparison.OrdinalIgnoreCase))
             return ("Platform", "NOTIFICATIONS", null);
+        if (code.StartsWith("SmartOps.", StringComparison.OrdinalIgnoreCase))
+            return ("Operations", "TRAVEL", null);
 
         return ("Other", null, null);
     }

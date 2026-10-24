@@ -180,7 +180,7 @@ public static class WhatsAppInboxMigration
             AND NOT EXISTS (SELECT 1 FROM PlatformModules WHERE ModuleKey = N'whatsapp')
             BEGIN
                 INSERT INTO PlatformModules (Name, ModuleKey, Icon, SortOrder, IsCollapsible)
-                VALUES (N'WhatsApp', N'whatsapp', N'chat', 55, 0);
+                VALUES (N'WhatsApp', N'whatsapp', N'chat', 55, 1);
             END
             """, cancellationToken: ct));
 

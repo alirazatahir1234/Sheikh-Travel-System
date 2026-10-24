@@ -38,7 +38,8 @@ Future<void> _backgroundGpsMaintenance({required bool captureFix}) async {
     baseUrl: AppConfig.resolvedBaseUrl,
     headers: {
       'Authorization': 'Bearer $token',
-      'X-Tenant-Slug': AppConfig.tenantSlug,
+      // JWT tenant_id is authoritative; avoid hardcoding Sheikh's `default` slug.
+      if (AppConfig.hasExplicitTenantSlug) 'X-Tenant-Slug': AppConfig.tenantSlug,
       'Content-Type': 'application/json',
     },
     connectTimeout: const Duration(seconds: 10),

@@ -1,9 +1,11 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError, take } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { SmartAlertService } from '../../core/services/smart-alert.service';
 import { GlobalSearchService, SearchResult } from '../../core/services/global-search.service';
 import {
   Notification,
@@ -25,6 +27,7 @@ import {
 import { isNavItemActive } from '../../core/navigation/nav-route-active.util';
 import { resolveTenantType } from '../../core/navigation/tenant-type';
 import { APP_PRODUCT_NAME, APP_PRODUCT_TAGLINE, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
+import { environment } from '../../../environments/environment';
 
 interface NotifMetaRow {
   icon: string;
@@ -50,6 +53,9 @@ export class ShellComponent implements OnInit, OnDestroy {
   currentUser$: AuthService['currentUser$'];
   unreadCount$!: NotificationService['unreadCount'];
   notifications$!: NotificationService['notifications'];
+  smartAlertNewCount$!: SmartAlertService['newCount'];
+  /** Unread inbox + new Smart Ops alerts for the top-bar bell badge. */
+  bellBadgeCount$!: Observable<number>;
   notifPanelOpen = false;
   expandedNotifId: number | null = null;
   @ViewChild('mainContent') mainContent!: ElementRef<HTMLElement>;
@@ -76,23 +82,30 @@ export class ShellComponent implements OnInit, OnDestroy {
   private readonly aliasItemIds = new Set([
     'trips', 'dispatch-board', 'invoices', 'wallets', 'expenses',
     'corporate-accounts', 'passengers', 'vendors',
-    'performance-analytics', 'roles-permissions', 'system-configuration'
+    'roles-permissions', 'system-configuration'
   ]);
   timeDisplay$: Observable<LocalTimeDisplay>;
 
   constructor(
     private auth: AuthService,
     private notificationService: NotificationService,
+    private smartAlertService: SmartAlertService,
     private globalSearch: GlobalSearchService,
     private localTime: LocalTimeContextService,
     private router: Router,
     private dialog: MatDialog,
     private tenantConfig: TenantConfigService,
-    private menuService: MenuService
+    private menuService: MenuService,
+    private http: HttpClient
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
     this.notifications$ = notificationService.notifications;
+    this.smartAlertNewCount$ = smartAlertService.newCount;
+    this.bellBadgeCount$ = combineLatest([
+      this.unreadCount$.pipe(startWith(0)),
+      this.smartAlertNewCount$.pipe(startWith(0))
+    ]).pipe(map(([a, b]) => (a || 0) + (b || 0)));
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
     this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
@@ -135,6 +148,8 @@ export class ShellComponent implements OnInit, OnDestroy {
       if (b?.enabledModules?.length) {
         this.enabledModules$.next(b.enabledModules);
       }
+      // Company timezone wins over user preference for display clocks.
+      this.localTime.setCompanyTimeZone(b?.timeZone);
     });
 
     this.sessionSub = this.auth.currentUser$.subscribe(user => {
@@ -142,9 +157,12 @@ export class ShellComponent implements OnInit, OnDestroy {
         queueMicrotask(() => {
           this.notificationService.startPolling(120000);
           void this.notificationService.requestBrowserPermission();
+          this.smartAlertService.refresh();
+          this.loadUserTimeZonePreference();
         });
       } else {
         this.notificationService.reset();
+        this.localTime.setUserTimeZone(null);
       }
     });
 
@@ -595,5 +613,13 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   localTimeTooltip(t: LocalTimeDisplay): string {
     return [t.timeZoneId, t.dateLine, t.offsetAndAbbr].filter(Boolean).join(' · ');
+  }
+
+  /** User profile timezone is a fallback when the company has no TenantBranding.TimeZone. */
+  private loadUserTimeZonePreference(): void {
+    this.http
+      .get<{ timeZone?: string | null }>(`${environment.apiUrl}/users/profile`)
+      .pipe(take(1), catchError(() => of(null)))
+      .subscribe(profile => this.localTime.setUserTimeZone(profile?.timeZone));
   }
 }

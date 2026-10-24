@@ -60,6 +60,7 @@ export class FleetReportsPageComponent implements OnInit {
   readonly report = signal<FleetReport | null>(null);
   readonly loading = signal(false);
   readonly hasPreview = signal(false);
+  readonly loadError = signal('');
 
   readonly vehicles = signal<VehicleListItem[]>([]);
   readonly drivers = signal<DriverOption[]>([]);
@@ -87,6 +88,7 @@ export class FleetReportsPageComponent implements OnInit {
     this.selectedReport.set(id);
     this.hasPreview.set(false);
     this.report.set(null);
+    this.loadError.set('');
     this.draftFilters.update(f => ({ ...f, status: '', maintenanceReportType: id === 'maintenance' ? 'cost-analysis' : undefined }));
   }
 
@@ -110,6 +112,7 @@ export class FleetReportsPageComponent implements OnInit {
     this.appliedFilters.set(reset);
     this.hasPreview.set(false);
     this.report.set(null);
+    this.loadError.set('');
   }
 
   onPreview(): void {
@@ -135,14 +138,24 @@ export class FleetReportsPageComponent implements OnInit {
   }
 
   private loadPreview(): void {
+    const f = this.appliedFilters();
+    if (f.from && f.to && new Date(f.from) > new Date(f.to)) {
+      this.toast.warning('From date cannot be after To date');
+      return;
+    }
+
     this.loading.set(true);
     this.hasPreview.set(true);
-    const f = this.appliedFilters();
+    this.loadError.set('');
+    this.report.set(null);
     this.fleetReportService.getReport(this.selectedReport(), { ...f, status: f.status || undefined }).subscribe({
       next: r => { this.report.set(r); this.loading.set(false); },
       error: err => {
         this.loading.set(false);
-        this.toast.error(apiErrorMessage(err, 'Failed to load report'));
+        this.report.set(null);
+        const message = apiErrorMessage(err, 'Failed to load report');
+        this.loadError.set(message);
+        this.toast.error(message);
       }
     });
   }

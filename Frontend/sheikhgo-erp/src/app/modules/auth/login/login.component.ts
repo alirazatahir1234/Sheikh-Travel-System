@@ -17,6 +17,7 @@ export class LoginComponent implements OnInit {
   loading = false;
   hidePassword = true;
   rememberMe = true;
+  serverError: string | null = null;
   readonly year = new Date().getFullYear();
 
   constructor(
@@ -59,6 +60,7 @@ export class LoginComponent implements OnInit {
     }
 
     this.loading = true;
+    this.serverError = null;
     this.auth.login(this.form.value).pipe(
       switchMap(user =>
         this.platform.getMyWorkspace().pipe(
@@ -78,11 +80,17 @@ export class LoginComponent implements OnInit {
     ).subscribe({
       next: () => {
         this.loading = false;
+        this.serverError = null;
         this.router.navigate([this.auth.getHomeRoute()]);
       },
       error: err => {
         this.loading = false;
-        const message = err?.error?.message || err?.message || 'Invalid email or password';
+        const message =
+          err?.error?.message ||
+          err?.error?.Message ||
+          err?.message ||
+          'Invalid email or password';
+        this.serverError = message;
         this.toast.error(message);
       }
     });

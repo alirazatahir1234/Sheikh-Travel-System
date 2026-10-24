@@ -14,7 +14,10 @@ public sealed class TenantRepository(IDbConnectionFactory dbFactory) : ITenantRe
         using var connection = dbFactory.CreateConnection();
         var row = await connection.QuerySingleOrDefaultAsync<TenantBrandingRow>(
             new CommandDefinition("""
-                SELECT t.Id, t.Name, t.Slug, COALESCE(b.LogoUrl, t.LogoUrl) AS LogoUrl, COALESCE(b.PrimaryColor, t.PrimaryColor) AS PrimaryColor
+                SELECT t.Id, t.Name, t.Slug,
+                       COALESCE(b.LogoUrl, t.LogoUrl) AS LogoUrl,
+                       COALESCE(b.PrimaryColor, t.PrimaryColor) AS PrimaryColor,
+                       b.TimeZone AS TimeZone
                 FROM Tenants t
                 LEFT JOIN TenantBranding b ON b.TenantId = t.Id
                 WHERE t.Id = @Id AND t.IsActive = 1

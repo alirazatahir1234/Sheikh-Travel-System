@@ -2,9 +2,8 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, combineLatest, distinctUntilChanged, interval, map, startWith } from 'rxjs';
 
 /**
- * Resolves a display timezone and (when available) a city/region from IP geolocation.
- * Time is formatted in that IANA zone so the top bar clock matches the user's area.
- * Falls back to the browser's Intl zone if the lookup fails.
+ * Resolves a display timezone and (when available) a city/region.
+ * Preference order (product rule): company/tenant timezone → user profile → browser Intl.
  */
 export interface LocalTimeDisplay {
   time: string;
@@ -16,13 +15,27 @@ export interface LocalTimeDisplay {
 
 @Injectable({ providedIn: 'root' })
 export class LocalTimeContextService {
-  private timeZone$ = new BehaviorSubject<string | null>(null);
-  private cityLine$ = new BehaviorSubject<string>('');
+  private companyTimeZone$ = new BehaviorSubject<string | null>(null);
+  private userTimeZone$ = new BehaviorSubject<string | null>(null);
+  private browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  constructor() {
-    const fromIntl = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    this.timeZone$.next(fromIntl);
-    this.cityLine$.next(this.humanIanaName(fromIntl));
+  /** Apply company (tenant) IANA timezone when known. */
+  setCompanyTimeZone(iana: string | null | undefined): void {
+    const cleaned = (iana || '').trim();
+    this.companyTimeZone$.next(cleaned || null);
+  }
+
+  /** Apply user profile IANA timezone (used when company timezone is unset). */
+  setUserTimeZone(iana: string | null | undefined): void {
+    const cleaned = (iana || '').trim();
+    this.userTimeZone$.next(cleaned || null);
+  }
+
+  /** Effective zone for formatting. */
+  resolveTimeZoneId(): string {
+    return this.companyTimeZone$.value
+      || this.userTimeZone$.value
+      || this.browserTimeZone;
   }
 
   private humanIanaName(iana: string): string {
@@ -52,15 +65,16 @@ export class LocalTimeContextService {
    * Emits display info on load and every 30s.
    */
   clockDisplay$(tickMs = 30_000) {
+    const effectiveZone$ = combineLatest([this.companyTimeZone$, this.userTimeZone$]).pipe(
+      map(([company, user]) => company || user || this.browserTimeZone),
+      distinctUntilChanged()
+    );
+
     return combineLatest([
-      this.timeZone$.pipe(
-        map(z => z ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
-        distinctUntilChanged()
-      ),
-      this.cityLine$,
+      effectiveZone$,
       interval(tickMs).pipe(startWith(0))
     ]).pipe(
-      map(([timeZone, cityLine]) => {
+      map(([timeZone]) => {
         const d = new Date();
         const time = d.toLocaleTimeString(undefined, {
           timeZone,
@@ -79,7 +93,7 @@ export class LocalTimeContextService {
           time,
           timeZoneId: timeZone,
           offsetAndAbbr: this.formatOffsetAndAbbr(d, timeZone),
-          cityLine,
+          cityLine: this.humanIanaName(timeZone),
           dateLine
         } satisfies LocalTimeDisplay;
       })

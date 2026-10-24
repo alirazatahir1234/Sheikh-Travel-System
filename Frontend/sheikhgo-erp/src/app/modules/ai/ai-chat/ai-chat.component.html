@@ -36,11 +36,15 @@
     <div class="messages" *ngIf="!loading">
       <div class="empty" *ngIf="!messages.length">
         <mat-icon>smart_toy</mat-icon>
-        <h3>SheikhGo AI</h3>
-        <p>Ask about fleet health, offline vehicles, alerts, maintenance, or drivers.</p>
+        <h3>SheikhGo AI Assistant</h3>
+        <p>Ask about fuel costs, maintenance due, overdue invoices, trips, and vehicle utilization for your company.</p>
         <p class="hint" *ngIf="providerHealth && !providerHealth.reachable">
-          Ollama is offline — answers will use rule engines until you run <code>ollama serve</code> and <code>ollama pull mistral</code>.
+          LLM offline — grounded reporting tools still answer from your database.
         </p>
+        <label class="mode-toggle">
+          <input type="checkbox" [(ngModel)]="useAssistant" />
+          Use read-only Assistant (recommended)
+        </label>
       </div>
 
       <article
@@ -49,6 +53,12 @@
         [class.user]="m.role === 'user'"
         [class.assistant]="m.role === 'assistant'">
         <pre>{{ m.content }}</pre>
+        <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
+          <small>Period: {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+        </div>
+        <ul class="warn-list" *ngIf="m.warnings?.length">
+          <li *ngFor="let w of m.warnings">{{ w }}</li>
+        </ul>
         <footer *ngIf="m.role === 'assistant' && m.mode">
           {{ m.mode }}<span *ngIf="m.usedLlm"> · LLM</span>
           <span *ngIf="m.tools && m.tools.length"> · {{ m.tools.join(', ') }}</span>

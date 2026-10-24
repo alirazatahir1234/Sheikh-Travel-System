@@ -63,7 +63,14 @@ public class NotificationHub(IUserPresenceService presence) : Hub
             .Select(c => c.Value)
             .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
 
-        return roles.Contains("Admin") || roles.Contains("Dispatcher") || roles.Contains("SuperAdmin");
+        return roles.Contains("Admin")
+               || roles.Contains("Dispatcher")
+               || roles.Contains("SuperAdmin")
+               || roles.Contains("Operations")
+               || roles.Contains("Owner")
+               || roles.Contains("TENANT_ADMIN")
+               || roles.Contains("FLEET_MANAGER")
+               || roles.Contains("FleetManager");
     }
 }
 

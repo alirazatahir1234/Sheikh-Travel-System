@@ -31,9 +31,21 @@ public interface IAuthRepository
 
     Task ClearRefreshTokenAsync(int userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Counts users in the tenant with a non-expired refresh token (active login).
+    /// Optionally excludes one user (re-login of an already-active account).
+    /// </summary>
+    Task<int> CountActiveRefreshSessionsForTenantAsync(
+        int tenantId,
+        int? excludeUserId = null,
+        CancellationToken cancellationToken = default);
+
     Task<User?> FindUserByValidRefreshTokenAsync(
         string refreshToken,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Loads an active (non-deleted) user entity by id for token refresh.</summary>
+    Task<User?> GetActiveUserByIdAsync(int userId, CancellationToken cancellationToken = default);
 
     Task<AuthPasswordResetUser?> FindActiveUserByEmailAsync(
         string email,

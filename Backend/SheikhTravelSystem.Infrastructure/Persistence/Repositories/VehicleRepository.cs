@@ -593,10 +593,10 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                 @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
                   OdometerReading, FuelType, FuelDate, Station, CreatedAt
                   FROM FuelLogs
-                  WHERE IsDeleted = 0 AND VehicleId = @VehicleId
+                  WHERE IsDeleted = 0 AND VehicleId = @VehicleId AND TenantId = @TenantId
                   ORDER BY FuelDate DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { VehicleId = vehicleId, Offset = offset, PageSize = pageSize },
+                new { VehicleId = vehicleId, TenantId = tenantId, Offset = offset, PageSize = pageSize },
                 cancellationToken: cancellationToken));
 
         var totals = await connection.QuerySingleAsync<(decimal TotalLiters, decimal TotalCost, int TotalCount)>(
@@ -604,8 +604,9 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                 @"SELECT ISNULL(SUM(Liters), 0) AS TotalLiters,
                          ISNULL(SUM(TotalCost), 0) AS TotalCost,
                          COUNT(*) AS TotalCount
-                  FROM FuelLogs WHERE IsDeleted = 0 AND VehicleId = @VehicleId",
-                new { VehicleId = vehicleId },
+                  FROM FuelLogs
+                  WHERE IsDeleted = 0 AND VehicleId = @VehicleId AND TenantId = @TenantId",
+                new { VehicleId = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return new VehicleFuelSummaryDto(logs.ToList(), totals.TotalLiters, totals.TotalCost, totals.TotalCount);

@@ -47,4 +47,44 @@ public class TenantModuleService(IDbConnectionFactory dbFactory) : ITenantModule
             "UPDATE Tenants SET EnabledModulesJson = @Json, UpdatedAt = GETUTCDATE() WHERE Id = @TenantId",
             new { TenantId = tenantId, Json = json }, cancellationToken: cancellationToken));
     }
+
+    public async Task<bool> IsModuleEnabledAsync(
+        int tenantId,
+        string moduleCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId <= 0 || string.IsNullOrWhiteSpace(moduleCode))
+            return false;
+
+        using var connection = dbFactory.CreateConnection();
+
+        var codes = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT m.ModuleCode
+            FROM TenantModules tm
+            INNER JOIN Modules m ON m.Id = tm.ModuleId
+            WHERE tm.TenantId = @TenantId
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+
+        if (codes.Count > 0)
+            return codes.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
+
+        // No TenantModules rows: derive from legacy JSON only (do not invent premium modules).
+        var json = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            "SELECT EnabledModulesJson FROM Tenants WHERE Id = @TenantId",
+            new { TenantId = tenantId }, cancellationToken: cancellationToken));
+
+        if (string.IsNullOrWhiteSpace(json))
+            return TenantModuleCatalog.DefaultModuleCodes.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var legacy = System.Text.Json.JsonSerializer.Deserialize<string[]>(json) ?? [];
+            var derived = TenantModuleCatalog.CodesFromLegacyKeys(legacy);
+            return derived.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return TenantModuleCatalog.DefaultModuleCodes.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
+        }
+    }
 }

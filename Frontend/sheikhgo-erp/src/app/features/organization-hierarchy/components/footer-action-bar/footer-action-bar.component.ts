@@ -14,36 +14,42 @@ import { PendingChange } from '../../models/organization.models';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
-      <div class="max-w-screen-2xl mx-auto px-6 py-3">
-        <div class="flex items-center justify-between">
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-[0_-4px_12px_rgba(15,23,42,0.06)] z-50">
+      <div class="max-w-screen-2xl mx-auto px-4 py-3 md:px-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <!-- Left: Pending Changes Info -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3 min-w-0">
             @if (pendingChanges().length > 0) {
               <div class="flex items-center gap-2 text-primary-600">
-                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+                <span class="inline-flex w-2 h-2 rounded-full bg-primary-600 flex-shrink-0" aria-hidden="true"></span>
                 <span class="text-sm font-medium">
-                  {{ pendingChanges().length }} changes pending save
+                  {{ pendingChanges().length }} change{{ pendingChanges().length === 1 ? '' : 's' }} pending
                 </span>
               </div>
+              @if (lastAutoSaved() && lastAutoSaved() !== '--:--:--') {
+                <div class="hidden sm:block h-4 w-px bg-border"></div>
+                <span class="hidden sm:inline text-sm text-text-muted truncate">
+                  Last saved {{ lastAutoSaved() }}
+                </span>
+              }
+            } @else {
+              <span class="text-sm text-text-muted">
+                @if (lastAutoSaved() && lastAutoSaved() !== '--:--:--') {
+                  All changes saved · {{ lastAutoSaved() }}
+                } @else {
+                  No unsaved hierarchy changes
+                }
+              </span>
             }
-
-            <div class="h-4 w-px bg-border"></div>
-
-            <span class="text-sm text-text-muted">
-              Autosaved at {{ lastAutoSaved() }}
-            </span>
           </div>
 
           <!-- Right: Action Buttons -->
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               (click)="discard.emit()"
               [disabled]="pendingChanges().length === 0"
-              class="px-5 py-2.5 text-sm font-medium text-text border border-border rounded-lg hover:bg-surface-alt disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-text border border-border rounded-lg hover:bg-surface-alt disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Discard
             </button>
@@ -51,9 +57,9 @@ import { PendingChange } from '../../models/organization.models';
               type="button"
               (click)="save.emit()"
               [disabled]="pendingChanges().length === 0"
-              class="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Save Configuration
+              Save configuration
             </button>
           </div>
         </div>

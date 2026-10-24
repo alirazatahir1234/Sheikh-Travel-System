@@ -1,20 +1,19 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
-using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
 /// <summary>
-/// Invalidates the current authenticated user's refresh token.
+/// Invalidates the current authenticated session.
 /// </summary>
 public record LogoutCommand : IRequest<ApiResponse<bool>>;
 
 /// <summary>
-/// Handles logout token cleanup for the current user.
+/// Handles logout token cleanup for the current user/session.
 /// </summary>
 public class LogoutCommandHandler(
-    IAuthRepository authRepository,
+    IAuthSessionService authSessions,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IAuditEngine auditEngine)
@@ -25,7 +24,7 @@ public class LogoutCommandHandler(
         var userId = currentUser.UserId
             ?? throw new UnauthorizedAccessException("User is not authenticated.");
 
-        await authRepository.ClearRefreshTokenAsync(userId, cancellationToken);
+        await authSessions.RevokeCurrentAsync(userId, currentUser.SessionId, cancellationToken);
 
         try
         {

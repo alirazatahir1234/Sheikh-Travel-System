@@ -24,6 +24,10 @@ public class GetAuditLogsQueryHandler(
     public async Task<ApiResponse<PagedResult<AuditLogDto>>> Handle(
         GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
+        if (request.FromDate is DateTime from && request.ToDate is DateTime to && from > to)
+            return ApiResponse<PagedResult<AuditLogDto>>.FailResponse(
+                "From date must be on or before To date.");
+
         var tenantId = ResolveTenantFilter(request.TenantId);
         var result = await auditLogRepository.GetPagedAsync(
             request.Page,

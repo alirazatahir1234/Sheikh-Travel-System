@@ -39,6 +39,15 @@
                 <input id="profile-phone" class="stb-input" type="tel" formControlName="phoneNumber" placeholder="923001234567" autocomplete="tel" />
               </div>
 
+              <div class="stb-field full-width">
+                <label for="profile-timezone">Time Zone</label>
+                <select id="profile-timezone" class="stb-select" formControlName="timeZone">
+                  <option value="">Use company / browser default</option>
+                  <option *ngFor="let tz of timezones" [value]="tz.id">{{ tz.displayName || tz.id }}</option>
+                </select>
+                <span class="stb-hint">Used when the company timezone is not set. Company timezone (Settings → General / Branding) takes priority.</span>
+              </div>
+
               <div class="form-actions">
                 <button mat-raised-button color="primary" type="submit"
                         [disabled]="savingProfile || profileForm.invalid">

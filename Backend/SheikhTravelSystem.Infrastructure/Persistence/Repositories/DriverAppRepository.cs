@@ -14,7 +14,8 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<DriverLoginRow>(new CommandDefinition(
-            @"SELECT d.Id AS DriverId, u.Id AS UserId, d.TenantId, d.FullName, d.Phone, u.PasswordHash
+            @"SELECT d.Id AS DriverId, u.Id AS UserId, d.TenantId, d.FullName, d.Phone, u.PasswordHash,
+                     u.RefreshToken, u.RefreshTokenExpiryTime
               FROM Drivers d
               INNER JOIN Users u ON u.Id = d.UserId AND u.IsDeleted = 0 AND u.IsActive = 1 AND u.Role = @DriverRole
               WHERE (d.Phone = @Phone OR u.Phone = @Phone)
@@ -676,7 +677,7 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
                    f.Liters, f.PricePerLiter, f.TotalCost, f.OdometerReading, f.FuelType,
                    f.FuelDate, f.Station, f.ReceiptUrl
             FROM FuelLogs f
-            LEFT JOIN Vehicles v ON v.Id = f.VehicleId
+            LEFT JOIN Vehicles v ON v.Id = f.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
             WHERE f.DriverId = @DriverId AND f.TenantId = @TenantId AND f.IsDeleted = 0
             ORDER BY f.FuelDate DESC
             OFFSET @Offset ROWS FETCH NEXT @Size ROWS ONLY

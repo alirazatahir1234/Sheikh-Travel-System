@@ -77,6 +77,9 @@ public static class DependencyInjection
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<ISmartAlertRepository, SmartAlertRepository>();
+        services.AddScoped<ISmartAlertService, SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartAlertService>();
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOpsRuleScanner>();
         services.AddScoped<IGpsDeviceRepository, GpsDeviceRepository>();
         services.AddScoped<IGpsTrackingRepository, GpsTrackingRepository>();
         services.AddScoped<IGpsAlertWriter, SheikhTravelSystem.Infrastructure.Services.Gps.GpsAlertWriter>();
@@ -115,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<IPortalPricingService, PortalPricingService>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuthSessionService, AuthSessionService>();
         services.Configure<PortalAuthSettings>(configuration.GetSection(PortalAuthSettings.SectionName));
         services.Configure<PortalPaymentGatewaySettings>(configuration.GetSection(PortalPaymentGatewaySettings.SectionName));
         services.AddSingleton<IPortalOtpService, PortalOtpStore>();
@@ -208,13 +212,42 @@ public static class DependencyInjection
         services.AddScoped<IAiTool, GetVehicleStatusTool>();
         services.AddScoped<IAiTool, AssignDriverTool>();
         services.AddScoped<IAiTool, SendNotificationTool>();
+        // Phase 2 AI Assistant — allowlisted reporting tools
+        services.AddScoped<IAiTool, GetFuelCostSummaryTool>();
+        services.AddScoped<IAiTool, GetVehicleMaintenanceSummaryTool>();
+        services.AddScoped<IAiTool, GetOverdueInvoicesTool>();
+        services.AddScoped<IAiTool, GetTripSummaryTool>();
+        services.AddScoped<IAiTool, GetVehicleUtilizationSummaryTool>();
+        // Batch 1 — revenue / fuel usage / driver performance
+        services.AddScoped<IAiTool, GetRevenueAnalyticsTool>();
+        services.AddScoped<IAiTool, GetFuelUsageTopVehicleTool>();
+        services.AddScoped<IAiTool, GetBestDriverPerformanceTool>();
+        // Batch 2 — cost/km / overspeed+geofence (trip/util/maintenance tools extended in-place)
+        services.AddScoped<IAiTool, GetCostPerKilometerTool>();
+        services.AddScoped<IAiTool, GetOverspeedGeofenceSummaryTool>();
+        // Batch 3 — idle / SOS / expenses / tenant compare / peak hours
+        services.AddScoped<IAiTool, GetIdleTimeReportTool>();
+        services.AddScoped<IAiTool, GetSosEventsSummaryTool>();
+        services.AddScoped<IAiTool, GetExpenseTrackingTool>();
+        services.AddScoped<IAiTool, GetTenantComparisonTool>();
+        services.AddScoped<IAiTool, GetPeakHoursAnalysisTool>();
+        // Phase 3 — Predictive Intelligence (rules/stats; distinct names from Batch reporting)
+        services.AddScoped<IAiTool, GetMaintenanceRiskForecastTool>();
+        services.AddScoped<IAiTool, GetTripDelayRiskTool>();
+        services.AddScoped<IAiTool, GetFuelAnomalyInvestigationTool>();
         services.AddScoped<IAiToolEngine, AiToolEngine>();
+        services.AddScoped<IAiAssistantGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiAssistantGateway>();
 
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider>();
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.DeepInfraAiProvider>();
         services.AddScoped<IAiProviderResolver,
             SheikhTravelSystem.Infrastructure.Services.Ai.Providers.AiProviderResolver>();
         services.AddScoped<IAiChatGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiChatGateway>();
         services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(120);
+        });
+        services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Ai.Providers.DeepInfraAiProvider.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(120);
         });
@@ -230,6 +263,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
+        services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOperationsHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsDailyRollupHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();

@@ -19,20 +19,22 @@ import { Tenant } from '../../../../core/models/platform.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="relative">
-      <label class="block text-xs font-medium text-text-muted mb-1">Select Tenant</label>
+      <label class="block text-xs font-medium text-text-muted mb-1.5">Select company</label>
       <div class="relative">
         <button
           type="button"
           (click)="toggleDropdown()"
-          class="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white border border-border rounded-lg text-sm text-text hover:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 transition-all"
+          class="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-white border border-border rounded-lg text-sm text-text hover:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 transition-all"
+          [attr.aria-expanded]="isOpen()"
+          aria-haspopup="listbox"
         >
           <div class="flex items-center gap-2 min-w-0">
-            <div class="w-6 h-6 rounded bg-primary-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-3.5 h-3.5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <span class="truncate font-medium">{{ selectedTenantName() }}</span>
+            <span class="truncate font-medium" [class.text-text-muted]="!selectedTenantId()">{{ selectedTenantName() }}</span>
           </div>
           <svg
             class="w-4 h-4 text-text-muted flex-shrink-0 transition-transform"
@@ -40,20 +42,24 @@ import { Tenant } from '../../../../core/models/platform.model';
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
 
         @if (isOpen()) {
-          <div class="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+          <div class="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto" role="listbox">
             @if (loading()) {
-              <div class="px-3 py-4 text-center text-sm text-text-muted">
-                Loading tenants...
+              <div class="px-3 py-4 flex items-center justify-center gap-2 text-sm text-text-muted">
+                <svg class="w-4 h-4 animate-spin text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Loading companies…
               </div>
             } @else if (tenants().length === 0) {
               <div class="px-3 py-4 text-center text-sm text-text-muted">
-                No tenants available
+                No companies available
               </div>
             } @else {
               @for (tenant of tenants(); track tenant.id) {
@@ -102,9 +108,9 @@ export class TenantSelectorComponent {
 
   readonly selectedTenantName = computed(() => {
     const id = this.selectedTenantId();
-    if (!id) return 'Select a tenant...';
+    if (!id) return 'Select a company…';
     const tenant = this.tenants().find(t => t.id === id);
-    return tenant?.name ?? 'Unknown Tenant';
+    return tenant?.name ?? 'Unknown company';
   });
 
   private buttonElement: HTMLElement | null = null;

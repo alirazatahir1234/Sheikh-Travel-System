@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -14,6 +15,7 @@ const _accessTokenKey = 'fleet_access_token';
 const _refreshTokenKey = 'fleet_refresh_token';
 const _legacyAccessTokenKey = 'driver_access_token';
 const _legacyRefreshTokenKey = 'driver_refresh_token';
+const _sessionKey = 'fleet_session';
 
 /// Signals that the server rejected the saved refresh token. Keeping this
 /// separate from the HTTP client avoids a dependency cycle with AuthRepository.
@@ -61,7 +63,9 @@ final dioProvider = Provider<Dio>((ref) {
     connectTimeout: const Duration(seconds: 20),
     receiveTimeout: const Duration(seconds: 20),
     headers: {
-      'X-Tenant-Slug': AppConfig.tenantSlug,
+      // Do not hardcode Sheikh's `default` slug — AuthInterceptor sets the
+      // logged-in company slug (JWT tenant_id remains authoritative on API).
+      if (AppConfig.hasExplicitTenantSlug) 'X-Tenant-Slug': AppConfig.tenantSlug,
       'Content-Type': 'application/json',
       'User-Agent': 'SheikhGoTracking/${AppConfig.appVersion} Flutter',
     },
@@ -199,6 +203,15 @@ class _AuthInterceptor extends QueuedInterceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    // Prefer the logged-in company's slug over a compile-time default so
+    // Chand Travels never advertises Sheikh Travels' tenant slug.
+    final sessionSlug = await _sessionTenantSlug();
+    if (sessionSlug != null) {
+      options.headers['X-Tenant-Slug'] = sessionSlug;
+    } else if (!AppConfig.hasExplicitTenantSlug) {
+      options.headers.remove('X-Tenant-Slug');
+    }
+
     // Login, logout and token refresh must never carry a stale access token.
     if (_isAuthRequest(options)) {
       return handler.next(options);
@@ -213,6 +226,24 @@ class _AuthInterceptor extends QueuedInterceptor {
       _authSessionCancelTokens.add(cancelToken);
     }
     handler.next(options);
+  }
+
+  Future<String?> _sessionTenantSlug() async {
+    final raw = await _storage.read(key: _sessionKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final ctx = map['companyContext'];
+      if (ctx is Map) {
+        final slug = (ctx['slug'] ?? ctx['Slug'])?.toString().trim();
+        if (slug != null && slug.isNotEmpty) return slug;
+      }
+      final top = (map['slug'] ?? map['Slug'])?.toString().trim();
+      if (top != null && top.isNotEmpty) return top;
+    } catch (_) {
+      // Ignore corrupt session JSON — JWT still scopes the request.
+    }
+    return null;
   }
 
   @override

@@ -1,4 +1,6 @@
+using System.Net.Mail;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
@@ -7,6 +9,9 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 public static class AnalyticsReportHelper
 {
     public static readonly string[] ReportTypes = ["fleet-summary", "driver-performance", "cost"];
+    public static readonly string[] Frequencies = ["Daily", "Weekly", "Monthly"];
+
+    private static readonly Regex EmailSplit = new(@"[,\s;]+", RegexOptions.Compiled);
 
     public static string NormalizeReportType(string reportType) => reportType.ToLowerInvariant() switch
     {
@@ -15,6 +20,62 @@ public static class AnalyticsReportHelper
         "cost" or "operational-cost" => "cost",
         _ => reportType.ToLowerInvariant()
     };
+
+    public static string? ValidateScheduleInput(string reportType, string frequency, string recipients)
+    {
+        var normalizedType = NormalizeReportType(reportType);
+        if (!ReportTypes.Contains(normalizedType))
+            return "Report type must be fleet-summary, driver-performance, or cost.";
+
+        return ValidateFrequencyAndRecipients(frequency, recipients);
+    }
+
+    public static string? ValidateFrequencyAndRecipients(string frequency, string recipients)
+    {
+        var freq = frequency?.Trim() ?? "";
+        if (!Frequencies.Any(f => f.Equals(freq, StringComparison.OrdinalIgnoreCase)))
+            return "Frequency must be Daily, Weekly, or Monthly.";
+
+        var emails = ParseRecipients(recipients);
+        if (emails.Count == 0)
+            return "Add at least one recipient email.";
+
+        foreach (var email in emails)
+        {
+            if (!IsValidEmail(email))
+                return $"Invalid recipient email: {email}";
+        }
+
+        return null;
+    }
+
+    public static string NormalizeFrequency(string frequency) =>
+        Frequencies.First(f => f.Equals(frequency.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public static string NormalizeRecipients(string recipients) =>
+        string.Join(", ", ParseRecipients(recipients));
+
+    public static List<string> ParseRecipients(string? recipients) =>
+        string.IsNullOrWhiteSpace(recipients)
+            ? []
+            : EmailSplit.Split(recipients)
+                .Select(e => e.Trim())
+                .Where(e => e.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            var parsed = new MailAddress(email);
+            return parsed.Address.Equals(email, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public static string? SerializeFilters(AnalyticsReportFiltersDto filters) =>
         JsonSerializer.Serialize(filters);

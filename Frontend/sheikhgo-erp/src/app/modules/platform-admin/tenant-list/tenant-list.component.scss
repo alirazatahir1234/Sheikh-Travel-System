@@ -57,6 +57,24 @@
   gap: 12px;
 }
 
+.tenant-loading__metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .tenant-skeleton__metric {
   height: 88px;
   border-radius: 12px;
@@ -69,6 +87,12 @@
   @media (min-width: 992px) {
     height: 88px;
   }
+}
+
+.tenant-skeleton__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .tenant-skeleton__row {
@@ -101,6 +125,9 @@
   padding: clamp(14px, 3vw, 18px);
   align-items: flex-start;
   min-height: 88px;
+  border: 1px solid var(--stb-border, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: none;
 }
 
 .metric-icon {
@@ -164,6 +191,9 @@
   padding: 0;
   overflow: hidden;
   min-width: 0;
+  border: 1px solid var(--stb-border, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: none;
 }
 
 .filter-grid {
@@ -218,6 +248,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
   width: 100%;
 
   @media (min-width: 576px) {
@@ -232,6 +263,13 @@
       flex: 0 1 auto;
     }
   }
+}
+
+.bulk-selection {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--stb-primary, #0f766e);
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -313,7 +351,7 @@
   overflow-wrap: anywhere;
 
   &:hover {
-    color: #166534;
+    color: var(--stb-primary, #0f766e);
     text-decoration: underline;
   }
 }
@@ -632,11 +670,18 @@
   gap: 12px;
   padding: clamp(14px, 3vw, 16px);
   border: 1px solid var(--stb-border, #e5e7eb);
+  border-radius: 12px;
   box-shadow: none;
   min-width: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--stb-primary, #0f766e);
+    box-shadow: 0 1px 4px rgba(15, 118, 110, 0.1);
+  }
 
   mat-icon {
-    color: #166534;
+    color: var(--stb-primary, #0f766e);
     margin-top: 2px;
     flex-shrink: 0;
   }

@@ -24,6 +24,13 @@ export class NotificationService implements OnDestroy {
   private unreadCount$ = new BehaviorSubject<number>(0);
   private notifications$ = new BehaviorSubject<AppNotification[]>([]);
   private readonly realtime$ = new Subject<AppNotification>();
+  private readonly smartAlertEvents$ = new Subject<{
+    kind?: string;
+    ruleType?: string;
+    message?: string;
+    severity?: string;
+    id?: number;
+  }>();
 
   private pollSub: Subscription | null = null;
   private hub?: signalR.HubConnection;
@@ -31,6 +38,8 @@ export class NotificationService implements OnDestroy {
   readonly unreadCount = this.unreadCount$.asObservable();
   readonly notifications = this.notifications$.asObservable();
   readonly realtimeNotifications = this.realtime$.asObservable();
+  /** Deterministic Smart Ops alerts pushed via the same NotificationHub. */
+  readonly smartAlertEvents = this.smartAlertEvents$.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -305,7 +314,12 @@ export class NotificationService implements OnDestroy {
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 
-    this.hub.on('ReceiveNotification', (payload: AppNotification & { kind?: string }) => {
+    this.hub.on('ReceiveNotification', (payload: AppNotification & { kind?: string; ruleType?: string; severity?: string }) => {
+      if (payload?.kind === 'smart_alert') {
+        this.smartAlertEvents$.next(payload);
+        return;
+      }
+
       if (payload?.kind === 'browser') {
         void this.showBrowserToast(payload.title, payload.message);
         this.toast.info(payload.message || '', payload.title || 'Notification');

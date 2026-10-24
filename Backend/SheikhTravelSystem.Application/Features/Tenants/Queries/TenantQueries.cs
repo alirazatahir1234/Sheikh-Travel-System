@@ -23,7 +23,8 @@ public record TenantBrandingDto(
     string Slug,
     string? LogoUrl,
     string? PrimaryColor,
-    IReadOnlyList<string> EnabledModules)
+    IReadOnlyList<string> EnabledModules,
+    string? TimeZone = null)
 {
     /// <summary>Company alias for product language (persistence remains Tenant).</summary>
     public int CompanyId => Id;
@@ -47,7 +48,7 @@ public class GetTenantBrandingQueryHandler(
 
         var modules = await tenantModuleService.GetLegacyModuleKeysAsync(tenantId, cancellationToken);
         return ApiResponse<TenantBrandingDto>.SuccessResponse(
-            new TenantBrandingDto(row.Id, row.Name, row.Slug, row.LogoUrl, row.PrimaryColor, modules));
+            new TenantBrandingDto(row.Id, row.Name, row.Slug, row.LogoUrl, row.PrimaryColor, modules, row.TimeZone));
     }
 }
 

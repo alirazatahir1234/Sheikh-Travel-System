@@ -116,9 +116,14 @@ export class AiManagementCenterComponent implements OnInit {
   }
 
   onProviderChange(): void {
-    if (this.config.provider === 'Ollama') {
+    if (this.config.provider === 'DeepInfra') {
+      this.config.apiEndpoint = this.config.apiEndpoint || 'https://api.deepinfra.com/v1/openai';
+      this.config.modelName = this.config.modelName || 'Qwen/Qwen3-32B';
+      this.config.isEnabled = true;
+      this.config.copilotEnabled = true;
+    } else if (this.config.provider === 'Ollama') {
       this.config.apiEndpoint = this.config.apiEndpoint || 'http://127.0.0.1:11434';
-      this.config.modelName = this.config.modelName || 'mistral';
+      this.config.modelName = this.config.modelName || 'qwen3:8b';
       this.config.isEnabled = true;
       this.config.copilotEnabled = true;
     }

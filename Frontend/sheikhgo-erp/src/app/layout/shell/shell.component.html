@@ -230,13 +230,13 @@
           <mat-icon>help_outline</mat-icon>
         </button>
         <button mat-icon-button class="stb-icon-btn stb-notif-bell"
-                matTooltip="Notifications"
+                matTooltip="Notifications &amp; ops alerts"
                 type="button"
                 (click)="toggleNotifPanel($event)"
-                [class.has-unread]="!!(unreadCount$ | async)"
+                [class.has-unread]="!!(bellBadgeCount$ | async)"
                 [class.is-open]="notifPanelOpen"
-                [matBadge]="(unreadCount$ | async) || null"
-                [matBadgeHidden]="!(unreadCount$ | async)"
+                [matBadge]="(bellBadgeCount$ | async) || null"
+                [matBadgeHidden]="!(bellBadgeCount$ | async)"
                 matBadgeColor="warn" matBadgeSize="small"
                 [attr.aria-expanded]="notifPanelOpen"
                 aria-haspopup="dialog">
@@ -278,8 +278,11 @@
     <div class="notif-drawer-header">
       <div class="notif-drawer-title-row">
         <h2 class="notif-drawer-title">Notifications</h2>
-        <span class="notif-drawer-count" *ngIf="(unreadCount$ | async) as count">{{ count }}</span>
+        <span class="notif-drawer-count" *ngIf="(bellBadgeCount$ | async) as count">{{ count }}</span>
       </div>
+      <p class="notif-drawer-ops-hint" *ngIf="(smartAlertNewCount$ | async) as opsNew">
+        {{ opsNew }} new operations alert{{ opsNew === 1 ? '' : 's' }} — see Dashboard
+      </p>
       <div class="notif-drawer-header-actions">
         <button type="button" class="notif-drawer-mark-all" (click)="markAllAsRead()"
                 *ngIf="(unreadCount$ | async) as count" matTooltip="Mark all as read">

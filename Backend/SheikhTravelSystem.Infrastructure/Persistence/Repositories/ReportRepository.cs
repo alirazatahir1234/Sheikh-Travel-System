@@ -18,19 +18,21 @@ public sealed class ReportRepository(IDbConnectionFactory dbFactory, ITenantCont
             new CommandDefinition(
                 @"SELECT
                     COUNT(*) AS TotalBookings,
-                    SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS Completed,
-                    SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END) AS Cancelled,
-                    SUM(CASE WHEN Status = @Pending THEN 1 ELSE 0 END) AS Pending,
-                    SUM(CASE WHEN Status = @Started THEN 1 ELSE 0 END) AS Active
+                    ISNULL(SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END), 0) AS Completed,
+                    ISNULL(SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END), 0) AS Cancelled,
+                    ISNULL(SUM(CASE WHEN Status = @Pending THEN 1 ELSE 0 END), 0) AS Pending,
+                    ISNULL(SUM(CASE WHEN Status IN (@Confirmed, @Started) THEN 1 ELSE 0 END), 0) AS Active
                   FROM Bookings
-                  WHERE CreatedAt BETWEEN @From AND @To AND IsDeleted = 0 AND TenantId = @TenantId",
+                  WHERE CreatedAt >= @From AND CreatedAt < @ToExclusive AND IsDeleted = 0 AND TenantId = @TenantId",
                 new
                 {
                     Completed = (int)BookingStatus.Completed,
                     Cancelled = (int)BookingStatus.Cancelled,
                     Pending = (int)BookingStatus.Pending,
+                    Confirmed = (int)BookingStatus.Confirmed,
                     Started = (int)BookingStatus.Started,
-                    From = from, To = to,
+                    From = from,
+                    ToExclusive = to,
                     TenantId = tenantId
                 },
                 cancellationToken: cancellationToken));
@@ -39,24 +41,29 @@ public sealed class ReportRepository(IDbConnectionFactory dbFactory, ITenantCont
     public async Task<RevenueReportDto> GetRevenueReportAsync(
         DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
 
         var totalRevenue = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
-                "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Paid AND PaymentDate BETWEEN @From AND @To AND IsDeleted = 0",
-                new { Paid = (int)PaymentStatus.Paid, From = from, To = to },
+                @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
+                  WHERE TenantId = @TenantId AND Status = @Paid
+                    AND PaymentDate >= @From AND PaymentDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, Paid = (int)PaymentStatus.Paid, From = from, ToExclusive = to },
                 cancellationToken: cancellationToken));
 
         var fuelExpense = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
-                "SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE FuelDate BETWEEN @From AND @To AND IsDeleted = 0",
-                new { From = from, To = to },
+                @"SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs
+                  WHERE TenantId = @TenantId AND FuelDate >= @From AND FuelDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, From = from, ToExclusive = to },
                 cancellationToken: cancellationToken));
 
         var maintenanceCost = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
-                "SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE MaintenanceDate BETWEEN @From AND @To AND IsDeleted = 0",
-                new { From = from, To = to },
+                @"SELECT ISNULL(SUM(Cost), 0) FROM Maintenance
+                  WHERE TenantId = @TenantId AND MaintenanceDate >= @From AND MaintenanceDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, From = from, ToExclusive = to },
                 cancellationToken: cancellationToken));
 
         return new RevenueReportDto(totalRevenue, fuelExpense, maintenanceCost, totalRevenue - fuelExpense - maintenanceCost);
@@ -65,22 +72,33 @@ public sealed class ReportRepository(IDbConnectionFactory dbFactory, ITenantCont
     public async Task<IReadOnlyList<VehicleProfitDto>> GetVehicleProfitAsync(
         DateTime from, DateTime to, int? vehicleId, CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
         var results = await connection.QueryAsync<VehicleProfitDto>(
             new CommandDefinition(
                 @"SELECT v.Id AS VehicleId, v.Name AS VehicleName,
                   ISNULL(SUM(p.Amount), 0) AS Revenue,
-                  ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0) AS FuelCost,
-                  ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS MaintenanceCost,
+                  ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl
+                          WHERE fl.VehicleId = v.Id AND fl.TenantId = @TenantId
+                            AND fl.FuelDate >= @From AND fl.FuelDate < @ToExclusive AND fl.IsDeleted = 0), 0) AS FuelCost,
+                  ISNULL((SELECT SUM(m.Cost) FROM Maintenance m
+                          WHERE m.VehicleId = v.Id AND m.TenantId = @TenantId
+                            AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @ToExclusive AND m.IsDeleted = 0), 0) AS MaintenanceCost,
                   ISNULL(SUM(p.Amount), 0)
-                    - ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0)
-                    - ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS Profit
+                    - ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl
+                              WHERE fl.VehicleId = v.Id AND fl.TenantId = @TenantId
+                                AND fl.FuelDate >= @From AND fl.FuelDate < @ToExclusive AND fl.IsDeleted = 0), 0)
+                    - ISNULL((SELECT SUM(m.Cost) FROM Maintenance m
+                              WHERE m.VehicleId = v.Id AND m.TenantId = @TenantId
+                                AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @ToExclusive AND m.IsDeleted = 0), 0) AS Profit
                   FROM Vehicles v
-                  LEFT JOIN Bookings b ON b.VehicleId = v.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
-                  LEFT JOIN Payments p ON p.BookingId = b.Id AND p.Status = @Paid AND p.IsDeleted = 0
-                  WHERE v.IsDeleted = 0 AND (@VehicleId IS NULL OR v.Id = @VehicleId)
-                  GROUP BY v.Id, v.Name",
-                new { From = from, To = to, Paid = (int)PaymentStatus.Paid, VehicleId = vehicleId },
+                  LEFT JOIN Bookings b ON b.VehicleId = v.Id AND b.TenantId = @TenantId AND b.IsDeleted = 0
+                    AND b.CreatedAt >= @From AND b.CreatedAt < @ToExclusive
+                  LEFT JOIN Payments p ON p.BookingId = b.Id AND p.TenantId = @TenantId AND p.Status = @Paid AND p.IsDeleted = 0
+                  WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId AND (@VehicleId IS NULL OR v.Id = @VehicleId)
+                  GROUP BY v.Id, v.Name
+                  ORDER BY Profit DESC",
+                new { TenantId = tenantId, From = from, ToExclusive = to, Paid = (int)PaymentStatus.Paid, VehicleId = vehicleId },
                 cancellationToken: cancellationToken));
 
         return results.ToList();
@@ -89,19 +107,21 @@ public sealed class ReportRepository(IDbConnectionFactory dbFactory, ITenantCont
     public async Task<IReadOnlyList<DriverPerformanceDto>> GetDriverPerformanceAsync(
         DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
         var results = await connection.QueryAsync<DriverPerformanceDto>(
             new CommandDefinition(
                 @"SELECT d.Id AS DriverId, d.FullName AS DriverName,
                   COUNT(b.Id) AS TotalTrips,
-                  SUM(CASE WHEN b.Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
+                  ISNULL(SUM(CASE WHEN b.Status = @Completed THEN 1 ELSE 0 END), 0) AS CompletedTrips,
                   ISNULL(SUM(CASE WHEN b.Status = @Completed THEN b.TotalAmount ELSE 0 END), 0) AS TotalRevenue
                   FROM Drivers d
-                  LEFT JOIN Bookings b ON b.DriverId = d.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
-                  WHERE d.IsDeleted = 0
+                  LEFT JOIN Bookings b ON b.DriverId = d.Id AND b.TenantId = @TenantId AND b.IsDeleted = 0
+                    AND b.CreatedAt >= @From AND b.CreatedAt < @ToExclusive
+                  WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId
                   GROUP BY d.Id, d.FullName
-                  ORDER BY CompletedTrips DESC",
-                new { Completed = (int)BookingStatus.Completed, From = from, To = to },
+                  ORDER BY CompletedTrips DESC, TotalRevenue DESC",
+                new { TenantId = tenantId, Completed = (int)BookingStatus.Completed, From = from, ToExclusive = to },
                 cancellationToken: cancellationToken));
 
         return results.ToList();

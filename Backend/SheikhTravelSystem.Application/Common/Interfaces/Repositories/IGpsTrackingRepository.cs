@@ -60,6 +60,7 @@ public interface IGpsTrackingRepository
     Task<ApiResponse<IdleAnalyticsDto>> GetIdleAnalyticsAsync(GetIdleAnalyticsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<StopAnalyticsDto>> GetStopAnalyticsAsync(GetStopAnalyticsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<AnalyticsOverviewDto>> GetAnalyticsOverviewAsync(GetAnalyticsOverviewQuery request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ComparativeAnalyticsDto>> GetComparativeAnalyticsAsync(GetComparativeAnalyticsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<VehicleRankingDto>>> GetVehicleRankingAsync(GetVehicleRankingQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<PagedResult<PositionDto>>> GetLivePositionsAsync(GetLivePositionsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<PositionDto>>> GetPositionHistoryAsync(GetPositionHistoryQuery request, CancellationToken cancellationToken = default);

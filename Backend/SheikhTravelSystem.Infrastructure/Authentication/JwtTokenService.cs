@@ -19,7 +19,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
     /// <summary>
     /// Builds an access token from configured JWT settings and user claims.
     /// </summary>
-    public string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null)
+    public string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null, Guid? sessionId = null)
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
@@ -49,6 +49,9 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             new("tenant_id", user.TenantId.ToString()),
             new("primary_role", primaryRole)
         };
+
+        if (sessionId is Guid sid)
+            claims.Add(new Claim(AuthSessionLimits.ClaimSessionId, sid.ToString("D")));
 
         if (!string.Equals(primaryRole, legacyRole, StringComparison.OrdinalIgnoreCase))
         {
@@ -131,7 +134,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public string GenerateDriverAccessToken(int driverId, int userId, int tenantId, string fullName, string phone)
+    public string GenerateDriverAccessToken(int driverId, int userId, int tenantId, string fullName, string phone, Guid? sessionId = null)
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
@@ -149,6 +152,9 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             new("primary_role", "DRIVER"),
             new("tenant_id", tenantId.ToString())
         };
+
+        if (sessionId is Guid sid)
+            claims.Add(new Claim(AuthSessionLimits.ClaimSessionId, sid.ToString("D")));
 
         foreach (var permission in TenantRolePermissionTemplates.Driver)
         {

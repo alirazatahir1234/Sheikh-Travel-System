@@ -41,4 +41,30 @@ public class AuditEngineRulesTests
         AuditEngineRules.ResolveCommandSuccess("plain").Should().BeTrue();
         AuditEngineRules.ResolveCommandSuccess(null).Should().BeTrue();
     }
+
+    [Fact]
+    public void NormalizeToDateInclusive_Expands_Midnight_To_End_Of_Day()
+    {
+        var day = new DateTime(2026, 10, 24, 0, 0, 0, DateTimeKind.Utc);
+        var normalized = AuditEngineRules.NormalizeToDateInclusive(day);
+        normalized.Should().Be(day.Date.AddDays(1).AddTicks(-1));
+    }
+
+    [Fact]
+    public void NormalizeToDateInclusive_Keeps_Explicit_End_Times()
+    {
+        var end = new DateTime(2026, 10, 24, 23, 59, 59, DateTimeKind.Utc);
+        AuditEngineRules.NormalizeToDateInclusive(end).Should().Be(end);
+        AuditEngineRules.NormalizeToDateInclusive(null).Should().BeNull();
+    }
+
+    [Fact]
+    public void ValidateDateRange_Rejects_Inverted_Range()
+    {
+        var from = new DateTime(2026, 10, 25);
+        var to = new DateTime(2026, 10, 24);
+        AuditEngineRules.ValidateDateRange(from, to).Should().NotBeNullOrWhiteSpace();
+        AuditEngineRules.ValidateDateRange(to, from).Should().BeNull();
+        AuditEngineRules.ValidateDateRange(null, to).Should().BeNull();
+    }
 }

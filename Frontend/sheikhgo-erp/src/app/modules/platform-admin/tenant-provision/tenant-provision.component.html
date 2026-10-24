@@ -140,12 +140,24 @@
           </p>
         </div>
         <p class="section-label">Select Modules</p>
+        <p class="stb-hint">
+          <strong>AAS Assistant (AI)</strong> is a premium add-on — leave it unchecked unless this company should have assistant access.
+          It is never included in plan defaults.
+        </p>
         <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
-        <div class="module-cards" *ngIf="!loadingModules">
+        <div class="modules-empty" *ngIf="!loadingModules && !modules.length">
+          <mat-icon>extension_off</mat-icon>
+          <p>No modules available</p>
+          <span>Module catalog could not be loaded. You can still continue and adjust modules later.</span>
+        </div>
+        <div class="module-cards" *ngIf="!loadingModules && modules.length">
           <button type="button" class="module-card" *ngFor="let mod of modules"
-            [class.selected]="isModuleSelected(mod.code)" (click)="toggleModule(mod.code)">
+            [class.selected]="isModuleSelected(mod.code)"
+            [class.premium]="mod.code === 'AI'"
+            (click)="toggleModule(mod.code)">
             <mat-icon>{{ moduleIcon(mod.code) }}</mat-icon>
             <span>{{ mod.name }}</span>
+            <span class="premium-chip" *ngIf="mod.code === 'AI'">Premium</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(mod.code)">check_circle</mat-icon>
           </button>
         </div>

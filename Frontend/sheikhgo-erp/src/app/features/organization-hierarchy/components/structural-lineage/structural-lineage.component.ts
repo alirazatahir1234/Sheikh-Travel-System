@@ -12,10 +12,10 @@ import { StructuralLineage } from '../../models/organization.models';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-white rounded-xl border border-border overflow-hidden">
+    <div class="bg-white rounded-lg border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border">
-        <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide">
+        <h3 class="text-sm font-semibold text-text">
           Structural Lineage
         </h3>
       </div>

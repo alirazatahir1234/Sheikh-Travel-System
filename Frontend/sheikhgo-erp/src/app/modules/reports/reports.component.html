@@ -1,17 +1,48 @@
 <div class="page-header">
-  <h2>Reports</h2>
-  <div class="date-filters">
-    <div class="stb-field stb-field--filter">
-      <label for="reports-from">From</label>
-      <input id="reports-from" class="stb-input" type="date" [(ngModel)]="fromDate" />
+  <div class="page-header__title">
+    <h2>Reports</h2>
+    <p class="page-subtitle">Management summaries for revenue, fleet profitability, drivers, and payments.</p>
+    <span class="period-chip" *ngIf="periodLabel">Period: {{ periodLabel }}</span>
+  </div>
+
+  <div class="filters-panel">
+    <div class="preset-row">
+      <button
+        type="button"
+        class="preset-chip"
+        *ngFor="let p of datePresets"
+        [class.preset-chip--active]="datePreset === p.id"
+        (click)="applyPreset(p.id); loadReports()">
+        {{ p.label }}
+      </button>
     </div>
-    <div class="stb-field stb-field--filter">
-      <label for="reports-to">To</label>
-      <input id="reports-to" class="stb-input" type="date" [(ngModel)]="toDate" [min]="fromDate || null" />
+
+    <div class="date-filters" *ngIf="datePreset === 'custom'">
+      <div class="stb-field stb-field--filter">
+        <label for="reports-from">From</label>
+        <input
+          id="reports-from"
+          class="stb-input"
+          type="date"
+          [(ngModel)]="fromDate"
+          (ngModelChange)="onCustomDateChange()" />
+      </div>
+      <div class="stb-field stb-field--filter">
+        <label for="reports-to">To</label>
+        <input
+          id="reports-to"
+          class="stb-input"
+          type="date"
+          [(ngModel)]="toDate"
+          [min]="fromDate || null"
+          (ngModelChange)="onCustomDateChange()" />
+      </div>
+      <button mat-raised-button color="primary" (click)="loadReports()">
+        <mat-icon>refresh</mat-icon> Apply
+      </button>
     </div>
-    <button mat-raised-button color="primary" (click)="loadReports()">
-      <mat-icon>refresh</mat-icon> Load
-    </button>
+
+    <p class="date-error" *ngIf="dateError">{{ dateError }}</p>
   </div>
 </div>
 
@@ -20,52 +51,144 @@
   <!-- ══ Tab 1: Revenue & Bookings ══════════════════════════════════════════ -->
   <mat-tab label="Revenue & Bookings">
     <div class="tab-content">
-      <div class="charts-grid">
-        <mat-card class="chart-card">
-          <mat-card-header><mat-card-title>Revenue Breakdown</mat-card-title></mat-card-header>
-          <mat-card-content>
-            <canvas #revenueChart></canvas>
-          </mat-card-content>
-        </mat-card>
+      <app-brand-loader *ngIf="loadingRevenue" message="Loading revenue…" />
 
-        <mat-card class="chart-card">
-          <mat-card-header><mat-card-title>Bookings by Status</mat-card-title></mat-card-header>
-          <mat-card-content>
-            <canvas #statusChart></canvas>
-          </mat-card-content>
-        </mat-card>
+      <div *ngIf="!loadingRevenue && revenueError" class="empty-state empty-state--error">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ revenueError }}</p>
+        <button mat-stroked-button (click)="loadRevenue()">Retry</button>
       </div>
+
+      <ng-container *ngIf="!loadingRevenue && !revenueError && revenueReport">
+        <div class="toolbar-row">
+          <div class="kpi-row kpi-row--revenue">
+            <mat-card class="kpi-card kpi-info">
+              <mat-icon>payments</mat-icon>
+              <div>
+                <div class="kpi-label">Total Revenue</div>
+                <div class="kpi-value">PKR {{ revenueReport.totalRevenue | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+            <mat-card class="kpi-card kpi-warning">
+              <mat-icon>local_gas_station</mat-icon>
+              <div>
+                <div class="kpi-label">Fuel Expense</div>
+                <div class="kpi-value">PKR {{ revenueReport.fuelExpense | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+            <mat-card class="kpi-card kpi-expense">
+              <mat-icon>build</mat-icon>
+              <div>
+                <div class="kpi-label">Maintenance</div>
+                <div class="kpi-value">PKR {{ revenueReport.maintenanceCost | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+            <mat-card class="kpi-card" [class.kpi-success]="revenueReport.netProfit >= 0" [class.kpi-danger]="revenueReport.netProfit < 0">
+              <mat-icon>trending_up</mat-icon>
+              <div>
+                <div class="kpi-label">Net Profit</div>
+                <div class="kpi-value">PKR {{ revenueReport.netProfit | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+          </div>
+
+          <div class="export-row">
+            <button mat-stroked-button [matMenuTriggerFor]="revenueExportMenu">
+              <mat-icon>download</mat-icon> Export
+            </button>
+            <mat-menu #revenueExportMenu="matMenu">
+              <button mat-menu-item (click)="exportRevenueExcel()">
+                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+              </button>
+              <button mat-menu-item (click)="exportRevenuePdf()">
+                <mat-icon>picture_as_pdf</mat-icon> PDF
+              </button>
+            </mat-menu>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <mat-card class="chart-card">
+            <mat-card-header><mat-card-title>Revenue Breakdown</mat-card-title></mat-card-header>
+            <mat-card-content>
+              <div class="chart-wrap"><canvas #revenueChart></canvas></div>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card class="chart-card">
+            <mat-card-header><mat-card-title>Bookings by Status</mat-card-title></mat-card-header>
+            <mat-card-content>
+              <div class="chart-wrap"><canvas #statusChart></canvas></div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </ng-container>
     </div>
   </mat-tab>
 
   <!-- ══ Tab 2: Vehicle Profit ══════════════════════════════════════════════ -->
   <mat-tab label="Vehicle Profit">
     <div class="tab-content">
-      <app-brand-loader *ngIf="loadingVehicleProfit" />
+      <app-brand-loader *ngIf="loadingVehicleProfit" message="Loading vehicle profit…" />
 
-      <ng-container *ngIf="!loadingVehicleProfit">
+      <div *ngIf="!loadingVehicleProfit && vehicleProfitError" class="empty-state empty-state--error">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ vehicleProfitError }}</p>
+        <button mat-stroked-button (click)="loadVehicleProfit()">Retry</button>
+      </div>
+
+      <ng-container *ngIf="!loadingVehicleProfit && !vehicleProfitError">
         <div *ngIf="vehicleProfitRows.length === 0" class="empty-state">
           <mat-icon>directions_car</mat-icon>
-          <p>No vehicle profit data for the selected period.</p>
+          <p>No vehicle profit data for {{ periodLabel || 'the selected period' }}.</p>
         </div>
 
         <ng-container *ngIf="vehicleProfitRows.length > 0">
-          <div class="export-row">
-            <button mat-stroked-button [matMenuTriggerFor]="vehicleExportMenu">
-              <mat-icon>download</mat-icon> Export
-            </button>
-            <mat-menu #vehicleExportMenu="matMenu">
-              <button mat-menu-item (click)="exportVehicleProfitExcel()">
-                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+          <div class="toolbar-row">
+            <div class="kpi-row">
+              <mat-card class="kpi-card kpi-info">
+                <mat-icon>payments</mat-icon>
+                <div>
+                  <div class="kpi-label">Fleet Revenue</div>
+                  <div class="kpi-value">PKR {{ vehicleTotals.revenue | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+              <mat-card class="kpi-card kpi-warning">
+                <mat-icon>local_gas_station</mat-icon>
+                <div>
+                  <div class="kpi-label">Fuel + Maintenance</div>
+                  <div class="kpi-value">PKR {{ (vehicleTotals.fuel + vehicleTotals.maintenance) | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+              <mat-card class="kpi-card" [class.kpi-success]="vehicleTotals.profit >= 0" [class.kpi-danger]="vehicleTotals.profit < 0">
+                <mat-icon>account_balance</mat-icon>
+                <div>
+                  <div class="kpi-label">Net Profit</div>
+                  <div class="kpi-value">PKR {{ vehicleTotals.profit | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+            </div>
+            <div class="export-row">
+              <button mat-stroked-button [matMenuTriggerFor]="vehicleExportMenu">
+                <mat-icon>download</mat-icon> Export
               </button>
-              <button mat-menu-item (click)="exportVehicleProfitPdf()">
-                <mat-icon>picture_as_pdf</mat-icon> PDF
-              </button>
-            </mat-menu>
+              <mat-menu #vehicleExportMenu="matMenu">
+                <button mat-menu-item (click)="exportVehicleProfitExcel()">
+                  <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+                </button>
+                <button mat-menu-item (click)="exportVehicleProfitPdf()">
+                  <mat-icon>picture_as_pdf</mat-icon> PDF
+                </button>
+              </mat-menu>
+            </div>
           </div>
+
           <mat-card class="chart-card full-width-chart">
-            <mat-card-header><mat-card-title>Revenue vs Costs per Vehicle</mat-card-title></mat-card-header>
-            <mat-card-content><canvas #vehicleProfitChart></canvas></mat-card-content>
+            <mat-card-header>
+              <mat-card-title>Revenue vs Costs per Vehicle</mat-card-title>
+              <mat-card-subtitle *ngIf="vehicleProfitRows.length > 12">Top 12 by profit — full list below</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content><div class="chart-wrap chart-wrap--wide"><canvas #vehicleProfitChart></canvas></div></mat-card-content>
           </mat-card>
 
           <mat-card class="table-card">
@@ -108,31 +231,66 @@
   <!-- ══ Tab 3: Driver Performance ══════════════════════════════════════════ -->
   <mat-tab label="Driver Performance">
     <div class="tab-content">
-      <app-brand-loader *ngIf="loadingDrivers" />
+      <app-brand-loader *ngIf="loadingDrivers" message="Loading driver performance…" />
 
-      <ng-container *ngIf="!loadingDrivers">
+      <div *ngIf="!loadingDrivers && driverError" class="empty-state empty-state--error">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ driverError }}</p>
+        <button mat-stroked-button (click)="loadDriverPerformance()">Retry</button>
+      </div>
+
+      <ng-container *ngIf="!loadingDrivers && !driverError">
         <div *ngIf="driverRows.length === 0" class="empty-state">
           <mat-icon>person</mat-icon>
-          <p>No driver performance data for the selected period.</p>
+          <p>No driver performance data for {{ periodLabel || 'the selected period' }}.</p>
         </div>
 
         <ng-container *ngIf="driverRows.length > 0">
-          <div class="export-row">
-            <button mat-stroked-button [matMenuTriggerFor]="driverExportMenu">
-              <mat-icon>download</mat-icon> Export
-            </button>
-            <mat-menu #driverExportMenu="matMenu">
-              <button mat-menu-item (click)="exportDriverPerformanceExcel()">
-                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+          <div class="toolbar-row">
+            <div class="kpi-row">
+              <mat-card class="kpi-card kpi-info">
+                <mat-icon>route</mat-icon>
+                <div>
+                  <div class="kpi-label">Total Trips</div>
+                  <div class="kpi-value">{{ driverTotals.trips | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+              <mat-card class="kpi-card kpi-success">
+                <mat-icon>check_circle</mat-icon>
+                <div>
+                  <div class="kpi-label">Completed</div>
+                  <div class="kpi-value">{{ driverTotals.completed | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+              <mat-card class="kpi-card kpi-info">
+                <mat-icon>payments</mat-icon>
+                <div>
+                  <div class="kpi-label">Revenue Generated</div>
+                  <div class="kpi-value">PKR {{ driverTotals.revenue | number:'1.0-0' }}</div>
+                </div>
+              </mat-card>
+            </div>
+            <div class="export-row">
+              <button mat-stroked-button [matMenuTriggerFor]="driverExportMenu">
+                <mat-icon>download</mat-icon> Export
               </button>
-              <button mat-menu-item (click)="exportDriverPerformancePdf()">
-                <mat-icon>picture_as_pdf</mat-icon> PDF
-              </button>
-            </mat-menu>
+              <mat-menu #driverExportMenu="matMenu">
+                <button mat-menu-item (click)="exportDriverPerformanceExcel()">
+                  <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+                </button>
+                <button mat-menu-item (click)="exportDriverPerformancePdf()">
+                  <mat-icon>picture_as_pdf</mat-icon> PDF
+                </button>
+              </mat-menu>
+            </div>
           </div>
+
           <mat-card class="chart-card full-width-chart">
-            <mat-card-header><mat-card-title>Trips per Driver</mat-card-title></mat-card-header>
-            <mat-card-content><canvas #driverChart></canvas></mat-card-content>
+            <mat-card-header>
+              <mat-card-title>Trips per Driver</mat-card-title>
+              <mat-card-subtitle *ngIf="driverRows.length > 12">Top 12 drivers — full list below</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content><div class="chart-wrap chart-wrap--wide"><canvas #driverChart></canvas></div></mat-card-content>
           </mat-card>
 
           <mat-card class="table-card">
@@ -172,54 +330,65 @@
   <!-- ══ Tab 4: Payment Report ══════════════════════════════════════════════ -->
   <mat-tab label="Payment Report">
     <div class="tab-content">
-      <app-brand-loader *ngIf="loadingPayments" />
+      <app-brand-loader *ngIf="loadingPayments" message="Loading payments…" />
 
-      <ng-container *ngIf="!loadingPayments && paymentReport">
-        <div class="export-row" *ngIf="paymentReport.recentPayments.length > 0">
-          <button mat-stroked-button [matMenuTriggerFor]="paymentExportMenu">
-            <mat-icon>download</mat-icon> Export
-          </button>
-          <mat-menu #paymentExportMenu="matMenu">
-            <button mat-menu-item (click)="exportPaymentReportExcel()">
-              <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+      <div *ngIf="!loadingPayments && paymentError" class="empty-state empty-state--error">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ paymentError }}</p>
+        <button mat-stroked-button (click)="loadPaymentReport()">Retry</button>
+      </div>
+
+      <ng-container *ngIf="!loadingPayments && !paymentError && paymentReport">
+        <div class="toolbar-row">
+          <div class="kpi-row">
+            <mat-card class="kpi-card kpi-success">
+              <mat-icon>check_circle</mat-icon>
+              <div>
+                <div class="kpi-label">Total Received</div>
+                <div class="kpi-value">PKR {{ paymentReport.totalReceived | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+            <mat-card class="kpi-card kpi-warning">
+              <mat-icon>schedule</mat-icon>
+              <div>
+                <div class="kpi-label">Pending / Partial</div>
+                <div class="kpi-value">PKR {{ paymentReport.totalPending | number:'1.0-0' }}</div>
+              </div>
+            </mat-card>
+            <mat-card class="kpi-card kpi-info">
+              <mat-icon>receipt_long</mat-icon>
+              <div>
+                <div class="kpi-label">Total Transactions</div>
+                <div class="kpi-value">{{ paymentReport.totalTransactions }}</div>
+              </div>
+            </mat-card>
+          </div>
+
+          <div class="export-row" *ngIf="paymentReport.recentPayments.length > 0">
+            <button mat-stroked-button [matMenuTriggerFor]="paymentExportMenu">
+              <mat-icon>download</mat-icon> Export
             </button>
-            <button mat-menu-item (click)="exportPaymentReportPdf()">
-              <mat-icon>picture_as_pdf</mat-icon> PDF
-            </button>
-          </mat-menu>
-        </div>
-        
-        <!-- KPI cards -->
-        <div class="kpi-row">
-          <mat-card class="kpi-card kpi-success">
-            <mat-icon>check_circle</mat-icon>
-            <div>
-              <div class="kpi-label">Total Received</div>
-              <div class="kpi-value">PKR {{ paymentReport.totalReceived | number:'1.0-0' }}</div>
-            </div>
-          </mat-card>
-          <mat-card class="kpi-card kpi-warning">
-            <mat-icon>schedule</mat-icon>
-            <div>
-              <div class="kpi-label">Pending / Partial</div>
-              <div class="kpi-value">PKR {{ paymentReport.totalPending | number:'1.0-0' }}</div>
-            </div>
-          </mat-card>
-          <mat-card class="kpi-card kpi-info">
-            <mat-icon>receipt_long</mat-icon>
-            <div>
-              <div class="kpi-label">Total Transactions</div>
-              <div class="kpi-value">{{ paymentReport.totalTransactions }}</div>
-            </div>
-          </mat-card>
+            <mat-menu #paymentExportMenu="matMenu">
+              <button mat-menu-item (click)="exportPaymentReportExcel()">
+                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+              </button>
+              <button mat-menu-item (click)="exportPaymentReportPdf()">
+                <mat-icon>picture_as_pdf</mat-icon> PDF
+              </button>
+            </mat-menu>
+          </div>
         </div>
 
-        <!-- Recent payments table -->
         <mat-card class="table-card">
-          <mat-card-header><mat-card-title>Recent Payments</mat-card-title></mat-card-header>
+          <mat-card-header>
+            <mat-card-title>Payments in Period</mat-card-title>
+            <mat-card-subtitle *ngIf="paymentReport.totalTransactions > paymentReport.recentPayments.length">
+              Showing latest {{ paymentReport.recentPayments.length }} of {{ paymentReport.totalTransactions }} transactions
+            </mat-card-subtitle>
+          </mat-card-header>
           <mat-card-content>
             <div *ngIf="paymentReport.recentPayments.length === 0" class="empty-state">
-              <mat-icon>payments</mat-icon><p>No payments in the selected period.</p>
+              <mat-icon>payments</mat-icon><p>No payments in {{ periodLabel || 'the selected period' }}.</p>
             </div>
             <table mat-table [dataSource]="paymentReport.recentPayments" *ngIf="paymentReport.recentPayments.length > 0" class="full-width">
               <ng-container matColumnDef="paymentDate">
@@ -254,10 +423,6 @@
           </mat-card-content>
         </mat-card>
       </ng-container>
-
-      <div *ngIf="!loadingPayments && !paymentReport" class="empty-state">
-        <mat-icon>payments</mat-icon><p>Could not load payment report.</p>
-      </div>
     </div>
   </mat-tab>
 

@@ -612,6 +612,11 @@ int displayIndexForTrailIndex(
   return indexForTimestamp(displayTrail, t);
 }
 
+/// Progress colors: remaining (ahead) = green, travelled (behind) = blue.
+/// At t=0 the entire route is green; as the vehicle moves, the path behind turns blue.
+const Color kPlaybackRemainingColor = Color(0xFF22C55E);
+const Color kPlaybackTravelledColor = Color(0xFF1D4ED8);
+
 Set<Polyline> buildPlaybackPolylines({
   required List<HistoryReplayPoint> trail,
   required int trailIndex,
@@ -622,26 +627,46 @@ Set<Polyline> buildPlaybackPolylines({
 
   final display = downsampleTrailForMap(trail);
   final displayIdx = displayIndexForTrailIndex(trail, display, trailIndex)
-      .clamp(1, display.length);
+      .clamp(0, display.length - 1);
 
   final polylines = <Polyline>{};
 
-  // Full trip always solid dark blue for enterprise visibility.
-  polylines.add(
-    Polyline(
-      polylineId: const PolylineId('full_route'),
-      color: const Color(0xFF1D4ED8),
-      width: 7,
-      geodesic: true,
-      zIndex: 1,
-      points: [
-        for (final p in display) LatLng(p.latitude, p.longitude),
-      ],
-    ),
-  );
+  // Remaining route ahead of the vehicle (full green at playback start).
+  if (displayIdx < display.length - 1) {
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('remaining_route'),
+        color: kPlaybackRemainingColor,
+        width: 7,
+        geodesic: true,
+        zIndex: 1,
+        points: [
+          for (var i = displayIdx; i < display.length; i++)
+            LatLng(display[i].latitude, display[i].longitude),
+        ],
+      ),
+    );
+  }
 
-  if (speedColors) {
-    final completed = display.sublist(0, displayIdx);
+  // Travelled route behind the vehicle (grows blue as playback advances).
+  if (displayIdx > 0) {
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('travelled_route'),
+        color: kPlaybackTravelledColor,
+        width: 7,
+        geodesic: true,
+        zIndex: 2,
+        points: [
+          for (var i = 0; i <= displayIdx; i++)
+            LatLng(display[i].latitude, display[i].longitude),
+        ],
+      ),
+    );
+  }
+
+  if (speedColors && displayIdx > 0) {
+    final completed = display.sublist(0, displayIdx + 1);
     final segments = buildSpeedSegments(completed, stops: stops);
     for (var i = 0; i < segments.length; i++) {
       final s = segments[i];
@@ -653,30 +678,9 @@ Set<Polyline> buildPlaybackPolylines({
           color: segmentColor(s.kind),
           width: 7,
           geodesic: true,
-          zIndex: 2,
-          points: [
-            for (final p in s.points) LatLng(p.latitude, p.longitude),
-          ],
-        ),
-      );
-    }
-  }
-
-  // Played focus highlight near current index.
-  if (display.length >= 3) {
-    final currentStart = (displayIdx - 2).clamp(0, display.length - 1);
-    final currentEnd = displayIdx.clamp(0, display.length - 1);
-    if (currentEnd > currentStart) {
-      polylines.add(
-        Polyline(
-          polylineId: const PolylineId('current_focus'),
-          color: const Color(0xFF22C55E),
-          width: 8,
-          geodesic: true,
           zIndex: 3,
           points: [
-            for (var i = currentStart; i <= currentEnd; i++)
-              LatLng(display[i].latitude, display[i].longitude),
+            for (final p in s.points) LatLng(p.latitude, p.longitude),
           ],
         ),
       );

@@ -2,11 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sheikh_go_driver/core/navigation/fleet_nav_config.dart';
 import 'package:sheikh_go_driver/features/auth/domain/auth_models.dart';
 
+CompanyContext _aiEntitledContext() => const CompanyContext(
+      companyId: 1,
+      tenantId: 1,
+      companyName: 'Test Co',
+      modules: [
+        CompanyModule(moduleCode: 'AI', name: 'AAS Assistant'),
+      ],
+    );
+
 FleetSession _session({
   List<String> roles = const [FleetRole.driver],
   List<String> permissions = FleetPermissions.driverDefaults,
   AuthMode authMode = AuthMode.driver,
   int? driverId = 42,
+  CompanyContext? companyContext,
 }) =>
     FleetSession(
       accessToken: 'token',
@@ -18,6 +28,7 @@ FleetSession _session({
       permissions: permissions,
       authMode: authMode,
       driverId: driverId,
+      companyContext: companyContext,
     );
 
 void main() {
@@ -108,7 +119,7 @@ void main() {
       expect(session.canSeeTripsTab, isTrue);
     });
 
-    test('fleet manager sees fleet and AI tabs', () {
+    test('fleet manager without AI module hides AI tab', () {
       final session = _session(
         roles: const [FleetRole.fleetManager],
         permissions: const [
@@ -121,6 +132,25 @@ void main() {
         driverId: null,
       );
       expect(session.canSeeFleetTab, isTrue);
+      expect(session.hasAiAssistantModule, isFalse);
+      expect(session.canSeeAiTab, isFalse);
+    });
+
+    test('fleet manager with AI module sees AI tab', () {
+      final session = _session(
+        roles: const [FleetRole.fleetManager],
+        permissions: const [
+          FleetPermissions.tripView,
+          FleetPermissions.gpsView,
+          FleetPermissions.vehicleView,
+          FleetPermissions.aiView,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+        companyContext: _aiEntitledContext(),
+      );
+      expect(session.canSeeFleetTab, isTrue);
+      expect(session.hasAiAssistantModule, isTrue);
       expect(session.canSeeAiTab, isTrue);
       expect(session.canSeeTripsTab, isTrue);
     });

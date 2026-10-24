@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
@@ -12,11 +12,20 @@ import {
   BranchStatus,
   DEFAULT_CURRENCY,
   BRANCH_STATUS_OPTIONS,
-  BRANCH_TYPES
+  BRANCH_TYPES,
+  normalizeBranch,
+  normalizeBranchStatus
 } from '../../../core/models/platform.model';
 import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
-import { branchNameValidator, phoneMaxDigitsValidator, branchAddressValidator, branchCityValidator, BRANCH_ADDRESS_MAX_LENGTH, BRANCH_CITY_MAX_LENGTH } from './branch-form.validators';
+import {
+  branchNameValidator,
+  phoneMaxDigitsValidator,
+  branchAddressValidator,
+  branchCityValidator,
+  BRANCH_ADDRESS_MAX_LENGTH,
+  BRANCH_CITY_MAX_LENGTH
+} from './branch-form.validators';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 
 @Component({
@@ -25,11 +34,15 @@ import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
   templateUrl: './branch-form.component.html',
   styleUrls: ['./branch-form.component.scss']
 })
-export class BranchFormComponent implements OnInit {
+export class BranchFormComponent implements OnInit, OnDestroy {
   loading = true;
   saving = false;
   isEdit = false;
   branchId?: number;
+  /** When set, use tenant-scoped branch APIs (from tenant detail / hierarchy). */
+  tenantId: number | null = null;
+  /** Full branch list for the tenant (includes current branch while editing). */
+  private allBranches: Branch[] = [];
   branches: Branch[] = [];
   managers: User[] = [];
 
@@ -46,6 +59,8 @@ export class BranchFormComponent implements OnInit {
   readonly cityMaxLength = BRANCH_CITY_MAX_LENGTH;
 
   form;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -69,61 +84,119 @@ export class BranchFormComponent implements OnInit {
       country: ['United Arab Emirates'],
       timeZone: ['Asia/Dubai'],
       currencyCode: [DEFAULT_CURRENCY],
-      status: [BranchStatus.Active, Validators.required],
+      status: [BranchStatus.Active as BranchStatus, Validators.required],
       isGpsEnabled: [true]
     });
+  }
+
+  /** Preserve tenant context when navigating back to the list. */
+  get listQueryParams(): { tenantId?: number } {
+    return this.tenantId != null ? { tenantId: this.tenantId } : {};
   }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');
     this.isEdit = !!idParam;
     this.branchId = idParam ? Number(idParam) : undefined;
+    if (this.isEdit && (this.branchId == null || !Number.isFinite(this.branchId) || this.branchId <= 0)) {
+      this.toast.error('Invalid branch id.');
+      void this.navigateBackToList();
+      return;
+    }
+
+    const tenantRaw = this.route.snapshot.queryParamMap.get('tenantId');
+    const tenantParsed = tenantRaw != null && tenantRaw !== '' ? Number(tenantRaw) : NaN;
+    this.tenantId = Number.isFinite(tenantParsed) && tenantParsed > 0 ? tenantParsed : null;
 
     forkJoin({
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
-    }).subscribe(({ countries, currencies, timezones }) => {
-      this.countries = countries;
-      this.currencies = currencies;
-      this.timezones = timezones;
-      this.countryOptions = this.toSelectOptions(countries);
-      this.currencyOptions = this.toSelectOptions(currencies);
-      this.timezoneOptions = this.toSelectOptions(timezones);
-      this.ensureLookupSelections();
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ countries, currencies, timezones }) => {
+        this.countries = countries;
+        this.currencies = currencies;
+        this.timezones = timezones;
+        this.countryOptions = this.toSelectOptions(countries);
+        this.currencyOptions = this.toSelectOptions(currencies);
+        this.timezoneOptions = this.toSelectOptions(timezones);
+        this.ensureLookupSelections();
+      },
+      error: () => { /* Lookups non-blocking; form keeps defaults. */ }
     });
 
-    const requests = {
-      branches: this.platform.getBranches(),
-      users: this.userService.getAll(1, 500)
-    };
+    this.loadFormData();
+  }
 
-    if (this.isEdit && this.branchId) {
-      forkJoin({ ...requests, branch: this.platform.getBranchById(this.branchId) }).subscribe({
-        next: ({ branches, users, branch }) => this.initForm(branches, users.items, branch),
-        error: () => {
-          this.loading = false;
-          this.toast.error('Failed to load branch.');
-          void this.router.navigate(['/platform/branches']);
-        }
-      });
-    } else {
-      forkJoin(requests).subscribe({
-        next: ({ branches, users }) => this.initForm(branches, users.items),
-        error: () => {
-          this.loading = false;
-          this.toast.error('Failed to load form data.');
-        }
-      });
-    }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get addressLength(): number {
     return String(this.form.get('address')?.value ?? '').length;
   }
 
+  isStatusSelected(value: BranchStatus): boolean {
+    return normalizeBranchStatus(this.form.get('status')?.value) === value;
+  }
+
+  private loadFormData(): void {
+    const branches$ = this.tenantId != null
+      ? this.platform.getBranchesForTenant(this.tenantId)
+      : this.platform.getBranches();
+    const users$ = this.userService.getAll(1, 500, this.tenantId);
+
+    if (this.isEdit && this.branchId) {
+      if (this.tenantId != null) {
+        // No get-by-id-for-tenant endpoint — resolve from the tenant branch list.
+        forkJoin({ branches: branches$, users: users$ }).pipe(takeUntil(this.destroy$)).subscribe({
+          next: ({ branches, users }) => {
+            const branch = branches.find(b => b.id === this.branchId);
+            if (!branch) {
+              this.loading = false;
+              this.toast.error('Branch not found for this company.');
+              void this.navigateBackToList();
+              return;
+            }
+            this.initForm(branches, users.items, normalizeBranch(branch));
+          },
+          error: (err) => {
+            this.loading = false;
+            this.toast.error(apiErrorMessage(err, 'Failed to load branch.'));
+            void this.navigateBackToList();
+          }
+        });
+      } else {
+        forkJoin({
+          branches: branches$,
+          users: users$,
+          branch: this.platform.getBranchById(this.branchId)
+        }).pipe(takeUntil(this.destroy$)).subscribe({
+          next: ({ branches, users, branch }) =>
+            this.initForm(branches, users.items, normalizeBranch(branch)),
+          error: (err) => {
+            this.loading = false;
+            this.toast.error(apiErrorMessage(err, 'Failed to load branch.'));
+            void this.navigateBackToList();
+          }
+        });
+      }
+      return;
+    }
+
+    forkJoin({ branches: branches$, users: users$ }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ branches, users }) => this.initForm(branches, users.items),
+      error: (err) => {
+        this.loading = false;
+        this.toast.error(apiErrorMessage(err, 'Failed to load form data.'));
+      }
+    });
+  }
+
   private initForm(branches: Branch[], users: User[], branch?: Branch): void {
-    this.branches = branches.filter(b => !this.branchId || b.id !== this.branchId);
+    this.allBranches = (branches ?? []).map(normalizeBranch);
+    this.branches = this.allBranches.filter(b => !this.branchId || b.id !== this.branchId);
     this.managers = users.filter(u => u.isActive);
 
     if (branch) {
@@ -140,8 +213,8 @@ export class BranchFormComponent implements OnInit {
         country: branch.country ?? 'United Arab Emirates',
         timeZone: branch.timeZone ?? 'Asia/Dubai',
         currencyCode: branch.currencyCode ?? DEFAULT_CURRENCY,
-        status: branch.status,
-        isGpsEnabled: branch.isGpsEnabled
+        status: normalizeBranchStatus(branch.status),
+        isGpsEnabled: !!branch.isGpsEnabled
       });
     }
 
@@ -154,6 +227,9 @@ export class BranchFormComponent implements OnInit {
   }
 
   private ensureLookupSelections(): void {
+    if (!this.countries.length && !this.timezones.length && !this.currencies.length) {
+      return;
+    }
     const country = this.pickExistingOrDefault(
       this.form.get('country')?.value,
       this.countries,
@@ -172,7 +248,11 @@ export class BranchFormComponent implements OnInit {
     this.form.patchValue({ country, timeZone, currencyCode }, { emitEvent: false });
   }
 
-  private pickExistingOrDefault(current: string | null | undefined, options: string[], fallback: string): string {
+  private pickExistingOrDefault(
+    current: string | null | undefined,
+    options: string[],
+    fallback: string
+  ): string {
     if (current && options.includes(current)) return current;
     if (options.includes(fallback)) return fallback;
     return options[0] ?? fallback;
@@ -181,23 +261,52 @@ export class BranchFormComponent implements OnInit {
   reset(): void {
     if (this.isEdit && this.branchId) {
       this.loading = true;
-      this.platform.getBranchById(this.branchId).subscribe({
-        next: branch => {
-          this.initForm(this.branches, this.managers, branch);
+      if (this.tenantId != null) {
+        this.platform.getBranchesForTenant(this.tenantId).pipe(takeUntil(this.destroy$)).subscribe({
+          next: rows => {
+            const branch = rows.find(b => b.id === this.branchId);
+            if (!branch) {
+              this.loading = false;
+              this.toast.error('Branch not found.');
+              return;
+            }
+            this.initForm(rows, this.managers, normalizeBranch(branch));
+          },
+          error: (err) => {
+            this.loading = false;
+            this.toast.error(apiErrorMessage(err, 'Failed to reload branch.'));
+          }
+        });
+        return;
+      }
+
+      this.platform.getBranchById(this.branchId).pipe(takeUntil(this.destroy$)).subscribe({
+        next: branch => this.initForm(this.allBranches, this.managers, normalizeBranch(branch)),
+        error: (err) => {
           this.loading = false;
-        },
-        error: () => { this.loading = false; }
+          this.toast.error(apiErrorMessage(err, 'Failed to reload branch.'));
+        }
       });
       return;
     }
+
     this.form.reset({
+      branchCode: '',
+      name: '',
       branchType: 'Hub',
+      parentBranchId: null,
+      branchManagerUserId: null,
+      phone: '',
+      email: '',
+      address: '',
+      city: '',
       country: 'United Arab Emirates',
       timeZone: 'Asia/Dubai',
       currencyCode: DEFAULT_CURRENCY,
       status: BranchStatus.Active,
       isGpsEnabled: true
     });
+    this.ensureLookupSelections();
   }
 
   submit(): void {
@@ -212,12 +321,18 @@ export class BranchFormComponent implements OnInit {
     this.saving = true;
 
     if (this.isEdit && this.branchId) {
-      this.platform.updateBranch(this.branchId, payload).subscribe({
+      const req = this.tenantId != null
+        ? this.platform.updateBranchForTenant(this.tenantId, this.branchId, payload)
+        : this.platform.updateBranch(this.branchId, payload);
+      req.pipe(takeUntil(this.destroy$)).subscribe({
         next: () => this.onSaveSuccess(true),
         error: (err: unknown) => this.onSaveError(err)
       });
     } else {
-      this.platform.createBranch(payload).subscribe({
+      const req = this.tenantId != null
+        ? this.platform.createBranchForTenant(this.tenantId, payload)
+        : this.platform.createBranch(payload);
+      req.pipe(takeUntil(this.destroy$)).subscribe({
         next: () => this.onSaveSuccess(false),
         error: (err: unknown) => this.onSaveError(err)
       });
@@ -227,7 +342,7 @@ export class BranchFormComponent implements OnInit {
   private onSaveSuccess(isEdit: boolean): void {
     this.saving = false;
     this.toast.success(isEdit ? 'Branch updated.' : 'Branch created.');
-    void this.router.navigate(['/platform/branches']);
+    void this.navigateBackToList();
   }
 
   private onSaveError(err: unknown): void {
@@ -250,12 +365,19 @@ export class BranchFormComponent implements OnInit {
       country: v.country || null,
       timeZone: v.timeZone || null,
       currencyCode: v.currencyCode?.trim()?.toUpperCase() || null,
-      status: v.status ?? BranchStatus.Active,
+      status: normalizeBranchStatus(v.status),
       isGpsEnabled: !!v.isGpsEnabled
     };
   }
 
   cancel(): void {
-    void this.router.navigate(['/platform/branches']);
+    void this.navigateBackToList();
+  }
+
+  private navigateBackToList(): Promise<boolean> {
+    return this.router.navigate(
+      ['/platform/branches'],
+      this.tenantId != null ? { queryParams: { tenantId: this.tenantId } } : undefined
+    );
   }
 }

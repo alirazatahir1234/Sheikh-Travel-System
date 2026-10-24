@@ -128,33 +128,33 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
             new CommandDefinition(
                 @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
                   WHERE TenantId = @TenantId AND Status = @PaidStatus
-                    AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { TenantId = tenantId, PaidStatus = (int)PaymentStatus.Paid, FromDate = fromDate, ToDate = toDate },
+                    AND PaymentDate >= @FromDate AND PaymentDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, PaidStatus = (int)PaymentStatus.Paid, FromDate = fromDate, ToExclusive = toDate },
                 cancellationToken: cancellationToken));
 
         var totalPending = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
                 @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
                   WHERE TenantId = @TenantId AND Status IN (@Pending, @Partial)
-                    AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { TenantId = tenantId, Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid, FromDate = fromDate, ToDate = toDate },
+                    AND PaymentDate >= @FromDate AND PaymentDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid, FromDate = fromDate, ToExclusive = toDate },
                 cancellationToken: cancellationToken));
 
         var totalTransactions = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
                 @"SELECT COUNT(*) FROM Payments
-                  WHERE TenantId = @TenantId AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
+                  WHERE TenantId = @TenantId AND PaymentDate >= @FromDate AND PaymentDate < @ToExclusive AND IsDeleted = 0",
+                new { TenantId = tenantId, FromDate = fromDate, ToExclusive = toDate },
                 cancellationToken: cancellationToken));
 
         var recentPayments = await connection.QueryAsync<PaymentDto>(
             new CommandDefinition(
-                @"SELECT TOP 10 Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
+                @"SELECT TOP 200 Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
                   TransactionReference, Notes, CreatedAt
                   FROM Payments
-                  WHERE TenantId = @TenantId AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
-                  ORDER BY CreatedAt DESC",
-                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
+                  WHERE TenantId = @TenantId AND PaymentDate >= @FromDate AND PaymentDate < @ToExclusive AND IsDeleted = 0
+                  ORDER BY PaymentDate DESC, CreatedAt DESC",
+                new { TenantId = tenantId, FromDate = fromDate, ToExclusive = toDate },
                 cancellationToken: cancellationToken));
 
         return new PaymentReportDto(totalReceived, totalPending, totalTransactions, recentPayments.ToList());

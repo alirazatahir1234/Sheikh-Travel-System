@@ -2,17 +2,21 @@
   <ui-page-header
     title="Company Management"
     subtitle="Monitor and govern all companies across the platform."
-    [breadcrumbs]="[{ label: 'Platform' }, { label: 'Companies' }]">
-    <a routerLink="/platform/tenants/new" class="tenant-header-link tenant-header-link--primary">
+    [breadcrumbs]="[{ label: 'Organization' }, { label: 'Companies' }]">
+    <a *ngIf="canManage" routerLink="/platform/tenants/new" class="tenant-header-link tenant-header-link--primary">
       <mat-icon>add_business</mat-icon>
       <span>Add Company</span>
     </a>
   </ui-page-header>
 
   <div *ngIf="loading" class="tenant-loading" aria-busy="true" aria-label="Loading companies">
-    <span class="stb-shimmer-block tenant-skeleton__metric" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
+    <div class="tenant-loading__metrics">
+      <span class="stb-shimmer-block tenant-skeleton__metric" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
+    </div>
     <span class="stb-shimmer-block tenant-skeleton__filter"></span>
-    <span class="stb-shimmer-block tenant-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
+    <div class="tenant-skeleton__rows">
+      <span class="stb-shimmer-block tenant-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
+    </div>
   </div>
 
   <ng-container *ngIf="!loading">
@@ -22,7 +26,9 @@
         <div>
           <p class="metric-label">Active Companies</p>
           <p class="metric-value">{{ stats.activeTenants | number }}</p>
-          <span class="metric-badge metric-badge--positive">{{ tenantGrowthPercent() }}</span>
+          <span class="metric-badge"
+                [class.metric-badge--positive]="stats.tenantsAddedThisMonth > 0"
+                [class.metric-badge--muted]="!stats.tenantsAddedThisMonth">{{ tenantGrowthPercent() }}</span>
         </div>
       </mat-card>
 
@@ -31,7 +37,6 @@
         <div>
           <p class="metric-label">Active Users</p>
           <p class="metric-value">{{ stats.activeUsers | number }}</p>
-          <span class="metric-badge metric-badge--positive">Healthy</span>
         </div>
       </mat-card>
 
@@ -40,7 +45,6 @@
         <div>
           <p class="metric-label">Active Vehicles</p>
           <p class="metric-value">{{ stats.activeVehicles | number }}</p>
-          <span class="metric-badge metric-badge--positive">Healthy</span>
         </div>
       </mat-card>
 
@@ -61,7 +65,6 @@
         <div>
           <p class="metric-label">Monthly Revenue</p>
           <p class="metric-value">{{ formatRevenue(stats.monthlyRevenue) }}</p>
-          <span class="metric-badge metric-badge--positive">{{ revenueTrendLabel() }}</span>
         </div>
       </mat-card>
     </div>
@@ -123,13 +126,14 @@
       </div>
 
       <div class="bulk-toolbar">
-        <div class="bulk-actions">
+        <div class="bulk-actions" *ngIf="canManage">
           <ui-button variant="outline" size="sm" (clicked)="bulkActivate()" [disabled]="!selectedIds.size">
             Bulk Activate
           </ui-button>
           <ui-button variant="danger" size="sm" (clicked)="bulkSuspend()" [disabled]="!selectedIds.size">
             Bulk Suspend
           </ui-button>
+          <span class="bulk-selection" *ngIf="selectedIds.size">{{ selectedIds.size }} selected</span>
         </div>
         <div class="toolbar-actions">
           <ui-button variant="ghost" size="sm" icon="download" (clicked)="exportCsv()" title="Export CSV"></ui-button>
@@ -295,7 +299,7 @@
         <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
           <mat-icon>visibility</mat-icon><span>View Details</span>
         </button>
-        <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
+        <button mat-menu-item type="button" *ngIf="canManage" (click)="openTenant(selectedRow!)">
           <mat-icon>edit</mat-icon><span>Edit Company</span>
         </button>
         <button mat-menu-item type="button" (click)="openOrganizationDesigner(selectedRow!)">
@@ -304,17 +308,17 @@
         <button mat-menu-item type="button" (click)="openModuleManagement(selectedRow!)">
           <mat-icon>extension</mat-icon><span>Manage Modules</span>
         </button>
-        <button mat-menu-item type="button" (click)="manageUsers()">
+        <button mat-menu-item type="button" (click)="manageUsers(selectedRow)">
           <mat-icon>groups</mat-icon><span>Manage Users</span>
         </button>
-        <button mat-menu-item type="button" (click)="toggleActive(selectedRow!)">
+        <button mat-menu-item type="button" *ngIf="canManage" (click)="toggleActive(selectedRow!)">
           <mat-icon>{{ selectedRow?.isActive ? 'pause_circle' : 'play_circle' }}</mat-icon>
           <span>{{ selectedRow?.isActive ? 'Suspend' : 'Activate' }}</span>
         </button>
         <button mat-menu-item type="button" (click)="openBilling(selectedRow!)">
           <mat-icon>payments</mat-icon><span>Billing</span>
         </button>
-        <button mat-menu-item type="button" (click)="openAuditLogs()">
+        <button mat-menu-item type="button" (click)="openAuditLogs(selectedRow)">
           <mat-icon>history</mat-icon><span>Audit Logs</span>
         </button>
       </mat-menu>
@@ -323,7 +327,7 @@
         <mat-icon>domain_disabled</mat-icon>
         <p>No companies match your filters</p>
         <span>Adjust search or filters, or add a new company to get started.</span>
-        <button mat-stroked-button type="button" class="tenant-empty__cta" (click)="openAddTenant()">
+        <button *ngIf="canManage" mat-stroked-button type="button" class="tenant-empty__cta" (click)="openAddTenant()">
           <mat-icon>add_business</mat-icon> Add Company
         </button>
       </div>

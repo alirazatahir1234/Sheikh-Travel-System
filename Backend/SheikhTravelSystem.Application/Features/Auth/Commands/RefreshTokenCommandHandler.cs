@@ -8,23 +8,34 @@ using SheikhTravelSystem.Domain.Enums;
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
 /// <summary>
-/// Rotates refresh tokens and returns a new access token pair.
+/// Rotates refresh tokens and returns a new access token pair for the same auth session.
 /// </summary>
 public class RefreshTokenCommandHandler(
     IAuthRepository authRepository,
+    IAuthSessionService authSessions,
     IJwtTokenService jwtTokenService,
     IUserAccessService userAccessService,
     IConfiguration configuration) : IRequestHandler<RefreshTokenCommand, ApiResponse<LoginResponse>>
 {
-    /// <summary>
-    /// Validates the provided refresh token and issues replacement tokens.
-    /// </summary>
     public async Task<ApiResponse<LoginResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var user = await authRepository.FindUserByValidRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        var session = await authSessions.FindActiveByRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        Domain.Entities.User? user = null;
+        Guid? sessionId = null;
+
+        if (session is not null)
+        {
+            sessionId = session.Id;
+            user = await authRepository.GetActiveUserByIdAsync(session.UserId, cancellationToken);
+        }
+        else
+        {
+            // Legacy path: refresh token only on Users (pre-AuthSessions).
+            user = await authRepository.FindUserByValidRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        }
 
         if (user is null)
-            return ApiResponse<LoginResponse>.FailResponse("Invalid or expired refresh token.");
+            return ApiResponse<LoginResponse>.FailResponse("Session is no longer valid. Please log in again.");
 
         int? driverId = null;
         if (user.Role == UserRole.Driver)
@@ -33,15 +44,35 @@ public class RefreshTokenCommandHandler(
         }
 
         var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
-        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId, access);
         var newRefreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
+        var refreshExpiry = DateTime.UtcNow.AddDays(expiryDays);
 
-        await authRepository.UpdateRefreshTokenAsync(
-            user.Id,
-            newRefreshToken,
-            DateTime.UtcNow.AddDays(expiryDays),
-            cancellationToken);
+        if (sessionId is Guid sid)
+        {
+            await authSessions.RotateRefreshTokenAsync(sid, user.Id, newRefreshToken, refreshExpiry, cancellationToken);
+        }
+        else
+        {
+            // Promote legacy token into AuthSessions (counts toward tenant concurrency).
+            var created = await authSessions.CreateSessionAsync(
+                user.TenantId,
+                user.Id,
+                newRefreshToken,
+                refreshExpiry,
+                AuthSessionLimits.ClientKindWeb,
+                cancellationToken);
+            if (created.LimitReached)
+            {
+                return ApiResponse<LoginResponse>.FailResponse(
+                    AuthSessionLimits.LimitReachedMessage,
+                    code: AuthSessionLimits.LimitReachedCode);
+            }
+
+            sessionId = created.SessionId;
+        }
+
+        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId, access, sessionId);
 
         var orderedRoles = RoleCodePriority.OrderByPrivilege(access.RoleCodes);
         var primaryRole = RoleCodePriority.SelectPrimary(orderedRoles) ?? user.Role.ToString();

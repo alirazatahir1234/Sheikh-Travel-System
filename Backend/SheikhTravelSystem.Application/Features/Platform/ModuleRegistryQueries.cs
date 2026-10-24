@@ -141,4 +141,5 @@ internal static class ModuleRegistryQueries
             IsInstalled: enabled,
             IsLicensed: licensed,
             CanToggle: m.IsEnableable);
+
 }

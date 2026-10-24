@@ -417,10 +417,12 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     ctrl?.markAsTouched();
   }
 
-  validateConfiguration(): boolean {
+  validateConfiguration(announceValid = true): boolean {
     this.form.markAllAsTouched();
     if (this.form.valid) {
-      this.toast.success('Configuration is valid and ready to provision.');
+      if (announceValid) {
+        this.toast.success('Configuration is valid and ready to provision.');
+      }
       return true;
     }
     this.scrollToFirstInvalid();
@@ -430,7 +432,7 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
 
   submit(): void {
     if (this.saving) return;
-    if (!this.validateConfiguration()) return;
+    if (!this.validateConfiguration(false)) return;
 
     const payload = this.buildPayload();
     if (!payload) return;

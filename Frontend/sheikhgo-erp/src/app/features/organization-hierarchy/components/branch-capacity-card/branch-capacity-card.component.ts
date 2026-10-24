@@ -13,7 +13,7 @@ import { ProgressBarComponent } from '../progress-bar/progress-bar.component';
   imports: [CommonModule, ProgressBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-white rounded-xl border border-border overflow-hidden">
+    <div class="bg-white rounded-lg border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border flex items-center justify-between">
         <div class="flex items-center gap-2">

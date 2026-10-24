@@ -16,6 +16,7 @@ public class LoginCommandHandler(
     IAuthRepository authRepository,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
+    IAuthSessionService authSessions,
     IUserAccessService userAccessService,
     IUserPresenceService presence,
     ISecurityEngine securityEngine,
@@ -141,16 +142,26 @@ public class LoginCommandHandler(
             UpdatedAt = user.UpdatedAt,
             IsDeleted = user.IsDeleted
         };
-        // token service reads TenantId from BaseEntity
-        var accessToken = jwtTokenService.GenerateAccessToken(domainUser, driverId, access);
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
+        var refreshExpiry = DateTime.UtcNow.AddDays(expiryDays);
 
-        await authRepository.UpdateRefreshTokenAsync(
+        // Tenant-wide max 2 concurrent sessions — block 3rd login (do not kick existing).
+        var session = await authSessions.CreateSessionAsync(
+            user.TenantId,
             user.Id,
             refreshToken,
-            DateTime.UtcNow.AddDays(expiryDays),
+            refreshExpiry,
+            AuthSessionLimits.ClientKindWeb,
             cancellationToken);
+        if (session.LimitReached)
+        {
+            return ApiResponse<LoginResponse>.FailResponse(
+                AuthSessionLimits.LimitReachedMessage,
+                code: AuthSessionLimits.LimitReachedCode);
+        }
+
+        var accessToken = jwtTokenService.GenerateAccessToken(domainUser, driverId, access, session.SessionId);
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
         try
