@@ -1,0 +1,1 @@
+function o(r){return r.replace(/\D/g,"")}function t(r){r.ctrlKey||r.metaKey||r.altKey||["Backspace","Delete","Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(r.key)||r.key.length===1&&!/\d/.test(r.key)&&r.preventDefault()}export{o as a,t as b};

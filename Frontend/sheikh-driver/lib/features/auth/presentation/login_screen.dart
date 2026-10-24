@@ -315,10 +315,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                       Text(
-                        // Prod: version only. Non-prod: include host for local debugging.
-                        AppConfig.isProd
-                            ? 'v${AppConfig.appVersion}'
-                            : 'v${AppConfig.appVersion} · ${Uri.tryParse(AppConfig.apiOrigin)?.host ?? AppConfig.apiOrigin}',
+                        'v${AppConfig.appVersion}',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 11, color: p.textMuted),
                       ),
