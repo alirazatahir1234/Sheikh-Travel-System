@@ -27,6 +27,7 @@ export class RequestDemoPage implements OnInit {
     'Cloud',
     'Custom Software',
     'GPS Tracking',
+    'GPS Alerts',
     'Fleet Management',
     'Enterprise',
   ];

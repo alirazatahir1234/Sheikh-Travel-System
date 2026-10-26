@@ -56,7 +56,7 @@ export class FeaturesPage implements OnInit {
     { title: 'Trip Management', text: 'Create, monitor and complete trips with GPS context.', link: '/features' },
     { title: 'Maintenance', text: 'Schedules, work orders, vendors and history.', link: '/features' },
     { title: 'Fuel Management', text: 'Entries, cost, efficiency and reports.', link: '/features' },
-    { title: 'Alerts & Notifications', text: 'Offline, overspeed, geofence and maintenance alerts.', link: '/gps-tracking' },
+    { title: 'Alerts & Notifications', text: 'Safety, tracking and vehicle health alerts — SOS, road speed, geofence, fuel and more.', link: '/gps-alerts' },
     { title: 'Reports & Analytics', text: 'Utilization, distance, speed, fuel and ops analytics.', link: '/features' },
     { title: 'SheikhGo AI Assistant', text: 'Ask operational questions across fleet data.', link: '/features' },
     { title: 'Security & Access', text: 'RBAC, tenant isolation, JWT and audit logging.', link: '/about' },

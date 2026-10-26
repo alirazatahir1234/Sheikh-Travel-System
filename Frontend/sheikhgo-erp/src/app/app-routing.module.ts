@@ -54,6 +54,19 @@ const routes: Routes = [
     ],
   },
 
+  // Always-public marketing page (no ERP path clash — ERP alerts live at /gps-tracking/alerts)
+  {
+    path: 'gps-alerts',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/gps-alerts/gps-alerts.page').then(m => m.GpsAlertsPage),
+      },
+    ],
+  },
+
   // Public marketing site (guests only — avoids clashing with ERP paths like gps-tracking)
   {
     path: '',
@@ -185,7 +198,8 @@ const routes: Routes = [
       {
         path: 'gps-tracking',
         canActivate: [permissionGuard],
-        data: { permissions: ['GPS.View'] },
+        // GPS.View for live map/devices; Gps.AlertView for Alerts menu (/gps-tracking/alerts)
+        data: { permissions: ['GPS.View', 'Gps.AlertView'] },
         loadChildren: () => import('./modules/gps-tracking/gps-tracking.module').then(m => m.GpsTrackingModule)
       },
       { path: 'tracking', redirectTo: 'gps-tracking/live', pathMatch: 'full' },

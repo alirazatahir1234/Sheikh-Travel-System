@@ -19,6 +19,10 @@ export const WEBSITE_ROUTES: Routes = [
         loadComponent: () => import('./pages/gps/gps.page').then(m => m.GpsPage),
       },
       {
+        path: 'gps-alerts',
+        loadComponent: () => import('./pages/gps-alerts/gps-alerts.page').then(m => m.GpsAlertsPage),
+      },
+      {
         path: 'features',
         loadComponent: () => import('./pages/features/features.page').then(m => m.FeaturesPage),
       },

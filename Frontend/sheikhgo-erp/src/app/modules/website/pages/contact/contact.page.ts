@@ -23,6 +23,7 @@ export class ContactPage implements OnInit {
   readonly interests = [
     'Fleet Management',
     'GPS Tracking',
+    'GPS Alerts',
     'Vehicle Rental',
     'Travel Management',
     'Trip Management',
