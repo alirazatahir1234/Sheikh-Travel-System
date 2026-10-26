@@ -26,7 +26,7 @@ import { WebsiteWhatsAppFabComponent } from './shared/website-whatsapp-fab/websi
       <app-cookie-consent />
       <app-website-whatsapp-fab />
       <div class="mobile-cta">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Quote</a>
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
       </div>
     </div>
   `,

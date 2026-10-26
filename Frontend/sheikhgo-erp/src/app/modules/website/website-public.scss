@@ -1,25 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
 
 .website-shell {
-  --sg-ink: #022f32;
-  --sg-ink-2: #06252d;
-  --sg-navy: #06252d;
-  --sg-teal: #0f766e;
-  --sg-teal-bright: #18c987;
-  --sg-emerald: #00d97e;
-  --sg-primary: #18c987;
-  --sg-primary-strong: #00d97e;
+  --sg-ink: #032f32;
+  --sg-ink-2: #05272c;
+  --sg-navy: #05272c;
+  --sg-teal: #0faf9b;
+  --sg-teal-bright: #00d49a;
+  --sg-emerald: #00d49a;
+  --sg-primary: #00d49a;
+  --sg-primary-strong: #00d49a;
   --sg-fleet: #005f49;
   --sg-green: #18c987;
   --sg-green-2: #42d991;
-  --sg-mist: #e9faf4;
-  --sg-mint: #e9faf4;
-  --sg-sand: #f5fbf9;
-  --sg-page: #f5fbf9;
-  --sg-text: #102a33;
-  --sg-muted: #60747d;
-  --sg-line: rgba(2, 47, 50, 0.12);
-  --sg-border: rgba(2, 47, 50, 0.12);
+  --sg-mist: #f2faf7;
+  --sg-mint: #f2faf7;
+  --sg-sand: #f2faf7;
+  --sg-page: #f2faf7;
+  --sg-text: #102b36;
+  --sg-muted: #637780;
+  --sg-line: #e1eee9;
+  --sg-border: #e1eee9;
+  --sg-border-soft: #e1eee9;
   --sg-white: #ffffff;
   --sg-gold: #c4a574;
   --sg-radius: 16px;
@@ -200,14 +201,19 @@
   }
 
   #services,
+  #home-ai,
   #ai-solutions,
   #industries,
   #work,
   #why,
   #process,
   #cta,
-  #trusted {
-    scroll-margin-top: calc(var(--header-h) + 1rem);
+  #trusted,
+  #see-the-platform,
+  #platform-features,
+  #erp-ai,
+  #trust {
+    scroll-margin-top: calc(var(--header-h) + 3rem);
   }
 
   .sg-section-title {

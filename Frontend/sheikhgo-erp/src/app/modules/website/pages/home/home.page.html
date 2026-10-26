@@ -1,63 +1,83 @@
-<section class="hero" id="top">
-  <div class="hero-bg" aria-hidden="true"></div>
-  <div class="container hero-grid">
+<section class="home-hero" id="top">
+  <div class="hero-mesh" aria-hidden="true"></div>
+  <div class="container hero-inner">
     <div class="hero-copy reveal">
-      <p class="sg-eyebrow">{{ heroEyebrow }}</p>
-      <h1>
-        <span class="h1-line">{{ heroTitlePrimary }}</span>
-        @if (heroTitleAccent) {
-          <span class="h1-line accent">{{ heroTitleAccent }}</span>
-        }
-      </h1>
-      <p class="lead">{{ heroLead }}</p>
+      <span class="section-kicker">Fleet &amp; travel management platform</span>
+      <h1>Move Smarter.<br />Travel Further.</h1>
+      <p class="hero-tagline">GPS, ERP, and AI in one premium operations stack.</p>
+      <p class="hero-lead">
+        SheikhGo NEXUS brings live tracking, geofencing, trip playback, offline sync, fleet health alerts, and
+        tool-first AI assistants into a single fleet intelligence experience — plus the ERP depth operators need
+        day to day.
+      </p>
       <div class="hero-actions">
-        <a [routerLink]="heroPrimaryCta.link" class="btn btn-primary">{{ heroPrimaryCta.label }}</a>
-        <a
-          [routerLink]="heroSecondaryCta.link"
-          [fragment]="heroSecondaryCta.fragment || undefined"
-          class="btn btn-ghost">{{ heroSecondaryCta.label }}</a>
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost">
+          <mat-icon aria-hidden="true">play_circle</mat-icon>
+          See NEXUS Dashboard
+        </a>
       </div>
+      <ul class="hero-perks">
+        @for (p of heroPerks; track p.text) {
+          <li class="hero-perk">
+            <mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>
+            {{ p.text }}
+          </li>
+        }
+      </ul>
     </div>
-
     <div class="hero-visual reveal delay" aria-hidden="true">
       <div class="hero-glow"></div>
-      <div class="tech-orbit">
-        <div class="orbit-ring"></div>
-        <div class="orbit-ring ring-2"></div>
-        <div class="orbit-core"><span>AI</span></div>
-        @for (chip of capabilityChips; track chip.label; let i = $index) {
-          <span class="orbit-chip" [ngClass]="'chip-' + i">
-            <mat-icon aria-hidden="true">{{ chip.icon }}</mat-icon>
-            <span>{{ chip.label }}</span>
-          </span>
-        }
+      <div class="float-chip">
+        <mat-icon>gps_fixed</mat-icon>
+        <div>
+          <strong>Live fleet map</strong>
+          <span>Speed, status &amp; geofences</span>
+        </div>
+      </div>
+      <div class="chat-shell">
+        <div class="chat-head">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>SheikhGo AI</span>
+          <span class="live">Tools connected</span>
+        </div>
+        <div class="chat-body">
+          <div class="bubble user">Which vehicles are offline right now?</div>
+          <div class="bubble bot">
+            <span class="tool-tag">live · alerts</span>
+            3 units — last seen times and locations from your GPS feed.
+          </div>
+          <div class="bubble bot dim">Heuristic insights — not undisclosed trained models.</div>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="container soft-stats">
-    @for (s of softStats; track s.label) {
-      <div class="soft-stat">
-        <span class="dot" aria-hidden="true"></span>
-        <span>{{ s.label }}</span>
-      </div>
-    }
   </div>
 </section>
 
-<section class="nexus-showcase sg-section" id="see-the-platform" aria-labelledby="nexus-showcase-heading">
+<nav class="premium-pill-nav" aria-label="Explore the platform">
+  <div class="container pills">
+    @for (pill of pillLinks; track pill.fragment) {
+      <a [routerLink]="['/']" [fragment]="pill.fragment">
+        <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
+        {{ pill.label }}
+      </a>
+    }
+  </div>
+</nav>
+
+<section class="nexus-showcase" id="see-the-platform" aria-labelledby="nexus-showcase-heading">
   <div class="nexus-showcase-bg" aria-hidden="true"></div>
-  <div class="container">
+  <div class="container nexus-container">
     <header class="section-head nexus-showcase-head">
-      <span class="section-kicker">SheikhGo NEXUS</span>
-      <h2 id="nexus-showcase-heading" class="sg-section-title">See the Fleet Intelligence Platform</h2>
-      <p class="sg-section-lead">
-        One dashboard for live maps, GPS alerts, trips, geofences, fleet health, and an AI assistant that answers
-        from your operational data — built for transport and logistics teams.
+      <span class="section-kicker">Centerpiece · SheikhGo NEXUS</span>
+      <h2 id="nexus-showcase-heading" class="section-title">Fleet intelligence dashboard</h2>
+      <p class="section-lead">
+        Live map, recent GPS alerts, geofences, trip playback, fleet health, fuel and maintenance signals — with
+        an AI assistant panel that answers from operational tools, not marketing fiction.
       </p>
       <div class="nexus-showcase-actions">
         <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
-        <a routerLink="/fleet-management" class="btn btn-outline">Explore SheikhGo Fleet →</a>
+        <a [routerLink]="brand.loginPath" class="btn btn-outline">Sign in to ERP</a>
       </div>
     </header>
 
@@ -66,11 +86,12 @@
       <div class="nexus-screenshot-wrap">
         <img
           src="/website/nexus/fleet-intelligence-dashboard.jpg"
-          alt="SheikhGo NEXUS product mockup: live fleet map, recent GPS alerts, feature highlights, and AI assistant panel"
+          alt="SheikhGo NEXUS fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant"
           class="nexus-screenshot"
           width="1920"
           height="1080"
-          loading="lazy"
+          loading="eager"
+          fetchpriority="high"
           decoding="async"
           [class.is-hidden]="nexusImageError"
           (error)="nexusImageError = true" />
@@ -92,46 +113,132 @@
         </div>
       }
       <figcaption class="nexus-caption">
-        Product UI illustration — sample fleet metrics in the image are for demonstration, not live customer data.
+        Product UI illustration — sample metrics in the image are for demonstration, not live customer data.
       </figcaption>
     </figure>
+  </div>
+</section>
 
-    <div class="nexus-feature-grid">
-      @for (f of nexusFeatures; track f.title) {
-        <a class="nexus-feature-card" [routerLink]="f.link">
-          <span class="nexus-feature-icon" aria-hidden="true"><mat-icon>{{ f.icon }}</mat-icon></span>
-          <h3>{{ f.title }}</h3>
-          <p>{{ f.text }}</p>
+<section class="section platform-capabilities" id="platform-features" aria-labelledby="platform-features-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">Platform</span>
+      <h2 id="platform-features-heading" class="section-title">Everything operators expect — honestly delivered</h2>
+      <p class="section-lead">
+        From first GPS fix to ERP records, playback, and AI-assisted decisions. Each capability links to a product
+        page with clear scope.
+      </p>
+    </header>
+    <div class="platform-cap-grid">
+      @for (cap of platformCapabilities; track cap.title) {
+        <article class="platform-cap-card">
+          <span class="cap-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
+          <h3>{{ cap.title }}</h3>
+          <p>{{ cap.text }}</p>
+          <a class="cap-link" [routerLink]="cap.link">{{ cap.linkLabel }} →</a>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="trust-band" id="trust">
+  <div class="container trust-inner">
+    <mat-icon aria-hidden="true">verified</mat-icon>
+    <div>
+      <strong>Built for operators, described honestly</strong>
+      <p>
+        Fleet intelligence scores and digests are <em>heuristic and rule-based</em> on your signals. AI assistants
+        call SheikhGo tools (GPS, trips, alerts, ERP). WhatsApp AI <em>never auto-sends</em>. LLM features need a
+        provider you configure.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-band-alt" id="erp-ai" aria-labelledby="erp-ai-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">ERP &amp; intelligence</span>
+      <h2 id="erp-ai-heading" class="section-title">Operations depth + fleet AI</h2>
+      <p class="section-lead">
+        NEXUS sits on SheikhGo ERP — vehicles, drivers, fuel, maintenance, bookings, and reports — with AI layers
+        that respect human approval and transparent logic.
+      </p>
+    </header>
+    <div class="premium-card-grid cols-2">
+      @for (pillar of erpPillars; track pillar.title) {
+        <a class="premium-card pillar-card" [routerLink]="pillar.link">
+          <span class="pillar-icon" aria-hidden="true"><mat-icon>{{ pillar.icon }}</mat-icon></span>
+          <h3>{{ pillar.title }}</h3>
+          <p>{{ pillar.text }}</p>
+          <ul class="pillar-list">
+            @for (item of pillar.items; track item) {
+              <li><mat-icon aria-hidden="true">check</mat-icon>{{ item }}</li>
+            }
+          </ul>
+          <span class="pillar-link">{{ pillar.linkLabel }} →</span>
         </a>
       }
     </div>
   </div>
 </section>
 
-@if (cmsFeatures.length) {
-  <section class="sg-section" id="cms-features" aria-labelledby="cms-features-heading">
-    <div class="container">
-      <div class="section-head">
-        <span class="section-kicker">Platform</span>
-        <h2 id="cms-features-heading" class="sg-section-title">Featured capabilities</h2>
-      </div>
-      <div class="card-grid services-grid">
-        @for (f of cmsFeatures; track f.title; let i = $index) {
-          <a class="sg-card service-card" [routerLink]="f.link">
-            <span class="card-icon" aria-hidden="true"><mat-icon>{{ cmsFeatureIcon(i) }}</mat-icon></span>
-            <h3>{{ f.title }}</h3>
-            <p>{{ f.text }}</p>
-            <span class="card-action" aria-hidden="true">→</span>
-          </a>
+<section class="home-ai-spotlight" id="home-ai">
+  <div class="ai-spotlight-bg" aria-hidden="true"></div>
+  <div class="container ai-spotlight-grid">
+    <div class="ai-spotlight-copy">
+      <span class="section-kicker light">AI Solutions</span>
+      <h2>Fleet AI that answers from your data</h2>
+      <p>
+        Assistants, copilot chat, health scores, morning digests, and WhatsApp drafting — tool-first, optionally
+        powered by LLMs you configure.
+      </p>
+      <ul class="ai-spotlight-list">
+        @for (f of aiFeatures; track f) {
+          <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
-      </div>
+      </ul>
+      <a routerLink="/ai-solutions" class="btn btn-primary">Explore AI Capabilities →</a>
     </div>
-  </section>
-}
+    <div class="ai-spotlight-cards" aria-hidden="true">
+      @for (card of aiSpotlightCards; track card.title) {
+        <article class="ai-spot-card">
+          <mat-icon>{{ card.icon }}</mat-icon>
+          <strong>{{ card.title }}</strong>
+          <p>{{ card.text }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section section-band-white" id="services">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">Services</span>
+      <h2 class="section-title">Complete IT solutions for modern businesses</h2>
+      <p class="section-lead">
+        Custom software, mobile, cloud, and design — the same team that ships SheikhGo Fleet and NEXUS for
+        transport operators worldwide.
+      </p>
+    </header>
+    <div class="premium-card-grid">
+      @for (s of services; track s.title) {
+        <a class="premium-card service-link-card" routerLink="/services" [fragment]="s.slug">
+          <span class="cap-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
+          <h3>{{ s.title }}</h3>
+          <p>{{ s.text }}</p>
+          <span class="cap-link">Learn more →</span>
+        </a>
+      }
+    </div>
+  </div>
+</section>
 
 <section class="trusted" id="trusted" aria-labelledby="trusted-heading">
   <div class="container">
-    <h2 id="trusted-heading" class="trusted-heading">Trusted Technologies &amp; Platforms</h2>
+    <h2 id="trusted-heading" class="trusted-heading">Trusted technologies &amp; platforms</h2>
     <ul class="trusted-row">
       @for (t of trustedTech; track t) {
         <li><mat-icon aria-hidden="true">verified</mat-icon><span>{{ t }}</span></li>
@@ -140,176 +247,16 @@
   </div>
 </section>
 
-<section class="sg-section services" id="services">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Services</span>
-      <h2 class="sg-section-title">Complete IT Solutions for Modern Businesses</h2>
-      <p class="sg-section-lead">
-        From idea to implementation, we provide end-to-end technology solutions tailored to your business goals.
-      </p>
-    </div>
-    <div class="card-grid services-grid">
-      @for (s of services; track s.title) {
-        <a class="sg-card service-card" routerLink="/services" [fragment]="s.slug">
-          <span class="card-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
-          <h3>{{ s.title }}</h3>
-          <p>{{ s.text }}</p>
-          <span class="card-action" aria-hidden="true">→</span>
-        </a>
-      }
-    </div>
-  </div>
-</section>
-
-<section class="ai-band">
-  <div class="ai-bg" aria-hidden="true"></div>
-  <div class="container ai-grid">
-    <div class="ai-copy">
-      <span class="section-kicker light">AI Solutions</span>
-      <h2>Fleet AI that answers from your data</h2>
-      <p>
-        Assistants, copilot chat, health scores, morning digests, and WhatsApp drafting — tool-first, optionally
-        powered by LLMs you configure. Honest heuristics, not black-box hype.
-      </p>
-      <ul class="ai-list">
-        @for (f of aiFeatures; track f) {
-          <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
-        }
-      </ul>
-      <a routerLink="/ai-solutions" class="btn btn-primary">Explore AI Solutions →</a>
-    </div>
-    <div class="ai-panel" aria-hidden="true">
-      <div class="ai-panel-card">
-        <mat-icon class="panel-icon" aria-hidden="true">support_agent</mat-icon>
-        <strong>AI Assistant</strong>
-        <p>Structured Q&amp;A via fleet tools — trips, fuel, alerts, and more.</p>
-      </div>
-      <div class="ai-panel-card secondary">
-        <mat-icon class="panel-icon" aria-hidden="true">insights</mat-icon>
-        <strong>Fleet intelligence</strong>
-        <p>Scores, digests, and recommendations from transparent rules.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="sg-section industries" id="industries">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Industries</span>
-      <h2 class="sg-section-title">Technology Solutions Across Industries</h2>
-      <p class="sg-section-lead">
-        We understand that every industry has unique challenges. Our solutions are built to meet real-world business
-        needs.
-      </p>
-    </div>
-    <div class="industry-grid">
-      @for (i of industries; track i.title) {
-        <a class="sg-card industry-card" [routerLink]="i.link">
-          <span class="card-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
-          <h3>{{ i.title }}</h3>
-        </a>
-      }
-    </div>
-  </div>
-</section>
-
-<section class="sg-section why" id="why">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Why SheikhGo</span>
-      <h2 class="sg-section-title">More Than Just Development</h2>
-      <p class="sg-section-lead">
-        We combine technology, strategy, creativity and AI to deliver solutions that create real business value.
-      </p>
-    </div>
-    <div class="card-grid why-grid">
-      @for (w of whyItems; track w.title) {
-        <article class="sg-card why-card">
-          <span class="card-icon" aria-hidden="true"><mat-icon>{{ w.icon }}</mat-icon></span>
-          <h3>{{ w.title }}</h3>
-          <p>{{ w.text }}</p>
-        </article>
-      }
-    </div>
-  </div>
-</section>
-
-<section class="sg-section process" id="process">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Process</span>
-      <h2 class="sg-section-title">From Idea to Impact</h2>
-      <p class="sg-section-lead">A clear path from discovery to launch — and ongoing support.</p>
-    </div>
-    <ol class="process-timeline">
-      @for (p of processSteps; track p.step; let last = $last) {
-        <li>
-          <span class="step-icon-wrap">
-            <mat-icon class="step-icon" aria-hidden="true">{{ p.icon }}</mat-icon>
-            <span class="step-num">{{ p.step }}</span>
-          </span>
-          <h3>{{ p.title }}</h3>
-          <p>{{ p.text }}</p>
-          @if (!last) {
-            <span class="step-connector" aria-hidden="true"></span>
-          }
-        </li>
-      }
-    </ol>
-  </div>
-</section>
-
-<section class="sg-section work" id="work">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Our Work</span>
-      <h2 class="sg-section-title">Turning Ideas Into Digital Products</h2>
-      <p class="sg-section-lead">
-        Flagship industry software and custom digital builds — SheikhGo Fleet is our product bridge into operations.
-      </p>
-    </div>
-
-    <article class="fleet-feature">
-      <div class="fleet-copy">
-        <p class="fleet-kicker">Flagship product</p>
-        <h3>SheikhGo Fleet</h3>
-        <p>
-          AI-ready fleet management and GPS tracking technology designed to help businesses monitor vehicles, manage
-          drivers, understand trips and improve fleet operations.
-        </p>
-        <ul class="fleet-caps">
-          @for (c of fleetCapabilities; track c) {
-            <li>{{ c }}</li>
-          }
-        </ul>
-        <div class="fleet-actions">
-          <a routerLink="/fleet-management" class="btn btn-primary">Explore SheikhGo Fleet →</a>
-          <a routerLink="/gps-tracking" class="btn btn-outline">GPS Tracking →</a>
-        </div>
-      </div>
-      <div class="fleet-visual" aria-hidden="true">
-        <div class="fleet-panel">
-          <mat-icon class="fleet-icon" aria-hidden="true">gps_fixed</mat-icon>
-          <strong>Live operations</strong>
-          <p>Tracking · Drivers · Trips · Analytics</p>
-        </div>
-      </div>
-    </article>
-  </div>
-</section>
-
-<section class="final-cta" id="cta">
+<section class="home-final-cta" id="cta">
   <div class="cta-bg" aria-hidden="true"></div>
   <div class="container final-cta-inner">
     <div class="copy">
-      <h2>Let's Build Something Great Together</h2>
-      <p>Ready to discuss your project? Get in touch with our experts and turn your ideas into reality.</p>
+      <h2>Let's build something great together</h2>
+      <p>See NEXUS live, talk through your fleet workflow, or scope custom software with our team.</p>
     </div>
     <div class="actions">
-      <a routerLink="/request-demo" class="btn btn-primary">Request a Quote →</a>
-      <a routerLink="/contact" class="btn btn-ghost">Schedule a Call</a>
+      <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+      <a routerLink="/contact" class="btn btn-ghost">Contact Us</a>
     </div>
   </div>
 </section>

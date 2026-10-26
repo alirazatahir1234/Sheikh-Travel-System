@@ -133,4 +133,57 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     link: '/',
     fragment: 'industries',
   },
+  {
+    title: 'Enterprise & Operations',
+    text: 'Cross-department workflows, dashboards and custom integrations.',
+    icon: 'business_center',
+    link: '/contact',
+    fragment: null,
+  },
+];
+
+export interface ProductItem {
+  title: string;
+  text: string;
+  icon: string;
+  link: string;
+}
+
+export const PRODUCT_ITEMS: readonly ProductItem[] = [
+  {
+    title: 'SheikhGo Fleet',
+    text: 'Fleet management, drivers, trips and operational dashboards.',
+    icon: 'local_shipping',
+    link: '/fleet-management',
+  },
+  {
+    title: 'GPS Tracking',
+    text: 'Live maps, geofences, trip history and device management.',
+    icon: 'gps_fixed',
+    link: '/gps-tracking',
+  },
+  {
+    title: 'Live Tracking',
+    text: 'Real-time vehicle positions, speed and connectivity.',
+    icon: 'my_location',
+    link: '/live-tracking',
+  },
+  {
+    title: 'GPS Alerts',
+    text: 'Speed, geofence, fuel and device event notifications.',
+    icon: 'notifications_active',
+    link: '/gps-alerts',
+  },
+  {
+    title: 'AI Solutions',
+    text: 'Assistant, digests and fleet intelligence tools.',
+    icon: 'auto_awesome',
+    link: '/ai-solutions',
+  },
+  {
+    title: 'All Features',
+    text: 'Overview of platform capabilities and modules.',
+    icon: 'grid_view',
+    link: '/features',
+  },
 ];
