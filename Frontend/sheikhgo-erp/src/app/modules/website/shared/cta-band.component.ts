@@ -31,9 +31,9 @@ import { RouterLink } from '@angular/router';
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(105deg, rgba(4, 31, 36, 0.92) 0%, rgba(4, 31, 36, 0.78) 45%, rgba(0, 95, 73, 0.55) 100%),
-        radial-gradient(circle at 80% 50%, rgba(0, 223, 130, 0.18), transparent 45%),
-        linear-gradient(135deg, #041f24, #0a2f36 55%, #005f49);
+        linear-gradient(105deg, rgba(6, 47, 50, 0.94) 0%, rgba(8, 43, 56, 0.82) 48%, rgba(8, 201, 151, 0.35) 100%),
+        radial-gradient(circle at 85% 40%, rgba(8, 201, 151, 0.22), transparent 42%),
+        linear-gradient(135deg, #062f32, #082b38 55%, #005f49);
     }
     .inner {
       position: relative;

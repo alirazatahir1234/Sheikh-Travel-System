@@ -12,12 +12,13 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
   template: `
     <section class="page-hero">
       <div class="container">
+        <span class="section-kicker" style="color:#99f6e4">Company</span>
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageLead }}</p>
       </div>
     </section>
-    <section class="section">
-      <div class="container prose">
+    <section class="section section-band-white">
+      <div class="container prose premium-card" style="padding:2rem 2.25rem">
         @if (bodyHtml) {
           <div [innerHTML]="bodyHtml"></div>
         } @else {

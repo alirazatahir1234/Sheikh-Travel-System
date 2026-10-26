@@ -27,7 +27,7 @@ interface FeatureGroup {
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent],
   template: `
-    <section class="page-hero">
+    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/product/live-map.png')">
       <div class="container hero-layout">
         <div class="hero-copy">
           <span class="section-kicker" style="color:#99f6e4">GPS Tracking</span>

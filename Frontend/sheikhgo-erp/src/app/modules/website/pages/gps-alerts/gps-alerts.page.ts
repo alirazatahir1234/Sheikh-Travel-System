@@ -1,6 +1,7 @@
-import { AfterViewInit, Component, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { Subscription } from 'rxjs';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 
@@ -19,6 +20,13 @@ interface AlertGroup {
   icon: string;
   accent: 'safety' | 'tracking' | 'health';
   count: number;
+  sceneImage: string;
+  sceneToast: {
+    tone: 'danger' | 'warn' | 'ok';
+    icon: string;
+    title: string;
+    detail: string;
+  };
   items: AlertItem[];
 }
 
@@ -26,628 +34,64 @@ interface AlertGroup {
   selector: 'app-gps-alerts-page',
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent],
-  template: `
-    <section class="page-hero">
-      <div class="container hero-layout">
-        <div class="hero-copy">
-          <span class="section-kicker" style="color:#99f6e4">GPS Tracking</span>
-          <h1>GPS Alerts</h1>
-          <p class="hero-tagline">Know the moment something needs your attention.</p>
-          <p class="hero-lead">
-            SheikhGo watches your vehicles around the clock and notifies owners and managers when something needs
-            attention — speeding, leaving a zone, device issues, panic, fuel and more. Alerts reach you on the app,
-            dashboard, email or SMS so you can act before a small issue becomes a costly one.
-          </p>
-          <div class="hero-actions">
-            <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
-            <a routerLink="/live-tracking" class="btn btn-ghost">Live Tracking →</a>
-          </div>
-        </div>
-        <aside class="hero-panel" aria-label="Alert coverage at a glance">
-          <div class="hero-panel-glow" aria-hidden="true"></div>
-          <div class="stat-chip">
-            <span class="stat-num">13</span>
-            <span class="stat-label">Alert types</span>
-          </div>
-          <div class="stat-chip">
-            <span class="stat-num">3</span>
-            <span class="stat-label">Categories</span>
-          </div>
-          <div class="stat-chip wide">
-            <mat-icon aria-hidden="true">notifications_active</mat-icon>
-            <span class="stat-label">App · Dashboard · Email · SMS</span>
-          </div>
-          <ul class="hero-pulse" aria-hidden="true">
-            <li><span class="dot danger"></span> SOS Panic</li>
-            <li><span class="dot warn"></span> Road Speed</li>
-            <li><span class="dot ok"></span> Vehicle Online</li>
-          </ul>
-        </aside>
-      </div>
-    </section>
-
-    <section class="section categories">
-      <div class="container">
-        <header class="section-head">
-          <span class="section-kicker">Coverage</span>
-          <h2 class="section-title">Three ways alerts protect your fleet</h2>
-          <p class="section-lead">
-            Live map is not enough. SheikhGo turns critical moments into clear notifications — so you know which
-            vehicle, what happened, and when.
-          </p>
-        </header>
-        <div class="cat-grid">
-          @for (g of groups; track g.id) {
-            <a class="cat-card" [attr.data-accent]="g.accent" [routerLink]="[]" [fragment]="g.id">
-              <span class="cat-icon" aria-hidden="true"><mat-icon>{{ g.icon }}</mat-icon></span>
-              <div class="cat-meta">
-                <span class="cat-count">{{ g.count }} alerts</span>
-                <h3>{{ g.title }}</h3>
-                <p>{{ g.lead }}</p>
-              </div>
-              <span class="cat-arrow" aria-hidden="true">→</span>
-            </a>
-          }
-        </div>
-        <ul class="intro-points">
-          <li>
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
-            <span>13 alert types covering safety, tracking and vehicle health</span>
-          </li>
-          <li>
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
-            <span>Know which vehicle, what happened, and when — without calling the driver first</span>
-          </li>
-          <li>
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
-            <span>Fewer surprises for rental, transport, logistics and staff transport fleets</span>
-          </li>
-          <li>
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
-            <span>Turn on what matters to your operation; leave the rest off</span>
-          </li>
-        </ul>
-      </div>
-    </section>
-
-    <nav class="jump-wrap" aria-label="Alert groups">
-      <div class="container jump">
-        @for (g of groups; track g.id) {
-          <a [routerLink]="[]" [fragment]="g.id">
-            <mat-icon aria-hidden="true">{{ g.icon }}</mat-icon>
-            {{ g.title }}
-          </a>
-        }
-      </div>
-    </nav>
-
-    @for (g of groups; track g.id) {
-      <section class="section group" [id]="g.id" [attr.data-accent]="g.accent">
-        <div class="container">
-          <header class="group-head">
-            <span class="group-badge" aria-hidden="true"><mat-icon>{{ g.icon }}</mat-icon></span>
-            <div>
-              <span class="section-kicker">{{ g.kicker }}</span>
-              <h2 class="section-title">{{ g.title }}</h2>
-              <p class="section-lead">{{ g.lead }}</p>
-            </div>
-          </header>
-          <div class="alert-grid">
-            @for (a of g.items; track a.title) {
-              <article class="alert-card">
-                <div class="alert-top">
-                  <span class="alert-icon" aria-hidden="true"><mat-icon>{{ a.icon }}</mat-icon></span>
-                  <h3>{{ a.title }}</h3>
-                </div>
-                <div class="alert-body">
-                  <p class="what">
-                    <span class="label">What it does</span>
-                    {{ a.what }}
-                  </p>
-                  <p class="why">
-                    <span class="label">Why it matters</span>
-                    {{ a.why }}
-                  </p>
-                </div>
-              </article>
-            }
-          </div>
-        </div>
-      </section>
-    }
-
-    <section class="section highlight">
-      <div class="container highlight-grid">
-        <div class="highlight-visual" aria-hidden="true">
-          <div class="road-card">
-            <mat-icon>add_road</mat-icon>
-            <div class="road-meta">
-              <strong>Road Speed Alert</strong>
-              <span>City street · 50 km/h</span>
-            </div>
-            <span class="road-badge">+ buffer</span>
-          </div>
-          <div class="road-card dim">
-            <mat-icon>speed</mat-icon>
-            <div class="road-meta">
-              <strong>Fixed Speed Limit</strong>
-              <span>Fleet rule · 100 km/h</span>
-            </div>
-          </div>
-        </div>
-        <div class="highlight-copy">
-          <span class="section-kicker">Road Speed Alert</span>
-          <h2 class="section-title">Legal road limit — not one fixed number</h2>
-          <p>
-            Fixed Speed Limit alerts when a vehicle crosses a limit you set (for example 100 km/h everywhere).
-            <strong> Road Speed Alert</strong> goes further: it checks the vehicle against the posted speed limit of
-            the road it is on right now. City street, highway, or service road — the alert follows the actual limit
-            for that stretch, with a buffer you can set so minor overspeeds do not flood your inbox.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <app-cta-band
-      title="Ready to see GPS Alerts on your fleet?"
-      lead="Book a short demo. We will walk through live tracking and the alert types that matter for your vehicles."
-      primaryText="Request a Demo"
-      primaryUrl="/request-demo"
-      secondaryText="Contact Us →"
-      secondaryUrl="/contact"
-    />
-  `,
-  styles: `
-    .hero-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
-      gap: 2.5rem;
-      align-items: center;
-    }
-    .hero-tagline {
-      font-size: 1.15rem;
-      color: #99f6e4;
-      margin: 0.75rem 0 1rem;
-      font-weight: 600;
-    }
-    .hero-lead {
-      color: rgba(255, 255, 255, 0.82);
-      max-width: 52ch;
-    }
-    .hero-actions {
-      margin-top: 1.4rem;
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-
-    .hero-panel {
-      position: relative;
-      display: grid;
-      gap: 0.75rem;
-      padding: 1.35rem;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      backdrop-filter: blur(10px);
-      animation: fadeUp 0.7s ease both;
-    }
-    .hero-panel-glow {
-      position: absolute;
-      inset: -20% -10% auto auto;
-      width: 160px;
-      height: 160px;
-      background: radial-gradient(circle, rgba(24, 201, 135, 0.35), transparent 70%);
-      pointer-events: none;
-    }
-    .stat-chip {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-      padding: 0.95rem 1.1rem;
-      border-radius: 14px;
-      background: rgba(2, 47, 50, 0.35);
-      border: 1px solid rgba(153, 246, 228, 0.18);
-    }
-    .stat-chip.wide {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.65rem;
-    }
-    .stat-chip.wide mat-icon {
-      color: var(--sg-primary-strong, #00d97e);
-      font-size: 1.35rem;
-      width: 1.35rem;
-      height: 1.35rem;
-    }
-    .stat-num {
-      font-family: var(--font-display);
-      font-size: 1.85rem;
-      font-weight: 800;
-      color: var(--sg-primary-strong, #00d97e);
-      line-height: 1;
-    }
-    .stat-label {
-      color: rgba(255, 255, 255, 0.78);
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
-    .hero-pulse {
-      list-style: none;
-      margin: 0.25rem 0 0;
-      padding: 0;
-      display: grid;
-      gap: 0.45rem;
-    }
-    .hero-pulse li {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.88);
-      padding: 0.45rem 0.65rem;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      animation: pulseSoft 3.6s ease-in-out infinite;
-    }
-    .hero-pulse li:nth-child(2) { animation-delay: 0.4s; }
-    .hero-pulse li:nth-child(3) { animation-delay: 0.8s; }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .dot.danger { background: #fb7185; box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.2); }
-    .dot.warn { background: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2); }
-    .dot.ok { background: var(--sg-primary-strong, #00d97e); box-shadow: 0 0 0 4px rgba(0, 217, 126, 0.2); }
-
-    .categories { background: #fff; }
-    .section-head { margin-bottom: 2rem; max-width: 40rem; }
-
-    .cat-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-bottom: 1.75rem;
-    }
-    .cat-card {
-      position: relative;
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 1rem;
-      align-items: start;
-      padding: 1.35rem 1.25rem;
-      border-radius: var(--sg-radius, 16px);
-      border: 1px solid var(--sg-line);
-      background: var(--sg-page, #f5fbf9);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-      min-height: 100%;
-    }
-    .cat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 40px rgba(15, 118, 110, 0.12);
-      border-color: rgba(24, 201, 135, 0.4);
-    }
-    .cat-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 3rem;
-      height: 3rem;
-      border-radius: 14px;
-      background: var(--sg-mist, #e9faf4);
-      color: var(--sg-teal, #0f766e);
-    }
-    .cat-card[data-accent='safety'] .cat-icon {
-      background: rgba(15, 118, 110, 0.12);
-      color: var(--sg-teal, #0f766e);
-    }
-    .cat-card[data-accent='tracking'] .cat-icon {
-      background: rgba(24, 201, 135, 0.15);
-      color: #0b8f6a;
-    }
-    .cat-card[data-accent='health'] .cat-icon {
-      background: rgba(6, 37, 45, 0.08);
-      color: var(--sg-navy, #06252d);
-    }
-    .cat-icon mat-icon { font-size: 1.5rem; width: 1.5rem; height: 1.5rem; }
-    .cat-count {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--sg-teal, #0f766e);
-      margin-bottom: 0.35rem;
-    }
-    .cat-meta h3 {
-      font-size: 1.15rem;
-      margin-bottom: 0.4rem;
-      color: var(--sg-ink, #022f32);
-    }
-    .cat-meta p {
-      color: var(--sg-muted);
-      font-size: 0.92rem;
-      line-height: 1.5;
-    }
-    .cat-arrow {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--sg-primary, #18c987);
-      margin-top: 0.2rem;
-      transition: transform 0.2s ease;
-    }
-    .cat-card:hover .cat-arrow { transform: translateX(3px); }
-
-    .intro-points {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-    .intro-points li {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.65rem;
-      background: var(--sg-mist, #e9faf4);
-      border-radius: 12px;
-      padding: 0.9rem 1rem;
-      font-weight: 600;
-      color: var(--sg-ink, #022f32);
-      font-size: 0.95rem;
-    }
-    .intro-points mat-icon {
-      color: var(--sg-teal, #0f766e);
-      font-size: 1.2rem;
-      width: 1.2rem;
-      height: 1.2rem;
-      flex-shrink: 0;
-      margin-top: 0.1rem;
-    }
-
-    .jump-wrap {
-      padding: 1.1rem 0;
-      background: var(--sg-page, #f5fbf9);
-      border-block: 1px solid var(--sg-line);
-      position: sticky;
-      top: var(--header-h, 72px);
-      z-index: 5;
-      backdrop-filter: blur(8px);
-    }
-    .jump {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    .jump a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.5rem 0.95rem;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      background: rgba(15, 118, 110, 0.08);
-      color: var(--sg-teal, #0f766e);
-      transition: background 0.18s ease, transform 0.18s ease;
-    }
-    .jump a mat-icon {
-      font-size: 1.05rem;
-      width: 1.05rem;
-      height: 1.05rem;
-    }
-    .jump a:hover {
-      background: var(--sg-mist, #e9faf4);
-      transform: translateY(-1px);
-    }
-
-    .group {
-      scroll-margin-top: calc(var(--header-h, 72px) + 64px);
-      border-bottom: 1px solid var(--sg-line);
-      background: var(--sg-page, #f5fbf9);
-    }
-    .group:nth-of-type(even) { background: #fff; }
-    .group-head {
-      display: flex;
-      gap: 1.1rem;
-      align-items: flex-start;
-      max-width: 44rem;
-      margin-bottom: 1.75rem;
-    }
-    .group-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 3.25rem;
-      height: 3.25rem;
-      border-radius: 16px;
-      background: linear-gradient(145deg, var(--sg-primary, #18c987), var(--sg-teal, #0f766e));
-      color: #fff;
-      flex-shrink: 0;
-      box-shadow: 0 10px 24px rgba(15, 118, 110, 0.25);
-    }
-    .group-badge mat-icon { font-size: 1.55rem; width: 1.55rem; height: 1.55rem; }
-
-    .alert-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-    .alert-card {
-      background: #fff;
-      border: 1px solid var(--sg-line);
-      border-radius: 16px;
-      padding: 1.25rem 1.3rem;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-    .group:nth-of-type(even) .alert-card {
-      background: var(--sg-page, #f5fbf9);
-    }
-    .alert-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 16px 36px rgba(15, 118, 110, 0.1);
-      border-color: rgba(24, 201, 135, 0.4);
-    }
-    .alert-top {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.9rem;
-    }
-    .alert-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.5rem;
-      height: 2.5rem;
-      border-radius: 12px;
-      background: var(--sg-mist, #e9faf4);
-      color: var(--sg-teal, #0f766e);
-      flex-shrink: 0;
-    }
-    .group[data-accent='tracking'] .alert-icon {
-      background: rgba(24, 201, 135, 0.14);
-      color: #0b8f6a;
-    }
-    .group[data-accent='health'] .alert-icon {
-      background: rgba(6, 37, 45, 0.08);
-      color: var(--sg-navy, #06252d);
-    }
-    .alert-icon mat-icon { font-size: 1.25rem; width: 1.25rem; height: 1.25rem; }
-    .alert-card h3 {
-      font-size: 1.08rem;
-      color: var(--sg-ink, #022f32);
-    }
-    .alert-body { display: grid; gap: 0.7rem; }
-    .what, .why {
-      color: var(--sg-muted);
-      font-size: 0.94rem;
-      margin: 0;
-      line-height: 1.55;
-    }
-    .label {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--sg-teal, #0f766e);
-      margin-bottom: 0.25rem;
-    }
-
-    .highlight {
-      background:
-        radial-gradient(ellipse 50% 60% at 10% 20%, rgba(24, 201, 135, 0.12), transparent 55%),
-        linear-gradient(135deg, #e9faf4 0%, #f5fbf9 55%, #fff 100%);
-    }
-    .highlight-grid {
-      display: grid;
-      grid-template-columns: 0.9fr 1.1fr;
-      gap: 2.5rem;
-      align-items: center;
-    }
-    .highlight-visual {
-      display: grid;
-      gap: 0.85rem;
-    }
-    .road-card {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      padding: 1.1rem 1.2rem;
-      border-radius: 16px;
-      background: #fff;
-      border: 1px solid var(--sg-line);
-      box-shadow: 0 12px 28px rgba(2, 47, 50, 0.06);
-      animation: fadeUp 0.8s ease both;
-    }
-    .road-card.dim {
-      opacity: 0.85;
-      animation-delay: 0.12s;
-    }
-    .road-card mat-icon {
-      color: var(--sg-teal, #0f766e);
-      font-size: 1.6rem;
-      width: 1.6rem;
-      height: 1.6rem;
-    }
-    .road-meta {
-      display: grid;
-      gap: 0.15rem;
-      flex: 1;
-    }
-    .road-meta strong {
-      color: var(--sg-ink, #022f32);
-      font-size: 0.98rem;
-    }
-    .road-meta span {
-      color: var(--sg-muted);
-      font-size: 0.85rem;
-    }
-    .road-badge {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--sg-ink, #022f32);
-      background: linear-gradient(135deg, var(--sg-primary, #18c987), var(--sg-primary-strong, #00d97e));
-      padding: 0.35rem 0.65rem;
-      border-radius: 999px;
-    }
-    .highlight-copy p {
-      color: var(--sg-muted);
-      margin-top: 0.75rem;
-      max-width: 46rem;
-    }
-    .highlight-copy strong { color: var(--sg-ink, #022f32); }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes pulseSoft {
-      0%, 100% { opacity: 0.75; }
-      50% { opacity: 1; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .hero-panel,
-      .road-card,
-      .hero-pulse li {
-        animation: none;
-      }
-      .cat-card:hover,
-      .alert-card:hover,
-      .jump a:hover {
-        transform: none;
-      }
-    }
-
-    @media (max-width: 960px) {
-      .hero-layout,
-      .highlight-grid,
-      .cat-grid {
-        grid-template-columns: 1fr;
-      }
-      .hero-panel { max-width: 420px; }
-    }
-    @media (max-width: 800px) {
-      .alert-grid,
-      .intro-points {
-        grid-template-columns: 1fr;
-      }
-      .jump-wrap { position: static; }
-    }
-  `,
+  templateUrl: './gps-alerts.page.html',
+  styleUrl: './gps-alerts.page.scss',
 })
-export class GpsAlertsPage implements OnInit, AfterViewInit {
+export class GpsAlertsPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly seo = inject(WebsiteSeoService);
   private readonly route = inject(ActivatedRoute);
+  private fragmentSub?: Subscription;
+
+  activeSection = 'safety';
+
+  readonly platformCapabilities: {
+    icon: string;
+    title: string;
+    text: string;
+    link?: string;
+    linkLabel?: string;
+  }[] = [
+    {
+      icon: 'pin_drop',
+      title: 'Geofencing',
+      text: 'Draw enter and exit zones on the map. Get alerts when vehicles arrive at depots, job sites or leave restricted areas.',
+      link: '/live-tracking',
+      linkLabel: 'Live map & zones',
+    },
+    {
+      icon: 'history',
+      title: 'Playback history',
+      text: 'Review routes after the fact with GPS history playback — see speed, stops and context alongside alert timelines.',
+      link: '/live-tracking',
+      linkLabel: 'History playback',
+    },
+    {
+      icon: 'my_location',
+      title: 'Live tracking',
+      text: 'Every alert ties back to a live fleet map with speed, ignition and connectivity — so you know which vehicle needs action.',
+      link: '/live-tracking',
+      linkLabel: 'Explore live map',
+    },
+    {
+      icon: 'cloud_sync',
+      title: 'Offline log sync',
+      text: 'When a data package expires or the vehicle goes offline, the device buffers logs locally. Once internet returns, stored positions sync automatically to live.',
+    },
+  ];
+
+  readonly benefitRows = [
+    { icon: 'notifications', title: '13 alert types', text: 'Safety, tracking and vehicle health — turn on what you need.' },
+    { icon: 'directions_car', title: 'Know which vehicle', text: 'What happened and when — without calling the driver first.' },
+    { icon: 'verified_user', title: 'Fewer surprises', text: 'Rental, transport, logistics and staff transport fleets stay ahead.' },
+    { icon: 'tune', title: 'Turn on what matters', text: 'Enable the alerts that fit your operation; leave the rest off.' },
+  ] as const;
+
+  readonly jumpLinks = [
+    { id: 'safety', title: 'Safety Alerts', icon: 'health_and_safety' },
+    { id: 'tracking', title: 'Tracking Alerts', icon: 'my_location' },
+    { id: 'vehicle-health', title: 'Vehicle Health Alerts', icon: 'directions_car' },
+    { id: 'road-speed', title: 'Road Speed Alert', icon: 'add_road' },
+  ] as const;
 
   readonly groups: AlertGroup[] = [
     {
@@ -659,6 +103,13 @@ export class GpsAlertsPage implements OnInit, AfterViewInit {
       icon: 'health_and_safety',
       accent: 'safety',
       count: 5,
+      sceneImage: '/website/gps-alerts/scene-safety.jpg',
+      sceneToast: {
+        tone: 'danger',
+        icon: 'sos',
+        title: 'SOS Panic Alert',
+        detail: 'Driver pressed panic · just now',
+      },
       items: [
         {
           title: 'SOS Panic',
@@ -702,6 +153,13 @@ export class GpsAlertsPage implements OnInit, AfterViewInit {
       icon: 'my_location',
       accent: 'tracking',
       count: 5,
+      sceneImage: '/website/gps-alerts/scene-tracking.jpg',
+      sceneToast: {
+        tone: 'warn',
+        icon: 'wifi_off',
+        title: 'Vehicle Offline',
+        detail: 'No location for 12 min',
+      },
       items: [
         {
           title: 'Vehicle Online',
@@ -743,6 +201,13 @@ export class GpsAlertsPage implements OnInit, AfterViewInit {
       icon: 'directions_car',
       accent: 'health',
       count: 3,
+      sceneImage: '/website/gps-alerts/scene-health.jpg',
+      sceneToast: {
+        tone: 'warn',
+        icon: 'battery_alert',
+        title: 'Low Battery',
+        detail: 'Backup below safe level',
+      },
       items: [
         {
           title: 'Low Battery',
@@ -766,6 +231,10 @@ export class GpsAlertsPage implements OnInit, AfterViewInit {
     },
   ];
 
+  setActive(id: string): void {
+    this.activeSection = id;
+  }
+
   ngOnInit(): void {
     this.seo.set(
       'GPS Alerts',
@@ -775,11 +244,16 @@ export class GpsAlertsPage implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.route.fragment.subscribe(fragment => {
+    this.fragmentSub = this.route.fragment.subscribe(fragment => {
       if (!fragment) return;
+      this.activeSection = fragment;
       setTimeout(() =>
         document.getElementById(fragment)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
       );
     });
+  }
+
+  ngOnDestroy(): void {
+    this.fragmentSub?.unsubscribe();
   }
 }

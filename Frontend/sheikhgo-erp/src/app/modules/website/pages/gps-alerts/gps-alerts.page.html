@@ -1,0 +1,226 @@
+<section class="alerts-hero" aria-labelledby="gps-alerts-title">
+  <div class="hero-photo" aria-hidden="true"></div>
+  <div class="hero-shade" aria-hidden="true"></div>
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      <span class="section-kicker">GPS Tracking</span>
+      <h1 id="gps-alerts-title">GPS Alerts</h1>
+      <p class="hero-tagline">Know the moment something needs your attention.</p>
+      <p class="hero-lead">
+        SheikhGo watches your vehicles around the clock and notifies owners and managers when something needs
+        attention — speeding, leaving a zone, device issues, panic, fuel and more. Alerts reach you on the app,
+        dashboard, email or SMS so you can act before a small issue becomes a costly one.
+      </p>
+      <div class="hero-actions">
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/live-tracking" class="btn btn-ghost">Live Tracking →</a>
+      </div>
+      <ul class="hero-perks">
+        <li><mat-icon aria-hidden="true">notifications_active</mat-icon> Real-time alerts</li>
+        <li><mat-icon aria-hidden="true">health_and_safety</mat-icon> Safer operations</li>
+        <li><mat-icon aria-hidden="true">tune</mat-icon> Greater control</li>
+      </ul>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-glow"></div>
+      <div class="float-alert">
+        <span class="warn-icon"><mat-icon>speed</mat-icon></span>
+        <div>
+          <strong>Speed Alert</strong>
+          <span>Vehicle exceeded 120 km/h · 2 min ago</span>
+        </div>
+      </div>
+      <div class="phone-shell">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="phone-map-pin"></div>
+          <div class="phone-card">
+            Toyota Hiace · LEC-8825
+            <span>Moving · 118 km/h · Alert zone</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section platform">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">Built on SheikhGo GPS</span>
+      <h2 class="section-title">Alerts sit on top of live fleet visibility</h2>
+      <p class="section-lead">
+        Notifications are only as good as the map and history behind them. SheikhGo connects alerts with live
+        tracking, geofencing, playback, and reliable sync when devices come back online.
+      </p>
+    </header>
+    <div class="platform-grid">
+      @for (cap of platformCapabilities; track cap.title) {
+        <article class="platform-card">
+          <span class="platform-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
+          <h3>{{ cap.title }}</h3>
+          <p>{{ cap.text }}</p>
+          @if (cap.link) {
+            <a class="platform-link" [routerLink]="cap.link">{{ cap.linkLabel }}</a>
+          }
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section coverage">
+  <div class="container">
+    <div class="coverage-split">
+      <div>
+        <span class="section-kicker">Coverage</span>
+        <h2 class="section-title">Live map is not enough</h2>
+        <p class="section-lead">
+          SheikhGo turns critical moments into clear notifications — so you know which vehicle, what happened, and
+          when. Pair alerts with geofencing and playback history when you need the full story.
+        </p>
+      </div>
+      <div class="benefit-stack">
+        @for (row of benefitRows; track row.title) {
+          <div class="benefit-row">
+            <mat-icon aria-hidden="true">{{ row.icon }}</mat-icon>
+            <div>
+              <strong>{{ row.title }}</strong>
+              <span>{{ row.text }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="cat-grid">
+      @for (g of groups; track g.id) {
+        <a class="cat-card" [attr.data-accent]="g.accent" [routerLink]="[]" [fragment]="g.id">
+          <span class="cat-icon" aria-hidden="true"><mat-icon>{{ g.icon }}</mat-icon></span>
+          <div class="cat-meta">
+            <span class="cat-count">{{ g.count }} alerts</span>
+            <h3>{{ g.title }}</h3>
+            <p>{{ g.lead }}</p>
+          </div>
+          <span class="cat-arrow" aria-hidden="true">→</span>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
+<nav class="jump-wrap" aria-label="Alert groups">
+  <div class="container jump">
+    @for (link of jumpLinks; track link.id) {
+      <a
+        [routerLink]="[]"
+        [fragment]="link.id"
+        [class.active]="activeSection === link.id"
+        (click)="setActive(link.id)"
+      >
+        <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+        {{ link.title }}
+      </a>
+    }
+  </div>
+</nav>
+
+@for (g of groups; track g.id) {
+  <section class="section group" [id]="g.id" [attr.data-accent]="g.accent">
+    <div class="container">
+      <div class="group-banner">
+        <header class="group-head">
+          <span class="group-badge" aria-hidden="true"><mat-icon>{{ g.icon }}</mat-icon></span>
+          <div>
+            <span class="section-kicker">{{ g.kicker }}</span>
+            <h2 class="section-title">{{ g.title }}</h2>
+            <p class="section-lead">{{ g.lead }}</p>
+          </div>
+        </header>
+        <figure class="scene">
+          <img [src]="g.sceneImage" [alt]="g.title + ' in the field'" loading="lazy" width="640" height="400" />
+          <div class="scene-toast" [attr.data-tone]="g.sceneToast.tone">
+            <mat-icon aria-hidden="true">{{ g.sceneToast.icon }}</mat-icon>
+            <div>
+              <strong>{{ g.sceneToast.title }}</strong>
+              <span>{{ g.sceneToast.detail }}</span>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="alert-grid">
+        @for (a of g.items; track a.title) {
+          <article class="alert-card">
+            <div class="alert-top">
+              <span class="alert-icon" aria-hidden="true"><mat-icon>{{ a.icon }}</mat-icon></span>
+              <h3>{{ a.title }}</h3>
+            </div>
+            <div class="alert-body">
+              <p class="what">
+                <span class="label">What it does</span>
+                {{ a.what }}
+              </p>
+              <p class="why">
+                <span class="label">Why it matters</span>
+                {{ a.why }}
+              </p>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<section class="section highlight" id="road-speed">
+  <div class="container highlight-grid">
+    <figure class="highlight-scene">
+      <img
+        src="/website/gps-alerts/scene-road-speed.jpg"
+        alt="Vehicle on road with speed limit context"
+        loading="lazy"
+        width="640"
+        height="480"
+      />
+      <div class="road-cards" aria-hidden="true">
+        <div class="road-card">
+          <mat-icon>add_road</mat-icon>
+          <div class="road-meta">
+            <strong>Road Speed Alert</strong>
+            <span>City street · 50 km/h</span>
+          </div>
+          <span class="road-badge">+ buffer</span>
+        </div>
+        <div class="road-card dim">
+          <mat-icon>speed</mat-icon>
+          <div class="road-meta">
+            <strong>Fixed Speed Limit</strong>
+            <span>Fleet rule · 100 km/h</span>
+          </div>
+        </div>
+      </div>
+    </figure>
+    <div class="highlight-copy">
+      <span class="section-kicker">Road Speed Alert</span>
+      <h2 class="section-title">Legal road limit — not one fixed number</h2>
+      <p>
+        Fixed Speed Limit alerts when a vehicle crosses a limit you set (for example 100 km/h everywhere).
+        <strong> Road Speed Alert</strong> goes further: it checks the vehicle against the posted speed limit of
+        the road it is on right now. City street, highway, or service road — the alert follows the actual limit
+        for that stretch, with a buffer you can set so minor overspeeds do not flood your inbox.
+      </p>
+      <div class="highlight-actions">
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/live-tracking" class="btn btn-outline">Live Tracking →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<app-cta-band
+  title="Ready to see GPS Alerts on your fleet?"
+  lead="Book a short demo. We will walk through live tracking, geofencing, playback history, and the alert types that matter for your vehicles."
+  primaryText="Request a Demo"
+  primaryUrl="/request-demo"
+  secondaryText="Contact Us →"
+  secondaryUrl="/contact"
+/>

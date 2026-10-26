@@ -11,16 +11,22 @@ import { PublicWebsiteFeature, WebsitePublicContentService } from '../../core/we
   template: `
     <section class="page-hero">
       <div class="container">
+        <span class="section-kicker" style="color:#99f6e4">Platform</span>
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageLead }}</p>
+        <div class="hero-actions">
+          <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
+          <a routerLink="/gps-tracking" class="btn btn-ghost">GPS Tracking →</a>
+        </div>
       </div>
     </section>
-    <section class="section">
-      <div class="container grid">
+    <section class="section section-band-white">
+      <div class="container premium-card-grid">
         @for (f of features; track f.title) {
-          <a class="card" [routerLink]="f.link">
+          <a class="premium-card" [routerLink]="f.link">
             <h2>{{ f.title }}</h2>
             <p>{{ f.text }}</p>
+            <span style="font-size:.85rem;font-weight:700;color:var(--sg-teal);margin-top:.5rem;display:inline-block">Learn more →</span>
           </a>
         }
       </div>
@@ -28,16 +34,8 @@ import { PublicWebsiteFeature, WebsitePublicContentService } from '../../core/we
     <app-cta-band />
   `,
   styles: `
-    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
-    .card {
-      background:#fff; border:1px solid var(--sg-line); border-radius:14px; padding:1.35rem;
-      transition: transform .18s ease, box-shadow .18s ease;
-    }
-    .card:hover { transform:translateY(-3px); box-shadow:0 14px 34px rgba(15,118,110,.12); }
     h2 { font-size:1.1rem; margin-bottom:.4rem; }
-    p { color:var(--sg-muted); font-size:.95rem; }
-    @media (max-width:900px){ .grid{grid-template-columns:1fr 1fr;} }
-    @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+    a.premium-card { text-decoration:none; color:inherit; display:grid; }
   `,
 })
 export class FeaturesPage implements OnInit {

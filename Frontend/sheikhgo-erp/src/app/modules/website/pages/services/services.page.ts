@@ -12,6 +12,7 @@ import { SERVICE_ITEMS } from '../../core/site-catalog';
   template: `
     <section class="page-hero">
       <div class="container">
+        <span class="section-kicker" style="color:#99f6e4">Services</span>
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageLead }}</p>
         <nav class="jump" aria-label="Services">
@@ -46,8 +47,15 @@ import { SERVICE_ITEMS } from '../../core/site-catalog';
   styles: `
     .jump { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.25rem; }
     .jump a {
-      padding:.45rem .85rem; border-radius:999px; font-size:.85rem; font-weight:600;
-      background:rgba(15,118,110,.08); color:var(--sg-teal,#0f766e);
+      padding:.55rem 1rem; border-radius:999px; font-size:.85rem; font-weight:700;
+      background:#fff; color:var(--sg-teal,#0f766e); border:1px solid var(--sg-border-soft,#e2eeea);
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .jump a:hover {
+      background: linear-gradient(135deg, var(--sg-green-accent,#08c997), var(--sg-primary-strong,#00d97e));
+      color: var(--sg-deep-teal,#062f32);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(8,201,151,.25);
     }
     .jump a:hover { background:var(--sg-mint,#e9faf4); }
 

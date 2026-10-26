@@ -9,19 +9,19 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
   standalone: true,
   imports: [RouterLink, CtaBandComponent],
   template: `
-    <section class="page-hero">
+    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/gps-alerts/hero-bg.jpg')">
       <div class="container">
         <span class="section-kicker" style="color:#99f6e4">Platform</span>
         <h1>{{ pageTitle }}</h1>
-        <p>{{ pageLead }}</p>
-        <div style="margin-top:1.4rem;display:flex;gap:.75rem;flex-wrap:wrap">
+        <p class="hero-lead">{{ pageLead }}</p>
+        <div class="hero-actions">
           <a routerLink="/live-tracking" class="btn btn-primary">Explore Live Tracking →</a>
           <a routerLink="/gps-alerts" class="btn btn-ghost">GPS Alerts →</a>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section section-band-white">
       <div class="container split">
         <div>
           <span class="section-kicker">Exact location</span>
@@ -45,10 +45,10 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
       </div>
     </section>
 
-    <section class="section" style="background:#fff">
+    <section class="section section-band-alt">
       <div class="container alerts-teaser">
         <span class="section-kicker">GPS Alerts</span>
-        <h2 class="section-title">Jab kuch galat ho — foran pata chale</h2>
+        <h2 class="section-title">When something goes wrong — know immediately</h2>
         <p class="section-lead">
           Thirteen alert types across safety, tracking and vehicle health — including road speed limits for the street
           your vehicle is on, geofences, SOS, ignition, fuel and more.
@@ -64,8 +64,8 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
   styles: `
     .split { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
     .sample {
-      margin-top:1.25rem; background:#fff; border:1px solid var(--sg-line); border-radius:14px; padding:1.2rem;
-      display:grid; gap:.35rem;
+      margin-top:1.25rem; background:#fff; border:1px solid var(--sg-border-soft); border-radius:16px; padding:1.25rem;
+      display:grid; gap:.35rem; box-shadow: var(--sg-shadow-card, 0 18px 48px rgba(6,47,50,.08));
     }
     .sample span { color:var(--sg-text); font-weight:600; }
     .sample em { color:var(--sg-teal); font-style:italic; }

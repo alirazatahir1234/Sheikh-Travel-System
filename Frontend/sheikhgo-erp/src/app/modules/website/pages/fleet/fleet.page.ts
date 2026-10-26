@@ -9,12 +9,12 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
   standalone: true,
   imports: [RouterLink, CtaBandComponent],
   template: `
-    <section class="page-hero">
+    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/sheikhgo-fleet-hero.png')">
       <div class="container">
         <span class="section-kicker" style="color:#99f6e4">Platform</span>
         <h1>{{ pageTitle }}</h1>
-        <p>{{ pageLead }}</p>
-        <div style="margin-top:1.4rem;display:flex;gap:.75rem;flex-wrap:wrap">
+        <p class="hero-lead">{{ pageLead }}</p>
+        <div class="hero-actions">
           <a [routerLink]="primaryUrl" class="btn btn-primary">{{ primaryText }}</a>
           <a [routerLink]="secondaryUrl" class="btn btn-ghost">{{ secondaryText }}</a>
         </div>
