@@ -53,6 +53,19 @@
 
   .website-main {
     flex: 1;
+    position: relative;
+    z-index: 0;
+  }
+
+  /* Decorative hero layers must never intercept header / nav clicks */
+  .hero-bg,
+  .hero-photo,
+  .hero-shade,
+  .hero-mesh,
+  .hero-glow,
+  .page-hero::before,
+  .page-hero::after {
+    pointer-events: none;
   }
 
   a {

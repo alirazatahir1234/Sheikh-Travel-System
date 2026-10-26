@@ -22,6 +22,7 @@
       position: absolute;
       inset: 0;
       z-index: 0;
+      pointer-events: none;
       background:
         radial-gradient(ellipse 55% 70% at 100% 20%, rgba(8, 201, 151, 0.22), transparent 55%),
         radial-gradient(ellipse 40% 50% at 0% 80%, rgba(8, 43, 56, 0.5), transparent 50%),

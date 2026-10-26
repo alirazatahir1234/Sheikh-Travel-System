@@ -13,6 +13,7 @@
 .hero-mesh {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background:
     linear-gradient(105deg, rgba(6, 47, 50, 0.94) 0%, rgba(8, 43, 56, 0.82) 45%, rgba(6, 47, 50, 0.55) 100%),
     radial-gradient(ellipse 55% 45% at 78% 22%, rgba(8, 201, 151, 0.28), transparent 55%),
@@ -70,6 +71,7 @@
   inset: 5% 0;
   background: radial-gradient(circle, rgba(8, 201, 151, 0.25), transparent 65%);
   filter: blur(20px);
+  pointer-events: none;
 }
 
 .float-chip {

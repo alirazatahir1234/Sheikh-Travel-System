@@ -1,7 +1,16 @@
+:host {
+  display: block;
+  position: relative;
+  z-index: 100;
+}
+
 .site-header {
   position: fixed;
-  inset: 0 0 auto;
-  z-index: 50;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 100;
   transition: background 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(14px);
@@ -70,6 +79,8 @@
     padding-block: 8px;
     gap: 1rem;
     flex-wrap: nowrap;
+    position: relative;
+    z-index: 1;
   }
 
   .brand {
@@ -81,6 +92,8 @@
     padding: 0;
     flex-shrink: 0;
     max-width: min(280px, 42vw);
+    position: relative;
+    z-index: 3;
   }
 
   .nav {
@@ -90,6 +103,8 @@
     gap: 0.2rem;
     flex: 1 1 auto;
     min-width: 0;
+    position: relative;
+    z-index: 3;
   }
 
   .nav-link {
@@ -102,6 +117,8 @@
     border: 0;
     cursor: pointer;
     white-space: nowrap;
+    position: relative;
+    z-index: 1;
   }
 
   .nav-link:hover,
@@ -249,6 +266,8 @@
     align-items: center;
     gap: 0.85rem;
     flex-shrink: 0;
+    position: relative;
+    z-index: 2;
   }
 
   .login {
@@ -320,6 +339,7 @@
       overflow: auto;
       border-bottom: 1px solid var(--sg-border, rgba(2, 47, 50, 0.12));
       box-shadow: 0 16px 32px rgba(4, 31, 36, 0.1);
+      z-index: 5;
     }
 
     .nav.show {

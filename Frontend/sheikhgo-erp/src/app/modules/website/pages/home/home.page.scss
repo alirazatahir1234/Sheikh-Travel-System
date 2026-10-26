@@ -8,6 +8,7 @@
 .hero-bg {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background:
     radial-gradient(ellipse 50% 55% at 15% 30%, rgba(24, 201, 135, 0.18), transparent 55%),
     radial-gradient(ellipse 45% 50% at 85% 45%, rgba(0, 95, 90, 0.4), transparent 50%),
@@ -62,6 +63,7 @@
   min-height: 340px;
   display: grid;
   place-items: center;
+  pointer-events: none;
 }
 
 .hero-glow {
@@ -252,6 +254,7 @@
 .nexus-callout {
   position: absolute;
   z-index: 2;
+  pointer-events: none;
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;

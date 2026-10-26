@@ -12,12 +12,14 @@
 .hero-photo {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background: url('/website/gps-alerts/hero-bg.jpg') center / cover no-repeat;
 }
 
 .hero-shade {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background:
     linear-gradient(105deg, rgba(6, 47, 50, 0.92) 0%, rgba(6, 47, 50, 0.72) 42%, rgba(6, 47, 50, 0.35) 100%),
     radial-gradient(ellipse 50% 60% at 85% 30%, rgba(8, 201, 151, 0.2), transparent 55%);
@@ -86,6 +88,7 @@
   inset: 5% 0;
   background: radial-gradient(circle, rgba(8, 201, 151, 0.25), transparent 65%);
   filter: blur(20px);
+  pointer-events: none;
 }
 
 .float-alert {
