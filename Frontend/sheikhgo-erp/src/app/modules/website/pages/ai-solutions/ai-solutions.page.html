@@ -1,0 +1,234 @@
+<section class="ai-hero" id="ai-solutions" aria-labelledby="ai-solutions-title">
+  <div class="hero-mesh" aria-hidden="true"></div>
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      <span class="section-kicker">SheikhGo AI</span>
+      <h1 id="ai-solutions-title">AI Solutions</h1>
+      <p class="hero-tagline">Fleet intelligence you can trust — tools first, humans in control.</p>
+      <p class="hero-lead">
+        SheikhGo brings AI into daily fleet operations: structured assistants that query live GPS and ERP
+        data, heuristic scores and digests you can explain, WhatsApp drafting that never auto-sends, and
+        copilot experiences on web and mobile. Optional language models when you configure them — honest
+        capabilities, premium execution.
+      </p>
+      <div class="hero-actions">
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a [routerLink]="brand.loginPath" class="btn btn-ghost">Sign in to ERP</a>
+      </div>
+      <ul class="hero-perks">
+        @for (p of heroPerks; track p.text) {
+          <li><mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>{{ p.text }}</li>
+        }
+      </ul>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-glow"></div>
+      <div class="float-chip">
+        <mat-icon>local_gas_station</mat-icon>
+        <div>
+          <strong>Fuel this week</strong>
+          <span>Tool-backed answer · 3 vehicles flagged</span>
+        </div>
+      </div>
+      <div class="chat-shell">
+        <div class="chat-head">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>AI Assistant</span>
+          <span class="live">Session active</span>
+        </div>
+        <div class="chat-body">
+          <div class="bubble user">Which units had overspeed alerts yesterday?</div>
+          <div class="bubble bot">
+            <span class="tool-tag">trips · alerts</span>
+            2 vehicles — Hiace LEC-8825 (3 events), Corolla ABC-1044 (1 event). Open playback?
+          </div>
+          <div class="bubble bot dim">Powered by your configured provider when LLM is enabled.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section trust-band">
+  <div class="container trust-inner">
+    <mat-icon aria-hidden="true">verified</mat-icon>
+    <div>
+      <strong>Built for operators, described honestly</strong>
+      <p>
+        Recommendations and “predictions” are <em>heuristic and rule-based</em> on your fleet signals — not
+        undisclosed trained ML. WhatsApp AI <em>never auto-sends</em>. LLM features need a provider you
+        configure (Ollama, DeepInfra, or compatible endpoints).
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section platform">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">Platform</span>
+      <h2 class="section-title">AI that sits on real fleet data</h2>
+      <p class="section-lead">
+        Every assistant path is designed to call SheikhGo tools — live tracking, alerts, trips, fuel, and
+        ERP records — so answers match what you see on the map and in reports.
+      </p>
+    </header>
+    <div class="platform-grid">
+      @for (cap of platformHighlights; track cap.title) {
+        <article class="platform-card">
+          <span class="platform-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
+          <h3>{{ cap.title }}</h3>
+          <p>{{ cap.text }}</p>
+          @if (cap.link) {
+            <a class="platform-link" [routerLink]="cap.link">{{ cap.linkLabel }} →</a>
+          }
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section coverage">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">Overview</span>
+      <h2 class="section-title">Four pillars of SheikhGo AI</h2>
+      <p class="section-lead">
+        From conversational assistants to morning digests and WhatsApp drafts — one platform, clear boundaries.
+      </p>
+    </header>
+    <div class="cat-grid">
+      @for (p of pillars; track p.id) {
+        <a class="cat-card" [routerLink]="[]" [fragment]="p.id">
+          <span class="cat-icon" aria-hidden="true"><mat-icon>{{ p.icon }}</mat-icon></span>
+          <div class="cat-meta">
+            <span class="cat-count">{{ p.count }}</span>
+            <h3>{{ p.title }}</h3>
+            <p>{{ p.lead }}</p>
+          </div>
+          <span class="cat-arrow" aria-hidden="true">→</span>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
+<nav class="jump-wrap" aria-label="AI solution groups">
+  <div class="container jump">
+    @for (link of jumpLinks; track link.id) {
+      <a
+        [routerLink]="[]"
+        [fragment]="link.id"
+        [class.active]="activeSection === link.id"
+        (click)="setActive(link.id)"
+      >
+        <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+        {{ link.title }}
+      </a>
+    }
+  </div>
+</nav>
+
+@for (g of groups; track g.id) {
+  <section class="section group" [id]="g.id" [attr.data-accent]="g.accent">
+    <div class="container">
+      <div class="group-banner">
+        <header class="group-head">
+          <span class="group-badge" aria-hidden="true"><mat-icon>{{ g.icon }}</mat-icon></span>
+          <div>
+            <span class="section-kicker">{{ g.kicker }}</span>
+            <h2 class="section-title">{{ g.title }}</h2>
+            <p class="section-lead">{{ g.lead }}</p>
+          </div>
+        </header>
+        <div class="visual-panel" [attr.data-accent]="g.accent" aria-hidden="true">
+          @switch (g.accent) {
+            @case ('chat') {
+              <div class="panel-mock chat">
+                <div class="line user">Summarize today’s trip exceptions</div>
+                <div class="line bot"><span class="pill">tools</span> 4 late arrivals · 1 idle &gt; 2h</div>
+              </div>
+            }
+            @case ('engine') {
+              <div class="panel-mock score">
+                <div class="score-ring">82</div>
+                <div class="score-meta">
+                  <strong>Fleet health</strong>
+                  <span>Rule-based score · updated hourly</span>
+                </div>
+              </div>
+            }
+            @case ('whatsapp') {
+              <div class="panel-mock wa">
+                <strong>Suggested reply</strong>
+                <p>Your booking is confirmed for 9:00 AM. Driver will share live location link before pickup.</p>
+                <span class="wa-note">Draft only — agent sends</span>
+              </div>
+            }
+            @default {
+              <div class="panel-mock surfaces">
+                <div class="surface-row"><mat-icon>dashboard</mat-icon> ERP · /ai</div>
+                <div class="surface-row"><mat-icon>phone_iphone</mat-icon> Driver & Fleet apps</div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+      <div class="solution-grid">
+        @for (item of g.items; track item.title) {
+          <article class="solution-card">
+            <div class="solution-top">
+              <span class="solution-icon" aria-hidden="true"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <h3>{{ item.title }}</h3>
+            </div>
+            <div class="solution-body">
+              <p class="what">
+                <span class="label">What it does</span>
+                {{ item.what }}
+              </p>
+              <p class="why">
+                <span class="label">Why it matters</span>
+                {{ item.why }}
+              </p>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<section class="section honesty" id="how-it-works">
+  <div class="container">
+    <header class="section-head center">
+      <span class="section-kicker">Transparency</span>
+      <h2 class="section-title">What we promise — and what we do not</h2>
+      <p class="section-lead">
+        SheikhGo AI is production-ready where it ships in ERP and mobile apps. We avoid hype labels so your
+        team and customers know exactly what is automated and what is not.
+      </p>
+    </header>
+    <div class="honesty-grid">
+      @for (h of honestyPoints; track h.title) {
+        <article class="honesty-card">
+          <mat-icon aria-hidden="true">{{ h.icon }}</mat-icon>
+          <h3>{{ h.title }}</h3>
+          <p>{{ h.text }}</p>
+        </article>
+      }
+    </div>
+    <div class="pair-cta">
+      <a routerLink="/gps-alerts" class="btn btn-outline">Pair with GPS Alerts →</a>
+      <a routerLink="/live-tracking" class="btn btn-outline">Live Tracking →</a>
+    </div>
+  </div>
+</section>
+
+<app-cta-band
+  title="See SheikhGo AI on your fleet"
+  lead="Book a demo. We will walk through the ERP AI Management Center, assistant tools, digests, WhatsApp Assist, and mobile copilot — with clear answers on LLM setup and data boundaries."
+  primaryText="Request a Demo"
+  primaryUrl="/request-demo"
+  secondaryText="Contact Us →"
+  secondaryUrl="/contact"
+/>

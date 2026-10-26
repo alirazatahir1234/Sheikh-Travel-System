@@ -99,33 +99,33 @@
   </div>
 </section>
 
-<section class="ai-band" id="ai-solutions">
+<section class="ai-band">
   <div class="ai-bg" aria-hidden="true"></div>
   <div class="container ai-grid">
     <div class="ai-copy">
       <span class="section-kicker light">AI Solutions</span>
-      <h2>Unlock the Power of Artificial Intelligence</h2>
+      <h2>Fleet AI that answers from your data</h2>
       <p>
-        We integrate AI into your business to automate processes, generate insights and create new opportunities for
-        growth.
+        Assistants, copilot chat, health scores, morning digests, and WhatsApp drafting — tool-first, optionally
+        powered by LLMs you configure. Honest heuristics, not black-box hype.
       </p>
       <ul class="ai-list">
         @for (f of aiFeatures; track f) {
           <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
       </ul>
-      <a routerLink="/contact" class="btn btn-primary">Explore AI Solutions →</a>
+      <a routerLink="/ai-solutions" class="btn btn-primary">Explore AI Solutions →</a>
     </div>
     <div class="ai-panel" aria-hidden="true">
       <div class="ai-panel-card">
-        <mat-icon class="panel-icon" aria-hidden="true">hub</mat-icon>
-        <strong>Neural core</strong>
-        <p>Models, data pipelines, and secure orchestration.</p>
+        <mat-icon class="panel-icon" aria-hidden="true">support_agent</mat-icon>
+        <strong>AI Assistant</strong>
+        <p>Structured Q&amp;A via fleet tools — trips, fuel, alerts, and more.</p>
       </div>
       <div class="ai-panel-card secondary">
         <mat-icon class="panel-icon" aria-hidden="true">insights</mat-icon>
-        <strong>Connected insight</strong>
-        <p>Automation and analytics that support real decisions.</p>
+        <strong>Fleet intelligence</strong>
+        <p>Scores, digests, and recommendations from transparent rules.</p>
       </div>
     </div>
   </div>

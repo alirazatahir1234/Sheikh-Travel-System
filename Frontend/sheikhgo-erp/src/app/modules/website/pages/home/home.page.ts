@@ -1,6 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { NgClass } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { MatIconModule } from '@angular/material/icon';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
@@ -14,10 +15,13 @@ import { INDUSTRY_ITEMS, SERVICE_ITEMS } from '../../core/site-catalog';
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
-export class HomePage implements OnInit {
+export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly brand = WEBSITE_BRAND;
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private fragmentSub?: Subscription;
 
   heroEyebrow: string = WEBSITE_BRAND.companyName;
   heroTitlePrimary = 'Build Smarter with';
@@ -55,14 +59,12 @@ export class HomePage implements OnInit {
   readonly services = SERVICE_ITEMS;
 
   readonly aiFeatures = [
-    'AI Automation',
-    'Intelligent Analytics',
-    'AI Chatbots & Assistants',
-    'Predictive Insights',
-    'Computer Vision',
-    'Generative AI',
-    'LLM Integration',
-    'AI Agents',
+    'AI Assistant & Chat Gateway',
+    'ERP AI Management Center',
+    'Fleet health & morning digest',
+    'Heuristic recommendations',
+    'WhatsApp AI Assist (human-approved)',
+    'Driver & Fleet mobile copilot',
   ] as const;
 
   readonly industries = [
@@ -186,5 +188,17 @@ export class HomePage implements OnInit {
         }));
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.fragmentSub = this.route.fragment.subscribe(fragment => {
+      if (fragment === 'ai-solutions') {
+        void this.router.navigate(['/ai-solutions'], { replaceUrl: true });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.fragmentSub?.unsubscribe();
   }
 }
