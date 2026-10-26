@@ -32,16 +32,21 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     { icon: 'hub', text: 'All-in-one NEXUS dashboard' },
   ] as const;
 
-  readonly pillLinks = [
+  readonly pillLinks: {
+    label: string;
+    icon: string;
+    fragment?: string;
+    link?: string;
+  }[] = [
     { label: 'NEXUS Dashboard', fragment: 'see-the-platform', icon: 'dashboard' },
     { label: 'GPS Tracking', fragment: 'platform-features', icon: 'gps_fixed' },
     { label: 'Live Map', fragment: 'platform-features', icon: 'map' },
     { label: 'Geofencing', fragment: 'platform-features', icon: 'fence' },
-    { label: 'AI Solutions', fragment: 'home-ai', icon: 'auto_awesome' },
+    { label: 'AI Solutions', link: '/ai-solutions', icon: 'auto_awesome' },
     { label: 'ERP', fragment: 'erp-ai', icon: 'business' },
     { label: 'Services', fragment: 'services', icon: 'code' },
     { label: 'Request Demo', fragment: 'cta', icon: 'rocket_launch' },
-  ] as const;
+  ];
 
   readonly nexusCallouts = [
     { title: 'Live GPS Tracking', text: 'Map, speed, trip state', icon: 'gps_fixed' },
@@ -207,7 +212,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.fragmentSub = this.route.fragment.subscribe(fragment => {
-      if (fragment === 'ai-solutions') {
+      if (fragment === 'ai-solutions' || fragment === 'home-ai') {
         void this.router.navigate(['/ai-solutions'], { replaceUrl: true });
       }
     });

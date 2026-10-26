@@ -56,11 +56,18 @@
 
 <nav class="premium-pill-nav" aria-label="Explore the platform">
   <div class="container pills">
-    @for (pill of pillLinks; track pill.fragment) {
-      <a [routerLink]="['/']" [fragment]="pill.fragment">
-        <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
-        {{ pill.label }}
-      </a>
+    @for (pill of pillLinks; track pill.label) {
+      @if (pill.link) {
+        <a [routerLink]="pill.link">
+          <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
+          {{ pill.label }}
+        </a>
+      } @else {
+        <a [routerLink]="['/']" [fragment]="pill.fragment">
+          <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
+          {{ pill.label }}
+        </a>
+      }
     }
   </div>
 </nav>

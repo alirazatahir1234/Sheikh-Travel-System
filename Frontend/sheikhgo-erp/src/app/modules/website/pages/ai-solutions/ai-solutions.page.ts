@@ -20,6 +20,14 @@ interface SolutionGroup {
   lead: string;
   icon: string;
   accent: 'chat' | 'engine' | 'whatsapp' | 'surfaces';
+  count: number;
+  sceneImage: string;
+  sceneToast: {
+    tone: 'ok' | 'warn' | 'info';
+    icon: string;
+    title: string;
+    detail: string;
+  };
   items: SolutionItem[];
 }
 
@@ -91,6 +99,53 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     { id: 'how-it-works', title: 'How it works', icon: 'info' },
   ] as const;
 
+  readonly inventoryStats = [
+    { value: '14', label: 'Shipped AI capabilities' },
+    { value: '4', label: 'Product pillars' },
+    { value: '0', label: 'Auto-sent WhatsApp messages' },
+  ] as const;
+
+  readonly benefitRows = [
+    {
+      icon: 'build_circle',
+      title: 'Tool-first answers',
+      text: 'Assistants call live fleet tools — not generic chat guesses.',
+    },
+    {
+      icon: 'science',
+      title: 'Honest intelligence labels',
+      text: 'Scores and “predictions” are rule-based heuristics, not hidden ML.',
+    },
+    {
+      icon: 'edit_note',
+      title: 'Human-approved messaging',
+      text: 'WhatsApp AI Assist drafts only; your team sends every message.',
+    },
+    {
+      icon: 'devices',
+      title: 'ERP + mobile surfaces',
+      text: 'Management Center, in-app chat, FAB, and Driver & Fleet copilot.',
+    },
+  ] as const;
+
+  readonly workflowSteps = [
+    {
+      step: '1',
+      title: 'Connect your fleet data',
+      text: 'GPS, trips, alerts, fuel, and ERP records already live in SheikhGo — AI reads the same sources your maps and reports use.',
+    },
+    {
+      step: '2',
+      title: 'Configure optional LLM providers',
+      text: 'Add Ollama, DeepInfra, or a compatible endpoint when you want natural-language polish. Tool paths and digests work without one.',
+    },
+    {
+      step: '3',
+      title: 'Ask, review, act',
+      text: 'Chat in ERP or mobile copilot, scan morning digests, follow recommendations, and approve WhatsApp drafts before anything goes out.',
+    },
+  ] as const;
+
   readonly platformHighlights: PlatformHighlight[] = [
     {
       icon: 'build_circle',
@@ -125,6 +180,14 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
         'SheikhGo AI is built for fleet operators: structured Q&A, session-based chat, and quick copilot prompts — all wired to the same tools and data your team already trusts.',
       icon: 'forum',
       accent: 'chat',
+      count: 5,
+      sceneImage: '/website/product/dashboard.png',
+      sceneToast: {
+        tone: 'info',
+        icon: 'support_agent',
+        title: 'AI Assistant',
+        detail: 'Tool-backed answer · trips & alerts',
+      },
       items: [
         {
           title: 'AI Assistant',
@@ -176,6 +239,14 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
         'Scores, digests, and recommendations are computed from your fleet signals using transparent rules and heuristics — not undisclosed “AI models” trained on your data.',
       icon: 'insights',
       accent: 'engine',
+      count: 6,
+      sceneImage: '/website/nexus/fleet-intelligence-dashboard.jpg',
+      sceneToast: {
+        tone: 'ok',
+        icon: 'favorite',
+        title: 'Fleet health',
+        detail: 'Rule-based score · 82 / 100',
+      },
       items: [
         {
           title: 'Fleet health scoring',
@@ -235,6 +306,14 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
         'Help your front-line staff respond faster on WhatsApp with AI-generated draft replies and thread summaries — always reviewed by a person before anything goes to a customer.',
       icon: 'chat',
       accent: 'whatsapp',
+      count: 1,
+      sceneImage: '/website/gps-alerts/scene-health.jpg',
+      sceneToast: {
+        tone: 'warn',
+        icon: 'edit_note',
+        title: 'Suggested reply',
+        detail: 'Draft only — agent sends',
+      },
       items: [
         {
           title: 'WhatsApp Agent AI Assist',
@@ -254,6 +333,14 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
         'Fleet AI is not a separate product bolted on — it lives where your team already works: ERP management, floating chat, and mobile apps for drivers and fleet managers.',
       icon: 'devices',
       accent: 'surfaces',
+      count: 2,
+      sceneImage: '/website/product/live-map.png',
+      sceneToast: {
+        tone: 'info',
+        icon: 'dashboard',
+        title: 'ERP · /ai',
+        detail: 'Management Center + mobile copilot',
+      },
       items: [
         {
           title: 'ERP AI Management Center',

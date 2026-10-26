@@ -88,18 +88,43 @@
   </div>
 </section>
 
+<section class="section stats-band">
+  <div class="container stats-row">
+    @for (s of inventoryStats; track s.label) {
+      <div class="stat">
+        <strong>{{ s.value }}</strong>
+        <span>{{ s.label }}</span>
+      </div>
+    }
+  </div>
+</section>
+
 <section class="section coverage">
   <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">Overview</span>
-      <h2 class="section-title">Four pillars of SheikhGo AI</h2>
-      <p class="section-lead">
-        From conversational assistants to morning digests and WhatsApp drafts — one platform, clear boundaries.
-      </p>
-    </header>
+    <div class="coverage-split">
+      <div>
+        <span class="section-kicker">Overview</span>
+        <h2 class="section-title">Four pillars of SheikhGo AI</h2>
+        <p class="section-lead">
+          From conversational assistants to morning digests and WhatsApp drafts — one platform, clear boundaries.
+          Every item below is implemented in SheikhGo today, described without RAG or MCP marketing hype.
+        </p>
+      </div>
+      <div class="benefit-stack">
+        @for (row of benefitRows; track row.title) {
+          <div class="benefit-row">
+            <mat-icon aria-hidden="true">{{ row.icon }}</mat-icon>
+            <div>
+              <strong>{{ row.title }}</strong>
+              <span>{{ row.text }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
     <div class="cat-grid">
       @for (p of pillars; track p.id) {
-        <a class="cat-card" [routerLink]="[]" [fragment]="p.id">
+        <a class="cat-card" [attr.data-accent]="p.id" [routerLink]="[]" [fragment]="p.id">
           <span class="cat-icon" aria-hidden="true"><mat-icon>{{ p.icon }}</mat-icon></span>
           <div class="cat-meta">
             <span class="cat-count">{{ p.count }}</span>
@@ -141,38 +166,16 @@
             <p class="section-lead">{{ g.lead }}</p>
           </div>
         </header>
-        <div class="visual-panel" [attr.data-accent]="g.accent" aria-hidden="true">
-          @switch (g.accent) {
-            @case ('chat') {
-              <div class="panel-mock chat">
-                <div class="line user">Summarize today’s trip exceptions</div>
-                <div class="line bot"><span class="pill">tools</span> 4 late arrivals · 1 idle &gt; 2h</div>
-              </div>
-            }
-            @case ('engine') {
-              <div class="panel-mock score">
-                <div class="score-ring">82</div>
-                <div class="score-meta">
-                  <strong>Fleet health</strong>
-                  <span>Rule-based score · updated hourly</span>
-                </div>
-              </div>
-            }
-            @case ('whatsapp') {
-              <div class="panel-mock wa">
-                <strong>Suggested reply</strong>
-                <p>Your booking is confirmed for 9:00 AM. Driver will share live location link before pickup.</p>
-                <span class="wa-note">Draft only — agent sends</span>
-              </div>
-            }
-            @default {
-              <div class="panel-mock surfaces">
-                <div class="surface-row"><mat-icon>dashboard</mat-icon> ERP · /ai</div>
-                <div class="surface-row"><mat-icon>phone_iphone</mat-icon> Driver & Fleet apps</div>
-              </div>
-            }
-          }
-        </div>
+        <figure class="scene">
+          <img [src]="g.sceneImage" [alt]="g.title + ' in SheikhGo'" loading="lazy" width="640" height="400" />
+          <div class="scene-toast" [attr.data-tone]="g.sceneToast.tone">
+            <mat-icon aria-hidden="true">{{ g.sceneToast.icon }}</mat-icon>
+            <div>
+              <strong>{{ g.sceneToast.title }}</strong>
+              <span>{{ g.sceneToast.detail }}</span>
+            </div>
+          </div>
+        </figure>
       </div>
       <div class="solution-grid">
         @for (item of g.items; track item.title) {
@@ -197,6 +200,28 @@
     </div>
   </section>
 }
+
+<section class="section workflow" id="workflow">
+  <div class="container">
+    <header class="section-head center">
+      <span class="section-kicker">How teams adopt it</span>
+      <h2 class="section-title">From live data to daily decisions</h2>
+      <p class="section-lead">
+        SheikhGo AI is designed for transport operators who already run GPS and ERP on the platform — not a separate
+        chatbot SKU.
+      </p>
+    </header>
+    <ol class="workflow-grid">
+      @for (w of workflowSteps; track w.step) {
+        <li class="workflow-card">
+          <span class="workflow-step">{{ w.step }}</span>
+          <h3>{{ w.title }}</h3>
+          <p>{{ w.text }}</p>
+        </li>
+      }
+    </ol>
+  </div>
+</section>
 
 <section class="section honesty" id="how-it-works">
   <div class="container">
