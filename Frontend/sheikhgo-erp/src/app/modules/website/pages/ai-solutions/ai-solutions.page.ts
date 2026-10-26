@@ -23,6 +23,14 @@ interface SolutionGroup {
   items: SolutionItem[];
 }
 
+interface PlatformHighlight {
+  icon: string;
+  title: string;
+  text: string;
+  link?: string;
+  linkLabel?: string;
+}
+
 @Component({
   selector: 'app-ai-solutions-page',
   standalone: true,
@@ -83,7 +91,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     { id: 'how-it-works', title: 'How it works', icon: 'info' },
   ] as const;
 
-  readonly platformHighlights = [
+  readonly platformHighlights: PlatformHighlight[] = [
     {
       icon: 'build_circle',
       title: 'Tool-first answers',
@@ -106,7 +114,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       link: '/gps-alerts',
       linkLabel: 'GPS Alerts',
     },
-  ] as const;
+  ];
 
   readonly groups: SolutionGroup[] = [
     {
