@@ -13,6 +13,7 @@ work — ADR-009 flags that path (and any `appsettings*.json` template) whenever
 | JWT signing | `JwtSettings:Secret` (min 32 chars) | `JwtSettings__Secret` |
 | Traccar (when enabled) | `Traccar:Password` | `Traccar__Password` |
 | Google Maps (server) | `GoogleMaps:ApiKey` or `Geocoding:GoogleMapsApiKey` | `GoogleMaps__ApiKey` or `Geocoding__GoogleMapsApiKey` |
+| Road speed alerts (optional module) | Uses same `GoogleMaps:ApiKey`; tunables under `RoadSpeedAlerts:*` | Enable **Roads API** + **Speed Limits** product in Google Cloud; tenant must enable module `ROAD_SPEED_ALERTS` |
 
 Non-Development hosts **fail fast at startup** if these are missing or still placeholders (`ProductionSecretsValidator`).
 

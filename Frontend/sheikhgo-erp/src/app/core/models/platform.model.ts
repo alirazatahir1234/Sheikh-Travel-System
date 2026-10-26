@@ -167,7 +167,7 @@ export interface ModuleRegistryEntry {
   isLicensed?: boolean;
 }
 
-/** Defaults for new companies — Bookings & Trips and SheikhGo AI Assistant are opt-in (not listed). */
+/** Defaults for new companies — Bookings & Trips, Road Speed Alerts, and SheikhGo AI Assistant are opt-in (not listed). */
 export const DEFAULT_TENANT_MODULE_CODES = [
   'DASHBOARD', 'FLEET', 'GPS', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS'
 ] as const;
@@ -206,7 +206,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
     description: 'Unlimited — all modules',
     bestFor: 'Large organizations',
     quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: null },
-    // Routes (TRAVEL) included; Bookings & Trips + SheikhGo AI Assistant stay manual opt-in checkboxes.
+    // Routes (TRAVEL) included; Bookings & Trips + Road Speed Alerts + SheikhGo AI Assistant stay manual opt-in.
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'HR', 'ANALYTICS', 'ACCESS']
   }
 };
@@ -251,7 +251,9 @@ export const MODULE_ICONS: Record<string, string> = {
   ANALYTICS: 'bar_chart',
   ACCESS: 'admin_panel_settings',
   /** Premium SheikhGo AI Assistant — opt-in only; not in DEFAULT_TENANT_MODULE_CODES or plan defaults. */
-  AI: 'smart_toy'
+  AI: 'smart_toy',
+  /** Opt-in road-posted speed-limit overspeed alerts (depends on GPS + Google Roads Speed Limits). */
+  ROAD_SPEED_ALERTS: 'speed'
 };
 
 export interface ProvisionTenantRequest {

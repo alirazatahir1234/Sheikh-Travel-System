@@ -280,7 +280,7 @@ public sealed class NotificationDecisionEngine(
     {
         "sos" => 1,
         "vehicle_offline" => 30,
-        "speed_exceeded" => 15,
+        "speed_exceeded" or "road_speed_exceeded" => 15,
         "low_fuel" or "low_battery" => 60,
         "compliance_reminder" => 1440,
         "trip_created" or "trip_started" or "trip_completed" or "trip_driver_arriving"
@@ -291,7 +291,7 @@ public sealed class NotificationDecisionEngine(
     private static int InferPriority(string eventType) => eventType.ToLowerInvariant() switch
     {
         "sos" => 4,
-        "vehicle_offline" or "speed_exceeded" or "compliance_reminder" => 3,
+        "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded" or "compliance_reminder" => 3,
         _ => 2
     };
 
@@ -308,7 +308,7 @@ public sealed class NotificationDecisionEngine(
     private static string? TemplateFor(string eventType) => eventType.ToLowerInvariant() switch
     {
         "sos" => "sos_alert",
-        "speed_exceeded" => "speed_alert",
+        "speed_exceeded" or "road_speed_exceeded" => "speed_alert",
         "vehicle_offline" => "vehicle_offline",
         "booking_created" => "booking_created",
         "trip_created" => "trip_created",

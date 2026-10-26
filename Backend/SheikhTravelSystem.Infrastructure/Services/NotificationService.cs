@@ -702,7 +702,7 @@ public class NotificationService : INotificationService
     private static string? AlertTypeFromTemplate(string? templateKey) => templateKey switch
     {
         "sos_alert" => "sos",
-        "speed_alert" => "speed_exceeded",
+        "speed_alert" => "speed_exceeded", // also used for road_speed_exceeded notifications
         "vehicle_offline" => "vehicle_offline",
         "compliance_reminder" => "compliance_reminder",
         _ => null

@@ -24,6 +24,19 @@ public class TenantModuleCatalogTests
     }
 
     [Fact]
+    public void RoadSpeedAlerts_IsOptIn_NotInDefaults()
+    {
+        TenantModuleCatalog.RoadSpeedAlertsModuleCode.Should().Be("ROAD_SPEED_ALERTS");
+        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain(
+            TenantModuleCatalog.RoadSpeedAlertsModuleCode);
+        TenantModuleCatalog.IsEntitled("ROAD_SPEED_ALERTS", TenantModuleCatalog.LegacyKeysFromCodes(
+            TenantModuleCatalog.DefaultModuleCodes)).Should().BeFalse();
+        TenantModuleCatalog.IsEntitled("ROAD_SPEED_ALERTS", ["road-speed-alerts"]).Should().BeTrue();
+        TenantModuleCatalog.LegacyKeysFromCodes(["ROAD_SPEED_ALERTS"])
+            .Should().BeEquivalentTo(["road-speed-alerts"]);
+    }
+
+    [Fact]
     public void Bookings_IsOptIn_SeparateFromTravelRoutes()
     {
         TenantModuleCatalog.BookingsModuleCode.Should().Be("BOOKINGS");

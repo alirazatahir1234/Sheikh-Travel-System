@@ -344,6 +344,7 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(GoogleMapsOptions.SectionName))
             .PostConfigure<IOptions<GeocodingOptions>>((opts, geocoding) =>
                 GoogleMapsApiHelper.ApplyGeocodingFallback(opts, geocoding.Value));
+        services.Configure<RoadSpeedAlertOptions>(configuration.GetSection(RoadSpeedAlertOptions.SectionName));
         services.AddHttpClient("Nominatim", (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<GeocodingOptions>>().Value;
@@ -356,6 +357,11 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri("https://maps.googleapis.com/");
             client.Timeout = TimeSpan.FromSeconds(12);
+        });
+        services.AddHttpClient("GoogleRoads", client =>
+        {
+            client.BaseAddress = new Uri("https://roads.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(10);
         });
         services.AddHttpClient("GoogleRoutes", client =>
         {
@@ -374,6 +380,9 @@ public static class DependencyInjection
         });
         services.AddScoped<IGoogleRoutesService, GoogleRoutesService>();
         services.AddScoped<IGoogleRoadsService, GoogleRoadsService>();
+        // Scoped (not singleton): depends on scoped IGoogleRoadsService; process memory cache is static.
+        services.AddScoped<IRoadSpeedLimitLookup, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedLimitLookupService>();
+        services.AddScoped<IRoadSpeedAlertEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedAlertEvaluator>();
         services.AddScoped<IGoogleTimeZoneService, GoogleTimeZoneService>();
         services.AddScoped<IGoogleStaticMapsService, GoogleStaticMapsService>();
         services.AddScoped<IGoogleStreetViewService, GoogleStreetViewService>();

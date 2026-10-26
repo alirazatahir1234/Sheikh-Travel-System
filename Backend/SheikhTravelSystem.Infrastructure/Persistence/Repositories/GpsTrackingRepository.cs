@@ -39,6 +39,7 @@ public sealed partial class GpsTrackingRepository(
     IGpsTripPersistenceService tripPersistence,
     IGpsAlertWriter alertWriter,
     IDriverTelematicsEnforcementService telematicsEnforcement,
+    IRoadSpeedAlertEvaluator roadSpeedAlertEvaluator,
     MediatR.IMediator mediator,
     ITraccarClient traccar,
     IReverseGeocodingService geocoder,
@@ -1931,6 +1932,15 @@ public sealed partial class GpsTrackingRepository(
 
         var ingestDto = dto with { BookingId = bookingId };
         await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
+        try
+        {
+            await roadSpeedAlertEvaluator.EvaluateAsync(
+                connection, ingestDto, previous.Latitude, previous.Longitude, recordedAt, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Road speed alert evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+        }
         await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
         await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);

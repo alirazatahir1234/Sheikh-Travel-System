@@ -19,6 +19,12 @@ public static class TenantModuleCatalog
     /// <summary>Roads / routes catalog — independent of bookings/trips.</summary>
     public const string TravelRoutesModuleCode = "TRAVEL";
 
+    /// <summary>
+    /// Road-posted speed limit overspeed alerts (Google Roads Speed Limits) — opt-in only;
+    /// never in <see cref="DefaultModuleCodes"/>.
+    /// </summary>
+    public const string RoadSpeedAlertsModuleCode = "ROAD_SPEED_ALERTS";
+
     public static readonly ModuleDefinition[] All =
     [
         new("DASHBOARD", "Dashboard", ["dashboard"]),
@@ -36,17 +42,18 @@ public static class TenantModuleCatalog
         new("ACCESS", "Access Control", ["users", "driver-allowance-rules"]),
         // Premium: SheikhGo AI Assistant — enable only via explicit company opt-in (provision / module management).
         new(AiAssistantModuleCode, "SheikhGo AI Assistant", ["ai"]),
+        // Premium: road-based overspeed (posted limit + margin) — opt-in; requires GPS + Maps key.
+        new(RoadSpeedAlertsModuleCode, "Road Speed Alerts", ["road-speed-alerts"]),
     ];
 
     /// <summary>
     /// Modules enabled for new tenants when none are specified.
     /// Does <b>not</b> include <see cref="AiAssistantModuleCode"/>, <see cref="BookingsModuleCode"/>,
-    /// or <see cref="TripsModuleCode"/> (opt-in).
+    /// <see cref="TripsModuleCode"/>, or <see cref="RoadSpeedAlertsModuleCode"/> (opt-in).
     /// Includes <see cref="TravelRoutesModuleCode"/> (roads/routes) only.
     /// </summary>
     public static IReadOnlyList<string> DefaultModuleCodes { get; } =
         ["DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"];
-
     /// <summary>
     /// Whether a product module code (or legacy key) is covered by the tenant's enabled legacy keys.
     /// Used by menu/dashboard soft gates; empty enabled set is treated as "no filter" by callers.

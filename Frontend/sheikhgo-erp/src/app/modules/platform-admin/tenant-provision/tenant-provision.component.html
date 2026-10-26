@@ -158,7 +158,7 @@
             (click)="toggleModule(mod.code)">
             <mat-icon>{{ moduleIcon(mod.code) }}</mat-icon>
             <span>{{ mod.displayName || mod.name }}</span>
-            <span class="premium-chip" *ngIf="mod.code === 'AI'">Premium</span>
+            <span class="premium-chip" *ngIf="mod.code === 'AI' || mod.code === 'ROAD_SPEED_ALERTS'">Premium</span>
             <span class="opt-in-chip" *ngIf="mod.code === 'BOOKINGS'">Opt-in</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(mod.code)">check_circle</mat-icon>
           </button>

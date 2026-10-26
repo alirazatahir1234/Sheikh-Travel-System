@@ -12,7 +12,7 @@ public class ModuleRegistrySeedTests
     [
         "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
         "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
-        "PAYMENTS", "INVOICES", "SETTINGS", "AI",
+        "PAYMENTS", "INVOICES", "SETTINGS", "AI", "ROAD_SPEED_ALERTS",
     ];
 
     [Fact]
@@ -24,6 +24,25 @@ public class ModuleRegistrySeedTests
         ModuleRegistrySeed.IsEnableable("AI").Should().BeTrue();
         TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("AI");
         TenantModuleCatalog.All.Should().Contain(m => m.Code == "AI");
+    }
+
+    [Fact]
+    public void RoadSpeedAlerts_IsActiveEnableable_DependsOnGps_NotInDefaults()
+    {
+        var mod = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "ROAD_SPEED_ALERTS").Subject;
+        mod.Status.Should().Be("Active");
+        mod.LegacyKeys.Should().BeEquivalentTo(["road-speed-alerts"]);
+        mod.Dependencies.Should().Contain("GPS");
+        ModuleRegistrySeed.IsEnableable("ROAD_SPEED_ALERTS").Should().BeTrue();
+        ModuleRegistrySeed.IsToggleable(mod).Should().BeTrue();
+        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("ROAD_SPEED_ALERTS");
+        TenantModuleCatalog.All.Should().Contain(m => m.Code == TenantModuleCatalog.RoadSpeedAlertsModuleCode);
+
+        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["ROAD_SPEED_ALERTS"]);
+        expanded.Should().Contain("ROAD_SPEED_ALERTS");
+        expanded.Should().Contain("GPS");
+        expanded.Should().Contain("FLEET");
+        expanded.Should().Contain("DASHBOARD");
     }
 
     [Fact]

@@ -12,5 +12,19 @@
     "IncludeNearbyPlace": false,
     "BackfillCooldownoldownSeconds": 300,
     "GoogleMapsApiKey": "__SET_IN_USER_SECRETS_OR_ENV__"
+  },
+  "GoogleMaps": {
+    "ApiKey": "__SET_IN_USER_SECRETS_OR_ENV__"
+  },
+  "RoadSpeedAlerts": {
+    "ApiEnabled": true,
+    "OverspeedMarginKmh": 20,
+    "MinMovementMeters": 75,
+    "MinSpeedToEvaluateKmh": 30,
+    "CacheTtlHours": 24,
+    "GridCellDegrees": 0.0009,
+    "AlertDedupMinutes": 5,
+    "CircuitBreakerFailureThreshold": 5,
+    "CircuitBreakerCooldownMinutes": 15
   }
 }

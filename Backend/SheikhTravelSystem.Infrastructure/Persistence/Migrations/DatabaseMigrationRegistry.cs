@@ -135,6 +135,8 @@ public static class DatabaseMigrationRegistry
             M("AuthSessionsConcurrencyMigration", AuthSessionsConcurrencyMigration.ApplyAsync),
             M("ModuleAiAssistantActiveMigration", ModuleAiAssistantActiveMigration.ApplyAsync),
             M("BookingsTripsModuleSplitMigration", BookingsTripsModuleSplitMigration.ApplyAsync),
+            M("ModuleRoadSpeedAlertsActiveMigration", ModuleRoadSpeedAlertsActiveMigration.ApplyAsync),
+            M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
         ];
     }
 }

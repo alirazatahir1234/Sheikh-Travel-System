@@ -11,19 +11,19 @@ internal static class GpsAlertAccess
             ["DRIVER"] =
             [
                 "trip_assigned", "trip_started", "trip_completed", "trip_cancelled",
-                "driver_assigned", "speed_exceeded", "overspeed", "harsh_braking",
+                "driver_assigned", "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking",
                 "seatbelt", "rest_time", "license_expiry", "document_expiry", "inspection_required"
             ],
             ["DISPATCHER"] =
             [
                 "trip_started", "trip_completed", "trip_cancelled", "driver_assigned",
                 "driver_late", "route_deviation", "geofence_enter", "geofence_exit", "speed_exceeded",
-                "overspeed", "idle_vehicle", "gps_offline", "vehicle_offline", "booking_cancellation",
+                "overspeed", "road_speed_exceeded", "idle_vehicle", "gps_offline", "vehicle_offline", "booking_cancellation",
                 "eta_delay", "vehicle_arrived", "vehicle_departed"
             ],
             ["GPS_OPERATOR"] =
             [
-                "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
+                "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
                 "ignition_on", "ignition_off", "power_cut", "low_battery",
                 "gps_offline", "vehicle_offline", "online", "gps_online", "tow",
                 "geofence_enter", "geofence_exit",
@@ -31,7 +31,7 @@ internal static class GpsAlertAccess
             ],
             ["OWNER"] =
             [
-                "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
+                "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
                 "ignition_on", "ignition_off", "power_cut", "low_battery",
                 "gps_offline", "vehicle_offline", "online", "gps_online", "tow",
                 "geofence_enter", "geofence_exit",
@@ -39,7 +39,7 @@ internal static class GpsAlertAccess
             ],
             ["FLEET_MANAGER"] =
             [
-                "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
+                "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
                 "engine_fault", "fuel_theft", "low_battery", "gps_offline", "vehicle_offline",
                 "online", "gps_online",
                 "maintenance_due", "geofence_enter", "geofence_exit", "idle_vehicle",

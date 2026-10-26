@@ -73,6 +73,10 @@ public static class ModuleRegistrySeed
         // Premium enableable (TenantModuleCatalog) — default off for new/existing tenants
         E("AI", "SheikhGo AI Assistant", "SheikhGo AI Assistant", "Premium SheikhGo AI Assistant for operations chat and tools", "Platform", "smart_toy", "/ai", 120,
             ["DASHBOARD"], true, true, true, false, "Active", ["ai"]),
+        E("ROAD_SPEED_ALERTS", "Road Speed Alerts", "Road Speed Alerts",
+            "Alert when vehicle speed exceeds the posted road speed limit by a configurable margin (Google Roads Speed Limits)",
+            "Fleet", "speed", "/gps-tracking/alerts", 31,
+            ["GPS"], true, true, false, true, "Active", ["road-speed-alerts"]),
 
         // Coming soon / roadmap catalog-only product modules
         E("RENTAL", "Vehicle Rental", "Rental", "Vehicle hire and rental workflows", "Fleet", "car_rental", null, 40,

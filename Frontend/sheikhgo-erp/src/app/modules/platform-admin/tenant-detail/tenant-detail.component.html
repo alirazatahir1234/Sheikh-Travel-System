@@ -297,13 +297,13 @@
         <div class="module-cards">
           <button type="button" class="module-card" *ngFor="let m of modules"
             [class.selected]="isModuleSelected(m.code)"
-            [class.premium]="m.code === 'AI'"
-            [class.opt-in]="m.code === 'BOOKINGS' || m.code === 'AI'"
+            [class.premium]="m.code === 'AI' || m.code === 'ROAD_SPEED_ALERTS'"
+            [class.opt-in]="m.code === 'BOOKINGS' || m.code === 'AI' || m.code === 'ROAD_SPEED_ALERTS'"
             [disabled]="!canManage"
             (click)="toggleModule(m.code)">
             <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
             <span>{{ m.displayName || m.name }}</span>
-            <span class="premium-chip" *ngIf="m.code === 'AI'">Premium</span>
+            <span class="premium-chip" *ngIf="m.code === 'AI' || m.code === 'ROAD_SPEED_ALERTS'">Premium</span>
             <span class="opt-in-chip" *ngIf="m.code === 'BOOKINGS'">Opt-in</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(m.code)">check_circle</mat-icon>
           </button>

@@ -496,6 +496,53 @@ public class GoogleMapsClientsTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task GoogleRoadsService_ParsesSpeedLimitsResponse()
+    {
+        const string json = """
+            {
+              "speedLimits": [
+                { "placeId": "ChIJtestPlace", "speedLimit": 80, "units": "KPH" }
+              ],
+              "snappedPoints": [
+                { "location": { "latitude": 31.52, "longitude": 74.35 }, "placeId": "ChIJtestPlace" }
+              ]
+            }
+            """;
+
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            });
+
+        var factory = CreateFactory(("GoogleRoads", handler));
+        var service = new GoogleRoadsService(
+            factory,
+            MapsOptions(string.Concat("test", "-", "key")),
+            NullLogger<GoogleRoadsService>.Instance);
+
+        var result = await service.GetSpeedLimitAsync(31.52, 74.35);
+
+        result.Should().NotBeNull();
+        result!.SpeedLimitKmh.Should().Be(80);
+        result.PlaceId.Should().Be("ChIJtestPlace");
+    }
+
+    [Fact]
+    public async Task GoogleRoadsService_SpeedLimits_ReturnsNullWhenKeyMissing()
+    {
+        var factory = CreateFactory(("GoogleRoads", new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK))));
+
+        var service = new GoogleRoadsService(
+            factory,
+            MapsOptions(string.Empty),
+            NullLogger<GoogleRoadsService>.Instance);
+
+        (await service.GetSpeedLimitAsync(31.52, 74.35)).Should().BeNull();
+    }
+
     private static GooglePlacesNearbyService CreateNearbyService(
         IHttpClientFactory factory,
         IOptions<GoogleMapsOptions>? options = null,
@@ -560,6 +607,7 @@ public class GoogleMapsClientsTests
                     "GoogleRoutes" => new Uri("https://routes.googleapis.com/"),
                     "GoogleRouteOptimization" => new Uri("https://routeoptimization.googleapis.com/"),
                     "GooglePlaces" => new Uri("https://places.googleapis.com/"),
+                    "GoogleRoads" => new Uri("https://roads.googleapis.com/"),
                     _ => new Uri("https://maps.googleapis.com/")
                 }
             };
