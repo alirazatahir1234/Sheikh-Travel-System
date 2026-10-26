@@ -45,6 +45,69 @@
   </div>
 </section>
 
+<section class="nexus-showcase sg-section" id="see-the-platform" aria-labelledby="nexus-showcase-heading">
+  <div class="nexus-showcase-bg" aria-hidden="true"></div>
+  <div class="container">
+    <header class="section-head nexus-showcase-head">
+      <span class="section-kicker">SheikhGo NEXUS</span>
+      <h2 id="nexus-showcase-heading" class="sg-section-title">See the Fleet Intelligence Platform</h2>
+      <p class="sg-section-lead">
+        One dashboard for live maps, GPS alerts, trips, geofences, fleet health, and an AI assistant that answers
+        from your operational data — built for transport and logistics teams.
+      </p>
+      <div class="nexus-showcase-actions">
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/fleet-management" class="btn btn-outline">Explore SheikhGo Fleet →</a>
+      </div>
+    </header>
+
+    <figure class="nexus-frame">
+      <div class="nexus-frame-glow" aria-hidden="true"></div>
+      <div class="nexus-screenshot-wrap">
+        <img
+          src="/website/nexus/fleet-intelligence-dashboard.jpg"
+          alt="SheikhGo NEXUS product mockup: live fleet map, recent GPS alerts, feature highlights, and AI assistant panel"
+          class="nexus-screenshot"
+          width="1920"
+          height="1080"
+          loading="lazy"
+          decoding="async"
+          [class.is-hidden]="nexusImageError"
+          (error)="nexusImageError = true" />
+        @if (nexusImageError) {
+          <div class="nexus-screenshot-placeholder" role="img" aria-label="Platform preview placeholder">
+            <mat-icon aria-hidden="true">dashboard</mat-icon>
+            <span>SheikhGo NEXUS dashboard preview</span>
+            <small>Add asset at /website/nexus/fleet-intelligence-dashboard.jpg</small>
+          </div>
+        }
+      </div>
+      @for (callout of nexusCallouts; track callout.title; let i = $index) {
+        <div class="nexus-callout reveal" [ngClass]="'callout-' + i" aria-hidden="true">
+          <span class="nexus-callout-icon"><mat-icon>{{ callout.icon }}</mat-icon></span>
+          <div>
+            <strong>{{ callout.title }}</strong>
+            <span>{{ callout.text }}</span>
+          </div>
+        </div>
+      }
+      <figcaption class="nexus-caption">
+        Product UI illustration — sample fleet metrics in the image are for demonstration, not live customer data.
+      </figcaption>
+    </figure>
+
+    <div class="nexus-feature-grid">
+      @for (f of nexusFeatures; track f.title) {
+        <a class="nexus-feature-card" [routerLink]="f.link">
+          <span class="nexus-feature-icon" aria-hidden="true"><mat-icon>{{ f.icon }}</mat-icon></span>
+          <h3>{{ f.title }}</h3>
+          <p>{{ f.text }}</p>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
 @if (cmsFeatures.length) {
   <section class="sg-section" id="cms-features" aria-labelledby="cms-features-heading">
     <div class="container">

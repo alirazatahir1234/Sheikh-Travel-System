@@ -30,6 +30,81 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   heroPrimaryCta = { label: 'Get a Free Consultation →', link: '/contact' };
   heroSecondaryCta = { label: 'Our Services', link: '/', fragment: 'services' as string | undefined };
   cmsFeatures: { title: string; text: string; link: string }[] = [];
+  nexusImageError = false;
+
+  readonly nexusCallouts = [
+    {
+      title: 'Live GPS Tracking',
+      text: 'Real-time map, speed, and status',
+      icon: 'gps_fixed',
+    },
+    {
+      title: 'AI Assistant',
+      text: 'Ask fleet questions in plain English',
+      icon: 'smart_toy',
+    },
+    {
+      title: 'Geofencing',
+      text: 'Zones with instant exit alerts',
+      icon: 'fence',
+    },
+    {
+      title: 'Smart Notifications',
+      text: 'App, dashboard, email, and SMS',
+      icon: 'notifications_active',
+    },
+  ] as const;
+
+  readonly nexusFeatures = [
+    {
+      title: 'Live GPS Tracking',
+      text: 'See vehicles on the map with speed and trip state as conditions change.',
+      icon: 'my_location',
+      link: '/live-tracking',
+    },
+    {
+      title: 'Geofencing',
+      text: 'Draw office, depot, and customer zones — get notified when vehicles cross boundaries.',
+      icon: 'fence',
+      link: '/gps-tracking',
+    },
+    {
+      title: 'Trip Playback & History',
+      text: 'Replay routes with stops and timestamps for disputes, audits, and coaching.',
+      icon: 'route',
+      link: '/gps-tracking',
+    },
+    {
+      title: 'Offline to Online Sync',
+      text: 'Recover trips and positions when devices reconnect — no silent data gaps.',
+      icon: 'sync',
+      link: '/fleet-management',
+    },
+    {
+      title: 'Fleet Health Monitoring',
+      text: 'Track device connectivity, idle time, and operational signals in one view.',
+      icon: 'health_and_safety',
+      link: '/fleet-management',
+    },
+    {
+      title: 'AI Assistant',
+      text: 'Structured answers from fleet tools — offline vehicles, fuel, alerts, and more.',
+      icon: 'support_agent',
+      link: '/ai-solutions',
+    },
+    {
+      title: 'GPS Alerts',
+      text: 'Speeding, geofence exits, panic, fuel, and device events when you need to act.',
+      icon: 'warning',
+      link: '/gps-alerts',
+    },
+    {
+      title: 'WhatsApp Assist',
+      text: 'Draft owner-ready messages from fleet context — human-approved before send.',
+      icon: 'chat',
+      link: '/ai-solutions',
+    },
+  ] as const;
 
   readonly softStats = [
     { label: 'End-to-End Delivery' },
