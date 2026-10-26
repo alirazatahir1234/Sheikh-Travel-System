@@ -77,6 +77,7 @@ const routes: Routes = [
       },
     ],
   },
+  // Public marketing: fleet AI inventory (always reachable, including signed-in users).
   {
     path: 'ai-solutions',
     component: WebsiteShellComponent,
