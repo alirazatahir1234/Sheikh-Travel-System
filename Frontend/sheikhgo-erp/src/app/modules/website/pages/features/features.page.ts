@@ -50,7 +50,8 @@ export class FeaturesPage implements OnInit {
 
   features: { title: string; text: string; link: string }[] = [
     { title: 'Fleet Management', text: 'Vehicles, drivers, assignments and operational control.', link: '/fleet-management' },
-    { title: 'GPS Tracking', text: 'Live map, history, playback, geofences and alerts.', link: '/gps-tracking' },
+    { title: 'Live Tracking', text: 'Real-time fleet map, speed and status, geofence layers and history playback.', link: '/live-tracking' },
+    { title: 'GPS Tracking', text: 'Overview of fleet GPS — addresses, capabilities and links to live map and alerts.', link: '/gps-tracking' },
     { title: 'Vehicle Management', text: 'Registration, status, documents and device linkage.', link: '/fleet-management' },
     { title: 'Driver Management', text: 'Profiles, duty status, performance and history.', link: '/features' },
     { title: 'Trip Management', text: 'Create, monitor and complete trips with GPS context.', link: '/features' },

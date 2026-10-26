@@ -54,7 +54,7 @@ const routes: Routes = [
     ],
   },
 
-  // Always-public marketing page (no ERP path clash — ERP alerts live at /gps-tracking/alerts)
+  // Always-public marketing pages (no ERP path clash — ERP module lives at /gps-tracking/*)
   {
     path: 'gps-alerts',
     component: WebsiteShellComponent,
@@ -63,6 +63,17 @@ const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./modules/website/pages/gps-alerts/gps-alerts.page').then(m => m.GpsAlertsPage),
+      },
+    ],
+  },
+  {
+    path: 'live-tracking',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/live-tracking/live-tracking.page').then(m => m.LiveTrackingPage),
       },
     ],
   },

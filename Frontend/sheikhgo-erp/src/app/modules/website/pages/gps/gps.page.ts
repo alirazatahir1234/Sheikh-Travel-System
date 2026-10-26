@@ -15,7 +15,7 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageLead }}</p>
         <div style="margin-top:1.4rem;display:flex;gap:.75rem;flex-wrap:wrap">
-          <a [routerLink]="primaryUrl" class="btn btn-primary">{{ primaryText }}</a>
+          <a routerLink="/live-tracking" class="btn btn-primary">Explore Live Tracking →</a>
           <a routerLink="/gps-alerts" class="btn btn-ghost">GPS Alerts →</a>
         </div>
       </div>
@@ -53,7 +53,10 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
           Thirteen alert types across safety, tracking and vehicle health — including road speed limits for the street
           your vehicle is on, geofences, SOS, ignition, fuel and more.
         </p>
-        <a routerLink="/gps-alerts" class="btn btn-primary">Explore GPS Alerts →</a>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem">
+          <a routerLink="/live-tracking" class="btn btn-primary">Explore Live Tracking →</a>
+          <a routerLink="/gps-alerts" class="btn btn-outline">GPS Alerts →</a>
+        </div>
       </div>
     </section>
     <app-cta-band />

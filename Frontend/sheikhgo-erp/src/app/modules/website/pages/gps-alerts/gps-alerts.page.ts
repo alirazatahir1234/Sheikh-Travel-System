@@ -40,7 +40,7 @@ interface AlertGroup {
           </p>
           <div class="hero-actions">
             <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
-            <a routerLink="/gps-tracking" class="btn btn-ghost">GPS Tracking →</a>
+            <a routerLink="/live-tracking" class="btn btn-ghost">Live Tracking →</a>
           </div>
         </div>
         <aside class="hero-panel" aria-label="Alert coverage at a glance">
