@@ -77,6 +77,17 @@ const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'ai-solutions',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/ai-solutions/ai-solutions.page').then(m => m.AiSolutionsPage),
+      },
+    ],
+  },
 
   // Public marketing site (guests only — avoids clashing with ERP paths like gps-tracking)
   {
