@@ -26,7 +26,8 @@ import { WEBSITE_LANGUAGES, WebsiteLanguage } from '../../core/i18n/website-lang
       display: inline-flex;
       flex-shrink: 0;
       position: relative;
-      z-index: 1;
+      z-index: 2;
+      isolation: isolate;
     }
 
     .lang-switch {

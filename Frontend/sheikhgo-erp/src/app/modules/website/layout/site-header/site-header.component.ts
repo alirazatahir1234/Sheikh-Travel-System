@@ -35,8 +35,15 @@ export class SiteHeaderComponent implements OnInit, OnDestroy {
   private readonly ngZone = inject(NgZone);
   private readonly doc = inject(DOCUMENT);
 
-  /** Chrome wordmark — SheikhGo Technologies */
+  /** Chrome wordmark — prefer short mark so nav never shades logo text */
   siteName: string = WEBSITE_BRAND.productName;
+
+  /** Header lockup text — compact when CMS/product name is long */
+  get chromeWordmark(): string {
+    const name = (this.siteName || WEBSITE_BRAND.productName).trim();
+    if (name.length > 14) return WEBSITE_BRAND.shortMark;
+    return name || WEBSITE_BRAND.shortMark;
+  }
 
   readonly menuOpen = signal(false);
   readonly servicesOpen = signal(false);
