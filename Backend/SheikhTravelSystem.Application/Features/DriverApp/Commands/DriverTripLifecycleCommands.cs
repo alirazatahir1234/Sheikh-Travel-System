@@ -8,6 +8,7 @@ using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.Trips;
 using SheikhTravelSystem.Application.Features.Trips.Commands;
+using SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -52,6 +53,7 @@ public class DriverAdvanceTripCommandHandler(
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IWhatsAppAutomationHooks automationHooks,
+    ITripSmartAssignmentService smartAssignment,
     IMediator mediator,
     ILogger<DriverAdvanceTripCommandHandler> logger)
     : IRequestHandler<DriverAdvanceTripCommand, ApiResponse<bool>>
@@ -116,6 +118,13 @@ public class DriverAdvanceTripCommandHandler(
         if (!TripLifecycle.CanTransition(current, target.Value))
             return ApiResponse<bool>.FailResponse(
                 $"Cannot transition from {DriverTripLabels.Name(current)} to {DriverTripLabels.Name(target.Value)}.");
+
+        if (request.Action == DriverTripAction.Reject)
+        {
+            var driverId = currentUser.DriverId!.Value;
+            if (await smartAssignment.TryReassignAfterDriverRejectAsync(trip.Id, driverId, request.Reason, cancellationToken))
+                return ApiResponse<bool>.SuccessResponse(true, "Assignment declined. Next driver has been notified.");
+        }
 
         var result = await mediator.Send(
             new UpdateTripStatusCommand(

@@ -1,0 +1,143 @@
+<div class="smart-assign">
+  <header class="smart-assign-head">
+    <div>
+      <h2>Smart Trip Assignment</h2>
+      <p>Rank drivers by rating, location, fatigue, fuel, distance, and route ETA. Drivers can accept or reject from the mobile app.</p>
+    </div>
+  </header>
+
+  <div class="smart-assign-grid">
+    <section class="panel" aria-labelledby="unassigned-heading">
+      <h3 id="unassigned-heading">Unassigned upcoming trips</h3>
+      @if (loadingTrips) {
+        <p class="muted">Loading trips…</p>
+      } @else if (unassignedTrips.length === 0) {
+        <ui-empty-state icon="check_circle" title="All caught up" description="No scheduled trips waiting for a driver."></ui-empty-state>
+      } @else {
+        <ul class="trip-pick-list">
+          @for (t of unassignedTrips; track t.id) {
+            <li>
+              <button type="button" class="trip-pick" [class.active]="selectedTripId === t.id" (click)="selectTrip(t)">
+                <strong>{{ t.tripNumber }}</strong>
+                <span>{{ t.plannedStart | date: 'short' }}</span>
+                <span class="muted">{{ t.pickupAddress || '—' }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="panel panel--wide" aria-labelledby="suggestions-heading">
+      <h3 id="suggestions-heading">Suggestions &amp; scoring</h3>
+      @if (!selectedTripId) {
+        <p class="muted">Select a trip to preview ranked drivers and explainability.</p>
+      } @else {
+        <p class="selected-trip">{{ selectedTripLabel }}</p>
+        @if (routingNote) {
+          <p class="routing-note">{{ routingNote }}</p>
+        }
+        <div class="actions">
+          <button type="button" class="ops-btn ops-btn--primary" [disabled]="busy || loadingSuggestions" (click)="autoAssign()">
+            <mat-icon>auto_awesome</mat-icon>
+            Assign best driver
+          </button>
+          <button type="button" class="ops-btn ops-btn--ghost" [disabled]="loadingSuggestions" (click)="loadSuggestions()">
+            Refresh rankings
+          </button>
+        </div>
+        @if (loadingSuggestions) {
+          <p class="muted">Scoring candidates…</p>
+        } @else if (candidates.length === 0) {
+          <ui-empty-state icon="person_off" title="No eligible drivers" description="Check driver availability, license, and GPS linkage."></ui-empty-state>
+        } @else {
+          <div class="candidate-cards">
+            @for (c of candidates; track c.driverId) {
+              <article class="candidate-card">
+                <header>
+                  <span class="rank">#{{ c.rank }}</span>
+                  <div>
+                    <strong>{{ c.driverName }}</strong>
+                    <span class="muted">{{ c.vehicleName || 'No linked vehicle' }}</span>
+                  </div>
+                  <span class="score">{{ c.totalScore | number: '1.0-0' }}</span>
+                </header>
+                <ul class="factor-list">
+                  @for (f of c.factors; track f.key) {
+                    <li>
+                      <span class="factor-label">{{ f.label }} <small>({{ f.weight * 100 | number: '1.0-0' }}%)</small></span>
+                      <span class="factor-bar" [style.width.%]="f.rawScore"></span>
+                      <span class="factor-detail">{{ f.detail }}</span>
+                    </li>
+                  }
+                </ul>
+                <footer class="candidate-meta">
+                  <span>{{ c.distanceKm != null ? (c.distanceKm | number: '1.1-1') + ' km' : '—' }}</span>
+                  <span>{{ c.etaMinutes != null ? c.etaMinutes + ' min ETA' : '—' }}</span>
+                  <span>{{ trafficLabel(c.trafficSource) }}</span>
+                </footer>
+                <button type="button" class="link-btn" (click)="overrideDriverId = c.driverId">Use as override</button>
+              </article>
+            }
+          </div>
+        }
+
+        <div class="override-box">
+          <h4>Admin override</h4>
+          <div class="override-row">
+            <label class="override-field">
+              <span>Driver</span>
+              <select [(ngModel)]="overrideDriverId">
+                <option [ngValue]="null">Select driver…</option>
+                @for (c of candidates; track c.driverId) {
+                  <option [ngValue]="c.driverId">{{ c.driverName }} ({{ c.totalScore | number: '1.0-0' }})</option>
+                }
+              </select>
+            </label>
+            <label class="override-field">
+              <span>Reason (optional)</span>
+              <input type="text" [(ngModel)]="overrideReason" placeholder="Why override the ranking?" />
+            </label>
+            <button type="button" class="ops-btn ops-btn--outline" [disabled]="busy || !overrideDriverId" (click)="applyOverride()">
+              Override assignment
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  </div>
+
+  <section class="panel recent-panel" aria-labelledby="recent-heading">
+    <h3 id="recent-heading">Recent assignment decisions</h3>
+    @if (loadingRecent) {
+      <p class="muted">Loading…</p>
+    } @else if (recentDecisions.length === 0) {
+      <p class="muted">No smart assignments recorded yet.</p>
+    } @else {
+      <div class="recent-table-wrap">
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th>Trip</th>
+              <th>Driver</th>
+              <th>Score</th>
+              <th>Outcome</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of recentDecisions; track d.id) {
+              <tr>
+                <td>{{ d.tripNumber || d.tripId }}</td>
+                <td>{{ d.driverName || d.driverId }}</td>
+                <td>{{ d.totalScore | number: '1.0-0' }}</td>
+                <td><span class="outcome" [attr.data-outcome]="d.outcome">{{ d.outcome }}</span></td>
+                <td>{{ d.createdAtUtc | date: 'short' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

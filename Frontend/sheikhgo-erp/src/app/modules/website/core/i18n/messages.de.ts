@@ -366,4 +366,19 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.clientTracking.f2.text': 'Responsive Seiten für Smartphones — keine Kunden-App nötig.',
   'pages.clientTracking.f3.title': 'Jederzeit widerrufen',
   'pages.clientTracking.f3.text': 'Ops kann Links bei Trip-Wechsel deaktivieren oder neu erzeugen.',
+
+  'home.pill.smartAssignment': 'Smarte Zuweisung',
+  'home.smartAssignment.kicker': 'Flottenbetrieb · gewichtete KI',
+  'home.smartAssignment.title': 'Smarte Trip-Zuweisung mit Erklärbarkeit',
+  'home.smartAssignment.lead':
+    'Kommt eine Fahrt ohne Fahrer an, rankt Nexus verfügbare Fahrer nach Bewertung, GPS-Nähe, Arbeitsstunden, Tankstand, Distanz und verkehrsbewusster ETA — dann benachrichtigt das System den besten Match. Ablehnungen bieten automatisch den nächsten Kandidaten; Admins können mit Score-Breakdown überschreiben.',
+  'home.smartAssignment.signalsTitle': 'Echte Betriebssignale',
+  'home.smartAssignment.signalsText':
+    'Drivers.Rating, VehicleCurrentLocation, DriverAttendance und Google Routes wenn konfiguriert — sonst dokumentierte Luftlinien-Schätzung.',
+  'home.smartAssignment.driverTitle': 'Fahrer Accept / Reject',
+  'home.smartAssignment.driverText':
+    'Push- und In-App-Hinweise. Ablehnung öffnet die nächste Zuweisung, ohne die Fahrt zu stornieren.',
+  'home.smartAssignment.adminTitle': 'Admin-Override & Audit',
+  'home.smartAssignment.adminText':
+    'Smart-Assignment-Bereich unter Fleet Operations mit Faktorgewichten und Entscheidungshistorie für Demos.',
 };

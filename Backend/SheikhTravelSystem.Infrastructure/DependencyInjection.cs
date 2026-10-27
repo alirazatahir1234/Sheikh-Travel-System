@@ -112,6 +112,7 @@ public static class DependencyInjection
             SheikhTravelSystem.Infrastructure.Services.Trips.TripSmartAssignmentService>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
         services.AddScoped<IFleetRepository, FleetRepository>();
+        services.AddScoped<IFleetEvAnomalyRepository, FleetEvAnomalyRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IWebsiteRepository, WebsiteRepository>();
         services.AddScoped<ISettingsRepository, SettingsRepository>();
@@ -414,6 +415,7 @@ public static class DependencyInjection
         services.AddScoped<IRoadSpeedLimitLookup, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedLimitLookupService>();
         services.AddScoped<IRoadSpeedAlertEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedAlertEvaluator>();
         services.AddScoped<IFuelStationStopEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.FuelStationStopEvaluator>();
+        services.AddScoped<IFleetAnomalyEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.FleetAnomalyEvaluator>();
         services.AddScoped<IGoogleTimeZoneService, GoogleTimeZoneService>();
         services.AddScoped<IGoogleStaticMapsService, GoogleStaticMapsService>();
         services.AddScoped<IGoogleStreetViewService, GoogleStreetViewService>();

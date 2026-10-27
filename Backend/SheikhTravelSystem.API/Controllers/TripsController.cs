@@ -5,6 +5,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Trips.Commands;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
 using SheikhTravelSystem.Application.Features.Trips.Queries;
+using SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -154,6 +155,30 @@ public class TripsController : BaseApiController
     [HttpDelete("{id:int}/documents/{documentId:int}")]
     public async Task<IActionResult> DeleteDocument(int id, int documentId)
         => Ok(await Mediator.Send(new DeleteTripDocumentCommand(id, documentId)));
+
+    // ── Smart assignment (AI-weighted driver + route matching) ───────────────
+
+    [HttpGet("smart-assignment/recent")]
+    public async Task<IActionResult> RecentSmartAssignments([FromQuery] int limit = 50)
+        => Ok(await Mediator.Send(new GetRecentTripSmartAssignmentsQuery(limit)));
+
+    [HttpGet("{id:int}/smart-assignment/suggestions")]
+    public async Task<IActionResult> SmartAssignmentSuggestions(int id)
+        => Ok(await Mediator.Send(new GetTripSmartAssignmentSuggestionsQuery(id)));
+
+    [HttpGet("{id:int}/smart-assignment/decisions")]
+    public async Task<IActionResult> SmartAssignmentDecisions(int id)
+        => Ok(await Mediator.Send(new GetTripSmartAssignmentDecisionsQuery(id)));
+
+    [RequirePermission(OperationsPermissions.TripAssign)]
+    [HttpPost("{id:int}/smart-assignment/auto")]
+    public async Task<IActionResult> SmartAssignmentAuto(int id)
+        => Ok(await Mediator.Send(new AutoAssignTripSmartCommand(id)));
+
+    [RequirePermission(OperationsPermissions.TripAssign)]
+    [HttpPost("{id:int}/smart-assignment/override")]
+    public async Task<IActionResult> SmartAssignmentOverride(int id, [FromBody] OverrideTripSmartAssignmentRequest body)
+        => Ok(await Mediator.Send(new OverrideTripSmartAssignmentCommand(id, body)));
 }
 
 public class UploadTripDocumentForm

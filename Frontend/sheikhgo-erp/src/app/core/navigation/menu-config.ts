@@ -18,7 +18,8 @@ const operationsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
-    { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/trips/live', moduleKey: 'trips' }
+    { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/trips/live', moduleKey: 'trips' },
+    { id: 'trip-smart-assignment', label: 'Smart Assignment', icon: 'auto_awesome', route: '/trips/smart-assignment', moduleKey: 'trips' }
   ]
 };
 
@@ -30,6 +31,7 @@ const travelFleetOperationsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
+    { id: 'trip-smart-assignment', label: 'Smart Assignment', icon: 'auto_awesome', route: '/trips/smart-assignment', moduleKey: 'trips' },
     { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' }
   ]
 };
@@ -53,6 +55,7 @@ const fleetOperationsGroup: NavGroup = {
   icon: 'settings',
   collapsible: true,
   items: [
+    { id: 'trip-smart-assignment', label: 'Smart Assignment', icon: 'auto_awesome', route: '/trips/smart-assignment', moduleKey: 'trips' },
     { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live', moduleKey: 'gps-tracking' },
     { id: 'gps-trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips', moduleKey: 'gps-tracking' },
     { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/fleet/maintenance', moduleKey: 'maintenance' },
@@ -328,6 +331,7 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-settings',
     'fleet-analytics',
     'driver-performance',
+    'trip-smart-assignment',
     'reports',
     'tenant-settings',
     'website-dashboard',

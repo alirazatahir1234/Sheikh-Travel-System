@@ -35,6 +35,11 @@ public interface ITripRepository
         int vehicleId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Clears driver assignment while trip is still pre-departure (for smart-assignment re-offers).</summary>
+    Task<TripMutationResult> ClearDriverAssignmentAsync(
+        int tripId,
+        CancellationToken cancellationToken = default);
+
     Task<TripFromBookingSeedResult> GetCreateFromBookingSeedAsync(
         int bookingId,
         CancellationToken cancellationToken = default);

@@ -466,6 +466,63 @@ public sealed class TripRepository(
         }
     }
 
+    public async Task<TripMutationResult> ClearDriverAssignmentAsync(int tripId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        DriverAssignmentOps.OpenConnection(connection);
+        using var tx = connection.BeginTransaction();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var actor = currentUser.UserId?.ToString();
+
+        try
+        {
+            var trip = await connection.QuerySingleOrDefaultAsync<TripAssignRow>(new CommandDefinition(
+                @"SELECT Status, VehicleId, DriverId, BookingId, PickupAddress AS Pickup, DestinationAddress AS Dest, PlannedStart
+                  FROM Trips WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = tripId, TenantId = tenantId },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            if (trip is null)
+                throw new NotFoundException("Trip", tripId);
+
+            var current = (TripStatus)trip.Status;
+            if (TripLifecycle.IsTerminal(current) || current is TripStatus.Started or TripStatus.AtPickup or TripStatus.Enroute)
+            {
+                tx.Rollback();
+                return TripMutationResult.Fail("Cannot clear driver on an active or completed trip.");
+            }
+
+            var nextStatus = TripLifecycle.ResolveAssignmentStatus(current, hasDriver: false, hasVehicle: trip.VehicleId.HasValue);
+
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE Trips SET DriverId = NULL, AssistantDriverId = NULL,
+                    Status = @Status, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
+                WHERE Id = @Id AND TenantId = @TenantId
+                """,
+                new { Status = (int)nextStatus, UpdatedBy = actor, Id = tripId, TenantId = tenantId },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            if (nextStatus != current)
+                await TripLifecycleSql.RecordStatusAsync(connection, tx, tripId, current, nextStatus, actor, "Driver cleared (smart reassignment)", cancellationToken);
+
+            var tripNumber = await connection.ExecuteScalarAsync<string>(new CommandDefinition(
+                "SELECT TripNumber FROM Trips WHERE Id = @Id",
+                new { Id = tripId },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            tx.Commit();
+            return TripMutationResult.Ok(tripNumber);
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
+    }
+
     public async Task<TripMutationResult> AssignVehicleAsync(int tripId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

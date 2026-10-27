@@ -23,7 +23,8 @@ export class TripsLayoutComponent implements OnInit {
     { label: 'Live Dashboard', route: 'live', exact: true },
     { label: 'Calendar', route: 'calendar', exact: true },
     { label: 'Map View', route: 'dashboard', exact: true },
-    { label: 'Reports', route: 'reports', exact: true }
+    { label: 'Reports', route: 'reports', exact: true },
+    { label: 'Smart Assignment', route: 'smart-assignment', exact: true }
   ];
 
   constructor(

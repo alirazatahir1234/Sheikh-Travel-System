@@ -11,6 +11,7 @@ import { TripDetailComponent } from './trip-detail/trip-detail.component';
 import { TripCalendarComponent } from './trip-calendar/trip-calendar.component';
 import { TripLiveBoardComponent } from './trip-live-board/trip-live-board.component';
 import { TripReportsComponent } from './trip-reports/trip-reports.component';
+import { TripSmartAssignmentComponent } from './smart-assignment/smart-assignment.component';
 
 const routes: Routes = [
   {
@@ -23,6 +24,7 @@ const routes: Routes = [
       { path: 'calendar', component: TripCalendarComponent },
       { path: 'live', component: TripLiveBoardComponent },
       { path: 'reports', component: TripReportsComponent },
+      { path: 'smart-assignment', component: TripSmartAssignmentComponent },
       { path: 'new', component: TripFormComponent },
       { path: ':id/edit', component: TripFormComponent, canMatch: [tripIdCanMatch] },
       { path: ':id', component: TripDetailComponent, canMatch: [tripIdCanMatch] }
@@ -44,7 +46,8 @@ function tripIdCanMatch(route: import('@angular/router').Route, segments: import
     TripDetailComponent,
     TripCalendarComponent,
     TripLiveBoardComponent,
-    TripReportsComponent
+    TripReportsComponent,
+    TripSmartAssignmentComponent
   ],
   imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes), UiButtonComponent]
 })
