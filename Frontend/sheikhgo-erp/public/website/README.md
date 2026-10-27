@@ -12,6 +12,7 @@
 
 ## Product videos (MP4, H.264)
 - hero-demo.mp4 — homepage hero loop (autoplay, muted) and “Watch Demo” modal
+- demo/sheikhgo-nexus-walkthrough.mp4 — full Nexus marketing + ERP screen recording (regenerate: `node tools/record-nexus-demo.mjs`)
 
 Record SheikhGo Nexus with a demo tenant only (no real plates, drivers, or customer GPS).
 

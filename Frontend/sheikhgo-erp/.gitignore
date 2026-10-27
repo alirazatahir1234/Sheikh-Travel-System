@@ -44,5 +44,8 @@ Thumbs.db
 # Local hero demo (exceeds GitHub 100MB limit)
 public/website/hero-demo.mp4
 
+# Regenerated walkthrough segments (final MP4 is committed)
+public/website/demo/_segments/
+
 # Optional local Maps key override — never commit real keys
 src/environments/environment.secrets.local.ts

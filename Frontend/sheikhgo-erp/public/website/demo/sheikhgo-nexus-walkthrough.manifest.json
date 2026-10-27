@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-10-27T13:00:09.768Z",
+  "baseUrl": "http://localhost:4200",
+  "output": "/Users/alirazatahir/Projects/Sheikh-Travel-System/Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.mp4",
+  "segments": [
+    "public/website/demo/_segments/01-marketing-home.webm",
+    "public/website/demo/_segments/02-marketing-product-pages.webm",
+    "public/website/demo/_segments/03-erp-live.webm",
+    "public/website/demo/_segments/04-module-gallery.webm",
+    "public/website/demo/_segments/05-cta.webm"
+  ],
+  "erpLiveRoutes": [
+    "/dashboard",
+    "/gps-tracking/live",
+    "/gps-tracking/alerts",
+    "/gps-tracking/geofences",
+    "/gps-tracking/trips",
+    "/gps-tracking",
+    "/vehicles",
+    "/drivers",
+    "/trips",
+    "/bookings",
+    "/fuel-logs",
+    "/fleet/maintenance",
+    "/reports",
+    "/ai",
+    "/customers",
+    "/notifications",
+    "/whatsapp"
+  ],
+  "notes": [
+    "Bookings/WhatsApp shown only if enabled for demo tenant.",
+    "Dedicated finance module route not in current ERP shell — covered via Reports/operations narrative.",
+    "Module gallery uses 14 PNG captures on the home page."
+  ]
+}
