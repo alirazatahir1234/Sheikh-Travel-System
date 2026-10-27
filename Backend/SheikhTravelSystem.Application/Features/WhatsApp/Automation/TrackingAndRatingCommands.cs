@@ -3,6 +3,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -33,7 +34,8 @@ public record GetPublicTrackingQuery(string Token) : IRequest<ApiResponse<Tracki
 
 public class GetPublicTrackingQueryHandler(
     IWhatsAppAutomationRepository repository,
-    ITrackingTokenProtector tokenProtector)
+    ITrackingTokenProtector tokenProtector,
+    IGoogleRoutesService routesService)
     : IRequestHandler<GetPublicTrackingQuery, ApiResponse<TrackingViewDto>>
 {
     private static readonly TrackingBrandDto Brand = new("SheikhGo", "+92 42 000 0000");
@@ -70,20 +72,48 @@ public class GetPublicTrackingQueryHandler(
             ? await repository.GetBookingSnapshotAsync(link.TenantId, trip.BookingId.Value, cancellationToken)
             : null;
 
-        var state = MapState((TripStatus)trip.Status);
+        var tripStatus = (TripStatus)trip.Status;
+        var state = MapState(tripStatus);
         TrackingPositionDto? position = null;
         int? eta = null;
+        string? etaSource = null;
+        int? trafficDelayMinutes = null;
+        string? trafficLevel = null;
+        string? regionCode = null;
 
         if (state is "EnRoute" or "Arriving" or "Arrived" or "InProgress")
         {
             position = trip.VehicleId is > 0 ? TrackingPositionCache.Get(trip.VehicleId.Value) : null;
-            if (position is not null
-                && trip.PickupLat is not null && trip.PickupLng is not null
-                && state is "EnRoute" or "Arriving")
+            if (position is not null)
             {
-                var dist = GeoMath.DistanceMeters(
-                    position.Lat, position.Lng, trip.PickupLat.Value, trip.PickupLng.Value);
-                eta = GeoMath.EstimateEtaMinutes(dist);
+                var toDrop = TrafficRouteHelper.ShouldNavigateToDropoff(tripStatus);
+                double? destLat = toDrop ? trip.DropoffLat : trip.PickupLat;
+                double? destLng = toDrop ? trip.DropoffLng : trip.PickupLng;
+
+                if (destLat is not null && destLng is not null)
+                {
+                    regionCode = MapTrafficRegions.InferRegionCode(destLat.Value, destLng.Value);
+                    var route = await routesService.ComputeRouteAsync(
+                        position.Lat, position.Lng, destLat.Value, destLng.Value,
+                        cancellationToken: cancellationToken);
+                    if (route is { DurationSeconds: > 0 })
+                    {
+                        eta = (int)Math.Ceiling(route.DurationSeconds / 60.0);
+                        etaSource = TrafficRouteHelper.GoogleRoutes;
+                        trafficDelayMinutes = TrafficRouteHelper.TrafficDelayMinutes(
+                            route.DurationSeconds, route.StaticDurationSeconds);
+                        trafficLevel = TrafficRouteHelper.TrafficLevel(
+                            route.DurationSeconds, route.StaticDurationSeconds);
+                        regionCode = route.RegionCode ?? regionCode;
+                    }
+                    else
+                    {
+                        var dist = GeoMath.DistanceMeters(
+                            position.Lat, position.Lng, destLat.Value, destLng.Value);
+                        eta = GeoMath.EstimateEtaMinutes(dist);
+                        etaSource = TrafficRouteHelper.HaversineEstimate;
+                    }
+                }
             }
         }
 
@@ -100,7 +130,11 @@ public class GetPublicTrackingQueryHandler(
             position,
             eta,
             5,
-            Brand));
+            Brand,
+            etaSource,
+            trafficDelayMinutes,
+            trafficLevel,
+            regionCode));
     }
 
     private static string MapState(TripStatus status) => status switch

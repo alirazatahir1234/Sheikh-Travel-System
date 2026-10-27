@@ -157,9 +157,12 @@ public class PublicTrackingPageController : ControllerBase
                 const pos = d.position;
                 const updated = pos ? new Date(pos.fixTime) : null;
                 const ago = updated ? Math.round((Date.now()-updated.getTime())/1000) : null;
+                const trafficNote = d.trafficLevel && d.etaSource==='GoogleRoutes'
+                  ? (' · '+d.trafficLevel+' traffic'+(d.trafficDelayMinutes>0?(' (+'+d.trafficDelayMinutes+' min)'):''))
+                  : (d.etaSource==='HaversineEstimate'?' · estimated':'');
                 document.getElementById('app').innerHTML = `
                   <h1 style="font-size:1.1rem;margin:0 0 .5rem">SheikhGo · ${d.state||''}</h1>
-                  <div class="eta">${d.etaMinutes!=null?('ETA ~ '+d.etaMinutes+' min'): (d.state==='Arrived'?'Your driver is here':'')}</div>
+                  <div class="eta">${d.etaMinutes!=null?('ETA ~ '+d.etaMinutes+' min'+trafficNote): (d.state==='Arrived'?'Your driver is here':'')}</div>
                   <div id="map"></div>
                   <div class="meta">
                     <div><strong>${d.driverFirstName||'Driver'}</strong> · ${d.vehicle?.description||''} (${d.vehicle?.plate||''})</div>

@@ -163,7 +163,11 @@ public record TrackingViewDto(
     TrackingPositionDto? Position,
     int? EtaMinutes,
     int RefreshSeconds,
-    TrackingBrandDto Brand);
+    TrackingBrandDto Brand,
+    string? EtaSource = null,
+    int? TrafficDelayMinutes = null,
+    string? TrafficLevel = null,
+    string? RegionCode = null);
 
 public record TrackingVehicleDto(string Description, string Plate);
 public record TrackingPlaceDto(string? Address, double? Lat, double? Lng, DateTime? At);

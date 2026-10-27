@@ -9,6 +9,9 @@ class GpsEta {
     required this.driverLongitude,
     required this.pickupLatitude,
     required this.pickupLongitude,
+    this.etaSource,
+    this.trafficLevel,
+    this.trafficDelayMinutes,
   });
 
   final int bookingId;
@@ -20,6 +23,9 @@ class GpsEta {
   final double driverLongitude;
   final double pickupLatitude;
   final double pickupLongitude;
+  final String? etaSource;
+  final String? trafficLevel;
+  final int? trafficDelayMinutes;
 
   factory GpsEta.fromJson(Map<String, dynamic> json) => GpsEta(
         bookingId: json['bookingId'] as int? ?? 0,
@@ -31,5 +37,8 @@ class GpsEta {
         driverLongitude: (json['driverLongitude'] as num?)?.toDouble() ?? 0,
         pickupLatitude: (json['pickupLatitude'] as num?)?.toDouble() ?? 0,
         pickupLongitude: (json['pickupLongitude'] as num?)?.toDouble() ?? 0,
+        etaSource: json['etaSource'] as String?,
+        trafficLevel: json['trafficLevel'] as String?,
+        trafficDelayMinutes: json['trafficDelayMinutes'] as int?,
       );
 }

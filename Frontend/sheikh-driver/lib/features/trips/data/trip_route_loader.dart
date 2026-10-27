@@ -153,14 +153,14 @@ class TripRouteLoader {
             },
           },
           'travelMode': 'DRIVE',
-          'routingPreference': 'TRAFFIC_UNAWARE',
+          'routingPreference': 'TRAFFIC_AWARE',
           'polylineEncoding': 'ENCODED_POLYLINE',
           'polylineQuality': 'OVERVIEW',
         },
         options: Options(headers: {
           'X-Goog-Api-Key': key,
           'X-Goog-FieldMask':
-              'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+              'routes.duration,routes.staticDuration,routes.distanceMeters,routes.polyline.encodedPolyline',
         }),
       );
       final body = res.data;

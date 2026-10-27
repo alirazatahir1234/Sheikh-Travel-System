@@ -11,7 +11,7 @@ Weighted driver matching when a trip has no manual driver assignment.
 | Fatigue | `DriverAttendance` hours today |
 | Fuel | `VehicleCurrentLocation.FuelLevel` (OBD when available) |
 | Delivery / on-time pickup | Planned start vs ETA |
-| Traffic / route | Google Routes (`TRAFFIC_AWARE`) when `GoogleMaps:ApiKey` is configured |
+| Traffic / route | Google Routes (`TRAFFIC_AWARE`) when `GoogleMaps:ApiKey` is configured — UAE, Pakistan, and Saudi Arabia (`MapTrafficRegions`) |
 
 When Routes API is unavailable, distance and ETA fall back to haversine + average speed; `TrafficSource` is stored as `HaversineEstimate`.
 

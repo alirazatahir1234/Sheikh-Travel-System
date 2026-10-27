@@ -218,11 +218,14 @@ public class GetGpsEtaQueryHandler(
         if (!result.Success || result.Data is null)
             return result;
 
+        var destLat = result.Data.TargetLatitude ?? result.Data.PickupLatitude;
+        var destLng = result.Data.TargetLongitude ?? result.Data.PickupLongitude;
+
         var route = await routesService.ComputeRouteAsync(
             result.Data.DriverLatitude,
             result.Data.DriverLongitude,
-            result.Data.PickupLatitude,
-            result.Data.PickupLongitude,
+            destLat,
+            destLng,
             null,
             cancellationToken);
 
@@ -234,7 +237,14 @@ public class GetGpsEtaQueryHandler(
             DistanceKm = Math.Round(route.DistanceMeters / 1000.0, 2),
             EtaMinutes = route.DurationSeconds > 0
                 ? (int)Math.Ceiling(route.DurationSeconds / 60.0)
-                : result.Data.EtaMinutes
+                : result.Data.EtaMinutes,
+            TargetLatitude = destLat,
+            TargetLongitude = destLng,
+            EtaSource = TrafficRouteHelper.GoogleRoutes,
+            StaticDurationSeconds = route.StaticDurationSeconds,
+            TrafficDelayMinutes = TrafficRouteHelper.TrafficDelayMinutes(route.DurationSeconds, route.StaticDurationSeconds),
+            TrafficLevel = TrafficRouteHelper.TrafficLevel(route.DurationSeconds, route.StaticDurationSeconds),
+            RegionCode = route.RegionCode ?? MapTrafficRegions.InferRegionCode(destLat, destLng)
         };
 
         return ApiResponse<GpsEtaDto>.SuccessResponse(enhanced);

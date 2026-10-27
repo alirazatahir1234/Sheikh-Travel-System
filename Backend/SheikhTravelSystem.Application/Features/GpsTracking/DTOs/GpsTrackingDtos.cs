@@ -338,7 +338,14 @@ public record GpsEtaDto(
     double DriverLatitude,
     double DriverLongitude,
     double PickupLatitude,
-    double PickupLongitude);
+    double PickupLongitude,
+    double? TargetLatitude = null,
+    double? TargetLongitude = null,
+    string? EtaSource = null,
+    int? StaticDurationSeconds = null,
+    int? TrafficDelayMinutes = null,
+    string? TrafficLevel = null,
+    string? RegionCode = null);
 
 /// <summary>
 /// Live-map fleet roster under GPS.View — avoids depending on Vehicle.View / VehiclesController.

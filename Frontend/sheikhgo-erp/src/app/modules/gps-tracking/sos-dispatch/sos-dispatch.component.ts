@@ -29,6 +29,7 @@ export class SosDispatchComponent implements OnInit, OnDestroy {
   readonly regionOptions = [
     { value: 'PK', label: 'Pakistan' },
     { value: 'AE', label: 'Dubai / UAE' },
+    { value: 'SA', label: 'Saudi Arabia' },
   ];
 
   readonly partnerTypes = ['Towing', 'FlatTire', 'Medical'];

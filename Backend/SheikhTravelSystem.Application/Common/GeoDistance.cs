@@ -24,15 +24,9 @@ public static class GeoDistance
         return (int)Math.Ceiling(distanceKm.Value / speedKmh * 60d);
     }
 
-    /// <summary>Pakistan (PK) vs UAE/Dubai (AE) from coordinates.</summary>
-    public static string InferRegionCode(double latitude, double longitude)
-    {
-        if (latitude is >= 22.4 and <= 26.6 && longitude is >= 51.0 and <= 57.5)
-            return "AE";
-        if (latitude is >= 23.4 and <= 37.5 && longitude is >= 60.5 and <= 78.5)
-            return "PK";
-        return "PK";
-    }
+    /// <summary>UAE (AE), Pakistan (PK), or Saudi Arabia (SA) from coordinates.</summary>
+    public static string InferRegionCode(double latitude, double longitude) =>
+        MapTrafficRegions.InferRegionCode(latitude, longitude);
 
     private static double DegreesToRadians(double deg) => deg * Math.PI / 180d;
 }

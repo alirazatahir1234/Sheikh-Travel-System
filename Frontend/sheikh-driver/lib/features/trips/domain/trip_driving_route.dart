@@ -6,16 +6,23 @@ class TripDrivingRoute {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.points,
+    this.staticDurationSeconds,
+    this.trafficLevel,
+    this.routingSource,
   });
 
   final String encodedPolyline;
   final int distanceMeters;
   final int durationSeconds;
   final List<RoutePoint> points;
+  final int? staticDurationSeconds;
+  final String? trafficLevel;
+  final String? routingSource;
 
   String? get summary => formatDrivingRouteSummary(
         distanceMeters: distanceMeters,
         durationSeconds: durationSeconds,
+        trafficLevel: trafficLevel,
       );
 }
 
@@ -85,6 +92,7 @@ _Chunk _decodeChunk(String encoded, int index) {
 String? formatDrivingRouteSummary({
   required int distanceMeters,
   required int durationSeconds,
+  String? trafficLevel,
 }) {
   final parts = <String>[];
   if (durationSeconds > 0) {
@@ -111,8 +119,23 @@ String? formatDrivingRouteSummary({
       parts.add('$distanceMeters m');
     }
   }
+  if (trafficLevel != null && trafficLevel.isNotEmpty) {
+    parts.add('$trafficLevel traffic');
+  }
   if (parts.isEmpty) return null;
   return parts.join(' · ');
+}
+
+String? deriveTrafficLevel(int durationSeconds, int? staticDurationSeconds) {
+  if (staticDurationSeconds == null ||
+      staticDurationSeconds <= 0 ||
+      durationSeconds <= 0) {
+    return null;
+  }
+  final ratio = durationSeconds / staticDurationSeconds;
+  if (ratio < 1.08) return 'Light';
+  if (ratio < 1.25) return 'Moderate';
+  return 'Heavy';
 }
 
 int parseGoogleDurationSeconds(String? duration) {
@@ -127,10 +150,17 @@ int parseGoogleDurationSeconds(String? duration) {
 /// Backend `GET /gps/maps/planned-route` data object.
 TripDrivingRoute? parsePlannedRouteData(Map<String, dynamic> data) {
   final encoded = data['encodedPolyline'] as String?;
+  final duration = (data['durationSeconds'] as num?)?.toInt() ?? 0;
+  final staticDuration =
+      (data['staticDurationSeconds'] as num?)?.toInt();
   return _routeFromEncoded(
     encoded,
     distanceMeters: (data['distanceMeters'] as num?)?.toInt() ?? 0,
-    durationSeconds: (data['durationSeconds'] as num?)?.toInt() ?? 0,
+    durationSeconds: duration,
+    staticDurationSeconds: staticDuration,
+    trafficLevel: data['trafficLevel'] as String? ??
+        deriveTrafficLevel(duration, staticDuration),
+    routingSource: data['routingSource'] as String?,
   );
 }
 
@@ -141,10 +171,19 @@ TripDrivingRoute? parseRoutesComputePayload(Map<String, dynamic> payload) {
   final route = Map<String, dynamic>.from(routes.first as Map);
   final poly = route['polyline'];
   final encoded = poly is Map ? poly['encodedPolyline'] as String? : null;
+  final duration = parseGoogleDurationSeconds(route['duration'] as String?);
+  final staticDuration =
+      parseGoogleDurationSeconds(route['staticDuration'] as String?);
   return _routeFromEncoded(
     encoded,
     distanceMeters: (route['distanceMeters'] as num?)?.toInt() ?? 0,
-    durationSeconds: parseGoogleDurationSeconds(route['duration'] as String?),
+    durationSeconds: duration,
+    staticDurationSeconds: staticDuration > 0 ? staticDuration : null,
+    trafficLevel: deriveTrafficLevel(
+      duration,
+      staticDuration > 0 ? staticDuration : null,
+    ),
+    routingSource: 'GoogleRoutes',
   );
 }
 
@@ -152,6 +191,9 @@ TripDrivingRoute? _routeFromEncoded(
   String? encoded, {
   required int distanceMeters,
   required int durationSeconds,
+  int? staticDurationSeconds,
+  String? trafficLevel,
+  String? routingSource,
 }) {
   if (encoded == null || encoded.isEmpty) return null;
   final points = decodeEncodedPolyline(encoded);
@@ -161,5 +203,8 @@ TripDrivingRoute? _routeFromEncoded(
     distanceMeters: distanceMeters,
     durationSeconds: durationSeconds,
     points: points,
+    staticDurationSeconds: staticDurationSeconds,
+    trafficLevel: trafficLevel,
+    routingSource: routingSource,
   );
 }

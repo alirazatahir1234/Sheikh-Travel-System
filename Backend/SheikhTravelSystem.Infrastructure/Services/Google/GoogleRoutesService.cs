@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
@@ -68,7 +69,8 @@ public sealed class GoogleRoutesService(
                 Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
             };
             request.Headers.Add("X-Goog-Api-Key", credential);
-            request.Headers.Add("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline");
+            request.Headers.Add("X-Goog-FieldMask",
+                "routes.duration,routes.staticDuration,routes.distanceMeters,routes.polyline.encodedPolyline");
 
             using var response = await client.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -82,11 +84,17 @@ public sealed class GoogleRoutesService(
             if (route is null) return null;
 
             var durationSeconds = ParseDurationSeconds(route.Duration);
+            var staticRaw = ParseDurationSeconds(route.StaticDuration);
+            int? staticSeconds = staticRaw > 0 ? staticRaw : null;
+            var region = MapTrafficRegions.InferRegionCode(destinationLatitude, destinationLongitude);
             var result = new GoogleRouteResult(
                 route.DistanceMeters ?? 0,
                 durationSeconds,
                 route.Polyline?.EncodedPolyline,
-                null);
+                null,
+                staticSeconds,
+                region,
+                TrafficRouteHelper.GoogleRoutes);
 
             var ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.CacheMinutes));
             memoryCache.Set(cacheKey, result, ttl);
@@ -156,6 +164,7 @@ public sealed class GoogleRoutesService(
     private sealed class RoutesRoute
     {
         public string? Duration { get; set; }
+        public string? StaticDuration { get; set; }
         public int? DistanceMeters { get; set; }
         public RoutesPolyline? Polyline { get; set; }
     }

@@ -1,12 +1,18 @@
+using SheikhTravelSystem.Application.Common;
+
 namespace SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 
 public record LatLngPoint(double Latitude, double Longitude);
 
 public record GoogleRouteResult(
     int DistanceMeters,
+    /// <summary>Traffic-aware drive time when Routes uses TRAFFIC_AWARE.</summary>
     int DurationSeconds,
     string? EncodedPolyline,
-    IReadOnlyList<LatLngPoint>? Points);
+    IReadOnlyList<LatLngPoint>? Points,
+    int? StaticDurationSeconds = null,
+    string? RegionCode = null,
+    string RoutingSource = TrafficRouteHelper.GoogleRoutes);
 
 public record GoogleTimeZoneResult(
     string TimeZoneId,

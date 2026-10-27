@@ -42,6 +42,7 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   bool _routeStarted = false;
   final Map<fleet.FleetTrackStatus, BitmapDescriptor> _pulseIcons = {};
   bool _iconsReady = false;
+  Timer? _trafficRefreshTimer;
 
   static const _trailCap = 14; // ERP live-map trail length
 
@@ -75,10 +76,18 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       unawaited(_loadPulseIcons(MediaQuery.devicePixelRatioOf(context)));
     });
     _bootstrap();
+    _trafficRefreshTimer = Timer.periodic(const Duration(minutes: 3), (_) {
+      final trip = _trip;
+      if (trip != null && mounted) {
+        unawaited(_refreshTrafficRoute(trip));
+        unawaited(_refreshEta());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _trafficRefreshTimer?.cancel();
     _posSub?.cancel();
     _map?.dispose();
     super.dispose();
@@ -153,6 +162,38 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
     final bookingId = trip?.etaBookingId ?? widget.tripId;
     final eta = await ref.read(navigationApiProvider).getEta(bookingId);
     if (mounted) setState(() => _eta = eta);
+    if (trip != null) {
+      unawaited(_refreshTrafficRoute(trip));
+    }
+  }
+
+  Future<void> _refreshTrafficRoute(Trip trip) async {
+    final target = _navTarget(trip);
+    if (target == null) return;
+    final originLat = _position?.latitude ??
+        (trip.hasPickupCoords ? trip.pickupLatitude : null);
+    final originLng = _position?.longitude ??
+        (trip.hasPickupCoords ? trip.pickupLongitude : null);
+    if (originLat == null || originLng == null) return;
+
+    final key = tripRouteCacheKey(
+      originLat,
+      originLng,
+      target.latitude,
+      target.longitude,
+    );
+    final dio = ref.read(dioProvider);
+    final route = await TripRouteLoader(dio).load(
+      originLat: originLat,
+      originLng: originLng,
+      destLat: target.latitude,
+      destLng: target.longitude,
+    );
+    if (!mounted || route == null) return;
+    setState(() {
+      _route = route;
+      _routeKey = key;
+    });
   }
 
   void _onPosition(Position pos) {
@@ -559,6 +600,7 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
               localDistanceKm: localEta.$1,
               localEtaMinutes: localEta.$2,
               routeSummary: _route?.summary,
+              trafficLabel: _eta?.trafficLevel ?? _route?.trafficLevel,
               navigating: _navigating,
               follow: _follow,
               onRecenter: _recenter,
@@ -615,6 +657,7 @@ class _BottomPanel extends StatelessWidget {
     required this.localDistanceKm,
     required this.localEtaMinutes,
     this.routeSummary,
+    this.trafficLabel,
     required this.navigating,
     required this.follow,
     required this.onRecenter,
@@ -631,6 +674,7 @@ class _BottomPanel extends StatelessWidget {
   final double? localDistanceKm;
   final int? localEtaMinutes;
   final String? routeSummary;
+  final String? trafficLabel;
   final bool navigating;
   final bool follow;
   final VoidCallback onRecenter;
@@ -717,6 +761,16 @@ class _BottomPanel extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
+                ),
+              ),
+            ],
+            if (trafficLabel != null && trafficLabel!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Live traffic: $trafficLabel',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],

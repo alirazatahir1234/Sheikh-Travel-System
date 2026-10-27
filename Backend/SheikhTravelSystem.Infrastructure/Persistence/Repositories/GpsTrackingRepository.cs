@@ -1661,9 +1661,10 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<GpsEtaDto>> GetGpsEtaAsync(GetGpsEtaQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var booking = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, string? RouteSource, double? PickupLat, double? PickupLng)>(
+        var booking = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, string? RouteSource, double? PickupLat, double? PickupLng, double? DropLat, double? DropLng, int? TripStatus)>(
             new CommandDefinition(
-                @"SELECT b.Id, b.VehicleId, r.Source AS RouteSource, b.PickupLat, b.PickupLng
+                @"SELECT b.Id, b.VehicleId, r.Source AS RouteSource, b.PickupLat, b.PickupLng, b.DropLat, b.DropLng,
+                         (SELECT TOP 1 t.Status FROM Trips t WHERE t.BookingId = b.Id AND t.IsDeleted = 0 ORDER BY t.Id DESC) AS TripStatus
                   FROM Bookings b
                   LEFT JOIN Routes r ON r.Id = b.RouteId
                   WHERE b.Id = @Id AND b.IsDeleted = 0",
@@ -1690,7 +1691,15 @@ public sealed partial class GpsTrackingRepository(
             ? (booking.PickupLat.Value, booking.PickupLng.Value)
             : ResolvePickupCoordinates(booking.RouteSource);
 
-        var distanceKm = GpsGeoHelper.HaversineKm(position.Lat, position.Lng, pickupLat, pickupLng);
+        var toDrop = booking.TripStatus is int ts
+            && TrafficRouteHelper.ShouldNavigateToDropoff((TripStatus)ts);
+        var (targetLat, targetLng) = toDrop
+            && booking.DropLat is double dlat && booking.DropLng is double dlng
+            && !(dlat == 0 && dlng == 0)
+            ? (dlat, dlng)
+            : (pickupLat, pickupLng);
+
+        var distanceKm = GpsGeoHelper.HaversineKm(position.Lat, position.Lng, targetLat, targetLng);
         var etaMinutes = distanceKm > 0 ? (int)Math.Ceiling(distanceKm / 40.0 * 60) : 0;
 
         var vehicleName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
@@ -1707,7 +1716,11 @@ public sealed partial class GpsTrackingRepository(
             position.Lat,
             position.Lng,
             pickupLat,
-            pickupLng));
+            pickupLng,
+            TargetLatitude: targetLat,
+            TargetLongitude: targetLng,
+            EtaSource: TrafficRouteHelper.HaversineEstimate,
+            RegionCode: MapTrafficRegions.InferRegionCode(targetLat, targetLng)));
         }
 
     public async Task<ApiResponse<int>> GetGeofenceBreachCountAsync(GetGeofenceBreachCountQuery request, CancellationToken cancellationToken = default)
