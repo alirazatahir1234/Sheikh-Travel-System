@@ -377,6 +377,16 @@ html, body {
   overflow-x: hidden;
 }
 
+/* Marketing site: document (window) scroll — not height-locked body scrollport.
+   Body-as-scrollport breaks sticky pills and flickers as long pages composite. */
+html.sg-website-public,
+body.sg-website-public {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
 a { color: inherit; }
 
 /* ---------- Generic helpers reused across modules ---------- */

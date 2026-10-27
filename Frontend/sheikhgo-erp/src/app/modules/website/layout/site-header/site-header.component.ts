@@ -1,6 +1,6 @@
 import { ElementRef, Component, HostListener, NgZone, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { NgClass } from '@angular/common';
+import { DOCUMENT, NgClass } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { filter } from 'rxjs/operators';
 import { WEBSITE_BRAND } from '../../core/brand';
@@ -33,6 +33,7 @@ export class SiteHeaderComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly ngZone = inject(NgZone);
+  private readonly doc = inject(DOCUMENT);
 
   /** Chrome wordmark — SheikhGo Technologies */
   siteName: string = WEBSITE_BRAND.productName;
@@ -63,7 +64,12 @@ export class SiteHeaderComponent implements OnInit, OnDestroy {
     // every frame (impure wsTranslate pipe on the whole marketing shell → flicker).
     this.ngZone.runOutsideAngular(() => {
       this.scrollHandler = () => {
-        const next = window.scrollY > 12;
+        const y =
+          window.scrollY ||
+          this.doc.documentElement.scrollTop ||
+          this.doc.body.scrollTop ||
+          0;
+        const next = y > 12;
         if (this.scrolled === next) return;
         this.ngZone.run(() => {
           this.scrolled = next;

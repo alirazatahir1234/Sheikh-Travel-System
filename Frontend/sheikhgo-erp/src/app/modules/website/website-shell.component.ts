@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
@@ -9,6 +10,9 @@ import { SiteHeaderComponent } from './layout/site-header/site-header.component'
 import { SiteFooterComponent } from './layout/site-footer/site-footer.component';
 import { CookieConsentComponent } from './shared/cookie-consent/cookie-consent.component';
 import { WebsiteWhatsAppFabComponent } from './shared/website-whatsapp-fab/website-whatsapp-fab.component';
+
+/** Document class for marketing scrollport reset (styles.scss). */
+const WEBSITE_SCROLL_CLASS = 'sg-website-public';
 
 @Component({
   standalone: true,
@@ -38,9 +42,15 @@ export class WebsiteShellComponent implements OnInit, OnDestroy {
   private readonly cookies = inject(CookieConsentService);
   private readonly analytics = inject(WebsiteGoogleAnalyticsService);
   private readonly content = inject(WebsitePublicContentService);
+  private readonly doc = inject(DOCUMENT);
   private navSub?: Subscription;
 
   ngOnInit(): void {
+    // ERP uses html/body height:100% (body scrollport). That breaks sticky
+    // marketing nav and causes deeper-page scroll flicker — restore window scroll.
+    this.doc.documentElement.classList.add(WEBSITE_SCROLL_CLASS);
+    this.doc.body.classList.add(WEBSITE_SCROLL_CLASS);
+
     this.analytics.configure(environment.googleAnalyticsMeasurementId);
     this.cookies.applyConsentScripts();
 
@@ -58,5 +68,7 @@ export class WebsiteShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.navSub?.unsubscribe();
+    this.doc.documentElement.classList.remove(WEBSITE_SCROLL_CLASS);
+    this.doc.body.classList.remove(WEBSITE_SCROLL_CLASS);
   }
 }

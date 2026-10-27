@@ -113,12 +113,12 @@
 
   .premium-pill-nav {
     padding: 1rem 0;
-    background: rgba(239, 250, 246, 0.92);
+    /* Solid fill — backdrop-filter on sticky nav repaints and flickers while scrolling */
+    background: #effaf6;
     border-block: 1px solid var(--sg-border-soft);
     position: sticky;
     top: var(--header-h);
     z-index: 6;
-    backdrop-filter: blur(12px);
   }
 
   .premium-pill-nav .pills {

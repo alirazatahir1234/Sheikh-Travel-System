@@ -850,6 +850,21 @@
     order: -1;
   }
 
+  /* Stack chip above chat — absolute chip otherwise covers SheikhGo AI card */
+  .float-chip {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0 0 0.85rem;
+    max-width: none;
+    animation: none;
+  }
+
+  .chat-shell {
+    margin: 0;
+    max-width: none;
+  }
+
   .ai-spot-card:nth-child(2) {
     margin-left: 0;
   }
