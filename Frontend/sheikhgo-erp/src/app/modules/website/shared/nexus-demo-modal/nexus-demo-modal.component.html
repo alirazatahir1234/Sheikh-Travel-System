@@ -10,7 +10,9 @@
       <div>
         <p class="demo-modal-kicker">Product walkthrough</p>
         <h2>{{ videoTitle }}</h2>
-        <p class="demo-modal-lead">~3 min tour of SheikhGo Nexus marketing pages and live ERP modules.</p>
+        <p class="demo-modal-lead">
+          ~2½ min inside the logged-in Nexus ERP — sidebar, GPS, bookings, finance, WhatsApp, and AI.
+        </p>
       </div>
       <button type="button" class="demo-modal-close" (click)="close()" aria-label="Close demo video">
         <mat-icon aria-hidden="true">close</mat-icon>
@@ -31,7 +33,10 @@
       </video>
     </div>
     <footer class="demo-modal-foot">
-      <a [href]="videoSrc" download class="demo-modal-download">Download MP4</a>
+      <a [href]="videoSrc" download class="demo-modal-download">Download ERP tour (MP4)</a>
+      <a [href]="websiteTourSrc" class="demo-modal-download demo-modal-download--secondary">
+        Marketing site tour
+      </a>
     </footer>
   </div>
 </div>

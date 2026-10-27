@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-10-27T13:39:21.535Z",
+  "baseUrl": "http://localhost:4200",
+  "output": "public/website/demo/sheikhgo-nexus-erp-walkthrough.mp4",
+  "kind": "erp-application",
+  "segments": [
+    "public/website/demo/_erp_segments/01-shell.webm",
+    "public/website/demo/_erp_segments/02-gps-fleet.webm",
+    "public/website/demo/_erp_segments/03-finance-ai.webm"
+  ],
+  "erpRoutes": [
+    "/dashboard",
+    "/gps-tracking/live",
+    "/gps-tracking/alerts",
+    "/gps-tracking/geofences",
+    "/gps-tracking/trips",
+    "/gps-tracking",
+    "/vehicles",
+    "/drivers",
+    "/trips",
+    "/bookings",
+    "/fuel-logs",
+    "/fleet/maintenance",
+    "/payments",
+    "/invoices",
+    "/settlements",
+    "/reports",
+    "/customers",
+    "/notifications",
+    "/whatsapp",
+    "/ai",
+    "/mcp"
+  ],
+  "notes": [
+    "Marketing home/ai-solutions pages intentionally omitted.",
+    "Bookings/WhatsApp/MCP depend on demo tenant modules."
+  ]
+}

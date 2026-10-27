@@ -87,7 +87,13 @@
 
 .demo-modal-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 1rem 1.25rem;
+}
+
+.demo-modal-download--secondary {
+  color: #94a3b8;
 }
 
 .demo-modal-download {

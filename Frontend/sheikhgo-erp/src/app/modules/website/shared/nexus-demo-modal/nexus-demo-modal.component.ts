@@ -11,8 +11,9 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import {
-  NEXUS_WALKTHROUGH_DEMO_SRC,
-  NEXUS_WALKTHROUGH_DEMO_TITLE,
+  NEXUS_ERP_WALKTHROUGH_DEMO_SRC,
+  NEXUS_ERP_WALKTHROUGH_DEMO_TITLE,
+  NEXUS_WEBSITE_WALKTHROUGH_DEMO_SRC,
 } from '../../core/demo-media';
 
 @Component({
@@ -25,8 +26,9 @@ import {
 export class NexusDemoModalComponent implements AfterViewInit, OnDestroy {
   readonly closed = output<void>();
 
-  readonly videoSrc = NEXUS_WALKTHROUGH_DEMO_SRC;
-  readonly videoTitle = NEXUS_WALKTHROUGH_DEMO_TITLE;
+  readonly videoSrc = NEXUS_ERP_WALKTHROUGH_DEMO_SRC;
+  readonly videoTitle = NEXUS_ERP_WALKTHROUGH_DEMO_TITLE;
+  readonly websiteTourSrc = NEXUS_WEBSITE_WALKTHROUGH_DEMO_SRC;
 
   @ViewChild('player') private player?: ElementRef<HTMLVideoElement>;
 

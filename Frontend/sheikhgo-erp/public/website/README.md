@@ -2,7 +2,7 @@
 
 ## Hero media
 - sheikhgo-fleet-hero.png — poster / fallback still
-- hero-demo.mp4 — homepage hero loop + modal demo (SheikhGo Nexus walkthrough)
+- hero-demo.mp4 — homepage hero loop (autoplay, muted)
 - privacy-policy-banner.jpg — Privacy Policy page hero banner
 
 ## Screenshots (PNG)
@@ -11,8 +11,9 @@
 - trip-playback.png
 
 ## Product videos (MP4, H.264)
-- hero-demo.mp4 — homepage hero loop (autoplay, muted) and “Watch Demo” modal
-- demo/sheikhgo-nexus-walkthrough.mp4 — full Nexus marketing + ERP screen recording (regenerate: `node tools/record-nexus-demo.mjs`)
+- hero-demo.mp4 — homepage hero loop (autoplay, muted)
+- demo/sheikhgo-nexus-erp-walkthrough.mp4 — **Watch Demo** primary: logged-in ERP tour (`node tools/record-nexus-erp-demo.mjs`)
+- demo/sheikhgo-nexus-walkthrough.mp4 — marketing site + ERP montage (`node tools/record-nexus-demo.mjs`)
 
 Record SheikhGo Nexus with a demo tenant only (no real plates, drivers, or customer GPS).
 
