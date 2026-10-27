@@ -223,18 +223,32 @@ export class TripFormComponent implements OnInit, OnDestroy {
 
   get pickupMissingCoords(): boolean {
     if (!this.form || this.routingBusy || this.applyingRoute) return false;
+    const address = this.form.get('pickupAddress');
+    if (!address?.touched && !address?.dirty) return false;
     const raw = this.form.getRawValue();
     return !!locationSelectionError(raw.pickupAddress, raw.pickupLatitude, raw.pickupLongitude);
   }
 
   get destinationMissingCoords(): boolean {
     if (!this.form || this.routingBusy || this.applyingRoute) return false;
+    const address = this.form.get('destinationAddress');
+    if (!address?.touched && !address?.dirty) return false;
     const raw = this.form.getRawValue();
     return !!locationSelectionError(
       raw.destinationAddress,
       raw.destinationLatitude,
       raw.destinationLongitude
     );
+  }
+
+  stopMissingCoords(index: number): boolean {
+    if (!this.form || this.routingBusy || this.applyingRoute) return false;
+    const group = this.stops.at(index);
+    if (!group) return false;
+    const location = group.get('location');
+    if (!location?.touched && !location?.dirty) return false;
+    const raw = group.getRawValue();
+    return !!locationSelectionError(raw.location, raw.latitude, raw.longitude);
   }
 
   get loadedRouteDistance(): number | null {
@@ -293,7 +307,7 @@ export class TripFormComponent implements OnInit, OnDestroy {
     const dLat = readCoordinate(raw.destinationLatitude);
     const dLng = readCoordinate(raw.destinationLongitude);
     if (pLat != null && pLng != null) {
-      markers.push({ position: { lat: pLat, lng: pLng }, label: 'P', title: raw.pickupAddress || 'Pickup' });
+      markers.push({ position: { lat: pLat, lng: pLng }, label: 'P', title: 'Pickup' });
     }
     (raw.stops || []).forEach(
       (s: { location?: string; latitude?: number | null; longitude?: number | null }, i: number) => {
@@ -303,12 +317,12 @@ export class TripFormComponent implements OnInit, OnDestroy {
         markers.push({
           position: { lat, lng },
           label: String(i + 1),
-          title: s.location || `Stop ${i + 1}`
+          title: `Stop ${i + 1}`
         });
       }
     );
     if (dLat != null && dLng != null) {
-      markers.push({ position: { lat: dLat, lng: dLng }, label: 'D', title: raw.destinationAddress || 'Destination' });
+      markers.push({ position: { lat: dLat, lng: dLng }, label: 'D', title: 'Destination' });
     }
     return markers;
   }

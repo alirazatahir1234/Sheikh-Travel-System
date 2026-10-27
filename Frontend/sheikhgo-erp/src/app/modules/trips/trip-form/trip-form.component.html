@@ -113,7 +113,7 @@
                 <h4>Pickup Location</h4>
                 <p>Search and select a place</p>
               </div>
-              <button mat-stroked-button type="button" class="swap-btn" (click)="swapLocations()" matTooltip="Swap pickup and destination">
+              <button mat-stroked-button type="button" class="swap-btn" (click)="swapLocations()" aria-label="Swap pickup and destination">
                 <mat-icon>swap_horiz</mat-icon>
                 Swap
               </button>
@@ -292,8 +292,8 @@
                 placeholder="Search stop address"
                 #stopLocationInput
                 (input)="onStopAddressTyped(i)" />
-              <mat-hint>Select a Google Places suggestion to set coordinates.</mat-hint>
             </mat-form-field>
+            <p class="field-warning" *ngIf="stopMissingCoords(i)">Select a Google Places suggestion.</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Latitude</mat-label>
               <input matInput type="number" formControlName="latitude" placeholder="e.g. 25.2048" readonly tabindex="-1" />
@@ -318,6 +318,9 @@
         <div class="section-head-copy">
           <h3>Schedule</h3>
           <p>Set the timing and duration for this trip.</p>
+          <p class="schedule-auto-note" *ngIf="!allowMetricsOverride">
+            Arrival time, duration, and distance update automatically from your route.
+          </p>
         </div>
       </header>
       <div class="section-body grid">
@@ -335,53 +338,44 @@
           <mat-error *ngIf="form.get('pickupTime')?.hasError('required')">Pickup time is required</mat-error>
         </mat-form-field>
 
-        <div class="field-stack">
-          <mat-form-field appearance="outline" class="time-field computed-field" subscriptSizing="dynamic">
-            <mat-label>Expected Arrival</mat-label>
-            <mat-icon matPrefix>schedule</mat-icon>
-            <input
-              matInput
-              type="time"
-              formControlName="arrivalTime"
-              [readonly]="!allowMetricsOverride"
-              [attr.tabindex]="allowMetricsOverride ? null : -1"
-              (input)="onArrivalManualEdit()" />
-          </mat-form-field>
-          <p class="field-help">Automatically calculated from pickup time + duration</p>
-        </div>
+        <mat-form-field appearance="outline" class="time-field computed-field" subscriptSizing="dynamic">
+          <mat-label>Expected Arrival</mat-label>
+          <mat-icon matPrefix>schedule</mat-icon>
+          <input
+            matInput
+            type="time"
+            formControlName="arrivalTime"
+            [readonly]="!allowMetricsOverride"
+            [attr.tabindex]="allowMetricsOverride ? null : -1"
+            (input)="onArrivalManualEdit()" />
+        </mat-form-field>
 
-        <div class="field-stack">
-          <mat-form-field appearance="outline" class="computed-field" subscriptSizing="dynamic">
-            <mat-label>Duration (min)</mat-label>
-            <mat-icon matPrefix>timelapse</mat-icon>
-            <input
-              matInput
-              type="number"
-              min="1"
-              formControlName="estimatedDurationMinutes"
-              placeholder="e.g. 120"
-              [readonly]="!allowMetricsOverride"
-              (input)="onMetricsManualEdit()" />
-          </mat-form-field>
-          <p class="field-help">Calculated from pickup and destination</p>
-        </div>
+        <mat-form-field appearance="outline" class="computed-field" subscriptSizing="dynamic">
+          <mat-label>Duration (min)</mat-label>
+          <mat-icon matPrefix>timelapse</mat-icon>
+          <input
+            matInput
+            type="number"
+            min="1"
+            formControlName="estimatedDurationMinutes"
+            placeholder="e.g. 120"
+            [readonly]="!allowMetricsOverride"
+            (input)="onMetricsManualEdit()" />
+        </mat-form-field>
 
-        <div class="full field-stack">
-          <mat-form-field appearance="outline" class="computed-field" subscriptSizing="dynamic">
-            <mat-label>Planned Distance (km)</mat-label>
-            <mat-icon matPrefix>straighten</mat-icon>
-            <input
-              matInput
-              type="number"
-              min="0"
-              step="0.1"
-              formControlName="plannedDistanceKm"
-              placeholder="e.g. 45.5"
-              [readonly]="!allowMetricsOverride"
-              (input)="onMetricsManualEdit()" />
-          </mat-form-field>
-          <p class="field-help">Automatically calculated from pickup and destination</p>
-        </div>
+        <mat-form-field appearance="outline" class="full computed-field" subscriptSizing="dynamic">
+          <mat-label>Planned Distance (km)</mat-label>
+          <mat-icon matPrefix>straighten</mat-icon>
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="0.1"
+            formControlName="plannedDistanceKm"
+            placeholder="e.g. 45.5"
+            [readonly]="!allowMetricsOverride"
+            (input)="onMetricsManualEdit()" />
+        </mat-form-field>
       </div>
     </section>
 
