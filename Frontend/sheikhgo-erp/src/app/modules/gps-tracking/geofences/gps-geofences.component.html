@@ -411,9 +411,10 @@
   </div>
 </div>
 
-<!-- Assign drawer -->
-<div class="drawer-overlay drawer-overlay--modal" *ngIf="showAssign" (click)="showAssign = false"></div>
-<div class="drawer drawer-wide assign-drawer" [class.open]="showAssign">
+<!-- Assign drawer (ngIf keeps it out of a11y / interaction while create form is open) -->
+<ng-container *ngIf="showAssign">
+<div class="drawer-overlay drawer-overlay--modal" (click)="showAssign = false"></div>
+<div class="drawer drawer-wide assign-drawer open">
   <div class="drawer-header">
     <h3>Assign — {{ selected?.name }}</h3>
     <button mat-icon-button type="button" (click)="showAssign = false"><mat-icon>close</mat-icon></button>
@@ -493,3 +494,4 @@
     </div>
   </div>
 </div>
+</ng-container>

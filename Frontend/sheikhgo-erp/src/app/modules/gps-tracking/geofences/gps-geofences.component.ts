@@ -874,6 +874,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openAssign(g: Geofence): void {
     this.selected = g;
+    this.showForm = false;
     this.showAssign = true;
     this.showPostCreatePrompt = false;
     this.selectedVehicleIds = new Set();
