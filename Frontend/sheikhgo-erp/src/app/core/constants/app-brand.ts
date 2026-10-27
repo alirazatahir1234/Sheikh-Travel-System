@@ -1,5 +1,5 @@
-export const APP_PRODUCT_NAME = 'SheikhGo ERP';
-export const APP_PRODUCT_SHORT_NAME = 'SheikhGo ERP';
+export const APP_PRODUCT_NAME = 'SheikhGo Nexus';
+export const APP_PRODUCT_SHORT_NAME = 'SheikhGo Nexus';
 /** Sidebar brand subtitle under the product name. */
 export const APP_PRODUCT_TAGLINE = 'Smarter Fleet. Stronger Business.';
 export const COMPANY_NAME = 'Sheikh Travel Group';
@@ -10,7 +10,7 @@ export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-logo-white.png';
 /** Login page only (`/auth/login`) — do not reuse elsewhere. */
 export const APP_LOGIN_LOGO_PATH = '/brand/sheikhgo-logo-login-v8.png';
 
-/** PDF/export document titles: "SheikhGo ERP – Users" */
+/** PDF/export document titles: "SheikhGo Nexus – Users" */
 export function exportDocumentTitle(section: string): string {
   return `${APP_PRODUCT_NAME} – ${section}`;
 }

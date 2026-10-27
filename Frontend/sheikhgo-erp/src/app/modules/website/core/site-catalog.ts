@@ -110,22 +110,28 @@ export const NEXUS_DASHBOARD_IMAGE = {
   alt: 'SheikhGo Nexus fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant',
 } as const;
 
+/** Bump when replacing PNGs under public/website/nexus/modules/ (browser/CDN cache). */
+export const NEXUS_MODULE_SHOTS_VERSION = '20261027';
+
+const nexusModuleSrc = (file: string) =>
+  `/website/nexus/modules/${file}?v=${NEXUS_MODULE_SHOTS_VERSION}` as const;
+
 /** Product UI captures from SheikhGo Nexus (demo tenant). Shared by home and /services. */
 export const NEXUS_MODULE_SHOTS = [
-  { caption: 'Dashboard', src: '/website/nexus/modules/dashboard.png', alt: 'SheikhGo Nexus operations dashboard' },
-  { caption: 'Live Tracking', src: '/website/nexus/modules/live-tracking.png', alt: 'Live GPS fleet map in SheikhGo Nexus' },
-  { caption: 'GPS Alerts', src: '/website/nexus/modules/gps-alerts.png', alt: 'GPS alerts inbox in SheikhGo Nexus' },
-  { caption: 'Geofencing', src: '/website/nexus/modules/geofencing.png', alt: 'Geofence editor in SheikhGo Nexus' },
-  { caption: 'Trip History', src: '/website/nexus/modules/trip-history.png', alt: 'GPS trip history and playback in SheikhGo Nexus' },
-  { caption: 'Vehicles', src: '/website/nexus/modules/vehicles.png', alt: 'Vehicle registry in SheikhGo Nexus' },
-  { caption: 'Drivers', src: '/website/nexus/modules/drivers.png', alt: 'Driver management in SheikhGo Nexus' },
-  { caption: 'Trips', src: '/website/nexus/modules/trips.png', alt: 'Trip operations in SheikhGo Nexus' },
-  { caption: 'Fuel', src: '/website/nexus/modules/fuel.png', alt: 'Fuel logs in SheikhGo Nexus' },
-  { caption: 'Maintenance', src: '/website/nexus/modules/maintenance.png', alt: 'Fleet maintenance in SheikhGo Nexus' },
-  { caption: 'Reports', src: '/website/nexus/modules/reports.png', alt: 'Operational reports in SheikhGo Nexus' },
-  { caption: 'AI Assistant', src: '/website/nexus/modules/ai-assistant.png', alt: 'SheikhGo AI assistant in Nexus' },
-  { caption: 'Customers', src: '/website/nexus/modules/customers.png', alt: 'Customer records in SheikhGo Nexus' },
-  { caption: 'Notifications', src: '/website/nexus/modules/notifications.png', alt: 'Notification center in SheikhGo Nexus' },
+  { caption: 'Dashboard', src: nexusModuleSrc('dashboard.png'), alt: 'SheikhGo Nexus operations dashboard' },
+  { caption: 'Live Tracking', src: nexusModuleSrc('live-tracking.png'), alt: 'Live GPS fleet map in SheikhGo Nexus' },
+  { caption: 'GPS Alerts', src: nexusModuleSrc('gps-alerts.png'), alt: 'GPS alerts inbox in SheikhGo Nexus' },
+  { caption: 'Geofencing', src: nexusModuleSrc('geofencing.png'), alt: 'Geofence editor in SheikhGo Nexus' },
+  { caption: 'Trip History', src: nexusModuleSrc('trip-history.png'), alt: 'GPS trip history and playback in SheikhGo Nexus' },
+  { caption: 'Vehicles', src: nexusModuleSrc('vehicles.png'), alt: 'Vehicle registry in SheikhGo Nexus' },
+  { caption: 'Drivers', src: nexusModuleSrc('drivers.png'), alt: 'Driver management in SheikhGo Nexus' },
+  { caption: 'Trips', src: nexusModuleSrc('trips.png'), alt: 'Trip operations in SheikhGo Nexus' },
+  { caption: 'Fuel', src: nexusModuleSrc('fuel.png'), alt: 'Fuel logs in SheikhGo Nexus' },
+  { caption: 'Maintenance', src: nexusModuleSrc('maintenance.png'), alt: 'Fleet maintenance in SheikhGo Nexus' },
+  { caption: 'Reports', src: nexusModuleSrc('reports.png'), alt: 'Operational reports in SheikhGo Nexus' },
+  { caption: 'AI Assistant', src: nexusModuleSrc('ai-assistant.png'), alt: 'SheikhGo AI assistant in Nexus' },
+  { caption: 'Customers', src: nexusModuleSrc('customers.png'), alt: 'Customer records in SheikhGo Nexus' },
+  { caption: 'Notifications', src: nexusModuleSrc('notifications.png'), alt: 'Notification center in SheikhGo Nexus' },
 ] as const;
 
 export const NEXUS_VALUE_PILLARS = [
