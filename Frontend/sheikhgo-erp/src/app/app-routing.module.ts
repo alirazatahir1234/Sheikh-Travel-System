@@ -124,6 +124,14 @@ const routes: Routes = [
         loadComponent: () => import('./modules/website/pages/about/about.page').then(m => m.AboutPage),
       },
       {
+        path: 'news',
+        loadComponent: () => import('./modules/website/pages/news/news.page').then(m => m.NewsPage),
+      },
+      {
+        path: 'pricing',
+        loadComponent: () => import('./modules/website/pages/pricing/pricing.page').then(m => m.PricingPage),
+      },
+      {
         path: 'contact',
         loadComponent: () => import('./modules/website/pages/contact/contact.page').then(m => m.ContactPage),
       },

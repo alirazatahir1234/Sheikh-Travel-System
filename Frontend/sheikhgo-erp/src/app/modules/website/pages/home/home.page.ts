@@ -8,6 +8,7 @@ import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
 import { NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
+import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
 
@@ -29,6 +30,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   nexusImageError = false;
   readonly demoModalOpen = signal(false);
+  readonly newsPreview = NEWS_ANNOUNCEMENTS.slice(0, 4);
 
   readonly heroPerks = computed(() => {
     this.i18n.lang();
@@ -48,6 +50,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
       { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
       { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
+      { label: this.i18n.t('home.pill.pricing'), link: '/pricing', icon: 'payments' },
       { label: this.i18n.t('home.pill.nexus'), link: '/services', icon: 'hub' },
       { label: this.i18n.t('home.pill.demo'), fragment: 'cta', icon: 'rocket_launch' },
     ];

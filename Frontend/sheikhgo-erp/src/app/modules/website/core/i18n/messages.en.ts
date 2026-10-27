@@ -44,6 +44,8 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'nav.platformFeatures': 'Platform Features',
   'nav.platformFeaturesShort': 'Features',
   'nav.about': 'About',
+  'nav.pricing': 'Pricing',
+  'nav.news': 'News',
   'nav.contact': 'Contact',
   'nav.menu': 'Menu',
   'nav.bookDemo': 'Book a Demo',
@@ -56,6 +58,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'footer.company': 'Company',
   'footer.legal': 'Legal',
   'footer.aboutUs': 'About Us',
+  'footer.news': 'News & updates',
   'footer.fleetManagement': 'Fleet Management',
   'footer.gpsTracking': 'GPS Tracking',
   'footer.liveTracking': 'Live Tracking',
@@ -126,6 +129,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.pill.modules': 'Platform modules',
   'home.pill.capabilities': 'Capabilities',
   'home.pill.ai': 'AI Solutions',
+  'home.pill.pricing': 'Pricing',
   'home.pill.nexus': 'SheikhGo Nexus',
   'home.pill.demo': 'Request Demo',
   'home.perk.gps': 'Real-time GPS tracking',
@@ -155,6 +159,17 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.driverPayments.feeBreakdown': 'Net payout = gross − 2% fee',
   'home.showcase.caption':
     'Product UI illustration — sample metrics in the image are for demonstration, not live customer data.',
+  'home.news.kicker': 'Updates',
+  'home.news.title': 'Product announcements & company news',
+  'home.news.lead':
+    'What is new in SheikhGo Nexus, the driver app, and our fleet intelligence roadmap—placeholder cards until CMS content is wired.',
+  'home.news.viewAll': 'View all news →',
+  'home.news.cardLink': 'Read update →',
+  'news.kicker': 'SheikhGo · News',
+  'news.title': 'Announcements & product updates',
+  'news.lead':
+    'Release notes, feature highlights, and company updates for fleet and travel operators evaluating SheikhGo Nexus.',
+  'news.readCta': 'Discuss this update →',
   'home.modules.kicker': 'SheikhGo Nexus · Product UI',
   'home.modules.title': 'Platform modules, captured from the live app',
   'home.modules.lead':
@@ -231,4 +246,49 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.aiSolutions.perk.grounded': 'Grounded in your fleet data',
   'pages.aiSolutions.perk.tools': 'Tools + optional LLM',
   'pages.aiSolutions.perk.control': 'Human stays in control',
+
+  'pages.pricing.kicker': 'SheikhGo Nexus · Plans',
+  'pages.pricing.title': 'Fleet pricing in PKR',
+  'pages.pricing.metaDescription':
+    'Transparent SheikhGo Nexus fleet plans for operators in Pakistan — Starter, Pro, and Enterprise tiers with infrastructure-informed pricing for 20–50 vehicle fleets.',
+  'pages.pricing.lead':
+    'Monthly plans sized for growing fleets on SheikhGo Nexus — GPS, operations, alerts, and AI in one tenant. List prices below; we scope SMS volume, maps usage, and rollout with you before contract.',
+  'pages.pricing.currency': 'PKR',
+  'pages.pricing.perMonth': '/ month',
+  'pages.pricing.enterpriseCustom': 'Custom enterprise pricing and SLAs available on request — talk to us about 51+ vehicles, multi-branch rollouts, or dedicated hosting.',
+  'pages.pricing.starter.name': 'Starter',
+  'pages.pricing.starter.fleet': 'Ideal for 1–25 vehicles',
+  'pages.pricing.starter.feature1': 'SheikhGo Nexus core — fleet, drivers, trips, and GPS live map',
+  'pages.pricing.starter.feature2': 'Geofencing, playback, and standard GPS alerts',
+  'pages.pricing.starter.feature3': 'Tenant RBAC, branches, and secure web + mobile access',
+  'pages.pricing.starter.feature4': 'Onboarding and support aligned to smaller fleets',
+  'pages.pricing.pro.name': 'Pro',
+  'pages.pricing.pro.badge': 'Most popular',
+  'pages.pricing.pro.fleet': 'Built for 26–50 vehicles',
+  'pages.pricing.pro.feature1': 'Everything in Starter, tuned for higher device and user counts',
+  'pages.pricing.pro.feature2': 'Operations depth — fuel, maintenance, settlements, and reports',
+  'pages.pricing.pro.feature3': 'WhatsApp and notification workflows at fleet scale',
+  'pages.pricing.pro.feature4': 'Priority onboarding for multi-team rollouts',
+  'pages.pricing.enterprise.name': 'Enterprise',
+  'pages.pricing.enterprise.fleet': '51+ vehicles and complex operations',
+  'pages.pricing.enterprise.priceNote': 'From PKR 165,000/month, plus per-vehicle scaling above 50 units (~PKR 2,200/vehicle).',
+  'pages.pricing.enterprise.feature1': 'Full Nexus module set, custom integrations, and API access',
+  'pages.pricing.enterprise.feature2': 'Dedicated success planning, training, and escalation paths',
+  'pages.pricing.enterprise.feature3': 'Optional add-ons — Road Speed Limits, AI packs, SMS bundles',
+  'pages.pricing.enterprise.feature4': 'Custom enterprise pricing available on request',
+  'pages.pricing.basis.kicker': 'Platform cost basis',
+  'pages.pricing.basis.title': 'Infrastructure-informed for 20–50 vehicle fleets',
+  'pages.pricing.basis.lead':
+    'Our list prices are set above typical fully loaded platform costs on the current shared stack (Azure, Vercel, Google Maps, SMS, and AI usage) so we can operate reliably — not as a discount off Starter.',
+  'pages.pricing.basis.opsBandLabel': 'Typical ops cost band (one tenant)',
+  'pages.pricing.basis.opsBandValue': 'Roughly PKR 21,000 – 83,000 / month',
+  'pages.pricing.basis.opsBandHint':
+    'Shared hosting allocation for 20–50 tracked vehicles with controlled maps and SMS — largest variable is alert SMS volume.',
+  'pages.pricing.basis.perVehicle':
+    'Per-vehicle platform cost context: about PKR 1,050–2,650 at 20 vehicles · about PKR 740–1,660 at 50 vehicles (research estimate, not your invoice).',
+  'pages.pricing.basis.disclaimer':
+    'Figures are internal cost research for planning — not list prices. Your contract reflects tier, fleet size, SMS/maps usage, and enabled modules.',
+  'pages.pricing.cta.title': 'See Nexus with your fleet numbers',
+  'pages.pricing.cta.lead':
+    'Book a demo for a guided walkthrough, or contact sales to map Starter, Pro, or Enterprise to your vehicles and workflows.',
 };

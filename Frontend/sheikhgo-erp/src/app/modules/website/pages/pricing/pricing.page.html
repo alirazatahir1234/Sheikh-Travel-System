@@ -1,0 +1,75 @@
+<section class="page-hero pricing-hero">
+  <div class="container">
+    <span class="section-kicker" style="color:#99f6e4">{{ 'pages.pricing.kicker' | wsTranslate }}</span>
+    <h1>{{ 'pages.pricing.title' | wsTranslate }}</h1>
+    <p>{{ 'pages.pricing.lead' | wsTranslate }}</p>
+  </div>
+</section>
+
+<section class="section section-band-white pricing-tiers" aria-labelledby="pricing-tiers-heading">
+  <div class="container">
+    <h2 id="pricing-tiers-heading" class="visually-hidden">{{ 'pages.pricing.title' | wsTranslate }}</h2>
+    <div class="pricing-grid">
+      @for (tier of tiers(); track tier.id) {
+        <article class="pricing-card premium-card" [class.featured]="tier.featured">
+          @if (tier.featured && tier.badge) {
+            <span class="pricing-badge">{{ tier.badge }}</span>
+          }
+          <header class="pricing-card-head">
+            <h3>{{ tier.name }}</h3>
+            <p class="pricing-fleet">{{ tier.fleet }}</p>
+          </header>
+          <div class="pricing-amount">
+            <span class="pricing-currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
+            <span class="pricing-value">{{ tier.price }}</span>
+            <span class="pricing-period">{{ 'pages.pricing.perMonth' | wsTranslate }}</span>
+          </div>
+          @if (tier.priceNote) {
+            <p class="pricing-note">{{ tier.priceNote }}</p>
+          }
+          <ul class="pricing-features">
+            @for (f of tier.features; track f) {
+              <li>
+                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                {{ f }}
+              </li>
+            }
+          </ul>
+          <div class="pricing-actions">
+            <a routerLink="/request-demo" class="btn btn-primary">{{ 'nav.bookDemo' | wsTranslate }}</a>
+            <a routerLink="/contact" class="btn btn-outline">{{ 'nav.contact' | wsTranslate }}</a>
+          </div>
+        </article>
+      }
+    </div>
+    <p class="pricing-enterprise-note">{{ 'pages.pricing.enterpriseCustom' | wsTranslate }}</p>
+  </div>
+</section>
+
+<section class="section section-band-alt pricing-basis" aria-labelledby="pricing-basis-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'pages.pricing.basis.kicker' | wsTranslate }}</span>
+      <h2 id="pricing-basis-heading" class="section-title">{{ 'pages.pricing.basis.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'pages.pricing.basis.lead' | wsTranslate }}</p>
+    </header>
+    <div class="basis-panel premium-card">
+      <div class="basis-stat">
+        <span class="basis-label">{{ 'pages.pricing.basis.opsBandLabel' | wsTranslate }}</span>
+        <strong class="basis-value">{{ 'pages.pricing.basis.opsBandValue' | wsTranslate }}</strong>
+        <span class="basis-hint">{{ 'pages.pricing.basis.opsBandHint' | wsTranslate }}</span>
+      </div>
+      <p class="basis-per-vehicle">{{ 'pages.pricing.basis.perVehicle' | wsTranslate }}</p>
+      <p class="basis-disclaimer">{{ 'pages.pricing.basis.disclaimer' | wsTranslate }}</p>
+    </div>
+  </div>
+</section>
+
+<app-cta-band
+  [title]="'pages.pricing.cta.title' | wsTranslate"
+  [lead]="'pages.pricing.cta.lead' | wsTranslate"
+  [primaryText]="'nav.bookDemo' | wsTranslate"
+  primaryUrl="/request-demo"
+  [secondaryText]="'common.contactUsArrow' | wsTranslate"
+  secondaryUrl="/contact"
+/>

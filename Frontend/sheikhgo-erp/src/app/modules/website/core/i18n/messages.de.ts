@@ -44,6 +44,8 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'nav.platformFeatures': 'Plattform-Funktionen',
   'nav.platformFeaturesShort': 'Funktionen',
   'nav.about': 'Über uns',
+  'nav.pricing': 'Preise',
+  'nav.news': 'News',
   'nav.contact': 'Kontakt',
   'nav.menu': 'Menü',
   'nav.bookDemo': 'Demo buchen',
@@ -56,6 +58,7 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'footer.company': 'Unternehmen',
   'footer.legal': 'Rechtliches',
   'footer.aboutUs': 'Über uns',
+  'footer.news': 'News & Updates',
   'footer.fleetManagement': 'Flottenmanagement',
   'footer.gpsTracking': 'GPS-Tracking',
   'footer.liveTracking': 'Live-Tracking',
@@ -126,6 +129,7 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.pill.modules': 'Plattformmodule',
   'home.pill.capabilities': 'Funktionen',
   'home.pill.ai': 'KI-Lösungen',
+  'home.pill.pricing': 'Preise',
   'home.pill.nexus': 'SheikhGo Nexus',
   'home.pill.demo': 'Demo anfragen',
   'home.perk.gps': 'Echtzeit-GPS-Tracking',
@@ -137,6 +141,17 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.showcase.lead':
     'Live-Karte, aktuelle GPS-Alarme, Geofences, Wiedergabe, Flottengesundheit, Kraftstoff- und Wartungssignale — mit KI-Assistenten-Panel aus echten Betriebstools.',
   'home.showcase.caption': 'Produkt-UI-Illustration — Beispielwerte dienen der Demo, keine Live-Kundendaten.',
+  'home.news.kicker': 'Updates',
+  'home.news.title': 'Produktankündigungen & Unternehmensnews',
+  'home.news.lead':
+    'Neuigkeiten zu SheikhGo Nexus, der Fahrer-App und unserer Roadmap — Platzhalter bis CMS-Inhalte angebunden sind.',
+  'home.news.viewAll': 'Alle News →',
+  'home.news.cardLink': 'Update lesen →',
+  'news.kicker': 'SheikhGo · News',
+  'news.title': 'Ankündigungen & Produktupdates',
+  'news.lead':
+    'Release Notes, Feature-Highlights und Unternehmensupdates für Flottenbetreiber.',
+  'news.readCta': 'Update besprechen →',
   'home.modules.kicker': 'SheikhGo Nexus · Produkt-UI',
   'home.modules.title': 'Plattformmodule aus der Live-App',
   'home.modules.lead':
@@ -212,4 +227,49 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.aiSolutions.perk.grounded': 'Auf Ihren Flottendaten basierend',
   'pages.aiSolutions.perk.tools': 'Tools + optionales LLM',
   'pages.aiSolutions.perk.control': 'Mensch behält die Kontrolle',
+
+  'pages.pricing.kicker': 'SheikhGo Nexus · Pläne',
+  'pages.pricing.title': 'Flottenpreise in PKR',
+  'pages.pricing.metaDescription':
+    'Transparente SheikhGo-Nexus-Pläne für Betreiber in Pakistan — Starter, Pro und Enterprise mit infrastrukturbasiertem Pricing für 20–50 Fahrzeuge.',
+  'pages.pricing.lead':
+    'Monatliche Pläne für wachsende Flotten auf SheikhGo Nexus — GPS, Betrieb, Alarme und KI in einem Mandanten. Listenpreise unten; SMS-Volumen, Maps-Nutzung und Rollout klären wir vor Vertrag.',
+  'pages.pricing.currency': 'PKR',
+  'pages.pricing.perMonth': '/ Monat',
+  'pages.pricing.enterpriseCustom': 'Individuelle Enterprise-Preise und SLAs auf Anfrage — sprechen Sie uns bei 51+ Fahrzeugen, Multi-Branch-Rollouts oder dediziertem Hosting an.',
+  'pages.pricing.starter.name': 'Starter',
+  'pages.pricing.starter.fleet': 'Ideal für 1–25 Fahrzeuge',
+  'pages.pricing.starter.feature1': 'SheikhGo-Nexus-Kern — Flotte, Fahrer, Fahrten und GPS-Live-Karte',
+  'pages.pricing.starter.feature2': 'Geofencing, Playback und Standard-GPS-Alarme',
+  'pages.pricing.starter.feature3': 'Mandanten-RBAC, Filialen und sicherer Web- + Mobilzugang',
+  'pages.pricing.starter.feature4': 'Onboarding und Support für kleinere Flotten',
+  'pages.pricing.pro.name': 'Pro',
+  'pages.pricing.pro.badge': 'Beliebteste Wahl',
+  'pages.pricing.pro.fleet': 'Für 26–50 Fahrzeuge',
+  'pages.pricing.pro.feature1': 'Alles aus Starter, ausgelegt für mehr Geräte und Nutzer',
+  'pages.pricing.pro.feature2': 'Betriebstiefe — Kraftstoff, Wartung, Abrechnungen und Reports',
+  'pages.pricing.pro.feature3': 'WhatsApp- und Benachrichtigungs-Workflows in Flottengröße',
+  'pages.pricing.pro.feature4': 'Priorisiertes Onboarding für Multi-Team-Rollouts',
+  'pages.pricing.enterprise.name': 'Enterprise',
+  'pages.pricing.enterprise.fleet': '51+ Fahrzeuge und komplexe Abläufe',
+  'pages.pricing.enterprise.priceNote': 'Ab PKR 165.000/Monat plus Skalierung pro Fahrzeug über 50 (~PKR 2.200/Fahrzeug).',
+  'pages.pricing.enterprise.feature1': 'Voller Nexus-Modulumfang, Custom-Integrationen und API-Zugang',
+  'pages.pricing.enterprise.feature2': 'Dediziertes Success-Planning, Training und Eskalationswege',
+  'pages.pricing.enterprise.feature3': 'Optionale Add-ons — Road Speed Limits, KI-Pakete, SMS-Bundles',
+  'pages.pricing.enterprise.feature4': 'Individuelle Enterprise-Preise auf Anfrage',
+  'pages.pricing.basis.kicker': 'Plattform-Kostenbasis',
+  'pages.pricing.basis.title': 'Infrastrukturbasiert für 20–50 Fahrzeuge',
+  'pages.pricing.basis.lead':
+    'Listenpreise liegen über typischen voll belasteten Plattformkosten auf dem aktuellen Shared Stack (Azure, Vercel, Google Maps, SMS, KI) — kein Abschlag gegenüber Starter.',
+  'pages.pricing.basis.opsBandLabel': 'Typisches Ops-Kostenband (ein Mandant)',
+  'pages.pricing.basis.opsBandValue': 'Ca. PKR 21.000 – 83.000 / Monat',
+  'pages.pricing.basis.opsBandHint':
+    'Anteil Shared Hosting für 20–50 getrackte Fahrzeuge mit kontrollierten Maps und SMS — größte Variable ist Alarm-SMS-Volumen.',
+  'pages.pricing.basis.perVehicle':
+    'Kostenkontext pro Fahrzeug: ca. PKR 1.050–2.650 bei 20 Fahrzeugen · ca. PKR 740–1.660 bei 50 Fahrzeugen (Schätzung aus Recherche, nicht Ihre Rechnung).',
+  'pages.pricing.basis.disclaimer':
+    'Zahlen aus interner Kostenrecherche zur Planung — keine Listenpreise. Ihr Vertrag spiegelt Tier, Flottengröße, SMS/Maps-Nutzung und aktivierte Module.',
+  'pages.pricing.cta.title': 'Nexus mit Ihren Flottenzahlen sehen',
+  'pages.pricing.cta.lead':
+    'Demo buchen für eine geführte Tour oder Vertrieb kontaktieren, um Starter, Pro oder Enterprise auf Ihre Fahrzeuge und Workflows abzubilden.',
 };
