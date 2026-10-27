@@ -1,0 +1,62 @@
+[
+  {
+    "scene": 1,
+    "vo_sec": 7.152,
+    "target": 8
+  },
+  {
+    "scene": 2,
+    "vo_sec": 9.408,
+    "target": 12
+  },
+  {
+    "scene": 3,
+    "vo_sec": 10.152,
+    "target": 12
+  },
+  {
+    "scene": 4,
+    "vo_sec": 9.768,
+    "target": 12
+  },
+  {
+    "scene": 5,
+    "vo_sec": 8.544,
+    "target": 10
+  },
+  {
+    "scene": 6,
+    "vo_sec": 8.472,
+    "target": 12
+  },
+  {
+    "scene": 7,
+    "vo_sec": 7.629833,
+    "target": 8
+  },
+  {
+    "scene": 8,
+    "vo_sec": 7.344,
+    "target": 8
+  },
+  {
+    "scene": 9,
+    "vo_sec": 11.631083,
+    "target": 12
+  },
+  {
+    "scene": 10,
+    "vo_sec": 7.65,
+    "target": 8
+  },
+  {
+    "scene": 11,
+    "vo_sec": 7.152,
+    "target": 8
+  },
+  {
+    "scene": 12,
+    "vo_sec": 8.328,
+    "target": 10
+  }
+]
