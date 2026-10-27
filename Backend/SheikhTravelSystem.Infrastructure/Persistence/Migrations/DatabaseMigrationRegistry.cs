@@ -167,6 +167,7 @@ public static class DatabaseMigrationRegistry
             M("SinotrackSt901H02ProtocolMigration", SinotrackSt901H02ProtocolMigration.ApplyAsync),
             M("DriverTripFeedbackMigration", DriverTripFeedbackMigration.ApplyAsync),
             M("TripEnhancementsMigration", TripEnhancementsMigration.ApplyAsync),
+            M("ElectricFleetNavMenuMigration", ElectricFleetNavMenuMigration.ApplyAsync),
         ];
     }
 }

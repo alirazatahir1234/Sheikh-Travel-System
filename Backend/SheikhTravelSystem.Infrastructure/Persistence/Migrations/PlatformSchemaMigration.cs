@@ -469,6 +469,7 @@ public static class PlatformSchemaMigration
             ("Inspection", "/fleet/inspections", "fact_check", "Vehicle.View", 6),
             ("Compliance", "/fleet/compliance", "verified_user", "Vehicle.View", 7),
             ("Fuel", "/fuel-logs", "local_gas_station", "Fuel.View", 8),
+            ("Electric fleet", "/fleet/ev", "ev_station", "Vehicle.View", 9),
         };
 
         foreach (var (name, route, icon, permission, sort) in fleetMenus)

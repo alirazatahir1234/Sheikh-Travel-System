@@ -48,6 +48,7 @@ public static class MenuRegistrySeed
         M("/vehicles", "Vehicles", "Vehicles", "Vehicle registry", "Fleet", "vehicles", "FLEET", true),
         M("/drivers", "Drivers", "Drivers", "Driver directory", "Fleet", "drivers", "FLEET", true),
         M("/gps-tracking", "GPS Tracking", "GPS Tracking", "Live tracking", "Fleet", "gps-tracking", "GPS", true),
+        M("/fleet/ev", "Electric fleet", "Electric fleet", "EV battery, charging, range alerts", "Fleet", "vehicles", "FLEET", false),
         M("/fuel-logs", "Fuel Logs", "Fuel", "Fuel logs and receipts", "Fleet", "fuel-logs", "FLEET", false),
         M("/maintenance", "Maintenance", "Maintenance", "Service workflows", "Fleet", "maintenance", "FLEET", true),
         M("/customers", "Customers", "Customers", "Customer CRM", "CRM", null, "CRM", false),

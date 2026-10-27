@@ -17,4 +17,15 @@ describe('resolveMenu Fleet Operations (travel)', () => {
     expect(fleetOps?.collapsible).toBe(true);
     expect(fleetOps!.items.map(i => i.id)).toEqual(['bookings', 'trips', 'routes']);
   });
+
+  it('shows Electric fleet under Fleet Operations when vehicles module is enabled', () => {
+    const menu = resolveMenu({
+      tenantType: TenantType.TravelAgency,
+      roles: ['SUPER_ADMIN'],
+      enabledModules: ['dashboard', 'bookings', 'trips', 'routes', 'vehicles']
+    });
+
+    const fleetOps = menu.groups.find(g => g.id === 'travel-fleet-operations');
+    expect(fleetOps?.items.map(i => i.id)).toContain('ev-fleet');
+  });
 });

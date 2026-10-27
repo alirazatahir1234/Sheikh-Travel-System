@@ -15,6 +15,13 @@ public class MenuBuilderQueriesTests
     }
 
     [Fact]
+    public void IsMenuItemEnabledByModule_vehicle_view_requires_fleet_entitlement()
+    {
+        MenuBuilderQueries.IsMenuItemEnabledByModule("Vehicle.View", ["vehicles"], "FLEET").Should().BeTrue();
+        MenuBuilderQueries.IsMenuItemEnabledByModule("Vehicle.View", ["routes"], "FLEET").Should().BeFalse();
+    }
+
+    [Fact]
     public void IsMenuItemEnabledByModule_travel_permissions_require_legacy_keys()
     {
         MenuBuilderQueries.IsMenuItemEnabledByModule("Booking.View", ["routes"], null).Should().BeFalse();

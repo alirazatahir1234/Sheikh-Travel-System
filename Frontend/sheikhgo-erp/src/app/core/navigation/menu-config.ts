@@ -31,7 +31,8 @@ const travelFleetOperationsGroup: NavGroup = {
   items: [
     { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
     { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
-    { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' }
+    { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' },
+    { id: 'ev-fleet', label: 'Electric fleet', icon: 'ev_station', route: '/fleet/ev', moduleKey: 'vehicles' }
   ]
 };
 
@@ -346,6 +347,7 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-analytics',
     'driver-performance',
     'trip-smart-assignment',
+    'ev-fleet',
     'reports',
     'tenant-settings',
     'website-dashboard',
