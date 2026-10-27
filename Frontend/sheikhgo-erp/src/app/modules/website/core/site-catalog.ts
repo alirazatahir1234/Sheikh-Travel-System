@@ -119,6 +119,108 @@ const nexusModuleSrc = (file: string) =>
   `/website/nexus/modules/${file}?v=${NEXUS_MODULE_SHOTS_VERSION}` as const;
 
 /** Product UI captures from SheikhGo Nexus (demo tenant). Shared by home and /services. */
+/** Homepage feature modules — image + in-page fragment or route (pill nav + jump cards). */
+export interface HomeModuleJump {
+  labelKey: string;
+  fragment?: string;
+  link?: string;
+  image: string;
+  alt: string;
+}
+
+export const HOME_MODULE_JUMPS: readonly HomeModuleJump[] = [
+  {
+    labelKey: 'home.pill.modules',
+    fragment: 'platform-modules',
+    image: nexusModuleSrc('dashboard.png'),
+    alt: 'Platform modules gallery in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.subscriptionPlans',
+    fragment: 'subscription-plans',
+    image: nexusModuleSrc('reports.png'),
+    alt: 'Subscription plans in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.clientBilling',
+    fragment: 'client-billing',
+    image: nexusModuleSrc('customers.png'),
+    alt: 'Client billing and customer records in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.driverPayments',
+    fragment: 'driver-payments',
+    image: nexusModuleSrc('drivers.png'),
+    alt: 'Driver payments and wallet in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.smartAssignment',
+    fragment: 'smart-assignment',
+    image: nexusModuleSrc('trips.png'),
+    alt: 'Smart trip assignment in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.liveTraffic',
+    fragment: 'live-traffic',
+    image: nexusModuleSrc('live-tracking.png'),
+    alt: 'Live traffic and fleet map in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.driverVerification',
+    fragment: 'driver-verification',
+    image: nexusModuleSrc('vehicles.png'),
+    alt: 'Driver verification workflow in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.driverVoice',
+    fragment: 'driver-voice',
+    image: nexusModuleSrc('ai-assistant.png'),
+    alt: 'Driver voice commands in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.fatigueDetection',
+    fragment: 'fatigue-detection',
+    image: nexusModuleSrc('gps-alerts.png'),
+    alt: 'Fatigue and safety alerts in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.driverOffline',
+    fragment: 'driver-offline-sync',
+    image: nexusModuleSrc('trip-history.png'),
+    alt: 'Offline sync and trip history in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.capabilities',
+    fragment: 'platform-features',
+    image: nexusModuleSrc('geofencing.png'),
+    alt: 'Platform capabilities in SheikhGo Nexus',
+  },
+  {
+    labelKey: 'home.pill.ai',
+    link: '/ai-solutions',
+    image: nexusModuleSrc('ai-assistant.png'),
+    alt: 'SheikhGo AI solutions',
+  },
+  {
+    labelKey: 'home.pill.pricing',
+    link: '/pricing',
+    image: nexusModuleSrc('fuel.png'),
+    alt: 'SheikhGo Nexus pricing',
+  },
+  {
+    labelKey: 'home.pill.nexus',
+    link: '/services',
+    image: NEXUS_DASHBOARD_IMAGE.src,
+    alt: NEXUS_DASHBOARD_IMAGE.alt,
+  },
+  {
+    labelKey: 'home.pill.demo',
+    fragment: 'cta',
+    image: '/website/gps-alerts/scene-tracking.jpg',
+    alt: 'Request a SheikhGo Nexus demo',
+  },
+] as const;
+
 export const NEXUS_MODULE_SHOTS = [
   { caption: 'Dashboard', src: nexusModuleSrc('dashboard.png'), alt: 'SheikhGo Nexus operations dashboard' },
   { caption: 'Live Tracking', src: nexusModuleSrc('live-tracking.png'), alt: 'Live GPS fleet map in SheikhGo Nexus' },

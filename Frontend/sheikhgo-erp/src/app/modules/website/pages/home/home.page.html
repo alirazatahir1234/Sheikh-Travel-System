@@ -62,12 +62,41 @@
           {{ pill.label }}
         </a>
       } @else {
-        <a [routerLink]="['/']" [fragment]="pill.fragment">
+        <a
+          [routerLink]="['/']"
+          [fragment]="pill.fragment"
+          (click)="scrollToHomeSection($event, pill.fragment!)">
           <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
           {{ pill.label }}
         </a>
       }
     }
+  </div>
+  <div class="container home-module-jumps">
+    <div class="home-module-jumps-grid">
+      @for (mod of homeModuleJumps; track mod.labelKey) {
+        @if (mod.link) {
+          <a class="home-module-jump-card" [routerLink]="mod.link" [attr.aria-label]="mod.labelKey | wsTranslate">
+            <span class="home-module-jump-shot">
+              <img [src]="mod.image" [alt]="mod.alt" width="360" height="225" loading="lazy" decoding="async" />
+            </span>
+            <span class="home-module-jump-label">{{ mod.labelKey | wsTranslate }}</span>
+          </a>
+        } @else {
+          <a
+            class="home-module-jump-card"
+            [routerLink]="['/']"
+            [fragment]="mod.fragment"
+            [attr.aria-label]="mod.labelKey | wsTranslate"
+            (click)="scrollToHomeSection($event, mod.fragment!)">
+            <span class="home-module-jump-shot">
+              <img [src]="mod.image" [alt]="mod.alt" width="360" height="225" loading="lazy" decoding="async" />
+            </span>
+            <span class="home-module-jump-label">{{ mod.labelKey | wsTranslate }}</span>
+          </a>
+        }
+      }
+    </div>
   </div>
 </nav>
 

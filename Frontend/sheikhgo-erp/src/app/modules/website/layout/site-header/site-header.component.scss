@@ -107,7 +107,7 @@
     /* Do not clip mega-menus — panels are position:absolute below the bar */
     overflow: visible;
     position: relative;
-    z-index: 1;
+    z-index: 12;
   }
 
   .nav-link {
@@ -122,6 +122,7 @@
     white-space: nowrap;
     flex-shrink: 0;
     position: relative;
+    z-index: 13;
   }
 
   .nav-link-label--short {
@@ -281,13 +282,19 @@
     min-width: min-content;
     justify-self: end;
     position: relative;
-    z-index: 25;
+    z-index: 8;
+    /* Let header nav links receive clicks under the language switcher overlap band */
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
   }
 
   .lang-switch-desktop {
     flex-shrink: 0;
     position: relative;
-    z-index: 26;
+    z-index: 9;
   }
 
   .login {

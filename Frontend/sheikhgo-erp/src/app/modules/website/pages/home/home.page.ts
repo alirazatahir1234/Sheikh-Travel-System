@@ -7,7 +7,7 @@ import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
-import { NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
+import { HOME_MODULE_JUMPS, NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
 import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
@@ -208,6 +208,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   ] as const;
 
   readonly nexusModuleShots = NEXUS_MODULE_SHOTS;
+  readonly homeModuleJumps = HOME_MODULE_JUMPS;
 
   readonly clientTestimonials = [
     {
@@ -297,15 +298,29 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  scrollToHomeSection(event: Event, fragment: string): void {
+    event.preventDefault();
+    void this.router.navigate(['/'], { fragment }).then(() => this.scrollToFragmentId(fragment));
+  }
+
+  private scrollToFragmentId(fragment: string): void {
+    requestAnimationFrame(() => {
+      document.getElementById(fragment)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   ngAfterViewInit(): void {
     this.fragmentSub = this.route.fragment.subscribe(fragment => {
+      if (!fragment) return;
       if (fragment === 'ai-solutions' || fragment === 'home-ai') {
         void this.router.navigate(['/ai-solutions'], { replaceUrl: true });
         return;
       }
       if (fragment === 'watch-demo') {
         this.demoModalOpen.set(true);
+        return;
       }
+      setTimeout(() => this.scrollToFragmentId(fragment), 0);
     });
   }
 
