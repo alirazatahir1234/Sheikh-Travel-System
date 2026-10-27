@@ -71,14 +71,15 @@
   }
 
   .bar {
-    display: flex;
+    container-type: inline-size;
+    container-name: site-header-bar;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     min-height: 72px;
     height: auto;
     padding-block: 8px;
-    gap: 1rem;
-    flex-wrap: nowrap;
+    column-gap: 0.75rem;
     position: relative;
     z-index: 1;
   }
@@ -91,34 +92,39 @@
     box-shadow: none;
     padding: 0;
     flex-shrink: 0;
-    max-width: min(280px, 42vw);
+    max-width: min(240px, 38vw);
+    min-width: 0;
     position: relative;
-    z-index: 3;
+    z-index: 2;
   }
 
   .nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    flex: 1 1 auto;
+    gap: 0.15rem;
     min-width: 0;
+    overflow: hidden;
     position: relative;
-    z-index: 3;
+    z-index: 1;
   }
 
   .nav-link {
     color: var(--sg-ink, #022f32);
     font-weight: 600;
     font-size: var(--type-nav, 0.875rem);
-    padding: 0.55rem 0.65rem;
+    padding: 0.55rem 0.55rem;
     border-radius: 999px;
     background: transparent;
     border: 0;
     cursor: pointer;
     white-space: nowrap;
+    flex-shrink: 0;
     position: relative;
-    z-index: 1;
+  }
+
+  .nav-link-label--short {
+    display: none;
   }
 
   .nav-link:hover,
@@ -264,8 +270,10 @@
   .actions {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.65rem;
     flex-shrink: 0;
+    min-width: 0;
+    justify-self: end;
     position: relative;
     z-index: 2;
   }
@@ -337,6 +345,38 @@
     .nav-contact-item {
       display: none;
     }
+
+    /* Tagline belongs in mobile drawer — it steals ~10rem from the fixed 1280px marketing bar */
+    .actions-cta .header-demo-tagline {
+      display: none;
+    }
+
+    .actions .btn {
+      padding: 0.65rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    .nav-link--live .nav-link-label--long,
+    .nav-link--features .nav-link-label--long {
+      display: none;
+    }
+
+    .nav-link--live .nav-link-label--short,
+    .nav-link--features .nav-link-label--short {
+      display: inline;
+    }
+  }
+
+  /* Marketing `.container` caps at 1280px — use bar width, not viewport, for crowding */
+  @container site-header-bar (max-width: 1140px) {
+    .nav-link {
+      padding-inline: 0.4rem;
+      font-size: 0.8125rem;
+    }
+
+    .nav-link--live {
+      display: none;
+    }
   }
 
   /* Tight desktop band: shrink spacing before collapsing to the burger */
@@ -346,15 +386,15 @@
     }
 
     .nav-link {
-      padding: 0.55rem 0.45rem;
+      padding: 0.5rem 0.4rem;
     }
 
     .brand {
-      max-width: 210px;
+      max-width: 200px;
     }
 
     .actions {
-      gap: 0.55rem;
+      gap: 0.5rem;
     }
   }
 
