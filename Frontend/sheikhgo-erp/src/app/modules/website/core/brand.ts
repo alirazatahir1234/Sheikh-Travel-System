@@ -18,7 +18,21 @@ export const WEBSITE_WHATSAPP_DIGITS = '923177368305';
 /** Office postal address — verified with Ali (Exchange Tower, Business Bay). */
 export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;
 
+/** Marketing sample pin — Dubai corporate office (Live Tracking / GPS pages). */
+export const WEBSITE_DEMO_MAP_COORDINATES = '25.1854, 55.2663';
+export const WEBSITE_DEMO_MAP_ADDRESS_SHORT = 'The Exchange Tower, Business Bay, Dubai';
+
 const WEBSITE_OFFICE_MAPS_QUERY = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
+
+/** Prefer verified office address when CMS holds invalid or hidden-service values. */
+export function resolveWebsiteOfficeAddress(cmsValue: string | null | undefined): string {
+  const trimmed = cmsValue?.trim() ?? '';
+  if (!trimmed) return WEBSITE_OFFICE_ADDRESS;
+  if (/\.onion\b/i.test(trimmed) || /hidden\s+service/i.test(trimmed)) {
+    return WEBSITE_OFFICE_ADDRESS;
+  }
+  return trimmed;
+}
 
 /** Opens Google Maps for directions / full map view. */
 export const WEBSITE_OFFICE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}`;

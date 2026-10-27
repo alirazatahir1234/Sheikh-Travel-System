@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CtaBandComponent } from '../../shared/cta-band.component';
+import { WEBSITE_DEMO_MAP_ADDRESS_SHORT, WEBSITE_DEMO_MAP_COORDINATES } from '../../core/brand';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 
@@ -29,8 +30,8 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
           <p class="section-lead">SheikhGo shows road and area context so operators see where the vehicle is in plain language — not only map pins.</p>
           <div class="sample">
             <strong>Toyota Corolla · LEC-8825</strong>
-            <span>📍 Sialkot-Pasrur Road, Sialkot, Punjab, Pakistan</span>
-            <em>Near Peak Performance Partners</em>
+            <span>📍 {{ demoMapCoordinates }} · {{ demoMapAddressLine }}</span>
+            <em>Near Business Bay Metro</em>
             <small>Speed 22 km/h · Ignition Off · GPS Active · Updated seconds ago</small>
           </div>
         </div>
@@ -80,6 +81,9 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
 export class GpsPage implements OnInit {
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
+
+  readonly demoMapCoordinates = WEBSITE_DEMO_MAP_COORDINATES;
+  readonly demoMapAddressLine = WEBSITE_DEMO_MAP_ADDRESS_SHORT;
 
   pageTitle = 'GPS Tracking';
   pageLead =

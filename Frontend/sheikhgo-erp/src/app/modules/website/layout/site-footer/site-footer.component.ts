@@ -6,6 +6,7 @@ import {
   WEBSITE_OFFICE_ADDRESS,
   WEBSITE_OFFICE_MAPS_URL,
   WebsiteContactPhone,
+  resolveWebsiteOfficeAddress,
 } from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
 import { CookieConsentService } from '../../core/cookie-consent.service';
@@ -46,8 +47,7 @@ export class SiteFooterComponent implements OnInit {
       this.salesEmail = s.salesEmail || this.salesEmail;
       this.supportEmail = s.supportEmail || this.supportEmail;
       this.siteName = s.siteName || this.siteName;
-      const cmsAddress = s.address?.trim();
-      if (cmsAddress) this.officeAddress = cmsAddress;
+      this.officeAddress = resolveWebsiteOfficeAddress(s.address);
     });
   }
 

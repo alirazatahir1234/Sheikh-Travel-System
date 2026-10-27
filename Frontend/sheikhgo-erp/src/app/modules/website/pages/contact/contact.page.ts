@@ -10,6 +10,7 @@ import {
   WEBSITE_OFFICE_MAPS_EMBED_URL,
   WEBSITE_OFFICE_MAPS_URL,
   WebsiteContactPhone,
+  resolveWebsiteOfficeAddress,
 } from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
@@ -69,8 +70,7 @@ export class ContactPage implements OnInit {
   ngOnInit(): void {
     this.seo.set('Contact', 'Contact SheikhGo sales and support for fleet and travel management.', '/contact');
     this.content.getSettings().subscribe((s: PublicWebsiteSettings | null) => {
-      const cmsAddress = s?.address?.trim();
-      if (cmsAddress) this.officeAddress = cmsAddress;
+      this.officeAddress = resolveWebsiteOfficeAddress(s?.address);
     });
   }
 

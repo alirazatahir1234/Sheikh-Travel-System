@@ -2,6 +2,7 @@ import { AfterViewInit, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
+import { WEBSITE_DEMO_MAP_ADDRESS_SHORT, WEBSITE_DEMO_MAP_COORDINATES } from '../../core/brand';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
@@ -160,7 +161,7 @@ interface FeatureGroup {
             <mat-icon>place</mat-icon>
             <div class="road-meta">
               <strong>Toyota Corolla · LEC-8825</strong>
-              <span>Sialkot-Pasrur Road, Sialkot</span>
+              <span>{{ demoMapCoordinates }} · {{ demoMapAddressLine }}</span>
             </div>
             <span class="road-badge">Live</span>
           </div>
@@ -644,6 +645,9 @@ interface FeatureGroup {
 export class LiveTrackingPage implements OnInit, AfterViewInit {
   private readonly seo = inject(WebsiteSeoService);
   private readonly route = inject(ActivatedRoute);
+
+  readonly demoMapCoordinates = WEBSITE_DEMO_MAP_COORDINATES;
+  readonly demoMapAddressLine = WEBSITE_DEMO_MAP_ADDRESS_SHORT;
 
   readonly groups: FeatureGroup[] = [
     {
