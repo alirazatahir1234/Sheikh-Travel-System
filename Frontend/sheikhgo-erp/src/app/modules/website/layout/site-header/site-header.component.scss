@@ -332,6 +332,13 @@
     border-radius: 2px;
   }
 
+  /* Desktop: one contact path via actions (.login); avoid duplicate center-nav Contact */
+  @media (min-width: 1201px) {
+    .nav-contact-item {
+      display: none;
+    }
+  }
+
   /* Tight desktop band: shrink spacing before collapsing to the burger */
   @media (max-width: 1360px) and (min-width: 1201px) {
     .nav {
