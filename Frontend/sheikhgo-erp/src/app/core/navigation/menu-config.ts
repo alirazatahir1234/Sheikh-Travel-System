@@ -56,6 +56,7 @@ const fleetOperationsGroup: NavGroup = {
     { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live', moduleKey: 'gps-tracking' },
     { id: 'gps-trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips', moduleKey: 'gps-tracking' },
     { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/fleet/maintenance', moduleKey: 'maintenance' },
+    { id: 'predictive-maintenance', label: 'Predictive Maintenance', icon: 'auto_fix_high', route: '/fleet/maintenance/predictive', moduleKey: 'maintenance' },
     { id: 'service-records', label: 'Service Records', icon: 'history', route: '/maintenance/service-records', moduleKey: 'maintenance' },
     { id: 'fuel-logs', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
     { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections', moduleKey: 'vehicles' },
@@ -140,7 +141,9 @@ const analyticsGroup: NavGroup = {
   items: [
     { id: 'reports', label: 'Reports', icon: 'insights', route: '/reports', moduleKey: 'reports' },
     { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/gps-tracking/analytics', moduleKey: 'gps-tracking' },
-    { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/analytics', moduleKey: 'gps-tracking' },
+    { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/driver-performance', moduleKey: 'gps-tracking' },
+    { id: 'client-tracking-links', label: 'Client Tracking Links', icon: 'link', route: '/gps-tracking/client-tracking-links', moduleKey: 'gps-tracking' },
+    { id: 'predictive-maintenance', label: 'Predictive Maintenance', icon: 'auto_fix_high', route: '/fleet/maintenance/predictive', moduleKey: 'maintenance' },
     { id: 'audit-logs', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'ai-center', label: 'SheikhGo AI Assistant', icon: 'smart_toy', route: '/ai', moduleKey: 'ai' },

@@ -1,0 +1,58 @@
+<div class="page-header">
+  <h1>Client Tracking Links</h1>
+  <p class="lead">Share secure, tokenized links so customers track shipments without logging in.</p>
+</div>
+
+<section class="create-card">
+  <h2>Create link</h2>
+  <div class="create-row">
+    <label>Trip ID <input type="number" [(ngModel)]="tripIdInput" min="1" /></label>
+    <label>Valid (hours) <input type="number" [(ngModel)]="hoursValid" min="1" max="168" /></label>
+    <button mat-flat-button color="primary" type="button" (click)="createLink()">Generate</button>
+  </div>
+  @if (createError) {
+    <p class="error">{{ createError }}</p>
+  }
+  @if (created) {
+    <div class="created">
+      <p><strong>Link ready</strong> — expires {{ created.expiresAt | date:'medium' }}</p>
+      <code>{{ created.publicUrl }}</code>
+      <button mat-stroked-button type="button" (click)="copyCreated()">Copy URL</button>
+    </div>
+  }
+</section>
+
+@if (loadError) {
+  <p class="error">{{ loadError }}</p>
+}
+
+@if (loading) {
+  <p>Loading links…</p>
+} @else {
+  <table class="links-table">
+    <thead>
+      <tr>
+        <th>Trip</th>
+        <th>Status</th>
+        <th>Views</th>
+        <th>Expires</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of rows; track r.id) {
+        <tr>
+          <td>{{ r.tripNumber || ('Trip #' + r.tripId) }}</td>
+          <td>{{ r.isActive ? 'Active' : (r.revokedAt ? 'Revoked' : 'Expired') }}</td>
+          <td>{{ r.viewCount }}</td>
+          <td>{{ r.expiresAt | date:'short' }}</td>
+          <td>
+            @if (r.isActive) {
+              <button mat-button type="button" (click)="revoke(r)">Revoke</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

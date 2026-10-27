@@ -58,6 +58,10 @@ abstract class ApiEndpoints {
   // SOS
   static const sos = '/driver-app/sos';
 
+  // Voice & offline sync
+  static const voiceCommands = '/driver-app/voice/commands';
+  static const syncBatch = '/driver-app/sync/batch';
+
   // Inspections
   static const inspectionTemplate = '/driver-app/inspection/template';
   static const inspectionVehicles = '/driver-app/inspection/vehicles';
@@ -134,6 +138,7 @@ abstract class ApiEndpoints {
   static String driverTransferVehicle(int id) => '/drivers/$id/transfer-vehicle';
   static String driverAssignments(int id) => '/drivers/$id/assignments';
   static String driverPerformance(int id) => '/drivers/$id/performance/summary';
+  static const driverAppPerformanceScore = '/driver-app/performance/score';
   static String driverViolations(int id) => '/drivers/$id/violations';
   static String driverAttendance(int id) => '/drivers/$id/attendance';
   static String driverDocuments(int id) => '/drivers/$id/documents';

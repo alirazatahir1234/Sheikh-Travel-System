@@ -9,6 +9,7 @@ export const MAINTENANCE_SUB_NAV: MaintenanceNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', route: '/fleet/maintenance', exact: true },
   { id: 'requests', label: 'Service Requests', route: '/fleet/maintenance/requests' },
   { id: 'work-orders', label: 'Work Orders', route: '/fleet/maintenance/work-orders' },
+  { id: 'predictive', label: 'Predictive Maintenance', route: '/fleet/maintenance/predictive' },
   { id: 'schedules', label: 'Service Scheduler', route: '/fleet/maintenance/schedules' },
   { id: 'history', label: 'Service History', route: '/fleet/maintenance/history' },
   { id: 'parts', label: 'Spare Parts', route: '/fleet/maintenance/parts' },

@@ -64,6 +64,11 @@ public interface IWhatsAppAutomationRepository
 
     Task IncrementTrackingViewAsync(long linkId, CancellationToken ct = default);
 
+    Task<IReadOnlyList<TripTrackingLinkListRow>> ListTrackingLinksAsync(
+        int tenantId, int take, int? tripId, bool activeOnly, CancellationToken ct = default);
+
+    Task RevokeTrackingLinkAsync(int tenantId, long linkId, CancellationToken ct = default);
+
     // Ratings
     Task<bool> TryInsertTripRatingAsync(
         int tenantId, int tripId, int? driverId, int score, int? messageId, CancellationToken ct = default);
@@ -113,6 +118,16 @@ public sealed record TripTrackingLinkRow(
     DateTime ExpiresAt,
     DateTime? RevokedAt,
     int ViewCount);
+
+public sealed record TripTrackingLinkListRow(
+    long Id,
+    int TripId,
+    string? TripNumber,
+    int? BookingId,
+    DateTime ExpiresAt,
+    DateTime? RevokedAt,
+    int ViewCount,
+    DateTime CreatedAt);
 
 public sealed record AutomationBookingSnapshot(
     int Id,

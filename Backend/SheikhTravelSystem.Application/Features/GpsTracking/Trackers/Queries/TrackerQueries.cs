@@ -6,7 +6,7 @@ using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 
-public record GetTrackersQuery : IRequest<ApiResponse<List<TrackerDetailDto>>>;
+public record GetTrackersQuery(int? TenantId = null) : IRequest<ApiResponse<List<TrackerDetailDto>>>;
 
 public class GetTrackersQueryHandler(IGpsDeviceRepository gpsDeviceRepository)
     : IRequestHandler<GetTrackersQuery, ApiResponse<List<TrackerDetailDto>>>
@@ -67,7 +67,7 @@ internal static class TrackerSql
                d.SerialNumber, d.InstallationDate, d.InstalledBy, d.InstallationNotes,
                d.CountryCode, d.SIMProvider, d.SIMPackage, d.MonthlySIMCost,
                d.WarrantyStart, d.WarrantyEnd, d.PurchaseDate, d.PurchasePrice,
-               d.CurrentStatus, d.LastSyncAt, d.SimNumber
+               d.CurrentStatus, d.LastSyncAt, d.SimNumber, d.SosNumber
         FROM GpsDevices d
         LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
         LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = d.VehicleId

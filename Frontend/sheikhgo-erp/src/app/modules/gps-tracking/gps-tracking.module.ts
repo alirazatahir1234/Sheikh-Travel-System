@@ -28,6 +28,8 @@ import { AnalyticsReportSchedulesComponent } from './analytics/report-schedules/
 import { TrackerRegisterPageComponent } from './tracker-register/tracker-register-page.component';
 import { TrackerInstallPageComponent } from './tracker-install/tracker-install-page.component';
 import { TrackerDetailsPageComponent } from './tracker-details/tracker-details-page.component';
+import { DriverPerformancePageComponent } from './driver-performance/driver-performance-page.component';
+import { ClientTrackingLinksPageComponent } from './client-tracking-links/client-tracking-links-page.component';
 
 const routes: Routes = [
   {
@@ -48,7 +50,9 @@ const routes: Routes = [
       { path: 'devices/:id/edit', component: TrackerRegisterPageComponent },
       { path: 'devices/:id', component: TrackerDetailsPageComponent },
       { path: 'commands', component: GpsCommandsComponent },
-      { path: 'analytics', component: GpsAnalyticsComponent }
+      { path: 'analytics', component: GpsAnalyticsComponent },
+      { path: 'driver-performance', component: DriverPerformancePageComponent },
+      { path: 'client-tracking-links', component: ClientTrackingLinksPageComponent }
     ]
   }
 ];
@@ -72,7 +76,9 @@ const routes: Routes = [
     GpsAnalyticsComponent,
     TrackerRegisterPageComponent,
     TrackerInstallPageComponent,
-    TrackerDetailsPageComponent
+    TrackerDetailsPageComponent,
+    DriverPerformancePageComponent,
+    ClientTrackingLinksPageComponent
   ],
   imports: [
     SharedModule, UiInputComponent, UiSelectComponent, UiChartComponent, ScrollingModule,

@@ -45,6 +45,8 @@ public record RegisterTrackerDto(
     string? TrackerModelKey = null,
     string? Phone = null,
     string? Contact = null,
+    /// <summary>Human SOS / center number for offline SMS (not the tracker SIM).</summary>
+    string? SosNumber = null,
     bool Disabled = false,
     int? VehicleId = null,
     int? DriverId = null,
@@ -73,6 +75,8 @@ public record UpdateTrackerDto(
     string? TrackerModelKey = null,
     string? Phone = null,
     string? Contact = null,
+    /// <summary>Human SOS / center number for offline SMS (not the tracker SIM).</summary>
+    string? SosNumber = null,
     bool Disabled = false,
     int? VehicleId = null,
     int? DriverId = null,
@@ -199,4 +203,6 @@ public record TrackerDetailDto(
     decimal? PurchasePrice,
     string? CurrentStatus,
     DateTime? LastSyncAt,
-    string? SimNumber = null);
+    string? SimNumber = null,
+    /// <summary>Human SOS / center number for Gmeet offline SMS.</summary>
+    string? SosNumber = null);

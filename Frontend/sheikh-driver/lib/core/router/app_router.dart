@@ -18,6 +18,7 @@ import '../../features/gps_operator/presentation/incident_center_screen.dart';
 import '../../features/gps_operator/presentation/geofence_operator_screen.dart';
 import '../../features/gps_operator/presentation/operator_ai_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/performance/presentation/driver_performance_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/gps/presentation/live_map_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
@@ -28,6 +29,7 @@ import '../../features/settlements/presentation/settlements_screen.dart';
 import '../../features/inspection/presentation/inspection_screen.dart';
 import '../../features/navigation/presentation/trip_navigation_screen.dart';
 import '../../features/offline/presentation/offline_queue_screen.dart';
+import '../../features/voice/presentation/voice_command_screen.dart';
 import '../../features/security/presentation/security_status_screen.dart';
 import '../../features/legal/presentation/legal_document_screen.dart';
 import '../../features/payments/presentation/collect_payment_screen.dart';
@@ -398,6 +400,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProfileScreen(),
           ),
           GoRoute(
+            path: '/performance',
+            builder: (_, __) => const DriverPerformanceScreen(),
+          ),
+          GoRoute(
             path: '/attendance',
             builder: (_, __) => const AttendanceScreen(),
           ),
@@ -436,6 +442,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/offline-queue',
             builder: (_, __) => const OfflineQueueScreen(),
+          ),
+          GoRoute(
+            path: '/voice',
+            builder: (_, __) => const VoiceCommandScreen(),
           ),
           GoRoute(
             path: '/security',

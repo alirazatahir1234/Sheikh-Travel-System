@@ -134,6 +134,21 @@ export interface UpcomingService {
   priority: string;
 }
 
+export interface PredictiveMaintenanceAlert {
+  vehicleId: number;
+  vehicleName: string;
+  vehicleRegistration?: string | null;
+  category: string;
+  severity: string;
+  status: string;
+  title: string;
+  message: string;
+  predictedDueDate?: string | null;
+  dueMileage?: number | null;
+  progressPercent?: number | null;
+  remainingKm?: number | null;
+}
+
 export interface MaintenanceDashboard {
   kpis: MaintenanceKpis;
   costTrend: MaintenanceCostTrendPoint[];
@@ -142,6 +157,7 @@ export interface MaintenanceDashboard {
   recentWorkOrders: WorkOrderListItem[];
   upcomingServices: UpcomingService[];
   fuelSummary?: FuelMaintenanceSummary | null;
+  predictiveAlerts?: PredictiveMaintenanceAlert[];
 }
 
 export interface FuelMaintenanceSummary {

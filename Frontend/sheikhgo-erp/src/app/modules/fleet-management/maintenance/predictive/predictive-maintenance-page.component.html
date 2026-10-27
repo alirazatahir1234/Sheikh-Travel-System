@@ -1,0 +1,38 @@
+<div class="page-header">
+  <h1>Predictive Maintenance</h1>
+  <p class="lead">Schedule service from mileage and alert signals before breakdowns — drivers receive reminders on mobile.</p>
+  <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
+</div>
+
+@if (error) {
+  <p class="error">{{ error }}</p>
+}
+@if (loading) {
+  <p>Loading predictions…</p>
+} @else if (!alerts.length) {
+  <p class="muted">No predictive flags right now. Oil, tire, and engine-life rules use real odometer fields on each vehicle.</p>
+} @else {
+  <div class="alert-grid">
+    @for (a of alerts; track a.vehicleId + a.category) {
+      <article [class]="'alert-card ' + severityClass(a.severity)">
+        <header>
+          <span class="cat">{{ a.category }}</span>
+          <span class="status">{{ a.status }}</span>
+        </header>
+        <h2>{{ a.title }}</h2>
+        <p>{{ a.message }}</p>
+        <div class="meta">
+          @if (a.dueMileage != null) {
+            <span>Due ~{{ a.dueMileage | number:'1.0-0' }} km</span>
+          }
+          @if (a.predictedDueDate) {
+            <span>{{ a.predictedDueDate | date:'mediumDate' }}</span>
+          }
+        </div>
+        <a mat-stroked-button [routerLink]="['/fleet/maintenance/schedules']" [queryParams]="{ vehicleId: a.vehicleId }">
+          Schedule service
+        </a>
+      </article>
+    }
+  </div>
+}

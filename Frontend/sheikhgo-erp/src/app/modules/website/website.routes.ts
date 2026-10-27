@@ -33,6 +33,21 @@ export const WEBSITE_ROUTES: Routes = [
           import('./pages/live-tracking/live-tracking.page').then(m => m.LiveTrackingPage),
       },
       {
+        path: 'driver-performance',
+        loadComponent: () =>
+          import('./pages/driver-performance/driver-performance.page').then(m => m.DriverPerformancePage),
+      },
+      {
+        path: 'predictive-maintenance',
+        loadComponent: () =>
+          import('./pages/predictive-maintenance/predictive-maintenance.page').then(m => m.PredictiveMaintenancePage),
+      },
+      {
+        path: 'client-tracking',
+        loadComponent: () =>
+          import('./pages/client-tracking/client-tracking.page').then(m => m.ClientTrackingPage),
+      },
+      {
         path: 'features',
         loadComponent: () => import('./pages/features/features.page').then(m => m.FeaturesPage),
       },

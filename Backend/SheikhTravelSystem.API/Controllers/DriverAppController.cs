@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 using SheikhTravelSystem.Application.Features.Settlements.Queries;
 using SheikhTravelSystem.Application.Features.DriverWallets;
 using SheikhTravelSystem.Application.Features.DriverWallets.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -47,6 +48,13 @@ public class DriverAppController : BaseApiController
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
         => Ok(await Mediator.Send(new GetDriverDashboardQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("performance/score")]
+    public async Task<IActionResult> GetMyPerformanceScore(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetMyDriverPerformanceQuery(from, to)));
 
     [Authorize(Roles = "Driver")]
     [HttpGet("status")]
@@ -344,6 +352,29 @@ public class DriverAppController : BaseApiController
     {
         var claim = User.FindFirst("tenantId")?.Value ?? User.FindFirst("tenant_id")?.Value;
         return int.TryParse(claim, out tenantId);
+    }
+
+    // ── Voice commands & offline sync ─────────────────────────────────────────
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("voice/commands")]
+    public async Task<IActionResult> SubmitVoiceCommand([FromBody] DriverVoiceCommandRequest request)
+        => Ok(await Mediator.Send(new SubmitDriverVoiceCommand(
+            request.Transcript,
+            request.LanguageCode,
+            request.Intent,
+            request.ClientOpId,
+            request.Latitude,
+            request.Longitude)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("sync/batch")]
+    public async Task<IActionResult> SyncBatch([FromBody] DriverSyncBatchRequest request)
+    {
+        var ops = (request.Operations ?? [])
+            .Select(o => new DriverSyncOperationItemDto(o.ClientOpId, o.OpType, o.Payload))
+            .ToList();
+        return Ok(await Mediator.Send(new DriverSyncBatchCommand(ops)));
     }
 
     // ── SOS ───────────────────────────────────────────────────────────────────

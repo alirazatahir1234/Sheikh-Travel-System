@@ -391,6 +391,34 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
             """, new { Id = linkId }, cancellationToken: ct));
     }
 
+    public async Task<IReadOnlyList<TripTrackingLinkListRow>> ListTrackingLinksAsync(
+        int tenantId, int take, int? tripId, bool activeOnly, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<TripTrackingLinkListRow>(new CommandDefinition("""
+            SELECT TOP (@Take)
+                l.Id, l.TripId, t.TripNumber, l.BookingId, l.ExpiresAt, l.RevokedAt, l.ViewCount, l.CreatedAt
+            FROM TripTrackingLinks l
+            LEFT JOIN Trips t ON t.Id = l.TripId AND t.TenantId = l.TenantId
+            WHERE l.TenantId = @TenantId
+              AND (@TripId IS NULL OR l.TripId = @TripId)
+              AND (@ActiveOnly = 0 OR (l.RevokedAt IS NULL AND l.ExpiresAt > SYSUTCDATETIME()))
+            ORDER BY l.CreatedAt DESC
+            """, new { TenantId = tenantId, Take = Math.Clamp(take, 1, 200), TripId = tripId, ActiveOnly = activeOnly ? 1 : 0 },
+            cancellationToken: ct));
+        return rows.ToList();
+    }
+
+    public async Task RevokeTrackingLinkAsync(int tenantId, long linkId, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE TripTrackingLinks
+            SET RevokedAt = SYSUTCDATETIME()
+            WHERE Id = @Id AND TenantId = @TenantId AND RevokedAt IS NULL
+            """, new { Id = linkId, TenantId = tenantId }, cancellationToken: ct));
+    }
+
     public async Task<bool> TryInsertTripRatingAsync(
         int tenantId, int tripId, int? driverId, int score, int? messageId, CancellationToken ct = default)
     {

@@ -141,6 +141,40 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.showcase.title': 'لوحة ذكاء الأسطول',
   'home.showcase.lead':
     'خريطة مباشرة وتنبيهات GPS حديثة وسياج وتشغيل وصحة أسطول وإشارات وقود وصيانة — مع لوحة مساعد ذكاء اصطناعي تجيب من أدوات التشغيل.',
+  'home.pill.driverVoice': 'أوامر صوتية',
+  'home.pill.driverOffline': 'مزامنة دون اتصال',
+  'home.driverVoice.kicker': 'تطبيق السائق',
+  'home.driverVoice.title': 'أوامر صوتية متعددة اللغات',
+  'home.driverVoice.lead':
+    'يتكلم السائقون بالعربية أو الإنجليزية أو الألمانية لإرسال رسائل للإ dispatch أو تنبيهات تشغيلية — بدون استخدام اليدين من تطبيق SheikhGo.',
+  'home.driverVoice.langTitle': 'اختيار اللغة',
+  'home.driverVoice.langText':
+    'اختر لغة التعرف لكل جلسة (EN / AR / DE). يمكن تعديل النص قبل الإرسال.',
+  'home.driverVoice.intentTitle': 'تنبيهات ورسائل',
+  'home.driverVoice.intentText':
+    'اكتشاف تلقائي لـ SOS أو تنبيه أو رسالة — أو اختيار صريح. يستلم Dispatch إشعارات داخل التطبيق مع وسم اللغة.',
+  'home.driverVoice.offlineTitle': 'طابور عند انقطاع الشبكة',
+  'home.driverVoice.offlineText':
+    'تنضم أوامر الصوت إلى نفس قائمة الانتظار دون اتصال مثل الرحلات والحضور — مع مزامنة بمعرّفات عمليات العميل.',
+  'home.driverOffline.kicker': 'تطبيق السائق · المرونة',
+  'home.driverOffline.title': 'وضع دون اتصال مع مزامنة idempotent',
+  'home.driverOffline.lead':
+    'عند انقطاع الاتصال تُحفظ إجراءات السائق محلياً وتُعاد إلى Nexus دون تكرار — بمعرّفات عمليات من الجهاز و idempotency على الخادم.',
+  'home.driverOffline.queueTitle': 'قائمة محلية',
+  'home.driverOffline.queueText':
+    'الحضور، خطوات الرحلة، المدفوعات، الوقود، الفحوصات، المستندات، والأوامر الصوتية تنتظر على الجهاز حتى عودة الشبكة.',
+  'home.driverOffline.serverTitle': 'Idempotency على الخادم',
+  'home.driverOffline.serverText':
+    'واجهات API والمزامنة المجمّعة تحترم Idempotency-Key / X-Client-Op-Id فلا تُكرَّر العمليات بعد إعادة الاتصال.',
+  'home.driverOffline.conflictTitle': 'معالجة التعارض',
+  'home.driverOffline.conflictText':
+    'العمليات المطبّقة مسبقاً تُعاد استجابتها المخزّنة؛ التعارضات الحقيقية تبقى في القائمة لمراجعة السائق.',
+  'home.capability.voice.title': 'أوامر صوتية متعددة اللغات',
+  'home.capability.voice.text':
+    'يرسل السائقون تنبيهات ورسائل dispatch صوتياً بالعربية والإنجليزية والألمانية من تطبيق الجوال.',
+  'home.capability.offlineDriver.title': 'مزامنة السائق دون اتصال',
+  'home.capability.offlineDriver.text':
+    'قائمة محلية على الجوال مع إعادة idempotent على الخادم — دون تكرار الرحلات أو المدفوعات أو الأوامر الصوتية.',
   'home.showcase.caption': 'توضيح واجهة المنتج — الأرقام في الصورة للعرض فقط وليست بيانات عملاء حية.',
   'home.news.kicker': 'تحديثات',
   'home.news.title': 'إعلانات المنتج وأخبار الشركة',
@@ -291,4 +325,40 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.pricing.cta.title': 'شاهد Nexus بأرقام أسطولك',
   'pages.pricing.cta.lead':
     'احجز عرضاً لجولة موجهة، أو تواصل مع المبيعات لربط Starter أو Pro أو Enterprise بمركباتك وسير عملك.',
+
+  'pages.driverPerformance.kicker': 'ذكاء الأسطول',
+  'pages.driverPerformance.title': 'تقييم أداء السائقين',
+  'pages.driverPerformance.tagline': 'رتّب السائقين حسب السلامة والوقود والالتزام بالمواعيد.',
+  'pages.driverPerformance.lead':
+    'يحسب Nexus الدرجات من رحلات GPS الحقيقية وتنبيهات السرعة والوقود ومواعيد إنهاء الرحلات — مع مكافآت للمتفوقين وتدريب للضعفاء.',
+  'pages.driverPerformance.f1.title': 'درجة السلامة',
+  'pages.driverPerformance.f1.text': 'تخفض مخالفات السرعة والفرملة العنيفة من درجة السلامة — في ERP وتطبيق السائق.',
+  'pages.driverPerformance.f2.title': 'كفاءة الوقود',
+  'pages.driverPerformance.f2.text': 'المسافة مقابل اللترات المسجلة — بدون أرقام وهمية.',
+  'pages.driverPerformance.f3.title': 'الالتزام بالموعد',
+  'pages.driverPerformance.f3.text': 'مقارنة الإنهاء الفعلي بالموعد الم planned مع هامش سماح.',
+
+  'pages.predictiveMaintenance.kicker': 'صيانة ذكية',
+  'pages.predictiveMaintenance.title': 'جدولة الصيانة الت predictive',
+  'pages.predictiveMaintenance.tagline': 'خدمة قبل الأعطال — عداد، زيت، إطارات، عمر المحرك.',
+  'pages.predictiveMaintenance.lead':
+    'قواعد مبنية على عداد المسافات. جدولة من لوحة ERP؛ تذكيرات push للسائقين على الجوال.',
+  'pages.predictiveMaintenance.f1.title': 'قواعد حسب الكيلومتر',
+  'pages.predictiveMaintenance.f1.text': 'نوافذ الزيت والإطارات من حقول العداد الحقيقية.',
+  'pages.predictiveMaintenance.f2.title': 'تذكير السائق',
+  'pages.predictiveMaintenance.f2.text': 'إشعارات push/in-app عند استحقاق مركبة م assigned.',
+  'pages.predictiveMaintenance.f3.title': 'جدولة من التنبيه',
+  'pages.predictiveMaintenance.f3.text': 'انتقل إلى مجدول الخدمة مع تحديد المركبة.',
+
+  'pages.clientTracking.kicker': 'تجربة العميل',
+  'pages.clientTracking.title': 'روابط تتبع للعملاء',
+  'pages.clientTracking.tagline': 'تتبع الشحنة مباشرة — بدون تسجيل دخول.',
+  'pages.clientTracking.lead':
+    'روابط token آمنة مع انتهاء وإلغاء. صفحات /t/{token} مناسبة للجوال.',
+  'pages.clientTracking.f1.title': 'رموز آمنة',
+  'pages.clientTracking.f1.text': 'تخزين م hashed وانتهاء صلاحية — شارك الرابط الذي تولّده فقط.',
+  'pages.clientTracking.f2.title': 'ويب للجوال',
+  'pages.clientTracking.f2.text': 'صفحات متجاوبة للهاتف — بدون تطبيق للعميل.',
+  'pages.clientTracking.f3.title': 'إلغاء في أي وقت',
+  'pages.clientTracking.f3.text': 'Ops يلغي أو يجدد الروابط عند تغيّر الرحلة.',
 };

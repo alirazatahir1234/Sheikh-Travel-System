@@ -77,6 +77,39 @@ const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'driver-performance',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/driver-performance/driver-performance.page').then(m => m.DriverPerformancePage),
+      },
+    ],
+  },
+  {
+    path: 'predictive-maintenance',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/predictive-maintenance/predictive-maintenance.page').then(m => m.PredictiveMaintenancePage),
+      },
+    ],
+  },
+  {
+    path: 'client-tracking',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/client-tracking/client-tracking.page').then(m => m.ClientTrackingPage),
+      },
+    ],
+  },
   // Public marketing: fleet AI inventory (always reachable, including signed-in users).
   {
     path: 'ai-solutions',

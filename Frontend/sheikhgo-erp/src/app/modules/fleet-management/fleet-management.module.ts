@@ -21,6 +21,7 @@ import { ServiceHistoryPageComponent } from './maintenance/history/service-histo
 import { PartsInventoryPageComponent } from './maintenance/parts/parts-inventory-page.component';
 
 import { MaintenanceReportsPageComponent } from './maintenance/reports/maintenance-reports-page.component';
+import { PredictiveMaintenancePageComponent } from './maintenance/predictive/predictive-maintenance-page.component';
 
 const routes: Routes = [
   {
@@ -41,6 +42,7 @@ const routes: Routes = [
           { path: 'requests', component: MaintenanceRequestsPageComponent },
           { path: 'work-orders', component: WorkOrdersPageComponent },
           { path: 'workshops', component: WorkshopsVendorsPageComponent },
+          { path: 'predictive', component: PredictiveMaintenancePageComponent },
           { path: 'schedules', component: ServiceSchedulerPageComponent },
           { path: 'history', component: ServiceHistoryPageComponent },
           { path: 'parts', component: PartsInventoryPageComponent },

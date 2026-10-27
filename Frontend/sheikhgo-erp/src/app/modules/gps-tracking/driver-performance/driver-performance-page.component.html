@@ -1,0 +1,56 @@
+<div class="page-header">
+  <div>
+    <h1>Driver Performance</h1>
+    <p class="lead">Safety, fuel efficiency, and on-time delivery — ranked from live trips, alerts, and fuel logs.</p>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label>
+    Period
+    <select [(ngModel)]="datePreset" (ngModelChange)="applyPreset($event); load()">
+      @for (p of datePresets; track p.id) {
+        <option [ngValue]="p.id">{{ p.label }}</option>
+      }
+    </select>
+  </label>
+  <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
+</div>
+
+@if (dateRangeError) {
+  <p class="error">{{ dateRangeError }}</p>
+}
+@if (loadError) {
+  <p class="error">{{ loadError }} <button mat-button (click)="load()">Retry</button></p>
+}
+
+@if (loading) {
+  <p>Loading rankings…</p>
+} @else {
+  <table class="rank-table">
+    <thead>
+      <tr>
+        @for (c of columns; track c.key) {
+          <th [class.num]="c.align === 'right'">{{ c.label }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of rows; track r.driverId) {
+        <tr [class.reward]="r.rewardEligible" [class.training]="r.needsTraining">
+          <td class="num">{{ r.rank ?? '—' }}</td>
+          <td>{{ r.driverName }}</td>
+          <td class="num"><strong>{{ r.score }}</strong></td>
+          <td class="num">{{ r.safetyScore ?? '—' }}</td>
+          <td class="num">{{ r.fuelEfficiencyScore ?? '—' }}</td>
+          <td class="num">{{ r.onTimeScore ?? '—' }}</td>
+          <td>{{ r.rating }}</td>
+          <td>{{ flags(r) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  @if (!rows.length) {
+    <p class="muted">No scored drivers in this period — assign drivers to GPS trips first.</p>
+  }
+}

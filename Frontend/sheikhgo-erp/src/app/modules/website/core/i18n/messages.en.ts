@@ -157,6 +157,40 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.driverPayments.feeMin': 'Minimum cash-out: 500 PKR',
   'home.driverPayments.feePercent': 'Processing fee: 2% (deducted from gross)',
   'home.driverPayments.feeBreakdown': 'Net payout = gross − 2% fee',
+  'home.pill.driverVoice': 'Voice commands',
+  'home.pill.driverOffline': 'Offline sync',
+  'home.driverVoice.kicker': 'Driver app',
+  'home.driverVoice.title': 'Multilingual voice commands',
+  'home.driverVoice.lead':
+    'Drivers speak in Arabic, English, or German to send dispatch messages or operational alerts—hands-free from the SheikhGo driver app.',
+  'home.driverVoice.langTitle': 'Language selection',
+  'home.driverVoice.langText':
+    'Choose recognition language per session (EN / AR / DE). Transcripts can be edited before send.',
+  'home.driverVoice.intentTitle': 'Alerts & messages',
+  'home.driverVoice.intentText':
+    'Auto-detect SOS, alert, or message intent—or pick explicitly. Dispatch receives in-app notifications with the original language tag.',
+  'home.driverVoice.offlineTitle': 'Queues when offline',
+  'home.driverVoice.offlineText':
+    'Voice submissions join the same offline outbox as trips and attendance—synced with client operation IDs when connectivity returns.',
+  'home.driverOffline.kicker': 'Driver app · Resilience',
+  'home.driverOffline.title': 'Offline mode with idempotent sync',
+  'home.driverOffline.lead':
+    'When connectivity drops, driver actions are stored locally and replayed to Nexus without duplicates—using client-generated operation IDs and server-side idempotency.',
+  'home.driverOffline.queueTitle': 'Local outbox',
+  'home.driverOffline.queueText':
+    'Attendance, trip steps, payments, fuel, inspections, documents, and voice commands queue on the device until the network is back.',
+  'home.driverOffline.serverTitle': 'Server idempotency',
+  'home.driverOffline.serverText':
+    'API middleware and batch sync honor Idempotency-Key / X-Client-Op-Id so retries and reconnects do not double-post.',
+  'home.driverOffline.conflictTitle': 'Conflict handling',
+  'home.driverOffline.conflictText':
+    'Already-applied operations replay the stored response; true conflicts stay in the queue for driver review.',
+  'home.capability.voice.title': 'Multilingual voice commands',
+  'home.capability.voice.text':
+    'Drivers send alerts and dispatch messages by voice in Arabic, English, or German from the mobile app.',
+  'home.capability.offlineDriver.title': 'Driver offline sync',
+  'home.capability.offlineDriver.text':
+    'Local queue on mobile with idempotent server replay—no duplicate trips, payments, or voice submissions.',
   'home.showcase.caption':
     'Product UI illustration — sample metrics in the image are for demonstration, not live customer data.',
   'home.news.kicker': 'Updates',
@@ -315,4 +349,40 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.pricing.cta.title': 'See Nexus with your fleet numbers',
   'pages.pricing.cta.lead':
     'Book a demo for a guided walkthrough, or contact sales to map Starter, Pro, or Enterprise to your vehicles and workflows.',
+
+  'pages.driverPerformance.kicker': 'Fleet intelligence',
+  'pages.driverPerformance.title': 'Driver performance scoring',
+  'pages.driverPerformance.tagline': 'Rank drivers on safety, fuel, and on-time delivery — reward top performers.',
+  'pages.driverPerformance.lead':
+    'SheikhGo Nexus scores drivers from real GPS trips, overspeed and harsh alerts, fuel logs, and completed trip timing — with training flags for weak areas and reward eligibility for top ranks.',
+  'pages.driverPerformance.f1.title': 'Safety score',
+  'pages.driverPerformance.f1.text': 'Overspeed and harsh events from GPS alerts reduce safety sub-scores — visible in ERP and the driver app.',
+  'pages.driverPerformance.f2.title': 'Fuel efficiency',
+  'pages.driverPerformance.f2.text': 'Distance vs logged fuel liters produces km/L bands when fuel data exists — no invented economy figures.',
+  'pages.driverPerformance.f3.title': 'On-time delivery',
+  'pages.driverPerformance.f3.text': 'Completed trips compared to planned end times with a grace window — on-time percent feeds the ranking.',
+
+  'pages.predictiveMaintenance.kicker': 'Smart maintenance',
+  'pages.predictiveMaintenance.title': 'Predictive maintenance scheduling',
+  'pages.predictiveMaintenance.tagline': 'Service before breakdowns — mileage, oil, tires, and engine life.',
+  'pages.predictiveMaintenance.lead':
+    'Rule-based predictions use vehicle odometer and maintenance history. Admins schedule work from the predictive board; assigned drivers get push and in-app reminders on mobile.',
+  'pages.predictiveMaintenance.f1.title': 'Mileage-aware rules',
+  'pages.predictiveMaintenance.f1.text': 'Oil, tire, and engine-life windows from real odometer fields — not demo placeholders.',
+  'pages.predictiveMaintenance.f2.title': 'Driver reminders',
+  'pages.predictiveMaintenance.f2.text': 'When a assigned vehicle is due, drivers receive maintenance notifications through the existing push pipeline.',
+  'pages.predictiveMaintenance.f3.title': 'Schedule from alerts',
+  'pages.predictiveMaintenance.f3.text': 'Jump from a predictive card into the service scheduler with the vehicle pre-selected.',
+
+  'pages.clientTracking.kicker': 'Customer experience',
+  'pages.clientTracking.title': 'Shareable client tracking links',
+  'pages.clientTracking.tagline': 'Customers follow shipments live — no login required.',
+  'pages.clientTracking.lead':
+    'Tokenized public URLs expire and revoke like WhatsApp trip links. Mobile-friendly tracking pages show ETA, driver, and last known position.',
+  'pages.clientTracking.f1.title': 'Secure tokens',
+  'pages.clientTracking.f1.text': 'Hashed lookup, protected storage, and hard expiry — share only the link you generate in ERP.',
+  'pages.clientTracking.f2.title': 'Mobile web',
+  'pages.clientTracking.f2.text': 'Responsive /t/{token} pages tuned for phones — no app install for your customer.',
+  'pages.clientTracking.f3.title': 'Revoke anytime',
+  'pages.clientTracking.f3.text': 'Ops can revoke or regenerate links when trips change or privacy requires it.',
 };

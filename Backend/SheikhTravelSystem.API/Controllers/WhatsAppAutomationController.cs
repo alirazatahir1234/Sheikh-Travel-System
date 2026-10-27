@@ -125,14 +125,19 @@ public class PublicTrackingPageController : ControllerBase
           <meta name="robots" content="noindex"/>
           <title>SheikhGo Live Track</title>
           <style>
-            body{font-family:system-ui,sans-serif;margin:0;background:#0f172a;color:#f8fafc}
-            .card{padding:1.25rem;max-width:480px;margin:0 auto}
-            #map{height:55vh;background:#1e293b;border-radius:12px}
-            .eta{font-size:1.4rem;font-weight:700;margin:.75rem 0}
-            .meta{opacity:.85;font-size:.9rem;line-height:1.5}
-            .err{padding:2rem;text-align:center}
-            a.btn{display:inline-block;margin-top:1rem;padding:.75rem 1.25rem;background:#0f766e;color:#fff;
-              text-decoration:none;border-radius:10px;font-weight:600}
+            *{box-sizing:border-box}
+            body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#0f172a;color:#f8fafc;
+              -webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top) env(safe-area-inset-right)
+              env(safe-area-inset-bottom) env(safe-area-inset-left)}
+            .card{padding:1rem 1.1rem;max-width:520px;margin:0 auto}
+            #map{min-height:48vh;height:52dvh;background:#1e293b;border-radius:14px;padding:1rem;
+              display:flex;align-items:center;justify-content:center;text-align:center;font-size:.95rem}
+            .eta{font-size:clamp(1.15rem,4vw,1.45rem);font-weight:700;margin:.65rem 0}
+            .meta{opacity:.88;font-size:.92rem;line-height:1.55}
+            .err{padding:2rem 1rem;text-align:center}
+            a.btn{display:inline-block;margin-top:1rem;padding:.85rem 1.35rem;background:#0f766e;color:#fff;
+              text-decoration:none;border-radius:12px;font-weight:600;font-size:1rem;touch-action:manipulation}
+            h1{font-size:1.05rem;margin:0 0 .35rem}
           </style>
         </head>
         <body>

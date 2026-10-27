@@ -140,6 +140,40 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.showcase.title': 'Flotten-Intelligence-Dashboard',
   'home.showcase.lead':
     'Live-Karte, aktuelle GPS-Alarme, Geofences, Wiedergabe, Flottengesundheit, Kraftstoff- und Wartungssignale — mit KI-Assistenten-Panel aus echten Betriebstools.',
+  'home.pill.driverVoice': 'Sprachbefehle',
+  'home.pill.driverOffline': 'Offline-Sync',
+  'home.driverVoice.kicker': 'Fahrer-App',
+  'home.driverVoice.title': 'Mehrsprachige Sprachbefehle',
+  'home.driverVoice.lead':
+    'Fahrer sprechen Arabisch, Englisch oder Deutsch, um Dispatch-Nachrichten oder Betriebsalarme hands-free aus der SheikhGo Fahrer-App zu senden.',
+  'home.driverVoice.langTitle': 'Sprachauswahl',
+  'home.driverVoice.langText':
+    'Erkennungssprache pro Sitzung wählen (EN / AR / DE). Transkript vor dem Senden bearbeitbar.',
+  'home.driverVoice.intentTitle': 'Alarme & Nachrichten',
+  'home.driverVoice.intentText':
+    'Automatische Erkennung von SOS, Alarm oder Nachricht — oder explizit wählen. Dispatch erhält In-App-Benachrichtigungen mit Sprach-Tag.',
+  'home.driverVoice.offlineTitle': 'Warteschlange offline',
+  'home.driverVoice.offlineText':
+    'Spracheingaben nutzen dieselbe Offline-Outbox wie Fahrten und Anwesenheit — Sync mit Client-Operations-IDs.',
+  'home.driverOffline.kicker': 'Fahrer-App · Ausfallsicherheit',
+  'home.driverOffline.title': 'Offline-Modus mit idempotentem Sync',
+  'home.driverOffline.lead':
+    'Ohne Netz werden Aktionen lokal gespeichert und ohne Duplikate an Nexus übertragen — mit clientseitigen Operations-IDs und Server-Idempotency.',
+  'home.driverOffline.queueTitle': 'Lokale Outbox',
+  'home.driverOffline.queueText':
+    'Anwesenheit, Fahrtschritte, Zahlungen, Kraftstoff, Inspektionen, Dokumente und Sprachbefehle warten auf dem Gerät.',
+  'home.driverOffline.serverTitle': 'Server-Idempotency',
+  'home.driverOffline.serverText':
+    'API-Middleware und Batch-Sync respektieren Idempotency-Key / X-Client-Op-Id — keine Doppelbuchungen nach Reconnect.',
+  'home.driverOffline.conflictTitle': 'Konfliktbehandlung',
+  'home.driverOffline.conflictText':
+    'Bereits angewendete Ops liefern die gespeicherte Antwort; echte Konflikte bleiben zur Fahrer-Prüfung in der Queue.',
+  'home.capability.voice.title': 'Mehrsprachige Sprachbefehle',
+  'home.capability.voice.text':
+    'Fahrer senden Alarme und Dispatch-Nachrichten per Sprache (AR / EN / DE) aus der Mobile-App.',
+  'home.capability.offlineDriver.title': 'Fahrer-Offline-Sync',
+  'home.capability.offlineDriver.text':
+    'Lokale Queue mit idempotentem Server-Replay — keine doppelten Fahrten, Zahlungen oder Spracheingaben.',
   'home.showcase.caption': 'Produkt-UI-Illustration — Beispielwerte dienen der Demo, keine Live-Kundendaten.',
   'home.news.kicker': 'Updates',
   'home.news.title': 'Produktankündigungen & Unternehmensnews',
@@ -296,4 +330,40 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.pricing.cta.title': 'Nexus mit Ihren Flottenzahlen sehen',
   'pages.pricing.cta.lead':
     'Demo buchen für eine geführte Tour oder Vertrieb kontaktieren, um Starter, Pro oder Enterprise auf Ihre Fahrzeuge und Workflows abzubilden.',
+
+  'pages.driverPerformance.kicker': 'Flotten-Intelligence',
+  'pages.driverPerformance.title': 'Fahrer-Performance-Scoring',
+  'pages.driverPerformance.tagline': 'Fahrer nach Sicherheit, Verbrauch und Pünktlichkeit ranken.',
+  'pages.driverPerformance.lead':
+    'Nexus bewertet aus echten GPS-Fahrten, Overspeed-/Harsh-Alerts, Tankbuchungen und geplanten Endzeiten — mit Belohnungen und Coaching-Flags.',
+  'pages.driverPerformance.f1.title': 'Sicherheits-Score',
+  'pages.driverPerformance.f1.text': 'Geschwindigkeits- und Fahrstil-Events senken die Teilpunkte — im ERP und in der Fahrer-App.',
+  'pages.driverPerformance.f2.title': 'Kraftstoffeffizienz',
+  'pages.driverPerformance.f2.text': 'Strecke zu geloggten Litern — keine erfundenen km/L.',
+  'pages.driverPerformance.f3.title': 'Pünktliche Zustellung',
+  'pages.driverPerformance.f3.text': 'Abgeschlossene Fahrten vs. Plan-Ende mit Toleranzfenster.',
+
+  'pages.predictiveMaintenance.kicker': 'Smart Maintenance',
+  'pages.predictiveMaintenance.title': 'Predictive Maintenance Scheduling',
+  'pages.predictiveMaintenance.tagline': 'Service vor dem Ausfall — Kilometerstand, Öl, Reifen, Motorlebensdauer.',
+  'pages.predictiveMaintenance.lead':
+    'Regelbasierte Prognosen aus Odometer und Historie. Admins planen im ERP-Board; zugewiesene Fahrer erhalten Push/In-App-Erinnerungen.',
+  'pages.predictiveMaintenance.f1.title': 'Kilometer-Regeln',
+  'pages.predictiveMaintenance.f1.text': 'Öl-, Reifen- und Motorfenster aus echten Fahrzeugfeldern.',
+  'pages.predictiveMaintenance.f2.title': 'Fahrer-Erinnerungen',
+  'pages.predictiveMaintenance.f2.text': 'Push über die bestehende Notification-Pipeline bei fälligem Fahrzeug.',
+  'pages.predictiveMaintenance.f3.title': 'Aus Alert planen',
+  'pages.predictiveMaintenance.f3.text': 'Direkt in den Service-Scheduler mit vorgewähltem Fahrzeug.',
+
+  'pages.clientTracking.kicker': 'Kundenerlebnis',
+  'pages.clientTracking.title': 'Teilbare Tracking-Links',
+  'pages.clientTracking.tagline': 'Sendungen live verfolgen — ohne Login.',
+  'pages.clientTracking.lead':
+    'Tokenisierte URLs mit Ablauf und Widerruf. Mobile /t/{token}-Seiten mit ETA und letzter Position.',
+  'pages.clientTracking.f1.title': 'Sichere Tokens',
+  'pages.clientTracking.f1.text': 'Hash-Lookup und geschützte Speicherung — nur generierte Links teilen.',
+  'pages.clientTracking.f2.title': 'Mobile Web',
+  'pages.clientTracking.f2.text': 'Responsive Seiten für Smartphones — keine Kunden-App nötig.',
+  'pages.clientTracking.f3.title': 'Jederzeit widerrufen',
+  'pages.clientTracking.f3.text': 'Ops kann Links bei Trip-Wechsel deaktivieren oder neu erzeugen.',
 };

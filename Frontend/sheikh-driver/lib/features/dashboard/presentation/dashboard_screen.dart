@@ -16,6 +16,7 @@ import 'dashboard_layout_registry.dart';
 import 'dashboard_notifier.dart';
 import 'widgets/command_dashboard_widgets.dart';
 import 'widgets/dashboard_widgets.dart';
+import '../../performance/presentation/driver_performance_card.dart';
 
 // Enforced order for command/fleet roles.
 const _commandOrder = [
@@ -34,6 +35,7 @@ const _driverOrder = [
   DashboardWidgetId.opsHeader,
   DashboardWidgetId.myVehicle,
   DashboardWidgetId.driverTripKpis,
+  DashboardWidgetId.driverPerformance,
   DashboardWidgetId.earnings,
   DashboardWidgetId.recentActivities,
   DashboardWidgetId.quickActions,
@@ -283,6 +285,8 @@ class DashboardScreen extends ConsumerWidget {
           ],
           itemRoutes: const [null, null, null, '/notifications'],
         );
+      case DashboardWidgetId.driverPerformance:
+        return const DriverPerformanceCard();
       case DashboardWidgetId.earnings:
         return EarningsCard(driver: data.driver!);
       case DashboardWidgetId.recentActivities:

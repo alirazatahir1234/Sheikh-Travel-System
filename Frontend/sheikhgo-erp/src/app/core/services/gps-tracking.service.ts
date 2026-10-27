@@ -54,6 +54,8 @@ import {
   IdleAnalytics,
   StopAnalytics,
   DriverScore,
+  ClientTrackingLink,
+  ClientTrackingLinkCreated,
   FleetUtilization,
   FuelAnalytics,
   GeofenceAnalytics,
@@ -1257,6 +1259,20 @@ export class GpsTrackingService {
 
   getTraccarSyncStatus(): Observable<TraccarSyncStatusDto> {
     return this.http.get<TraccarSyncStatusDto>(`${this.base}/traccar/sync-status`);
+  }
+
+  listClientTrackingLinks(take = 50, tripId?: number, activeOnly = false): Observable<ClientTrackingLink[]> {
+    let params = new HttpParams().set('take', take).set('activeOnly', activeOnly);
+    if (tripId != null) params = params.set('tripId', tripId);
+    return this.http.get<ClientTrackingLink[]>(`${this.base}/client-tracking-links`, { params });
+  }
+
+  createClientTrackingLink(tripId: number, hoursValid?: number): Observable<ClientTrackingLinkCreated> {
+    return this.http.post<ClientTrackingLinkCreated>(`${this.base}/client-tracking-links`, { tripId, hoursValid });
+  }
+
+  revokeClientTrackingLink(linkId: number): Observable<unknown> {
+    return this.http.post(`${this.base}/client-tracking-links/${linkId}/revoke`, {});
   }
 
   private routeHint(status: FleetTrackStatus, speed: number): string {

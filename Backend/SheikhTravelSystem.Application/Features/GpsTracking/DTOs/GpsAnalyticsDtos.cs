@@ -85,7 +85,14 @@ public record DriverScoreDto(
     int Score,
     string Rating,
     DriverScoreFactorsDto Factors,
-    bool IsPartial);
+    bool IsPartial,
+    int Rank = 0,
+    int TotalDrivers = 0,
+    int SafetyScore = 0,
+    int FuelEfficiencyScore = 0,
+    int OnTimeScore = 0,
+    bool NeedsTraining = false,
+    bool RewardEligible = false);
 
 public record DailyUtilizationDto(DateTime Date, decimal UtilizationPercent);
 

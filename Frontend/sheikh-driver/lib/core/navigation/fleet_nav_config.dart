@@ -433,6 +433,12 @@ abstract final class FleetNavConfig {
       isVisible: _driverWorkflow,
     ),
     MoreMenuEntry(
+      label: 'My performance',
+      icon: Icons.speed_outlined,
+      route: '/performance',
+      isVisible: _driverWorkflow,
+    ),
+    MoreMenuEntry(
       label: 'Timeline',
       icon: Icons.timeline_outlined,
       route: '/timeline',

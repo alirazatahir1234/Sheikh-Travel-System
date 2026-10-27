@@ -16,7 +16,8 @@ public static class GpsGt06CommandMap
     {
         CatalogKeyEv26r, CatalogKeyVg03, "jimi_gt06",
         "concox_gt06n", "concox_at6", "concox_jm01",
-        "sinotrack_st901", "coban_tk103", "eelink_gpt06",
+        "coban_tk103", "eelink_gpt06",
+        // sinotrack_st901 is H02/5013 — do not treat as GT06-family.
     };
 
     /// <summary>Ops commands shared by most GT06-family units.</summary>
@@ -125,9 +126,10 @@ public static class GpsGt06CommandMap
             !string.IsNullOrWhiteSpace(hay)
             && needles.Any(n => hay.Contains(n, StringComparison.OrdinalIgnoreCase));
 
+        // Sinotrack ST-901 is H02 — do not match vendor "sinotrack" here.
         return Has(protocol, "gt06", "jimi")
             || Has(model, "gt06", "vg03", "ev26", "ev26r")
-            || Has(vendor, "jimi", "concox", "sinotrack")
+            || Has(vendor, "jimi", "concox")
             || Has(name, "vg03", "ev26", "jimi");
     }
 

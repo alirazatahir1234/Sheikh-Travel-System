@@ -32,6 +32,7 @@ export const FLEET_NAV_GROUPS: FleetNavGroup[] = [
       { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live' },
       { id: 'trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips' },
       { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/fleet/maintenance' },
+      { id: 'predictive-maintenance', label: 'Predictive Maintenance', icon: 'auto_fix_high', route: '/fleet/maintenance/predictive' },
       { id: 'fuel', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs' },
       { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections' },
       { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance' }
@@ -51,7 +52,8 @@ export const FLEET_NAV_GROUPS: FleetNavGroup[] = [
     label: 'Analytics',
     items: [
       { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/reports' },
-      { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports' }
+      { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/driver-performance' },
+      { id: 'client-tracking-links', label: 'Client Links', icon: 'link', route: '/gps-tracking/client-tracking-links' }
     ]
   },
   {

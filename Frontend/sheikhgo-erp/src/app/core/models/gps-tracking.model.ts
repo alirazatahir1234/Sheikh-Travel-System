@@ -862,6 +862,33 @@ export interface DriverScore {
   rating: string;
   factors: DriverScoreFactors;
   isPartial: boolean;
+  rank?: number;
+  totalDrivers?: number;
+  safetyScore?: number;
+  fuelEfficiencyScore?: number;
+  onTimeScore?: number;
+  needsTraining?: boolean;
+  rewardEligible?: boolean;
+}
+
+export interface ClientTrackingLink {
+  id: number;
+  tripId: number;
+  tripNumber?: string | null;
+  bookingId?: number | null;
+  publicPath: string;
+  expiresAt: string;
+  revokedAt?: string | null;
+  viewCount: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface ClientTrackingLinkCreated {
+  linkId: number;
+  token: string;
+  publicUrl: string;
+  expiresAt: string;
 }
 
 export interface DailyUtilization {

@@ -26,7 +26,9 @@ export class GpsTrackingLayoutComponent {
     { label: 'Trips', icon: 'route', route: 'trips' },
     { label: 'History', icon: 'history', route: 'history' },
     { label: 'Commands', icon: 'power_settings_new', route: 'commands', permission: 'Gps.CommandView' },
-    { label: 'Analytics', icon: 'insights', route: 'analytics' }
+    { label: 'Analytics', icon: 'insights', route: 'analytics' },
+    { label: 'Driver Performance', icon: 'speed', route: 'driver-performance' },
+    { label: 'Client Links', icon: 'link', route: 'client-tracking-links' }
   ];
 
   get navItems(): GpsNavItem[] {
