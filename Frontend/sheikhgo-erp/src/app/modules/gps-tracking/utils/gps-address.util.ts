@@ -198,6 +198,60 @@ export interface ReverseGeocodeDisplay {
   localityLine?: string | null;
 }
 
+/** True when lat/lng are present and not the null-island placeholder (0,0). */
+export function hasUsableGpsCoordinates(
+  lat?: number | null,
+  lng?: number | null
+): boolean {
+  if (lat == null || lng == null) return false;
+  return !(Math.abs(lat) < 1e-6 && Math.abs(lng) < 1e-6);
+}
+
+export function formatGpsCoordinateLabel(lat: number, lng: number): string {
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+/** Address line for one trip endpoint — geocoded text or GPS coordinates. */
+export function resolveTripEndpointLabel(
+  address?: string | null,
+  lat?: number | null,
+  lng?: number | null
+): string | null {
+  const trimmed = address?.trim();
+  if (trimmed && trimmed.toLowerCase() !== 'unknown') {
+    return sanitizeFleetAddress(trimmed) ?? trimmed;
+  }
+  if (hasUsableGpsCoordinates(lat, lng)) {
+    return formatGpsCoordinateLabel(lat!, lng!);
+  }
+  return null;
+}
+
+/** Start → end line for GPS trip list cards (never bare "Unknown"). */
+export function formatGpsTripLocationLine(trip: {
+  startAddress?: string | null;
+  endAddress?: string | null;
+  startLatitude?: number | null;
+  startLongitude?: number | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
+}): string {
+  const start = resolveTripEndpointLabel(
+    trip.startAddress,
+    trip.startLatitude,
+    trip.startLongitude
+  );
+  const end = resolveTripEndpointLabel(
+    trip.endAddress,
+    trip.endLatitude,
+    trip.endLongitude
+  );
+  if (!start && !end) return 'Location unavailable';
+  if (!start) return `→ ${end}`;
+  if (!end) return `${start} →`;
+  return `${start} → ${end}`;
+}
+
 /** Canonical fleet display string from structured reverse-geocode payload. */
 export function formatFleetDisplayAddress(info?: ReverseGeocodeDisplay | null): string | null {
   if (!info) return null;

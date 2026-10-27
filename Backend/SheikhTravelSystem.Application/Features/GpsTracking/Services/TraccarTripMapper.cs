@@ -48,10 +48,10 @@ public static class TraccarTripMapper
             plateNumber,
             TripKeyHelper.Build(vehicleId, start),
             status,
-            trip.StartLat,
-            trip.StartLon,
-            trip.EndLat,
-            trip.EndLon);
+            GpsTripLocationHelper.NormalizeLatitude(trip.StartLat, trip.StartLon),
+            GpsTripLocationHelper.NormalizeLongitude(trip.StartLat, trip.StartLon),
+            GpsTripLocationHelper.NormalizeLatitude(trip.EndLat, trip.EndLon),
+            GpsTripLocationHelper.NormalizeLongitude(trip.EndLat, trip.EndLon));
     }
 
     /// <summary>

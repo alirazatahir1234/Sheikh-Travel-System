@@ -116,7 +116,7 @@ public sealed partial class GpsTrackingRepository
         {
             if (lookups >= maxLookups)
             {
-                result.Add(trip);
+                result.Add(GpsTripLocationHelper.ApplyDisplayAddresses(trip));
                 continue;
             }
 
@@ -174,7 +174,7 @@ public sealed partial class GpsTrackingRepository
                 }
             }
 
-            result.Add(trip with { StartAddress = start, EndAddress = end });
+            result.Add(GpsTripLocationHelper.ApplyDisplayAddresses(trip with { StartAddress = start, EndAddress = end }));
         }
 
         return result;

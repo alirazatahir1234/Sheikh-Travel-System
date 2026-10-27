@@ -401,6 +401,10 @@ export interface GpsTrip {
   durationMinutes: number;
   startAddress?: string | null;
   endAddress?: string | null;
+  startLatitude?: number | null;
+  startLongitude?: number | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
   driverName?: string | null;
   fuelLiters?: number | null;
   plateNumber?: string | null;

@@ -28,6 +28,10 @@ import {
 } from '../utils/trip-date-preset.util';
 import { eventIconsForTrip } from '../utils/trip-event.util';
 import { resolveTripKey } from '../utils/trip-key.util';
+import {
+  formatGpsTripLocationLine,
+  resolveTripEndpointLabel
+} from '../utils/gps-address.util';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 
 const EMPTY_EVENTS: TripEvent[] = [];
@@ -672,8 +676,16 @@ export class GpsTripsComponent implements OnInit {
       { header: 'Device', accessor: (t: GpsTrip) => t.deviceName ?? '-' },
       { header: 'Start', accessor: (t: GpsTrip) => t.startTime },
       { header: 'End', accessor: (t: GpsTrip) => t.endTime },
-      { header: 'Start Address', accessor: (t: GpsTrip) => t.startAddress ?? '-' },
-      { header: 'End Address', accessor: (t: GpsTrip) => t.endAddress ?? '-' },
+      {
+        header: 'Start Address',
+        accessor: (t: GpsTrip) =>
+          resolveTripEndpointLabel(t.startAddress, t.startLatitude, t.startLongitude) ?? '-'
+      },
+      {
+        header: 'End Address',
+        accessor: (t: GpsTrip) =>
+          resolveTripEndpointLabel(t.endAddress, t.endLatitude, t.endLongitude) ?? '-'
+      },
       { header: 'Distance (km)', accessor: (t: GpsTrip) => t.distanceKm },
       { header: 'Avg speed', accessor: (t: GpsTrip) => t.avgSpeedKmh },
       { header: 'Max speed', accessor: (t: GpsTrip) => t.maxSpeedKmh },
@@ -707,8 +719,6 @@ export class GpsTripsComponent implements OnInit {
   }
 
   formatLocation(trip: GpsTrip): string {
-    const start = trip.startAddress?.trim() || 'Unknown';
-    const end = trip.endAddress?.trim() || 'Unknown';
-    return `${start} → ${end}`;
+    return formatGpsTripLocationLine(trip);
   }
 }

@@ -2,7 +2,9 @@ import {
   splitDisplayAddress,
   formatResolvedAddress,
   isCoarseAddress,
-  sanitizeFleetAddress
+  sanitizeFleetAddress,
+  formatGpsTripLocationLine,
+  resolveTripEndpointLabel
 } from './gps-address.util';
 
 describe('gps-address.util', () => {
@@ -42,6 +44,21 @@ describe('gps-address.util', () => {
     expect(sanitizeFleetAddress('Sīālkot Road, Pasrūr, Punjāb')).toBe(
       'Sialkot Road, Pasrur, Punjab'
     );
+  });
+
+  it('formats GPS trip endpoints from coordinates when address is missing', () => {
+    expect(resolveTripEndpointLabel(null, 32.26261, 74.66339)).toBe('32.26261, 74.66339');
+    expect(resolveTripEndpointLabel('Unknown', 32.1, 74.3)).toBe('32.10000, 74.30000');
+    expect(
+      formatGpsTripLocationLine({
+        startAddress: null,
+        endAddress: 'unknown',
+        startLatitude: 32.1,
+        startLongitude: 74.3,
+        endLatitude: 32.2,
+        endLongitude: 74.4
+      })
+    ).toBe('32.10000, 74.30000 → 32.20000, 74.40000');
   });
 
   it('splits street-first display lines', () => {
