@@ -335,6 +335,7 @@ export interface GpsAlertEvent {
   ruleId?: number;
   vehicleId: number;
   vehicleName?: string;
+  registrationNumber?: string | null;
   eventType: string;
   latitude: number;
   longitude: number;
@@ -371,6 +372,14 @@ export interface GpsAlertStats {
   critical: number;
   resolved: number;
   archived: number;
+}
+
+export interface GpsAlertNotificationSetting {
+  alertType: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  smsEnabled: boolean;
 }
 
 export interface TripFleetFilters {

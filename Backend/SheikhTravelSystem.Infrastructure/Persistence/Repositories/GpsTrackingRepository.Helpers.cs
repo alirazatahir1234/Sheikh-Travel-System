@@ -20,7 +20,7 @@ public sealed partial class GpsTrackingRepository
 
     private const string PlatformAlertSelectColumns = """
             v.TenantId AS TenantId, tn.Name AS TenantName,
-            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
+            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS RegistrationNumber, e.EventType,
             ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
             ISNULL(e.Speed, 0) AS Speed, ISNULL(e.Message, '') AS Message,
             e.Timestamp, e.IsAcknowledged,
@@ -33,7 +33,7 @@ public sealed partial class GpsTrackingRepository
         """;
 
     private const string AlertSelectColumns = """
-            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
+            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS RegistrationNumber, e.EventType,
             ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
             ISNULL(e.Speed, 0) AS Speed, ISNULL(e.Message, '') AS Message,
             e.Timestamp, e.IsAcknowledged,
@@ -81,6 +81,7 @@ public sealed partial class GpsTrackingRepository
             "yesterday" => (today.AddDays(-1), today.AddTicks(-1)),
             "last7" => (today.AddDays(-6), today.AddDays(1).AddTicks(-1)),
             "last30" => (today.AddDays(-29), today.AddDays(1).AddTicks(-1)),
+            "last24" => (DateTime.UtcNow.AddHours(-24), DateTime.UtcNow),
             _ => (from, to)
         };
     }

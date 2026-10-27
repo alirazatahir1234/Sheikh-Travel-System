@@ -1,80 +1,133 @@
 <div class="alerts-shell">
 <div class="alerts-page">
 
-  <!-- Header -->
   <div class="page-header">
-    <h2 class="page-title">GPS Alerts</h2>
+    <div>
+      <h2 class="page-title">GPS Alerts</h2>
+      <p class="live-indicator" [class.live-indicator--pulse]="refreshInFlight">
+        <mat-icon>sync</mat-icon>
+        Updated {{ lastUpdatedLabel() }}
+        <span class="dot">·</span> auto-refresh 30s
+      </p>
+    </div>
     <div class="header-actions">
-      <span class="refresh-note">Events refresh every 30s</span>
+      <button class="btn btn-secondary" type="button" (click)="showPrefsPanel = true">
+        <mat-icon>tune</mat-icon> Prefs
+      </button>
+      <button class="btn btn-secondary" type="button" (click)="exportCsv()">
+        <mat-icon>download</mat-icon> CSV
+      </button>
+      <button class="btn btn-secondary" type="button" (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon> PDF
+      </button>
       <button class="btn btn-primary" (click)="showRuleForm = true">
-        <mat-icon>add_alert</mat-icon>
-        New Rule
+        <mat-icon>add_alert</mat-icon> New Rule
       </button>
     </div>
   </div>
 
-  <!-- Tabs -->
+  <div class="kpi-strip" *ngIf="activeTab === 'events'">
+    <div class="kpi-tile kpi-tile--critical">
+      <mat-icon>report</mat-icon>
+      <div>
+        <span class="kpi-value">{{ kpiCritical }}</span>
+        <span class="kpi-label">Critical open</span>
+      </div>
+    </div>
+    <div class="kpi-tile kpi-tile--sos">
+      <mat-icon>sos</mat-icon>
+      <div>
+        <span class="kpi-value">{{ kpiSos }}</span>
+        <span class="kpi-label">SOS open</span>
+      </div>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-value">{{ stats.unread }}</span>
+      <span class="kpi-label">Unread</span>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-value">{{ stats.today }}</span>
+      <span class="kpi-label">Today</span>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <button class="tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
-      <mat-icon>notifications</mat-icon>
-      Alert Events
-      <span *ngIf="events.length" class="tab-badge">{{ events.length }}</span>
+      <mat-icon>notifications</mat-icon> Alert Events
+      <span *ngIf="displayGroups.length" class="tab-badge">{{ flatEvents().length }}</span>
     </button>
     <button class="tab" [class.active]="activeTab === 'rules'" (click)="activeTab = 'rules'">
-      <mat-icon>rule</mat-icon>
-      Alert Rules
+      <mat-icon>rule</mat-icon> Alert Rules
       <span *ngIf="rules.length" class="tab-badge tab-badge-gray">{{ rules.length }}</span>
     </button>
   </div>
 
-  <!-- Events tab -->
   <div *ngIf="activeTab === 'events'">
     <div class="platform-fallback-banner" *ngIf="isSuperAdmin && platformCrossTenantLimited">
       <mat-icon>info</mat-icon>
-      <span>
-        Cross-company alerts need an updated API. Showing alerts for your current company until the platform endpoint is deployed.
-      </span>
+      <span>Cross-company alerts need an updated API. Showing current company until platform endpoint is deployed.</span>
     </div>
 
-    <div class="scope-bar" *ngIf="isSuperAdmin">
-      <mat-form-field appearance="outline" class="company-filter">
+    <div class="escalation-banner" *ngIf="escalatedAlerts.length">
+      <mat-icon>priority_high</mat-icon>
+      <span>{{ escalatedAlerts.length }} critical alert(s) unacknowledged over 15 min — review now.</span>
+    </div>
+
+    <div class="quiet-banner" *ngIf="quietHoursActive()">
+      <mat-icon>bedtime</mat-icon>
+      <span>Quiet hours active ({{ quietHours.start }}–{{ quietHours.end }}) — push may be suppressed per your prefs.</span>
+    </div>
+
+    <div class="filter-toolbar">
+      <mat-form-field appearance="outline" class="filter-field" *ngIf="isSuperAdmin">
         <mat-label>Company</mat-label>
-        <mat-select
-          [value]="companyFilterId"
-          [disabled]="companiesLoading"
-          (selectionChange)="onCompanyFilterChange($event.value)">
+        <mat-select [value]="companyFilterId" [disabled]="companiesLoading" (selectionChange)="onCompanyFilterChange($event.value)">
           <mat-option [value]="null">All companies</mat-option>
           <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
         </mat-select>
-        <mat-hint *ngIf="companyFilterId == null">Alerts across every tenant</mat-hint>
-        <mat-hint *ngIf="companyFilterId != null">All vehicles and drivers under this company</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Vehicle</mat-label>
+        <mat-select [value]="vehicleFilterId" (selectionChange)="onVehicleFilterChange($event.value)">
+          <mat-option [value]="null">All vehicles</mat-option>
+          <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber || '—' }})</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Driver</mat-label>
+        <mat-select [value]="driverFilterId" (selectionChange)="onDriverFilterChange($event.value)">
+          <mat-option [value]="null">All drivers</mat-option>
+          <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
+        </mat-select>
       </mat-form-field>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card"><span class="stat-value">{{ stats.today }}</span><span class="stat-label">Today</span></div>
-      <div class="stat-card"><span class="stat-value stat-warn">{{ stats.unread }}</span><span class="stat-label">Unread</span></div>
-      <div class="stat-card"><span class="stat-value">{{ stats.active }}</span><span class="stat-label">Active</span></div>
-      <div class="stat-card"><span class="stat-value stat-warn">{{ stats.critical }}</span><span class="stat-label">Critical</span></div>
-      <div class="stat-card"><span class="stat-value">{{ stats.resolved }}</span><span class="stat-label">Resolved</span></div>
-      <div class="stat-card"><span class="stat-value">{{ stats.archived }}</span><span class="stat-label">Archived</span></div>
+    <div class="lifecycle-tabs">
+      <button class="chip" [class.active]="lifecycleTab === 'open'" type="button" (click)="setLifecycleTab('open')">Open</button>
+      <button class="chip" [class.active]="lifecycleTab === 'acknowledged'" type="button" (click)="setLifecycleTab('acknowledged')">Acknowledged</button>
+      <button class="chip" [class.active]="lifecycleTab === 'resolved'" type="button" (click)="setLifecycleTab('resolved')">Resolved</button>
+      <button class="chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">Group similar</button>
     </div>
 
     <div class="filter-stack">
       <div class="chip-row">
-        <button class="chip" [class.active]="isLifecycleSelected('unread')" (click)="toggleLifecycle('unread')">Unread</button>
-        <button class="chip" [class.active]="isLifecycleSelected('read')" (click)="toggleLifecycle('read')">Read</button>
-        <button class="chip" [class.active]="isLifecycleSelected('acknowledged')" (click)="toggleLifecycle('acknowledged')">Acknowledged</button>
-        <button class="chip" [class.active]="isLifecycleSelected('resolved')" (click)="toggleLifecycle('resolved')">Resolved</button>
-        <button class="chip" [class.active]="isLifecycleSelected('archived')" (click)="toggleLifecycle('archived')">Archived</button>
+        <span class="chip-label">Type</span>
+        <button class="chip chip-sm" *ngFor="let t of eventTypes" [class.active]="eventTypeFilter === t" (click)="toggleEventType(t)">
+          {{ eventTypeLabel(t) }}
+        </button>
       </div>
       <div class="chip-row">
+        <span class="chip-label">Severity</span>
         <button class="chip" [class.active]="severityFilter === 'critical'" (click)="toggleSeverity('critical')">Critical</button>
         <button class="chip" [class.active]="severityFilter === 'high'" (click)="toggleSeverity('high')">High</button>
         <button class="chip" [class.active]="severityFilter === 'medium'" (click)="toggleSeverity('medium')">Medium</button>
         <button class="chip" [class.active]="severityFilter === 'low'" (click)="toggleSeverity('low')">Low</button>
       </div>
       <div class="chip-row">
+        <span class="chip-label">When</span>
+        <button class="chip" [class.active]="datePreset === 'last24'" (click)="setDatePreset('last24')">Last 24h</button>
         <button class="chip" [class.active]="datePreset === 'today'" (click)="setDatePreset('today')">Today</button>
         <button class="chip" [class.active]="datePreset === 'yesterday'" (click)="setDatePreset('yesterday')">Yesterday</button>
         <button class="chip" [class.active]="datePreset === 'last7'" (click)="setDatePreset('last7')">Last 7</button>
@@ -82,85 +135,104 @@
       </div>
     </div>
 
+    <div class="bulk-bar" *ngIf="selectedCount > 0">
+      <span>{{ selectedCount }} selected</span>
+      <button class="btn btn-secondary btn-sm" type="button" (click)="bulkAcknowledge()">Bulk acknowledge</button>
+      <button class="btn btn-secondary btn-sm" type="button" (click)="bulkResolve()">Bulk resolve</button>
+    </div>
+
     <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
-    <div *ngIf="!loading && loadError" class="empty-state">
+    <div *ngIf="!loading && loadError" class="empty-state empty-state--error">
       <mat-icon>error_outline</mat-icon>
       <p>Could not load alerts</p>
       <p class="sub">{{ loadError }}</p>
       <button class="btn btn-primary" type="button" (click)="loadEvents()">Retry</button>
     </div>
 
-    <div *ngIf="!loading && !loadError && events.length === 0" class="empty-state">
+    <div *ngIf="!loading && !loadError && displayGroups.length === 0" class="empty-state empty-state--ok">
       <mat-icon>check_circle</mat-icon>
-      <p>No alert events for the current filters.</p>
+      <p>No alerts match these filters</p>
+      <p class="sub">Try widening the date range or switching lifecycle tab.</p>
     </div>
 
-    <div class="table-card" *ngIf="!loading && !loadError && events.length > 0">
+    <div class="table-card desktop-table" *ngIf="!loading && !loadError && displayGroups.length > 0">
       <table class="data-table">
         <thead>
           <tr>
+            <th class="col-check">
+              <mat-checkbox [checked]="allSelected" (change)="toggleSelectAll($event.checked)"></mat-checkbox>
+            </th>
             <th *ngIf="showCompanyColumn">Company</th>
-            <th>Type</th>
-            <th>Vehicle</th>
-            <th>Geofence</th>
-            <th>Speed</th>
-            <th>Message</th>
-            <th>Time</th>
+            <th>Alert</th>
+            <th>When</th>
             <th>Status</th>
-            <th>Action</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let e of events" [class.acknowledged]="e.isAcknowledged" (click)="openEvent(e)">
-            <td *ngIf="showCompanyColumn" class="fw-med">{{ e.tenantName || ('#' + e.tenantId) }}</td>
-            <td>
-              <span class="badge" [ngClass]="eventTypeBadge(e.eventType)">{{ eventTypeLabel(e.eventType) }}</span>
+          <tr *ngFor="let g of displayGroups"
+              [class]="severityClass(g.representative.severity)"
+              (click)="openEvent(g.representative)">
+            <td class="col-check" (click)="$event.stopPropagation()">
+              <mat-checkbox
+                [checked]="isSelected(g.representative)"
+                (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
             </td>
-            <td class="fw-med">{{ e.vehicleName || ('#' + e.vehicleId) }}</td>
-            <td class="muted">{{ e.geofenceName || '—' }}</td>
-            <td>{{ e.speed | number:'1.0-1' }} km/h</td>
-            <td class="muted">{{ e.message }}</td>
-            <td class="muted small">{{ e.timestamp | date:'dd MMM, HH:mm' }}</td>
-            <td><span class="badge" [ngClass]="statusClass(e)">{{ statusLabel(e) }}</span></td>
+            <td *ngIf="showCompanyColumn" class="fw-med">{{ g.representative.tenantName || ('#' + g.representative.tenantId) }}</td>
             <td>
-              <button *ngIf="!e.readAt && e.status !== 'archived'" class="btn btn-secondary btn-sm" (click)="markRead(e); $event.stopPropagation()">
-                Read
-              </button>
-              <button *ngIf="e.canAcknowledge" class="btn btn-secondary btn-sm" (click)="acknowledge(e); $event.stopPropagation()">
-                Acknowledge
-              </button>
-              <button *ngIf="e.canResolve" class="btn btn-secondary btn-sm" (click)="resolve(e); $event.stopPropagation()">
-                Resolve
-              </button>
-              <button *ngIf="e.canArchive" class="btn btn-secondary btn-sm" (click)="archive(e); $event.stopPropagation()">
-                Archive
-              </button>
+              <div class="alert-primary">
+                <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
+                <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
+                <span *ngIf="g.count > 1" class="group-badge">×{{ g.count }}</span>
+              </div>
+              <div class="alert-meta">{{ inlineMeta(g.representative) }}</div>
+              <div class="alert-msg muted">{{ g.representative.message }}</div>
+            </td>
+            <td class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</td>
+            <td><span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span></td>
+            <td class="action-cell" (click)="$event.stopPropagation()">
+              <button class="btn-icon" type="button" title="Live map" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
+              <button class="btn-icon" type="button" title="History" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
+              <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
+              <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <div class="mobile-cards" *ngIf="!loading && !loadError && displayGroups.length > 0">
+      <article class="alert-card" *ngFor="let g of displayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
+        <div class="alert-card__head">
+          <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
+          <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
+          <span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span>
+        </div>
+        <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
+        <p class="alert-msg">{{ g.representative.message }}</p>
+        <div class="alert-card__foot">
+          <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</span>
+          <div class="alert-card__actions">
+            <button class="btn-icon" type="button" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
+            <button class="btn-icon" type="button" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
+          </div>
+        </div>
+      </article>
+    </div>
   </div>
 
-  <!-- Rules tab -->
   <div *ngIf="activeTab === 'rules'">
-    <div *ngIf="rules.length === 0" class="empty-state">
+    <div *ngIf="rules.length === 0" class="empty-state empty-state--ok">
       <mat-icon>rule</mat-icon>
       <p>No alert rules configured.</p>
       <p class="sub">Click <strong>New Rule</strong> to create a speed or geofence alert.</p>
     </div>
-
     <div class="table-card" *ngIf="rules.length > 0">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Vehicle</th>
-            <th>Speed Limit</th>
-            <th>Geofence</th>
-            <th>Enter</th>
-            <th>Exit</th>
-            <th>Status</th>
+            <th>Vehicle</th><th>Speed Limit</th><th>Geofence</th><th>Enter</th><th>Exit</th><th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -170,17 +242,12 @@
             <td>{{ r.geofenceName || '—' }}</td>
             <td><mat-icon [class.icon-green]="r.alertOnEnter" [class.icon-gray]="!r.alertOnEnter">{{ r.alertOnEnter ? 'check_circle' : 'cancel' }}</mat-icon></td>
             <td><mat-icon [class.icon-green]="r.alertOnExit" [class.icon-gray]="!r.alertOnExit">{{ r.alertOnExit ? 'check_circle' : 'cancel' }}</mat-icon></td>
-            <td>
-              <span class="badge" [class.badge-green]="r.isActive" [class.badge-gray]="!r.isActive">
-                {{ r.isActive ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
+            <td><span class="badge" [class.badge-green]="r.isActive" [class.badge-gray]="!r.isActive">{{ r.isActive ? 'Active' : 'Inactive' }}</span></td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-
 </div>
 
 <div class="drawer-overlay" *ngIf="selectedEvent" (click)="closeDetail()"></div>
@@ -193,36 +260,71 @@
     <div class="detail-stack">
       <div class="detail-badges">
         <span class="badge" [ngClass]="eventTypeBadge(event.eventType)">{{ eventTypeLabel(event.eventType) }}</span>
+        <span class="badge" [ngClass]="severityBadge(event.severity)">{{ eventTypeLabel(event.severity || 'medium') }}</span>
         <span class="badge" [ngClass]="statusClass(event)">{{ statusLabel(event) }}</span>
       </div>
       <p class="detail-message">{{ event.message }}</p>
+      <p class="alert-meta">{{ inlineMeta(event) }}</p>
       <div class="detail-grid">
-        <div *ngIf="showCompanyColumn"><span class="label">Company</span><span>{{ event.tenantName || ('#' + event.tenantId) }}</span></div>
+        <div *ngIf="showCompanyColumn || event.tenantName"><span class="label">Company</span><span>{{ event.tenantName || ('#' + event.tenantId) }}</span></div>
         <div><span class="label">Vehicle</span><span>{{ event.vehicleName || ('#' + event.vehicleId) }}</span></div>
+        <div><span class="label">Plate</span><span>{{ event.registrationNumber || '—' }}</span></div>
         <div><span class="label">Driver</span><span>{{ event.driverName || '—' }}</span></div>
-        <div><span class="label">Severity</span><span>{{ eventTypeLabel(event.severity || 'medium') }}</span></div>
         <div><span class="label">Time</span><span>{{ event.timestamp | date:'dd MMM yyyy, HH:mm' }}</span></div>
         <div><span class="label">Location</span><span>{{ event.latitude | number:'1.4-4' }}, {{ event.longitude | number:'1.4-4' }}</span></div>
         <div><span class="label">Speed</span><span>{{ event.speed | number:'1.0-1' }} km/h</span></div>
         <div><span class="label">Geofence</span><span>{{ event.geofenceName || '—' }}</span></div>
-        <div><span class="label">Read</span><span>{{ event.readAt ? (event.readAt | date:'dd MMM, HH:mm') : 'Unread' }}</span></div>
-        <div *ngIf="event.acknowledgedAt"><span class="label">Acknowledged</span><span>{{ event.acknowledgedAt | date:'dd MMM, HH:mm' }}</span></div>
-        <div *ngIf="event.resolvedAt"><span class="label">Resolved</span><span>{{ event.resolvedAt | date:'dd MMM, HH:mm' }}</span></div>
-        <div *ngIf="event.archivedAt"><span class="label">Archived</span><span>{{ event.archivedAt | date:'dd MMM, HH:mm' }}</span></div>
-        <div class="full" *ngIf="event.resolutionNotes"><span class="label">Notes</span><span>{{ event.resolutionNotes }}</span></div>
       </div>
-      <div class="form-actions">
-        <button *ngIf="!event.readAt && event.status !== 'archived'" class="btn btn-secondary" (click)="markRead(event)">Mark Read</button>
-        <button *ngIf="event.canAcknowledge" class="btn btn-secondary" (click)="acknowledge(event)">Acknowledge</button>
-        <button *ngIf="event.canResolve" class="btn btn-secondary" (click)="resolve(event)">Resolve</button>
-        <button *ngIf="event.canArchive" class="btn btn-secondary" (click)="archive(event)">Archive</button>
+      <div class="form-actions wrap">
+        <button class="btn btn-secondary" type="button" (click)="jumpToLive(event, $event)"><mat-icon>map</mat-icon> Live map</button>
+        <button class="btn btn-secondary" type="button" (click)="jumpToHistory(event, $event)"><mat-icon>history</mat-icon> History</button>
+        <button class="btn btn-secondary" *ngIf="!event.readAt && event.status !== 'archived'" (click)="markRead(event)">Mark read</button>
+        <button class="btn btn-secondary" *ngIf="event.canAcknowledge" (click)="acknowledge(event)">Acknowledge</button>
+        <button class="btn btn-secondary" *ngIf="event.canResolve" (click)="resolve(event)">Resolve</button>
+        <button class="btn btn-secondary" (click)="markFalsePositive(event)">False positive</button>
+        <button class="btn btn-secondary" (click)="snooze(event, 1)">Snooze 1h</button>
+        <button class="btn btn-secondary" (click)="snooze(event, 24)">Snooze 24h</button>
+        <button class="btn btn-secondary" (click)="muteEventType(event.eventType)">Mute type</button>
+        <button class="btn btn-secondary" *ngIf="event.canArchive" (click)="archive(event)">Archive</button>
       </div>
     </div>
   </div>
 </div>
+
+<div class="drawer-overlay" *ngIf="showPrefsPanel" (click)="showPrefsPanel = false"></div>
+<div class="drawer" [class.open]="showPrefsPanel">
+  <div class="drawer-header">
+    <h3>Notification preferences</h3>
+    <button mat-icon-button (click)="showPrefsPanel = false"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body">
+    <div class="quiet-hours">
+      <mat-checkbox [(ngModel)]="quietHours.enabled">Quiet hours</mat-checkbox>
+      <div class="quiet-hours__row">
+        <mat-form-field appearance="outline"><mat-label>Start</mat-label><input matInput type="time" [(ngModel)]="quietHours.start"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>End</mat-label><input matInput type="time" [(ngModel)]="quietHours.end"></mat-form-field>
+      </div>
+    </div>
+    <p class="prefs-note">Per-type channels (saved to your user alert settings on the server).</p>
+    <div class="prefs-table" *ngIf="notificationSettings.length; else noPrefs">
+      <div class="prefs-row prefs-head"><span>Type</span><span>In-app</span><span>Push</span><span>Email</span></div>
+      <div class="prefs-row" *ngFor="let s of notificationSettings">
+        <span>{{ eventTypeLabel(s.alertType) }}</span>
+        <mat-checkbox [(ngModel)]="s.inAppEnabled"></mat-checkbox>
+        <mat-checkbox [(ngModel)]="s.pushEnabled"></mat-checkbox>
+        <mat-checkbox [(ngModel)]="s.emailEnabled"></mat-checkbox>
+      </div>
+    </div>
+    <ng-template #noPrefs>
+      <p class="muted">Loading defaults from API…</p>
+    </ng-template>
+    <div class="form-actions">
+      <button class="btn btn-secondary" type="button" (click)="showPrefsPanel = false">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="prefsSaving" (click)="saveNotificationSettings()">Save</button>
+    </div>
+  </div>
 </div>
 
-<!-- Rule form drawer -->
 <div class="drawer-overlay" *ngIf="showRuleForm" (click)="showRuleForm = false"></div>
 <div class="drawer" [class.open]="showRuleForm">
   <div class="drawer-header">
@@ -231,14 +333,10 @@
   </div>
   <div class="drawer-body">
     <form [formGroup]="ruleForm" (ngSubmit)="createRule()">
-
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Speed Limit (km/h)</mat-label>
         <input matInput type="number" formControlName="speedLimitKmh">
-        <mat-hint>Alert fires when a vehicle exceeds this speed</mat-hint>
-        <mat-error>Required, min 1</mat-error>
       </mat-form-field>
-
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Geofence (optional)</mat-label>
         <mat-select formControlName="geofenceId">
@@ -246,16 +344,15 @@
           <mat-option *ngFor="let g of geofences" [value]="g.id">{{ g.name }}</mat-option>
         </mat-select>
       </mat-form-field>
-
       <div class="checkbox-row">
         <mat-checkbox formControlName="alertOnEnter">Alert on geofence enter</mat-checkbox>
         <mat-checkbox formControlName="alertOnExit">Alert on geofence exit</mat-checkbox>
       </div>
-
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" (click)="showRuleForm = false">Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="ruleForm.invalid">Create Rule</button>
       </div>
     </form>
   </div>
+</div>
 </div>

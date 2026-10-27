@@ -199,6 +199,7 @@ public class GpsAlertEventDto
     public int? RuleId { get; set; }
     public int VehicleId { get; set; }
     public string? VehicleName { get; set; }
+    public string? RegistrationNumber { get; set; }
     public string EventType { get; set; } = string.Empty;
     public double Latitude { get; set; }
     public double Longitude { get; set; }

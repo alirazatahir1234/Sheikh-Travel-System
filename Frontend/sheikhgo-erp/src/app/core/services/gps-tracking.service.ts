@@ -63,6 +63,7 @@ import {
   GeofenceAnalytics,
   AlertEventStats,
   GpsAlertStats,
+  GpsAlertNotificationSetting,
   HeatmapPoint,
   GpsVehicleHealth,
   FleetHealthSummary,
@@ -1010,6 +1011,14 @@ export class GpsTrackingService {
   private tenantScopedHttpOptions(tenantScopeId?: number | null): { headers?: HttpHeaders } {
     if (tenantScopeId == null) return {};
     return { headers: new HttpHeaders({ 'X-Tenant-Id': String(tenantScopeId) }) };
+  }
+
+  getAlertNotificationSettings(): Observable<GpsAlertNotificationSetting[]> {
+    return this.http.get<GpsAlertNotificationSetting[]>(`${this.base}/alerts/settings`);
+  }
+
+  updateAlertNotificationSettings(settings: GpsAlertNotificationSetting[]): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/alerts/settings`, { settings });
   }
 
   getGeofenceBreachCount(): Observable<number> {
