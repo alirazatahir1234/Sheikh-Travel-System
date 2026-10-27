@@ -478,7 +478,7 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
                        END AS DriverFirstName,
                        b.VehicleId,
                        COALESCE(v.Make + N' ' + v.Model, v.Name, N'') AS VehicleDescription,
-                       v.PlateNumber,
+                       v.RegistrationNumber AS PlateNumber,
                        NULL AS BookerPhone
                 FROM Bookings b
                 LEFT JOIN Customers c ON c.Id = b.CustomerId
@@ -517,6 +517,8 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         try
         {
+            // Trips schema uses Destination* / PlannedStart / Planned|ActualDistanceKm;
+            // Vehicles use RegistrationNumber (not PlateNumber / Dropoff* / ScheduledStart).
             return await connection.QuerySingleOrDefaultAsync<AutomationTripSnapshot>(new CommandDefinition("""
                 SELECT t.Id, t.TripNumber, t.Status, t.BookingId,
                        t.DriverId,
@@ -526,27 +528,58 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
                        END AS DriverFirstName,
                        t.VehicleId,
                        COALESCE(v.Make + N' ' + v.Model, v.Name, N'') AS VehicleDescription,
-                       v.PlateNumber,
+                       v.RegistrationNumber AS PlateNumber,
                        t.PickupLatitude AS PickupLat,
                        t.PickupLongitude AS PickupLng,
                        t.PickupAddress,
-                       t.DropoffLatitude AS DropoffLat,
-                       t.DropoffLongitude AS DropoffLng,
-                       t.DropoffAddress,
-                       t.ScheduledStart AS PickupAt,
-                       t.DistanceKm,
-                       t.TotalAmount,
+                       t.DestinationLatitude AS DropoffLat,
+                       t.DestinationLongitude AS DropoffLng,
+                       t.DestinationAddress AS DropoffAddress,
+                       t.PlannedStart AS PickupAt,
+                       CAST(COALESCE(t.ActualDistanceKm, t.PlannedDistanceKm) AS FLOAT) AS DistanceKm,
+                       COALESCE(b.TotalAmount, r.BasePrice, 0) AS TotalAmount,
                        N'PKR' AS Currency,
                        ISNULL(t.TripType, 2) AS TripType
                 FROM Trips t
                 LEFT JOIN Drivers d ON d.Id = t.DriverId
                 LEFT JOIN Vehicles v ON v.Id = t.VehicleId
+                LEFT JOIN Bookings b ON b.Id = t.BookingId AND b.TenantId = t.TenantId AND b.IsDeleted = 0
+                LEFT JOIN Routes r ON r.Id = COALESCE(t.RouteId, b.RouteId) AND r.TenantId = t.TenantId
                 WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
                 """, new { TenantId = tenantId, TripId = tripId }, cancellationToken: ct));
         }
         catch
         {
-            return null;
+            // Soft-fail if optional booking/route money columns differ across environments.
+            try
+            {
+                return await connection.QuerySingleOrDefaultAsync<AutomationTripSnapshot>(new CommandDefinition("""
+                    SELECT t.Id, t.TripNumber, t.Status, t.BookingId,
+                           t.DriverId,
+                           NULL AS DriverFirstName,
+                           t.VehicleId,
+                           COALESCE(v.Name, N'') AS VehicleDescription,
+                           v.RegistrationNumber AS PlateNumber,
+                           t.PickupLatitude AS PickupLat,
+                           t.PickupLongitude AS PickupLng,
+                           t.PickupAddress,
+                           t.DestinationLatitude AS DropoffLat,
+                           t.DestinationLongitude AS DropoffLng,
+                           t.DestinationAddress AS DropoffAddress,
+                           t.PlannedStart AS PickupAt,
+                           CAST(COALESCE(t.ActualDistanceKm, t.PlannedDistanceKm) AS FLOAT) AS DistanceKm,
+                           CAST(0 AS DECIMAL(18,2)) AS TotalAmount,
+                           N'PKR' AS Currency,
+                           ISNULL(t.TripType, 2) AS TripType
+                    FROM Trips t
+                    LEFT JOIN Vehicles v ON v.Id = t.VehicleId
+                    WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
+                    """, new { TenantId = tenantId, TripId = tripId }, cancellationToken: ct));
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 
