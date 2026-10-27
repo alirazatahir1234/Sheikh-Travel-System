@@ -4,11 +4,42 @@
       <h2>Trip List</h2>
       <p>Manage all scheduled and active trips</p>
     </div>
-    <a class="ops-btn ops-btn--primary" routerLink="/trips/new">
-      <mat-icon>add</mat-icon>
-      Add Trip
-    </a>
+    <div class="trip-list-toolbar">
+      <input #importInput type="file" accept=".csv,.txt" hidden (change)="onImportFileSelected($event)" />
+      <button type="button" class="ops-btn ops-btn--ghost" (click)="importInput.click()" [disabled]="importBusy">
+        <mat-icon>upload_file</mat-icon>
+        Import CSV
+      </button>
+      <button type="button" class="ops-btn ops-btn--ghost" (click)="downloadImportTemplate()">Template</button>
+      <button type="button" class="ops-btn ops-btn--ghost" [matMenuTriggerFor]="exportMenu">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <button type="button" class="ops-btn ops-btn--ghost" (click)="saveCurrentFilter()">
+        <mat-icon>bookmark</mat-icon> Save filter
+      </button>
+      <button type="button" class="ops-btn ops-btn--ghost" [matMenuTriggerFor]="savedFilterMenu" *ngIf="savedFilters.length">
+        <mat-icon>bookmarks</mat-icon> Saved
+      </button>
+      <button type="button" class="ops-btn ops-btn--ghost" (click)="spawnRecurring()">
+        <mat-icon>event_repeat</mat-icon> Recurring
+      </button>
+      <a class="ops-btn ops-btn--primary" routerLink="/trips/new">
+        <mat-icon>add</mat-icon>
+        Add Trip
+      </a>
+    </div>
   </header>
+
+  <mat-menu #exportMenu="matMenu">
+    <button mat-menu-item type="button" (click)="exportList('excel')">Excel (.xlsx)</button>
+    <button mat-menu-item type="button" (click)="exportList('pdf')">PDF</button>
+  </mat-menu>
+
+  <mat-menu #savedFilterMenu="matMenu">
+    <button mat-menu-item type="button" *ngFor="let f of savedFilters" (click)="applySavedFilter(f)">
+      {{ f.name }}
+    </button>
+  </mat-menu>
 
   <div class="ops-filters">
     <div class="ops-search">
@@ -121,6 +152,29 @@
           <td mat-cell *matCellDef="let row">{{ row.vehicleName || '—' }}</td>
         </ng-container>
 
+        <ng-container matColumnDef="badges">
+          <th mat-header-cell *matHeaderCellDef>Signals</th>
+          <td mat-cell *matCellDef="let row" class="trip-badges">
+            <span class="trip-badge trip-badge--invoice" *ngIf="row.invoicePaymentStatus" [matTooltip]="'Invoice: ' + row.invoicePaymentStatus">
+              {{ row.invoicePaymentStatus }}
+            </span>
+            <span class="trip-badge trip-badge--feedback" *ngIf="row.feedbackStatus" [matTooltip]="'Feedback: ' + row.feedbackStatus">
+              {{ row.feedbackStatus }}
+            </span>
+            <span class="trip-badge trip-badge--warn" *ngIf="row.hasScheduleConflict" matTooltip="Driver/vehicle schedule conflict">Conflict</span>
+            <span class="trip-badge trip-badge--cargo" *ngFor="let flag of cargoFlags(row)" [matTooltip]="flag">{{ flag }}</span>
+            <button
+              type="button"
+              class="ops-chip-btn"
+              *ngIf="row.status === 'Scheduled' || row.status === 'DriverAssigned'"
+              (click)="smartAssignTrip(row, $event)"
+              [disabled]="smartAssignBusyId === row.id"
+              matTooltip="One-click smart assign">
+              <mat-icon>auto_fix_high</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="plannedStart">
           <th mat-header-cell *matHeaderCellDef>Start Time</th>
           <td mat-cell *matCellDef="let row">
@@ -217,6 +271,14 @@
     <button mat-menu-item type="button" (click)="activeTrip && edit(activeTrip.id)">
       <mat-icon>edit</mat-icon>
       <span>Edit</span>
+    </button>
+    <button mat-menu-item type="button" (click)="activeTrip && cloneTrip(activeTrip, $event)">
+      <mat-icon>content_copy</mat-icon>
+      <span>Clone trip</span>
+    </button>
+    <button mat-menu-item type="button" (click)="activeTrip && smartAssignTrip(activeTrip, $event)">
+      <mat-icon>auto_fix_high</mat-icon>
+      <span>Smart assign</span>
     </button>
     <button mat-menu-item type="button" (click)="activeTrip && remove(activeTrip)">
       <mat-icon>delete</mat-icon>

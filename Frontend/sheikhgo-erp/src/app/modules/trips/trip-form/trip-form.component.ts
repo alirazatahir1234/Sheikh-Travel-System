@@ -23,6 +23,11 @@ import { GoogleMapsLoaderService } from '../../../core/services/google-maps-load
 import { Customer } from '../../../core/models/customer.model';
 import { Route } from '../../../core/models/route.model';
 import {
+  TRIP_CARGO_FLAG_OPTIONS,
+  TripCargoFlag,
+  TripCostEstimate
+} from '../../../core/models/trip-enhancements.model';
+import {
   CreateTripDto,
   TRIP_PRIORITIES,
   TRIP_TYPES,
@@ -154,6 +159,10 @@ export class TripFormComponent implements OnInit, OnDestroy {
   ];
 
   currentStepId: TripFormStepId = 'basic';
+  readonly cargoFlagOptions = TRIP_CARGO_FLAG_OPTIONS;
+  selectedCargoFlags = new Set<TripCargoFlag>();
+  costEstimate: TripCostEstimate | null = null;
+  costEstimateLoading = false;
 
   /** Planned route path for the preview map (Routes API). */
   routePath: google.maps.LatLngLiteral[] = [];
@@ -577,6 +586,7 @@ export class TripFormComponent implements OnInit, OnDestroy {
       driverId: [null],
       assistantDriverId: [null],
       vehicleId: [null],
+      estimatedRevenue: [null],
       stops: this.fb.array([])
     });
 
@@ -761,8 +771,15 @@ export class TripFormComponent implements OnInit, OnDestroy {
           driverNotes: trip.driverNotes,
           driverId: trip.driverId,
           assistantDriverId: trip.assistantDriverId,
-          vehicleId: trip.vehicleId
+          vehicleId: trip.vehicleId,
+          estimatedRevenue: trip.estimatedRevenue
         }, { emitEvent: false });
+        this.selectedCargoFlags = new Set(
+          (trip.specialCargoFlags || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean) as TripCargoFlag[]
+        );
         this.routePrefillActive = !!trip.routeId;
         this.locationMode = trip.routeId ? 'route' : 'manual';
         this.showCoordinates = canCalculateRoute(
@@ -856,6 +873,68 @@ export class TripFormComponent implements OnInit, OnDestroy {
     this.metricsManuallyEdited = true;
   }
 
+  toggleCargoFlag(flag: TripCargoFlag): void {
+    if (this.selectedCargoFlags.has(flag)) this.selectedCargoFlags.delete(flag);
+    else this.selectedCargoFlags.add(flag);
+  }
+
+  refreshCostEstimate(): void {
+    const v = this.form.getRawValue();
+    this.costEstimateLoading = true;
+    this.trips.estimateCost({
+      routeId: v.routeId ? +v.routeId : null,
+      vehicleId: v.vehicleId ? +v.vehicleId : null,
+      plannedDistanceKm: v.plannedDistanceKm != null ? +v.plannedDistanceKm : null,
+      fuelPricePerLiter: 280,
+      driverAllowance: 0,
+      tollCharges: 0,
+      otherCharges: 0
+    }).subscribe({
+      next: est => {
+        this.costEstimate = est;
+        this.costEstimateLoading = false;
+      },
+      error: err => {
+        this.costEstimateLoading = false;
+        this.toast.error(apiErrorMessage(err, 'Cost estimate failed.'));
+      }
+    });
+  }
+
+  saveAsTemplate(): void {
+    const name = prompt('Template name');
+    if (!name?.trim()) return;
+    const v = this.form.getRawValue();
+    const plannedStart = combineLocalDateAndTime(v.tripDate, v.pickupTime);
+    if (!plannedStart) {
+      this.toast.warning('Complete schedule before saving a template.');
+      return;
+    }
+    const payload: CreateTripDto = {
+      tripName: v.tripName,
+      tripType: v.tripType,
+      customerId: +v.customerId,
+      routeId: v.routeId ? +v.routeId : null,
+      passengerCount: +v.passengerCount,
+      priority: v.priority,
+      pickupAddress: v.pickupAddress,
+      destinationAddress: v.destinationAddress,
+      tripDate: calendarDateToApiIso(v.tripDate),
+      plannedStart: toLocalDateTimeApiString(plannedStart),
+      specialCargoFlags: this.selectedCargoFlags.size ? [...this.selectedCargoFlags].join(',') : null
+    };
+    this.trips.saveTemplate({
+      name: name.trim(),
+      payload,
+      recurrenceKind: 'Weekly',
+      recurrenceInterval: 1,
+      isActive: true
+    }).subscribe({
+      next: () => this.toast.success('Trip template saved.'),
+      error: err => this.toast.error(apiErrorMessage(err, 'Template save failed.'))
+    });
+  }
+
   save(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -920,6 +999,8 @@ export class TripFormComponent implements OnInit, OnDestroy {
       driverId: v.driverId ? +v.driverId : null,
       assistantDriverId: v.assistantDriverId ? +v.assistantDriverId : null,
       vehicleId: v.vehicleId ? +v.vehicleId : null,
+      specialCargoFlags: this.selectedCargoFlags.size ? [...this.selectedCargoFlags].join(',') : null,
+      estimatedRevenue: v.estimatedRevenue != null && v.estimatedRevenue !== '' ? +v.estimatedRevenue : null,
       stops: (v.stops || []).map(
         (s: { sequence: number; location: string; latitude?: number | null; longitude?: number | null; eta?: string }) => ({
           sequence: s.sequence,

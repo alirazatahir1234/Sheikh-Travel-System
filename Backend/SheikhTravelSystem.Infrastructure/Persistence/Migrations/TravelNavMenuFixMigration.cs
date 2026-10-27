@@ -130,7 +130,7 @@ public static class TravelNavMenuFixMigration
                 var serialized = TenantModuleCatalog.SerializeLegacyKeys(legacyKeys);
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE Tenants
-                    SET EnabledModulesJson = @Json, UpdatedAt = GETUTCDATETIME()
+                    SET EnabledModulesJson = @Json, UpdatedAt = SYSUTCDATETIME()
                     WHERE Id = @TenantId
                     """, new { TenantId = tenantId, Json = serialized }, cancellationToken: cancellationToken));
             }

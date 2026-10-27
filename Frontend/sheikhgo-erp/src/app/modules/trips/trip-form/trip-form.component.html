@@ -99,6 +99,25 @@
             <mat-option *ngFor="let p of priorities" [value]="p">{{ p }}</mat-option>
           </mat-select>
         </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Estimated revenue (PKR)</mat-label>
+          <input matInput type="number" formControlName="estimatedRevenue" />
+        </mat-form-field>
+
+        <div class="cargo-flags full">
+          <span class="cargo-flags-label">Special cargo flags</span>
+          <div class="cargo-flag-chips">
+            <button
+              type="button"
+              class="cargo-chip"
+              *ngFor="let flag of cargoFlagOptions"
+              [class.active]="selectedCargoFlags.has(flag)"
+              (click)="toggleCargoFlag(flag)">
+              {{ flag }}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -517,6 +536,20 @@
             <button mat-button type="button" color="primary" (click)="goToStep('assignment')">Edit</button>
           </div>
         </div>
+
+        <div class="review-cost-estimate">
+          <div class="review-cost-head">
+            <h4>Cost estimate (before save)</h4>
+            <button mat-stroked-button type="button" (click)="refreshCostEstimate()" [disabled]="costEstimateLoading">
+              {{ costEstimateLoading ? 'Calculating…' : 'Calculate' }}
+            </button>
+          </div>
+          <p *ngIf="costEstimate as est">
+            Estimated cost: <strong>{{ est.totalEstimatedCost | number:'1.0-0' }} PKR</strong>
+            <span class="muted">({{ est.source }}{{ est.note ? ' — ' + est.note : '' }})</span>
+          </p>
+          <p *ngIf="!costEstimate" class="muted">Run calculate to preview fuel + allowances before creating the trip.</p>
+        </div>
       </div>
     </section>
 
@@ -536,6 +569,9 @@
           (click)="nextStep()">
           {{ nextStepButtonLabel }}
           <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+        <button mat-stroked-button type="button" *ngIf="isLastStep" (click)="saveAsTemplate()">
+          Save as template
         </button>
         <button
           *ngIf="isLastStep"

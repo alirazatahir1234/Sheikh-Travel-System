@@ -18,6 +18,7 @@ import {
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { buildStaticMapUrl, buildStreetViewStaticUrl } from '../../../core/google-maps/gmap-static-urls';
+import { TripInsights } from '../../../core/models/trip-enhancements.model';
 
 @Component({
   standalone: false,
@@ -27,7 +28,9 @@ import { buildStaticMapUrl, buildStreetViewStaticUrl } from '../../../core/googl
 })
 export class TripDetailComponent implements OnInit, OnDestroy {
   trip: TripDetail | null = null;
+  insights: TripInsights | null = null;
   routeSummary: TripRouteSummary | null = null;
+  assignmentConflict = '';
   loading = true;
   loadError = '';
   optimizing = false;
@@ -49,7 +52,7 @@ export class TripDetailComponent implements OnInit, OnDestroy {
   expenseDescription = '';
   passengerName = '';
   passengerPhone = '';
-  documentType = 'TripSheet';
+  documentType = 'ProofOfDelivery';
   selectedFile: File | null = null;
 
   private routePoll: ReturnType<typeof setInterval> | null = null;
@@ -57,6 +60,12 @@ export class TripDetailComponent implements OnInit, OnDestroy {
 
   get totalExpenses(): number {
     return (this.trip?.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  }
+
+  get podDocuments() {
+    return (this.trip?.documents || []).filter(
+      d => d.documentType === 'ProofOfDelivery' || d.documentType === 'DeliveryNote'
+    );
   }
 
   get pickupStreetViewUrl(): string | null {
@@ -165,6 +174,8 @@ export class TripDetailComponent implements OnInit, OnDestroy {
         this.vehicleId = trip.vehicleId ?? null;
         this.loading = false;
         this.loadRouteSummary(id, true);
+        this.loadInsights(id);
+        this.checkConflict(id, trip.driverId, trip.vehicleId);
       },
       error: err => {
         this.loading = false;
@@ -229,7 +240,45 @@ export class TripDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadInsights(id: number): void {
+    this.trips.getInsights(id).subscribe({
+      next: ins => { this.insights = ins; },
+      error: () => { this.insights = null; }
+    });
+  }
+
+  checkConflict(tripId: number, driverId?: number | null, vehicleId?: number | null): void {
+    this.trips.getAssignmentConflict(tripId, driverId, vehicleId).subscribe({
+      next: c => {
+        this.assignmentConflict = c.hasConflict ? (c.message || 'Schedule conflict detected.') : '';
+      },
+      error: () => { this.assignmentConflict = ''; }
+    });
+  }
+
+  sendDelayedEta(channel: 'email' | 'whatsapp'): void {
+    if (!this.trip) return;
+    this.trips.sendDelayedEta(this.trip.id, channel).subscribe({
+      next: () => {
+        this.toast.success('Delayed ETA message queued.');
+        this.loadInsights(this.trip!.id);
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Could not send ETA message.'))
+    });
+  }
+
   assignDriver(): void {
+    if (!this.trip || !this.driverId) return;
+    this.trips.getAssignmentConflict(this.trip.id, this.driverId, this.vehicleId).subscribe({
+      next: c => {
+        if (c.hasConflict && !confirm(`${c.message}\nAssign anyway?`)) return;
+        this.doAssignDriver();
+      },
+      error: () => this.doAssignDriver()
+    });
+  }
+
+  private doAssignDriver(): void {
     if (!this.trip || !this.driverId) return;
     this.trips.assignDriver(this.trip.id, this.driverId).subscribe({
       next: () => {
@@ -241,6 +290,17 @@ export class TripDetailComponent implements OnInit, OnDestroy {
   }
 
   assignVehicle(): void {
+    if (!this.trip || !this.vehicleId) return;
+    this.trips.getAssignmentConflict(this.trip.id, this.driverId, this.vehicleId).subscribe({
+      next: c => {
+        if (c.hasConflict && !confirm(`${c.message}\nAssign anyway?`)) return;
+        this.doAssignVehicle();
+      },
+      error: () => this.doAssignVehicle()
+    });
+  }
+
+  private doAssignVehicle(): void {
     if (!this.trip || !this.vehicleId) return;
     this.trips.assignVehicle(this.trip.id, this.vehicleId).subscribe({
       next: () => {

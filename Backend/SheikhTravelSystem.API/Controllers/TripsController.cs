@@ -5,6 +5,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Trips.Commands;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
 using SheikhTravelSystem.Application.Features.Trips.Queries;
+using BulkImportBody = SheikhTravelSystem.Application.Features.Trips.Commands.BulkImportTripsCommand;
 using SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -179,6 +180,69 @@ public class TripsController : BaseApiController
     [HttpPost("{id:int}/smart-assignment/override")]
     public async Task<IActionResult> SmartAssignmentOverride(int id, [FromBody] OverrideTripSmartAssignmentRequest body)
         => Ok(await Mediator.Send(new OverrideTripSmartAssignmentCommand(id, body)));
+
+    // ── Trips tab enhancements (import, templates, insights, dispatch) ───────
+
+    [RequirePermission(OperationsPermissions.TripCreate)]
+    [HttpPost("import")]
+    public async Task<IActionResult> BulkImport([FromBody] TripBulkImportRequest body)
+        => Ok(await Mediator.Send(new BulkImportBody(body.CsvContent)));
+
+    [HttpGet("templates")]
+    public async Task<IActionResult> ListTemplates()
+        => Ok(await Mediator.Send(new GetTripTemplatesQuery()));
+
+    [RequirePermission(OperationsPermissions.TripCreate)]
+    [HttpPost("templates")]
+    public async Task<IActionResult> SaveTemplate([FromBody] UpsertTripTemplateDto body)
+        => Ok(await Mediator.Send(new SaveTripTemplateCommand(body)));
+
+    [RequirePermission(OperationsPermissions.TripDelete)]
+    [HttpDelete("templates/{templateId:int}")]
+    public async Task<IActionResult> DeleteTemplate(int templateId)
+        => Ok(await Mediator.Send(new DeleteTripTemplateCommand(templateId)));
+
+    [RequirePermission(OperationsPermissions.TripCreate)]
+    [HttpPost("templates/{templateId:int}/spawn")]
+    public async Task<IActionResult> SpawnFromTemplate(int templateId, [FromQuery] DateTime? date = null)
+        => Ok(await Mediator.Send(new SpawnTripFromTemplateCommand(templateId, date)));
+
+    [RequirePermission(OperationsPermissions.TripCreate)]
+    [HttpPost("templates/spawn-due")]
+    public async Task<IActionResult> SpawnDueRecurring()
+        => Ok(await Mediator.Send(new SpawnDueRecurringTripsCommand()));
+
+    [RequirePermission(OperationsPermissions.TripCreate)]
+    [HttpPost("{id:int}/clone")]
+    public async Task<IActionResult> Clone(int id)
+        => Ok(await Mediator.Send(new CloneTripCommand(id)));
+
+    [HttpGet("{id:int}/insights")]
+    public async Task<IActionResult> Insights(int id)
+        => Ok(await Mediator.Send(new GetTripInsightsQuery(id)));
+
+    [HttpPost("estimate-cost")]
+    public async Task<IActionResult> EstimateCost([FromBody] TripCostEstimateRequestDto body)
+        => Ok(await Mediator.Send(new EstimateTripCostQuery(body)));
+
+    [HttpGet("{id:int}/assignment-conflict")]
+    public async Task<IActionResult> AssignmentConflict(int id, [FromQuery] int? driverId, [FromQuery] int? vehicleId)
+        => Ok(await Mediator.Send(new GetTripAssignmentConflictQuery(id, driverId, vehicleId)));
+
+    [RequirePermission(OperationsPermissions.TripUpdate)]
+    [HttpPost("{id:int}/delayed-eta")]
+    public async Task<IActionResult> SendDelayedEta(int id, [FromBody] SendDelayedEtaRequestDto body)
+        => Ok(await Mediator.Send(new SendTripDelayedEtaCommand(id, body)));
+
+    [RequirePermission(OperationsPermissions.TripUpdate)]
+    [HttpPost("dispatch-board/move")]
+    public async Task<IActionResult> MoveDispatchBoardTrip([FromBody] DispatchBoardMoveDto body)
+        => Ok(await Mediator.Send(new MoveDispatchBoardTripCommand(body)));
+}
+
+public class TripBulkImportRequest
+{
+    public string CsvContent { get; set; } = "";
 }
 
 public class UploadTripDocumentForm

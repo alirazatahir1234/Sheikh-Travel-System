@@ -121,6 +121,7 @@ public static class DependencyInjection
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
         services.AddScoped<IMaintenanceModuleRepository, MaintenanceModuleRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<ITripEnhancementsRepository, TripEnhancementsRepository>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Trips.SmartAssignment.ITripSmartAssignmentRepository,
             TripSmartAssignmentRepository>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Trips.SmartAssignment.ITripSmartAssignmentService,

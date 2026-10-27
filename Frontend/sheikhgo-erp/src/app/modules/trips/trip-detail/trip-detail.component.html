@@ -105,6 +105,32 @@
       </ng-template>
     </mat-card>
 
+    <mat-card class="profit-panel" *ngIf="insights as ins">
+      <mat-card-title>Profitability</mat-card-title>
+      <mat-card-content class="info-grid">
+        <div><span>Revenue (est.)</span><strong>{{ ins.profitability.estimatedRevenue != null ? (ins.profitability.estimatedRevenue | number:'1.0-0') : '—' }}</strong></div>
+        <div><span>Expenses</span><strong>{{ ins.profitability.totalExpenses | number:'1.0-0' }}</strong></div>
+        <div><span>Margin</span><strong>{{ ins.profitability.margin != null ? (ins.profitability.margin | number:'1.0-0') : '—' }}</strong></div>
+        <div><span>Invoice</span><strong>{{ ins.invoicePaymentStatus || '—' }}</strong></div>
+        <div><span>Feedback</span><strong>{{ ins.feedbackStatus }}</strong></div>
+        <div><span>Route deviation</span><strong>{{ ins.routeDeviation.summary }}</strong></div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="assignmentConflict">
+      <mat-card-content class="conflict-banner">
+        <mat-icon>warning</mat-icon> {{ assignmentConflict }}
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="t.status === 'Delayed' || t.status === 'Enroute' || t.status === 'Started'">
+      <mat-card-title>Client ETA (delayed)</mat-card-title>
+      <mat-card-content class="assign-row">
+        <button mat-stroked-button type="button" (click)="sendDelayedEta('email')">Email ETA update</button>
+        <button mat-stroked-button type="button" (click)="sendDelayedEta('whatsapp')">WhatsApp ETA update</button>
+      </mat-card-content>
+    </mat-card>
+
     <mat-card>
       <mat-card-title>Assign</mat-card-title>
       <mat-card-content class="assign-row">
@@ -147,24 +173,46 @@
     </mat-card>
 
     <mat-card>
-      <mat-card-title>Timeline</mat-card-title>
+      <mat-card-title>Live timeline</mat-card-title>
       <mat-card-content>
-        <ol class="timeline" *ngIf="t.timeline?.length; else emptyTimeline">
-          <li *ngFor="let h of t.timeline">
-            <strong>{{ h.toStatus }}</strong>
-            <span>{{ h.changedAtUtc | date:'dd-MMM-yyyy HH:mm' }}</span>
-            <small *ngIf="h.note">{{ h.note }}</small>
+        <ol class="timeline" *ngIf="insights?.liveEvents?.length; else statusTimeline">
+          <li *ngFor="let e of insights!.liveEvents">
+            <strong>{{ e.title }}</strong>
+            <span class="muted">{{ e.eventType }} · {{ e.occurredAtUtc | date:'dd-MMM-yyyy HH:mm' }}</span>
+            <small *ngIf="e.detail">{{ e.detail }}</small>
           </li>
         </ol>
-        <ng-template #emptyTimeline><p>No status history yet.</p></ng-template>
+        <ng-template #statusTimeline>
+          <ol class="timeline" *ngIf="t.timeline?.length; else emptyTimeline">
+            <li *ngFor="let h of t.timeline">
+              <strong>{{ h.toStatus }}</strong>
+              <span>{{ h.changedAtUtc | date:'dd-MMM-yyyy HH:mm' }}</span>
+              <small *ngIf="h.note">{{ h.note }}</small>
+            </li>
+          </ol>
+          <ng-template #emptyTimeline><p>No timeline events yet.</p></ng-template>
+        </ng-template>
+        <div class="reject-history" *ngIf="insights?.driverRejects?.length">
+          <h4>Driver reject history</h4>
+          <ul>
+            <li *ngFor="let r of insights!.driverRejects">
+              {{ r.driverName || ('Driver #' + r.driverId) }} — {{ r.rejectionReason || 'Rejected' }}
+              <span class="muted">{{ r.rejectedAtUtc | date:'short' }}</span>
+            </li>
+          </ul>
+        </div>
       </mat-card-content>
     </mat-card>
 
     <mat-card *ngIf="t.stops?.length">
-      <mat-card-title>Stops</mat-card-title>
+      <mat-card-title>Multi-stop route</mat-card-title>
       <mat-card-content>
         <ul>
-          <li *ngFor="let s of t.stops">{{ s.sequence }}. {{ s.location }}</li>
+          <li *ngFor="let s of t.stops">
+            {{ s.sequence }}. {{ s.location }}
+            <span class="muted" *ngIf="s.arrivalTime"> · arrived {{ s.arrivalTime | date:'HH:mm' }}</span>
+            <span class="muted" *ngIf="s.departureTime"> · departed {{ s.departureTime | date:'HH:mm' }}</span>
+          </li>
         </ul>
       </mat-card-content>
     </mat-card>
@@ -270,6 +318,12 @@
           </tr>
         </table>
         <p *ngIf="!t.documents?.length" class="muted">No documents uploaded.</p>
+        <div *ngIf="podDocuments.length" class="pod-gallery">
+          <h4>Proof of delivery</h4>
+          <a *ngFor="let d of podDocuments" [href]="d.fileUrl" target="_blank" rel="noopener">
+            {{ d.fileName }}
+          </a>
+        </div>
       </mat-card-content>
     </mat-card>
 

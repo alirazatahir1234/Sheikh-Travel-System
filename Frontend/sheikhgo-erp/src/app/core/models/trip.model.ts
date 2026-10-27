@@ -43,6 +43,10 @@ export interface TripListItem {
   gpsOnline: boolean;
   tripType: TripType;
   priority: TripPriority;
+  invoicePaymentStatus?: string | null;
+  feedbackStatus?: string | null;
+  specialCargoFlags?: string | null;
+  hasScheduleConflict?: boolean;
 }
 
 export interface TripStop {
@@ -88,6 +92,8 @@ export interface TripDetail extends TripListItem {
   documents: TripDocument[];
   passengers: TripPassenger[];
   openAlertCount: number;
+  specialCargoFlags?: string | null;
+  estimatedRevenue?: number | null;
 }
 
 export interface TripExpense {
@@ -118,7 +124,9 @@ export interface TripPassenger {
 }
 
 export const TRIP_EXPENSE_TYPES = ['Fuel', 'Toll', 'Parking', 'Food', 'Hotel', 'Other'] as const;
-export const TRIP_DOCUMENT_TYPES = ['TripSheet', 'Invoice', 'DeliveryNote', 'CustomerSignature', 'VehiclePhoto', 'Other'] as const;
+export const TRIP_DOCUMENT_TYPES = [
+  'TripSheet', 'Invoice', 'DeliveryNote', 'ProofOfDelivery', 'CustomerSignature', 'VehiclePhoto', 'Other'
+] as const;
 export const BOARDING_STATUSES = ['Pending', 'Boarded', 'NoShow'] as const;
 export const DROP_STATUSES = ['Pending', 'Dropped', 'Skipped'] as const;
 
@@ -165,6 +173,8 @@ export interface CreateTripDto {
   assistantDriverId?: number | null;
   vehicleId?: number | null;
   stops?: TripStopInput[] | null;
+  specialCargoFlags?: string | null;
+  estimatedRevenue?: number | null;
 }
 
 export interface UpdateTripDto extends Omit<CreateTripDto, 'bookingId' | 'driverId' | 'assistantDriverId' | 'vehicleId'> {}

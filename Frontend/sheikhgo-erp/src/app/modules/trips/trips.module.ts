@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { GoogleMapsModule } from '@angular/google-maps';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { SharedModule } from '../../shared/shared.module';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
 import { UiEmptyStateComponent } from '../../shared/components/ui/empty-state/ui-empty-state.component';
@@ -50,6 +51,6 @@ function tripIdCanMatch(route: import('@angular/router').Route, segments: import
     TripReportsComponent,
     TripSmartAssignmentComponent
   ],
-  imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes), UiButtonComponent, UiEmptyStateComponent]
+  imports: [SharedModule, GoogleMapsModule, DragDropModule, RouterModule.forChild(routes), UiButtonComponent, UiEmptyStateComponent]
 })
 export class TripsModule {}

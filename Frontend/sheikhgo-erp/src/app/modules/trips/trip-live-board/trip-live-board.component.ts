@@ -1,3 +1,4 @@
+import { CdkDragDrop, transferArrayItem } from '@angular/cdk/drag-drop';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { TripService } from '../../../core/services/trip.service';
@@ -21,6 +22,7 @@ export class TripLiveBoardComponent implements OnInit, OnDestroy {
   loading = true;
   todayOnly = true;
   items: TripListItem[] = [];
+  columnTrips: Record<string, TripListItem[]> = {};
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly columns: BoardColumn[] = [
@@ -50,7 +52,19 @@ export class TripLiveBoardComponent implements OnInit, OnDestroy {
   }
 
   tripsFor(col: BoardColumn): TripListItem[] {
-    return this.items.filter(t => col.statuses.includes(t.status));
+    return this.columnTrips[col.key] ?? [];
+  }
+
+  connectedLists(): string[] {
+    return this.columns.map(c => c.key);
+  }
+
+  private rebuildColumns(): void {
+    const next: Record<string, TripListItem[]> = {};
+    for (const col of this.columns) {
+      next[col.key] = this.items.filter(t => col.statuses.includes(t.status));
+    }
+    this.columnTrips = next;
   }
 
   load(silent = false): void {
@@ -58,6 +72,7 @@ export class TripLiveBoardComponent implements OnInit, OnDestroy {
     this.trips.getLive(this.todayOnly).subscribe({
       next: items => {
         this.items = items;
+        this.rebuildColumns();
         this.loading = false;
       },
       error: err => {
@@ -74,6 +89,24 @@ export class TripLiveBoardComponent implements OnInit, OnDestroy {
 
   openTrip(id: number): void {
     this.router.navigate(['/trips', id]);
+  }
+
+  columnDrop(event: CdkDragDrop<TripListItem[]>, targetCol: BoardColumn): void {
+    if (event.previousContainer === event.container) return;
+    const trip = event.previousContainer.data[event.previousIndex];
+    transferArrayItem(
+      event.previousContainer.data,
+      event.container.data,
+      event.previousIndex,
+      event.currentIndex
+    );
+    this.trips.moveDispatchBoard(trip.id, targetCol.key).subscribe({
+      next: () => this.toast.success(`${trip.tripNumber} moved to ${targetCol.label}.`),
+      error: err => {
+        this.toast.error(apiErrorMessage(err, 'Could not move trip.'));
+        this.load(true);
+      }
+    });
   }
 
   openLiveGps(trip: TripListItem, event: Event): void {

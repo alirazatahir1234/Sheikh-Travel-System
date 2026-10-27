@@ -23,7 +23,11 @@ public record TripListItemDto(
     TripStatus Status,
     bool GpsOnline,
     TripType TripType,
-    TripPriority Priority);
+    TripPriority Priority,
+    string? InvoicePaymentStatus = null,
+    string? FeedbackStatus = null,
+    string? SpecialCargoFlags = null,
+    bool HasScheduleConflict = false);
 
 public record TripStopDto(
     int Id,
@@ -86,7 +90,9 @@ public record TripDetailDto(
     IReadOnlyList<TripExpenseDto> Expenses,
     IReadOnlyList<TripDocumentDto> Documents,
     IReadOnlyList<TripPassengerDto> Passengers,
-    int OpenAlertCount);
+    int OpenAlertCount,
+    string? SpecialCargoFlags = null,
+    decimal? EstimatedRevenue = null);
 
 public record TripExpenseDto(
     int Id,
@@ -156,7 +162,9 @@ public record CreateTripDto(
     int? DriverId,
     int? AssistantDriverId,
     int? VehicleId,
-    IReadOnlyList<TripStopInputDto>? Stops);
+    IReadOnlyList<TripStopInputDto>? Stops,
+    string? SpecialCargoFlags = null,
+    decimal? EstimatedRevenue = null);
 
 public record UpdateTripDto(
     string TripName,
@@ -177,7 +185,9 @@ public record UpdateTripDto(
     int? EstimatedDurationMinutes,
     decimal? PlannedDistanceKm,
     string? DriverNotes,
-    IReadOnlyList<TripStopInputDto>? Stops);
+    IReadOnlyList<TripStopInputDto>? Stops,
+    string? SpecialCargoFlags = null,
+    decimal? EstimatedRevenue = null);
 
 public record AssignTripDriverDto(int DriverId, int? AssistantDriverId, string? DriverNotes);
 

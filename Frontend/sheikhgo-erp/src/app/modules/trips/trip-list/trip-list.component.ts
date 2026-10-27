@@ -16,6 +16,12 @@ import {
 } from '../../../core/models/trip.model';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { TripSmartAssignmentService } from '../../../core/services/trip-smart-assignment.service';
+import {
+  TRIP_SAVED_FILTERS_KEY,
+  TripSavedFilter
+} from '../../../core/models/trip-enhancements.model';
 
 @Component({
   standalone: false,
@@ -26,8 +32,12 @@ import { apiErrorMessage } from '../../../core/utils/api-error.util';
 export class TripListComponent implements OnInit, OnDestroy {
   displayedColumns = [
     'index', 'tripNumber', 'bookingNumber', 'routeName', 'driverName', 'vehicleName',
-    'plannedStart', 'status', 'liveLocation', 'actions'
+    'badges', 'plannedStart', 'status', 'liveLocation', 'actions'
   ];
+
+  savedFilters: TripSavedFilter[] = [];
+  importBusy = false;
+  smartAssignBusyId: number | null = null;
 
   items: TripListItem[] = [];
   activeTrip: TripListItem | null = null;
@@ -61,7 +71,9 @@ export class TripListComponent implements OnInit, OnDestroy {
     private driversApi: DriverService,
     private route: ActivatedRoute,
     private router: Router,
-    private toast: UiToastService
+    private toast: UiToastService,
+    private exportApi: ExportService,
+    private smartAssign: TripSmartAssignmentService
   ) {}
 
   get showingLabel(): string {
@@ -83,6 +95,7 @@ export class TripListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.initDefaultDateRange();
+    this.loadSavedFilters();
     this.loadFilterOptions();
 
     this.searchSub = this.searchSubject.pipe(
@@ -333,5 +346,149 @@ export class TripListComponent implements OnInit, OnDestroy {
   private initDefaultDateRange(): void {
     this.dateFrom = null;
     this.dateTo = null;
+  }
+
+  cargoFlags(row: TripListItem): string[] {
+    if (!row.specialCargoFlags?.trim()) return [];
+    return row.specialCargoFlags.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  onImportFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.importBusy = true;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const csv = String(reader.result || '');
+      this.trips.bulkImportCsv(csv).subscribe({
+        next: res => {
+          this.importBusy = false;
+          this.toast.success(`Imported ${res.created} trip(s). ${res.failed ? res.failed + ' failed.' : ''}`);
+          if (res.errors?.length) console.warn('Trip import errors', res.errors);
+          this.load(true);
+        },
+        error: err => {
+          this.importBusy = false;
+          this.toast.error(apiErrorMessage(err, 'Import failed.'));
+        }
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  downloadImportTemplate(): void {
+    const sample =
+      'tripName,customerId,tripType,priority,pickupAddress,destinationAddress,tripDate,plannedStart,driverId,vehicleId,specialCargoFlags\n' +
+      'Airport Transfer,1,Transfer,Normal,Dubai Mall,DXB T1,2026-11-01,2026-11-01T08:00:00,,,ColdChain';
+    const blob = new Blob([sample], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trips-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  exportList(format: 'excel' | 'pdf'): void {
+    const columns: ExportColumn<TripListItem>[] = [
+      { header: 'Trip #', accessor: r => r.tripNumber },
+      { header: 'Customer', accessor: r => r.customerName },
+      { header: 'Driver', accessor: r => r.driverName },
+      { header: 'Vehicle', accessor: r => r.vehicleName },
+      { header: 'Route', accessor: r => this.formatRoute(r) },
+      { header: 'Start', accessor: r => r.plannedStart },
+      { header: 'Status', accessor: r => r.status },
+      { header: 'Invoice', accessor: r => r.invoicePaymentStatus },
+      { header: 'Feedback', accessor: r => r.feedbackStatus }
+    ];
+    const meta = { filename: 'trips-export', title: 'Trips Export', subtitle: this.showingLabel };
+    if (format === 'excel') this.exportApi.exportExcel(this.items, columns, meta);
+    else this.exportApi.exportPdf(this.items, columns, meta);
+  }
+
+  saveCurrentFilter(): void {
+    const name = prompt('Name this filter preset');
+    if (!name?.trim()) return;
+    const preset: TripSavedFilter = {
+      name: name.trim(),
+      query: {
+        status: this.status || null,
+        statusGroup: this.statusGroup || null,
+        vehicleId: this.selectedVehicleId,
+        driverId: this.selectedDriverId,
+        search: this.search.trim() || null,
+        todayOnly: this.todayOnly,
+        tomorrowOnly: this.tomorrowOnly,
+        upcoming: this.upcomingOnly
+      }
+    };
+    this.savedFilters = [...this.savedFilters.filter(f => f.name !== preset.name), preset];
+    localStorage.setItem(TRIP_SAVED_FILTERS_KEY, JSON.stringify(this.savedFilters));
+    this.toast.success('Filter saved.');
+  }
+
+  applySavedFilter(filter: TripSavedFilter): void {
+    const q = filter.query;
+    this.status = (q['status'] as string) || '';
+    this.statusGroup = (q['statusGroup'] as TripStatusGroup | '') || '';
+    this.selectedVehicleId = q['vehicleId'] != null ? Number(q['vehicleId']) : null;
+    this.selectedDriverId = q['driverId'] != null ? Number(q['driverId']) : null;
+    this.search = (q['search'] as string) || '';
+    this.todayOnly = q['todayOnly'] === true;
+    this.tomorrowOnly = q['tomorrowOnly'] === true;
+    this.upcomingOnly = q['upcoming'] === true;
+    this.syncQueryParams({ resetPage: true });
+  }
+
+  smartAssignTrip(row: TripListItem, event: Event): void {
+    event.stopPropagation();
+    this.smartAssignBusyId = row.id;
+    this.smartAssign.autoAssign(row.id).subscribe({
+      next: () => {
+        this.smartAssignBusyId = null;
+        this.toast.success('Smart assignment applied.');
+        this.load();
+      },
+      error: err => {
+        this.smartAssignBusyId = null;
+        this.toast.error(apiErrorMessage(err, 'Smart assign failed.'));
+      }
+    });
+  }
+
+  cloneTrip(row: TripListItem, event: Event): void {
+    event.stopPropagation();
+    this.trips.clone(row.id).subscribe({
+      next: id => {
+        this.toast.success('Trip cloned.');
+        this.router.navigate(['/trips', id]);
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Clone failed.'))
+    });
+  }
+
+  spawnRecurring(): void {
+    this.trips.spawnDueRecurring().subscribe({
+      next: count => {
+        if (count > 0) {
+          this.toast.success(`Spawned ${count} recurring trip(s).`);
+          this.load(true);
+        } else {
+          this.toast.info('No recurring templates are due today.');
+        }
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Recurring spawn failed.'))
+    });
+  }
+
+  private loadSavedFilters(): void {
+    try {
+      const raw = localStorage.getItem(TRIP_SAVED_FILTERS_KEY);
+      this.savedFilters = raw ? (JSON.parse(raw) as TripSavedFilter[]) : [];
+    } catch {
+      this.savedFilters = [];
+    }
   }
 }

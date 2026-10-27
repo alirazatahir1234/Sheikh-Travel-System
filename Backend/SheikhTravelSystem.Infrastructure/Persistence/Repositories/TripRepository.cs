@@ -79,14 +79,16 @@ public sealed class TripRepository(
                     DestinationAddress, DestinationLatitude, DestinationLongitude,
                     TripDate, PlannedStart, PlannedEnd, EstimatedDurationMinutes,
                     DriverId, AssistantDriverId, VehicleId, PassengerCount, Priority, Status,
-                    DriverNotes, PlannedDistanceKm, CreatedAt, CreatedBy, IsDeleted)
+                    DriverNotes, PlannedDistanceKm, SpecialCargoFlags, EstimatedRevenue,
+                    CreatedAt, CreatedBy, IsDeleted)
                 VALUES (
                     @TenantId, '', @BookingId, @CustomerId, @RouteId, @TripName, @TripType,
                     @PickupAddress, @PickupLatitude, @PickupLongitude,
                     @DestinationAddress, @DestinationLatitude, @DestinationLongitude,
                     @TripDate, @PlannedStart, @PlannedEnd, @EstimatedDurationMinutes,
                     @DriverId, @AssistantDriverId, @VehicleId, @PassengerCount, @Priority, @Status,
-                    @DriverNotes, @PlannedDistanceKm, GETUTCDATE(), @CreatedBy, 0);
+                    @DriverNotes, @PlannedDistanceKm, @SpecialCargoFlags, @EstimatedRevenue,
+                    GETUTCDATE(), @CreatedBy, 0);
                 SELECT CAST(SCOPE_IDENTITY() AS INT);
                 """,
                 new
@@ -115,6 +117,8 @@ public sealed class TripRepository(
                     Status = (int)initialStatus,
                     dto.DriverNotes,
                     dto.PlannedDistanceKm,
+                    dto.SpecialCargoFlags,
+                    dto.EstimatedRevenue,
                     CreatedBy = actor
                 },
                 transaction: tx,
@@ -185,7 +189,9 @@ public sealed class TripRepository(
                     DestinationAddress = @DestinationAddress, DestinationLatitude = @DestinationLatitude, DestinationLongitude = @DestinationLongitude,
                     TripDate = @TripDate, PlannedStart = @PlannedStart, PlannedEnd = @PlannedEnd,
                     EstimatedDurationMinutes = @EstimatedDurationMinutes, PlannedDistanceKm = @PlannedDistanceKm,
-                    DriverNotes = @DriverNotes, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
+                    DriverNotes = @DriverNotes, SpecialCargoFlags = @SpecialCargoFlags,
+                    EstimatedRevenue = @EstimatedRevenue,
+                    UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
                 WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
                 """,
                 new
@@ -210,6 +216,8 @@ public sealed class TripRepository(
                     dto.EstimatedDurationMinutes,
                     dto.PlannedDistanceKm,
                     dto.DriverNotes,
+                    dto.SpecialCargoFlags,
+                    dto.EstimatedRevenue,
                     UpdatedBy = currentUser.UserId?.ToString()
                 },
                 transaction: tx,
@@ -1064,6 +1072,7 @@ public sealed class TripRepository(
                    t.PassengerCount, t.Priority, t.Status, t.DriverNotes,
                    t.PlannedDistanceKm, t.ActualDistanceKm, t.ActualStart, t.ActualEnd,
                    t.CancellationReason, t.CreatedAt,
+                   t.SpecialCargoFlags, t.EstimatedRevenue,
                    CAST(CASE WHEN t.VehicleId IS NOT NULL AND EXISTS (
                        SELECT 1 FROM GpsDevices gd
                        WHERE gd.VehicleId = t.VehicleId AND gd.IsDeleted = 0
@@ -1140,7 +1149,8 @@ public sealed class TripRepository(
             (TripPriority)row.Priority, (TripStatus)row.Status, row.DriverNotes,
             row.PlannedDistanceKm, row.ActualDistanceKm, row.ActualStart, row.ActualEnd,
             row.CancellationReason, row.GpsOnline, row.CreatedAt, stops, timeline,
-            expenses, Array.Empty<TripDocumentDto>(), passengers, openAlerts);
+            expenses, Array.Empty<TripDocumentDto>(), passengers, openAlerts,
+            row.SpecialCargoFlags, row.EstimatedRevenue);
 
         return new TripDetailLoadResult(detail, docs);
     }
@@ -1670,6 +1680,8 @@ public sealed class TripRepository(
         public string? CancellationReason { get; init; }
         public bool GpsOnline { get; init; }
         public DateTime CreatedAt { get; init; }
+        public string? SpecialCargoFlags { get; init; }
+        public decimal? EstimatedRevenue { get; init; }
     }
 
     private sealed class TripRouteRow

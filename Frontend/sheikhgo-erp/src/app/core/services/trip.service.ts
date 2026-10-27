@@ -1,8 +1,17 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { PagedResult } from '../models/common.model';
+import { ApiResponse, PagedResult } from '../models/common.model';
+import {
+  BulkTripImportResult,
+  TripAssignmentConflict,
+  TripCostEstimate,
+  TripCostEstimateRequest,
+  TripInsights,
+  TripTemplate,
+  UpsertTripTemplate
+} from '../models/trip-enhancements.model';
 import {
   CreateTripDto,
   TripAnalytics,
@@ -143,4 +152,72 @@ export class TripService {
   deleteDocument(tripId: number, documentId: number): Observable<boolean> {
     return this.http.delete<boolean>(`${this.base}/${tripId}/documents/${documentId}`);
   }
+
+  clone(id: number): Observable<number> {
+    return this.http.post<ApiResponse<number>>(`${this.base}/${id}/clone`, {}).pipe(map(unwrap));
+  }
+
+  bulkImportCsv(csvContent: string): Observable<BulkTripImportResult> {
+    return this.http
+      .post<ApiResponse<BulkTripImportResult>>(`${this.base}/import`, { csvContent })
+      .pipe(map(unwrap));
+  }
+
+  getInsights(id: number): Observable<TripInsights> {
+    return this.http.get<ApiResponse<TripInsights>>(`${this.base}/${id}/insights`).pipe(map(unwrap));
+  }
+
+  estimateCost(body: TripCostEstimateRequest): Observable<TripCostEstimate> {
+    return this.http.post<ApiResponse<TripCostEstimate>>(`${this.base}/estimate-cost`, body).pipe(map(unwrap));
+  }
+
+  getAssignmentConflict(tripId: number, driverId?: number | null, vehicleId?: number | null): Observable<TripAssignmentConflict> {
+    let params = new HttpParams();
+    if (driverId != null) params = params.set('driverId', driverId);
+    if (vehicleId != null) params = params.set('vehicleId', vehicleId);
+    return this.http
+      .get<ApiResponse<TripAssignmentConflict>>(`${this.base}/${tripId}/assignment-conflict`, { params })
+      .pipe(map(unwrap));
+  }
+
+  sendDelayedEta(tripId: number, channel: 'email' | 'whatsapp', customMessage?: string): Observable<boolean> {
+    return this.http
+      .post<ApiResponse<boolean>>(`${this.base}/${tripId}/delayed-eta`, { channel, customMessage })
+      .pipe(map(unwrap));
+  }
+
+  moveDispatchBoard(tripId: number, targetColumnKey: string): Observable<boolean> {
+    return this.http
+      .post<ApiResponse<boolean>>(`${this.base}/dispatch-board/move`, { tripId, targetColumnKey })
+      .pipe(map(unwrap));
+  }
+
+  listTemplates(): Observable<TripTemplate[]> {
+    return this.http.get<ApiResponse<TripTemplate[]>>(`${this.base}/templates`).pipe(map(r => unwrap(r) ?? []));
+  }
+
+  saveTemplate(body: UpsertTripTemplate): Observable<number> {
+    return this.http.post<ApiResponse<number>>(`${this.base}/templates`, body).pipe(map(unwrap));
+  }
+
+  deleteTemplate(id: number): Observable<boolean> {
+    return this.http.delete<ApiResponse<boolean>>(`${this.base}/templates/${id}`).pipe(map(unwrap));
+  }
+
+  spawnFromTemplate(templateId: number, date?: string): Observable<number> {
+    let params = new HttpParams();
+    if (date) params = params.set('date', date);
+    return this.http
+      .post<ApiResponse<number>>(`${this.base}/templates/${templateId}/spawn`, {}, { params })
+      .pipe(map(unwrap));
+  }
+
+  spawnDueRecurring(): Observable<number> {
+    return this.http.post<ApiResponse<number>>(`${this.base}/templates/spawn-due`, {}).pipe(map(unwrap));
+  }
+}
+
+function unwrap<T>(r: ApiResponse<T>): T {
+  if (!r?.success) throw new Error(r?.message || 'Request failed');
+  return r.data as T;
 }
