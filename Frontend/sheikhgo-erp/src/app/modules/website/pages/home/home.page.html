@@ -120,6 +120,30 @@
   </div>
 </section>
 
+<section class="section news-announcements" id="news" aria-labelledby="home-news-heading">
+  <div class="container">
+    <header class="section-head news-head">
+      <span class="section-kicker">{{ 'home.news.kicker' | wsTranslate }}</span>
+      <h2 id="home-news-heading" class="section-title">{{ 'home.news.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.news.lead' | wsTranslate }}</p>
+      <a routerLink="/news" class="btn btn-outline news-all-link">{{ 'home.news.viewAll' | wsTranslate }}</a>
+    </header>
+    <div class="news-grid">
+      @for (item of newsPreview; track item.id) {
+        <article class="news-card">
+          <div class="news-card-meta">
+            <span class="news-tag">{{ item.category }}</span>
+            <time>{{ item.date }}</time>
+          </div>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.excerpt }}</p>
+          <a routerLink="/news" class="news-card-link">{{ 'home.news.cardLink' | wsTranslate }}</a>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
 <section class="section nexus-modules-showcase" id="platform-modules" aria-labelledby="platform-modules-heading">
   <div class="container">
     <header class="section-head">

@@ -1,0 +1,27 @@
+<section class="page-hero news-hero">
+  <div class="container">
+    <span class="section-kicker">{{ 'news.kicker' | wsTranslate }}</span>
+    <h1>{{ 'news.title' | wsTranslate }}</h1>
+    <p>{{ 'news.lead' | wsTranslate }}</p>
+  </div>
+</section>
+
+<section class="section news-list-section">
+  <div class="container">
+    <div class="news-grid news-grid--page">
+      @for (item of items; track item.id) {
+        <article class="news-card">
+          <div class="news-card-meta">
+            <span class="news-tag">{{ item.category }}</span>
+            <time>{{ item.date }}</time>
+          </div>
+          <h2>{{ item.title }}</h2>
+          <p>{{ item.excerpt }}</p>
+          <a routerLink="/request-demo" class="news-card-link">{{ 'news.readCta' | wsTranslate }}</a>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<app-cta-band />
