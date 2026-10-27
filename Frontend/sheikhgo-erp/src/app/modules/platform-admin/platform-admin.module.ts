@@ -24,6 +24,8 @@ import { MigrationManagerComponent } from './migration-manager/migration-manager
 import { DatabaseResetComponent } from './database-reset/database-reset.component';
 import { ResetDatabaseDialogComponent } from './database-reset/reset-database-dialog.component';
 import { PlatformHubComponent } from './platform-hub/platform-hub.component';
+import { FatiguePlatformPageComponent } from './fatigue-platform/fatigue-platform-page.component';
+import { FuelFraudPlatformPageComponent } from './fuel-fraud-platform/fuel-fraud-platform-page.component';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
 import { UiPageHeaderComponent } from '../../shared/components/ui/page-header/ui-page-header.component';
 import { UiDataTableComponent } from '../../shared/components/ui/data-table/ui-data-table.component';
@@ -168,6 +170,18 @@ const routes: Routes = [
     data: { permissions: ['Platform.Gps.Control.View', 'Platform.Gps.Manufacturers.Manage', 'Platform.Gps.Models.Manage'] }
   },
   {
+    path: 'fatigue-events',
+    component: FatiguePlatformPageComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Tenants.View'] }
+  },
+  {
+    path: 'fuel-fraud-events',
+    component: FuelFraudPlatformPageComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Tenants.View'] }
+  },
+  {
     path: 'subscription-management',
     component: SubscriptionManagementComponent,
     canActivate: [permissionGuard],
@@ -225,7 +239,9 @@ const routes: Routes = [
     UiPageHeaderComponent,
     UiDataTableComponent,
     UiTableCellDirective,
-    UiSelectComponent
+    UiSelectComponent,
+    FatiguePlatformPageComponent,
+    FuelFraudPlatformPageComponent
   ]
 })
 export class PlatformAdminModule {}

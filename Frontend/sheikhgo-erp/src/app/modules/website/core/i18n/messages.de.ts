@@ -177,6 +177,20 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.driverVoice.offlineTitle': 'Warteschlange offline',
   'home.driverVoice.offlineText':
     'Spracheingaben nutzen dieselbe Offline-Outbox wie Fahrten und Anwesenheit — Sync mit Client-Operations-IDs.',
+  'home.pill.fatigueDetection': 'Müdigkeitserkennung',
+  'home.fatigueDetection.kicker': 'Sicherheit · Kamera + OBD',
+  'home.fatigueDetection.title': 'Müdigkeitserkennung mit Fahrer-Bestätigung',
+  'home.fatigueDetection.lead':
+    'Dashcam- oder Smartphone-Kamera-Prototypen erkennen schläfrige Augen und Gesichtssignale; OBD-II-Daten zu Tempo und Bremsen liefern unterstützende Signale. Fahrer bestätigen Wachheit in der App; Eskalation kann Buzzer und sichere Stopp-Befehle an unterstützte Tracker senden.',
+  'home.fatigueDetection.cameraTitle': 'Augen- & Gesichts-Prototyp',
+  'home.fatigueDetection.cameraText':
+    'On-Device ML Kit / OpenCV-Landmarks mit EAR-Heuristik speisen dieselbe Alert-API wie externe Dashcam-KI — Produktionsmodelle bleiben Aufgabe eines Spezialteams.',
+  'home.fatigueDetection.obdTitle': 'OBD-Unterstützungssignale',
+  'home.fatigueDetection.obdText':
+    'Geschwindigkeit, harte Bremsungen und längeres Hochtempo erhöhen den Composite-Risk-Score neben vorhandenen Fahrer-Risiko-Vorhersagen.',
+  'home.fatigueDetection.opsTitle': 'Bestätigungsfenster & Auto-Stop',
+  'home.fatigueDetection.opsText':
+    'Flottenmanager sehen Mandanten-Events mit Risk-Scores; Super-Admins alle Unternehmen. Verpasste Bestätigung eskaliert über GPS-Gerätebefehle.',
   'home.driverOffline.kicker': 'Fahrer-App · Ausfallsicherheit',
   'home.driverOffline.title': 'Offline-Modus mit idempotentem Sync',
   'home.driverOffline.lead':
@@ -304,6 +318,13 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.fuel.feature.logs.title': 'Tankbelege & Quittungen',
   'pages.fuel.feature.logs.text':
     'Fahrer reichen Belege per App ein; Disponenten erfassen Liter, Kosten und Kilometerstand im ERP.',
+  'pages.fuel.feature.fraud.title': 'Intelligente Kraftstoffbetrugs-Erkennung',
+  'pages.fuel.feature.fraud.text':
+    'Fahrer erfassen Liter an der Zapfsäule; beim Verlassen der Tankstelle vergleicht Nexus die Bestellung mit der echten OBD-Tankfüllungs-Erhöhung und alarmiert Flottenmanager bei Fehlmengen — Fahrzeug, Standort, fehlende Liter.',
+  'home.capability.fuelFraud.title': 'Kraftstoffbetrugs-Erkennung',
+  'home.capability.fuelFraud.text':
+    'Zapfsäulen-Bestellung vs. OBD-Tankstand — sofortige Alerts, wenn bestellte Liter in der Telemetrie fehlen.',
+  'home.capability.fuelFraud.linkLabel': 'Kraftstoffmanagement',
   'pages.fuel.integrationKicker': 'Integration',
   'pages.fuel.integrationTitle': 'Echte Hardware, echte Felder',
   'pages.fuel.integrationLead':
@@ -311,6 +332,7 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.fuel.integration.obd': 'Traccar: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
   'pages.fuel.integration.station': 'Alert-Typ fuel_station_stop (GPS-Stopp + POI-Nähe)',
   'pages.fuel.integration.receipts': 'FuelLogs-API + Fahrer-Quittungen zur Plausibilisierung',
+  'pages.fuel.integration.fraud': 'Alert-Typ fuel_fraud — Zapfsäulen-Bestellung vs. OBD FuelLevel-Delta (Tankkapazität erforderlich)',
 
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'KI-Lösungen',
@@ -412,6 +434,20 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.predictiveMaintenance.f2.text': 'Push über die bestehende Notification-Pipeline bei fälligem Fahrzeug.',
   'pages.predictiveMaintenance.f3.title': 'Aus Alert planen',
   'pages.predictiveMaintenance.f3.text': 'Direkt in den Service-Scheduler mit vorgewähltem Fahrzeug.',
+
+  'pages.accidentRisk.kicker': 'Sicherheitsintelligenz',
+  'pages.accidentRisk.title': 'Predictive Unfallrisiko-Scores',
+  'pages.accidentRisk.tagline': 'Erkennen Sie Fahrer und Routen, die vor einem Vorfall Aufmerksamkeit brauchen.',
+  'pages.accidentRisk.lead':
+    'Regelbasierte Scores aus Unfällen, GPS-Geschwindigkeitsalarmen, Müdigkeitssignalen (wenn Kamera aktiv) und Routenschwierigkeit. Hohes Risiko löst proaktive Smart Alerts für Admins aus.',
+  'pages.accidentRisk.f1.title': 'Unfallhistorie',
+  'pages.accidentRisk.f1.text': 'Fahrerverstöße und buchungsbezogene Vorfälle als transparenter Faktor — kein Black-Box-ML.',
+  'pages.accidentRisk.f2.title': 'Geschwindigkeitsverstöße',
+  'pages.accidentRisk.f2.text': 'Overspeed aus GpsAlertEvents und Fahrerverstößen im Admin-Dashboard sichtbar.',
+  'pages.accidentRisk.f3.title': 'Müdigkeitssignale',
+  'pages.accidentRisk.f3.text': 'Bei aktiver Müdigkeitserkennung erhöhen Kamera-/API-Events das Fahrerrisiko mit Faktoren.',
+  'pages.accidentRisk.f4.title': 'Routenschwierigkeit',
+  'pages.accidentRisk.f4.text': 'Lange Strecken plus historische Vorfälle und Overspeed ergeben Routen-Scores für die Disposition.',
 
   'pages.clientTracking.kicker': 'Kundenerlebnis',
   'pages.clientTracking.title': 'Teilbare Tracking-Links',

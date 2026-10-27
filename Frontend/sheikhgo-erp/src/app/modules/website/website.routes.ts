@@ -43,6 +43,11 @@ export const WEBSITE_ROUTES: Routes = [
           import('./pages/predictive-maintenance/predictive-maintenance.page').then(m => m.PredictiveMaintenancePage),
       },
       {
+        path: 'accident-risk',
+        loadComponent: () =>
+          import('./pages/accident-risk/accident-risk.page').then(m => m.AccidentRiskPage),
+      },
+      {
         path: 'client-tracking',
         loadComponent: () =>
           import('./pages/client-tracking/client-tracking.page').then(m => m.ClientTrackingPage),

@@ -1,0 +1,121 @@
+<div class="page-header">
+  <div>
+    <h1>Accident risk scores</h1>
+    <p class="lead">
+      Predictive risk from past accidents, speed violations, fatigue events, and route difficulty.
+      High-risk drivers and routes raise proactive Smart Alerts for admins.
+    </p>
+  </div>
+</div>
+
+@if (dashboard) {
+  <div class="kpi-strip">
+    <div class="kpi"><span class="kpi-val">{{ dashboard.highRiskDriverCount }}</span><span class="kpi-label">High-risk drivers</span></div>
+    <div class="kpi"><span class="kpi-val">{{ dashboard.highRiskRouteCount }}</span><span class="kpi-label">High-risk routes</span></div>
+  </div>
+}
+
+<div class="toolbar">
+  <label>
+    Period
+    <select [(ngModel)]="datePreset" (ngModelChange)="applyPreset($event); load()">
+      @for (p of datePresets; track p.id) {
+        <option [ngValue]="p.id">{{ p.label }}</option>
+      }
+    </select>
+  </label>
+  <div class="tabs">
+    <button type="button" [class.active]="tab === 'drivers'" (click)="tab = 'drivers'">Drivers</button>
+    <button type="button" [class.active]="tab === 'routes'" (click)="tab = 'routes'">Routes</button>
+  </div>
+  <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
+</div>
+
+@if (dateRangeError) {
+  <p class="error">{{ dateRangeError }}</p>
+}
+@if (loadError) {
+  <p class="error">{{ loadError }} <button mat-button (click)="load()">Retry</button></p>
+}
+
+@if (loading) {
+  <p>Loading risk scores…</p>
+} @else if (tab === 'drivers') {
+  <table class="rank-table">
+    <thead>
+      <tr>
+        <th>Driver</th>
+        <th class="num">Risk</th>
+        <th>Band</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of drivers; track r.driverId) {
+        <tr [class.high]="r.isHighRisk">
+          <td>{{ r.driverName }}</td>
+          <td class="num"><strong>{{ r.riskScore }}</strong>/100</td>
+          <td><span class="band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span></td>
+          <td><button mat-button type="button" (click)="toggleDriver(r.driverId)">Factors</button></td>
+        </tr>
+        @if (expandedDriverId === r.driverId) {
+          <tr class="factors-row">
+            <td colspan="4">
+              <ul class="factors">
+                @for (f of r.factors; track f.key) {
+                  <li>
+                    <strong>{{ f.label }}</strong> (+{{ f.points }} pts) — {{ f.detail }}
+                  </li>
+                }
+              </ul>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+  @if (!drivers.length) {
+    <p class="muted">No active drivers to score in this tenant.</p>
+  }
+} @else {
+  <table class="rank-table">
+    <thead>
+      <tr>
+        <th>Route</th>
+        <th class="num">Km</th>
+        <th class="num">Trips</th>
+        <th class="num">Risk</th>
+        <th>Band</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of routes; track r.routeId) {
+        <tr [class.high]="r.isHighRisk">
+          <td>{{ r.routeLabel }}</td>
+          <td class="num">{{ r.distanceKm | number:'1.0-0' }}</td>
+          <td class="num">{{ r.tripCountInPeriod }}</td>
+          <td class="num"><strong>{{ r.riskScore }}</strong>/100</td>
+          <td><span class="band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span></td>
+          <td><button mat-button type="button" (click)="toggleRoute(r.routeId)">Factors</button></td>
+        </tr>
+        @if (expandedRouteId === r.routeId) {
+          <tr class="factors-row">
+            <td colspan="6">
+              <ul class="factors">
+                @for (f of r.factors; track f.key) {
+                  <li>
+                    <strong>{{ f.label }}</strong> (+{{ f.points }} pts) — {{ f.detail }}
+                  </li>
+                }
+              </ul>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+  @if (!routes.length) {
+    <p class="muted">No active routes configured.</p>
+  }
+}

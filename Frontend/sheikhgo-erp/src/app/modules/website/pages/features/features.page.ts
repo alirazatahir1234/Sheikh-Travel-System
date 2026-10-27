@@ -55,6 +55,7 @@ export class FeaturesPage implements OnInit {
     { title: 'Driver Management', text: 'Profiles, duty status, performance and history.', link: '/features' },
     { title: 'Trip Management', text: 'Create, monitor and complete trips with GPS context.', link: '/features' },
     { title: 'Predictive Maintenance', text: 'Mileage-based service before breakdowns; driver reminders.', link: '/predictive-maintenance' },
+    { title: 'Accident risk scores', text: 'Driver and route risk from accidents, speed, fatigue, and route difficulty.', link: '/accident-risk' },
     { title: 'Client Tracking Links', text: 'Tokenized public shipment tracking — mobile-friendly.', link: '/client-tracking' },
     { title: 'Electric fleet', text: 'Battery %, charging sites, range alerts, EV-aware assignment.', link: '/electric-fleet' },
     { title: 'Document tracker', text: 'Insurance, registration, fitness expiry and renewal alerts.', link: '/document-tracker' },

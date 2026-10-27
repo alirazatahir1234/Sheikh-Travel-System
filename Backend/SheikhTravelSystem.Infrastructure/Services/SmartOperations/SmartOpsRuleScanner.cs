@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.SmartOps;
 using SheikhTravelSystem.Domain.Enums;
+using AccidentRiskScanner = SheikhTravelSystem.Infrastructure.Services.AccidentRisk.AccidentRiskProactiveScanner;
 
 namespace SheikhTravelSystem.Infrastructure.Services.SmartOperations;
 
@@ -12,6 +13,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.SmartOperations;
 public class SmartOpsRuleScanner(
     IDbConnectionFactory dbFactory,
     ISmartAlertService smartAlerts,
+    AccidentRiskScanner accidentRiskScanner,
     ILogger<SmartOpsRuleScanner> logger)
 {
     public async Task ScanAllTenantsAsync(CancellationToken cancellationToken)
@@ -56,6 +58,7 @@ public class SmartOpsRuleScanner(
         await ScanUnassignedTripsAsync(tenantId, asOf, cancellationToken);
         await ScanOverdueInvoicesAsync(tenantId, asOf, cancellationToken);
         await ScanFuelAnomaliesAsync(tenantId, asOf, cancellationToken);
+        await accidentRiskScanner.ScanTenantAsync(tenantId, cancellationToken);
     }
 
     private async Task ScanMaintenanceDueAsync(int tenantId, DateTime asOf, CancellationToken ct)

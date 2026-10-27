@@ -100,6 +100,17 @@ const routes: Routes = [
     ],
   },
   {
+    path: 'accident-risk',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/accident-risk/accident-risk.page').then(m => m.AccidentRiskPage),
+      },
+    ],
+  },
+  {
     path: 'client-tracking',
     component: WebsiteShellComponent,
     children: [

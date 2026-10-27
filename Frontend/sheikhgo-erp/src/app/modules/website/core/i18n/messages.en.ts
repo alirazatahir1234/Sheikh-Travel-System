@@ -222,6 +222,20 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.driverVoice.offlineTitle': 'Queues when offline',
   'home.driverVoice.offlineText':
     'Voice submissions join the same offline outbox as trips and attendance—synced with client operation IDs when connectivity returns.',
+  'home.pill.fatigueDetection': 'Fatigue detection',
+  'home.fatigueDetection.kicker': 'Safety · Camera + OBD',
+  'home.fatigueDetection.title': 'Fatigue detection with driver acknowledgment',
+  'home.fatigueDetection.lead':
+    'Dashcam or phone camera prototypes detect drowsy eyes and face cues; OBD-II speed and braking patterns add supporting context. Drivers confirm alertness in-app; escalation can buzz the cab and queue safe stop commands on supported trackers.',
+  'home.fatigueDetection.cameraTitle': 'Eye & face prototype',
+  'home.fatigueDetection.cameraText':
+    'On-device ML Kit / OpenCV-style landmarks with EAR blink heuristics feed the same alert API as external dashcam AI—production-grade models remain a specialized team deliverable.',
+  'home.fatigueDetection.obdTitle': 'OBD supporting signals',
+  'home.fatigueDetection.obdText':
+    'Speed, harsh braking, and prolonged high-speed patterns enrich composite risk alongside existing driver risk predictions.',
+  'home.fatigueDetection.opsTitle': 'Ack window & auto-stop',
+  'home.fatigueDetection.opsText':
+    'Fleet managers see tenant-scoped events with risk scores; super admins see all companies. Missed acks escalate through configurable stages to GPS device commands.',
   'home.driverOffline.kicker': 'Driver app · Resilience',
   'home.driverOffline.title': 'Offline mode with idempotent sync',
   'home.driverOffline.lead':
@@ -351,6 +365,13 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.fuel.feature.logs.title': 'Fuel logs & driver receipts',
   'pages.fuel.feature.logs.text':
     'Drivers submit receipts from the mobile app; dispatchers reconcile liters, cost, and odometer in the ERP Fuel module.',
+  'pages.fuel.feature.fraud.title': 'Intelligent fuel fraud detection',
+  'pages.fuel.feature.fraud.text':
+    'Drivers log liters at the pump; when the vehicle leaves the station, Nexus compares the order to real OBD fuel-level increase and alerts fleet managers if fuel is short — vehicle, station, and liters missing.',
+  'home.capability.fuelFraud.title': 'Fuel fraud detection',
+  'home.capability.fuelFraud.text':
+    'Pump order vs OBD tank level — instant alerts when ordered liters do not show up in telemetry.',
+  'home.capability.fuelFraud.linkLabel': 'Fuel management',
   'pages.fuel.integrationKicker': 'Integration',
   'pages.fuel.integrationTitle': 'Real hardware, real fields',
   'pages.fuel.integrationLead':
@@ -358,6 +379,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.fuel.integration.obd': 'Traccar attributes: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
   'pages.fuel.integration.station': 'Alert type fuel_station_stop (GPS stop + POI proximity)',
   'pages.fuel.integration.receipts': 'FuelLogs API + driver fuel-receipts for manual fill verification',
+  'pages.fuel.integration.fraud': 'Alert type fuel_fraud — driver pump-order vs OBD FuelLevel delta (requires tank capacity)',
 
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'AI Solutions',
@@ -459,6 +481,20 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.predictiveMaintenance.f2.text': 'When a assigned vehicle is due, drivers receive maintenance notifications through the existing push pipeline.',
   'pages.predictiveMaintenance.f3.title': 'Schedule from alerts',
   'pages.predictiveMaintenance.f3.text': 'Jump from a predictive card into the service scheduler with the vehicle pre-selected.',
+
+  'pages.accidentRisk.kicker': 'Safety intelligence',
+  'pages.accidentRisk.title': 'Predictive accident risk scores',
+  'pages.accidentRisk.tagline': 'See which drivers and routes need attention before an incident.',
+  'pages.accidentRisk.lead':
+    'Rule-based scores combine logged accidents, GPS overspeed alerts, fatigue events (when camera integration is enabled), and route difficulty. High-risk rows trigger proactive Smart Alerts for fleet admins in ERP.',
+  'pages.accidentRisk.f1.title': 'Accident history',
+  'pages.accidentRisk.f1.text': 'Driver violations and booking-linked incidents feed a transparent accident factor — not a black-box ML score.',
+  'pages.accidentRisk.f2.title': 'Speed violations',
+  'pages.accidentRisk.f2.text': 'Overspeed from GpsAlertEvents and driver violations roll into the same risk model used on the admin dashboard.',
+  'pages.accidentRisk.f3.title': 'Fatigue signals',
+  'pages.accidentRisk.f3.text': 'When fatigue detection is active, camera or API fatigue events increase driver risk with clear contributing factors.',
+  'pages.accidentRisk.f4.title': 'Route difficulty',
+  'pages.accidentRisk.f4.text': 'Long corridors plus historical incidents and overspeed on that route produce per-route scores for dispatch planning.',
 
   'pages.clientTracking.kicker': 'Customer experience',
   'pages.clientTracking.title': 'Shareable client tracking links',

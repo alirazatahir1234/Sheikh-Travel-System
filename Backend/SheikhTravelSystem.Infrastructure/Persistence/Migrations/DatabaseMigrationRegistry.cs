@@ -72,6 +72,7 @@ public static class DatabaseMigrationRegistry
             M("TripsPhase4Migration", TripsPhase4Migration.ApplyAsync),
             M("DriverAppSosMigration", DriverAppSosMigration.ApplyAsync),
             M("SosAutoDispatchMigration", SosAutoDispatchMigration.ApplyAsync),
+            M("FatigueDetectionMigration", FatigueDetectionMigration.ApplyAsync),
             M("DriverMobileSyncMigration", DriverMobileSyncMigration.ApplyAsync),
             M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
             M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),
@@ -145,11 +146,13 @@ public static class DatabaseMigrationRegistry
             M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
             M("FuelObdTelemetryMigration", FuelObdTelemetryMigration.ApplyAsync),
             M("FuelStationAlertModuleMigration", FuelStationAlertModuleMigration.ApplyAsync),
+            M("FuelFraudDetectionMigration", FuelFraudDetectionMigration.ApplyAsync),
             M("TripSmartAssignmentMigration", TripSmartAssignmentMigration.ApplyAsync),
             M("FleetEvAnomalyMigration", FleetEvAnomalyMigration.ApplyAsync),
             M("ClientTripBillingMigration", ClientTripBillingMigration.ApplyAsync),
             M("TrackerAnnualSubscriptionMigration", TrackerAnnualSubscriptionMigration.ApplyAsync),
             M("SubscriptionBillingLifecycleMigration", SubscriptionBillingLifecycleMigration.ApplyAsync),
+            M("FatigueDetectionMigration", FatigueDetectionMigration.ApplyAsync),
         ];
     }
 }

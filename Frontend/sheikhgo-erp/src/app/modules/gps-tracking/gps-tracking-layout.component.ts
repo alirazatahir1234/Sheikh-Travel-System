@@ -28,6 +28,7 @@ export class GpsTrackingLayoutComponent {
     { label: 'Commands', icon: 'power_settings_new', route: 'commands', permission: 'Gps.CommandView' },
     { label: 'Analytics', icon: 'insights', route: 'analytics' },
     { label: 'Driver Performance', icon: 'speed', route: 'driver-performance' },
+    { label: 'Accident risk', icon: 'health_and_safety', route: 'accident-risk', permission: 'Gps.AlertView' },
     { label: 'Client Links', icon: 'link', route: 'client-tracking-links' }
   ];
 

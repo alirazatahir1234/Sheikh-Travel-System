@@ -178,6 +178,20 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.driverVoice.offlineTitle': 'طابور عند انقطاع الشبكة',
   'home.driverVoice.offlineText':
     'تنضم أوامر الصوت إلى نفس قائمة الانتظار دون اتصال مثل الرحلات والحضور — مع مزامنة بمعرّفات عمليات العميل.',
+  'home.pill.fatigueDetection': 'كشف التعب',
+  'home.fatigueDetection.kicker': 'السلامة · كاميرا + OBD',
+  'home.fatigueDetection.title': 'كشف التعب مع تأكيد السائق',
+  'home.fatigueDetection.lead':
+    'نماذج كاميرا الهاتف أو dashcam تكتشف عيوناً نعسانة وإشارات الوجه؛ بيانات OBD-II للسرعة والفرملة تضيف سياقاً داعماً. يؤكد السائق يقظته في التطبيق؛ التصعيد يمكن أن ينبه المقصورة وي queued أوامر التوقف الآمن على أجهزة التتبع المدعومة.',
+  'home.fatigueDetection.cameraTitle': 'نموذج العين والوجه',
+  'home.fatigueDetection.cameraText':
+    'معالم ML Kit / OpenCV مع heuristics EAR تغذي نفس واجهة التنبيه مثل AI الكاميرا الخارجية — النماذج الإنتاجية الكاملة لفريق متخصص.',
+  'home.fatigueDetection.obdTitle': 'إشارات OBD داعمة',
+  'home.fatigueDetection.obdText':
+    'السرعة والفرملة العنيفة والسرعة العالية الم prolonged ت enrich المخاطر المركبة مع تنبؤات مخاطر السائق.',
+  'home.fatigueDetection.opsTitle': 'نافذة التأكيد والتوقف',
+  'home.fatigueDetection.opsText':
+    'مديرو الأسطول يرون أحداث tenant مع درجات المخاطر؛ المشرف الأعلى يرى كل الشركات. التأخر في التأكيد يصعّد إلى أوامر GPS.',
   'home.driverOffline.kicker': 'تطبيق السائق · المرونة',
   'home.driverOffline.title': 'وضع دون اتصال مع مزامنة idempotent',
   'home.driverOffline.lead':
@@ -299,6 +313,13 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.fuel.feature.logs.title': 'سجلات الوقود وإيصالات السائق',
   'pages.fuel.feature.logs.text':
     'يرسل السائقون الإيصالات من التطبيق؛ يسجل المشغّل اللترات والتكلفة والعداد في ERP.',
+  'pages.fuel.feature.fraud.title': 'كشف احتيال الوقود الذكي',
+  'pages.fuel.feature.fraud.text':
+    'يسجّل السائق اللترات عند المضخة؛ عند مغادرة المحطة يقارن Nexus الطلب بزيادة مستوى OBD الحقيقية وينبه مدير الأسطول عند النقص — رقم المركبة والمحطة واللترات الناقصة.',
+  'home.capability.fuelFraud.title': 'كشف احتيال الوقود',
+  'home.capability.fuelFraud.text':
+    'طلب المضخة مقابل مستوى الخزان من OBD — تنبيه فوري عندما لا تظهر اللترات المطلوبة في القراءات.',
+  'home.capability.fuelFraud.linkLabel': 'إدارة الوقود',
   'pages.fuel.integrationKicker': 'التكامل',
   'pages.fuel.integrationTitle': 'أجهزة حقيقية، حقول حقيقية',
   'pages.fuel.integrationLead':
@@ -306,6 +327,7 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.fuel.integration.obd': 'سمات Traccar: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
   'pages.fuel.integration.station': 'نوع التنبيه fuel_station_stop (توقف GPS + قرب POI)',
   'pages.fuel.integration.receipts': 'واجهة FuelLogs + إيصالات السائق للتحقق',
+  'pages.fuel.integration.fraud': 'نوع التنبيه fuel_fraud — طلب المضخة مقابل فرق FuelLevel من OBD (يتطلب سعة الخزان)',
 
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'حلول الذكاء الاصطناعي',
@@ -407,6 +429,20 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.predictiveMaintenance.f2.text': 'إشعارات push/in-app عند استحقاق مركبة م assigned.',
   'pages.predictiveMaintenance.f3.title': 'جدولة من التنبيه',
   'pages.predictiveMaintenance.f3.text': 'انتقل إلى مجدول الخدمة مع تحديد المركبة.',
+
+  'pages.accidentRisk.kicker': 'ذكاء السلامة',
+  'pages.accidentRisk.title': 'درجات مخاطر الحوادث الت predictive',
+  'pages.accidentRisk.tagline': 'اعرف السائقين والمسارات التي تحتاج انتباهاً قبل وقوع حادث.',
+  'pages.accidentRisk.lead':
+    'درجات قائمة على قواعد تجمع الحوادث المسجلة، تنبيهات السرعة GPS، أحداث التعب (عند تفعيل الكاميرا)، وصعوبة المسار. المخاطر العالية تطلق Smart Alerts استباقية للمسؤول.',
+  'pages.accidentRisk.f1.title': 'سجل الحوادث',
+  'pages.accidentRisk.f1.text': 'مخالفات السائق والحوادث المرتبطة بالحجز — عوامل واضحة وليست صندوقاً أسود.',
+  'pages.accidentRisk.f2.title': 'مخالفات السرعة',
+  'pages.accidentRisk.f2.text': 'تجاوز السرعة من GpsAlertEvents ومخالفات السائق ضمن نفس نموذج المخاطر في ERP.',
+  'pages.accidentRisk.f3.title': 'إشارات التعب',
+  'pages.accidentRisk.f3.text': 'عند تفعيل كشف التعب، تزيد أحداث الكاميرا/API من مخاطر السائق مع عوامل مساهمة.',
+  'pages.accidentRisk.f4.title': 'صعوبة المسار',
+  'pages.accidentRisk.f4.text': 'المسارات الطويلة مع حوادث وتجاوز سرعة تاريخي يعطي درجة لكل مسار للتخطيط.',
 
   'pages.clientTracking.kicker': 'تجربة العميل',
   'pages.clientTracking.title': 'روابط تتبع للعملاء',

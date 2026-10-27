@@ -6,7 +6,8 @@ public enum SmartAlertRuleType
     DocumentExpiry = 2,
     UnassignedTrip = 3,
     OverdueInvoice = 4,
-    FuelAnomaly = 5
+    FuelAnomaly = 5,
+    AccidentRisk = 6
 }
 
 public enum SmartAlertSeverity

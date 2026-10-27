@@ -53,6 +53,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
       { label: this.i18n.t('home.pill.driverVerification'), fragment: 'driver-verification', icon: 'verified_user' },
       { label: this.i18n.t('home.pill.driverVoice'), fragment: 'driver-voice', icon: 'mic' },
+      { label: this.i18n.t('home.pill.fatigueDetection'), fragment: 'fatigue-detection', icon: 'bedtime' },
       { label: this.i18n.t('home.pill.driverOffline'), fragment: 'driver-offline-sync', icon: 'sync_disabled' },
       { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
       { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
@@ -117,10 +118,18 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       link: '/',
       linkLabel: this.i18n.t('home.pill.driverOffline'),
     };
+    const fuelFraud = {
+      title: this.i18n.t('home.capability.fuelFraud.title'),
+      text: this.i18n.t('home.capability.fuelFraud.text'),
+      icon: 'gpp_bad' as const,
+      link: '/fuel-management',
+      linkLabel: this.i18n.t('home.capability.fuelFraud.linkLabel'),
+    };
     return [
       ...this._platformCapabilitiesBase,
       voice,
       offlineDriver,
+      fuelFraud,
     ] as const;
   });
 

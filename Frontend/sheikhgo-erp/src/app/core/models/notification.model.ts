@@ -11,7 +11,8 @@ export enum NotificationType {
   TripCancelled = 10,
   TripUpdated = 11,
   TripDriverArriving = 12,
-  TripCreated = 13
+  TripCreated = 13,
+  DriverFatigue = 14
 }
 
 export type NotificationChannel = 'InApp' | 'Email' | 'Sms' | 'Push' | 'Browser' | 'WhatsApp';
@@ -29,7 +30,8 @@ export const NotificationTypeLabels: Record<number, string> = {
   [NotificationType.TripCancelled]: 'Trip Cancelled',
   [NotificationType.TripUpdated]: 'Trip Updated',
   [NotificationType.TripDriverArriving]: 'Driver Arriving',
-  [NotificationType.TripCreated]: 'New Trip'
+  [NotificationType.TripCreated]: 'New Trip',
+  [NotificationType.DriverFatigue]: 'Driver Fatigue'
 };
 
 export const NotificationTypeIcons: Record<number, string> = {
@@ -45,7 +47,8 @@ export const NotificationTypeIcons: Record<number, string> = {
   [NotificationType.TripCancelled]: 'cancel',
   [NotificationType.TripUpdated]: 'edit_road',
   [NotificationType.TripDriverArriving]: 'near_me',
-  [NotificationType.TripCreated]: 'add_road'
+  [NotificationType.TripCreated]: 'add_road',
+  [NotificationType.DriverFatigue]: 'bedtime'
 };
 
 export const NotificationTypeColors: Record<number, string> = {
@@ -61,7 +64,8 @@ export const NotificationTypeColors: Record<number, string> = {
   [NotificationType.TripCancelled]: '#DC2626',
   [NotificationType.TripUpdated]: '#6366F1',
   [NotificationType.TripDriverArriving]: '#EA580C',
-  [NotificationType.TripCreated]: '#0F766E'
+  [NotificationType.TripCreated]: '#0F766E',
+  [NotificationType.DriverFatigue]: '#7C3AED'
 };
 
 export const NotificationPriorityLabels: Record<number, string> = {

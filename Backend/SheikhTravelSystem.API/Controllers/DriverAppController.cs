@@ -12,6 +12,8 @@ using SheikhTravelSystem.Application.Features.DriverWallets.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.Fleet.EvAnomaly;
 using SheikhTravelSystem.Application.Features.SosDispatch;
+using SheikhTravelSystem.Application.Features.FatigueDetection;
+using SheikhTravelSystem.Application.Features.FuelFraud;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -157,6 +159,12 @@ public class DriverAppController : BaseApiController
     [HttpGet("fuel-receipts")]
     public async Task<IActionResult> GetFuelReceipts([FromQuery] int page = 1, [FromQuery] int pageSize = 30)
         => Ok(await Mediator.Send(new GetDriverFuelReceiptsQuery(page, pageSize)));
+
+    /// <summary>Log liters ordered at the pump; OBD fuel level is verified after leaving the station.</summary>
+    [Authorize(Roles = "Driver")]
+    [HttpPost("fuel/pump-order")]
+    public async Task<IActionResult> SubmitFuelPumpOrder([FromBody] DriverSubmitFuelPumpOrderRequest body)
+        => Ok(await Mediator.Send(new DriverSubmitFuelPumpOrderCommand(body)));
 
     [Authorize(Roles = "Driver")]
     [HttpPost("fuel-receipts")]
@@ -393,6 +401,28 @@ public class DriverAppController : BaseApiController
     [HttpGet("sos/{id:int}/status")]
     public async Task<IActionResult> GetSosStatus(int id)
         => Ok(await Mediator.Send(new GetDriverSosStatusQuery(id)));
+
+    // ── Fatigue detection ─────────────────────────────────────────────────────
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("fatigue/active")]
+    public async Task<IActionResult> GetActiveFatiguePrompt()
+        => Ok(await Mediator.Send(new GetDriverActiveFatiguePromptQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("fatigue/{id:int}/status")]
+    public async Task<IActionResult> GetFatigueStatus(int id)
+        => Ok(await Mediator.Send(new GetDriverFatigueStatusQuery(id)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("fatigue/{id:int}/ack")]
+    public async Task<IActionResult> AckFatigue(int id)
+        => Ok(await Mediator.Send(new DriverAckFatigueCommand(id)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("fatigue/signal")]
+    public async Task<IActionResult> SubmitFatigueSignal([FromBody] IngestFatigueSignalRequest body)
+        => Ok(await Mediator.Send(new IngestFatigueSignalCommand(body with { Source = string.IsNullOrWhiteSpace(body.Source) ? "mobile_camera_prototype" : body.Source })));
 
     // ── Timeline ──────────────────────────────────────────────────────────────
 

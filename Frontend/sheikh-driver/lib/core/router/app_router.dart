@@ -30,6 +30,8 @@ import '../../features/inspection/presentation/inspection_screen.dart';
 import '../../features/navigation/presentation/trip_navigation_screen.dart';
 import '../../features/offline/presentation/offline_queue_screen.dart';
 import '../../features/voice/presentation/voice_command_screen.dart';
+import '../../features/fatigue/presentation/fatigue_monitor_screen.dart';
+import '../../features/fatigue/presentation/fatigue_response_screen.dart';
 import '../../features/sos/presentation/sos_screen.dart';
 import '../../features/security/presentation/security_status_screen.dart';
 import '../../features/legal/presentation/legal_document_screen.dart';
@@ -456,6 +458,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/voice',
             builder: (_, __) => const VoiceCommandScreen(),
+          ),
+          GoRoute(
+            path: '/fatigue/monitor',
+            builder: (_, __) => const FatigueMonitorScreen(),
+          ),
+          GoRoute(
+            path: '/fatigue/response',
+            builder: (_, __) => const FatigueResponseScreen(),
           ),
           GoRoute(
             path: '/security',

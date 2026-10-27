@@ -55,6 +55,7 @@ import {
   IdleAnalytics,
   StopAnalytics,
   DriverScore,
+  AccidentRiskDashboard,
   ClientTrackingLink,
   ClientTrackingLinkCreated,
   FleetUtilization,
@@ -1180,6 +1181,13 @@ export class GpsTrackingService {
 
   getDriverScoreRanking(filters?: AnalyticsFilters): Observable<DriverScore[]> {
     return this.http.get<DriverScore[]>(`${this.base}/analytics/drivers/ranking`, { params: this.analyticsParams(filters) });
+  }
+
+  getAccidentRiskDashboard(from?: string, to?: string): Observable<AccidentRiskDashboard> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<AccidentRiskDashboard>(`${environment.apiUrl}/gps/accident-risk/dashboard`, { params });
   }
 
   getFleetUtilization(filters?: AnalyticsFilters): Observable<FleetUtilization> {

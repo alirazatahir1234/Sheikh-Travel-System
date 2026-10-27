@@ -105,6 +105,9 @@ public sealed class NotificationRecipientResolver(IDbConnectionFactory dbFactory
                 or "trip_cancelled" or "trip_updated" or "trip_driver_arriving" => await QueryTripContextUserIds(
                     connection, referenceId, tenantId, cancellationToken),
 
+            "driver_fatigue_prompt" => await QueryFatigueEventDriverUserIds(
+                connection, referenceId, tenantId, cancellationToken),
+
             _ => []
         };
     }
@@ -123,6 +126,24 @@ public sealed class NotificationRecipientResolver(IDbConnectionFactory dbFactory
               AND b.IsDeleted = 0 AND d.UserId IS NOT NULL
             """,
             new { BookingId = bookingId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        return rows.Where(x => x is int id && id > 0).Select(x => x!.Value).ToList();
+    }
+
+    private static async Task<IReadOnlyList<int>> QueryFatigueEventDriverUserIds(
+        System.Data.IDbConnection connection,
+        int fatigueEventId,
+        int tenantId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await connection.QueryAsync<int?>(new CommandDefinition("""
+            SELECT d.UserId
+            FROM DriverFatigueEvents e
+            INNER JOIN Drivers d ON d.Id = e.DriverId
+            WHERE e.Id = @Id AND e.TenantId = @TenantId AND d.UserId IS NOT NULL
+            """,
+            new { Id = fatigueEventId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return rows.Where(x => x is int id && id > 0).Select(x => x!.Value).ToList();

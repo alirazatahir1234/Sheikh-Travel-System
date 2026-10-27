@@ -31,6 +31,8 @@ import { TrackerInstallPageComponent } from './tracker-install/tracker-install-p
 import { TrackerDetailsPageComponent } from './tracker-details/tracker-details-page.component';
 import { DriverPerformancePageComponent } from './driver-performance/driver-performance-page.component';
 import { ClientTrackingLinksPageComponent } from './client-tracking-links/client-tracking-links-page.component';
+import { FatigueEventsPageComponent } from './fatigue-events/fatigue-events-page.component';
+import { AccidentRiskPageComponent } from './accident-risk/accident-risk-page.component';
 
 const routes: Routes = [
   {
@@ -45,6 +47,7 @@ const routes: Routes = [
       { path: 'geofences', component: GpsGeofencesComponent },
       { path: 'alerts', component: GpsAlertsComponent },
       { path: 'sos', component: SosDispatchComponent },
+      { path: 'fatigue-events', component: FatigueEventsPageComponent },
       { path: 'devices', component: GpsDevicesComponent },
       { path: 'devices/register', component: TrackerRegisterPageComponent },
       { path: 'devices/:id/install', component: TrackerInstallPageComponent },
@@ -54,6 +57,7 @@ const routes: Routes = [
       { path: 'commands', component: GpsCommandsComponent },
       { path: 'analytics', component: GpsAnalyticsComponent },
       { path: 'driver-performance', component: DriverPerformancePageComponent },
+      { path: 'accident-risk', component: AccidentRiskPageComponent, data: { permission: 'Gps.AlertView' } },
       { path: 'client-tracking-links', component: ClientTrackingLinksPageComponent }
     ]
   }
@@ -81,6 +85,7 @@ const routes: Routes = [
     TrackerInstallPageComponent,
     TrackerDetailsPageComponent,
     DriverPerformancePageComponent,
+    AccidentRiskPageComponent,
     ClientTrackingLinksPageComponent
   ],
   imports: [
@@ -88,6 +93,7 @@ const routes: Routes = [
     UiDataTableComponent, UiTableCellDirective,
     CriticalAlertsCardComponent, RecentActivitiesCardComponent,
     AnalyticsReportSchedulesComponent,
+    FatigueEventsPageComponent,
     RouterModule.forChild(routes)
   ]
 })

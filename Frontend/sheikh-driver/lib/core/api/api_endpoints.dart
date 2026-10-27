@@ -36,6 +36,7 @@ abstract class ApiEndpoints {
   // Fuel
   static const fuelReceipts = '/driver-app/fuel-receipts';
   static const fuelReceiptsScan = '/driver-app/fuel-receipts/scan';
+  static const fuelPumpOrder = '/driver-app/fuel/pump-order';
 
   // Notifications
   static const notifications = '/driver-app/notifications';
@@ -58,6 +59,12 @@ abstract class ApiEndpoints {
   // SOS
   static const sos = '/driver-app/sos';
   static String sosStatus(int id) => '/driver-app/sos/$id/status';
+
+  // Fatigue detection
+  static const fatigueActive = '/driver-app/fatigue/active';
+  static const fatigueSignal = '/driver-app/fatigue/signal';
+  static String fatigueAck(int id) => '/driver-app/fatigue/$id/ack';
+  static String fatigueStatus(int id) => '/driver-app/fatigue/$id/status';
 
   // Voice & offline sync
   static const voiceCommands = '/driver-app/voice/commands';

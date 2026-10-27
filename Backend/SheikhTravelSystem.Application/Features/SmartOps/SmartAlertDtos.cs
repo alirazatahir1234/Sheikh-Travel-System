@@ -36,6 +36,7 @@ public static class SmartAlertRuleTypeNames
     public const string UnassignedTrip = "UnassignedTrip";
     public const string OverdueInvoice = "OverdueInvoice";
     public const string FuelAnomaly = "FuelAnomaly";
+    public const string AccidentRisk = "AccidentRisk";
 
     public static string ToName(SmartAlertRuleType type) => type switch
     {
@@ -44,6 +45,7 @@ public static class SmartAlertRuleTypeNames
         SmartAlertRuleType.UnassignedTrip => UnassignedTrip,
         SmartAlertRuleType.OverdueInvoice => OverdueInvoice,
         SmartAlertRuleType.FuelAnomaly => FuelAnomaly,
+        SmartAlertRuleType.AccidentRisk => AccidentRisk,
         _ => type.ToString()
     };
 

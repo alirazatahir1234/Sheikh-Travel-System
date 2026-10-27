@@ -25,6 +25,9 @@ using Azure.Storage.Blobs;
 using SheikhTravelSystem.Infrastructure.Services.Notifications;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
 using SheikhTravelSystem.Infrastructure.Services.GpsControl;
+using SheikhTravelSystem.Infrastructure.Services.Fatigue;
+using SheikhTravelSystem.Infrastructure.Services.Gps;
+using SheikhTravelSystem.Application.Features.FatigueDetection;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 using SheikhTravelSystem.Infrastructure.Services.Google;
 using SheikhTravelSystem.Infrastructure.Services.WhatsApp;
@@ -81,6 +84,8 @@ public static class DependencyInjection
         services.AddScoped<ISmartAlertRepository, SmartAlertRepository>();
         services.AddScoped<ISmartAlertService, SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartAlertService>();
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOpsRuleScanner>();
+        services.AddScoped<IAccidentRiskRepository, AccidentRiskRepository>();
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.AccidentRisk.AccidentRiskProactiveScanner>();
         services.AddScoped<IGpsDeviceRepository, GpsDeviceRepository>();
         services.AddScoped<IGpsTrackingRepository, GpsTrackingRepository>();
         services.AddScoped<IAlertModuleGate, SheikhTravelSystem.Infrastructure.Services.Gps.AlertModuleGate>();
@@ -130,6 +135,9 @@ public static class DependencyInjection
         services.AddScoped<IDriverAppRepository, DriverAppRepository>();
         services.AddScoped<ISosDispatchRepository, SosDispatchRepository>();
         services.AddScoped<ISosAutoDispatchService, SosAutoDispatchService>();
+        services.AddScoped<IFatigueDetectionRepository, FatigueDetectionRepository>();
+        services.AddScoped<IFatigueAlertOrchestrator, FatigueAlertOrchestrator>();
+        services.AddScoped<IGpsAutomatedCommandService, GpsAutomatedCommandService>();
         services.AddScoped<IDriverMobileSyncRepository, DriverMobileSyncRepository>();
         services.AddScoped<IDriverAllowanceRepository, DriverAllowanceRepository>();
         services.AddScoped<ICustomerPortalRepository, CustomerPortalRepository>();
@@ -323,8 +331,10 @@ public static class DependencyInjection
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsDailyRollupHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
+        services.AddHostedService<FatigueEscalationHostedService>();
         services.AddHostedService<GpsCommandRetryHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
+        services.Configure<FatigueDetectionSettings>(configuration.GetSection(FatigueDetectionSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<TranslatorOptions>(configuration.GetSection(TranslatorOptions.SectionName));
@@ -434,6 +444,8 @@ public static class DependencyInjection
         services.AddScoped<IRoadSpeedLimitLookup, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedLimitLookupService>();
         services.AddScoped<IRoadSpeedAlertEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedAlertEvaluator>();
         services.AddScoped<IFuelStationStopEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.FuelStationStopEvaluator>();
+        services.AddScoped<IFuelFraudVerifier, SheikhTravelSystem.Infrastructure.Services.Gps.FuelFraudVerifier>();
+        services.AddScoped<IFuelFraudRepository, FuelFraudRepository>();
         services.AddScoped<IFleetAnomalyEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.FleetAnomalyEvaluator>();
         services.AddScoped<IGoogleTimeZoneService, GoogleTimeZoneService>();
         services.AddScoped<IGoogleStaticMapsService, GoogleStaticMapsService>();

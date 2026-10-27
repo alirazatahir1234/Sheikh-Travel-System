@@ -1101,3 +1101,40 @@ export interface UpdateAnalyticsReportSchedule {
   isActive?: boolean;
   filters?: AnalyticsReportFilters;
 }
+
+export interface AccidentRiskFactor {
+  key: string;
+  label: string;
+  rawCount: number;
+  points: number;
+  detail: string;
+}
+
+export interface DriverAccidentRisk {
+  driverId: number;
+  driverName: string;
+  riskScore: number;
+  riskBand: string;
+  isHighRisk: boolean;
+  factors: AccidentRiskFactor[];
+}
+
+export interface RouteAccidentRisk {
+  routeId: number;
+  routeLabel: string;
+  distanceKm: number;
+  tripCountInPeriod: number;
+  riskScore: number;
+  riskBand: string;
+  isHighRisk: boolean;
+  factors: AccidentRiskFactor[];
+}
+
+export interface AccidentRiskDashboard {
+  fromUtc: string;
+  toUtc: string;
+  highRiskDriverCount: number;
+  highRiskRouteCount: number;
+  drivers: DriverAccidentRisk[];
+  routes: RouteAccidentRisk[];
+}

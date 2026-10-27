@@ -62,11 +62,13 @@ const fleetOperationsGroup: NavGroup = {
     { id: 'predictive-maintenance', label: 'Predictive Maintenance', icon: 'auto_fix_high', route: '/fleet/maintenance/predictive', moduleKey: 'maintenance' },
     { id: 'service-records', label: 'Service Records', icon: 'history', route: '/maintenance/service-records', moduleKey: 'maintenance' },
     { id: 'fuel-logs', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
+    { id: 'fuel-fraud-events', label: 'Fuel fraud', icon: 'gpp_bad', route: '/fuel-logs/fraud-events', moduleKey: 'fuel-logs' },
     { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections', moduleKey: 'vehicles' },
     { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance', moduleKey: 'vehicles' },
     { id: 'fleet-documents', label: 'Document tracker', icon: 'description', route: '/fleet/documents', moduleKey: 'vehicles' },
     { id: 'ev-fleet', label: 'Electric fleet', icon: 'ev_station', route: '/fleet/ev', moduleKey: 'vehicles' },
     { id: 'fleet-anomalies', label: 'Driving anomalies', icon: 'crisis_alert', route: '/fleet/anomalies', moduleKey: 'gps-tracking' },
+    { id: 'fatigue-events', label: 'Fatigue events', icon: 'bedtime', route: '/gps-tracking/fatigue-events', moduleKey: 'gps-tracking' },
     { id: 'sos-dispatch', label: 'SOS dispatch', icon: 'sos', route: '/gps-tracking/sos', moduleKey: 'gps-tracking' },
     { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking', moduleKey: 'gps-tracking' }
   ]

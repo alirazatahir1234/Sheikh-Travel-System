@@ -1,0 +1,79 @@
+.kpi-strip {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.kpi {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f1f5f9;
+  min-width: 140px;
+}
+
+.kpi-val {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.kpi-label {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.tabs button {
+  margin-right: 0.5rem;
+  &.active {
+    font-weight: 700;
+    text-decoration: underline;
+  }
+}
+
+.band {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.band-high {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.band-mod {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.band-low {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+tr.high {
+  background: #fff7ed;
+}
+
+.factors {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.factors-row td {
+  background: #f8fafc;
+}
+
+.num {
+  text-align: right;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.muted {
+  color: #64748b;
+}

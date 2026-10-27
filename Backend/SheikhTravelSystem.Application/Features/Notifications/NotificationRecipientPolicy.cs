@@ -18,7 +18,10 @@ public static class NotificationRecipientPolicy
         "compliance_reminder" or "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded" or "sos"
             or "ignition_on" or "ignition_off"
             or "driver_voice_alert" or "driver_voice_message"
+            or "driver_fatigue" or "driver_fatigue_obd"
+            or "fuel_fraud"
             => [UserRole.Admin, UserRole.Dispatcher],
+        "driver_fatigue_prompt" => [UserRole.Driver],
         "sos_team_dispatch" => [UserRole.Driver],
         "system_announcement" => [UserRole.Admin, UserRole.Dispatcher, UserRole.Driver, UserRole.Accountant],
         _ => [UserRole.Admin, UserRole.Dispatcher]
