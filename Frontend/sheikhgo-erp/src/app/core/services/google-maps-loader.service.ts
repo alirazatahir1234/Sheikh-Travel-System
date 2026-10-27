@@ -288,11 +288,18 @@ export class GoogleMapsLoaderService {
 
       hits.sort((a, b) => (b.innerText || '').length - (a.innerText || '').length);
       let docsUrl: string | null = null;
+      let dialogText = '';
       for (const el of hits) {
         if (!el.isConnected) continue;
-        const link = el.querySelector('a[href*="developers.google.com"]');
+        dialogText += ` ${el.innerText || ''}`;
+        const link = el.querySelector('a[href*="developers.google.com"], a[href*="console.cloud.google.com"]');
         if (link instanceof HTMLAnchorElement) docsUrl = link.href;
         el.remove();
+      }
+
+      // Dialog may omit a docs link; infer billing from Google's own copy.
+      if (!docsUrl && /billing/i.test(dialogText)) {
+        docsUrl = 'https://console.cloud.google.com/project/_/billing/enable';
       }
 
       document.querySelectorAll('.gm-err-container, .gm-err-autocomplete').forEach(node => node.remove());
