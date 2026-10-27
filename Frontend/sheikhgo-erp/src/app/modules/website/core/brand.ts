@@ -15,8 +15,16 @@ export const WEBSITE_CONTACT_PHONES: readonly WebsiteContactPhone[] = [
 /** E.164 digits (no +) for wa.me links — same as Pakistan contact line. */
 export const WEBSITE_WHATSAPP_DIGITS = '923177368305';
 
-/** Office postal address when confirmed; never fabricated on the marketing site. */
+/** Office postal address — verified with Ali (Exchange Tower, Business Bay). */
 export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;
+
+const WEBSITE_OFFICE_MAPS_QUERY = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
+
+/** Opens Google Maps for directions / full map view. */
+export const WEBSITE_OFFICE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}`;
+
+/** iframe embed for Contact page (no API key). */
+export const WEBSITE_OFFICE_MAPS_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}&output=embed`;
 
 /**
  * Public marketing brand — SheikhGo Technologies (IT / AI company).

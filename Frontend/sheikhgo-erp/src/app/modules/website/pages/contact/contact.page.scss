@@ -60,6 +60,46 @@
   margin-top: 0.25rem;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  text-decoration-color: rgba(153, 246, 228, 0.45);
+  text-underline-offset: 0.15em;
+}
+
+.office-map-section {
+  padding-top: 0;
+}
+
+.office-map-heading {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.office-map-wrap {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--sg-line);
+  background: #fff;
+  aspect-ratio: 16 / 9;
+  max-height: 420px;
+}
+
+.office-map-wrap iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border: 0;
+}
+
+.office-map-link {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.office-map-link a {
+  color: var(--sg-primary, #0d9488);
+  font-weight: 600;
 }
 
 @media (max-width: 860px) {

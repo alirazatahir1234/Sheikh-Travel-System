@@ -13,7 +13,7 @@
           <a [href]="'tel:' + p.tel">{{ p.label }} · {{ p.display }}</a>
         }
         @if (officeAddress) {
-          <p class="office-address">{{ officeAddress }}</p>
+          <a class="office-address" [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">{{ officeAddress }}</a>
         }
       </div>
     </div>

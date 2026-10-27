@@ -56,11 +56,19 @@
   }
 
   .office-address {
+    display: block;
     margin: 0.35rem 0 0;
     max-width: 36ch;
     font-size: 0.9375rem;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.7);
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.25);
+    text-underline-offset: 0.15em;
+  }
+
+  .office-address:hover {
+    color: #fff;
   }
 
   h3 {

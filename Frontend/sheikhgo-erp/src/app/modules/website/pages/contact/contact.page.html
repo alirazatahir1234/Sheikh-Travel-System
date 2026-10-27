@@ -86,9 +86,29 @@
       @if (officeAddress) {
         <p class="contact-block">
           <strong>Office</strong><br />
-          <span class="office-address">{{ officeAddress }}</span>
+          <a class="office-address" [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">{{ officeAddress }}</a>
         </p>
       }
     </aside>
   </div>
 </section>
+
+@if (officeAddress) {
+  <section class="section section-band-alt office-map-section" aria-label="Office location map">
+    <div class="container">
+      <h2 class="office-map-heading">Our Dubai office</h2>
+      <div class="office-map-wrap">
+        <iframe
+          title="SheikhGo office — The Exchange Tower, Business Bay, Dubai"
+          [src]="officeMapsEmbedSrc"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          allowfullscreen
+        ></iframe>
+      </div>
+      <p class="office-map-link">
+        <a [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+      </p>
+    </div>
+  </section>
+}

@@ -1,6 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { WEBSITE_BRAND, WEBSITE_CONTACT_PHONES, WEBSITE_OFFICE_ADDRESS, WebsiteContactPhone } from '../../core/brand';
+import {
+  WEBSITE_BRAND,
+  WEBSITE_CONTACT_PHONES,
+  WEBSITE_OFFICE_ADDRESS,
+  WEBSITE_OFFICE_MAPS_URL,
+  WebsiteContactPhone,
+} from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
 import { CookieConsentService } from '../../core/cookie-consent.service';
 import { SERVICE_ITEMS } from '../../core/site-catalog';
@@ -24,6 +30,7 @@ export class SiteFooterComponent implements OnInit {
   siteName: string = WEBSITE_BRAND.productName;
   readonly contactPhones: readonly WebsiteContactPhone[] = WEBSITE_CONTACT_PHONES;
   officeAddress: string = WEBSITE_OFFICE_ADDRESS;
+  readonly officeMapsUrl = WEBSITE_OFFICE_MAPS_URL;
 
   /** Single contact line — avoid listing the same address twice. */
   get contactEmail(): string {

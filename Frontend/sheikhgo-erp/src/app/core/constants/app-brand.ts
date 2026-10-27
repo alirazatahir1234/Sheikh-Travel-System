@@ -3,8 +3,8 @@ export const APP_PRODUCT_SHORT_NAME = 'SheikhGo Nexus';
 /** Sidebar brand subtitle under the product name. */
 export const APP_PRODUCT_TAGLINE = 'Smarter Fleet. Stronger Business.';
 export const COMPANY_NAME = 'Sheikh Travel Group';
-/** Placeholder until a real company address is supplied — never fabricated, shown as-is on report letterheads. */
-export const COMPANY_ADDRESS = '';
+/** Corporate office — shown on report letterheads and the public marketing site. */
+export const COMPANY_ADDRESS = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
 export const APP_LOGO_PATH = '/brand/sheikhgo-logo.png';
 export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-logo-white.png';
 /** Login page only (`/auth/login`) — do not reuse elsewhere. */
