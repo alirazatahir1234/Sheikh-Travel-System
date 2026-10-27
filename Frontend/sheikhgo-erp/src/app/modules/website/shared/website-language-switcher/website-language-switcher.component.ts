@@ -14,7 +14,7 @@ import { WEBSITE_LANGUAGES, WebsiteLanguage } from '../../core/i18n/website-lang
           [class.active]="i18n.lang() === opt.code"
           [attr.aria-pressed]="i18n.lang() === opt.code"
           [attr.title]="convertLabel(opt.code)"
-          (click)="pick(opt.code)"
+          (click)="pick(opt.code, $event)"
         >
           {{ opt.nativeLabel }}
         </button>
@@ -22,6 +22,13 @@ import { WEBSITE_LANGUAGES, WebsiteLanguage } from '../../core/i18n/website-lang
     </div>
   `,
   styles: `
+    :host {
+      display: inline-flex;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
     .lang-switch {
       display: inline-flex;
       align-items: center;
@@ -61,7 +68,9 @@ export class WebsiteLanguageSwitcherComponent {
   readonly i18n = inject(WebsiteI18nService);
   readonly options = WEBSITE_LANGUAGES;
 
-  pick(code: WebsiteLanguage): void {
+  pick(code: WebsiteLanguage, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
     this.i18n.setLanguage(code);
   }
 

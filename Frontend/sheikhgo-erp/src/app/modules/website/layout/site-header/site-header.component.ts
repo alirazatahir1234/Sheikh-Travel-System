@@ -85,12 +85,14 @@ export class SiteHeaderComponent implements OnInit {
     this.industriesOpen.set(false);
   }
 
-  toggleServices(): void {
+  toggleServices(event: MouseEvent): void {
+    event.stopPropagation();
     this.servicesOpen.update(v => !v);
     this.industriesOpen.set(false);
   }
 
-  toggleIndustries(): void {
+  toggleIndustries(event: MouseEvent): void {
+    event.stopPropagation();
     this.industriesOpen.update(v => !v);
     this.servicesOpen.set(false);
   }

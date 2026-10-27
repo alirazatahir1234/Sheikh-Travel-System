@@ -104,7 +104,8 @@
     justify-content: center;
     gap: 0.15rem;
     min-width: 0;
-    overflow: hidden;
+    /* Do not clip mega-menus — panels are position:absolute below the bar */
+    overflow: visible;
     position: relative;
     z-index: 1;
   }
@@ -145,6 +146,10 @@
     position: relative;
   }
 
+  .dropdown.open {
+    z-index: 20;
+  }
+
   .drop-btn {
     display: inline-flex;
     align-items: center;
@@ -171,6 +176,7 @@
     border-radius: 16px;
     box-shadow: 0 20px 48px rgba(4, 31, 36, 0.18);
     border: 1px solid var(--sg-border, rgba(2, 47, 50, 0.12));
+    z-index: 30;
   }
 
   .dropdown.open .dropdown-panel {
@@ -272,10 +278,16 @@
     align-items: center;
     gap: 0.65rem;
     flex-shrink: 0;
-    min-width: 0;
+    min-width: min-content;
     justify-self: end;
     position: relative;
-    z-index: 2;
+    z-index: 25;
+  }
+
+  .lang-switch-desktop {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 26;
   }
 
   .login {
@@ -327,11 +339,7 @@
     padding: 0.35rem 0 0.5rem;
   }
 
-  @media (max-width: 1200px) {
-    .lang-switch-desktop {
-      display: none;
-    }
-  }
+  /* Language switcher stays in .actions beside the burger — not buried in the drawer */
 
   .burger {
     display: none;
