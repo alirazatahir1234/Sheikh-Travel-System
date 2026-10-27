@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { FormBuilder, Validators } from '@angular/forms';
@@ -76,6 +77,11 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   driverFilterId: number | null = null;
   groupSimilar = true;
 
+  eventsViewMode: 'list' | 'grid' = 'list';
+  pageIndex = 0;
+  pageSize = 25;
+  readonly pageSizeOptions = [10, 25, 50];
+
   isSuperAdmin = false;
   platformCrossTenantLimited = false;
   companyFilterId: number | null = null;
@@ -97,6 +103,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   readonly eventTypes = GPS_ALERT_EVENT_TYPES;
 
   ruleForm!: ReturnType<FormBuilder['group']>;
+  private printAllGroups = false;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private platformAlertsSub: Subscription | null = null;
   private routeSub: Subscription | null = null;
@@ -177,8 +184,37 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     return this.selectedKeys.size;
   }
 
+  get paginatedDisplayGroups(): GpsAlertDisplayGroup[] {
+    const start = this.pageIndex * this.pageSize;
+    return this.displayGroups.slice(start, start + this.pageSize);
+  }
+
+  /** Full filtered set for print/PDF; paginated slice otherwise. */
+  get visibleDisplayGroups(): GpsAlertDisplayGroup[] {
+    return this.printAllGroups ? this.displayGroups : this.paginatedDisplayGroups;
+  }
+
+  @HostListener('window:beforeprint')
+  onBeforePrint(): void {
+    this.printAllGroups = true;
+  }
+
+  @HostListener('window:afterprint')
+  onAfterPrint(): void {
+    this.printAllGroups = false;
+  }
+
+  get pageRangeStart(): number {
+    if (!this.displayGroups.length) return 0;
+    return this.pageIndex * this.pageSize + 1;
+  }
+
+  get pageRangeEnd(): number {
+    return Math.min((this.pageIndex + 1) * this.pageSize, this.displayGroups.length);
+  }
+
   get allSelected(): boolean {
-    const keys = this.flatEvents().map(e => alertRowKey(e));
+    const keys = this.paginatedDisplayGroups.map(g => alertRowKey(g.representative));
     return keys.length > 0 && keys.every(k => this.selectedKeys.has(k));
   }
 
@@ -200,12 +236,14 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   onCompanyFilterChange(tenantId: number | null): void {
     this.companyFilterId = tenantId;
+    this.resetPagination();
     this.loadFilterOptions();
     this.loadEvents();
   }
 
   setLifecycleTab(tab: GpsAlertLifecycleTab): void {
     this.lifecycleTab = tab;
+    this.resetPagination();
     this.applyLifecycleTab(true);
   }
 
@@ -294,6 +332,26 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
         events: [e],
         count: 1
       }));
+    this.syncPaginationBounds();
+  }
+
+  private resetPagination(): void {
+    this.pageIndex = 0;
+  }
+
+  private syncPaginationBounds(): void {
+    const maxPage = Math.max(0, Math.ceil(this.displayGroups.length / this.pageSize) - 1);
+    if (this.pageIndex > maxPage) this.pageIndex = maxPage;
+  }
+
+  setEventsViewMode(mode: 'list' | 'grid'): void {
+    this.eventsViewMode = mode;
+  }
+
+  onAlertsPage(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.syncPaginationBounds();
   }
 
   flatEvents(): GpsAlertEvent[] {
@@ -302,39 +360,46 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   toggleSeverity(value: string): void {
     this.severityFilter = this.severityFilter === value ? null : value;
+    this.resetPagination();
     this.loadEvents();
   }
 
   toggleEventType(value: string): void {
     this.eventTypeFilter = this.eventTypeFilter === value ? null : value;
+    this.resetPagination();
     this.loadEvents();
   }
 
   setDatePreset(value: string): void {
     this.datePreset = value;
+    this.resetPagination();
     this.loadEvents();
   }
 
   onVehicleFilterChange(id: number | null): void {
     this.vehicleFilterId = id;
+    this.resetPagination();
     this.loadEvents();
   }
 
   onDriverFilterChange(id: number | null): void {
     this.driverFilterId = id;
+    this.resetPagination();
     this.loadEvents();
   }
 
   toggleGroupSimilar(): void {
     this.groupSimilar = !this.groupSimilar;
+    this.resetPagination();
     this.rebuildDisplay();
   }
 
   toggleSelectAll(checked: boolean): void {
+    const pageEvents = this.paginatedDisplayGroups.map(g => g.representative);
     if (checked) {
-      this.flatEvents().forEach(e => this.selectedKeys.add(alertRowKey(e)));
+      pageEvents.forEach(e => this.selectedKeys.add(alertRowKey(e)));
     } else {
-      this.selectedKeys.clear();
+      pageEvents.forEach(e => this.selectedKeys.delete(alertRowKey(e)));
     }
     this.selectedKeys = new Set(this.selectedKeys);
   }

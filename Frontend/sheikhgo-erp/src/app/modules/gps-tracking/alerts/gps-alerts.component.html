@@ -141,6 +141,21 @@
       <button class="btn btn-secondary btn-sm" type="button" (click)="bulkResolve()">Bulk resolve</button>
     </div>
 
+    <div class="events-list-toolbar desktop-only" *ngIf="!loading && !loadError && displayGroups.length > 0">
+      <span class="record-count">
+        {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ displayGroups.length }} group(s)
+        <span class="muted"> · {{ flatEvents().length }} alert(s)</span>
+      </span>
+      <div class="view-toggle" role="group" aria-label="Alerts layout">
+        <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'list'" (click)="setEventsViewMode('list')" title="List view" aria-label="List view">
+          <mat-icon>view_list</mat-icon>
+        </button>
+        <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'grid'" (click)="setEventsViewMode('grid')" title="Grid view" aria-label="Grid view">
+          <mat-icon>grid_view</mat-icon>
+        </button>
+      </div>
+    </div>
+
     <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
     <div *ngIf="!loading && loadError" class="empty-state empty-state--error">
@@ -156,7 +171,7 @@
       <p class="sub">Try widening the date range or switching lifecycle tab.</p>
     </div>
 
-    <div class="table-card desktop-table" *ngIf="!loading && !loadError && displayGroups.length > 0">
+    <div class="table-card desktop-table" *ngIf="!loading && !loadError && displayGroups.length > 0 && eventsViewMode === 'list'">
       <table class="data-table">
         <thead>
           <tr>
@@ -171,7 +186,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let g of displayGroups"
+          <tr *ngFor="let g of visibleDisplayGroups"
               [class]="severityClass(g.representative.severity)"
               (click)="openEvent(g.representative)">
             <td class="col-check" (click)="$event.stopPropagation()">
@@ -200,10 +215,56 @@
           </tr>
         </tbody>
       </table>
+      <div class="table-footer">
+        <mat-paginator
+          [length]="displayGroups.length"
+          [pageIndex]="pageIndex"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="pageSizeOptions"
+          (page)="onAlertsPage($event)"
+          showFirstLastButtons
+          aria-label="GPS alerts pagination">
+        </mat-paginator>
+      </div>
+    </div>
+
+    <div class="alerts-grid desktop-only" *ngIf="!loading && !loadError && displayGroups.length > 0 && eventsViewMode === 'grid'">
+      <article class="alert-card alert-card--grid" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
+        <div class="alert-card__head">
+          <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
+          <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
+          <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
+          <span *ngIf="g.count > 1" class="group-badge">×{{ g.count }}</span>
+          <span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span>
+        </div>
+        <p *ngIf="showCompanyColumn && g.representative.tenantName" class="alert-meta fw-med">{{ g.representative.tenantName }}</p>
+        <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
+        <p class="alert-msg">{{ g.representative.message }}</p>
+        <div class="alert-card__foot">
+          <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</span>
+          <div class="alert-card__actions" (click)="$event.stopPropagation()">
+            <button class="btn-icon" type="button" title="Live map" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
+            <button class="btn-icon" type="button" title="History" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
+            <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
+            <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
+          </div>
+        </div>
+      </article>
+      <div class="table-footer alerts-grid__footer">
+        <mat-paginator
+          [length]="displayGroups.length"
+          [pageIndex]="pageIndex"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="pageSizeOptions"
+          (page)="onAlertsPage($event)"
+          showFirstLastButtons
+          aria-label="GPS alerts pagination">
+        </mat-paginator>
+      </div>
     </div>
 
     <div class="mobile-cards" *ngIf="!loading && !loadError && displayGroups.length > 0">
-      <article class="alert-card" *ngFor="let g of displayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
+      <article class="alert-card" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
         <div class="alert-card__head">
           <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
           <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
@@ -219,6 +280,17 @@
           </div>
         </div>
       </article>
+      <div class="table-footer mobile-paginator" *ngIf="displayGroups.length > pageSize">
+        <mat-paginator
+          [length]="displayGroups.length"
+          [pageIndex]="pageIndex"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="pageSizeOptions"
+          (page)="onAlertsPage($event)"
+          showFirstLastButtons
+          aria-label="GPS alerts pagination">
+        </mat-paginator>
+      </div>
     </div>
   </div>
 
