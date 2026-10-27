@@ -8,4 +8,7 @@ public interface IGpsTripPersistenceService
         IDbConnection connection,
         int vehicleId,
         CancellationToken cancellationToken);
+
+    /// <summary>Catch-up daily auto-trips for all tenants in AutoGpsDaily mode (hosted job).</summary>
+    Task SyncAutoDailyTripsAsync(CancellationToken cancellationToken);
 }

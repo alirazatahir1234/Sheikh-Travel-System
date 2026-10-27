@@ -33,6 +33,7 @@ import { DriverPerformancePageComponent } from './driver-performance/driver-perf
 import { ClientTrackingLinksPageComponent } from './client-tracking-links/client-tracking-links-page.component';
 import { FatigueEventsPageComponent } from './fatigue-events/fatigue-events-page.component';
 import { AccidentRiskPageComponent } from './accident-risk/accident-risk-page.component';
+import { GpsTripModePageComponent } from './trip-mode/gps-trip-mode-page.component';
 
 const routes: Routes = [
   {
@@ -43,6 +44,7 @@ const routes: Routes = [
       { path: 'live', component: LiveMapComponent },
       { path: 'history', component: GpsHistoryComponent },
       { path: 'trips', component: GpsTripsComponent },
+      { path: 'trip-mode', component: GpsTripModePageComponent },
       { path: 'trips/:tripKey', component: TripDetailPageComponent },
       { path: 'geofences', component: GpsGeofencesComponent },
       { path: 'alerts', component: GpsAlertsComponent },

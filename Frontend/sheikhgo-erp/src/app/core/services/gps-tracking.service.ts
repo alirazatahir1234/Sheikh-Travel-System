@@ -74,9 +74,11 @@ import {
   AnalyticsReportSchedule,
   CreateAnalyticsReportSchedule,
   UpdateAnalyticsReportSchedule,
-  GpsLiveFleetVehicleDto
+  GpsLiveFleetVehicleDto,
+  FleetTripCreationMode,
+  FleetTripModeSettings
 } from '../models/gps-tracking.model';
-import { PagedResult, normalizePagedResult } from '../models/common.model';
+import { ApiResponse, PagedResult, normalizePagedResult } from '../models/common.model';
 import {
   normalizeGpsTrip,
   normalizeTripAnalyticsBundle,
@@ -798,6 +800,18 @@ export class GpsTrackingService {
     );
   }
 
+  getTripCreationMode(): Observable<FleetTripModeSettings> {
+    return this.http
+      .get<ApiResponse<FleetTripModeSettings>>(`${this.base}/trip-mode`)
+      .pipe(map(r => normalizeFleetTripModeSettings(r.data)));
+  }
+
+  saveTripCreationMode(mode: FleetTripCreationMode): Observable<FleetTripModeSettings> {
+    return this.http
+      .put<ApiResponse<FleetTripModeSettings>>(`${this.base}/trip-mode`, { tripCreationMode: mode })
+      .pipe(map(r => normalizeFleetTripModeSettings(r.data)));
+  }
+
   private tripDetailCache = new Map<string, TripDetailBundle>();
 
   getTripDetail(tripKey: string, useCache = true): Observable<TripDetailBundle> {
@@ -1333,6 +1347,22 @@ export class GpsTrackingService {
     return 'Last known position';
   }
 }
+
+function normalizeFleetTripModeSettings(raw: FleetTripModeSettings | undefined | null): FleetTripModeSettings {
+  const modeRaw = (raw as { tripCreationMode?: number; TripCreationMode?: number })?.tripCreationMode
+    ?? (raw as { TripCreationMode?: number })?.TripCreationMode
+    ?? FleetTripCreationMode.Booking;
+  const mode = modeRaw === FleetTripCreationMode.AutoGpsDaily
+    ? FleetTripCreationMode.AutoGpsDaily
+    : FleetTripCreationMode.Booking;
+  return {
+    tripCreationMode: mode,
+    timeZoneId: raw?.timeZoneId ?? (raw as { TimeZoneId?: string })?.TimeZoneId ?? 'Asia/Dubai',
+    modeDescription: raw?.modeDescription ?? (raw as { ModeDescription?: string })?.ModeDescription ?? ''
+  };
+}
+
+export { FleetTripCreationMode };
 
 function emptyTripAnalyticsSummary(): TripAnalyticsSummary {
   return {

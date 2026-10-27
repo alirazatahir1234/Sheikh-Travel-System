@@ -127,6 +127,16 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetFleetStatusHistory([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetGpsFleetStatusHistoryQuery(from, to)));
 
+    /// <summary>Per-tenant trip creation mode: booking (/trips) vs GPS daily auto-trip.</summary>
+    [HttpGet("trip-mode")]
+    public async Task<IActionResult> GetTripCreationMode()
+        => Ok(await Mediator.Send(new GetFleetTripModeSettingsQuery()));
+
+    [RequirePermission(GpsPermissions.DeviceManage)]
+    [HttpPut("trip-mode")]
+    public async Task<IActionResult> SaveTripCreationMode([FromBody] UpsertFleetTripModeSettingsRequest body)
+        => Ok(await Mediator.Send(new UpsertFleetTripModeSettingsCommand(body)));
+
     [HttpGet("trips/context")]
     public async Task<IActionResult> GetTripContext([FromQuery] int vehicleId)
         => Ok(await Mediator.Send(new GetTripContextQuery(vehicleId)));

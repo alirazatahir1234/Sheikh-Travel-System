@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<IGpsFleetHealthCalculator, SheikhTravelSystem.Infrastructure.Services.Gps.GpsFleetHealthCalculator>();
         services.AddScoped<IGpsTraccarFleetFetcher, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTraccarFleetFetcher>();
         services.AddScoped<IGpsTripPersistenceService, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTripPersistenceService>();
+        services.AddScoped<IFleetTripModeRepository, FleetTripModeRepository>();
         services.AddScoped<ITripVehicleQueryHelper, SheikhTravelSystem.Infrastructure.Services.Gps.TripVehicleQueryHelper>();
         services.AddScoped<IPublicLeadRepository, PublicLeadRepository>();
         services.AddScoped<ITrackingRepository, TrackingRepository>();
@@ -334,6 +335,7 @@ public static class DependencyInjection
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOperationsHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsDailyRollupHostedService>();
+        services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Gps.GpsAutoTripHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
         services.AddHostedService<FatigueEscalationHostedService>();
         services.AddHostedService<GpsCommandRetryHostedService>();

@@ -24,6 +24,7 @@ export class GpsTrackingLayoutComponent {
     { label: 'Alerts', icon: 'notifications_active', route: 'alerts', permission: 'Gps.AlertView' },
     { label: 'Geofences', icon: 'fence', route: 'geofences' },
     { label: 'Trips', icon: 'route', route: 'trips' },
+    { label: 'Trip mode', icon: 'settings', route: 'trip-mode', permission: 'Gps.DeviceManage' },
     { label: 'History', icon: 'history', route: 'history' },
     { label: 'Commands', icon: 'power_settings_new', route: 'commands', permission: 'Gps.CommandView' },
     { label: 'Analytics', icon: 'insights', route: 'analytics' },

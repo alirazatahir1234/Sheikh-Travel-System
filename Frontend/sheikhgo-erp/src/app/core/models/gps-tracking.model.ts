@@ -388,6 +388,18 @@ export interface TripFleetFilters {
   driverId?: number | null;
 }
 
+/** Matches backend FleetTripCreationMode — booking /trips vs GPS daily auto-trip. */
+export enum FleetTripCreationMode {
+  Booking = 0,
+  AutoGpsDaily = 1
+}
+
+export interface FleetTripModeSettings {
+  tripCreationMode: FleetTripCreationMode;
+  timeZoneId: string;
+  modeDescription: string;
+}
+
 export interface GpsTrip {
   vehicleId: number;
   vehicleName?: string;
