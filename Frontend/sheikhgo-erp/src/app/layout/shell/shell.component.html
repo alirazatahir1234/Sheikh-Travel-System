@@ -23,7 +23,7 @@
           <img [src]="appLogoPath" [alt]="appProductName" width="40" height="40" />
         </div>
         <div class="brand-copy" *ngIf="sidebarExpanded">
-          <span class="brand-label">{{ appProductName }}</span>
+          <span class="brand-label" [attr.title]="appProductName">{{ appProductName }}</span>
           <span class="brand-tagline">{{ appProductTagline }}</span>
         </div>
       </div>

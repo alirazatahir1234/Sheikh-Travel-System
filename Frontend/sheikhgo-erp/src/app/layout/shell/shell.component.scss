@@ -43,9 +43,9 @@
 
   &.is-expanded,
   &.is-pinned {
-    flex-basis: var(--stb-sidenav-w, 224px);
-    width: var(--stb-sidenav-w, 224px);
-    min-width: var(--stb-sidenav-w, 224px);
+    flex-basis: var(--stb-sidenav-w, 248px);
+    width: var(--stb-sidenav-w, 248px);
+    min-width: var(--stb-sidenav-w, 248px);
     box-shadow: none;
   }
 }
@@ -55,6 +55,30 @@
   align-items: flex-start;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* Expanded rail: pin sits over the corner so brand copy keeps full row width */
+.stb-rail.is-expanded,
+.stb-rail.is-pinned,
+.stb-rail.is-mobile-open {
+  .stb-brand-row {
+    position: relative;
+    align-items: center;
+    padding-right: 34px;
+  }
+
+  .stb-pin-btn:not(.stb-drawer-close) {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    margin: 0;
+  }
+
+  .brand-label {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
 }
 
 .stb-brand {
@@ -905,7 +929,7 @@
     bottom: 0;
     z-index: 100;
     flex: none;
-    width: min(var(--stb-sidenav-w, 224px), min(92vw, 280px)) !important;
+    width: min(var(--stb-sidenav-w, 248px), min(92vw, 280px)) !important;
     min-width: 0 !important;
     transform: translateX(-105%);
     transition: transform 0.26s ease, box-shadow 0.26s ease;
