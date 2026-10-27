@@ -22,6 +22,7 @@
     <!-- Camera for receipt / inspection photos. Gallery uses the system photo
          picker (no READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE — Play policy). -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Strip any transitive gallery/storage grants merged from plugins. -->
     <uses-permission
         android:name="android.permission.READ_MEDIA_IMAGES"

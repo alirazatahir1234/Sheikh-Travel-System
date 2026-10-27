@@ -62,6 +62,7 @@ dependencies:
   device_info_plus: ^13.2.0
   package_info_plus: ^10.2.1
   google_fonts: ^8.2.1
+  speech_to_text: ^7.0.0
 
 dev_dependencies:
   flutter_test:

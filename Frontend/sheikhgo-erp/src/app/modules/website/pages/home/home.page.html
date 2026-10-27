@@ -203,6 +203,87 @@
   </div>
 </section>
 
+<section class="section driver-payments-showcase smart-assignment-showcase" id="smart-assignment" aria-labelledby="smart-assignment-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'home.smartAssignment.kicker' | wsTranslate }}</span>
+      <h2 id="smart-assignment-heading" class="section-title">{{ 'home.smartAssignment.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.smartAssignment.lead' | wsTranslate }}</p>
+    </header>
+    <div class="driver-payments-grid">
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">insights</mat-icon>
+        <h3>{{ 'home.smartAssignment.signalsTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.smartAssignment.signalsText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">notifications_active</mat-icon>
+        <h3>{{ 'home.smartAssignment.driverTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.smartAssignment.driverText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card driver-payments-card--accent">
+        <mat-icon aria-hidden="true">admin_panel_settings</mat-icon>
+        <h3>{{ 'home.smartAssignment.adminTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.smartAssignment.adminText' | wsTranslate }}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section driver-payments-showcase" id="driver-voice" aria-labelledby="driver-voice-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'home.driverVoice.kicker' | wsTranslate }}</span>
+      <h2 id="driver-voice-heading" class="section-title">{{ 'home.driverVoice.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.driverVoice.lead' | wsTranslate }}</p>
+    </header>
+    <div class="driver-payments-grid">
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">translate</mat-icon>
+        <h3>{{ 'home.driverVoice.langTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverVoice.langText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">campaign</mat-icon>
+        <h3>{{ 'home.driverVoice.intentTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverVoice.intentText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card driver-payments-card--accent">
+        <mat-icon aria-hidden="true">cloud_off</mat-icon>
+        <h3>{{ 'home.driverVoice.offlineTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverVoice.offlineText' | wsTranslate }}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section driver-payments-showcase driver-offline-showcase" id="driver-offline-sync" aria-labelledby="driver-offline-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'home.driverOffline.kicker' | wsTranslate }}</span>
+      <h2 id="driver-offline-heading" class="section-title">{{ 'home.driverOffline.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.driverOffline.lead' | wsTranslate }}</p>
+    </header>
+    <div class="driver-payments-grid">
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">inventory_2</mat-icon>
+        <h3>{{ 'home.driverOffline.queueTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverOffline.queueText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">verified</mat-icon>
+        <h3>{{ 'home.driverOffline.serverTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverOffline.serverText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card driver-payments-card--accent">
+        <mat-icon aria-hidden="true">rule</mat-icon>
+        <h3>{{ 'home.driverOffline.conflictTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverOffline.conflictText' | wsTranslate }}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
 <section class="section client-testimonials" id="client-testimonials" aria-labelledby="client-testimonials-heading">
   <div class="container">
     <header class="section-head testimonials-head">
@@ -238,7 +319,7 @@
       <p class="section-lead">{{ 'home.capabilities.lead' | wsTranslate }}</p>
     </header>
     <div class="platform-cap-grid">
-      @for (cap of platformCapabilities; track cap.title) {
+      @for (cap of platformCapabilities(); track cap.title) {
         <article class="platform-cap-card">
           <span class="cap-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
           <h3>{{ cap.title }}</h3>

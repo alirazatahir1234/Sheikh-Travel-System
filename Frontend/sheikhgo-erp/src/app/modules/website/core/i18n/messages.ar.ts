@@ -360,5 +360,20 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.clientTracking.f2.title': 'ويب للجوال',
   'pages.clientTracking.f2.text': 'صفحات متجاوبة للهاتف — بدون تطبيق للعميل.',
   'pages.clientTracking.f3.title': 'إلغاء في أي وقت',
-  'pages.clientTracking.f3.text': 'Ops يلغي أو يجدد الروابط عند تغيّر الرحلة.',
+  'pages.clientTracking.f3.text': 'Ops يلغi أو يجدد الروابط عند تغيّر الرحلة.',
+
+  'home.pill.smartAssignment': 'تعيين ذكي',
+  'home.smartAssignment.kicker': 'عمليات الأسطول · أوزان ذكية',
+  'home.smartAssignment.title': 'تعيين الرحلات بذكاء مع تفسير النتائج',
+  'home.smartAssignment.lead':
+    'عند وصول رحلة بدون سائق، يرتّب Nexus السائقين حسب التقييم والموقع المباشر وساعات العمل ومستوى الوقود والمسافة وETA مع حركة المرور — ثم يُشعر الأفضل. الرفض يعرض المرشح التالي؛ المسؤول يمكنه التجاوز مع تفصيل الدرجات.',
+  'home.smartAssignment.signalsTitle': 'إشارات تشغيل حقيقية',
+  'home.smartAssignment.signalsText':
+    'تقييم السائق وموقع GPS والحضور وGoogle Routes عند التفعيل — وإلا تقديرات خطية موثّقة.',
+  'home.smartAssignment.driverTitle': 'قبول / رفض السائق',
+  'home.smartAssignment.driverText':
+    'إشعارات push وتطبيق. الرفض يعيد العرض للسائق التالي دون إلغاء الرحلة.',
+  'home.smartAssignment.adminTitle': 'تجاوز المسؤول وسجل',
+  'home.smartAssignment.adminText':
+    'مساحة Smart Assignment في عمليات الأسطول مع أوزان العوامل وسجل القرارات للعروض.',
 };

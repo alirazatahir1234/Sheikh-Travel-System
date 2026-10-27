@@ -28,7 +28,8 @@ final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
   final service = OfflineSyncService(ref.read(dioProvider), ref);
   ref.onDispose(service.dispose);
   // Drain any ops queued before the shell mounted (e.g. cold start online).
-  unawaited(service.syncNow());
+  // Defer so sync does not mutate other providers during this provider's build.
+  scheduleMicrotask(() => unawaited(service.syncNow()));
   return service;
 });
 
@@ -319,6 +320,19 @@ class OfflineSyncService {
             'paymentMethod': op.payload['paymentMethod'],
             'referenceNumber': op.payload['referenceNumber'],
             'notes': op.payload['notes'],
+          },
+          options: Options(headers: headers),
+        );
+      case OfflineOpType.voiceCommand:
+        await _dio.post(
+          ApiEndpoints.voiceCommands,
+          data: {
+            'transcript': op.payload['transcript'],
+            'languageCode': op.payload['languageCode'],
+            if (op.payload['intent'] != null) 'intent': op.payload['intent'],
+            'clientOpId': op.id,
+            if (op.payload['latitude'] != null) 'latitude': op.payload['latitude'],
+            if (op.payload['longitude'] != null) 'longitude': op.payload['longitude'],
           },
           options: Options(headers: headers),
         );

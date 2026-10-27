@@ -145,6 +145,11 @@ abstract final class DashboardLayoutRegistry {
             iconName: 'fingerprint',
             route: '/attendance',
           ),
+          DashboardQuickAction(
+            label: 'Voice',
+            iconName: 'mic',
+            route: '/voice',
+          ),
         ];
       case DashboardRole.owner:
         return const [

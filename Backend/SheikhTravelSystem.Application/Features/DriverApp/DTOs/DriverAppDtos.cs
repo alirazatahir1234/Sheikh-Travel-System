@@ -119,6 +119,37 @@ public record DriverSosRequest(double? Latitude, double? Longitude, string? Mess
 
 public record DriverSosResultDto(int Id, DateTime CreatedAt);
 
+public record DriverVoiceCommandRequest(
+    string Transcript,
+    string LanguageCode,
+    string? Intent,
+    string? ClientOpId,
+    double? Latitude,
+    double? Longitude);
+
+public record DriverVoiceCommandResultDto(
+    int VoiceCommandId,
+    string ResolvedIntent,
+    int? SosAlertId,
+    DateTime CreatedAt);
+
+public record DriverSyncBatchRequest(IReadOnlyList<DriverSyncOperationRequest> Operations);
+
+public record DriverSyncOperationRequest(
+    string ClientOpId,
+    string OpType,
+    System.Text.Json.JsonElement Payload);
+
+public record DriverSyncBatchResultDto(IReadOnlyList<DriverSyncOperationResultDto> Results);
+
+public record DriverSyncOperationResultDto(
+    string ClientOpId,
+    string OpType,
+    bool Processed,
+    bool Success,
+    string? Message,
+    System.Text.Json.JsonElement? Data);
+
 public record DriverTimelineEventDto(
     int Id,
     string EventType,

@@ -87,6 +87,10 @@
 		<string>SheikhGo Tracking may save captured receipts or inspection photos to your library when you choose to.</string>
 		<key>NSFaceIDUsageDescription</key>
 		<string>SheikhGo Tracking uses Face ID to unlock the app when biometric lock is enabled.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>SheikhGo Tracking uses the microphone for hands-free voice commands to dispatch.</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>SheikhGo Tracking converts your speech to text for alerts and messages to dispatch.</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>location</string>

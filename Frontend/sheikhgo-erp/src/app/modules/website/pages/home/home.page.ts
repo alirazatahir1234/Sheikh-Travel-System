@@ -48,6 +48,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.dashboard'), fragment: 'see-the-platform', icon: 'dashboard' },
       { label: this.i18n.t('home.pill.modules'), fragment: 'platform-modules', icon: 'view_module' },
       { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
+      { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
+      { label: this.i18n.t('home.pill.driverVoice'), fragment: 'driver-voice', icon: 'mic' },
+      { label: this.i18n.t('home.pill.driverOffline'), fragment: 'driver-offline-sync', icon: 'sync_disabled' },
       { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
       { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
       { label: this.i18n.t('home.pill.pricing'), link: '/pricing', icon: 'payments' },
@@ -66,7 +69,30 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     ] as const;
   });
 
-  readonly platformCapabilities = [
+  readonly platformCapabilities = computed(() => {
+    this.i18n.lang();
+    const voice = {
+      title: this.i18n.t('home.capability.voice.title'),
+      text: this.i18n.t('home.capability.voice.text'),
+      icon: 'mic' as const,
+      link: '/',
+      linkLabel: this.i18n.t('home.pill.driverVoice'),
+    };
+    const offlineDriver = {
+      title: this.i18n.t('home.capability.offlineDriver.title'),
+      text: this.i18n.t('home.capability.offlineDriver.text'),
+      icon: 'cloud_off' as const,
+      link: '/',
+      linkLabel: this.i18n.t('home.pill.driverOffline'),
+    };
+    return [
+      ...this._platformCapabilitiesBase,
+      voice,
+      offlineDriver,
+    ] as const;
+  });
+
+  private readonly _platformCapabilitiesBase = [
     {
       title: 'GPS Tracking',
       text: 'Device registry, live positions, and operational map views tied to your fleet.',

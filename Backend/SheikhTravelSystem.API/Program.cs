@@ -384,6 +384,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<DriverMobileIdempotencyMiddleware>();
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
 app.MapHub<NotificationHub>("/hubs/notifications");

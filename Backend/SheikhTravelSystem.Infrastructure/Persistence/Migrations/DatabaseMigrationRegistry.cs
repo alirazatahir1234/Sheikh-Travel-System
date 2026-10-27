@@ -143,6 +143,8 @@ public static class DatabaseMigrationRegistry
             M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
             M("FuelObdTelemetryMigration", FuelObdTelemetryMigration.ApplyAsync),
             M("FuelStationAlertModuleMigration", FuelStationAlertModuleMigration.ApplyAsync),
+            M("TripSmartAssignmentMigration", TripSmartAssignmentMigration.ApplyAsync),
+            M("FleetEvAnomalyMigration", FleetEvAnomalyMigration.ApplyAsync),
         ];
     }
 }

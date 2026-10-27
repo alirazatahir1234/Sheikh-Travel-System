@@ -6,6 +6,7 @@ enum OfflineOpType {
   inspectionSubmit,
   documentUpload,
   paymentCollect,
+  voiceCommand,
 }
 
 enum OfflineOpStatus {
@@ -47,6 +48,7 @@ class OfflineOperation {
           'Document ${payload['documentType'] ?? 'upload'}',
         OfflineOpType.paymentCollect =>
           'Payment collect (#${payload['tripId'] ?? '?'})',
+        OfflineOpType.voiceCommand => 'Voice command',
       };
 
   Map<String, dynamic> toMap() => {

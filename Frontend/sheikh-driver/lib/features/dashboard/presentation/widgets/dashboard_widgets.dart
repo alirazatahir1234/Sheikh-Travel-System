@@ -45,6 +45,7 @@ IconData _iconName(String name) => switch (name) {
       'reports' => Icons.bar_chart_rounded,
       'more' => Icons.apps_outlined,
       'bookings' => Icons.event_note_outlined,
+      'mic' => Icons.mic_rounded,
       _ => Icons.apps_rounded,
     };
 

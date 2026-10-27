@@ -157,6 +157,20 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.driverPayments.feeMin': 'Minimum cash-out: 500 PKR',
   'home.driverPayments.feePercent': 'Processing fee: 2% (deducted from gross)',
   'home.driverPayments.feeBreakdown': 'Net payout = gross − 2% fee',
+  'home.pill.smartAssignment': 'Smart assignment',
+  'home.smartAssignment.kicker': 'Fleet operations · AI-weighted',
+  'home.smartAssignment.title': 'Smart trip assignment with explainability',
+  'home.smartAssignment.lead':
+    'When a trip arrives without a driver, Nexus ranks available drivers by rating, live GPS proximity, hours worked, fuel level, distance, and traffic-aware ETA—then notifies the best match. Rejections automatically offer the next candidate; admins can override with a full score breakdown.',
+  'home.smartAssignment.signalsTitle': 'Real operational signals',
+  'home.smartAssignment.signalsText':
+    'Uses Drivers.Rating, VehicleCurrentLocation, DriverAttendance fatigue, and Google Routes when configured—otherwise documents straight-line estimates at the integration boundary.',
+  'home.smartAssignment.driverTitle': 'Driver accept / reject',
+  'home.smartAssignment.driverText':
+    'Assigned drivers receive push and in-app notifications. Declining re-opens dispatch to the next ranked driver instead of cancelling the trip.',
+  'home.smartAssignment.adminTitle': 'Admin override & audit',
+  'home.smartAssignment.adminText':
+    'Fleet Operations includes a Smart Assignment workspace with factor weights, routing source labels, and a decision history for client demos and dispatch audits.',
   'home.pill.driverVoice': 'Voice commands',
   'home.pill.driverOffline': 'Offline sync',
   'home.driverVoice.kicker': 'Driver app',
