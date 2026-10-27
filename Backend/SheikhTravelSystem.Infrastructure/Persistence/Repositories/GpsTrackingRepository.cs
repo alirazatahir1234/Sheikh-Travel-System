@@ -3202,6 +3202,8 @@ public sealed partial class GpsTrackingRepository(
 
         var trips = tripsResponse.Data.Items;
         var summary = TripAnalyticsMapper.BuildSummary(trips, summaries, stops, events);
+        var alertCounts = await CountSafetyAlertsInRangeAsync([vehicleId], fromDate, toDate, cancellationToken);
+        summary = TripAnalyticsMapper.WithSafetyAlertCounts(summary, alertCounts.Overspeed, alertCounts.HarshBrake, alertCounts.HarshAccel);
         var eventDtos = events.Select(e => TripAnalyticsMapper.ToEventDto(e)).OrderByDescending(e => e.Time).ToList();
         var stopDtos = stops.Select(TripAnalyticsMapper.ToStopDto).OrderByDescending(s => s.EndTime).ToList();
 
@@ -3310,6 +3312,9 @@ public sealed partial class GpsTrackingRepository(
         }
 
         var summary = TripAnalyticsMapper.BuildSummary(trips, summaries, stops, events);
+        var vehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList();
+        var alertCounts = await CountSafetyAlertsInRangeAsync(vehicleIds, fromDate, toDate, cancellationToken);
+        summary = TripAnalyticsMapper.WithSafetyAlertCounts(summary, alertCounts.Overspeed, alertCounts.HarshBrake, alertCounts.HarshAccel);
 
         return ApiResponse<TripAnalyticsSummaryDto>.SuccessResponse(summary);
         }

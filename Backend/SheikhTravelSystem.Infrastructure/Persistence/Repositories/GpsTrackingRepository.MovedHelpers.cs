@@ -29,6 +29,36 @@ public sealed partial class GpsTrackingRepository
         TraccarHarshEventMapper.IsCanonicalHarsh(type) ||
         TraccarHarshEventMapper.LooksLikeHarsh(type);
 
+    private async Task<(int Overspeed, int HarshBrake, int HarshAccel)> CountSafetyAlertsInRangeAsync(
+        IReadOnlyCollection<int> vehicleIds,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken)
+    {
+        if (vehicleIds.Count == 0)
+            return (0, 0, 0);
+
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var row = await connection.QuerySingleAsync<(int Overspeed, int HarshBrake, int HarshAccel)>(
+            new CommandDefinition(
+                """
+                SELECT
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('overspeed', 'speed_exceeded', 'road_speed_exceeded') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('harsh_braking', 'hardbraking', 'hard_braking', 'braking') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('harsh_acceleration', 'hardacceleration', 'hard_acceleration', 'acceleration') THEN 1 ELSE 0 END), 0)
+                FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                WHERE e.IsDeleted = 0
+                  AND e.VehicleId IN @VehicleIds
+                  AND e.Timestamp >= @FromDate AND e.Timestamp < @ToDate
+                """,
+                new { TenantId = tenantId, VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate },
+                cancellationToken: cancellationToken));
+
+        return row;
+    }
+
     private async Task<int> CountOverspeedTodayAsync(CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

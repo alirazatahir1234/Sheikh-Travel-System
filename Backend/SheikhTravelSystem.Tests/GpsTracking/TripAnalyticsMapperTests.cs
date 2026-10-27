@@ -112,6 +112,31 @@ public class TripAnalyticsMapperTests
     }
 
     [Fact]
+    public void BuildSummary_LocalTrips_ProvidesEngineHoursFromDuration()
+    {
+        var trips = new List<GpsTripDto>
+        {
+            new(1, "V1", 1, DateTime.UtcNow.AddHours(-2), DateTime.UtcNow.AddHours(-1),
+                12.5, 45m, 70m, 60, null, null, null, null, null, null, "Completed", null, null, null, null)
+        };
+
+        var summary = TripAnalyticsMapper.BuildSummary(trips, [], [], []);
+
+        Assert.Equal(12.5, summary.DistanceKm);
+        Assert.Equal(60, summary.DrivingMinutes);
+        Assert.Equal(1.0m, summary.EngineHours);
+    }
+
+    [Fact]
+    public void WithSafetyAlertCounts_MergesGpsAlertStore()
+    {
+        var baseSummary = new TripAnalyticsSummaryDto(1, 10, 30, 0, null, 40m, 60m, 0, 0, 0, 0, 0.5m);
+        var merged = TripAnalyticsMapper.WithSafetyAlertCounts(baseSummary, overspeedAlerts: 4, harshBrakeAlerts: 1, harshAccelAlerts: 0);
+        Assert.Equal(4, merged.OverspeedCount);
+        Assert.Equal(1, merged.HarshBrakeCount);
+    }
+
+    [Fact]
     public void BuildHistoryStatistics_AvgSpeed_IgnoresStationaryPoints()
     {
         var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);

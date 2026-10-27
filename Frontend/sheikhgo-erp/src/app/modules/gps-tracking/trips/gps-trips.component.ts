@@ -33,6 +33,13 @@ import {
   resolveTripEndpointLabel
 } from '../utils/gps-address.util';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
+import {
+  aggregateTripAnalyticsFromTrips,
+  formatTripDistanceCell,
+  formatTripTravelSpeedCell,
+  mergeTripAnalyticsSummaries,
+  summaryForSelectedTrip
+} from '../utils/trip-analytics.util';
 
 const EMPTY_EVENTS: TripEvent[] = [];
 const EMPTY_REPLAY: TripReplayBundle = { route: [], playback: [], stops: [], events: [], summary: null };
@@ -94,6 +101,8 @@ export class GpsTripsComponent implements OnInit {
 
   analytics: TripAnalyticsBundle | null = null;
   fleetSummary: TripAnalyticsSummary | null = null;
+  /** Trip-list fallback when analytics endpoints fail or return empty metrics. */
+  private tripsFallbackSummary: TripAnalyticsSummary | null = null;
   context: TripDeviceContext | null = null;
   replayRoute: TripReplayPosition[] = [];
   replayPlayback: TripReplayPosition[] = [];
@@ -120,8 +129,17 @@ export class GpsTripsComponent implements OnInit {
     return !this.vehicleId;
   }
 
+  get apiSummary(): TripAnalyticsSummary | null {
+    const raw = this.isFleetWide ? this.fleetSummary : (this.analytics?.summary ?? null);
+    return mergeTripAnalyticsSummaries(raw, this.tripsFallbackSummary);
+  }
+
+  /** Period KPIs, or the selected trip row when one is highlighted. */
   get summary(): TripAnalyticsSummary | null {
-    return this.isFleetWide ? this.fleetSummary : (this.analytics?.summary ?? null);
+    if (this.selectedTrip) {
+      return summaryForSelectedTrip(this.selectedTrip, this.analyticsEvents);
+    }
+    return this.apiSummary;
   }
 
   get periodLabel(): string {
@@ -196,7 +214,8 @@ export class GpsTripsComponent implements OnInit {
   }
 
   get distanceValue(): string | number {
-    return this.summary ? this.summary.distanceKm.toFixed(1) : '—';
+    if (!this.summary) return '—';
+    return formatTripDistanceCell(this.summary.distanceKm);
   }
 
   get maxSpeedValue(): string | number {
@@ -209,7 +228,8 @@ export class GpsTripsComponent implements OnInit {
   }
 
   get avgSpeedValue(): string | number {
-    return this.summary ? Math.round(this.summary.avgSpeedKmh) : '—';
+    if (!this.summary || this.summary.avgSpeedKmh <= 0) return '—';
+    return Math.round(this.summary.avgSpeedKmh);
   }
 
   get stopCountValue(): string | number {
@@ -221,8 +241,12 @@ export class GpsTripsComponent implements OnInit {
   }
 
   get engineHoursValue(): string | number {
-    if (!this.summary || this.summary.engineHours == null) return '—';
-    return this.summary.engineHours.toFixed(1);
+    if (!this.summary) return '—';
+    const hours =
+      this.summary.engineHours ??
+      (this.summary.drivingMinutes > 0 ? this.summary.drivingMinutes / 60 : null);
+    if (hours == null || hours <= 0) return '—';
+    return hours.toFixed(1);
   }
 
   get driveTimeValue(): string {
@@ -396,6 +420,7 @@ export class GpsTripsComponent implements OnInit {
     this.replayEvents = [];
     this.analytics = null;
     this.fleetSummary = null;
+    this.tripsFallbackSummary = null;
     this.analyticsEvents = EMPTY_EVENTS;
 
     const fleetFilters = { branchId: this.branchId, departmentId: this.departmentId, driverId: this.fleetDriverId };
@@ -444,6 +469,7 @@ export class GpsTripsComponent implements OnInit {
         this.filteredTrips = trips.items;
         this.context = context;
         this.applyClientDriverFilter();
+        this.rebuildTripsFallbackSummary();
         this.loading = false;
         this.lastRefreshedAt = new Date();
       },
@@ -469,6 +495,7 @@ export class GpsTripsComponent implements OnInit {
       ).subscribe(analytics => {
         this.analytics = analytics;
         this.analyticsEvents = analytics?.events ?? EMPTY_EVENTS;
+        this.rebuildTripsFallbackSummary();
         this.rebuildTripCaches();
         this.analyticsLoading = false;
       });
@@ -484,10 +511,31 @@ export class GpsTripsComponent implements OnInit {
       ).subscribe(summary => {
         this.fleetSummary = summary;
         this.analyticsEvents = EMPTY_EVENTS;
+        this.rebuildTripsFallbackSummary();
         this.rebuildTripCaches();
         this.analyticsLoading = false;
       });
     }
+  }
+
+  formatTripDistance(trip: GpsTrip): string {
+    return formatTripDistanceCell(trip.distanceKm);
+  }
+
+  formatTripTravelSpeed(trip: GpsTrip): string {
+    return formatTripTravelSpeedCell(trip.avgSpeedKmh, trip);
+  }
+
+  private rebuildTripsFallbackSummary(): void {
+    if (!this.trips.length && this.totalCount === 0) {
+      this.tripsFallbackSummary = null;
+      return;
+    }
+    this.tripsFallbackSummary = aggregateTripAnalyticsFromTrips(
+      this.trips,
+      this.totalCount,
+      this.analyticsEvents
+    );
   }
 
   private rebuildTripCaches(): void {
@@ -559,6 +607,10 @@ export class GpsTripsComponent implements OnInit {
   }
 
   selectTrip(trip: GpsTrip): void {
+    if (this.selectedTrip && this.tripKey(this.selectedTrip) === this.tripKey(trip)) {
+      this.selectedTrip = null;
+      return;
+    }
     this.selectedTrip = trip;
     this.replayLoading = true;
     this.replayRoute = [];

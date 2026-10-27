@@ -178,9 +178,8 @@ public static class TripAnalyticsMapper
         var fuel = summaries.Sum(s => s.SpentFuel);
         decimal? fuelLiters = fuel > 0 ? fuel : null;
 
-        // Only meaningful when sourced from Traccar summaries — local trip-detection fallback has
-        // no independent engine-on signal, so DrivingMinutes there is trip duration, not engine time.
-        decimal? engineHours = hasSummary
+        // Traccar summaries: engine-on time from telemetry. Local trip rows: use summed trip duration.
+        decimal? engineHours = drivingMinutes > 0
             ? Math.Round(drivingMinutes / 60m, 1)
             : null;
 
@@ -339,6 +338,23 @@ public static class TripAnalyticsMapper
     {
         return events.Count(e =>
             types.Any(t => e.Type.Contains(t, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>
+    /// Merge GpsAlertEvents safety counts (canonical ERP event store) with Traccar-derived summary KPIs.
+    /// </summary>
+    public static TripAnalyticsSummaryDto WithSafetyAlertCounts(
+        TripAnalyticsSummaryDto summary,
+        int overspeedAlerts,
+        int harshBrakeAlerts,
+        int harshAccelAlerts)
+    {
+        return summary with
+        {
+            OverspeedCount = Math.Max(summary.OverspeedCount, overspeedAlerts),
+            HarshBrakeCount = Math.Max(summary.HarshBrakeCount, harshBrakeAlerts),
+            HarshAccelCount = Math.Max(summary.HarshAccelCount, harshAccelAlerts)
+        };
     }
 
     /// <summary>Reduce replay payload size so the UI can render routes without freezing.</summary>

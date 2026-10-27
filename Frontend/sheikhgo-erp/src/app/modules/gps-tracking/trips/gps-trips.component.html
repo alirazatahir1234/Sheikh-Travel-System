@@ -173,7 +173,7 @@
   <section class="kpi-row">
     <stb-stat-tile
       label="Total Trips"
-      [value]="summary?.tripCount ?? 0"
+      [value]="(selectedTrip ? 1 : (apiSummary?.tripCount ?? totalCount)) || 0"
       icon="route"
       color="teal"
       [loading]="loading || analyticsLoading"
@@ -188,7 +188,7 @@
       [loading]="loading || analyticsLoading">
     </stb-stat-tile>
     <stb-stat-tile
-      label="Drive Time"
+      label="Travel Time"
       [value]="driveTimeValue"
       icon="schedule"
       color="teal"
@@ -203,7 +203,7 @@
       [loading]="loading || analyticsLoading">
     </stb-stat-tile>
     <stb-stat-tile
-      label="Avg Speed"
+      label="Travel Speed"
       [value]="avgSpeedValue"
       [suffix]="avgSpeedValue === '—' ? '' : ' km/h'"
       icon="speed"
@@ -266,7 +266,7 @@
       </app-trip-replay-map>
     </div>
     <app-trip-route-analysis-panel
-      [summary]="summary"
+      [summary]="apiSummary"
       [events]="analyticsEvents"
       [selectedTrip]="selectedTrip"
       [loading]="analyticsLoading || replayLoading">
@@ -319,9 +319,9 @@
             <th *ngIf="isFleetWide">Vehicle</th>
             <th>Trip Date</th>
             <th>Start / End Location</th>
-            <th>Duration</th>
-            <th>Dist (km)</th>
-            <th>Avg Speed</th>
+            <th>Travel Time</th>
+            <th>Distance</th>
+            <th>Travel Speed</th>
             <th>Max Speed</th>
             <th>Fuel</th>
             <th>Events</th>
@@ -337,8 +337,8 @@
             <td class="trip-date">{{ formatTripDate(t) }}</td>
             <td class="location-cell">{{ formatLocation(t) }}</td>
             <td>{{ formatDuration(t.durationMinutes) }}</td>
-            <td>{{ t.distanceKm | number:'1.1-1' }}</td>
-            <td>{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
+            <td>{{ formatTripDistance(t) }}<span *ngIf="formatTripDistance(t) !== '—'"> km</span></td>
+            <td>{{ formatTripTravelSpeed(t) }}</td>
             <td>
               <span class="speed-pill" [class.speed-pill--high]="t.maxSpeedKmh > 90">
                 {{ t.maxSpeedKmh | number:'1.0-0' }} km/h

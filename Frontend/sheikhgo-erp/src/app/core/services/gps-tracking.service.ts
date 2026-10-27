@@ -77,6 +77,11 @@ import {
   GpsLiveFleetVehicleDto
 } from '../models/gps-tracking.model';
 import { PagedResult, normalizePagedResult } from '../models/common.model';
+import {
+  normalizeGpsTrip,
+  normalizeTripAnalyticsBundle,
+  normalizeTripAnalyticsSummary
+} from '../../modules/gps-tracking/utils/trip-analytics.util';
 import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
 import { VehicleStatus } from '../models/vehicle.model';
@@ -709,7 +714,15 @@ export class GpsTrackingService {
     const params: Record<string, string> = { vehicleId: String(vehicleId) };
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
-    return this.http.get<TripAnalyticsBundle>(`${this.base}/trips/analytics`, { params });
+    return this.http.get<TripAnalyticsBundle>(`${this.base}/trips/analytics`, { params }).pipe(
+      map(raw => {
+        const bundle = normalizeTripAnalyticsBundle(raw);
+        if (bundle) return bundle;
+        const summaryOnly = normalizeTripAnalyticsSummary(raw as never);
+        if (summaryOnly) return { summary: summaryOnly, events: [], stops: [] };
+        return { summary: emptyTripAnalyticsSummary(), events: [], stops: [] };
+      })
+    );
   }
 
   getTripReplay(
@@ -778,7 +791,10 @@ export class GpsTrackingService {
     if (query?.maxAvgSpeedKmh != null) params['maxAvgSpeedKmh'] = String(query.maxAvgSpeedKmh);
     if (query?.status) params['status'] = query.status;
     return this.http.get<PagedResult<GpsTrip>>(`${this.base}/trips`, { params }).pipe(
-      map(r => normalizePagedResult(r))
+      map(r => {
+        const page = normalizePagedResult(r);
+        return { ...page, items: page.items.map(t => normalizeGpsTrip(t)) };
+      })
     );
   }
 
@@ -808,7 +824,9 @@ export class GpsTrackingService {
     if (filters?.branchId) params['branchId'] = String(filters.branchId);
     if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
     if (filters?.driverId) params['driverId'] = String(filters.driverId);
-    return this.http.get<TripAnalyticsSummary>(`${this.base}/trips/fleet-summary`, { params });
+    return this.http.get<TripAnalyticsSummary>(`${this.base}/trips/fleet-summary`, { params }).pipe(
+      map(raw => normalizeTripAnalyticsSummary(raw) ?? emptyTripAnalyticsSummary())
+    );
   }
 
   getGeofences(filters?: {
@@ -1314,4 +1332,20 @@ export class GpsTrackingService {
     if (status === 'delayed') return 'Delayed • check route';
     return 'Last known position';
   }
+}
+
+function emptyTripAnalyticsSummary(): TripAnalyticsSummary {
+  return {
+    tripCount: 0,
+    distanceKm: 0,
+    drivingMinutes: 0,
+    idleMinutes: 0,
+    avgSpeedKmh: 0,
+    maxSpeedKmh: 0,
+    stopCount: 0,
+    overspeedCount: 0,
+    harshBrakeCount: 0,
+    harshAccelCount: 0,
+    engineHours: null
+  };
 }
