@@ -183,6 +183,9 @@ public record CreateGpsAlertRuleDto(
 public class GpsAlertEventDto
 {
     public int Id { get; set; }
+    /// <summary>Set on platform cross-tenant alert listings (Super Admin).</summary>
+    public int? TenantId { get; set; }
+    public string? TenantName { get; set; }
     public int? RuleId { get; set; }
     public int VehicleId { get; set; }
     public string? VehicleName { get; set; }

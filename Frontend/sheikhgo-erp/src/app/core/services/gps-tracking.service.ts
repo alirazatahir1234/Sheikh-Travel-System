@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
@@ -174,6 +174,7 @@ function mapNearbyPlace(row: NearbyPlaceApiRow): NearbyPlace | null {
 @Injectable({ providedIn: 'root' })
 export class GpsTrackingService {
   private readonly base = `${environment.apiUrl}/gps`;
+  private readonly platformAlertsBase = `${environment.apiUrl}/platform/gps/alerts`;
 
   constructor(
     private http: HttpClient,
@@ -902,20 +903,76 @@ export class GpsTrackingService {
     return this.http.get<GpsAlertStats>(`${this.base}/alerts/stats`);
   }
 
-  acknowledgeAlert(id: number): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/acknowledge`, {});
+  getPlatformAlertEvents(
+    tenantId?: number | null,
+    options?: {
+      severity?: string;
+      status?: string;
+      readState?: string;
+      datePreset?: string;
+      driverId?: number;
+      eventType?: string;
+      geofenceId?: number;
+      vehicleId?: number;
+      limit?: number;
+    }
+  ): Observable<GpsAlertEvent[]> {
+    const params: Record<string, string> = {};
+    if (tenantId != null) params['tenantId'] = String(tenantId);
+    if (options?.vehicleId) params['vehicleId'] = String(options.vehicleId);
+    if (options?.severity) params['severity'] = options.severity;
+    if (options?.status) params['status'] = options.status;
+    if (options?.readState) params['readState'] = options.readState;
+    if (options?.datePreset) params['datePreset'] = options.datePreset;
+    if (options?.driverId) params['driverId'] = String(options.driverId);
+    if (options?.eventType) params['eventType'] = options.eventType;
+    if (options?.geofenceId) params['geofenceId'] = String(options.geofenceId);
+    return this.http.get<GpsAlertEvent[]>(`${this.platformAlertsBase}/events`, { params }).pipe(
+      map(events => (options?.limit ? events.slice(0, options.limit) : events))
+    );
   }
 
-  markRead(id: number): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/read`, {});
+  getPlatformAlertStats(tenantId?: number | null): Observable<GpsAlertStats> {
+    let params = new HttpParams();
+    if (tenantId != null) params = params.set('tenantId', tenantId);
+    return this.http.get<GpsAlertStats>(`${this.platformAlertsBase}/stats`, { params });
   }
 
-  resolveAlert(id: number, resolutionNotes?: string): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/resolve`, { resolutionNotes });
+  acknowledgeAlert(id: number, tenantScopeId?: number | null): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/alerts/events/${id}/acknowledge`,
+      {},
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  archiveAlert(id: number, archiveReason?: string): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/archive`, { archiveReason });
+  markRead(id: number, tenantScopeId?: number | null): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/alerts/events/${id}/read`,
+      {},
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
+  }
+
+  resolveAlert(id: number, resolutionNotes?: string, tenantScopeId?: number | null): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/alerts/events/${id}/resolve`,
+      { resolutionNotes },
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
+  }
+
+  archiveAlert(id: number, archiveReason?: string, tenantScopeId?: number | null): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/alerts/events/${id}/archive`,
+      { archiveReason },
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
+  }
+
+  private tenantScopedHttpOptions(tenantScopeId?: number | null): { headers?: HttpHeaders } {
+    if (tenantScopeId == null) return {};
+    return { headers: new HttpHeaders({ 'X-Tenant-Id': String(tenantScopeId) }) };
   }
 
   getGeofenceBreachCount(): Observable<number> {

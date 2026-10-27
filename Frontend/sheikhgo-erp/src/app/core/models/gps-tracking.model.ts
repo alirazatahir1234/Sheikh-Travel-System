@@ -314,6 +314,9 @@ export interface GpsAlertRule {
 
 export interface GpsAlertEvent {
   id: number;
+  /** Present on Super Admin cross-company alert feed. */
+  tenantId?: number;
+  tenantName?: string;
   ruleId?: number;
   vehicleId: number;
   vehicleName?: string;

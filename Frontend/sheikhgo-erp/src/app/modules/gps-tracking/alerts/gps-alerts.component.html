@@ -29,6 +29,24 @@
 
   <!-- Events tab -->
   <div *ngIf="activeTab === 'events'">
+    <div class="scope-bar" *ngIf="isSuperAdmin">
+      <div class="chip-row scope-toggle">
+        <button class="chip" [class.active]="scopeMode === 'all'" type="button" (click)="setScopeMode('all')">
+          All companies
+        </button>
+        <button class="chip" [class.active]="scopeMode === 'company'" type="button" (click)="setScopeMode('company')">
+          Current company
+        </button>
+      </div>
+      <mat-form-field appearance="outline" class="company-filter" *ngIf="scopeMode === 'all'">
+        <mat-label>Filter by company</mat-label>
+        <mat-select [value]="companyFilterId" (selectionChange)="onCompanyFilterChange($event.value)">
+          <mat-option [value]="null">All companies</mat-option>
+          <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
     <div class="stats-grid">
       <div class="stat-card"><span class="stat-value">{{ stats.today }}</span><span class="stat-label">Today</span></div>
       <div class="stat-card"><span class="stat-value stat-warn">{{ stats.unread }}</span><span class="stat-label">Unread</span></div>
@@ -78,6 +96,7 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th *ngIf="showCompanyColumn">Company</th>
             <th>Type</th>
             <th>Vehicle</th>
             <th>Geofence</th>
@@ -90,6 +109,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let e of events" [class.acknowledged]="e.isAcknowledged" (click)="openEvent(e)">
+            <td *ngIf="showCompanyColumn" class="fw-med">{{ e.tenantName || ('#' + e.tenantId) }}</td>
             <td>
               <span class="badge" [ngClass]="eventTypeBadge(e.eventType)">{{ eventTypeLabel(e.eventType) }}</span>
             </td>
@@ -173,6 +193,7 @@
       </div>
       <p class="detail-message">{{ event.message }}</p>
       <div class="detail-grid">
+        <div *ngIf="showCompanyColumn"><span class="label">Company</span><span>{{ event.tenantName || ('#' + event.tenantId) }}</span></div>
         <div><span class="label">Vehicle</span><span>{{ event.vehicleName || ('#' + event.vehicleId) }}</span></div>
         <div><span class="label">Driver</span><span>{{ event.driverName || '—' }}</span></div>
         <div><span class="label">Severity</span><span>{{ eventTypeLabel(event.severity || 'medium') }}</span></div>

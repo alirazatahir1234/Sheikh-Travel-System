@@ -26,6 +26,17 @@
   &.tab-badge-gray { background: #f3f4f6; color: #6b7280; }
 }
 
+.scope-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  margin-bottom: 16px;
+}
+.scope-toggle { margin-bottom: 0; }
+.company-filter {
+  min-width: 220px; max-width: 320px;
+  margin: 0;
+  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+}
+
 .filter-row {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px; gap: 12px;

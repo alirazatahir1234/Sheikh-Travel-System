@@ -42,8 +42,10 @@ public interface IGpsTrackingRepository
     Task<ApiResponse<List<GpsLiveFleetVehicleDto>>> GetGpsLiveFleetAsync(GetGpsLiveFleetQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GpsAlertRuleDto>>> GetGpsAlertRulesAsync(GetGpsAlertRulesQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GpsAlertEventDto>>> GetGpsAlertEventsAsync(GetGpsAlertEventsQuery request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<List<GpsAlertEventDto>>> GetPlatformGpsAlertEventsAsync(GetPlatformGpsAlertEventsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<GpsAlertEventDto>> GetGpsAlertEventByIdAsync(GetGpsAlertEventByIdQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<GpsAlertStatsDto>> GetGpsAlertStatsAsync(GetGpsAlertStatsQuery request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GpsAlertStatsDto>> GetPlatformGpsAlertStatsAsync(GetPlatformGpsAlertStatsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<AlertSettingDto>>> GetAlertSettingsAsync(GetAlertSettingsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<GpsEtaDto>> GetGpsEtaAsync(GetGpsEtaQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<int>> GetGeofenceBreachCountAsync(GetGeofenceBreachCountQuery request, CancellationToken cancellationToken = default);

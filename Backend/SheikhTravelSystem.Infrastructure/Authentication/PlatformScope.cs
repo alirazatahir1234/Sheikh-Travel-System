@@ -36,6 +36,17 @@ public class PlatformScope(IHttpContextAccessor httpContextAccessor, ITenantCont
             throw new ForbiddenException("Cross-tenant access is not allowed.");
     }
 
+    public int ResolveTenantId(int? requestedTenantId)
+    {
+        if (requestedTenantId.HasValue)
+        {
+            EnsureTenantAccess(requestedTenantId.Value);
+            return requestedTenantId.Value;
+        }
+
+        return TenantId;
+    }
+
     private bool HasRole(string roleCode) =>
         User?.IsInRole(roleCode) == true ||
         User?.HasClaim("role", roleCode) == true ||

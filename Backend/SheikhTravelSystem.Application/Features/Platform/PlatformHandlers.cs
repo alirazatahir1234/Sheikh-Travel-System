@@ -463,13 +463,14 @@ public class GetUserMenuQueryHandler(
         var (modules, menus) = await platformRepository.LoadNavTablesAsync(activeMenusOnly: true, cancellationToken: cancellationToken);
 
         IReadOnlyList<string>? workspaceModuleKeys = null;
-        var isSystemAdmin = access.RoleCodes.Any(c =>
-            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase));
-        // System admins must see the full platform catalog (Companies, Fleet, Finance, etc.).
-        // Workspace soft-focus is for operational roles only — a wrong primary Role.Id pick
-        // (e.g. DRIVER/FLEET_MANAGER) previously narrowed ModuleKeys and hid the sidebar.
-        if (!isSystemAdmin)
+        var isSuperAdmin = access.RoleCodes.Any(c =>
+            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
+        var isTenantAdmin = access.RoleCodes.Any(c =>
+            string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase));
+        // SuperAdmin + TenantAdmin skip workspace soft-focus (operational roles only).
+        // SuperAdmin alone gets the full active/visible catalog (grantFullCatalog).
+        // TenantAdmin stays permission + plan/module gated.
+        if (!isSuperAdmin && !isTenantAdmin)
         {
             try
             {

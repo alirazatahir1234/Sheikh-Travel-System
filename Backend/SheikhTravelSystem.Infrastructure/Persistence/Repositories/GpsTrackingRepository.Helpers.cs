@@ -18,6 +18,20 @@ public sealed partial class GpsTrackingRepository
     private static readonly TimeSpan FleetHistoryMaxRange = TimeSpan.FromDays(90);
     private static readonly TimeSpan FleetUtilizationMaxRange = TimeSpan.FromDays(400);
 
+    private const string PlatformAlertSelectColumns = """
+            v.TenantId AS TenantId, tn.Name AS TenantName,
+            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
+            ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
+            ISNULL(e.Speed, 0) AS Speed, ISNULL(e.Message, '') AS Message,
+            e.Timestamp, e.IsAcknowledged,
+            COALESCE(e.Severity, 'medium') AS Severity,
+            COALESCE(e.Status, 'active') AS Status,
+            e.GeofenceId, g.Name AS GeofenceName,
+            e.DriverId, d.FullName AS DriverName,
+            e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
+            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+        """;
+
     private const string AlertSelectColumns = """
             e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
             ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
