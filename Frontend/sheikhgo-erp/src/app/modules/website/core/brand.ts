@@ -1,4 +1,22 @@
-import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
+import { COMPANY_ADDRESS, COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
+
+export type WebsiteContactPhone = {
+  label: string;
+  display: string;
+  tel: string;
+};
+
+/** Public marketing lines — verified with Ali; PK matches WhatsApp Business. */
+export const WEBSITE_CONTACT_PHONES: readonly WebsiteContactPhone[] = [
+  { label: 'UAE', display: '+971 55 77 0121', tel: '+97155770121' },
+  { label: 'Pakistan', display: '+92 317 7368305', tel: '+923177368305' },
+];
+
+/** E.164 digits (no +) for wa.me links — same as Pakistan contact line. */
+export const WEBSITE_WHATSAPP_DIGITS = '923177368305';
+
+/** Office postal address when confirmed; never fabricated on the marketing site. */
+export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;
 
 /**
  * Public marketing brand — SheikhGo Technologies (IT / AI company).

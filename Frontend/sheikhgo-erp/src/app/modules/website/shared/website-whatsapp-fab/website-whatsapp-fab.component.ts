@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { WEBSITE_WHATSAPP_DIGITS } from '../../core/brand';
 
-/** Public marketing FAB — PK WhatsApp Business digits + DEMO prefill (no env secrets). */
-const WHATSAPP_DIGITS = '923177368305';
+/** Public marketing FAB — PK WhatsApp Business + DEMO prefill (no env secrets). */
+const WHATSAPP_DIGITS = WEBSITE_WHATSAPP_DIGITS;
 const WHATSAPP_PREFILL = 'DEMO';
 
 @Component({

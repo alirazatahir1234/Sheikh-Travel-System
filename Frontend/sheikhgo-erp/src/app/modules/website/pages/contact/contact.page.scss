@@ -30,14 +30,36 @@
   color: #99f6e4;
 }
 
-.aside p + p {
+.contact-block {
   margin-top: 1rem;
 }
 
-.note {
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.55);
+.contact-block:first-of-type {
+  margin-top: 0;
+}
+
+.phone-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.975rem;
+}
+
+.phone-line .region {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.office-address {
+  display: block;
+  margin-top: 0.25rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 @media (max-width: 860px) {

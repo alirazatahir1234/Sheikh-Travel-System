@@ -70,11 +70,25 @@
 
     <aside class="aside">
       <h2>{{ brand.companyName }}</h2>
-      <p>
-        <strong>Contact</strong><br />
+      <p class="contact-block">
+        <strong>Email</strong><br />
         <a [href]="'mailto:' + brand.salesEmail">{{ brand.salesEmail }}</a>
       </p>
-      <p class="note">Phone and office addresses will be published here once confirmed.</p>
+      <p class="contact-block">
+        <strong>Phone</strong>
+      </p>
+      @for (p of contactPhones; track p.tel) {
+        <p class="phone-line">
+          <span class="region">{{ p.label }}</span>
+          <a [href]="'tel:' + p.tel">{{ p.display }}</a>
+        </p>
+      }
+      @if (officeAddress) {
+        <p class="contact-block">
+          <strong>Office</strong><br />
+          <span class="office-address">{{ officeAddress }}</span>
+        </p>
+      }
     </aside>
   </div>
 </section>
