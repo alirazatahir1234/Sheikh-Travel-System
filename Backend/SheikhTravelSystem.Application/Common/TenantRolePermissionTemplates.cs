@@ -76,7 +76,8 @@ public static class TenantRolePermissionTemplates
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
         "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
         "Notification.View", "Notification.Manage",
-        "SmartOps.AlertView", "SmartOps.AlertManage"
+        "SmartOps.AlertView", "SmartOps.AlertManage",
+        "Invoice.View"
     ];
 
     public static readonly string[] DriverManager =

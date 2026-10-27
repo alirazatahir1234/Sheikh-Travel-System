@@ -11,39 +11,43 @@ public interface ICustomerInvoiceRepository
         int page,
         int pageSize,
         string? status,
+        string? paymentStatus,
         int? bookingId,
+        int? tripId,
         int? customerId,
+        DataScopeResult? scope,
         CancellationToken cancellationToken = default);
 
     Task<InvoiceDetailDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task<InvoiceBookingSnapshot?> GetBookingSnapshotAsync(
-        int bookingId,
-        int tenantId,
-        CancellationToken cancellationToken = default);
+        int bookingId, int tenantId, CancellationToken cancellationToken = default);
+
+    Task<InvoiceTripSnapshot?> GetTripSnapshotAsync(
+        int tripId, int tenantId, CancellationToken cancellationToken = default);
 
     Task<decimal> GetTotalPaidForBookingAsync(
-        int bookingId,
-        int tenantId,
-        CancellationToken cancellationToken = default);
+        int bookingId, int tenantId, CancellationToken cancellationToken = default);
 
     Task<bool> HasActiveInvoiceForBookingAsync(
-        int bookingId,
-        int tenantId,
-        CancellationToken cancellationToken = default);
+        int bookingId, int tenantId, CancellationToken cancellationToken = default);
+
+    Task<bool> HasActiveInvoiceForTripAsync(
+        int tripId, int tenantId, CancellationToken cancellationToken = default);
 
     Task<string> AllocateInvoiceNumberAsync(
-        int tenantId,
-        CancellationToken cancellationToken = default);
+        int tenantId, CancellationToken cancellationToken = default);
 
     Task<int> CreateAsync(
         int tenantId,
         int? createdBy,
-        InvoiceBookingSnapshot booking,
+        InvoiceCreatePayload payload,
         string invoiceNumber,
         decimal paidAmount,
         decimal balance,
         InvoiceStatus status,
+        DateTime issuedAtUtc,
+        DateTime dueDateUtc,
         CancellationToken cancellationToken = default);
 
     Task<bool> ExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default);
@@ -51,8 +55,15 @@ public interface ICustomerInvoiceRepository
     Task VoidAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task MarkPaidAsync(
-        int id,
+        int id, int tenantId, decimal paidAmount, CancellationToken cancellationToken = default);
+
+    Task RecordEmailSentAsync(int id, int tenantId, CancellationToken cancellationToken = default);
+
+    Task SyncOverdueStatusesAsync(int tenantId, DateTime asOfUtc, CancellationToken cancellationToken = default);
+
+    Task<InvoiceBillingSummaryDto> GetBillingSummaryAsync(
         int tenantId,
-        decimal paidAmount,
+        DataScopeResult? scope,
+        DateTime asOfUtc,
         CancellationToken cancellationToken = default);
 }

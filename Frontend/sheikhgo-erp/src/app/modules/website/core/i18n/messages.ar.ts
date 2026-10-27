@@ -141,6 +141,20 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.showcase.title': 'لوحة ذكاء الأسطول',
   'home.showcase.lead':
     'خريطة مباشرة وتنبيهات GPS حديثة وسياج وتشغيل وصحة أسطول وإشارات وقود وصيانة — مع لوحة مساعد ذكاء اصطناعي تجيب من أدوات التشغيل.',
+  'home.pill.clientBilling': 'فوترة العملاء',
+  'home.clientBilling.kicker': 'المالية · الذمم المدينة',
+  'home.clientBilling.title': 'فواتير الرحلات تُرسل بالبريد للعملاء',
+  'home.clientBilling.lead':
+    'عند اكتمال الرحلة يمكن لـ Nexus إصدار فاتورة من الحجز أو سعر المسار، إرسالها للعميل، وتتبع المعلق والمدفوع والمتأخر — دون بوابة دفع وهمية.',
+  'home.clientBilling.autoTitle': 'إصدار تلقائي لكل رحلة',
+  'home.clientBilling.autoText':
+    'الرحلات المكتملة تولّد أرقام فواتير وتواريخ استحقاق. المالية ومديرو المستأجر يديرون؛ مديرو الأسطول يعرضون فواتير نطاق أسطولهم.',
+  'home.clientBilling.emailTitle': 'إرسال بالبريد',
+  'home.clientBilling.emailText':
+    'تُرسل الفواتير عبر قناة البريد المُعدّة مع المبلغ والرصيد ومرجع الرحلة — وإعادة الإرسال من شاشة تفاصيل الفاتورة.',
+  'home.clientBilling.statusTitle': 'مؤشرات الذمم في لوحة التحكم',
+  'home.clientBilling.statusText':
+    'لوحة المدير تعرض إجمالي الفوترة والتحصيل والمتبقي مع عدد المتأخرات لمتابعة صادقة للذمم.',
   'home.pill.driverVoice': 'أوامر صوتية',
   'home.pill.driverOffline': 'مزامنة دون اتصال',
   'home.driverVoice.kicker': 'تطبيق السائق',

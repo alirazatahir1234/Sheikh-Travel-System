@@ -140,6 +140,20 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.showcase.title': 'Fleet intelligence dashboard',
   'home.showcase.lead':
     'Live map, recent GPS alerts, geofences, trip playback, fleet health, fuel and maintenance signals — with an AI assistant panel that answers from operational tools, not marketing fiction.',
+  'home.pill.clientBilling': 'Client billing',
+  'home.clientBilling.kicker': 'Finance · Accounts receivable',
+  'home.clientBilling.title': 'Trip invoices emailed to clients',
+  'home.clientBilling.lead':
+    'When a trip completes, Nexus can issue a customer invoice from the booking or route price, email it to the client, and track pending, paid, and overdue balances—no fake payment gateway required.',
+  'home.clientBilling.autoTitle': 'Auto-issue per trip',
+  'home.clientBilling.autoText':
+    'Completed trips generate invoice numbers with due dates. Finance and tenant admins manage; fleet managers view invoices scoped to their vehicles.',
+  'home.clientBilling.emailTitle': 'Email delivery',
+  'home.clientBilling.emailText':
+    'Invoices dispatch through your configured notification email channel with amount, balance, and trip reference—resend anytime from the invoice detail screen.',
+  'home.clientBilling.statusTitle': 'Dashboard AR KPIs',
+  'home.clientBilling.statusText':
+    'Admin dashboard shows total billed, collected, and outstanding alongside overdue counts for honest receivables follow-up.',
   'home.pill.driverPayments': 'Driver payments',
   'home.driverPayments.kicker': 'Driver earnings',
   'home.driverPayments.title': 'Wallet-first pay, cash out on your schedule',

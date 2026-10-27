@@ -140,6 +140,20 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.showcase.title': 'Flotten-Intelligence-Dashboard',
   'home.showcase.lead':
     'Live-Karte, aktuelle GPS-Alarme, Geofences, Wiedergabe, Flottengesundheit, Kraftstoff- und Wartungssignale — mit KI-Assistenten-Panel aus echten Betriebstools.',
+  'home.pill.clientBilling': 'Kundenabrechnung',
+  'home.clientBilling.kicker': 'Finanzen · Forderungen',
+  'home.clientBilling.title': 'Rechnungen pro Fahrt per E-Mail',
+  'home.clientBilling.lead':
+    'Nach Fahrtabschluss stellt Nexus Kundenrechnungen aus Buchung oder Routenpreis aus, mailt sie an den Kunden und trackt offen, bezahlt und überfällig — ohne Fake-Payment-Gateway.',
+  'home.clientBilling.autoTitle': 'Auto-Rechnung pro Fahrt',
+  'home.clientBilling.autoText':
+    'Abgeschlossene Fahrten erzeugen Rechnungsnummern und Fälligkeiten. Finance und Tenant-Admins verwalten; Flottenmanager sehen fahrzeugbezogene Rechnungen.',
+  'home.clientBilling.emailTitle': 'E-Mail-Versand',
+  'home.clientBilling.emailText':
+    'Rechnungen gehen über den konfigurierten E-Mail-Kanal mit Betrag, Saldo und Fahrtreferenz — jederzeit aus der Rechnungsdetailseite erneut senden.',
+  'home.clientBilling.statusTitle': 'Dashboard-Forderungs-KPIs',
+  'home.clientBilling.statusText':
+    'Das Admin-Dashboard zeigt fakturiert, eingezogen und offen plus überfällige Posten für ehrliches Debitoren-Follow-up.',
   'home.pill.driverVoice': 'Sprachbefehle',
   'home.pill.driverOffline': 'Offline-Sync',
   'home.driverVoice.kicker': 'Fahrer-App',

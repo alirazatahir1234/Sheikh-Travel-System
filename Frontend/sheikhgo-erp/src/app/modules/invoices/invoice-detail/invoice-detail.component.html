@@ -1,10 +1,13 @@
 <div class="screen-controls no-print">
   <button mat-button (click)="back()"><mat-icon>arrow_back</mat-icon> Back</button>
   <div class="actions" *ngIf="invoice">
-    <button mat-stroked-button *ngIf="canManage && invoice.status === 'Issued'" [disabled]="acting" (click)="markPaid()">
+    <button mat-stroked-button *ngIf="canManage && invoice.customerEmail" [disabled]="acting" (click)="emailCustomer()">
+      <mat-icon>mail</mat-icon> Email client
+    </button>
+    <button mat-stroked-button *ngIf="canManage && canMarkPaid" [disabled]="acting" (click)="markPaid()">
       Mark Paid
     </button>
-    <button mat-stroked-button color="warn" *ngIf="canManage && invoice.status !== 'Void' && invoice.status !== 'Paid'"
+    <button mat-stroked-button color="warn" *ngIf="canManage && invoice.status !== 'Void' && invoice.paymentStatus !== 'Paid'"
             [disabled]="acting" (click)="voidInvoice()">
       Void
     </button>
@@ -29,7 +32,12 @@
       <h2 class="invoice-title">INVOICE</h2>
       <p class="invoice-number">{{ invoice.invoiceNumber }}</p>
       <p class="invoice-date">{{ invoice.issuedAt || invoice.createdAt | date:'longDate' }}</p>
-      <p class="status">Status: {{ invoice.status }}</p>
+      <p class="status">
+        Payment:
+        <span class="status-chip" [style.background]="paymentStatusColors[invoice.paymentStatus] || '#666'">{{ invoice.paymentStatus }}</span>
+      </p>
+      <p class="due" *ngIf="invoice.dueDate">Due: {{ invoice.dueDate | date:'longDate' }}</p>
+      <p class="emailed" *ngIf="invoice.lastEmailedAt">Emailed: {{ invoice.lastEmailedAt | date:'medium' }}</p>
     </div>
   </div>
 
@@ -39,10 +47,12 @@
     <div class="bill-to">
       <h3 class="section-label">BILL TO</h3>
       <p class="customer-name">{{ invoice.customerName || '—' }}</p>
+      <p *ngIf="invoice.customerEmail">{{ invoice.customerEmail }}</p>
     </div>
     <div class="trip-info">
-      <h3 class="section-label">DETAILS</h3>
-      <div class="trip-row"><span>Booking:</span><span>{{ invoice.bookingNumber || invoice.bookingId }}</span></div>
+      <h3 class="section-label">TRIP</h3>
+      <div class="trip-row" *ngIf="invoice.tripNumber"><span>Trip:</span><span>{{ invoice.tripNumber }}</span></div>
+      <div class="trip-row" *ngIf="invoice.bookingNumber"><span>Booking:</span><span>{{ invoice.bookingNumber }}</span></div>
       <div class="trip-row"><span>Route:</span><span>{{ invoice.routeName || '—' }}</span></div>
     </div>
   </div>

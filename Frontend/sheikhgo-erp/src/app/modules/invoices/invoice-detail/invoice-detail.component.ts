@@ -20,6 +20,12 @@ export class InvoiceDetailComponent implements OnInit {
   error: string | null = null;
   acting = false;
 
+  paymentStatusColors: Record<string, string> = {
+    Pending: '#1565c0',
+    Paid: '#2e7d32',
+    Overdue: '#c62828'
+  };
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -40,9 +46,26 @@ export class InvoiceDetailComponent implements OnInit {
     return this.auth.hasPermission('Invoice.Manage');
   }
 
+  get canMarkPaid(): boolean {
+    return !!this.invoice && this.invoice.paymentStatus !== 'Paid' && this.invoice.status !== 'Void';
+  }
+
   print(): void { window.print(); }
 
   back(): void { void this.router.navigate(['/invoices']); }
+
+  emailCustomer(): void {
+    if (!this.invoice || this.acting) return;
+    this.acting = true;
+    this.invoiceService.emailToCustomer(this.invoice.id).subscribe({
+      next: () => {
+        this.toast.success('Invoice emailed to customer');
+        this.acting = false;
+        this.ngOnInit();
+      },
+      error: () => { this.acting = false; this.toast.error('Could not send invoice email'); }
+    });
+  }
 
   voidInvoice(): void {
     if (!this.invoice || this.acting) return;

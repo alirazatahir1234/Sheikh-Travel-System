@@ -3,7 +3,8 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 import { Router } from '@angular/router';
 import { InvoiceService } from '../../../core/services/invoice.service';
-import { Invoice, InvoiceFilter } from '../../../core/models/invoice.model';
+import { Invoice, InvoiceBillingSummary, InvoiceFilter } from '../../../core/models/invoice.model';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   standalone: false,
@@ -12,7 +13,7 @@ import { Invoice, InvoiceFilter } from '../../../core/models/invoice.model';
   styleUrls: ['./invoice-list.component.scss']
 })
 export class InvoiceListComponent implements OnInit {
-  displayedColumns = ['invoiceNumber', 'customerName', 'bookingNumber', 'totalAmount', 'balance', 'status', 'issuedAt', 'actions'];
+  displayedColumns = ['invoiceNumber', 'customerName', 'tripNumber', 'totalAmount', 'balance', 'paymentStatus', 'dueDate', 'actions'];
   dataSource = new MatTableDataSource<Invoice>();
   loading = true;
   error: string | null = null;
@@ -20,40 +21,48 @@ export class InvoiceListComponent implements OnInit {
   currentPage = 1;
   currentPageSize = 10;
   filterForm: FormGroup;
+  billing: InvoiceBillingSummary | null = null;
 
-  statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: 'Draft', label: 'Draft' },
-    { value: 'Issued', label: 'Issued' },
+  paymentStatusOptions = [
+    { value: '', label: 'All payment statuses' },
+    { value: 'Pending', label: 'Pending' },
     { value: 'Paid', label: 'Paid' },
-    { value: 'Void', label: 'Void' }
+    { value: 'Overdue', label: 'Overdue' },
   ];
 
-  statusColors: Record<string, string> = {
-    Draft: '#757575',
-    Issued: '#1565c0',
+  paymentStatusColors: Record<string, string> = {
+    Pending: '#1565c0',
     Paid: '#2e7d32',
-    Void: '#c62828'
+    Overdue: '#c62828'
   };
 
   constructor(
     private fb: FormBuilder,
     private invoiceService: InvoiceService,
-    private router: Router
+    private router: Router,
+    public auth: AuthService
   ) {
     this.filterForm = this.fb.group({
-      bookingId: [null],
-      status: [''],
+      tripId: [null],
+      paymentStatus: [''],
     });
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    if (this.auth.hasPermission('Invoice.View')) {
+      this.invoiceService.getBillingSummary().subscribe({
+        next: s => { this.billing = s; },
+        error: () => { this.billing = null; }
+      });
+    }
+  }
 
   private buildFilter(): InvoiceFilter {
     const v = this.filterForm.value;
     return {
-      bookingId: v.bookingId || null,
-      status: v.status || null
+      tripId: v.tripId || null,
+      paymentStatus: v.paymentStatus || null
     };
   }
 
@@ -74,7 +83,7 @@ export class InvoiceListComponent implements OnInit {
 
   applyFilter(): void { this.load(1); }
   clearFilter(): void {
-    this.filterForm.reset({ bookingId: null, status: '' });
+    this.filterForm.reset({ tripId: null, paymentStatus: '' });
     this.load(1);
   }
 

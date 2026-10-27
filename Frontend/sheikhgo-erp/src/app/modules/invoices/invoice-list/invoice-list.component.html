@@ -1,19 +1,39 @@
 <div class="invoices-page">
   <div class="page-header">
     <h2>Invoices</h2>
+    <p class="page-lead">Trip-linked client billing with email delivery and payment tracking.</p>
+  </div>
+
+  <div class="billing-kpis" *ngIf="billing">
+    <mat-card class="kpi-card">
+      <span class="kpi-label">Total billed</span>
+      <strong>{{ billing.totalBilled | number:'1.2-2' }}</strong>
+    </mat-card>
+    <mat-card class="kpi-card">
+      <span class="kpi-label">Collected</span>
+      <strong>{{ billing.totalCollected | number:'1.2-2' }}</strong>
+    </mat-card>
+    <mat-card class="kpi-card kpi-card--warn" *ngIf="billing.outstanding > 0">
+      <span class="kpi-label">Outstanding</span>
+      <strong>{{ billing.outstanding | number:'1.2-2' }}</strong>
+    </mat-card>
+    <mat-card class="kpi-card">
+      <span class="kpi-label">Overdue</span>
+      <strong>{{ billing.overdueCount }}</strong>
+    </mat-card>
   </div>
 
   <mat-card class="filter-card">
     <mat-card-content>
       <form [formGroup]="filterForm" class="filter-grid" (ngSubmit)="applyFilter()">
         <div class="stb-field stb-field--filter">
-          <label for="inv-booking-id">Booking ID</label>
-          <input id="inv-booking-id" class="stb-input" type="number" formControlName="bookingId" min="1" />
+          <label for="inv-trip-id">Trip ID</label>
+          <input id="inv-trip-id" class="stb-input" type="number" formControlName="tripId" min="1" />
         </div>
         <div class="stb-field stb-field--filter">
-          <label for="inv-status">Status</label>
-          <select id="inv-status" class="stb-select" formControlName="status">
-            <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+          <label for="inv-payment-status">Payment status</label>
+          <select id="inv-payment-status" class="stb-select" formControlName="paymentStatus">
+            <option *ngFor="let s of paymentStatusOptions" [ngValue]="s.value">{{ s.label }}</option>
           </select>
         </div>
         <div class="filter-actions">
@@ -38,9 +58,9 @@
             <th mat-header-cell *matHeaderCellDef>Customer</th>
             <td mat-cell *matCellDef="let row">{{ row.customerName || '—' }}</td>
           </ng-container>
-          <ng-container matColumnDef="bookingNumber">
-            <th mat-header-cell *matHeaderCellDef>Booking</th>
-            <td mat-cell *matCellDef="let row">{{ row.bookingNumber || row.bookingId }}</td>
+          <ng-container matColumnDef="tripNumber">
+            <th mat-header-cell *matHeaderCellDef>Trip</th>
+            <td mat-cell *matCellDef="let row">{{ row.tripNumber || row.bookingNumber || '—' }}</td>
           </ng-container>
           <ng-container matColumnDef="totalAmount">
             <th mat-header-cell *matHeaderCellDef>Total</th>
@@ -50,15 +70,15 @@
             <th mat-header-cell *matHeaderCellDef>Balance</th>
             <td mat-cell *matCellDef="let row">{{ row.balance | number:'1.2-2' }}</td>
           </ng-container>
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
+          <ng-container matColumnDef="paymentStatus">
+            <th mat-header-cell *matHeaderCellDef>Payment</th>
             <td mat-cell *matCellDef="let row">
-              <span class="status-chip" [style.background]="statusColors[row.status] || '#666'">{{ row.status }}</span>
+              <span class="status-chip" [style.background]="paymentStatusColors[row.paymentStatus] || '#666'">{{ row.paymentStatus }}</span>
             </td>
           </ng-container>
-          <ng-container matColumnDef="issuedAt">
-            <th mat-header-cell *matHeaderCellDef>Issued</th>
-            <td mat-cell *matCellDef="let row">{{ row.issuedAt | date:'mediumDate' }}</td>
+          <ng-container matColumnDef="dueDate">
+            <th mat-header-cell *matHeaderCellDef>Due</th>
+            <td mat-cell *matCellDef="let row">{{ row.dueDate | date:'mediumDate' }}</td>
           </ng-container>
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>

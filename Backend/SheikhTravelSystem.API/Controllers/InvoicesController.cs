@@ -15,6 +15,10 @@ public class InvoicesController : BaseApiController
     public async Task<IActionResult> GetAll([FromQuery] GetInvoicesQuery query)
         => Ok(await Mediator.Send(query));
 
+    [HttpGet("billing-summary")]
+    public async Task<IActionResult> GetBillingSummary()
+        => Ok(await Mediator.Send(new GetInvoiceBillingSummaryQuery()));
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetInvoiceByIdQuery(id)));
@@ -26,6 +30,19 @@ public class InvoicesController : BaseApiController
         var result = await Mediator.Send(new IssueFromBookingCommand(bookingId));
         return Created(string.Empty, result);
     }
+
+    [RequirePermission(FinancePermissions.InvoiceManage)]
+    [HttpPost("from-trip/{tripId:int}")]
+    public async Task<IActionResult> IssueFromTrip(int tripId)
+    {
+        var result = await Mediator.Send(new IssueFromTripCommand(tripId));
+        return Created(string.Empty, result);
+    }
+
+    [RequirePermission(FinancePermissions.InvoiceManage)]
+    [HttpPost("{id:int}/email")]
+    public async Task<IActionResult> EmailToCustomer(int id)
+        => Ok(await Mediator.Send(new SendInvoiceEmailCommand(id)));
 
     [RequirePermission(FinancePermissions.InvoiceManage)]
     [HttpPost("{id:int}/void")]

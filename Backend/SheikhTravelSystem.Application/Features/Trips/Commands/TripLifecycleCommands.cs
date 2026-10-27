@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.Invoices.Services;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -46,13 +47,17 @@ public class UpdateTripStatusCommandHandler(
 
         // Notify after commit on a background scope so Accept/Arrived/Complete
         // stay under the driver-app 20s timeout while Email/Browser still fire.
+        var tenantId = tenantContext.GetRequiredTenantId();
         QueueTripStatusNotifications(
-            tenantContext.GetRequiredTenantId(),
+            tenantId,
             request.Id,
             result.TripNumber,
             request.Status,
             request.Note,
             request.CancellationReason);
+
+        if (request.Status == TripStatus.Completed)
+            QueueTripCompletedInvoice(tenantId, request.Id);
 
         return ApiResponse<bool>.SuccessResponse(true, $"Trip status updated to {request.Status}.");
     }
@@ -144,6 +149,24 @@ public class UpdateTripStatusCommandHandler(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Background trip notification failed for trip {TripId} status {Status}", tripId, status);
+            }
+        });
+    }
+
+    private void QueueTripCompletedInvoice(int tenantId, int tripId)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                scope.ServiceProvider.GetRequiredService<ITenantContext>().SetTenant(tenantId);
+                var automation = scope.ServiceProvider.GetRequiredService<ITripInvoiceAutomation>();
+                await automation.TryAutoIssueAndEmailOnTripCompletedAsync(tenantId, tripId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Background trip invoice automation failed for trip {TripId}", tripId);
             }
         });
     }

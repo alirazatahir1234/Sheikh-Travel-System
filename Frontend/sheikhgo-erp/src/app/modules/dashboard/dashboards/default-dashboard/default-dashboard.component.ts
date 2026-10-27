@@ -22,6 +22,8 @@ import {
 } from '../../../../shared/ui';
 import { BookingReport } from '../../../../core/models/common.model';
 import { DEFAULT_DASHBOARD_FALLBACK } from '../../data/mock-dashboard-data';
+import { InvoiceService } from '../../../../core/services/invoice.service';
+import { InvoiceBillingSummary } from '../../../../core/models/invoice.model';
 
 type AssignedTask = TaskItem & { pickupKey?: string };
 
@@ -92,12 +94,14 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   fleetChartValues: number[] = [0, 0, 0];
   fleetUtilizationPct = 0;
   transportKpis: { icon: string; label: string; value: string | number }[] = [];
+  invoiceBilling: InvoiceBillingSummary | null = null;
 
   private loadGeneration = 0;
 
   constructor(
     private dashboard: DashboardService,
     private bookings: BookingService,
+    private invoiceService: InvoiceService,
     private auth: AuthService,
     private notificationService: NotificationService,
     private smartAlertsApi: SmartAlertService,
@@ -169,8 +173,11 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
       notifStats: this.notificationService.getStats().pipe(
         catchError(() => of<NotificationStats | null>(null))
       ),
+      invoiceBilling: this.auth.hasPermission('Invoice.View')
+        ? this.invoiceService.getBillingSummary().pipe(catchError(() => of<InvoiceBillingSummary | null>(null)))
+        : of<InvoiceBillingSummary | null>(null),
     }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ summary, bookings, gps, notifStats }) => {
+      next: ({ summary, bookings, gps, notifStats, invoiceBilling }) => {
         if (gen !== this.loadGeneration) return;
         this.summaryFailed = !summary.ok;
         this.error = summary.ok
@@ -179,8 +186,9 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.summary = summary.value;
         this.gpsFleet = gps;
         this.notifStats = notifStats;
+        this.invoiceBilling = invoiceBilling;
         this.opsHealthy = summary.ok && (gps?.sos ?? 0) === 0;
-        this.stats = this.buildStats(summary.value, bookings);
+        this.stats = this.buildStats(summary.value, bookings, invoiceBilling);
         this.recentBookings = bookings.slice(0, 8);
         this.todoTasks = this.bookingsToTasks(bookings, 5);
         this.allAssignedTasks = this.bookingsToAssignedTasks(bookings);
@@ -198,7 +206,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.error = 'Unable to load dashboard data.';
         this.opsHealthy = false;
         this.summary = this.fallbackSummary();
-        this.stats = this.buildStats(this.summary, []);
+        this.stats = this.buildStats(this.summary, [], null);
         this.transportKpis = this.buildTransportKpis(this.summary, null);
         this.applyChartData([], [], this.summary);
         this.loading = false;
@@ -236,12 +244,56 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     return parts.length > 1 ? parts[parts.length - 1] : parts[0];
   }
 
-  private buildStats(s: DashboardSummary, bookings: Booking[]): StatTile[] {
+  private buildStats(
+    s: DashboardSummary,
+    bookings: Booking[],
+    billing: InvoiceBillingSummary | null
+  ): StatTile[] {
     const profitNegative = (s.netProfit ?? 0) < 0;
     const weekRev = this.sumWeekRevenue(bookings);
     const prevWeekRev = this.sumPreviousWeekRevenue(bookings);
     const revTrend = this.pctChangeLabel(weekRev, prevWeekRev);
+    const billingTiles: StatTile[] = billing
+      ? [
+          {
+            key: 'invoiceBilled',
+            label: 'Client billed',
+            value: this.money(billing.totalBilled),
+            icon: 'receipt_long',
+            color: 'blue',
+            hint: 'Trip invoices issued',
+            trend: `${billing.paidCount} paid`,
+            trendUp: billing.paidCount > 0,
+            trendDetail: 'invoices'
+          },
+          {
+            key: 'invoiceCollected',
+            label: 'Collected',
+            value: this.money(billing.totalCollected),
+            icon: 'account_balance',
+            color: 'teal',
+            hint: 'Payments applied to invoices',
+            trend: billing.pendingCount > 0 ? `${billing.pendingCount} pending` : 'Clear',
+            trendUp: billing.pendingCount === 0,
+            trendDetail: 'open'
+          },
+          {
+            key: 'invoiceOutstanding',
+            label: 'Outstanding AR',
+            value: this.money(billing.outstanding),
+            icon: 'warning',
+            color: 'orange',
+            variant: billing.outstanding > 0 ? 'warning' : 'default',
+            hint: 'Unpaid invoice balance',
+            trend: billing.overdueCount > 0 ? `${billing.overdueCount} overdue` : 'On track',
+            trendUp: billing.overdueCount === 0,
+            trendDetail: 'follow up'
+          }
+        ]
+      : [];
+
     return [
+      ...billingTiles,
       {
         key: 'activeTrips',
         label: 'Active Trips',
