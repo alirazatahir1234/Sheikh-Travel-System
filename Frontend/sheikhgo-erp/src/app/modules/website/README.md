@@ -36,8 +36,9 @@ Marketing pages load **gtag.js** only when:
 
 | Method | Where |
 |--------|--------|
-| Vercel / CI env | `GOOGLE_ANALYTICS_MEASUREMENT_ID=G-XXXXXXXXXX` (patched at build by `scripts/inject-maps-env.mjs`) |
-| Angular env | `googleAnalyticsMeasurementId` in `src/environments/environment.ts` (local dev) or `environment.prod.ts` |
+| Vercel / CI env | `GOOGLE_MAPS_API_KEY`, optional `GOOGLE_MAPS_MAP_ID`, `GOOGLE_ANALYTICS_MEASUREMENT_ID` (patched at build by `scripts/inject-maps-env.mjs`; placeholders restored after build) |
+| Local Maps | Copy `.env.example` → `.env.local` or `environment.secrets.local.ts.example` → `environment.secrets.local.ts` (gitignored). `npm start` runs `inject-maps-env --dev`. |
+| Angular env | Keep `googleMapsApiKey: ''` in committed `environment*.ts` — never commit live keys. Browser keys remain in the SPA bundle after deploy; restrict by HTTP referrer. |
 | CMS | Website Admin → Settings → **Analytics ID** (overrides env when set) |
 
 **Create a property:** [Google Analytics](https://analytics.google.com/) → Admin → Create property for `www.sheikhgo.com` → Data stream (Web) → copy the **Measurement ID** (`G-…`).

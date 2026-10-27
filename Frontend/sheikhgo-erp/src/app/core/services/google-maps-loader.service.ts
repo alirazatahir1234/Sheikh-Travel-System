@@ -5,15 +5,16 @@ import { environment } from '../../../environments/environment';
 const GOOGLE_AUTH_PHRASE = "This page can't load Google Maps correctly";
 
 /**
- * Turns Google's auth-failure documentation link into an operator-facing reason.
- * The native popup is removed separately; this text is what the form shows.
+ * Turns Google's auth-failure documentation link / dialog hints into an
+ * operator-facing reason. Do not blame billing unless Google's own URL/copy says so.
  */
 export function mapsAuthMessageFromDocsUrl(url: string | null): string {
   const lead = 'Address search and routing are temporarily unavailable.';
   if (!url) {
     return (
       `${lead} Google Maps could not be initialized. ` +
-      'Enable Cloud billing and the Maps JavaScript API, Places API, and Routes API for this key, then retry.'
+      'Check that the API key is configured, HTTP referrer restrictions allow this site, ' +
+      'and Maps JavaScript API, Places API, and Routes API are enabled.'
     );
   }
 
@@ -21,7 +22,7 @@ export function mapsAuthMessageFromDocsUrl(url: string | null): string {
   if (normalized.includes('billing')) {
     return `${lead} Google Cloud billing is not enabled for this Maps API key.`;
   }
-  if (normalized.includes('referer')) {
+  if (normalized.includes('referer') || normalized.includes('referrer')) {
     return `${lead} This site is blocked by the API key HTTP referrer restrictions.`;
   }
   if (normalized.includes('invalid-key') || normalized.includes('missing-key')) {
@@ -71,9 +72,12 @@ export class GoogleMapsLoaderService {
   load(): Promise<boolean> {
     if (this.bootstrapPromise) return this.bootstrapPromise;
 
-    const key = environment.googleMapsApiKey;
+    const key = environment.googleMapsApiKey?.trim();
     if (!key) {
-      this.failureMessage = 'Google Maps API key is not configured.';
+      this.failureMessage =
+        'Address search and routing are temporarily unavailable. ' +
+        'Google Maps API key is not configured for this build. ' +
+        'Set GOOGLE_MAPS_API_KEY (or environment.secrets.local.ts) and rebuild.';
       this.bootstrapPromise = Promise.resolve(false);
       return this.bootstrapPromise;
     }
@@ -297,9 +301,17 @@ export class GoogleMapsLoaderService {
         el.remove();
       }
 
-      // Dialog may omit a docs link; infer billing from Google's own copy.
-      if (!docsUrl && /billing/i.test(dialogText)) {
-        docsUrl = 'https://console.cloud.google.com/project/_/billing/enable';
+      // Dialog may omit a docs link; infer cause only from Google's own copy.
+      if (!docsUrl) {
+        if (/billing/i.test(dialogText)) {
+          docsUrl = 'https://console.cloud.google.com/project/_/billing/enable';
+        } else if (/referer|referrer|not allowed/i.test(dialogText)) {
+          docsUrl = 'https://developers.google.com/maps/documentation/javascript/error-messages#referer-not-allowed-map-error';
+        } else if (/invalid.?key|missing.?key/i.test(dialogText)) {
+          docsUrl = 'https://developers.google.com/maps/documentation/javascript/error-messages#invalid-key-map-error';
+        } else if (/api.+not.+activ|not activated/i.test(dialogText)) {
+          docsUrl = 'https://developers.google.com/maps/documentation/javascript/error-messages#api-not-activated-map-error';
+        }
       }
 
       document.querySelectorAll('.gm-err-container, .gm-err-autocomplete').forEach(node => node.remove());

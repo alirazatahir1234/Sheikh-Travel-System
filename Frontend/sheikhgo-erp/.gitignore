@@ -50,3 +50,6 @@ public/website/demo/_erp_segments/
 
 # Optional local Maps key override — never commit real keys
 src/environments/environment.secrets.local.ts
+.env
+.env.*
+!.env.example

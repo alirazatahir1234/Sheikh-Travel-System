@@ -10,10 +10,11 @@ export const environment = {
   /** Same host as SPA; absolute API origin used for /uploads when filesBaseUrl is empty. */
   filesBaseUrl: '',
   tenantSlug: 'default',
-  // Inject at build time (CI secret / file replace). Local: environment.secrets.local.ts (gitignored).
-  // Restrict browser keys by HTTP referrer in Google Cloud Console — never commit live keys.
-  googleMapsApiKey: 'AIzaSyDeqJpntzLNHOvmSa57hz5g5GZDkqmnJBs',
-  googleMapsMapId: 'b9b19db02b452b19e9cc5d26',
+  // Injected at build by scripts/inject-maps-env.mjs from GOOGLE_MAPS_API_KEY /
+  // environment.secrets.local.ts / .env.local — never commit a live key here.
+  // Restrict browser keys by HTTP referrer in Google Cloud Console.
+  googleMapsApiKey: '',
+  googleMapsMapId: '',
   /** Injected at build via GOOGLE_ANALYTICS_MEASUREMENT_ID (see scripts/inject-maps-env.mjs). */
   googleAnalyticsMeasurementId: '',
 };

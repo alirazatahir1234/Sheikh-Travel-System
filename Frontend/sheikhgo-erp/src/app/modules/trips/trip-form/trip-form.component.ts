@@ -1518,7 +1518,7 @@ export class TripFormComponent implements OnInit, OnDestroy {
   private markMapsDenied(): void {
     this.mapsUnavailable = true;
     this.mapsError = this.mapsLoader.failureMessage
-      || 'Address search and routing are temporarily unavailable. Google denied the Maps request. Enable Cloud billing and the Maps JavaScript, Places, Geocoding, and Routes APIs, then retry.';
+      || 'Address search and routing are temporarily unavailable. Google denied the Maps request (REQUEST_DENIED). Check API key, HTTP referrer restrictions, billing, and that Maps JavaScript, Places, Geocoding, and Routes APIs are enabled.';
     this.destroyAutocompletes();
     this.cdr.markForCheck();
   }

@@ -5,11 +5,13 @@ export const environment = {
   /** Absolute base for uploaded files (API origin). Avoids resolving /uploads on :4200. */
   filesBaseUrl: 'http://127.0.0.1:5082',
   tenantSlug: 'default',
-  // Google Maps JavaScript API key.
-  // Enable: Maps JavaScript API, Places API, Directions API in Google Cloud Console.
-  // Restrict this key by HTTP referrer in Google Cloud Console (never use unrestricted keys in shared repos).
-  // Leave empty to disable Maps features — the route form will still work with manual input.
-  googleMapsApiKey: 'AIzaSyCSdQx1VMXLEnatOOknoTqwwrVRiEOg3tw',
+  // Google Maps JavaScript API key — leave empty in git.
+  // Local: `npm start` runs inject-maps-env --dev from GOOGLE_MAPS_API_KEY /
+  // .env.local / environment.secrets.local.ts (see .env.example).
+  // Enable: Maps JavaScript API, Places API, Geocoding API, Routes API.
+  // Restrict by HTTP referrer (localhost + sheikhgo.com) — never commit live keys.
+  googleMapsApiKey: '',
+  googleMapsMapId: '',
   /**
    * GA4 measurement ID (e.g. G-XXXXXXXXXX). Leave empty until configured in Google Analytics.
    * Production builds: set GOOGLE_ANALYTICS_MEASUREMENT_ID or Website CMS → Analytics ID.
