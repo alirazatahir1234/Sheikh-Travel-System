@@ -1533,13 +1533,18 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Explainable health from BE — not recomputed from operational status on SignalR ticks. */
+  fleetHealthLoading = false;
+
   private loadFleetHealth(): void {
+    this.fleetHealthLoading = true;
     this.gpsService.getFleetHealth().subscribe({
       next: summary => {
+        this.fleetHealthLoading = false;
         this.applyFleetHealthSummary(summary);
         this.cdr.markForCheck();
       },
       error: () => {
+        this.fleetHealthLoading = false;
         this.applyFleetHealthSummary(null);
         this.cdr.markForCheck();
       }

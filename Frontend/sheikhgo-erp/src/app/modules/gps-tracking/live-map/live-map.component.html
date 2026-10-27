@@ -525,7 +525,7 @@
         Device, maintenance, insurance, and critical alerts — not Parked/Idle/Moving.
         Unknown when data is insufficient.
       </p>
-      <div class="fleet-health-body">
+      <div class="fleet-health-body" *ngIf="!fleetHealthLoading; else fleetHealthLoadingTpl">
         <div class="fleet-health-score" *ngIf="fleetHealth.assessedPercent != null; else healthNoAssessed">
           <span class="fleet-health-score__pct">{{ fleetHealth.assessedPercent }}%</span>
           <span class="fleet-health-score__lbl">Fleet Health</span>
@@ -575,6 +575,12 @@
           </p>
         </div>
       </div>
+      <ng-template #fleetHealthLoadingTpl>
+        <div class="fleet-health-loading" role="status">
+          <mat-spinner diameter="28"></mat-spinner>
+          <span>Loading fleet health…</span>
+        </div>
+      </ng-template>
     </div>
   </section>
 

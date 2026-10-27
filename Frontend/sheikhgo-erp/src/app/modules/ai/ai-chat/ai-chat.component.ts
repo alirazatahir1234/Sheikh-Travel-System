@@ -14,11 +14,16 @@ import {
   AiPlatformService
 } from '../../../core/services/ai-platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
+import { AiAssistantResultComponent } from '../shared/ai-assistant-result/ai-assistant-result.component';
 
 interface ChatBubble {
   role: 'user' | 'assistant' | 'system';
   content: string;
   period?: { start: string; end: string };
+  toolUsed?: string | null;
+  data?: unknown;
+  warnings?: string[];
+  mode?: string;
 }
 
 @Component({
@@ -31,7 +36,8 @@ interface ChatBubble {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    AiAssistantResultComponent
   ],
   templateUrl: './ai-chat.component.html',
   styleUrls: ['./ai-chat.component.scss']
@@ -214,7 +220,11 @@ export class AiChatComponent implements OnInit {
     this.messages.push({
       role: 'assistant',
       content: res?.answer ?? 'No answer returned.',
-      period: this.shouldShowPeriod(res) ? res.period : undefined
+      period: this.shouldShowPeriod(res) ? res.period : undefined,
+      toolUsed: res?.toolUsed,
+      data: res?.data,
+      warnings: res?.warnings ?? [],
+      mode: res?.mode
     });
     this.scrollToBottom();
   }

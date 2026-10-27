@@ -23,12 +23,13 @@ import {
 } from '../../../core/services/ai-platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { AiChatComponent } from '../ai-chat/ai-chat.component';
+import { healthBand } from '../shared/assistant-answer.util';
 
 @Component({
   selector: 'app-ai-management-center',
   standalone: true,
   imports: [
-    CommonModule,
+    CommonModule, // NgClass, NgFor, etc.
     FormsModule,
     MatIconModule,
     MatButtonModule,
@@ -199,5 +200,30 @@ export class AiManagementCenterComponent implements OnInit {
         this.toast.success('Recommendation dismissed');
       }
     });
+  }
+
+  healthBandClass(percent: number): string {
+    return healthBand(percent);
+  }
+
+  severityClass(severity: string): string {
+    const s = (severity ?? '').toLowerCase();
+    if (s === 'critical') return 'sev-critical';
+    if (s === 'high') return 'sev-high';
+    if (s === 'medium' || s === 'warning') return 'sev-medium';
+    return 'sev-info';
+  }
+
+  predictionBand(probability: number): 'high' | 'medium' | 'low' {
+    if (probability >= 70) return 'high';
+    if (probability >= 40) return 'medium';
+    return 'low';
+  }
+
+  freshnessTone(freshness: string): string {
+    const f = (freshness ?? '').toLowerCase();
+    if (f.includes('stale') || f.includes('old')) return 'stale';
+    if (f.includes('fresh') || f.includes('current')) return 'fresh';
+    return 'neutral';
   }
 }

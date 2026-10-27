@@ -1,8 +1,8 @@
 <div class="ai-page">
   <header class="ai-header">
     <div>
-      <h1>SheikhGo AI Assistant</h1>
-      <p>Chat with your fleet data, then manage providers, predictions, and escalations.</p>
+      <h1>Fleet Intelligence</h1>
+      <p>Live fleet health, recommendations, and predictions — plus AI provider settings and escalations.</p>
     </div>
     <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading">
       <mat-icon>refresh</mat-icon> Refresh
@@ -21,45 +21,60 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="Management">
+    <mat-tab label="Fleet dashboard">
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="36"></mat-spinner>
-          <p>Loading configuration…</p>
+          <p>Loading fleet intelligence…</p>
         </div>
 
         <ng-container *ngIf="!loading">
-          <section class="health-strip" *ngIf="health as h">
-            <div class="health-card primary">
-              <span class="label">Fleet Health</span>
-              <strong>{{ h.healthPercent | number:'1.0-1' }}%</strong>
-              <small>{{ h.summary }}</small>
-            </div>
-            <div class="health-card">
-              <span class="label">GPS Online</span>
-              <strong>{{ h.gpsOnlineRate | number:'1.0-1' }}%</strong>
-            </div>
-            <div class="health-card">
-              <span class="label">Maintenance</span>
-              <strong>{{ h.maintenanceScore | number:'1.0-1' }}%</strong>
-            </div>
-            <div class="health-card">
-              <span class="label">Compliance</span>
-              <strong>{{ h.complianceScore | number:'1.0-1' }}%</strong>
-            </div>
-            <div class="health-card">
-              <span class="label">Driver Score</span>
-              <strong>{{ h.driverScore | number:'1.0-1' }}</strong>
-            </div>
-            <div class="health-card alert" *ngIf="h.criticalAlerts > 0">
-              <span class="label">Critical</span>
-              <strong>{{ h.criticalAlerts }}</strong>
+          <section class="intel-intro">
+            <h2 class="section-title">At a glance</h2>
+            <p class="section-lead">Composite scores from GPS connectivity, maintenance, compliance, and open critical alerts — same engine as the AI assistant.</p>
+          </section>
+
+          <section class="health-dashboard" *ngIf="health as h" aria-label="Fleet health scores">
+            <article class="health-hero" [attr.data-band]="healthBandClass(h.healthPercent)">
+              <span class="health-hero__label">Composite fleet health</span>
+              <strong class="health-hero__value">{{ h.healthPercent | number:'1.0-1' }}%</strong>
+              <p class="health-hero__summary">{{ h.summary }}</p>
+            </article>
+            <div class="health-metrics">
+              <article class="health-metric">
+                <span class="label">GPS online</span>
+                <strong>{{ h.gpsOnlineRate | number:'1.0-1' }}%</strong>
+                <div class="meter" role="presentation"><span [style.width.%]="h.gpsOnlineRate"></span></div>
+              </article>
+              <article class="health-metric">
+                <span class="label">Maintenance</span>
+                <strong>{{ h.maintenanceScore | number:'1.0-1' }}%</strong>
+                <div class="meter" role="presentation"><span [style.width.%]="h.maintenanceScore"></span></div>
+              </article>
+              <article class="health-metric">
+                <span class="label">Compliance</span>
+                <strong>{{ h.complianceScore | number:'1.0-1' }}%</strong>
+                <div class="meter" role="presentation"><span [style.width.%]="h.complianceScore"></span></div>
+              </article>
+              <article class="health-metric">
+                <span class="label">Driver score</span>
+                <strong>{{ h.driverScore | number:'1.0-1' }}</strong>
+                <small class="metric-note">Heuristic blend · not a grade</small>
+              </article>
+              <article class="health-metric health-metric--alert" [class.is-active]="h.criticalAlerts > 0">
+                <span class="label">Critical alerts</span>
+                <strong>{{ h.criticalAlerts }}</strong>
+                <small class="metric-note">Requires operator attention</small>
+              </article>
             </div>
           </section>
 
-          <p class="empty" *ngIf="!health">Fleet health is unavailable. Provider settings below still load when permitted.</p>
+          <div class="empty-state" *ngIf="!health">
+            <mat-icon>insights</mat-icon>
+            <p>Fleet health is unavailable right now. Provider settings below still load when permitted.</p>
+          </div>
 
-          <h3>Provider &amp; feature toggles</h3>
+          <h3 class="section-title section-title--spaced">Provider &amp; feature toggles</h3>
           <div class="form-grid">
             <mat-form-field appearance="outline">
               <mat-label>Provider</mat-label>
@@ -122,19 +137,34 @@
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="32"></mat-spinner>
+          <p>Loading recommendations…</p>
         </div>
         <ng-container *ngIf="!loading">
+          <p class="section-lead">Rule-based actions from your fleet signals — dismiss when handled.</p>
           <div class="card-list" *ngIf="recommendations.length; else noRecs">
-            <article *ngFor="let r of recommendations" class="rec-card" [attr.data-sev]="r.severity">
+            <article *ngFor="let r of recommendations" class="rec-card" [ngClass]="severityClass(r.severity)">
               <header>
-                <strong>{{ r.title }}</strong>
-                <span>{{ r.severity }} · {{ r.category }}</span>
+                <div class="rec-card__titles">
+                  <strong>{{ r.title }}</strong>
+                  <span class="rec-meta">{{ r.entityType }} #{{ r.entityId }} · {{ r.source }}</span>
+                </div>
+                <span class="severity-pill">{{ r.severity }}</span>
               </header>
-              <p>{{ r.action }}</p>
-              <button mat-button type="button" (click)="dismissRec(r)">Dismiss</button>
+              <p class="rec-category">{{ r.category }}</p>
+              <p class="rec-action">{{ r.action }}</p>
+              <footer class="rec-footer">
+                <small *ngIf="r.score != null">Priority score {{ r.score | number:'1.0-1' }}</small>
+                <small>{{ r.createdAt | date:'medium' }}</small>
+                <button mat-stroked-button type="button" (click)="dismissRec(r)">Dismiss</button>
+              </footer>
             </article>
           </div>
-          <ng-template #noRecs><p class="empty">No active recommendations.</p></ng-template>
+          <ng-template #noRecs>
+            <div class="empty-state">
+              <mat-icon>task_alt</mat-icon>
+              <p>No active recommendations — your fleet signals look clear.</p>
+            </div>
+          </ng-template>
         </ng-container>
       </div>
     </mat-tab>
@@ -143,34 +173,55 @@
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="32"></mat-spinner>
+          <p>Loading predictions…</p>
         </div>
         <ng-container *ngIf="!loading">
-          <h3>AI datasets</h3>
-          <div class="table-wrap" *ngIf="datasets.length">
-            <table>
-              <thead><tr><th>Dataset</th><th>Rows</th><th>Freshness</th><th>Last capture</th></tr></thead>
+          <h3 class="section-title">Training datasets</h3>
+          <p class="section-lead">Feature capture freshness for heuristic models — not a live KPI.</p>
+          <div class="table-wrap table-wrap--card" *ngIf="datasets.length; else noDatasets">
+            <table class="data-table">
+              <thead><tr><th>Dataset</th><th class="num">Rows</th><th>Freshness</th><th>Last capture</th></tr></thead>
               <tbody>
                 <tr *ngFor="let d of datasets">
-                  <td>{{ d.name }}</td>
-                  <td>{{ d.rowCount | number }}</td>
-                  <td>{{ d.freshness }}</td>
-                  <td>{{ d.lastCapturedAt ? (d.lastCapturedAt | date:'short') : '—' }}</td>
+                  <td><strong>{{ d.name }}</strong></td>
+                  <td class="num">{{ d.rowCount | number }}</td>
+                  <td><span class="freshness-pill" [attr.data-tone]="freshnessTone(d.freshness)">{{ d.freshness }}</span></td>
+                  <td>{{ d.lastCapturedAt ? (d.lastCapturedAt | date:'medium') : '—' }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <h3>Predictions</h3>
+          <ng-template #noDatasets>
+            <div class="empty-state empty-state--compact">
+              <mat-icon>database</mat-icon>
+              <p>No dataset status returned yet.</p>
+            </div>
+          </ng-template>
+
+          <h3 class="section-title section-title--spaced">Heuristic predictions</h3>
           <div class="card-list" *ngIf="predictions.length; else noPreds">
-            <article *ngFor="let p of predictions" class="rec-card">
+            <article *ngFor="let p of predictions" class="pred-card" [attr.data-band]="predictionBand(p.probability)">
               <header>
-                <strong>{{ p.entityType }} #{{ p.entityId }}</strong>
-                <span>{{ p.probability | number:'1.0-0' }}% · {{ p.predictionType }}</span>
+                <div>
+                  <strong>{{ p.predictionType }}</strong>
+                  <span class="rec-meta">{{ p.entityType }} #{{ p.entityId }}</span>
+                </div>
+                <span class="prob-badge">{{ p.probability | number:'1.0-0' }}%</span>
               </header>
-              <p>{{ p.label || '—' }}</p>
-              <small *ngIf="p.expectedDays">ETA ~{{ p.expectedDays }} days · {{ p.modelVersion }}</small>
+              <div class="prob-meter" role="presentation"><span [style.width.%]="p.probability"></span></div>
+              <p class="pred-label">{{ p.label || 'No label' }}</p>
+              <footer class="rec-footer">
+                <small *ngIf="p.expectedDays != null">Horizon ~{{ p.expectedDays }} days</small>
+                <small>{{ p.modelVersion }} · {{ p.createdAt | date:'medium' }}</small>
+              </footer>
             </article>
           </div>
-          <ng-template #noPreds><p class="empty">No predictions yet — run predictions from Management.</p></ng-template>
+          <ng-template #noPreds>
+            <div class="empty-state">
+              <mat-icon>timeline</mat-icon>
+              <p>No predictions yet — run predictions from the Fleet dashboard tab.</p>
+            </div>
+          </ng-template>
         </ng-container>
       </div>
     </mat-tab>

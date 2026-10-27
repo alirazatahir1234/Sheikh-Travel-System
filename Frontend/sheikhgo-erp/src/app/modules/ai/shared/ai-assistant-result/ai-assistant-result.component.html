@@ -1,0 +1,63 @@
+<div class="result">
+  <header class="result-head" *ngIf="toolLabel || mode">
+    <span class="result-source" *ngIf="toolLabel">
+      <mat-icon aria-hidden="true">insights</mat-icon>
+      {{ toolLabel }}
+    </span>
+    <span class="result-mode" *ngIf="mode">{{ mode }}</span>
+  </header>
+
+  <section class="fleet-health-panel" *ngIf="fleetHealth as fh" aria-label="Fleet health metrics">
+    <div class="fleet-health-hero" [attr.data-band]="fleetBand">
+      <span class="fleet-health-hero__value">{{ fh.healthPercent | number:'1.0-1' }}%</span>
+      <span class="fleet-health-hero__label">Composite fleet health</span>
+      <p class="fleet-health-hero__summary" *ngIf="fh.summary">{{ fh.summary }}</p>
+    </div>
+    <div class="metric-grid">
+      <article class="metric-tile" *ngFor="let m of fleetMetrics" [class.metric-tile--alert]="m.label === 'Critical alerts' && m.value > 0">
+        <span class="metric-tile__label">{{ m.label }}</span>
+        <strong class="metric-tile__value">
+          {{ m.unit === '%' ? (m.value | number:'1.0-1') + '%' : (m.value | number:'1.0-1') }}
+        </strong>
+        <div class="metric-tile__bar" *ngIf="m.unit === '%'" role="presentation">
+          <span [style.width.%]="metricPercent(m)"></span>
+        </div>
+        <small class="metric-tile__hint" *ngIf="m.hint">{{ m.hint }}</small>
+      </article>
+    </div>
+  </section>
+
+  <div class="prose">
+    <ng-container *ngFor="let block of blocks">
+      <p *ngIf="block.kind === 'paragraph'">{{ block.text }}</p>
+      <ul *ngIf="block.kind === 'list'">
+        <li *ngFor="let item of block.items">{{ item }}</li>
+      </ul>
+    </ng-container>
+  </div>
+
+  <section class="data-table-wrap" *ngIf="table as t">
+    <h4 class="data-table-title">{{ t.title }}</h4>
+    <div class="data-table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th *ngFor="let col of t.columns" [class.num]="col.align === 'right'">{{ col.label }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of t.rows">
+            <td *ngFor="let col of t.columns" [class.num]="col.align === 'right'">{{ row[col.key] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <ul class="warnings" *ngIf="warnings?.length" aria-label="Warnings">
+    <li *ngFor="let w of warnings">
+      <mat-icon aria-hidden="true">warning</mat-icon>
+      {{ w }}
+    </li>
+  </ul>
+</div>

@@ -48,8 +48,8 @@
     <div class="messages" *ngIf="!loading">
       <div class="empty" *ngIf="!messages.length">
         <mat-icon>smart_toy</mat-icon>
-        <h3>SheikhGo AI Assistant</h3>
-        <p>Ask about fuel costs, maintenance due, overdue invoices, trips, and vehicle utilization for your company.</p>
+        <h3>Fleet intelligence</h3>
+        <p>Ask about fleet health, offline vehicles, fuel, maintenance, trips, and utilization — answers use live SheikhGo tools, not guesswork.</p>
         <label class="mode-toggle" *ngIf="!compact">
           <input type="checkbox" [(ngModel)]="useAssistant" />
           Use read-only Assistant (recommended)
@@ -61,9 +61,17 @@
         class="bubble"
         [class.user]="m.role === 'user'"
         [class.assistant]="m.role === 'assistant'">
-        <pre>{{ m.content }}</pre>
+        <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
+        <app-ai-assistant-result
+          *ngIf="m.role === 'assistant'"
+          [answer]="m.content"
+          [toolUsed]="m.toolUsed"
+          [data]="m.data"
+          [warnings]="m.warnings ?? []"
+          [mode]="m.mode">
+        </app-ai-assistant-result>
         <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
-          <small>{{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+          <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
         </div>
       </article>
 
