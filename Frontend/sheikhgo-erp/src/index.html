@@ -34,6 +34,7 @@
     #app-initial-splash svg {
       width: 112px;
       height: 112px;
+      filter: drop-shadow(0 4px 14px rgba(14, 61, 58, 0.18));
     }
 
     #app-initial-splash .boot-arc {
@@ -41,20 +42,51 @@
       animation: boot-arc-spin 1.15s linear infinite;
     }
 
+    #app-initial-splash .boot-logo-wrap {
+      transform-origin: 60px 55px;
+      animation: boot-logo-pulse 1.85s ease-in-out infinite;
+    }
+
     @keyframes boot-arc-spin {
       to { transform: rotate(360deg); }
+    }
+
+    @keyframes boot-logo-pulse {
+      0%, 100% { opacity: 0.88; transform: scale(0.94); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #app-initial-splash .boot-arc,
+      #app-initial-splash .boot-logo-wrap {
+        animation: none !important;
+      }
+
+      #app-initial-splash .boot-logo-wrap {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
   </style>
 </head>
 <body>
   <div id="app-initial-splash" aria-hidden="true">
     <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="bootArcGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0FAF9F" stop-opacity="0.35" />
+          <stop offset="55%" stop-color="#0FAF9F" />
+          <stop offset="100%" stop-color="#5eead4" />
+        </linearGradient>
+      </defs>
       <circle cx="60" cy="60" r="46" fill="none" stroke="#0FAF9F" stroke-width="7" stroke-opacity="0.18" />
       <g class="boot-arc">
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#0FAF9F" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="28 72" />
+        <circle cx="60" cy="60" r="46" fill="none" stroke="url(#bootArcGlow)" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="28 72" />
       </g>
-      <circle cx="60" cy="60" r="30" fill="#0E3D3A" />
-      <text x="60" y="67" text-anchor="middle" fill="#fff" font-family="Georgia, serif" font-size="24" font-weight="700">SG</text>
+      <circle cx="60" cy="60" r="34" fill="none" stroke="rgba(15, 175, 159, 0.12)" stroke-width="1" />
+      <g class="boot-logo-wrap">
+        <image href="brand/sheikhgo-logo.png" x="32" y="28" width="56" height="54" preserveAspectRatio="xMidYMid meet" />
+      </g>
     </svg>
   </div>
   <app-root></app-root>

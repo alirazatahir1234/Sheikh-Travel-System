@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 export type SgLoaderSize = 'sm' | 'md' | 'lg';
 
@@ -20,10 +21,6 @@ export type SgLoaderSize = 'sm' | 'md' | 'lg';
             <stop offset="55%" stop-color="#0FAF9F" />
             <stop offset="100%" stop-color="#5eead4" />
           </linearGradient>
-          <radialGradient id="sgCoreGlow" cx="50%" cy="45%" r="55%">
-            <stop offset="0%" stop-color="#14544f" />
-            <stop offset="100%" stop-color="#0E3D3A" />
-          </radialGradient>
         </defs>
 
         <circle
@@ -52,32 +49,26 @@ export type SgLoaderSize = 'sm' | 'md' | 'lg';
           />
         </g>
 
-        <circle class="sg-loader__core" cx="60" cy="60" r="30" fill="url(#sgCoreGlow)" />
-
         <circle
           cx="60"
           cy="60"
-          r="30"
+          r="34"
           fill="none"
-          stroke="rgba(15, 175, 159, 0.22)"
+          stroke="rgba(15, 175, 159, 0.12)"
           stroke-width="1"
         />
 
-        <path
-          class="sg-loader__globe"
-          d="M44 52c6-8 14-12 16-12s10 4 16 12M76 68c-6 8-14 12-16 12s-10-4-16-12M48 60h24"
-          fill="none"
-          stroke="rgba(15, 175, 159, 0.28)"
-          stroke-width="1.2"
-        />
-
-        <text
-          class="sg-loader__mark"
-          x="60"
-          y="67"
-          text-anchor="middle"
-          fill="#ffffff"
-        >SG</text>
+        <g class="sg-loader__logo-wrap">
+          <image
+            class="sg-loader__logo"
+            [attr.href]="logoPath"
+            x="32"
+            y="28"
+            width="56"
+            height="54"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </g>
       </svg>
     </div>
   `,
@@ -118,19 +109,9 @@ export type SgLoaderSize = 'sm' | 'md' | 'lg';
       animation: sg-arc-pulse 1.15s ease-in-out infinite;
     }
 
-    .sg-loader__mark {
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: -0.04em;
-    }
-
-    .sg-loader--sm .sg-loader__mark {
-      font-size: 16px;
-    }
-
-    .sg-loader--lg .sg-loader__mark {
-      font-size: 34px;
+    .sg-loader__logo-wrap {
+      transform-origin: 60px 55px;
+      animation: sg-logo-pulse 1.85s ease-in-out infinite;
     }
 
     @keyframes sg-arc-spin {
@@ -142,9 +123,15 @@ export type SgLoaderSize = 'sm' | 'md' | 'lg';
       50% { stroke-dasharray: 34 66; opacity: 1; }
     }
 
+    @keyframes sg-logo-pulse {
+      0%, 100% { opacity: 0.88; transform: scale(0.94); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .sg-loader__arc-wrap,
-      .sg-loader__arc {
+      .sg-loader__arc,
+      .sg-loader__logo-wrap {
         animation: none !important;
       }
 
@@ -152,9 +139,15 @@ export type SgLoaderSize = 'sm' | 'md' | 'lg';
         stroke-dasharray: 30 70;
         opacity: 1;
       }
+
+      .sg-loader__logo-wrap {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
   `]
 })
 export class SgProgressLoaderComponent {
   readonly size = input<SgLoaderSize>('md');
+  readonly logoPath = APP_LOGO_PATH;
 }
