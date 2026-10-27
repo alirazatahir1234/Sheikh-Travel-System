@@ -1,4 +1,4 @@
-import { ElementRef, Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import { ElementRef, Component, HostListener, NgZone, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgClass } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,12 +26,13 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
   templateUrl: './site-header.component.html',
   styleUrl: './site-header.component.scss',
 })
-export class SiteHeaderComponent implements OnInit {
+export class SiteHeaderComponent implements OnInit, OnDestroy {
   readonly brand = WEBSITE_BRAND;
   readonly i18n = inject(WebsiteI18nService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly ngZone = inject(NgZone);
 
   /** Chrome wordmark — SheikhGo Technologies */
   siteName: string = WEBSITE_BRAND.productName;
@@ -46,6 +47,8 @@ export class SiteHeaderComponent implements OnInit {
   readonly serviceLinks = SERVICE_ITEMS;
   readonly industryLinks = INDUSTRY_ITEMS;
 
+  private scrollHandler?: () => void;
+
   ngOnInit(): void {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
@@ -55,11 +58,26 @@ export class SiteHeaderComponent implements OnInit {
       if (!s) return;
       if (s.siteName) this.siteName = s.siteName;
     });
+
+    // Scroll must stay outside NgZone — HostListener('window:scroll') re-ran CD
+    // every frame (impure wsTranslate pipe on the whole marketing shell → flicker).
+    this.ngZone.runOutsideAngular(() => {
+      this.scrollHandler = () => {
+        const next = window.scrollY > 12;
+        if (this.scrolled === next) return;
+        this.ngZone.run(() => {
+          this.scrolled = next;
+        });
+      };
+      window.addEventListener('scroll', this.scrollHandler, { passive: true });
+    });
   }
 
-  @HostListener('window:scroll')
-  onScroll(): void {
-    this.scrolled = window.scrollY > 12;
+  ngOnDestroy(): void {
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      this.scrollHandler = undefined;
+    }
   }
 
   @HostListener('document:keydown.escape')

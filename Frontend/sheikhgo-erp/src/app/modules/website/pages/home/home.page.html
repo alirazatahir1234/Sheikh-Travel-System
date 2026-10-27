@@ -76,7 +76,10 @@
       }
     }
   </div>
-  <div class="container home-module-jumps">
+</nav>
+
+<section class="home-module-jumps" [attr.aria-label]="'home.modules.title' | wsTranslate">
+  <div class="container">
     <div class="home-module-jumps-grid">
       @for (mod of homeModuleJumps; track mod.labelKey) {
         @if (mod.link) {
@@ -102,7 +105,7 @@
       }
     </div>
   </div>
-</nav>
+</section>
 
 <section class="nexus-showcase" id="see-the-platform" aria-labelledby="nexus-showcase-heading">
   <div class="nexus-showcase-bg" aria-hidden="true"></div>

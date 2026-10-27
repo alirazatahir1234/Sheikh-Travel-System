@@ -156,9 +156,14 @@
     }
   }
 
+  /* Keep module jump cards outside sticky .premium-pill-nav — sticky + tall cards overlay page content */
   .home-module-jumps {
-    margin-top: 1rem;
-    padding-bottom: 0.25rem;
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    padding: 1.15rem 0 1.35rem;
+    background: rgba(239, 250, 246, 0.55);
+    border-bottom: 1px solid var(--sg-border-soft);
   }
 
   .home-module-jumps-grid {
