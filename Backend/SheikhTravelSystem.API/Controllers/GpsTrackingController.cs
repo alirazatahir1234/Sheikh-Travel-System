@@ -294,8 +294,8 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpGet("devices")]
     [Obsolete("Use GET /api/gps/trackers")]
-    public async Task<IActionResult> GetDevices()
-        => Ok(await Mediator.Send(new GetTrackersQuery()));
+    public async Task<IActionResult> GetDevices([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetTrackersQuery(tenantId)));
 
     [HttpPost("devices")]
     [Obsolete("Use POST /api/gps/trackers/register")]
@@ -325,12 +325,22 @@ public partial class GpsTrackingController : BaseApiController
     // ── Tracker registration (SheikhGo master, Traccar engine) ─────────────
 
     [HttpGet("trackers")]
-    public async Task<IActionResult> GetTrackers()
-        => Ok(await Mediator.Send(new GetTrackersQuery()));
+    public async Task<IActionResult> GetTrackers([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetTrackersQuery(tenantId)));
 
     [HttpGet("trackers/{id:int}")]
     public async Task<IActionResult> GetTracker(int id)
         => Ok(await Mediator.Send(new GetTrackerByIdQuery(id)));
+
+    [HttpGet("trackers/annual-plans")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetTrackerAnnualPlans()
+        => Ok(await Mediator.Send(new GetTrackerAnnualPlansQuery()));
+
+    [HttpPut("trackers/{id:int}/annual-plan")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
+    public async Task<IActionResult> AssignTrackerAnnualPlan(int id, [FromBody] AssignTrackerAnnualPlanDto body)
+        => Ok(await Mediator.Send(new AssignTrackerAnnualPlanCommand(id, body)));
 
     [HttpPost("trackers/register")]
     [RequirePermission(GpsPermissions.DeviceManage)]

@@ -9,6 +9,7 @@ import {
   FleetTrackStatus,
   GpsDevice,
   TrackerDetail,
+  TrackerAnnualPlan,
   RegisterTrackerPayload,
   InstallTrackerPayload,
   TransferTrackerPayload,
@@ -1022,6 +1023,17 @@ export class GpsTrackingService {
 
   getTracker(id: number): Observable<TrackerDetail> {
     return this.http.get<TrackerDetail>(`${this.base}/trackers/${id}`);
+  }
+
+  getTrackerAnnualPlans(): Observable<TrackerAnnualPlan[]> {
+    return this.http.get<TrackerAnnualPlan[]>(`${this.base}/trackers/annual-plans`);
+  }
+
+  assignTrackerAnnualPlan(
+    id: number,
+    body: { planCode: string | null; renewFromToday?: boolean }
+  ): Observable<TrackerDetail> {
+    return this.http.put<TrackerDetail>(`${this.base}/trackers/${id}/annual-plan`, body);
   }
 
   registerTracker(body: RegisterTrackerPayload): Observable<TrackerRegisteredResult> {

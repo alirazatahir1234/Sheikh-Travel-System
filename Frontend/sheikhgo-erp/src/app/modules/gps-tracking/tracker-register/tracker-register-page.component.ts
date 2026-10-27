@@ -2,12 +2,12 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { filter, finalize, forkJoin, of, switchMap } from 'rxjs';
+import { catchError, filter, finalize, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TrackerCatalogService } from '../../../core/services/tracker-catalog.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { TrackerDetail, TrackerRegisteredResult } from '../../../core/models/gps-tracking.model';
+import { TrackerAnnualPlan, TrackerDetail, TrackerRegisteredResult } from '../../../core/models/gps-tracking.model';
 import { TrackerBrand, TrackerModel } from '../../../core/models/tracker-catalog.model';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import {
@@ -59,6 +59,7 @@ export class TrackerRegisterPageComponent implements OnInit {
   brands: TrackerBrand[] = [];
   models: TrackerModel[] = [];
   existingImeis = new Set<string>();
+  annualPlans: TrackerAnnualPlan[] = [];
   loading = false;
   saving = false;
   isEdit = false;
@@ -89,6 +90,8 @@ export class TrackerRegisterPageComponent implements OnInit {
     purchasePrice: [null as number | null],
     vendor: [''],
     isActive: [true],
+    trackerAnnualPlanCode: [''],
+    renewAnnualPlan: [false],
   });
 
   ngOnInit(): void {
@@ -111,16 +114,22 @@ export class TrackerRegisterPageComponent implements OnInit {
     forkJoin({
       brands: this.catalog.getBrands(),
       devices: this.gps.getDevices(),
-      tracker: this.trackerId ? this.gps.getTracker(this.trackerId) : of(null)
+      tracker: this.trackerId ? this.gps.getTracker(this.trackerId) : of(null),
+      annualPlans: this.gps.getTrackerAnnualPlans().pipe(catchError(() => of([] as TrackerAnnualPlan[])))
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: ({ brands, devices, tracker }) => {
+      next: ({ brands, devices, tracker, annualPlans }) => {
         this.brands = brands;
         this.existingImeis = new Set(devices.map(d => d.uniqueId));
+        this.annualPlans = annualPlans;
 
         if (tracker) {
           this.patchFromTracker(tracker);
         } else {
           this.setDefaultBrandAndModel();
+          const defaultPlan = annualPlans.find(p => p.isDefault)?.planCode ?? '';
+          if (defaultPlan) {
+            this.form.patchValue({ trackerAnnualPlanCode: defaultPlan }, { emitEvent: false });
+          }
         }
 
         this.loading = false;
@@ -195,6 +204,15 @@ export class TrackerRegisterPageComponent implements OnInit {
 
   get brandOptions(): UiSelectOption[] {
     return this.brands.map(b => ({ value: String(b.id), label: b.name }));
+  }
+
+  get annualPlanOptions(): UiSelectOption[] {
+    const none: UiSelectOption = { value: '', label: 'No annual plan assigned' };
+    const rows = this.annualPlans.map(p => ({
+      value: p.planCode,
+      label: `${p.displayName} — PKR ${p.annualAmountPkr.toLocaleString()}/year`
+    }));
+    return [none, ...rows];
   }
 
   get modelOptions(): UiSelectOption[] {
@@ -348,12 +366,19 @@ export class TrackerRegisterPageComponent implements OnInit {
       currentStatus: 'Available',
     };
 
+    const planCode = String(v.trackerAnnualPlanCode ?? '').trim() || null;
+    const renewFromToday = !!v.renewAnnualPlan;
+
     if (this.isEdit && this.trackerId) {
       this.gps.updateTracker(this.trackerId, { ...payload, isActive: !!(v.isActive) }).pipe(
+        switchMap(() => this.gps.assignTrackerAnnualPlan(this.trackerId!, {
+          planCode,
+          renewFromToday: planCode ? renewFromToday : undefined
+        })),
         finalize(() => { this.saving = false; })
       ).subscribe({
         next: () => {
-          this.toast.success('Tracker inventory updated');
+          this.toast.success('Tracker inventory and annual plan updated');
           void this.router.navigate(['/gps-tracking/devices']);
         },
         error: err => this.toast.error(this.extractError(err, 'Update failed'))
@@ -362,6 +387,14 @@ export class TrackerRegisterPageComponent implements OnInit {
     }
 
     this.gps.registerTracker(payload).pipe(
+      switchMap(result => {
+        const id = result.id;
+        if (!planCode || !id) return of(result);
+        return this.gps.assignTrackerAnnualPlan(id, { planCode, renewFromToday: true }).pipe(
+          tap(() => {}),
+          switchMap(() => of(result))
+        );
+      }),
       finalize(() => { this.saving = false; })
     ).subscribe({
       next: result => {
@@ -514,6 +547,8 @@ export class TrackerRegisterPageComponent implements OnInit {
       purchasePrice: t.purchasePrice ?? null,
       vendor: t.vendor ?? '',
       isActive: t.isActive,
+      trackerAnnualPlanCode: t.trackerAnnualPlanCode ?? '',
+      renewAnnualPlan: false,
     });
     this.existingImeis.delete(t.uniqueId);
   }

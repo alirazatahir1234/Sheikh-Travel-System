@@ -109,6 +109,19 @@
       </div>
     </section>
 
+    <section class="form-section">
+      <h2>Annual platform plan (Pakistan)</h2>
+      <p class="section-hint">Per-tracker subscription on SheikhGo Nexus — list prices PKR 8,000 / 9,000 / 10,000 per year (software only).</p>
+      <div class="form-grid">
+        <ui-select class="span-2" formControlName="trackerAnnualPlanCode" label="Annual plan"
+          [options]="annualPlanOptions" />
+        <label class="checkbox-field span-2" *ngIf="form.get('trackerAnnualPlanCode')?.value">
+          <input type="checkbox" formControlName="renewAnnualPlan" />
+          <span>Start or renew 12-month term from today</span>
+        </label>
+      </div>
+    </section>
+
     <section class="form-section immobilizer-section" *ngIf="modelSupportsImmobilizer">
       <h2>Remote Immobilization</h2>
       <p class="section-hint">Only enable if a relay was wired to this tracker's engine immobilizer during installation.</p>

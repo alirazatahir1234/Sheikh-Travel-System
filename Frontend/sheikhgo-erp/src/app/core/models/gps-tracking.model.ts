@@ -147,6 +147,21 @@ export interface GpsDevice {
   relayOutput?: string;
   relayPurpose?: string;
   currentStatus?: string;
+  trackerAnnualPlanCode?: string | null;
+  trackerAnnualPlanDisplayName?: string | null;
+  trackerAnnualAmountPkr?: number | null;
+  trackerSubscriptionStartUtc?: string | null;
+  trackerSubscriptionEndUtc?: string | null;
+}
+
+export interface TrackerAnnualPlan {
+  planCode: string;
+  displayName: string;
+  description: string;
+  annualAmountPkr: number;
+  sortOrder: number;
+  isDefault: boolean;
+  featureKeys: string[];
 }
 
 export interface TrackerDetail extends GpsDevice {

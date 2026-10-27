@@ -63,6 +63,21 @@ export class TrackerDetailsPageComponent implements OnInit {
     return normalizeInventoryStatus(this.tracker?.currentStatus) === 'Maintenance';
   }
 
+  get annualPlanLabel(): string {
+    if (!this.tracker?.trackerAnnualPlanCode) return 'Not assigned';
+    const name = this.tracker.trackerAnnualPlanDisplayName ?? this.tracker.trackerAnnualPlanCode;
+    const amount = this.tracker.trackerAnnualAmountPkr;
+    if (amount != null) {
+      return `${name} — PKR ${Math.round(amount).toLocaleString()}/year`;
+    }
+    return name;
+  }
+
+  get annualPlanExpiry(): string | null {
+    if (!this.tracker?.trackerSubscriptionEndUtc) return null;
+    return this.formatDate(this.tracker.trackerSubscriptionEndUtc);
+  }
+
   get immobilizerLabel(): string {
     if (!this.tracker?.supportsEngineCutoff) return 'Not configured';
     return relayOutputLabel(this.tracker.relayOutput ?? 'output1');

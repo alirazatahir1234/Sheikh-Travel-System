@@ -23,6 +23,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 public sealed partial class GpsDeviceRepository(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
+    IPlatformScope platformScope,
     ICurrentUserService currentUser,
     IAppCache cache,
     ITraccarClient traccar,
@@ -378,8 +379,14 @@ public sealed partial class GpsDeviceRepository(
                      CASE WHEN d.UniqueId NOT LIKE '%[^0-9]%' AND LEN(d.UniqueId) BETWEEN 14 AND 20
                           THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsValidImei,
                      d.Model, d.SimNumber, d.Vendor,
-                     d.SerialNumber, d.InstallationDate, d.InstalledBy, d.InstallationNotes, d.RelayOutput
+                     d.SerialNumber, d.InstallationDate, d.InstalledBy, d.InstallationNotes, d.RelayOutput,
+                     d.TrackerAnnualPlanCode,
+                     tp.DisplayName AS TrackerAnnualPlanDisplayName,
+                     COALESCE(d.TrackerAnnualAmountPkr, tp.AnnualAmountPkr) AS TrackerAnnualAmountPkr,
+                     d.TrackerSubscriptionEndUtc
               FROM GpsDevices d
+              LEFT JOIN SubscriptionPlans tp ON tp.SubscriptionCode = d.TrackerAnnualPlanCode
+                  AND tp.PlanType = N'TrackerAnnual'
               LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
               LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = d.VehicleId
               LEFT JOIN Drivers drVcl ON drVcl.Id = vcl.DriverId AND drVcl.IsDeleted = 0
@@ -1298,7 +1305,7 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<List<TrackerDetailDto>>> GetTrackersAsync(GetTrackersQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var rows = await connection.QueryAsync<TrackerDetailDto>(new CommandDefinition(
             TrackerSql.ListQuery + TrackerTenantSql.DeviceScopeFilter + """
              ORDER BY CASE WHEN v.Name IS NULL THEN 1 ELSE 0 END, v.Name, d.Name
@@ -1321,6 +1328,86 @@ public sealed partial class GpsDeviceRepository(
             ? ApiResponse<TrackerDetailDto>.FailResponse("Tracker not found.")
             : ApiResponse<TrackerDetailDto>.SuccessResponse(row);
         }
+
+    public async Task<ApiResponse<TrackerDetailDto>> AssignTrackerAnnualPlanAsync(
+        AssignTrackerAnnualPlanCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            TrackerTenantSql.DeviceExistsForTenant,
+            new { Id = request.TrackerId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (!exists)
+            return ApiResponse<TrackerDetailDto>.FailResponse("Tracker not found.");
+
+        string? planCode = string.IsNullOrWhiteSpace(request.Body.PlanCode)
+            ? null
+            : request.Body.PlanCode.Trim().ToUpperInvariant();
+
+        DateTime? startUtc = null;
+        DateTime? endUtc = null;
+        decimal? amount = null;
+
+        if (planCode is not null)
+        {
+            var plan = TrackerAnnualPlanCatalog.Resolve(planCode);
+            planCode = plan.PlanCode;
+            amount = plan.AnnualAmountPkr;
+
+            var existing = await connection.QueryFirstOrDefaultAsync<(DateTime? StartUtc, DateTime? EndUtc)>(
+                new CommandDefinition(
+                    """
+                    SELECT d.TrackerSubscriptionStartUtc AS StartUtc, d.TrackerSubscriptionEndUtc AS EndUtc
+                    FROM GpsDevices d
+                    LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+                    WHERE d.Id = @TrackerId AND d.IsDeleted = 0
+                      AND (d.TenantId = @TenantId OR (d.TenantId IS NULL AND v.TenantId = @TenantId))
+                    """,
+                    new { request.TrackerId, TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+
+            if (request.Body.RenewFromToday || request.Body.SubscriptionStartUtc.HasValue || !existing.StartUtc.HasValue)
+            {
+                startUtc = request.Body.SubscriptionStartUtc?.ToUniversalTime() ?? DateTime.UtcNow;
+                endUtc = startUtc.Value.AddYears(1);
+            }
+            else
+            {
+                startUtc = existing.StartUtc;
+                endUtc = existing.EndUtc ?? existing.StartUtc!.Value.AddYears(1);
+            }
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE d SET
+                TrackerAnnualPlanCode = @PlanCode,
+                TrackerAnnualAmountPkr = @Amount,
+                TrackerSubscriptionStartUtc = @StartUtc,
+                TrackerSubscriptionEndUtc = @EndUtc,
+                UpdatedAt = GETUTCDATE()
+            FROM GpsDevices d
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE d.Id = @TrackerId AND d.IsDeleted = 0
+              AND (d.TenantId = @TenantId OR (d.TenantId IS NULL AND v.TenantId = @TenantId))
+            """,
+            new
+            {
+                request.TrackerId,
+                TenantId = tenantId,
+                PlanCode = planCode,
+                Amount = amount,
+                StartUtc = startUtc,
+                EndUtc = endUtc
+            },
+            cancellationToken: cancellationToken));
+
+        return await GetTrackerByIdAsync(new GetTrackerByIdQuery(request.TrackerId), cancellationToken);
+    }
 
     public async Task<ApiResponse<List<TrackerAssignmentDto>>> GetTrackerAssignmentsAsync(GetTrackerAssignmentsQuery request, CancellationToken cancellationToken = default)
     {

@@ -17,6 +17,51 @@ export class PricingPage implements OnInit {
   private readonly seo = inject(WebsiteSeoService);
   readonly i18n = inject(WebsiteI18nService);
 
+  readonly trackerAnnualTiers = computed(() => {
+    this.i18n.lang();
+    return [
+      {
+        id: 'essential',
+        name: this.i18n.t('pages.pricing.trackerEssential.name'),
+        subtitle: this.i18n.t('pages.pricing.trackerEssential.subtitle'),
+        price: '8,000',
+        featured: false,
+        badge: undefined as string | undefined,
+        features: [
+          this.i18n.t('pages.pricing.trackerEssential.feature1'),
+          this.i18n.t('pages.pricing.trackerEssential.feature2'),
+          this.i18n.t('pages.pricing.trackerEssential.feature3'),
+        ],
+      },
+      {
+        id: 'plus',
+        name: this.i18n.t('pages.pricing.trackerPlus.name'),
+        subtitle: this.i18n.t('pages.pricing.trackerPlus.subtitle'),
+        price: '9,000',
+        featured: true,
+        badge: this.i18n.t('pages.pricing.trackerPlus.badge'),
+        features: [
+          this.i18n.t('pages.pricing.trackerPlus.feature1'),
+          this.i18n.t('pages.pricing.trackerPlus.feature2'),
+          this.i18n.t('pages.pricing.trackerPlus.feature3'),
+        ],
+      },
+      {
+        id: 'premium',
+        name: this.i18n.t('pages.pricing.trackerPremium.name'),
+        subtitle: this.i18n.t('pages.pricing.trackerPremium.subtitle'),
+        price: '10,000',
+        featured: false,
+        badge: undefined as string | undefined,
+        features: [
+          this.i18n.t('pages.pricing.trackerPremium.feature1'),
+          this.i18n.t('pages.pricing.trackerPremium.feature2'),
+          this.i18n.t('pages.pricing.trackerPremium.feature3'),
+        ],
+      },
+    ] as const;
+  });
+
   readonly tiers = computed(() => {
     this.i18n.lang();
     return [

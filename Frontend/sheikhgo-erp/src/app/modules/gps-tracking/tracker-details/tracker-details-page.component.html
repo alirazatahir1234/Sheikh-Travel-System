@@ -46,6 +46,11 @@
           <strong>{{ tracker.supportsEngineCutoff ? 'Enabled' : 'Disabled' }}</strong>
           <span class="meta" *ngIf="tracker.supportsEngineCutoff">{{ immobilizerLabel }}</span>
         </div>
+        <div>
+          <span class="label">Annual platform plan</span>
+          <strong>{{ annualPlanLabel }}</strong>
+          <span class="meta" *ngIf="annualPlanExpiry">Valid until {{ annualPlanExpiry }}</span>
+        </div>
       </div>
 
       <div class="actions" *ngIf="isInstalled && canManageDevices">

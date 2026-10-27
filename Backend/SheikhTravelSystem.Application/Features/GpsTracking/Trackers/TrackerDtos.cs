@@ -205,4 +205,23 @@ public record TrackerDetailDto(
     DateTime? LastSyncAt,
     string? SimNumber = null,
     /// <summary>Human SOS / center number for Gmeet offline SMS.</summary>
-    string? SosNumber = null);
+    string? SosNumber = null,
+    string? TrackerAnnualPlanCode = null,
+    string? TrackerAnnualPlanDisplayName = null,
+    decimal? TrackerAnnualAmountPkr = null,
+    DateTime? TrackerSubscriptionStartUtc = null,
+    DateTime? TrackerSubscriptionEndUtc = null);
+
+public record TrackerAnnualPlanDto(
+    string PlanCode,
+    string DisplayName,
+    string Description,
+    decimal AnnualAmountPkr,
+    int SortOrder,
+    bool IsDefault,
+    IReadOnlyList<string> FeatureKeys);
+
+public record AssignTrackerAnnualPlanDto(
+    string? PlanCode,
+    DateTime? SubscriptionStartUtc = null,
+    bool RenewFromToday = false);

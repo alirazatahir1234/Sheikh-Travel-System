@@ -43,4 +43,7 @@ public interface IGpsDeviceRepository
     Task<ApiResponse<bool>> RetryDeviceCommandAsync(RetryDeviceCommandCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<SupportedCommandDto>>> GetDeviceSupportedCommandsAsync(GetDeviceSupportedCommandsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<TraccarSyncRunResult>> SyncTrackerAsync(SyncTrackerCommand request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<TrackerDetailDto>> AssignTrackerAnnualPlanAsync(
+        AssignTrackerAnnualPlanCommand request,
+        CancellationToken cancellationToken = default);
 }

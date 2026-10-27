@@ -46,6 +46,47 @@
   </div>
 </section>
 
+<section class="section section-band-alt pricing-tracker-annual" aria-labelledby="pricing-tracker-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'pages.pricing.tracker.kicker' | wsTranslate }}</span>
+      <h2 id="pricing-tracker-heading" class="section-title">{{ 'pages.pricing.tracker.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'pages.pricing.tracker.lead' | wsTranslate }}</p>
+    </header>
+    <div class="pricing-grid">
+      @for (tier of trackerAnnualTiers(); track tier.id) {
+        <article class="pricing-card premium-card" [class.featured]="tier.featured">
+          @if (tier.featured && tier.badge) {
+            <span class="pricing-badge">{{ tier.badge }}</span>
+          }
+          <header class="pricing-card-head">
+            <h3>{{ tier.name }}</h3>
+            <p class="pricing-fleet">{{ tier.subtitle }}</p>
+          </header>
+          <div class="pricing-amount">
+            <span class="pricing-currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
+            <span class="pricing-value">{{ tier.price }}</span>
+            <span class="pricing-period">{{ 'pages.pricing.perYear' | wsTranslate }}</span>
+          </div>
+          <ul class="pricing-features">
+            @for (f of tier.features; track f) {
+              <li>
+                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                {{ f }}
+              </li>
+            }
+          </ul>
+          <div class="pricing-actions">
+            <a routerLink="/request-demo" class="btn btn-primary">{{ 'nav.bookDemo' | wsTranslate }}</a>
+            <a routerLink="/contact" class="btn btn-outline">{{ 'nav.contact' | wsTranslate }}</a>
+          </div>
+        </article>
+      }
+    </div>
+    <p class="pricing-enterprise-note">{{ 'pages.pricing.tracker.note' | wsTranslate }}</p>
+  </div>
+</section>
+
 <section class="section section-band-alt pricing-basis" aria-labelledby="pricing-basis-heading">
   <div class="container">
     <header class="section-head">

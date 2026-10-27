@@ -67,8 +67,14 @@ internal static class TrackerSql
                d.SerialNumber, d.InstallationDate, d.InstalledBy, d.InstallationNotes,
                d.CountryCode, d.SIMProvider, d.SIMPackage, d.MonthlySIMCost,
                d.WarrantyStart, d.WarrantyEnd, d.PurchaseDate, d.PurchasePrice,
-               d.CurrentStatus, d.LastSyncAt, d.SimNumber, d.SosNumber
+               d.CurrentStatus, d.LastSyncAt, d.SimNumber, d.SosNumber,
+               d.TrackerAnnualPlanCode,
+               tp.DisplayName AS TrackerAnnualPlanDisplayName,
+               COALESCE(d.TrackerAnnualAmountPkr, tp.AnnualAmountPkr) AS TrackerAnnualAmountPkr,
+               d.TrackerSubscriptionStartUtc, d.TrackerSubscriptionEndUtc
         FROM GpsDevices d
+        LEFT JOIN SubscriptionPlans tp ON tp.SubscriptionCode = d.TrackerAnnualPlanCode
+            AND tp.PlanType = N'TrackerAnnual'
         LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
         LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = d.VehicleId
         LEFT JOIN Drivers dr ON dr.Id = d.DriverId AND dr.IsDeleted = 0

@@ -176,3 +176,54 @@ public class SyncAllTrackersCommandHandler(ITraccarSyncOrchestrator orchestrator
         return ApiResponse<TraccarSyncRunResult>.SuccessResponse(result);
     }
 }
+
+public record GetTrackerAnnualPlansQuery : IRequest<ApiResponse<IReadOnlyList<TrackerAnnualPlanDto>>>;
+
+public class GetTrackerAnnualPlansQueryHandler
+    : IRequestHandler<GetTrackerAnnualPlansQuery, ApiResponse<IReadOnlyList<TrackerAnnualPlanDto>>>
+{
+    public Task<ApiResponse<IReadOnlyList<TrackerAnnualPlanDto>>> Handle(
+        GetTrackerAnnualPlansQuery request,
+        CancellationToken cancellationToken)
+    {
+        var list = TrackerAnnualPlanCatalog.All
+            .Where(p => p.Visible)
+            .OrderBy(p => p.SortOrder)
+            .Select(p => new TrackerAnnualPlanDto(
+                p.PlanCode,
+                p.DisplayName,
+                p.Description,
+                p.AnnualAmountPkr,
+                p.SortOrder,
+                p.IsDefault,
+                p.FeatureKeys))
+            .ToList();
+
+        return Task.FromResult(ApiResponse<IReadOnlyList<TrackerAnnualPlanDto>>.SuccessResponse(list));
+    }
+}
+
+public record AssignTrackerAnnualPlanCommand(int TrackerId, AssignTrackerAnnualPlanDto Body)
+    : IRequest<ApiResponse<TrackerDetailDto>>;
+
+public class AssignTrackerAnnualPlanCommandValidator : AbstractValidator<AssignTrackerAnnualPlanCommand>
+{
+    public AssignTrackerAnnualPlanCommandValidator()
+    {
+        RuleFor(x => x.TrackerId).GreaterThan(0);
+        RuleFor(x => x.Body.PlanCode)
+            .Must(code => string.IsNullOrWhiteSpace(code)
+                          || TrackerAnnualPlanCatalog.All.Any(p =>
+                              string.Equals(p.PlanCode, code.Trim(), StringComparison.OrdinalIgnoreCase)))
+            .WithMessage("Unknown tracker annual plan code.");
+    }
+}
+
+public class AssignTrackerAnnualPlanCommandHandler(IGpsDeviceRepository gpsDeviceRepository)
+    : IRequestHandler<AssignTrackerAnnualPlanCommand, ApiResponse<TrackerDetailDto>>
+{
+    public Task<ApiResponse<TrackerDetailDto>> Handle(
+        AssignTrackerAnnualPlanCommand request,
+        CancellationToken cancellationToken)
+        => gpsDeviceRepository.AssignTrackerAnnualPlanAsync(request, cancellationToken);
+}

@@ -75,7 +75,11 @@ public record GpsDeviceDto(
     DateTime? InstallationDate = null,
     string? InstalledBy = null,
     string? InstallationNotes = null,
-    string? RelayOutput = null);
+    string? RelayOutput = null,
+    string? TrackerAnnualPlanCode = null,
+    string? TrackerAnnualPlanDisplayName = null,
+    decimal? TrackerAnnualAmountPkr = null,
+    DateTime? TrackerSubscriptionEndUtc = null);
 
 public record CreateGpsDeviceDto(
     int? VehicleId,
