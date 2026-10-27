@@ -144,6 +144,10 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
     'Screens from the Nexus workspace your team signs into — GPS, fleet, operations, AI, and notifications in one stack. Sample data from the demo tenant; your production tenant reflects your fleet.',
   'home.modules.footnote':
     'Bookings and other modules appear when enabled for your tenant. Request a demo to walk through your workflow.',
+  'home.testimonials.kicker': 'Client voices',
+  'home.testimonials.title': 'Operators who run on Nexus',
+  'home.testimonials.lead':
+    'Sample stories from fleet and travel teams — swap in your real clients, quotes, and photos when you are ready.',
   'home.capabilities.kicker': 'Platform',
   'home.capabilities.title': 'Everything operators expect — honestly delivered',
   'home.capabilities.lead':

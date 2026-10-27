@@ -142,6 +142,10 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.modules.lead':
     'Screenshots aus dem Nexus-Workspace Ihres Teams — GPS, Flotte, Betrieb, KI und Benachrichtigungen in einem Stack.',
   'home.modules.footnote': 'Buchungen und weitere Module erscheinen, wenn Ihr Mandant sie aktiviert. Demo für Ihren Workflow anfragen.',
+  'home.testimonials.kicker': 'Kundenstimmen',
+  'home.testimonials.title': 'Betreiber auf Nexus',
+  'home.testimonials.lead':
+    'Beispielgeschichten aus Flotten- und Reiseteams — ersetzen Sie sie durch echte Kunden, Zitate und Fotos, wenn Sie bereit sind.',
   'home.capabilities.kicker': 'Plattform',
   'home.capabilities.title': 'Alles, was Betreiber erwarten — ehrlich geliefert',
   'home.capabilities.lead':

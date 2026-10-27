@@ -143,6 +143,10 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.modules.lead':
     'لقطات من مساحة Nexus التي يسجل فيها فريقك — GPS وأسطول وتشغيل وذكاء اصطناعي وإشعارات في مكدس واحد.',
   'home.modules.footnote': 'تظهر الحجوزات ووحدات أخرى عند تفعيلها لمستأجرك. اطلب عرضاً لسير عملك.',
+  'home.testimonials.kicker': 'آراء العملاء',
+  'home.testimonials.title': 'مشغّلون يعملون على Nexus',
+  'home.testimonials.lead':
+    'قصص نموذجية من فرق الأسطول والسفر — استبدلها بعملائك الحقيقيين واقتباساتهم وصورهم عندما تكون جاهزاً.',
   'home.capabilities.kicker': 'المنصة',
   'home.capabilities.title': 'كل ما يتوقعه المشغّلون — بصدق',
   'home.capabilities.lead': 'من أول إصلاح GPS إلى سجلات ERP والتشغيل وقرارات بمساعدة الذكاء الاصطناعي.',

@@ -147,6 +147,33 @@
   </div>
 </section>
 
+<section class="section client-testimonials" id="client-testimonials" aria-labelledby="client-testimonials-heading">
+  <div class="container">
+    <header class="section-head testimonials-head">
+      <span class="section-kicker">{{ 'home.testimonials.kicker' | wsTranslate }}</span>
+      <h2 id="client-testimonials-heading" class="section-title">{{ 'home.testimonials.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.testimonials.lead' | wsTranslate }}</p>
+    </header>
+    <div class="testimonials-grid">
+      @for (t of clientTestimonials; track t.name) {
+        <article class="testimonial-card">
+          <mat-icon class="testimonial-quote-icon" aria-hidden="true">format_quote</mat-icon>
+          <blockquote class="testimonial-quote">
+            <p>{{ t.quote }}</p>
+          </blockquote>
+          <footer class="testimonial-author">
+            <span class="testimonial-avatar" aria-hidden="true">{{ t.initials }}</span>
+            <div class="testimonial-meta">
+              <cite class="testimonial-name">{{ t.name }}</cite>
+              <span class="testimonial-role">{{ t.role }}, {{ t.company }}</span>
+            </div>
+          </footer>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
 <section class="section platform-capabilities" id="platform-features" aria-labelledby="platform-features-heading">
   <div class="container">
     <header class="section-head">

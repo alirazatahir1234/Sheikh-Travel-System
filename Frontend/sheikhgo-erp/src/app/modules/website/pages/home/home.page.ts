@@ -137,6 +137,41 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   readonly nexusModuleShots = NEXUS_MODULE_SHOTS;
 
+  readonly clientTestimonials = [
+    {
+      name: 'Sara Khalil',
+      role: 'Operations Director',
+      company: 'Gulf Line Transport',
+      initials: 'SK',
+      quote:
+        'We replaced three spreadsheets and a dispatch WhatsApp thread with one Nexus workspace. Live GPS, trip status, and fuel receipts sit on the same screen — our morning stand-ups are half as long.',
+    },
+    {
+      name: 'James Okonkwo',
+      role: 'Fleet Manager',
+      company: 'MetroCoach Rentals',
+      initials: 'JO',
+      quote:
+        'Geofence alerts and trip playback cut our “where is the bus?” calls dramatically. Maintenance due dates tied to odometer readings finally match what drivers actually run.',
+    },
+    {
+      name: 'Fatima Al-Rashid',
+      role: 'CEO',
+      company: 'Desert Wings Logistics',
+      initials: 'FA',
+      quote:
+        'Multi-branch visibility without exporting CSVs every night. Bookings, vehicle assignments, and GPS health in one tenant — our auditors get clear trails when they ask.',
+    },
+    {
+      name: 'Daniel Meyer',
+      role: 'Head of Dispatch',
+      company: 'Alpine Shuttle Co.',
+      initials: 'DM',
+      quote:
+        'The AI assistant answers from our live map and alert feed, not generic chatbot fluff. Drivers still use our process; dispatch just spends less time hunting data.',
+    },
+  ] as const;
+
   readonly aiFeatures = [
     'AI Assistant & chat gateway',
     'Nexus AI Management Center',
