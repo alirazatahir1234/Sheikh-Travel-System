@@ -1,14 +1,17 @@
 import { WEBSITE_BRAND } from './brand';
 
-export interface ServiceItem {
-  /** Anchor id on /services */
+/** Anchor targets on /services — SheikhGo Nexus portfolio navigation. */
+export interface NexusPortfolioItem {
   slug: string;
   title: string;
   text: string;
   icon: string;
-  /** Longer copy for the /services section body */
   detail: string;
   highlights: readonly string[];
+  /** Optional product page or home fragment */
+  exploreLink?: string;
+  exploreFragment?: string | null;
+  exploreLabel?: string;
 }
 
 export interface IndustryItem {
@@ -19,62 +22,118 @@ export interface IndustryItem {
   fragment: string | null;
 }
 
-export const SERVICE_ITEMS: readonly ServiceItem[] = [
+/** @deprecated Use NEXUS_PORTFOLIO_ITEMS — kept as alias for header/footer imports. */
+export type ServiceItem = NexusPortfolioItem;
+
+/** Header mega-menu, footer column, and /services jump links. */
+export const NEXUS_PORTFOLIO_ITEMS: readonly NexusPortfolioItem[] = [
   {
-    slug: 'web-development',
-    title: 'Web Development',
-    text: 'Modern, scalable and high-performing web applications.',
-    icon: 'language',
+    slug: 'nexus-overview',
+    title: 'SheikhGo Nexus',
+    text: 'Flagship fleet & travel operations platform.',
+    icon: 'hub',
     detail:
-      'We build web applications that stay fast as they grow — from marketing sites and customer portals to complex internal platforms, delivered with modern frameworks and a maintainable architecture.',
-    highlights: ['Progressive web apps', 'Portals & dashboards', 'API-driven front ends', 'Performance & SEO'],
+      'SheikhGo Nexus is the product Ali builds and ships for transport operators — not a generic dev shop brochure. One multi-tenant workspace for GPS, fleet, trips, fuel, maintenance, bookings, reports, and notifications, with optional SheikhGo AI on top of live operational tools.',
+    highlights: [
+      'Multi-tenant SaaS ready for your fleet',
+      'GPS + ERP depth in one sign-in',
+      'Honest, operator-first product copy',
+      'Demo tenant UI you can walk through today',
+    ],
+    exploreLink: '/request-demo',
+    exploreLabel: 'Request a demo',
   },
   {
-    slug: 'mobile-app-development',
-    title: 'Mobile App Development',
-    text: 'Cross-platform and native mobile applications for modern businesses.',
-    icon: 'smartphone',
+    slug: 'fleet-intelligence',
+    title: 'Fleet intelligence dashboard',
+    text: 'Unified NEXUS map, alerts, and AI panel.',
+    icon: 'dashboard',
     detail:
-      'iOS and Android apps built from a single codebase where it makes sense, native where it matters. We handle store releases, offline behaviour, push notifications and device integrations.',
-    highlights: ['Flutter & native', 'Offline-first sync', 'Push & location services', 'App store delivery'],
+      'The NEXUS dashboard is the centerpiece: live fleet map, recent GPS alerts, geofences, trip playback, fleet health signals, and an assistant panel that answers from connected tools — the same experience highlighted on the home page.',
+    highlights: ['Live map & trip state', 'Alert inbox & geofences', 'Fleet health at a glance', 'AI panel beside operations'],
+    exploreLink: '/',
+    exploreFragment: 'see-the-platform',
+    exploreLabel: 'See home showcase',
   },
   {
-    slug: 'ui-ux-design',
-    title: 'UI/UX Design',
-    text: 'User-centered interfaces that create meaningful experiences.',
-    icon: 'palette',
+    slug: 'gps-tracking-suite',
+    title: 'GPS & tracking suite',
+    text: 'Live tracking, geofencing, playback, and alerts.',
+    icon: 'gps_fixed',
     detail:
-      'Research, flows, wireframes and polished interface design — grounded in how your users actually work, then handed to engineering as a design system rather than a pile of screens.',
-    highlights: ['Product discovery', 'Design systems', 'Prototyping', 'Accessibility'],
+      'Device registry, live positions, geofence editor, trip history with playback, and alert routing — designed for dispatchers and compliance teams who need evidence, not vanity metrics.',
+    highlights: ['Live tracking map', 'Geofence entry & exit', 'Route playback & stops', 'Speed, fuel & device alerts'],
+    exploreLink: '/gps-tracking',
+    exploreLabel: 'GPS Tracking',
   },
   {
-    slug: 'cloud-solutions',
-    title: 'Cloud Solutions',
-    text: 'Scalable cloud infrastructure, migration and deployment solutions.',
-    icon: 'cloud',
+    slug: 'operations-modules',
+    title: 'Operations modules',
+    text: 'Vehicles, drivers, trips, fuel, and maintenance.',
+    icon: 'local_shipping',
     detail:
-      'Cloud architecture, migration and automation on Azure and AWS, with the deployment pipelines and monitoring needed to run it confidently once it is live.',
-    highlights: ['Azure & AWS', 'Migration planning', 'CI/CD pipelines', 'Monitoring & cost control'],
+      'Day-to-day fleet operations live in Nexus: vehicle and driver records, trip lifecycle, fuel logs, maintenance schedules, customers, and operational reports — modules appear based on what your tenant enables.',
+    highlights: ['Vehicle & driver registry', 'Trip operations', 'Fuel & maintenance', 'Reports & customers'],
+    exploreLink: '/fleet-management',
+    exploreLabel: 'Fleet management',
   },
   {
-    slug: 'it-consulting',
-    title: 'IT Consulting',
-    text: 'Strategic technology guidance to help achieve your business goals.',
-    icon: 'support_agent',
+    slug: 'sheikhgo-ai',
+    title: 'SheikhGo AI',
+    text: 'Tool-first assistants, digests, and copilots.',
+    icon: 'auto_awesome',
     detail:
-      'An outside read on your architecture, delivery process and roadmap — with a prioritised plan you can act on, not a slide deck that ends at the recommendation.',
-    highlights: ['Architecture review', 'Technology roadmap', 'Delivery process', 'Vendor selection'],
+      'SheikhGo AI sits on Nexus and GPS data — assistants that call operational tools, heuristic fleet health, morning digests, and mobile copilots. Described transparently on the dedicated AI Solutions page; no black-box marketing claims.',
+    highlights: ['Tool-first AI assistant', 'Fleet health & digests', 'WhatsApp assist (human-approved)', 'Optional LLM you configure'],
+    exploreLink: '/ai-solutions',
+    exploreLabel: 'AI Solutions',
   },
   {
-    slug: 'custom-software',
-    title: 'Custom Software',
-    text: 'Tailored software built around your unique business needs.',
-    icon: 'code',
+    slug: 'platform-modules',
+    title: 'Product UI gallery',
+    text: 'Fourteen modules captured from the live app.',
+    icon: 'view_module',
     detail:
-      'When off-the-shelf tools force you to change how you work, we build the system around your process instead — including integrations with the platforms you already depend on.',
-    highlights: ['Line-of-business systems', 'Workflow automation', 'Third-party integrations', 'Legacy modernisation'],
+      'Screenshots below are from the Nexus workspace your team signs into — the same module set showcased on the home page under Platform modules.',
+    highlights: ['Dashboard & live map', 'Alerts, geofences & history', 'Fuel, maintenance & trips', 'AI assistant & notifications'],
+    exploreLink: '/',
+    exploreFragment: 'platform-modules',
+    exploreLabel: 'See on homepage',
   },
 ];
+
+/** Alias for layout components that still import SERVICE_ITEMS. */
+export const SERVICE_ITEMS: readonly NexusPortfolioItem[] = NEXUS_PORTFOLIO_ITEMS;
+
+export const NEXUS_DASHBOARD_IMAGE = {
+  src: '/website/nexus/fleet-intelligence-dashboard.jpg',
+  alt: 'SheikhGo Nexus fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant',
+} as const;
+
+/** Product UI captures from SheikhGo Nexus (demo tenant). Shared by home and /services. */
+export const NEXUS_MODULE_SHOTS = [
+  { caption: 'Dashboard', src: '/website/nexus/modules/dashboard.png', alt: 'SheikhGo Nexus operations dashboard' },
+  { caption: 'Live Tracking', src: '/website/nexus/modules/live-tracking.png', alt: 'Live GPS fleet map in SheikhGo Nexus' },
+  { caption: 'GPS Alerts', src: '/website/nexus/modules/gps-alerts.png', alt: 'GPS alerts inbox in SheikhGo Nexus' },
+  { caption: 'Geofencing', src: '/website/nexus/modules/geofencing.png', alt: 'Geofence editor in SheikhGo Nexus' },
+  { caption: 'Trip History', src: '/website/nexus/modules/trip-history.png', alt: 'GPS trip history and playback in SheikhGo Nexus' },
+  { caption: 'Vehicles', src: '/website/nexus/modules/vehicles.png', alt: 'Vehicle registry in SheikhGo Nexus' },
+  { caption: 'Drivers', src: '/website/nexus/modules/drivers.png', alt: 'Driver management in SheikhGo Nexus' },
+  { caption: 'Trips', src: '/website/nexus/modules/trips.png', alt: 'Trip operations in SheikhGo Nexus' },
+  { caption: 'Fuel', src: '/website/nexus/modules/fuel.png', alt: 'Fuel logs in SheikhGo Nexus' },
+  { caption: 'Maintenance', src: '/website/nexus/modules/maintenance.png', alt: 'Fleet maintenance in SheikhGo Nexus' },
+  { caption: 'Reports', src: '/website/nexus/modules/reports.png', alt: 'Operational reports in SheikhGo Nexus' },
+  { caption: 'AI Assistant', src: '/website/nexus/modules/ai-assistant.png', alt: 'SheikhGo AI assistant in Nexus' },
+  { caption: 'Customers', src: '/website/nexus/modules/customers.png', alt: 'Customer records in SheikhGo Nexus' },
+  { caption: 'Notifications', src: '/website/nexus/modules/notifications.png', alt: 'Notification center in SheikhGo Nexus' },
+] as const;
+
+export const NEXUS_VALUE_PILLARS = [
+  { title: 'One platform', text: 'GPS, operations, and AI in a single tenant — fewer integrations to babysit.', icon: 'layers' },
+  { title: 'Built for operators', text: 'Workflows for dispatch, maintenance, and finance — not a tracker bolt-on.', icon: 'engineering' },
+  { title: 'Premium product UI', text: 'Polished Nexus workspace with module depth you can demo today.', icon: 'verified' },
+  { title: 'Transparent AI', text: 'Assistants use your tools; claims match what ships.', icon: 'policy' },
+] as const;
 
 export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
   {
