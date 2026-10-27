@@ -71,6 +71,30 @@ public static class TravelNavMenuFixMigration
                      OR DisplayName = N'Bookings'
                   )
                   AND Route NOT IN (N'/bookings', N'/bookings/new');
+
+                UPDATE pm SET
+                    pm.ModuleId = mod.Id,
+                    pm.ParentId = NULL,
+                    pm.Name = COALESCE(NULLIF(LTRIM(RTRIM(pm.Name)), N''), N'Bookings'),
+                    pm.Icon = COALESCE(NULLIF(LTRIM(RTRIM(pm.Icon)), N''), N'confirmation_number'),
+                    pm.PermissionCode = COALESCE(NULLIF(LTRIM(RTRIM(pm.PermissionCode)), N''), N'Booking.View'),
+                    pm.SortOrder = CASE WHEN pm.SortOrder IS NULL OR pm.SortOrder = 0 THEN 5 ELSE pm.SortOrder END,
+                    pm.IsActive = 1,
+                    pm.Visible = 1,
+                    pm.DisplayName = COALESCE(NULLIF(LTRIM(RTRIM(pm.DisplayName)), N''), N'Bookings'),
+                    pm.Category = N'Travel',
+                    pm.ModuleKey = N'BOOKINGS',
+                    pm.UpdatedAt = SYSUTCDATETIME()
+                FROM PlatformMenus pm
+                CROSS JOIN PlatformModules mod
+                WHERE mod.ModuleKey = N'travel-fleet-operations'
+                  AND pm.IsActive = 1
+                  AND (
+                        pm.PermissionCode = N'Booking.View'
+                     OR pm.Name = N'Bookings'
+                     OR pm.DisplayName = N'Bookings'
+                     OR pm.Route = N'/bookings'
+                  );
                 """, cancellationToken: cancellationToken));
         }
 

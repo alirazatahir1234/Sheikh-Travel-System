@@ -7,7 +7,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 
 /// <summary>
 /// Nests Trips and Routes under a collapsible PlatformModules parent
-/// <c>travel-fleet-operations</c> (display name Fleet Operations). Bookings stay under Operations.
+/// <c>travel-fleet-operations</c> (display name Fleet Operations), including Bookings.
 /// </summary>
 public static class TravelFleetOperationsMenuMigration
 {
@@ -40,7 +40,7 @@ public static class TravelFleetOperationsMenuMigration
                 INSERT INTO PlatformModules (Name, ModuleKey, Icon, SortOrder, IsCollapsible,
                     DisplayName, Description, Visible)
                 VALUES (N'Fleet Operations', @ModuleKey, N'route', 22, 1,
-                    N'Fleet Operations', N'Trip lifecycle and route catalog', 1);
+                    N'Fleet Operations', N'Bookings, trips, and route catalog', 1);
             END
 
             UPDATE PlatformModules
@@ -49,7 +49,7 @@ public static class TravelFleetOperationsMenuMigration
                 SortOrder = CASE WHEN SortOrder IS NULL OR SortOrder = 0 THEN 22 ELSE SortOrder END,
                 IsCollapsible = 1,
                 DisplayName = COALESCE(NULLIF(LTRIM(RTRIM(DisplayName)), ''), N'Fleet Operations'),
-                Description = COALESCE(Description, N'Trip lifecycle and route catalog'),
+                Description = COALESCE(Description, N'Bookings, trips, and route catalog'),
                 Visible = 1
             WHERE ModuleKey = @ModuleKey;
             """,
@@ -58,6 +58,7 @@ public static class TravelFleetOperationsMenuMigration
 
         var menus = new (string Name, string Route, string Icon, string Perm, int Sort, string Display, string ProductModule)[]
         {
+            ("Bookings", "/bookings", "confirmation_number", "Booking.View", 5, "Bookings", TenantModuleCatalog.BookingsModuleCode),
             ("Trips", "/trips", "route", "Trip.View", 10, "Trips", TenantModuleCatalog.BookingsModuleCode),
             ("Routes", "/routes", "alt_route", "Route.View", 20, "Routes", TenantModuleCatalog.TravelRoutesModuleCode),
         };
@@ -112,7 +113,7 @@ public static class TravelFleetOperationsMenuMigration
         }
 
         logger.LogInformation(
-            "TravelFleetOperationsMenuMigration applied (PlatformModules.{Key} → Trips, Routes).",
+            "TravelFleetOperationsMenuMigration applied (PlatformModules.{Key} → Bookings, Trips, Routes).",
             PlatformModuleKey);
     }
 }

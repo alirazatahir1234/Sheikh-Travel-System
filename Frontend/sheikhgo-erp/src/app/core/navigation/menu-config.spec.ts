@@ -10,11 +10,11 @@ describe('resolveMenu Fleet Operations (travel)', () => {
     });
 
     const ops = menu.groups.find(g => g.id === 'operations');
-    expect(ops?.items.map(i => i.id)).toEqual(['bookings', 'dispatch-board']);
+    expect(ops?.items.map(i => i.id)).toEqual(['dispatch-board', 'trip-smart-assignment']);
 
     const fleetOps = menu.groups.find(g => g.id === 'travel-fleet-operations');
     expect(fleetOps?.label).toBe('Fleet Operations');
     expect(fleetOps?.collapsible).toBe(true);
-    expect(fleetOps!.items.map(i => i.id)).toEqual(['trips', 'routes']);
+    expect(fleetOps!.items.map(i => i.id)).toEqual(['bookings', 'trips', 'routes']);
   });
 });

@@ -17,7 +17,6 @@ const operationsGroup: NavGroup = {
   icon: 'settings',
   collapsible: true,
   items: [
-    { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
     { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/trips/live', moduleKey: 'trips' },
     { id: 'trip-smart-assignment', label: 'Smart Assignment', icon: 'auto_awesome', route: '/trips/smart-assignment', moduleKey: 'trips' }
   ]
@@ -30,6 +29,7 @@ const travelFleetOperationsGroup: NavGroup = {
   icon: 'route',
   collapsible: true,
   items: [
+    { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
     { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
     { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' }
   ]
@@ -291,7 +291,7 @@ const driverItems: NavItem[] = [
 const tenantGroupIds: Record<TenantType, string[]> = {
   [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
-  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.CorporateCustomer]: ['dashboard', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
 
