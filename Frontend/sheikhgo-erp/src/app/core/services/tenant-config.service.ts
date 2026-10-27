@@ -30,6 +30,7 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   payments: '/payments',
   invoices: '/invoices',
   settlements: '/settlements',
+  'driver-wallets': '/driver-wallets',
   reports: '/reports',
   'driver-allowance-rules': '/driver-allowance-rules',
   users: '/users',

@@ -127,7 +127,7 @@ const financeGroup: NavGroup = {
     { id: 'payments', label: 'Payments', icon: 'payments', route: '/payments', moduleKey: 'payments' },
     { id: 'invoices', label: 'Invoices', icon: 'receipt_long', route: '/invoices', moduleKey: 'payments' },
     { id: 'settlements', label: 'Settlements', icon: 'account_balance_wallet', route: '/settlements', moduleKey: 'payments' },
-    { id: 'wallets', label: 'Wallets', icon: 'account_balance', route: '/payments', moduleKey: 'payments' },
+    { id: 'driver-wallets', label: 'Driver Wallets', icon: 'account_balance', route: '/driver-wallets', moduleKey: 'payments' },
     { id: 'expenses', label: 'Expenses', icon: 'money_off', route: '/fuel-logs', moduleKey: 'fuel-logs' }
   ]
 };
@@ -265,7 +265,7 @@ const driverItems: NavItem[] = [
   { id: 'log-fuel', label: 'Log Fuel', icon: 'local_gas_station', route: '/my-trips/fuel' },
   { id: 'navigation', label: 'Navigation', icon: 'navigation', route: '/my-trips' },
   { id: 'documents', label: 'Documents', icon: 'description', route: '/profile' },
-  { id: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', route: '/profile' },
+  { id: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', route: '/wallet' },
   { id: 'profile', label: 'Profile', icon: 'person_outline', route: '/profile' }
 ];
 

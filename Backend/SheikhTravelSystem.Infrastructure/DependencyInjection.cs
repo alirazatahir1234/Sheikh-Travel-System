@@ -82,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOpsRuleScanner>();
         services.AddScoped<IGpsDeviceRepository, GpsDeviceRepository>();
         services.AddScoped<IGpsTrackingRepository, GpsTrackingRepository>();
+        services.AddScoped<IAlertModuleGate, SheikhTravelSystem.Infrastructure.Services.Gps.AlertModuleGate>();
         services.AddScoped<IGpsAlertWriter, SheikhTravelSystem.Infrastructure.Services.Gps.GpsAlertWriter>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Drivers.Services.IDriverTelematicsEnforcementService,
             SheikhTravelSystem.Infrastructure.Services.Drivers.DriverTelematicsEnforcementService>();
@@ -99,6 +100,8 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ICustomerInvoiceRepository, CustomerInvoiceRepository>();
         services.AddScoped<IDriverSettlementRepository, DriverSettlementRepository>();
+        services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
+        services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();
         services.AddScoped<IPricingRepository, PricingRepository>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
         services.AddScoped<IMaintenanceModuleRepository, MaintenanceModuleRepository>();
@@ -145,6 +148,10 @@ public static class DependencyInjection
         services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
         services.AddScoped<INotificationChannelSender, EmailNotificationSender>();
         services.AddScoped<INotificationChannelSender, SmsNotificationSender>();
+        services.AddHttpClient(SmsNotificationSender.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
         services.AddScoped<INotificationChannelSender, PushNotificationSender>();
         services.AddScoped<INotificationChannelSender, BrowserNotificationSender>();
         services.AddScoped<INotificationChannelSender, WhatsAppNotificationSender>();
@@ -235,14 +242,31 @@ public static class DependencyInjection
         services.AddScoped<IAiTool, GetMaintenanceRiskForecastTool>();
         services.AddScoped<IAiTool, GetTripDelayRiskTool>();
         services.AddScoped<IAiTool, GetFuelAnomalyInvestigationTool>();
+        // Platform subscription / entitlement modules (not MCP list_modules)
+        services.AddScoped<IAiTool, GetTenantSubscriptionModulesTool>();
+        services.AddScoped<IAiTool, GetTenantCompanyImageTool>();
         services.AddScoped<IAiToolEngine, AiToolEngine>();
         services.AddScoped<IAiAssistantGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiAssistantGateway>();
 
         // SheikhGo MCP bridge (opt-in; ADR-AI-001 allowlisted reporting tools only)
         services.Configure<SheikhTravelSystem.Application.Common.AiMcpBridgeOptions>(
             configuration.GetSection(SheikhTravelSystem.Application.Common.AiMcpBridgeOptions.SectionName));
+        services.Configure<SheikhTravelSystem.Application.Common.AiConversationContextOptions>(
+            configuration.GetSection(SheikhTravelSystem.Application.Common.AiConversationContextOptions.SectionName));
         services.AddSingleton<SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.SheikhGoMcpStdioClient>();
-        services.AddSingleton<ISheikhGoMcpBridge, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.SheikhGoMcpBridge>();
+        // Scoped: bridge filters elevated Logs/Audit tools via ICurrentUserService (Phase 3).
+        services.AddScoped<IMcpExecutionAmbient, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.McpExecutionAmbient>();
+        services.AddScoped<IMcpToolExecutionLogger, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.McpToolExecutionLogger>();
+        services.AddScoped<ISheikhGoMcpBridge, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.SheikhGoMcpBridge>();
+        services.AddScoped<IMcpDatabaseRecordRouter, SheikhTravelSystem.Infrastructure.Services.Ai.Mcp.McpDatabaseRecordRouter>();
+        services.AddScoped<IAiMcpToolCallingLoop, SheikhTravelSystem.Infrastructure.Services.Ai.AiMcpToolCallingLoop>();
+        // Phase 7 — conversation memory + three-layer context (RAG deferred)
+        services.AddScoped<IAiConversationMemoryService,
+            SheikhTravelSystem.Infrastructure.Services.Ai.Conversation.AiConversationMemoryService>();
+        services.AddScoped<IAiConversationContextBuilder,
+            SheikhTravelSystem.Infrastructure.Services.Ai.Conversation.AiConversationContextBuilder>();
+        services.AddSingleton<IAiRagRetriever,
+            SheikhTravelSystem.Infrastructure.Services.Ai.Conversation.DeferredAiRagRetriever>();
 
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider>();
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.DeepInfraAiProvider>();

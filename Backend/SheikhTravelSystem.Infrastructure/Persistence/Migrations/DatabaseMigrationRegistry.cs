@@ -122,6 +122,8 @@ public static class DatabaseMigrationRegistry
             M("ModuleRentalHrComingSoonMigration", ModuleRentalHrComingSoonMigration.ApplyAsync),
             M("CustomerInvoicesMigration", CustomerInvoicesMigration.ApplyAsync),
             M("DriverSettlementsMigration", DriverSettlementsMigration.ApplyAsync),
+            M("DriverWalletMigration", DriverWalletMigration.ApplyAsync),
+            M("DriverWalletPermissionsMigration", DriverWalletPermissionsMigration.ApplyAsync),
             M("ModuleInvoicesActiveMigration", ModuleInvoicesActiveMigration.ApplyAsync),
             M("InvoiceSettlementPermissionsMigration", InvoiceSettlementPermissionsMigration.ApplyAsync),
             M("OwnerDriverCrudPermissionsMigration", OwnerDriverCrudPermissionsMigration.ApplyAsync),

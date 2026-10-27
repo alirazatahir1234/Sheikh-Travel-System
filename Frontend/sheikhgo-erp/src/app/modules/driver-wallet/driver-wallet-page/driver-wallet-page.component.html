@@ -1,0 +1,128 @@
+<div class="driver-wallet-page">
+  <header class="page-header">
+    <h2>My Wallet</h2>
+    <p class="page-subtitle">Daily trip collections accumulate here. Cash out weekly or monthly via bank, JazzCash, or Easypaisa.</p>
+  </header>
+
+  <app-brand-loader *ngIf="loading" />
+
+  <ng-container *ngIf="!loading && wallet">
+    <mat-card class="balance-card">
+      <mat-card-content>
+        <span class="balance-label">Available balance</span>
+        <div class="balance-value">{{ formatMoney(wallet.balance) }}</div>
+        <p class="balance-hint" *ngIf="policy">
+          Minimum cash-out {{ policy.minimumCashOutAmountPkr | number:'1.0-0' }} PKR ·
+          {{ policy.processingFeePercent | number:'1.0-2' }}% processing fee on each payout
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="grid-two">
+      <mat-card>
+        <mat-card-header><mat-card-title>Request cash-out</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="cashOutForm" (ngSubmit)="submitCashOut()" class="form-stack">
+            <div class="stb-field">
+              <label>Gross amount (PKR)</label>
+              <input class="stb-input" type="number" step="0.01" formControlName="grossAmount" />
+            </div>
+            <div class="stb-field">
+              <label>Method</label>
+              <select class="stb-select" formControlName="method">
+                <option *ngFor="let m of methods" [value]="m.value">{{ m.label }}</option>
+              </select>
+            </div>
+            <div class="stb-field">
+              <label>Notes (optional)</label>
+              <input class="stb-input" formControlName="notes" />
+            </div>
+
+            <div class="fee-breakdown" *ngIf="preview">
+              <h4>Fee breakdown</h4>
+              <dl>
+                <div><dt>Gross</dt><dd>{{ formatMoney(preview.grossAmount) }}</dd></div>
+                <div><dt>Processing fee ({{ preview.processingFeePercent }}%)</dt><dd>− {{ formatMoney(preview.processingFee) }}</dd></div>
+                <div class="net"><dt>You receive (net)</dt><dd>{{ formatMoney(preview.netPayout) }}</dd></div>
+              </dl>
+            </div>
+
+            <button mat-raised-button color="primary" type="submit" [disabled]="cashOutForm.invalid || submitting">
+              {{ submitting ? 'Submitting…' : 'Submit cash-out request' }}
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header><mat-card-title>Payout details</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="payoutForm" (ngSubmit)="savePayoutDetails()" class="form-stack">
+            <div class="stb-field">
+              <label>Cash-out frequency</label>
+              <select class="stb-select" formControlName="cashOutCadence">
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+            </div>
+            <div class="stb-field"><label>Bank name</label><input class="stb-input" formControlName="bankName" /></div>
+            <div class="stb-field"><label>Account name</label><input class="stb-input" formControlName="bankAccountName" /></div>
+            <div class="stb-field"><label>Account number</label><input class="stb-input" formControlName="bankAccountNumber" /></div>
+            <div class="stb-field"><label>JazzCash number</label><input class="stb-input" formControlName="jazzCashNumber" /></div>
+            <div class="stb-field"><label>Easypaisa number</label><input class="stb-input" formControlName="easypaisaNumber" /></div>
+            <button mat-stroked-button color="primary" type="submit" [disabled]="savingPayout">
+              {{ savingPayout ? 'Saving…' : 'Save payout details' }}
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="history-card">
+      <mat-card-header><mat-card-title>Payment history</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <h4 class="section-mini">Cash-out requests</h4>
+        <table class="simple-table" *ngIf="cashOuts.length; else noCashOuts">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Method</th>
+              <th>Gross</th>
+              <th>Fee</th>
+              <th>Net</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of cashOuts">
+              <td>{{ c.requestedAt | date:'medium' }}</td>
+              <td>{{ c.method }}</td>
+              <td>{{ formatMoney(c.grossAmount) }}</td>
+              <td>{{ formatMoney(c.processingFee) }}</td>
+              <td>{{ formatMoney(c.netPayout) }}</td>
+              <td>{{ c.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noCashOuts><p class="muted">No cash-out requests yet.</p></ng-template>
+
+        <h4 class="section-mini">Wallet ledger</h4>
+        <table class="simple-table" *ngIf="ledger.length; else noLedger">
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let l of ledger">
+              <td>{{ l.createdAt | date:'medium' }}</td>
+              <td>{{ l.entryType }}</td>
+              <td>{{ formatMoney(l.amount) }}</td>
+              <td>{{ formatMoney(l.balanceAfter) }}</td>
+              <td>{{ l.description }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noLedger><p class="muted">No ledger entries yet.</p></ng-template>
+      </mat-card-content>
+    </mat-card>
+  </ng-container>
+</div>

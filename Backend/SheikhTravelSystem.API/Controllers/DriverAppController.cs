@@ -7,6 +7,8 @@ using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.DriverApp.Queries;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 using SheikhTravelSystem.Application.Features.Settlements.Queries;
+using SheikhTravelSystem.Application.Features.DriverWallets;
+using SheikhTravelSystem.Application.Features.DriverWallets.DTOs;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -214,6 +216,43 @@ public class DriverAppController : BaseApiController
     [HttpGet("earnings")]
     public async Task<IActionResult> GetEarnings([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetDriverEarningsQuery(from, to)));
+
+    // ── Wallet & cash-out ─────────────────────────────────────────────────────
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("wallet/policy")]
+    public async Task<IActionResult> GetWalletPolicy()
+        => Ok(await Mediator.Send(new GetDriverWalletPolicyQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("wallet/preview")]
+    public async Task<IActionResult> PreviewWalletCashOut([FromQuery] decimal grossAmount)
+        => Ok(await Mediator.Send(new PreviewDriverCashOutQuery(grossAmount)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("wallet")]
+    public async Task<IActionResult> GetMyWallet()
+        => Ok(await Mediator.Send(new GetMyDriverWalletQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPut("wallet/payout-details")]
+    public async Task<IActionResult> UpdateMyWalletPayoutDetails([FromBody] UpdateDriverWalletPayoutDetailsDto details)
+        => Ok(await Mediator.Send(new UpdateMyDriverWalletPayoutDetailsCommand(details)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("wallet/ledger")]
+    public async Task<IActionResult> GetMyWalletLedger([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        => Ok(await Mediator.Send(new GetDriverWalletLedgerQuery(page, pageSize)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("wallet/cash-out-requests")]
+    public async Task<IActionResult> GetMyCashOutRequests([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        => Ok(await Mediator.Send(new GetDriverCashOutRequestsQuery(page, pageSize)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("wallet/cash-out-requests")]
+    public async Task<IActionResult> CreateCashOutRequest([FromBody] CreateDriverCashOutRequestDto body)
+        => Ok(await Mediator.Send(new CreateDriverCashOutRequestCommand(body)));
 
     // ── Notifications (proxy to Notification Center) ─────────────────────────
 

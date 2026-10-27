@@ -79,6 +79,7 @@ public class GetDriverTripPaymentSummaryQueryHandler(
 
 public class DriverCollectPaymentCommandHandler(
     IDriverAppRepository driverAppRepository,
+    IDriverWalletRepository driverWalletRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     ISender sender)
@@ -113,6 +114,18 @@ public class DriverCollectPaymentCommandHandler(
         )), cancellationToken);
 
         if (!create.Success) return create;
+
+        await driverWalletRepository.TryCreditAsync(
+            tenantId,
+            driverId.Value,
+            request.AmountReceived,
+            "TripCollection",
+            "Payment",
+            create.Data,
+            $"Trip #{request.Id} collection credited to wallet",
+            currentUser.UserId,
+            cancellationToken);
+
         return ApiResponse<int>.SuccessResponse(create.Data, "Payment collected successfully.");
     }
 }

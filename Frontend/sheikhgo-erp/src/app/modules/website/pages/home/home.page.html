@@ -147,6 +147,38 @@
   </div>
 </section>
 
+<section class="section driver-payments-showcase" id="driver-payments" aria-labelledby="driver-payments-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'home.driverPayments.kicker' | wsTranslate }}</span>
+      <h2 id="driver-payments-heading" class="section-title">{{ 'home.driverPayments.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.driverPayments.lead' | wsTranslate }}</p>
+    </header>
+    <div class="driver-payments-grid">
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">account_balance_wallet</mat-icon>
+        <h3>{{ 'home.driverPayments.walletTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverPayments.walletText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card">
+        <mat-icon aria-hidden="true">calendar_month</mat-icon>
+        <h3>{{ 'home.driverPayments.cadenceTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverPayments.cadenceText' | wsTranslate }}</p>
+      </article>
+      <article class="driver-payments-card driver-payments-card--accent">
+        <mat-icon aria-hidden="true">payments</mat-icon>
+        <h3>{{ 'home.driverPayments.cashOutTitle' | wsTranslate }}</h3>
+        <p>{{ 'home.driverPayments.cashOutText' | wsTranslate }}</p>
+        <ul class="driver-payments-fees">
+          <li>{{ 'home.driverPayments.feeMin' | wsTranslate }}</li>
+          <li>{{ 'home.driverPayments.feePercent' | wsTranslate }}</li>
+          <li>{{ 'home.driverPayments.feeBreakdown' | wsTranslate }}</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
 <section class="section client-testimonials" id="client-testimonials" aria-labelledby="client-testimonials-heading">
   <div class="container">
     <header class="section-head testimonials-head">

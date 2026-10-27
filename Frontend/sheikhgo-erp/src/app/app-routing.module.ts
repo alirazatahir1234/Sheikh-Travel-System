@@ -213,6 +213,16 @@ const routes: Routes = [
         loadChildren: () => import('./modules/settlements/settlements.module').then(m => m.SettlementsModule)
       },
       {
+        path: 'driver-wallets',
+        canActivate: [permissionGuard],
+        data: { permissions: ['DriverWallet.View'] },
+        loadChildren: () => import('./modules/driver-wallets/driver-wallets.module').then(m => m.DriverWalletsModule)
+      },
+      {
+        path: 'wallet',
+        loadChildren: () => import('./modules/driver-wallet/driver-wallet.module').then(m => m.DriverWalletModule)
+      },
+      {
         path: 'reports',
         canActivate: [permissionGuard],
         data: { permissions: ['Report.View'] },

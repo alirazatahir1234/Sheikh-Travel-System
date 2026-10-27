@@ -12,6 +12,8 @@ public static class FinancePermissions
     public const string FuelView = "Fuel.View";
     public const string FuelCreate = "Fuel.Create";
     public const string FuelUpdate = "Fuel.Update";
+    public const string DriverWalletView = "DriverWallet.View";
+    public const string DriverWalletManage = "DriverWallet.Manage";
 
     public static readonly string[] All =
     [
@@ -22,6 +24,8 @@ public static class FinancePermissions
         InvoiceManage,
         SettlementView,
         SettlementManage,
+        DriverWalletView,
+        DriverWalletManage,
         FuelView,
         FuelCreate,
         FuelUpdate

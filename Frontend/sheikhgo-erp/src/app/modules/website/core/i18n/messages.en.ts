@@ -136,6 +136,23 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.showcase.title': 'Fleet intelligence dashboard',
   'home.showcase.lead':
     'Live map, recent GPS alerts, geofences, trip playback, fleet health, fuel and maintenance signals — with an AI assistant panel that answers from operational tools, not marketing fiction.',
+  'home.pill.driverPayments': 'Driver payments',
+  'home.driverPayments.kicker': 'Driver earnings',
+  'home.driverPayments.title': 'Wallet-first pay, cash out on your schedule',
+  'home.driverPayments.lead':
+    'Trip collections credit to an in-app wallet in SheikhGo Nexus. Drivers request payouts when ready—finance approves in bulk with full fee transparency.',
+  'home.driverPayments.walletTitle': 'In-app wallet',
+  'home.driverPayments.walletText':
+    'Daily collections from completed trips accumulate in a tenant-scoped wallet balance drivers see in ERP and the driver app.',
+  'home.driverPayments.cadenceTitle': 'Weekly or monthly',
+  'home.driverPayments.cadenceText':
+    'Choose a cash-out cadence that matches your payroll—bank transfer, JazzCash, or Easypaisa.',
+  'home.driverPayments.cashOutTitle': 'Clear cash-out fees',
+  'home.driverPayments.cashOutText':
+    'Before submitting a request, drivers see gross amount, processing fee, and net payout.',
+  'home.driverPayments.feeMin': 'Minimum cash-out: 500 PKR',
+  'home.driverPayments.feePercent': 'Processing fee: 2% (deducted from gross)',
+  'home.driverPayments.feeBreakdown': 'Net payout = gross − 2% fee',
   'home.showcase.caption':
     'Product UI illustration — sample metrics in the image are for demonstration, not live customer data.',
   'home.modules.kicker': 'SheikhGo Nexus · Product UI',

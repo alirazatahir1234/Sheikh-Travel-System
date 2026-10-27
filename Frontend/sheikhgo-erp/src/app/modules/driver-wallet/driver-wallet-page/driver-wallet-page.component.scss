@@ -1,0 +1,107 @@
+.driver-wallet-page {
+  padding: 1rem 1.25rem 2rem;
+  max-width: 1100px;
+}
+
+.page-header h2 {
+  margin: 0 0 0.25rem;
+}
+
+.page-subtitle {
+  color: var(--fleet-text-muted, #64748b);
+  margin: 0 0 1.25rem;
+}
+
+.balance-card {
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+  color: #fff;
+}
+
+.balance-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+.balance-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.35rem 0;
+}
+
+.balance-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  opacity: 0.92;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 900px) {
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fee-breakdown {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.fee-breakdown h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.fee-breakdown dl {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.fee-breakdown div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fee-breakdown .net dd {
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.section-mini {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.simple-table th,
+.simple-table td {
+  padding: 0.5rem 0.35rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 0.875rem;
+}

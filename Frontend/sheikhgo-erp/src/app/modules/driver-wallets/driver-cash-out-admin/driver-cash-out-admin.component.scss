@@ -1,0 +1,32 @@
+.cash-out-admin {
+  padding: 1rem 1.25rem 2rem;
+}
+
+.page-subtitle {
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.simple-table th,
+.simple-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.muted {
+  color: #64748b;
+}

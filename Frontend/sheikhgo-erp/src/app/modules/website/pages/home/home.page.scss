@@ -881,3 +881,60 @@
     width: 100%;
   }
 }
+
+.driver-payments-showcase {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.driver-payments-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.driver-payments-card {
+  padding: 1.35rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
+
+  mat-icon {
+    color: #0f766e;
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    margin-bottom: 0.75rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+  }
+
+  p {
+    margin: 0;
+    color: #475569;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+}
+
+.driver-payments-card--accent {
+  border-color: #99f6e4;
+  background: linear-gradient(145deg, #f0fdfa 0%, #fff 70%);
+}
+
+.driver-payments-fees {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: #0f766e;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .driver-payments-grid {
+    grid-template-columns: 1fr;
+  }
+}
