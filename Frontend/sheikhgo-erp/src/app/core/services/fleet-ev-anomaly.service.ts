@@ -62,6 +62,62 @@ export interface VehicleDocumentTrackerItem {
   source: string;
 }
 
+function emptyEvDashboard(): EvFleetDashboard {
+  return {
+    electricVehicleCount: 0,
+    rangeAlertCount: 0,
+    averageBatteryPercent: null,
+    vehicles: [],
+    chargingStations: [],
+  };
+}
+
+/** Accepts camelCase or PascalCase dashboard payloads from the API. */
+function normalizeEvDashboard(raw: EvFleetDashboard | null | undefined): EvFleetDashboard {
+  if (!raw) return emptyEvDashboard();
+  const w = raw as EvFleetDashboard & {
+    ElectricVehicleCount?: number;
+    RangeAlertCount?: number;
+    AverageBatteryPercent?: number | null;
+    Vehicles?: EvFleetVehicleRow[];
+    ChargingStations?: ChargingStation[];
+  };
+  const vehicles = (w.vehicles ?? w.Vehicles ?? []).map(normalizeEvVehicle);
+  const chargingStations = w.chargingStations ?? w.ChargingStations ?? [];
+  return {
+    electricVehicleCount: w.electricVehicleCount ?? w.ElectricVehicleCount ?? vehicles.length,
+    rangeAlertCount: w.rangeAlertCount ?? w.RangeAlertCount ?? vehicles.filter((v) => v.rangeAlert).length,
+    averageBatteryPercent: w.averageBatteryPercent ?? w.AverageBatteryPercent ?? null,
+    vehicles,
+    chargingStations,
+  };
+}
+
+function normalizeEvVehicle(row: EvFleetVehicleRow): EvFleetVehicleRow {
+  const r = row as EvFleetVehicleRow & {
+    VehicleId?: number;
+    VehicleName?: string;
+    RegistrationNumber?: string;
+    BatteryPercent?: number | null;
+    ElectricRangeKm?: number | null;
+    EstimatedRangeKm?: number | null;
+    Latitude?: number | null;
+    Longitude?: number | null;
+    RangeAlert?: boolean;
+  };
+  return {
+    vehicleId: r.vehicleId ?? r.VehicleId ?? 0,
+    vehicleName: r.vehicleName ?? r.VehicleName ?? '',
+    registrationNumber: r.registrationNumber ?? r.RegistrationNumber ?? '',
+    batteryPercent: r.batteryPercent ?? r.BatteryPercent ?? null,
+    electricRangeKm: r.electricRangeKm ?? r.ElectricRangeKm ?? null,
+    estimatedRangeKm: r.estimatedRangeKm ?? r.EstimatedRangeKm ?? null,
+    latitude: r.latitude ?? r.Latitude ?? null,
+    longitude: r.longitude ?? r.Longitude ?? null,
+    rangeAlert: r.rangeAlert ?? r.RangeAlert ?? false,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class FleetEvAnomalyService {
   private readonly http = inject(HttpClient);
@@ -70,7 +126,7 @@ export class FleetEvAnomalyService {
   getEvDashboard(): Observable<EvFleetDashboard> {
     return this.http
       .get<ApiResponse<EvFleetDashboard>>(`${this.base}/ev/dashboard`)
-      .pipe(map((r) => r.data!));
+      .pipe(map((r) => normalizeEvDashboard(r.data)));
   }
 
   listChargingStations(): Observable<ChargingStation[]> {

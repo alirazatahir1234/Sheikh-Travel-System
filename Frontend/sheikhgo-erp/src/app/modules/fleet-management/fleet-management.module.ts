@@ -82,6 +82,10 @@ const routes: Routes = [
     ServiceHistoryPageComponent,
     PartsInventoryPageComponent,
     MaintenanceReportsPageComponent,
+    PredictiveMaintenancePageComponent,
+    EvDashboardPageComponent,
+    AnomalyReviewPageComponent,
+    DocumentsTrackerPageComponent,
     RouterModule.forChild(routes)
   ]
 })

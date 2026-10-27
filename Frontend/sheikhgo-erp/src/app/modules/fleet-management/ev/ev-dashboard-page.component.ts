@@ -21,7 +21,19 @@ import {
       </header>
       @if (loading()) {
         <p>Loading…</p>
+      } @else if (error()) {
+        <p class="error">{{ error() }}</p>
       } @else if (dashboard()) {
+        <section class="dispatch-note">
+          <mat-icon>route</mat-icon>
+          <div>
+            <strong>Range-aware trip assignment</strong>
+            <p>
+              Smart assignment skips EV drivers when estimated range (rated range × battery %) is below
+              trip distance plus a 15% buffer. Keep battery telemetry current for accurate dispatch.
+            </p>
+          </div>
+        </section>
         <section class="kpis">
           <article>
             <span class="label">EV vehicles</span>
@@ -100,11 +112,20 @@ import {
     .stations li { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.65rem; background: #f8fafc; border-radius: 8px; }
     .stations mat-icon { color: #0f766e; }
     h2 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+    .error { color: #b91c1c; background: #fef2f2; border-radius: 8px; padding: 0.75rem 1rem; }
+    .dispatch-note {
+      display: flex; gap: 0.65rem; align-items: flex-start;
+      background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px;
+      padding: 0.75rem 1rem; margin-bottom: 1rem;
+    }
+    .dispatch-note mat-icon { color: #0f766e; margin-top: 0.1rem; }
+    .dispatch-note p { margin: 0.25rem 0 0; color: #475569; font-size: 0.9rem; }
   `],
 })
 export class EvDashboardPageComponent implements OnInit {
   private readonly api = inject(FleetEvAnomalyService);
   readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
   readonly dashboard = signal<EvFleetDashboard | null>(null);
 
   ngOnInit(): void {
@@ -113,7 +134,10 @@ export class EvDashboardPageComponent implements OnInit {
         this.dashboard.set(d);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.error.set('Could not load electric fleet data. Refresh the page or restart the API if you just deployed.');
+        this.loading.set(false);
+      },
     });
   }
 }

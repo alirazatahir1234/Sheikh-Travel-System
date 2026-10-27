@@ -168,6 +168,7 @@ public static class DatabaseMigrationRegistry
             M("DriverTripFeedbackMigration", DriverTripFeedbackMigration.ApplyAsync),
             M("TripEnhancementsMigration", TripEnhancementsMigration.ApplyAsync),
             M("ElectricFleetNavMenuMigration", ElectricFleetNavMenuMigration.ApplyAsync),
+            M("ElectricFleetDemoSeedMigration", ElectricFleetDemoSeedMigration.ApplyAsync),
             M("GpsAutoTripModeMigration", GpsAutoTripModeMigration.ApplyAsync),
         ];
     }
