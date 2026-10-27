@@ -4,8 +4,9 @@
  *
  * Priority for values:
  *   1) process.env GOOGLE_MAPS_API_KEY / GOOGLE_MAPS_MAP_ID / GOOGLE_ANALYTICS_MEASUREMENT_ID
- *   2) Frontend/sheikhgo-erp/.env.local or .env (gitignored) — names only loaded locally
- *   3) src/environments/environment.secrets.local.ts (gitignored)
+ *   2) Frontend/sheikhgo-erp/.env.local or .env (gitignored)
+ *   3) repo-root secrets/local.env (gitignored — house local secrets)
+ *   4) src/environments/environment.secrets.local.ts (gitignored)
  *
  * Usage:
  *   node scripts/inject-maps-env.mjs              # patch environment.prod.ts (CI / build:prod)
@@ -20,10 +21,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.join(__dirname, '..');
+const repoRoot = path.join(appRoot, '..', '..');
 const envDir = path.join(appRoot, 'src', 'environments');
 const prodPath = path.join(envDir, 'environment.prod.ts');
 const devPath = path.join(envDir, 'environment.ts');
 const secretsLocalPath = path.join(envDir, 'environment.secrets.local.ts');
+const repoSecretsEnvPath = path.join(repoRoot, 'secrets', 'local.env');
 
 const args = new Set(process.argv.slice(2));
 const restore = args.has('--restore');
@@ -64,24 +67,31 @@ function resolveValues() {
     ...loadDotEnvFile(path.join(appRoot, '.env')),
     ...loadDotEnvFile(path.join(appRoot, '.env.local')),
   };
+  const repoSecrets = loadDotEnvFile(repoSecretsEnvPath);
   const local = readSecretsLocal();
 
   const key =
     (process.env.GOOGLE_MAPS_API_KEY || '').trim() ||
     (fileEnv.GOOGLE_MAPS_API_KEY || '').trim() ||
+    (repoSecrets.GOOGLE_MAPS_API_KEY || repoSecrets.GOOGLE_MAPS_API_KEY_WEB || '').trim() ||
     local.key;
   const mapId =
     (process.env.GOOGLE_MAPS_MAP_ID || '').trim() ||
     (fileEnv.GOOGLE_MAPS_MAP_ID || '').trim() ||
+    (repoSecrets.GOOGLE_MAPS_MAP_ID || '').trim() ||
     local.mapId;
   const gaId =
     (process.env.GOOGLE_ANALYTICS_MEASUREMENT_ID || '').trim() ||
     (fileEnv.GOOGLE_ANALYTICS_MEASUREMENT_ID || '').trim() ||
+    (repoSecrets.GOOGLE_ANALYTICS_MEASUREMENT_ID || '').trim() ||
     local.gaId;
 
   let source = 'environment.secrets.local.ts';
   if ((process.env.GOOGLE_MAPS_API_KEY || '').trim()) source = 'env';
   else if ((fileEnv.GOOGLE_MAPS_API_KEY || '').trim()) source = '.env/.env.local';
+  else if ((repoSecrets.GOOGLE_MAPS_API_KEY || repoSecrets.GOOGLE_MAPS_API_KEY_WEB || '').trim()) {
+    source = 'secrets/local.env';
+  }
 
   return { key, mapId, gaId, source };
 }
