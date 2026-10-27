@@ -105,10 +105,43 @@
     </div>
 
     <div class="lifecycle-tabs">
-      <button class="chip" [class.active]="lifecycleTab === 'open'" type="button" (click)="setLifecycleTab('open')">Open</button>
-      <button class="chip" [class.active]="lifecycleTab === 'acknowledged'" type="button" (click)="setLifecycleTab('acknowledged')">Acknowledged</button>
-      <button class="chip" [class.active]="lifecycleTab === 'resolved'" type="button" (click)="setLifecycleTab('resolved')">Resolved</button>
-      <button class="chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">Group similar</button>
+      <div class="lifecycle-tab-row" role="tablist" aria-label="Alert status">
+        <button
+          type="button"
+          role="tab"
+          class="lifecycle-tab lifecycle-tab--open"
+          [class.active]="lifecycleTab === 'open'"
+          [attr.aria-selected]="lifecycleTab === 'open'"
+          (click)="setLifecycleTab('open')">
+          <mat-icon aria-hidden="true">notifications_active</mat-icon>
+          <span class="lifecycle-tab__label">Open</span>
+          <span class="lifecycle-tab__count" *ngIf="stats.active > 0">{{ stats.active }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="lifecycle-tab lifecycle-tab--acknowledged"
+          [class.active]="lifecycleTab === 'acknowledged'"
+          [attr.aria-selected]="lifecycleTab === 'acknowledged'"
+          (click)="setLifecycleTab('acknowledged')">
+          <mat-icon aria-hidden="true">task_alt</mat-icon>
+          <span class="lifecycle-tab__label">Acknowledged</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="lifecycle-tab lifecycle-tab--resolved"
+          [class.active]="lifecycleTab === 'resolved'"
+          [attr.aria-selected]="lifecycleTab === 'resolved'"
+          (click)="setLifecycleTab('resolved')">
+          <mat-icon aria-hidden="true">check_circle</mat-icon>
+          <span class="lifecycle-tab__label">Resolved</span>
+          <span class="lifecycle-tab__count" *ngIf="stats.resolved > 0">{{ stats.resolved }}</span>
+        </button>
+      </div>
+      <button class="chip group-similar-chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">
+        <mat-icon>filter_list</mat-icon> Group similar
+      </button>
     </div>
 
     <div class="filter-stack">
