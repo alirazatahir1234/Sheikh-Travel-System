@@ -211,7 +211,7 @@
         [routePoints]="bundle?.route ?? []"
         [positions]="playbackPositions"
         [rawPoints]="rawPositions"
-        [stops]="bundle?.stops ?? []"
+        [stops]="visibleStops"
         [events]="bundle?.events ?? []"
         [loading]="loading"
         [loadingProgress]="loadingProgress"
@@ -307,6 +307,13 @@
             <dt>Driver</dt>
             <dd>{{ driverLabel(vehicleId ?? 0) }}</dd>
           </dl>
+          <button
+            type="button"
+            class="stop-map-btn stop-map-btn--external touch-target position-map-btn"
+            (click)="openExternalMap(selectedPosition.latitude, selectedPosition.longitude)"
+            title="Open this point in Google Maps">
+            <mat-icon>open_in_new</mat-icon> Open in Maps
+          </button>
         </ng-container>
         <ng-template #noPosition>
           <div class="panel-empty-state">

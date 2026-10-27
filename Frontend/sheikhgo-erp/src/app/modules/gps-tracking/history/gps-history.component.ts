@@ -41,6 +41,7 @@ import {
   COMPARE_ROUTE_COLORS,
   formatStalenessLabel,
   googleMapsUrl,
+  HISTORY_ALERT_NOTIFIED_KEY,
   HISTORY_COMPARE_MAX_VEHICLES,
   HISTORY_STATIONARY_ALERT_MINUTES,
   isOfflineOrCachedTracker,
@@ -1130,9 +1131,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (!offenders.length) return;
 
     const dayKey = new Date().toDateString();
-    const storageKey = 'gps_history_stationary_24h_notified';
-    if (sessionStorage.getItem(storageKey) === dayKey) return;
-    sessionStorage.setItem(storageKey, dayKey);
+    if (sessionStorage.getItem(HISTORY_ALERT_NOTIFIED_KEY) === dayKey) return;
+    sessionStorage.setItem(HISTORY_ALERT_NOTIFIED_KEY, dayKey);
 
     const names = offenders.slice(0, 5).map(v => v.name).join(', ');
     const suffix = offenders.length > 5 ? ` (+${offenders.length - 5} more)` : '';
