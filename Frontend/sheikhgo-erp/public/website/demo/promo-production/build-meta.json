@@ -1,62 +1,82 @@
 [
   {
     "scene": 1,
-    "vo_sec": 7.152,
-    "target": 8
+    "vo_sec": null,
+    "target": 8,
+    "vo": "Every journey matters. Eco Nexus brings your entire fleet into one intelligent workplace.",
+    "skipped": true
   },
   {
     "scene": 2,
-    "vo_sec": 9.408,
-    "target": 12
+    "vo_sec": null,
+    "target": 12,
+    "vo": "Track every vehicle real-time. Live maps, geofencing, trip playback, and instant GPS and power alerts keep dispatch in control.",
+    "skipped": true
   },
   {
     "scene": 3,
-    "vo_sec": 10.152,
-    "target": 12
+    "vo_sec": null,
+    "target": 12,
+    "vo": "See vehicle health and driver performance together. Predictive maintenance signals and AI-assisted trip assignment help you act before small issues become downtime.",
+    "skipped": true
   },
   {
     "scene": 4,
-    "vo_sec": 9.768,
-    "target": 12
+    "vo_sec": null,
+    "target": 12,
+    "vo": "Fuel intelligence surfaces unusual consumption patterns. Flag suspected anomalies, investigate receipts, and protect margin without guessing.",
+    "skipped": true
   },
   {
     "scene": 5,
-    "vo_sec": 8.544,
-    "target": 10
+    "vo_sec": null,
+    "target": 10,
+    "vo": "Manage electric vehicles alongside your fleet. Monitor battery, range, and charging status in the same operations view.",
+    "skipped": true
   },
   {
     "scene": 6,
-    "vo_sec": 8.472,
-    "target": 12
+    "vo_sec": null,
+    "target": 12,
+    "vo": "Road safety alerts cover speed limits, route deviation, night driving, and sudden speed drops \u2014 so managers see risk while trips are still live.",
+    "skipped": true
   },
   {
     "scene": 7,
-    "vo_sec": 7.629833,
-    "target": 8
+    "vo_sec": null,
+    "target": 8,
+    "vo": "Document tracker keeps registration, insurance, and fitness expiry visible \u2014 with reminders before vehicles go out of compliance.",
+    "skipped": true
   },
   {
     "scene": 8,
-    "vo_sec": 7.344,
-    "target": 8
+    "vo_sec": null,
+    "target": 8,
+    "vo": "Customer ratings capture politeness and on-time performance, giving operations a fair view of service quality trip by trip.",
+    "skipped": true
   },
   {
     "scene": 9,
-    "vo_sec": 11.631083,
-    "target": 12
+    "vo_sec": 11.630083,
+    "target": 12,
+    "vo": "Ask the AI assistant practical fleet questions \u2014 like which routes drive the highest fuel costs. Sample demo data in this preview; production uses your tenant with Ollama or DeepInfra when you configure it."
   },
   {
     "scene": 10,
     "vo_sec": 7.65,
-    "target": 8
+    "target": 8,
+    "vo": "Driver SOS workflows alert your team with live location context. Regional recovery partners support Pakistan and Dubai operations \u2014 without guaranteed arrival times."
   },
   {
     "scene": 11,
     "vo_sec": 7.152,
-    "target": 8
+    "target": 8,
+    "vo": "Reporting and secure video tie trips, alerts, and operations into audit-ready views for managers and compliance."
   },
   {
     "scene": 12,
     "vo_sec": 8.328,
-    "target": 10
+    "target": 10,
+    "vo": "Explore tracking and features on sheikhgo.com. Book a demo and see SheikhGo Nexus built for fleets in Dubai and beyond."
   }
 ]

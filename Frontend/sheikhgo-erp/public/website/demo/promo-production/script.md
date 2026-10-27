@@ -6,12 +6,16 @@
 ## Scene 1 · 0:00–0:08 · Opening
 **Visual:** Aerial fleet B-roll → live map screenshot → SheikhGo logo  
 **On-screen:** Every journey matters  
-**VO:** Every journey matters. SheikhGo Nexus brings your entire fleet into one intelligent workspace.
+**On-screen subtitle:** Eco Nexus · intelligent workplace  
+**VO:** Every journey matters. Eco Nexus brings your entire fleet into one intelligent workplace.  
+*(VIDEO-COPY-BANK §A #1; CTA remains SheikhGo / sheikhgo.com)*
 
 ## Scene 2 · 0:08–0:20 · Real-time GPS
 **Visual:** Dashboard, live tracking, GPS & power alerts  
 **On-screen:** Real-time GPS · Geofencing · Alerts  
-**VO:** Track every vehicle in real time. Live maps, geofencing, trip playback, and instant GPS and power alerts keep dispatch in control.
+**On-screen subtitle:** Track every vehicle real-time  
+**VO:** Track every vehicle real-time. Live maps, geofencing, trip playback, and instant GPS and power alerts keep dispatch in control.  
+*(VIDEO-COPY-BANK §A #2 + §B remainder)*
 
 ## Scene 3 · 0:20–0:32 · Health, drivers, maintenance, AI assign
 **Visual:** Maintenance, drivers, vehicles, trips modules  
