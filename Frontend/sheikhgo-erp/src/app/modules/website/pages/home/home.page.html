@@ -10,10 +10,13 @@
         tool-first AI assistants into a single fleet intelligence experience — plus the operations depth teams need
         day to day.
       </p>
-      <div class="hero-actions">
+      <div class="hero-actions" id="watch-demo">
         <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
-        <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost">
+        <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
           <mat-icon aria-hidden="true">play_circle</mat-icon>
+          Watch Demo
+        </button>
+        <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost btn-compact">
           See NEXUS Dashboard
         </a>
       </div>
@@ -233,7 +236,15 @@
     </div>
     <div class="actions">
       <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+      <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
+        <mat-icon aria-hidden="true">play_circle</mat-icon>
+        Watch Demo
+      </button>
       <a routerLink="/contact" class="btn btn-ghost">Contact Us</a>
     </div>
   </div>
 </section>
+
+@if (demoModalOpen()) {
+  <app-nexus-demo-modal (closed)="closeDemoModal()" />
+}

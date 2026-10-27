@@ -1,0 +1,37 @@
+<div class="demo-modal-root" role="presentation" (click)="onBackdropClick($event)">
+  <div
+    class="demo-modal"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="videoTitle"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="demo-modal-head">
+      <div>
+        <p class="demo-modal-kicker">Product walkthrough</p>
+        <h2>{{ videoTitle }}</h2>
+        <p class="demo-modal-lead">~3 min tour of SheikhGo Nexus marketing pages and live ERP modules.</p>
+      </div>
+      <button type="button" class="demo-modal-close" (click)="close()" aria-label="Close demo video">
+        <mat-icon aria-hidden="true">close</mat-icon>
+      </button>
+    </header>
+    <div class="demo-modal-video-wrap">
+      <video
+        #player
+        class="demo-modal-video"
+        controls
+        playsinline
+        preload="metadata"
+        [src]="videoSrc"
+        (canplay)="onCanPlay()"
+      >
+        Your browser does not support embedded video.
+        <a [href]="videoSrc">Download the walkthrough (MP4)</a>
+      </video>
+    </div>
+    <footer class="demo-modal-foot">
+      <a [href]="videoSrc" download class="demo-modal-download">Download MP4</a>
+    </footer>
+  </div>
+</div>

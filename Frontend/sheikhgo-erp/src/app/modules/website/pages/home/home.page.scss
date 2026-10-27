@@ -211,6 +211,22 @@
   }
 }
 
+.hero-actions button.btn {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.home-final-cta .actions button.btn {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hero-actions .btn-compact {
+  opacity: 0.92;
+}
+
 .hero-actions .btn-ghost mat-icon {
   font-size: 1.2rem;
   width: 1.2rem;

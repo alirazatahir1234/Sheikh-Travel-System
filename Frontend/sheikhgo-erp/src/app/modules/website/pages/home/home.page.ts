@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -7,11 +7,12 @@ import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
+import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
 
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, NgClass, MatIconModule],
+  imports: [RouterLink, NgClass, MatIconModule, NexusDemoModalComponent],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
@@ -24,6 +25,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   private fragmentSub?: Subscription;
 
   nexusImageError = false;
+  readonly demoModalOpen = signal(false);
 
   readonly heroPerks = [
     { icon: 'my_location', text: 'Real-time GPS tracking' },
@@ -170,10 +172,25 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  openDemoModal(): void {
+    this.demoModalOpen.set(true);
+  }
+
+  closeDemoModal(): void {
+    this.demoModalOpen.set(false);
+    if (this.route.snapshot.fragment === 'watch-demo') {
+      void this.router.navigate([], { fragment: undefined, replaceUrl: true });
+    }
+  }
+
   ngAfterViewInit(): void {
     this.fragmentSub = this.route.fragment.subscribe(fragment => {
       if (fragment === 'ai-solutions' || fragment === 'home-ai') {
         void this.router.navigate(['/ai-solutions'], { replaceUrl: true });
+        return;
+      }
+      if (fragment === 'watch-demo') {
+        this.demoModalOpen.set(true);
       }
     });
   }
