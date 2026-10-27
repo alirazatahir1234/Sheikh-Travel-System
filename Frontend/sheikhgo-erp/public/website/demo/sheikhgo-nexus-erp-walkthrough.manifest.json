@@ -1,38 +1,41 @@
 {
-  "generatedAt": "2026-10-27T13:39:21.535Z",
+  "generatedAt": "2026-10-27T14:00:35.485Z",
   "baseUrl": "http://localhost:4200",
   "output": "public/website/demo/sheikhgo-nexus-erp-walkthrough.mp4",
+  "durationSec": 257.1,
   "kind": "erp-application",
   "segments": [
     "public/website/demo/_erp_segments/01-shell.webm",
-    "public/website/demo/_erp_segments/02-gps-fleet.webm",
-    "public/website/demo/_erp_segments/03-finance-ai.webm"
+    "public/website/demo/_erp_segments/02-priority.webm",
+    "public/website/demo/_erp_segments/03-operations.webm",
+    "public/website/demo/_erp_segments/04-finance.webm",
+    "public/website/demo/_erp_segments/05-book-demo.webm"
   ],
   "erpRoutes": [
-    "/dashboard",
     "/gps-tracking/live",
     "/gps-tracking/alerts",
+    "/driver-wallets",
     "/gps-tracking/geofences",
-    "/gps-tracking/trips",
-    "/gps-tracking",
     "/vehicles",
-    "/drivers",
-    "/trips",
     "/bookings",
-    "/fuel-logs",
     "/fleet/maintenance",
     "/payments",
-    "/invoices",
-    "/settlements",
     "/reports",
-    "/customers",
-    "/notifications",
     "/whatsapp",
-    "/ai",
-    "/mcp"
+    "/ai"
   ],
+  "backgroundMusic": {
+    "title": "Motivating Mornings",
+    "provider": "Mixkit",
+    "url": "https://mixkit.co/free-stock-music/motivating-mornings-561/",
+    "license": "Mixkit License (free for commercial use)",
+    "file": "docs/demo/audio-src/mixkit-motivating-mornings-33.mp3"
+  },
+  "scriptDoc": "docs/demo/SheikhGo-Nexus-ERP-Walkthrough-Script.md",
   "notes": [
     "Marketing home/ai-solutions pages intentionally omitted.",
-    "Bookings/WhatsApp/MCP depend on demo tenant modules."
+    "Case study metrics are illustrative placeholders.",
+    "Driver scene uses product mock unless iOS capture is wired in.",
+    "On-screen module captions, FAQ cards, and Mixkit BGM."
   ]
 }

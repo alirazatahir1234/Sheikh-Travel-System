@@ -6,7 +6,8 @@
 | **ERP recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-erp-walkthrough.manifest.json` |
 | **Nexus walkthrough video (~2:57, marketing + ERP montage)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.mp4` |
 | **Recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.manifest.json` |
-| **Narrated script (6–8 min)** | [SheikhGo-Nexus-Walkthrough-Script.md](./SheikhGo-Nexus-Walkthrough-Script.md) |
+| **ERP app narrated / shot list (~3 min)** | [SheikhGo-Nexus-ERP-Walkthrough-Script.md](./SheikhGo-Nexus-ERP-Walkthrough-Script.md) |
+| **Marketing site narrated script (6–8 min)** | [SheikhGo-Nexus-Walkthrough-Script.md](./SheikhGo-Nexus-Walkthrough-Script.md) |
 | **iOS mobile walkthrough video (automated Simulator)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-ios-walkthrough.mp4` |
 | **iOS recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-ios-walkthrough.manifest.json` |
 | **iOS narrated script (5–7 min)** | [SheikhGo-Nexus-iOS-Walkthrough-Script.md](./SheikhGo-Nexus-iOS-Walkthrough-Script.md) |
