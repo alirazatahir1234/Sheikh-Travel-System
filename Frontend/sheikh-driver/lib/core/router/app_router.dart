@@ -30,6 +30,7 @@ import '../../features/inspection/presentation/inspection_screen.dart';
 import '../../features/navigation/presentation/trip_navigation_screen.dart';
 import '../../features/offline/presentation/offline_queue_screen.dart';
 import '../../features/voice/presentation/voice_command_screen.dart';
+import '../../features/sos/presentation/sos_screen.dart';
 import '../../features/security/presentation/security_status_screen.dart';
 import '../../features/legal/presentation/legal_document_screen.dart';
 import '../../features/payments/presentation/collect_payment_screen.dart';
@@ -391,6 +392,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/live',
             builder: (_, __) => const LiveMapScreen(),
+          ),
+          GoRoute(
+            path: '/sos',
+            builder: (_, __) => const SosScreen(),
           ),
           GoRoute(
             path: '/notifications',

@@ -444,6 +444,12 @@ abstract final class FleetNavConfig {
       route: '/timeline',
       isVisible: _driverWorkflow,
     ),
+    MoreMenuEntry(
+      label: 'Emergency SOS',
+      icon: Icons.sos,
+      route: '/sos',
+      isVisible: _driverWorkflow,
+    ),
         MoreMenuEntry(
       label: 'AI Copilot',
       icon: Icons.auto_awesome_outlined,

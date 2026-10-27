@@ -21,6 +21,7 @@ import { TripReplayMapComponent } from './shared/trip-replay-map/trip-replay-map
 import { TripRouteAnalysisPanelComponent } from './shared/trip-route-analysis-panel/trip-route-analysis-panel.component';
 import { GpsGeofencesComponent } from './geofences/gps-geofences.component';
 import { GpsAlertsComponent } from './alerts/gps-alerts.component';
+import { SosDispatchComponent } from './sos-dispatch/sos-dispatch.component';
 import { GpsDevicesComponent } from './devices/gps-devices.component';
 import { GpsCommandsComponent } from './commands/gps-commands.component';
 import { GpsAnalyticsComponent } from './analytics/gps-analytics.component';
@@ -43,6 +44,7 @@ const routes: Routes = [
       { path: 'trips/:tripKey', component: TripDetailPageComponent },
       { path: 'geofences', component: GpsGeofencesComponent },
       { path: 'alerts', component: GpsAlertsComponent },
+      { path: 'sos', component: SosDispatchComponent },
       { path: 'devices', component: GpsDevicesComponent },
       { path: 'devices/register', component: TrackerRegisterPageComponent },
       { path: 'devices/:id/install', component: TrackerInstallPageComponent },
@@ -71,6 +73,7 @@ const routes: Routes = [
     TripRouteAnalysisPanelComponent,
     GpsGeofencesComponent,
     GpsAlertsComponent,
+    SosDispatchComponent,
     GpsDevicesComponent,
     GpsCommandsComponent,
     GpsAnalyticsComponent,

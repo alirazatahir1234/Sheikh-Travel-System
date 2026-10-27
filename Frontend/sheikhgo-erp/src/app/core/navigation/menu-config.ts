@@ -67,6 +67,7 @@ const fleetOperationsGroup: NavGroup = {
     { id: 'fleet-documents', label: 'Document tracker', icon: 'description', route: '/fleet/documents', moduleKey: 'vehicles' },
     { id: 'ev-fleet', label: 'Electric fleet', icon: 'ev_station', route: '/fleet/ev', moduleKey: 'vehicles' },
     { id: 'fleet-anomalies', label: 'Driving anomalies', icon: 'crisis_alert', route: '/fleet/anomalies', moduleKey: 'gps-tracking' },
+    { id: 'sos-dispatch', label: 'SOS dispatch', icon: 'sos', route: '/gps-tracking/sos', moduleKey: 'gps-tracking' },
     { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking', moduleKey: 'gps-tracking' }
   ]
 };

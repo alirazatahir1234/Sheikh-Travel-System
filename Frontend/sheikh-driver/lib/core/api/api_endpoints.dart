@@ -57,6 +57,7 @@ abstract class ApiEndpoints {
 
   // SOS
   static const sos = '/driver-app/sos';
+  static String sosStatus(int id) => '/driver-app/sos/$id/status';
 
   // Voice & offline sync
   static const voiceCommands = '/driver-app/voice/commands';

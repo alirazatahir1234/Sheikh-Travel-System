@@ -274,6 +274,19 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.gpsAlerts.perk.realtime': 'Echtzeit-Alarme',
   'pages.gpsAlerts.perk.safer': 'Sichererer Betrieb',
   'pages.gpsAlerts.perk.control': 'Mehr Kontrolle',
+  'pages.gpsAlerts.sos.kicker': 'Notfall-Reaktion',
+  'pages.gpsAlerts.sos.title': 'SOS Auto-Dispatch',
+  'pages.gpsAlerts.sos.lead':
+    'Tippt der Fahrer SOS, alarmiert SheikhGo sofort Admin und Flottenleitung, teilt Live-GPS, Geschwindigkeit und letzte Route, weist das nächste verifizierte Team auto zu oder schlägt den schnellsten vor — mit regionalen Partnern für Pakistan und Dubai.',
+  'pages.gpsAlerts.sos.f1.title': 'SOS mit einem Tipp',
+  'pages.gpsAlerts.sos.f1.text':
+    'Fahrer erhalten Bestätigung in der App; Dispatch sieht dasselbe Ereignis in Nexus inkl. Karte.',
+  'pages.gpsAlerts.sos.f2.title': 'Nächstes verifiziertes Team',
+  'pages.gpsAlerts.sos.f2.text':
+    'Nur verifizierte Fahrer mit Live-GPS werden auto zugewiesen; andere erscheinen als Vorschlag.',
+  'pages.gpsAlerts.sos.f3.title': 'Regionale Partner',
+  'pages.gpsAlerts.sos.f3.text':
+    'Reifen-, Abschlepp- und Medizin-Partner pro Region (PK & AE) neben eigener Flotte.',
 
   'pages.fuel.kicker': 'Flottenbetrieb',
   'pages.fuel.title': 'Kraftstoffmanagement',

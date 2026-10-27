@@ -342,6 +342,8 @@ public class DriverSosCommandValidator : AbstractValidator<DriverSosCommand>
 
 public class DriverSosCommandHandler(
     IDriverAppRepository repository,
+    ISosDispatchRepository sosRepository,
+    ISosAutoDispatchService sosAutoDispatch,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     ILocationBroadcastService broadcaster,
@@ -363,12 +365,15 @@ public class DriverSosCommandHandler(
         var vehicleId = active.VehicleId;
         var bookingId = active.BookingId;
         var createdAt = DateTime.UtcNow;
+        var message = string.IsNullOrWhiteSpace(request.Message) ? null : request.Message.Trim();
 
-        var id = await repository.InsertSosAlertAsync(
+        var plan = await sosAutoDispatch.BuildPlanAsync(
+            tenantId, driverId.Value, vehicleId, request.Latitude, request.Longitude,
+            driver.Value.FullName, cancellationToken);
+
+        var id = await sosRepository.InsertSosAlertWithDispatchAsync(
             tenantId, driverId.Value, vehicleId, bookingId,
-            request.Latitude, request.Longitude,
-            string.IsNullOrWhiteSpace(request.Message) ? null : request.Message.Trim(),
-            createdAt, cancellationToken);
+            request.Latitude, request.Longitude, message, plan, createdAt, cancellationToken);
 
         if (vehicleId.HasValue && request.Latitude.HasValue && request.Longitude.HasValue)
         {
@@ -378,15 +383,46 @@ public class DriverSosCommandHandler(
 
         var loc = request.Latitude.HasValue && request.Longitude.HasValue
             ? $" at {request.Latitude:F5},{request.Longitude:F5}" : "";
+        var speedPart = plan.SpeedKmh is decimal sp ? $" Speed {sp:F0} km/h." : "";
+        var routePart = plan.LastRouteSummary is not null ? $" {plan.LastRouteSummary}." : "";
         var title = $"SOS — {driver.Value.FullName}";
-        var message = $"Driver {driver.Value.FullName} ({driver.Value.Phone}) triggered SOS{loc}.";
+        var opsMessage =
+            $"Driver {driver.Value.FullName} ({driver.Value.Phone}) triggered SOS{loc}.{speedPart}{routePart} " +
+            $"Region {plan.RegionCode}. Mode: {plan.DispatchMode}." +
+            (plan.AssignedTeamName is not null ? $" Team: {plan.AssignedTeamName} (~{plan.DistanceKm} km, ETA {plan.EtaMinutes} min)." : "");
 
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-            "sos", title, message, NotificationType.Sos, ReferenceId: id, TenantId: tenantId,
+            "sos", title, opsMessage, NotificationType.Sos, ReferenceId: id, TenantId: tenantId,
             SuggestedPriority: 4,
-            RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Sms],
+            RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Sms, NotificationChannels.Push],
             Broadcast: false), cancellationToken);
 
-        return ApiResponse<DriverSosResultDto>.SuccessResponse(new DriverSosResultDto(id, createdAt), "SOS alert sent.");
+        if (plan.AssignedResponderUserId is int responderUserId)
+        {
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "sos_team_dispatch",
+                "SOS — respond now",
+                $"{driver.Value.FullName} needs help{loc}. You were auto-assigned (~{plan.DistanceKm} km, ETA ~{plan.EtaMinutes} min).",
+                NotificationType.Sos,
+                ReferenceId: id,
+                TenantId: tenantId,
+                TargetUserId: responderUserId,
+                SuggestedPriority: 4,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Push, NotificationChannels.Sms]),
+                cancellationToken);
+        }
+
+        var dto = new DriverSosResultDto(
+            id,
+            createdAt,
+            "Open",
+            plan.ConfirmationMessage,
+            plan.DispatchMode,
+            plan.AssignedTeamName,
+            plan.EtaMinutes,
+            plan.SpeedKmh,
+            plan.LastRouteSummary);
+
+        return ApiResponse<DriverSosResultDto>.SuccessResponse(dto, plan.ConfirmationMessage ?? "SOS alert sent.");
     }
 }

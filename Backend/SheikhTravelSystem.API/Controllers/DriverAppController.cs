@@ -11,6 +11,7 @@ using SheikhTravelSystem.Application.Features.DriverWallets;
 using SheikhTravelSystem.Application.Features.DriverWallets.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.Fleet.EvAnomaly;
+using SheikhTravelSystem.Application.Features.SosDispatch;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -387,6 +388,11 @@ public class DriverAppController : BaseApiController
             request?.Latitude,
             request?.Longitude,
             request?.Message)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("sos/{id:int}/status")]
+    public async Task<IActionResult> GetSosStatus(int id)
+        => Ok(await Mediator.Send(new GetDriverSosStatusQuery(id)));
 
     // ── Timeline ──────────────────────────────────────────────────────────────
 

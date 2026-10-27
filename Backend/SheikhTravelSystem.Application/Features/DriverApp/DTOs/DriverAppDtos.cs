@@ -117,7 +117,16 @@ public record DriverCheckOutRequest(double? Latitude, double? Longitude);
 
 public record DriverSosRequest(double? Latitude, double? Longitude, string? Message);
 
-public record DriverSosResultDto(int Id, DateTime CreatedAt);
+public record DriverSosResultDto(
+    int Id,
+    DateTime CreatedAt,
+    string Status,
+    string? ConfirmationMessage,
+    string? DispatchMode,
+    string? AssignedTeamName,
+    int? EtaMinutes,
+    decimal? SpeedKmh,
+    string? LastRouteSummary);
 
 public record DriverVoiceCommandRequest(
     string Transcript,

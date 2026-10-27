@@ -19,6 +19,7 @@ public static class NotificationRecipientPolicy
             or "ignition_on" or "ignition_off"
             or "driver_voice_alert" or "driver_voice_message"
             => [UserRole.Admin, UserRole.Dispatcher],
+        "sos_team_dispatch" => [UserRole.Driver],
         "system_announcement" => [UserRole.Admin, UserRole.Dispatcher, UserRole.Driver, UserRole.Accountant],
         _ => [UserRole.Admin, UserRole.Dispatcher]
     };

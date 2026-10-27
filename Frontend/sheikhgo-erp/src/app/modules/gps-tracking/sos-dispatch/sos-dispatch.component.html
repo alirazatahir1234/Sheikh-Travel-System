@@ -1,0 +1,150 @@
+<div class="sos-page">
+  <header class="page-header">
+    <div>
+      <h1>SOS auto-dispatch</h1>
+      <p class="muted">Driver SOS events, verified-team assignment, and regional recovery partners (Pakistan &amp; Dubai).</p>
+    </div>
+    <div class="tabs">
+      <button type="button" [class.active]="tab === 'events'" (click)="tab = 'events'">Events</button>
+      <button type="button" [class.active]="tab === 'partners'" (click)="tab = 'partners'">Partners</button>
+    </div>
+  </header>
+
+  @if (tab === 'events') {
+    <div class="toolbar">
+      <label>
+        Status
+        <select [(ngModel)]="statusFilter" (ngModelChange)="loadEvents()">
+          <option [ngValue]="null">All</option>
+          <option ngValue="Open">Open</option>
+          <option ngValue="Resolved">Resolved</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn-ghost" (click)="loadEvents()">Refresh</button>
+    </div>
+
+    <div class="split">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Driver</th>
+            <th>Mode</th>
+            <th>Team / ETA</th>
+            <th>Region</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ev of events; track ev.id) {
+            <tr [class.selected]="selectedEvent?.id === ev.id" (click)="selectedEvent = ev">
+              <td>{{ ev.createdAt | date: 'short' }}</td>
+              <td>{{ ev.driverName }}</td>
+              <td><span class="pill" [class.auto]="ev.dispatchMode === 'AutoAssigned'">{{ ev.dispatchMode || '—' }}</span></td>
+              <td>
+                @if (ev.assignedTeamName) {
+                  {{ ev.assignedTeamName }}
+                  @if (ev.etaMinutes) { (≈{{ ev.etaMinutes }} min) }
+                } @else if (ev.suggestedPartnerName) {
+                  Partner: {{ ev.suggestedPartnerName }}
+                } @else {
+                  —
+                }
+              </td>
+              <td>{{ ev.regionCode || '—' }}</td>
+              <td>
+                @if (ev.status === 'Open') {
+                  <button type="button" class="btn btn-sm" (click)="resolve(ev); $event.stopPropagation()">Resolve</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (selectedEvent) {
+        <aside class="detail">
+          <h2>SOS #{{ selectedEvent.id }}</h2>
+          <p><strong>Status:</strong> {{ selectedEvent.status }}</p>
+          @if (selectedEvent.speedKmh != null) {
+            <p><strong>Speed:</strong> {{ selectedEvent.speedKmh | number: '1.0-0' }} km/h</p>
+          }
+          @if (selectedEvent.lastRouteSummary) {
+            <p><strong>Route:</strong> {{ selectedEvent.lastRouteSummary }}</p>
+          }
+          @if (selectedEvent.confirmationMessage) {
+            <p class="confirm">{{ selectedEvent.confirmationMessage }}</p>
+          }
+          @if (selectedEvent.message) {
+            <p><strong>Driver note:</strong> {{ selectedEvent.message }}</p>
+          }
+          @if (mapsLink(selectedEvent); as url) {
+            <a [href]="url" target="_blank" rel="noopener">Open live location</a>
+          }
+        </aside>
+      }
+    </div>
+  }
+
+  @if (tab === 'partners') {
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" (click)="openPartnerForm()">Add partner</button>
+    </div>
+
+    @if (showPartnerForm) {
+      <form class="partner-form" [formGroup]="partnerForm" (ngSubmit)="savePartner()">
+        <label>Region
+          <select formControlName="regionCode">
+            @for (r of regionOptions; track r.value) {
+              <option [value]="r.value">{{ r.label }}</option>
+            }
+          </select>
+        </label>
+        <label>Type
+          <select formControlName="partnerType">
+            @for (t of partnerTypes; track t) {
+              <option [value]="t">{{ t }}</option>
+            }
+          </select>
+        </label>
+        <label>Name <input formControlName="name" /></label>
+        <label>Phone <input formControlName="phone" /></label>
+        <label>Email <input formControlName="email" /></label>
+        <label>Notes <textarea formControlName="notes" rows="2"></textarea></label>
+        <label class="checkbox"><input type="checkbox" formControlName="isActive" /> Active</label>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" [disabled]="partnerForm.invalid">Save</button>
+          <button type="button" class="btn btn-ghost" (click)="showPartnerForm = false">Cancel</button>
+        </div>
+      </form>
+    }
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Region</th>
+          <th>Type</th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of partners; track p.id) {
+          <tr>
+            <td>{{ p.regionCode }}</td>
+            <td>{{ p.partnerType }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.phone }}</td>
+            <td>{{ p.isActive ? 'Yes' : 'No' }}</td>
+            <td>
+              <button type="button" class="btn btn-sm" (click)="openPartnerForm(p)">Edit</button>
+              <button type="button" class="btn btn-sm btn-danger" (click)="deletePartner(p)">Remove</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

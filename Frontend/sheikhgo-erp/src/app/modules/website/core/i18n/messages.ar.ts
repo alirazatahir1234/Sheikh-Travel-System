@@ -269,6 +269,19 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.gpsAlerts.perk.realtime': 'تنبيهات فورية',
   'pages.gpsAlerts.perk.safer': 'عمليات أكثر أماناً',
   'pages.gpsAlerts.perk.control': 'تحكم أكبر',
+  'pages.gpsAlerts.sos.kicker': 'استجابة طوارئ',
+  'pages.gpsAlerts.sos.title': 'إرسال SOS تلقائي',
+  'pages.gpsAlerts.sos.lead':
+    'عند ضغط السائق على SOS، ينبه SheikhGo فوراً المدير ومدير الأسطول، ويشارك السرعة ومسار GPS الأخير، ويعيّن أقرب فريق موثق تلقائياً ضمن النطاق أو يقترح الأسرع — مع شركاء سحب وإطارات وطبي لباكستان ودبي.',
+  'pages.gpsAlerts.sos.f1.title': 'SOS بلمسة واحدة',
+  'pages.gpsAlerts.sos.f1.text':
+    'يؤكد السائق من التطبيق أن المساعدة في الطريق بينما يرى المركز نفس الحدث في Nexus مع رابط الخريطة.',
+  'pages.gpsAlerts.sos.f2.title': 'أقرب فريق موثق',
+  'pages.gpsAlerts.sos.f2.text':
+    'فقط السائقون الموثقون مع GPS حي مؤهلون للتعيين التلقائي؛ الباقي يظهرون كاقتراحات.',
+  'pages.gpsAlerts.sos.f3.title': 'شركاء إنقاذ إقليميون',
+  'pages.gpsAlerts.sos.f3.text':
+    'اضبط شركاء الإطارات والسحب والطبي لكل منطقة (PK و AE) إلى جانب استجابة الأسطول.',
 
   'pages.fuel.kicker': 'عمليات الأسطول',
   'pages.fuel.title': 'إدارة الوقود',
