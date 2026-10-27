@@ -146,34 +146,33 @@ public static class TripAnalyticsMapper
         IReadOnlyList<TraccarEvent> events)
     {
         var tripCount = trips.Count;
+        var tripDistanceKm = tripCount > 0 ? trips.Sum(t => t.DistanceKm) : 0;
+        var tripDrivingMinutes = tripCount > 0 ? trips.Sum(t => t.DurationMinutes) : 0;
 
-        var hasSummary = summaries.Count > 0;
-        var distanceKm = hasSummary
-            ? summaries.Sum(s => s.Distance / 1000.0)
-            : tripCount > 0
-                ? trips.Sum(t => t.DistanceKm)
-                : 0;
+        // Empty Traccar summary rows (distance/engineHours all zero) must not wipe trip-list KPIs.
+        var summaryDistanceKm = summaries.Count > 0 ? summaries.Sum(s => s.Distance / 1000.0) : 0;
+        var summaryDrivingMinutes = summaries.Count > 0 ? summaries.Sum(s => ToDurationMinutes(s.EngineHours)) : 0;
+        var useTripMotion = summaries.Count == 0
+            || (summaryDistanceKm <= 0 && summaryDrivingMinutes <= 0 && tripDistanceKm > 0);
 
-        var drivingMinutes = hasSummary
-            ? summaries.Sum(s => ToDurationMinutes(s.EngineHours))
-            : tripCount > 0
-                ? trips.Sum(t => t.DurationMinutes)
-                : 0;
+        var distanceKm = useTripMotion ? tripDistanceKm : summaryDistanceKm;
+        var drivingMinutes = useTripMotion ? tripDrivingMinutes : summaryDrivingMinutes;
 
         var idleMinutes = stops.Sum(s =>
             StopDurationMinutes(s.StartTime, s.EndTime, s.Duration));
 
-        var avgSpeed = hasSummary
-            ? summaries.Average(s => s.AverageSpeed * KnotsToKmh)
-            : tripCount > 0
-                ? trips.Average(t => (double)t.AvgSpeedKmh)
-                : 0;
-
-        var maxSpeed = hasSummary
-            ? summaries.Max(s => s.MaxSpeed * KnotsToKmh)
-            : tripCount > 0
-                ? trips.Max(t => (double)t.MaxSpeedKmh)
-                : 0;
+        double avgSpeed;
+        double maxSpeed;
+        if (useTripMotion)
+        {
+            avgSpeed = tripCount > 0 ? trips.Average(t => (double)t.AvgSpeedKmh) : 0;
+            maxSpeed = tripCount > 0 ? trips.Max(t => (double)t.MaxSpeedKmh) : 0;
+        }
+        else
+        {
+            avgSpeed = summaries.Average(s => s.AverageSpeed * KnotsToKmh);
+            maxSpeed = summaries.Max(s => s.MaxSpeed * KnotsToKmh);
+        }
 
         var fuel = summaries.Sum(s => s.SpentFuel);
         decimal? fuelLiters = fuel > 0 ? fuel : null;

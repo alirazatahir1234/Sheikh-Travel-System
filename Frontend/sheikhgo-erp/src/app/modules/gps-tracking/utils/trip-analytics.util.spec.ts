@@ -87,6 +87,41 @@ describe('trip-analytics.util', () => {
     expect(merged?.engineHours).toBe(3);
   });
 
+  it('mergeTripAnalyticsSummaries ignores idle when primary has no motion', () => {
+    const merged = mergeTripAnalyticsSummaries(
+      {
+        tripCount: 3,
+        distanceKm: 0,
+        drivingMinutes: 0,
+        idleMinutes: 1930,
+        avgSpeedKmh: 0,
+        maxSpeedKmh: 0,
+        stopCount: 12,
+        overspeedCount: 0,
+        harshBrakeCount: 0,
+        harshAccelCount: 0,
+        engineHours: null
+      },
+      {
+        tripCount: 3,
+        distanceKm: 22.5,
+        drivingMinutes: 90,
+        idleMinutes: 0,
+        avgSpeedKmh: 15,
+        maxSpeedKmh: 72,
+        stopCount: 2,
+        overspeedCount: 0,
+        harshBrakeCount: 0,
+        harshAccelCount: 0,
+        engineHours: 1.5
+      }
+    );
+    expect(merged?.distanceKm).toBe(22.5);
+    expect(merged?.drivingMinutes).toBe(90);
+    expect(merged?.idleMinutes).toBe(0);
+    expect(merged?.stopCount).toBe(2);
+  });
+
   it('summaryForSelectedTrip counts overspeed in window', () => {
     const trip: GpsTrip = {
       vehicleId: 1,

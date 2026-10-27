@@ -128,6 +128,28 @@ public class TripAnalyticsMapperTests
     }
 
     [Fact]
+    public void BuildSummary_ZeroDistanceTraccarSummaries_FallBackToTripMotion()
+    {
+        var trips = new List<GpsTripDto>
+        {
+            new(1, "V1", 1, DateTime.UtcNow.AddHours(-2), DateTime.UtcNow.AddHours(-1),
+                22.5, 15m, 72m, 90, null, null, null, null, null, null, "Completed", null, null, null, null)
+        };
+        var emptySummaries = new List<TraccarSummary>
+        {
+            new(1, "dev", 0, 0, 0, 0, 0)
+        };
+
+        var summary = TripAnalyticsMapper.BuildSummary(trips, emptySummaries, [], []);
+
+        Assert.Equal(22.5, summary.DistanceKm);
+        Assert.Equal(90, summary.DrivingMinutes);
+        Assert.Equal(15.0m, summary.AvgSpeedKmh);
+        Assert.Equal(72.0m, summary.MaxSpeedKmh);
+        Assert.Equal(1.5m, summary.EngineHours);
+    }
+
+    [Fact]
     public void WithSafetyAlertCounts_MergesGpsAlertStore()
     {
         var baseSummary = new TripAnalyticsSummaryDto(1, 10, 30, 0, null, 40m, 60m, 0, 0, 0, 0, 0.5m);

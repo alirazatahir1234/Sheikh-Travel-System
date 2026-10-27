@@ -173,21 +173,30 @@ export function mergeTripAnalyticsSummaries(
   if (!primary) return fallback;
   if (!fallback) return primary;
 
+  const primaryHasMotion = primary.distanceKm > 0 || primary.drivingMinutes > 0;
   const drivingMinutes = primary.drivingMinutes > 0 ? primary.drivingMinutes : fallback.drivingMinutes;
   const engineHours =
     primary.engineHours != null && primary.engineHours > 0
       ? primary.engineHours
       : fallback.engineHours ?? (drivingMinutes > 0 ? Math.round((drivingMinutes / 60) * 10) / 10 : null);
 
+  // When fleet-summary returns empty motion but large stop-idle, prefer trip-list idle (0)
+  // so the KPI strip does not show ~all-day idle next to trip-derived distance.
+  const idleMinutes = primaryHasMotion
+    ? (primary.idleMinutes > 0 ? primary.idleMinutes : fallback.idleMinutes)
+    : fallback.idleMinutes;
+
   return {
     tripCount: primary.tripCount > 0 ? primary.tripCount : fallback.tripCount,
     distanceKm: primary.distanceKm > 0 ? primary.distanceKm : fallback.distanceKm,
     drivingMinutes,
-    idleMinutes: primary.idleMinutes > 0 ? primary.idleMinutes : fallback.idleMinutes,
+    idleMinutes,
     fuelLiters: primary.fuelLiters ?? fallback.fuelLiters,
     avgSpeedKmh: primary.avgSpeedKmh > 0 ? primary.avgSpeedKmh : fallback.avgSpeedKmh,
     maxSpeedKmh: primary.maxSpeedKmh > 0 ? primary.maxSpeedKmh : fallback.maxSpeedKmh,
-    stopCount: primary.stopCount > 0 ? primary.stopCount : fallback.stopCount,
+    stopCount: primaryHasMotion
+      ? (primary.stopCount > 0 ? primary.stopCount : fallback.stopCount)
+      : (fallback.stopCount > 0 ? fallback.stopCount : primary.stopCount),
     overspeedCount: Math.max(primary.overspeedCount, fallback.overspeedCount),
     harshBrakeCount: Math.max(primary.harshBrakeCount, fallback.harshBrakeCount),
     harshAccelCount: Math.max(primary.harshAccelCount, fallback.harshAccelCount),

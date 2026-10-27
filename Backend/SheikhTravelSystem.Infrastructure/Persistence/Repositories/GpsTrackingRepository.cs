@@ -3100,6 +3100,7 @@ public sealed partial class GpsTrackingRepository(
 
         allTrips = ApplyFilters(allTrips, request);
         allTrips = ApplySort(allTrips, request.SortBy, request.SortDir);
+        allTrips = await EnrichTripEndpointsFromPositionsAsync(allTrips, cancellationToken);
         allTrips = await EnrichTripAddressesAsync(allTrips, cancellationToken);
         return ApiResponse<PagedResult<GpsTripDto>>.SuccessResponse(ToPage(allTrips, request));
         }

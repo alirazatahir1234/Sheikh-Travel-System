@@ -134,6 +134,116 @@ public sealed partial class GpsTrackingRepository
         DeviceName: row.DeviceName,
         PlateNumber: row.PlateNumber);
 
+    /// <summary>
+    /// GpsTrips SQL rows have no lat/lng — backfill endpoints from nearest GpsPositions.
+    /// </summary>
+    private async Task<List<GpsTripDto>> EnrichTripEndpointsFromPositionsAsync(
+        List<GpsTripDto> trips,
+        CancellationToken cancellationToken)
+    {
+        var needing = trips
+            .Where(t => !GpsTripLocationHelper.HasUsableCoordinates(t.StartLatitude, t.StartLongitude)
+                        || !GpsTripLocationHelper.HasUsableCoordinates(t.EndLatitude, t.EndLongitude))
+            .ToList();
+        if (needing.Count == 0) return trips;
+
+        var vehicleIds = needing.Select(t => t.VehicleId).Distinct().ToList();
+        var fromPad = needing.Min(t => t.StartTime).AddMinutes(-15);
+        var toPad = needing.Max(t => t.EndTime).AddMinutes(15);
+
+        using var connection = dbFactory.CreateConnection();
+        var positions = (await connection.QueryAsync<(int VehicleId, double Latitude, double Longitude, DateTime RecordedAt, string? Address)>(
+            new CommandDefinition(
+                """
+                SELECT VehicleId, Latitude, Longitude, RecordedAt, Address
+                FROM GpsPositions
+                WHERE VehicleId IN @VehicleIds
+                  AND RecordedAt >= @FromPad
+                  AND RecordedAt <= @ToPad
+                ORDER BY VehicleId, RecordedAt
+                """,
+                new { VehicleIds = vehicleIds, FromPad = fromPad, ToPad = toPad },
+                cancellationToken: cancellationToken))).ToList();
+
+        if (positions.Count == 0) return trips;
+
+        var byVehicle = positions.GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.ToList());
+
+        static (double Lat, double Lng, string? Address)? Nearest(
+            IReadOnlyList<(int VehicleId, double Latitude, double Longitude, DateTime RecordedAt, string? Address)> pts,
+            DateTime at)
+        {
+            if (pts.Count == 0) return null;
+            var best = pts[0];
+            var bestDelta = Math.Abs((best.RecordedAt - at).TotalSeconds);
+            for (var i = 1; i < pts.Count; i++)
+            {
+                var delta = Math.Abs((pts[i].RecordedAt - at).TotalSeconds);
+                if (delta < bestDelta)
+                {
+                    best = pts[i];
+                    bestDelta = delta;
+                }
+            }
+
+            // Ignore points more than 30 minutes away from the trip endpoint.
+            if (bestDelta > 30 * 60) return null;
+            if (!GpsTripLocationHelper.HasUsableCoordinates(best.Latitude, best.Longitude)) return null;
+            return (best.Latitude, best.Longitude, best.Address);
+        }
+
+        var result = new List<GpsTripDto>(trips.Count);
+        foreach (var trip in trips)
+        {
+            var startLat = trip.StartLatitude;
+            var startLng = trip.StartLongitude;
+            var endLat = trip.EndLatitude;
+            var endLng = trip.EndLongitude;
+            var startAddress = trip.StartAddress;
+            var endAddress = trip.EndAddress;
+
+            if (!byVehicle.TryGetValue(trip.VehicleId, out var pts))
+            {
+                result.Add(trip);
+                continue;
+            }
+
+            if (!GpsTripLocationHelper.HasUsableCoordinates(startLat, startLng))
+            {
+                var start = Nearest(pts, trip.StartTime);
+                if (start is { } s)
+                {
+                    startLat = s.Lat;
+                    startLng = s.Lng;
+                    if (string.IsNullOrWhiteSpace(startAddress)) startAddress = s.Address;
+                }
+            }
+
+            if (!GpsTripLocationHelper.HasUsableCoordinates(endLat, endLng))
+            {
+                var end = Nearest(pts, trip.EndTime);
+                if (end is { } e)
+                {
+                    endLat = e.Lat;
+                    endLng = e.Lng;
+                    if (string.IsNullOrWhiteSpace(endAddress)) endAddress = e.Address;
+                }
+            }
+
+            result.Add(trip with
+            {
+                StartLatitude = startLat,
+                StartLongitude = startLng,
+                EndLatitude = endLat,
+                EndLongitude = endLng,
+                StartAddress = startAddress,
+                EndAddress = endAddress
+            });
+        }
+
+        return result;
+    }
+
     private async Task<List<GpsTripDto>> EnrichTripAddressesAsync(
         List<GpsTripDto> trips,
         CancellationToken cancellationToken)
@@ -465,54 +575,68 @@ public sealed partial class GpsTrackingRepository
         }
 
         var vehicleInfoById = vehicles.ToDictionary(v => v.VehicleId);
-        var vehicleIds = vehicles.Select(v => v.VehicleId).ToList();
         var results = new List<GpsTripDto>();
+        var covered = new HashSet<int>();
 
-        // Step 1: local GpsTrips table across the whole filtered vehicle set.
-        var localTrips = (await connection.QueryAsync<PersistedTripRow>(new CommandDefinition(
-            """
-            SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
-                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
-            FROM GpsTrips t
-            INNER JOIN Vehicles v ON v.Id = t.VehicleId
-            LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
-            WHERE t.VehicleId IN @VehicleIds
-              AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
-            """,
-            new { VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate },
-            cancellationToken: cancellationToken))).Select(ToGpsTripDto).ToList();
-
-        results.AddRange(TraccarTripMapper.EnrichAll(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
-            ? t with { DriverName = vi.DriverName ?? t.DriverName }
-            : t)));
-
-        var covered = localTrips.Select(t => t.VehicleId).ToHashSet();
-        var uncovered = vehicles.Where(v => !covered.Contains(v.VehicleId)).ToList();
-
-        // Step 2: capped Traccar fallback, only for uncovered + Traccar-linked vehicles.
+        // Prefer Traccar for linked vehicles (matches single-vehicle path). Local GpsTrips has no
+        // lat/lng columns — using it first left fleet rows as "Location unavailable".
         var opts = traccarOptions.Value;
-        if (opts.IsConfigured && opts.Enabled && uncovered.Count > 0)
+        if (opts.IsConfigured && opts.Enabled)
         {
-            var traccarCandidates = uncovered.Where(v => v.TraccarDeviceId.HasValue).Take(MaxFleetTraccarCalls).ToList();
+            var traccarCandidates = vehicles
+                .Where(v => v.TraccarDeviceId.HasValue)
+                .Take(MaxFleetTraccarCalls)
+                .ToList();
             if (traccarCandidates.Count > 0)
             {
                 var traccarResults = await Task.WhenAll(traccarCandidates.Select(async v =>
                 {
                     var trips = await traccar.GetTripsAsync(v.TraccarDeviceId!.Value, fromDate, toDate, cancellationToken);
-                    return trips.Select(t => TraccarTripMapper.ToGpsTripDto(
+                    return (v.VehicleId, Trips: trips.Select(t => TraccarTripMapper.ToGpsTripDto(
                         t, v.VehicleId, v.VehicleName, v.GpsDeviceId, v.DeviceName, v.PlateNumber) with
                     {
                         DriverName = t.DriverName ?? v.DriverName
-                    });
+                    }).ToList());
                 }));
 
-                results.AddRange(TraccarTripMapper.EnrichAll(traccarResults.SelectMany(r => r)));
-                var traccarCovered = traccarCandidates.Select(v => v.VehicleId).ToHashSet();
-                uncovered = uncovered.Where(v => !traccarCovered.Contains(v.VehicleId)).ToList();
+                foreach (var (vehicleId, trips) in traccarResults)
+                {
+                    if (trips.Count == 0) continue;
+                    results.AddRange(TraccarTripMapper.EnrichAll(trips));
+                    covered.Add(vehicleId);
+                }
             }
         }
 
-        // Step 3: capped local position-based detection for whatever's still uncovered.
+        // Local GpsTrips for vehicles not already covered by Traccar (or Traccar returned none).
+        var localVehicleIds = vehicles.Where(v => !covered.Contains(v.VehicleId)).Select(v => v.VehicleId).ToList();
+        if (localVehicleIds.Count > 0)
+        {
+            var localTrips = (await connection.QueryAsync<PersistedTripRow>(new CommandDefinition(
+                """
+                SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
+                       t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+                FROM GpsTrips t
+                INNER JOIN Vehicles v ON v.Id = t.VehicleId
+                LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
+                WHERE t.VehicleId IN @VehicleIds
+                  AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+                """,
+                new { VehicleIds = localVehicleIds, FromDate = fromDate, ToDate = toDate },
+                cancellationToken: cancellationToken))).Select(ToGpsTripDto).ToList();
+
+            if (localTrips.Count > 0)
+            {
+                results.AddRange(TraccarTripMapper.EnrichAll(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
+                    ? t with { DriverName = vi.DriverName ?? t.DriverName }
+                    : t)));
+                foreach (var id in localTrips.Select(t => t.VehicleId))
+                    covered.Add(id);
+            }
+        }
+
+        // Capped local position-based detection for whatever's still uncovered.
+        var uncovered = vehicles.Where(v => !covered.Contains(v.VehicleId)).ToList();
         var detectorCandidates = uncovered.Take(MaxFleetDetectorCalls).ToList();
         if (detectorCandidates.Count > 0)
         {
