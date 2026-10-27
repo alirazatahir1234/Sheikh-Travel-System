@@ -24,3 +24,22 @@ Marketing chrome and primary page heroes use lightweight i18n (no Angular `$loca
 Arabic sets `document.documentElement.dir = 'rtl'` and `lang="ar"`. English remains the fallback for missing keys.
 
 **Coverage:** Full header/footer/mega-menu, home hero + major sections, and heroes/CTAs on `/live-tracking`, `/gps-alerts`, `/ai-solutions`, `/services`, `/contact`, `/request-demo`. Deeper body copy (capability grids, legal pages, demo chat bubbles) is still English until keys are added.
+
+## Google Analytics (GA4)
+
+Marketing pages load **gtag.js** only when:
+
+1. A valid GA4 measurement ID is configured (`G-XXXXXXXXXX`), and  
+2. The visitor accepts **analytics** cookies.
+
+**Configure the measurement ID (pick one):**
+
+| Method | Where |
+|--------|--------|
+| Vercel / CI env | `GOOGLE_ANALYTICS_MEASUREMENT_ID=G-XXXXXXXXXX` (patched at build by `scripts/inject-maps-env.mjs`) |
+| Angular env | `googleAnalyticsMeasurementId` in `src/environments/environment.ts` (local dev) or `environment.prod.ts` |
+| CMS | Website Admin → Settings → **Analytics ID** (overrides env when set) |
+
+**Create a property:** [Google Analytics](https://analytics.google.com/) → Admin → Create property for `www.sheikhgo.com` → Data stream (Web) → copy the **Measurement ID** (`G-…`).
+
+Default homepage SEO tags live in `src/index.html`; per-route titles/descriptions/Open Graph are updated by `core/seo.service.ts` when marketing pages load.

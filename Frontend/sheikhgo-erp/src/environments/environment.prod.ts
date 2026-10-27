@@ -12,5 +12,8 @@ export const environment = {
   tenantSlug: 'default',
   // Inject at build time (CI secret / file replace). Local: environment.secrets.local.ts (gitignored).
   // Restrict browser keys by HTTP referrer in Google Cloud Console — never commit live keys.
-  googleMapsApiKey: ''
+  googleMapsApiKey: 'AIzaSyDeqJpntzLNHOvmSa57hz5g5GZDkqmnJBs',
+  googleMapsMapId: 'b9b19db02b452b19e9cc5d26',
+  /** Injected at build via GOOGLE_ANALYTICS_MEASUREMENT_ID (see scripts/inject-maps-env.mjs). */
+  googleAnalyticsMeasurementId: '',
 };

@@ -20,6 +20,7 @@ export interface PublicWebsiteSettings {
   youTubeUrl?: string | null;
   defaultMetaTitle?: string | null;
   defaultMetaDescription?: string | null;
+  analyticsId?: string | null;
 }
 
 export interface PublicWebsiteSection {

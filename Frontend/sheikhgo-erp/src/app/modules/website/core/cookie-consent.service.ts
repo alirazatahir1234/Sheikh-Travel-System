@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { WebsiteGoogleAnalyticsService } from './website-google-analytics.service';
 
 export type CookieCategory = 'necessary' | 'analytics' | 'functional' | 'marketing';
 
@@ -22,6 +23,8 @@ const DEFAULT_STATE: CookieConsentState = {
 
 @Injectable({ providedIn: 'root' })
 export class CookieConsentService {
+  private readonly googleAnalytics = inject(WebsiteGoogleAnalyticsService);
+
   readonly consent = signal<CookieConsentState>(this.read());
   readonly bannerVisible = signal(!this.consent().decidedAt);
   readonly preferencesOpen = signal(false);
@@ -91,7 +94,7 @@ export class CookieConsentService {
     // Hook for future analytics / marketing loaders.
     // Do not load non-essential scripts until the matching flag is true.
     if (c.analytics) {
-      // e.g. loadGoogleAnalytics();
+      this.googleAnalytics.enableIfConfigured();
     }
     if (c.marketing) {
       // e.g. loadMarketingPixels();
