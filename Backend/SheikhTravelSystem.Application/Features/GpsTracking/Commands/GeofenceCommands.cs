@@ -18,7 +18,8 @@ public class CreateGeofenceCommandValidator : AbstractValidator<CreateGeofenceCo
             .WithMessage("Geofence name is required (max 100 characters).");
         RuleFor(x => x.Geofence.Category).NotEmpty().WithMessage("Category is required.");
         RuleFor(x => x.Geofence.AreaType).NotEmpty();
-        RuleFor(x => x.Geofence.Description).MaximumLength(250);
+        // Description may pack optional notes (desc + notes); DB column is NVARCHAR(500).
+        RuleFor(x => x.Geofence.Description).MaximumLength(500);
         RuleFor(x => x.Geofence).Custom((dto, ctx) =>
         {
             if (!GpsGeoHelper.TryValidateGeofenceGeometry(dto.AreaType, dto.RadiusMeters, dto.GeoJson, out var error) && error != null)
@@ -43,7 +44,7 @@ public class UpdateGeofenceCommandValidator : AbstractValidator<UpdateGeofenceCo
         RuleFor(x => x.Geofence.Name).NotEmpty().MaximumLength(100)
             .WithMessage("Geofence name is required (max 100 characters).");
         RuleFor(x => x.Geofence.Category).NotEmpty().WithMessage("Category is required.");
-        RuleFor(x => x.Geofence.Description).MaximumLength(250);
+        RuleFor(x => x.Geofence.Description).MaximumLength(500);
         RuleFor(x => x.Geofence).Custom((dto, ctx) =>
         {
             if (!GpsGeoHelper.TryValidateGeofenceGeometry(dto.AreaType, dto.RadiusMeters, dto.GeoJson, out var error) && error != null)

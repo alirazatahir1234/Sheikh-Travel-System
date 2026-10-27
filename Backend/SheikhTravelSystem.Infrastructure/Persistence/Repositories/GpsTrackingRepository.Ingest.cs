@@ -79,12 +79,18 @@ public sealed partial class GpsTrackingRepository
         DateTime timestamp,
         CancellationToken cancellationToken)
     {
+        var tenantId = await ResolveVehicleTenantIdAsync(connection, dto.VehicleId, cancellationToken);
+        if (tenantId is null or <= 0)
+            return;
+
         var rules = await connection.QueryAsync<(int Id, int? VehicleId, decimal? SpeedLimitKmh, int? GeofenceId, bool AlertOnEnter, bool AlertOnExit)>(
             new CommandDefinition(
                 @"SELECT Id, VehicleId, SpeedLimitKmh, GeofenceId, AlertOnEnter, AlertOnExit
-                  FROM GpsAlertRules WHERE IsActive = 1 AND IsDeleted = 0
-                  AND (VehicleId IS NULL OR VehicleId = @VehicleId)",
-                new { dto.VehicleId },
+                  FROM GpsAlertRules
+                  WHERE IsActive = 1 AND IsDeleted = 0
+                    AND TenantId = @TenantId
+                    AND (VehicleId IS NULL OR VehicleId = @VehicleId)",
+                new { dto.VehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         foreach (var rule in rules)
@@ -152,11 +158,14 @@ public sealed partial class GpsTrackingRepository
         DateTime timestamp,
         CancellationToken cancellationToken)
     {
-        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? BranchId, int? DepartmentId)>(
+        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId)>(
             new CommandDefinition(
-                "SELECT BranchId, DepartmentId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT TenantId, BranchId, DepartmentId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = dto.VehicleId },
                 cancellationToken: cancellationToken));
+
+        if (vehicle.TenantId is null or <= 0)
+            return;
 
         var assigned = (await connection.QueryAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
             new CommandDefinition(
@@ -164,44 +173,47 @@ public sealed partial class GpsTrackingRepository
                 SELECT DISTINCT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson
                 FROM Geofences g
                 INNER JOIN GeofenceAssignments a ON a.GeofenceId = g.Id AND a.IsDeleted = 0
-                WHERE g.IsActive = 1 AND g.IsDeleted = 0
+                WHERE g.IsActive = 1 AND g.IsDeleted = 0 AND g.TenantId = @TenantId
                   AND (
                     a.VehicleId = @VehicleId
                     OR (@BranchId IS NOT NULL AND a.BranchId = @BranchId)
                     OR (@DepartmentId IS NOT NULL AND a.DepartmentId = @DepartmentId)
                   )
                 """,
-                new { dto.VehicleId, vehicle.BranchId, vehicle.DepartmentId },
+                new { dto.VehicleId, vehicle.TenantId, vehicle.BranchId, vehicle.DepartmentId },
                 cancellationToken: cancellationToken))).ToList();
 
-        // Flags: AlertOnEnter / AlertOnExit. Assignments always use (true, true).
+        // Assignment = who is watched. GpsAlertRules = Entry/Exit checkboxes (do not force true/true).
         var watch = new Dictionary<int, (string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson, bool OnEnter, bool OnExit, int? RuleId)>();
 
         foreach (var g in assigned)
         {
-            watch[g.Id] = (g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson, true, true, null);
+            var rule = rules
+                .Where(r => r.GeofenceId == g.Id)
+                .OrderByDescending(r => r.VehicleId.HasValue)
+                .FirstOrDefault();
+
+            if (rule.Id == 0 || (!rule.AlertOnEnter && !rule.AlertOnExit))
+                continue;
+
+            watch[g.Id] = (g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson,
+                rule.AlertOnEnter, rule.AlertOnExit, rule.Id);
         }
 
+        // Rules without an assignment still monitor that geofence (vehicle-specific or fleet-wide).
         foreach (var rule in rules.Where(r => r.GeofenceId.HasValue))
         {
             var gid = rule.GeofenceId!.Value;
             if (watch.ContainsKey(gid))
-            {
-                var existing = watch[gid];
-                watch[gid] = existing with
-                {
-                    OnEnter = existing.OnEnter || rule.AlertOnEnter,
-                    OnExit = existing.OnExit || rule.AlertOnExit,
-                    RuleId = rule.Id
-                };
                 continue;
-            }
+            if (!rule.AlertOnEnter && !rule.AlertOnExit)
+                continue;
 
             var geofence = await connection.QueryFirstOrDefaultAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
                 new CommandDefinition(
                     @"SELECT Id, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson
-                      FROM Geofences WHERE Id = @Id AND IsActive = 1 AND IsDeleted = 0",
-                    new { Id = gid },
+                      FROM Geofences WHERE Id = @Id AND IsActive = 1 AND IsDeleted = 0 AND TenantId = @TenantId",
+                    new { Id = gid, TenantId = vehicle.TenantId },
                     cancellationToken: cancellationToken));
 
             if (geofence.Id == 0) continue;

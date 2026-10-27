@@ -284,6 +284,12 @@ public sealed partial class GpsTrackingRepository(
                 "UPDATE GeofenceAssignments SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE GeofenceId = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE GpsAlertRules SET IsDeleted = 1, IsActive = 0, UpdatedAt = GETUTCDATE()
+                  WHERE GeofenceId = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { request.Id, TenantId = tenantId },
+                cancellationToken: cancellationToken));
         }
 
         return rows > 0
@@ -361,6 +367,13 @@ public sealed partial class GpsTrackingRepository(
                 cancellationToken: cancellationToken));
         }
 
+        // Always replace org-scope so clearing branch/dept in the UI removes prior rows.
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE GeofenceAssignments SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+              WHERE GeofenceId = @GeofenceId AND (BranchId IS NOT NULL OR DepartmentId IS NOT NULL) AND IsDeleted = 0",
+            new { request.GeofenceId },
+            cancellationToken: cancellationToken));
+
         if (dto.VehicleIds is { Length: > 0 })
         {
             foreach (var vehicleId in dto.VehicleIds.Distinct())
@@ -394,19 +407,11 @@ public sealed partial class GpsTrackingRepository(
                 cancellationToken: cancellationToken));
             if (branchOwned > 0)
             {
-                var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                    @"SELECT COUNT(1) FROM GeofenceAssignments
-                      WHERE GeofenceId = @GeofenceId AND BranchId = @BranchId AND IsDeleted = 0",
-                    new { request.GeofenceId, dto.BranchId },
+                await connection.ExecuteAsync(new CommandDefinition(
+                    @"INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
+                      VALUES (@GeofenceId, @BranchId, GETUTCDATE(), @CreatedBy, 0)",
+                    new { request.GeofenceId, dto.BranchId, CreatedBy = createdBy },
                     cancellationToken: cancellationToken));
-                if (already == 0)
-                {
-                    await connection.ExecuteAsync(new CommandDefinition(
-                        @"INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
-                          VALUES (@GeofenceId, @BranchId, GETUTCDATE(), @CreatedBy, 0)",
-                        new { request.GeofenceId, dto.BranchId, CreatedBy = createdBy },
-                        cancellationToken: cancellationToken));
-                }
             }
         }
 
@@ -418,19 +423,11 @@ public sealed partial class GpsTrackingRepository(
                 cancellationToken: cancellationToken));
             if (deptOwned > 0)
             {
-                var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                    @"SELECT COUNT(1) FROM GeofenceAssignments
-                      WHERE GeofenceId = @GeofenceId AND DepartmentId = @DepartmentId AND IsDeleted = 0",
-                    new { request.GeofenceId, dto.DepartmentId },
+                await connection.ExecuteAsync(new CommandDefinition(
+                    @"INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
+                      VALUES (@GeofenceId, @DepartmentId, GETUTCDATE(), @CreatedBy, 0)",
+                    new { request.GeofenceId, dto.DepartmentId, CreatedBy = createdBy },
                     cancellationToken: cancellationToken));
-                if (already == 0)
-                {
-                    await connection.ExecuteAsync(new CommandDefinition(
-                        @"INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
-                          VALUES (@GeofenceId, @DepartmentId, GETUTCDATE(), @CreatedBy, 0)",
-                        new { request.GeofenceId, dto.DepartmentId, CreatedBy = createdBy },
-                        cancellationToken: cancellationToken));
-                }
             }
         }
 
@@ -479,6 +476,59 @@ public sealed partial class GpsTrackingRepository(
             if (owned == 0)
                 return ApiResponse<int>.FailResponse("Geofence not found.");
         }
+
+        // Upsert one rule per (Tenant, Geofence, Vehicle) — stop duplicate Entry/Exit rules on every save.
+        var existingId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            @"SELECT TOP 1 Id FROM GpsAlertRules
+              WHERE TenantId = @TenantId AND IsDeleted = 0
+                AND ((@GeofenceId IS NULL AND GeofenceId IS NULL) OR GeofenceId = @GeofenceId)
+                AND ((@VehicleId IS NULL AND VehicleId IS NULL) OR VehicleId = @VehicleId)
+                AND (
+                  (@SpeedLimitKmh IS NULL AND SpeedLimitKmh IS NULL)
+                  OR SpeedLimitKmh = @SpeedLimitKmh
+                  OR (@GeofenceId IS NOT NULL AND SpeedLimitKmh IS NULL)
+                )
+              ORDER BY Id",
+            new
+            {
+                TenantId = tenantId,
+                dto.GeofenceId,
+                dto.VehicleId,
+                dto.SpeedLimitKmh
+            },
+            cancellationToken: cancellationToken));
+
+        var ruleActive = dto.AlertOnEnter || dto.AlertOnExit;
+
+        if (existingId is > 0)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE GpsAlertRules
+                  SET AlertOnEnter = @AlertOnEnter,
+                      AlertOnExit = @AlertOnExit,
+                      SpeedLimitKmh = COALESCE(@SpeedLimitKmh, SpeedLimitKmh),
+                      IsActive = @IsActive,
+                      UpdatedAt = GETUTCDATE(),
+                      UpdatedBy = @UpdatedBy
+                  WHERE Id = @Id AND TenantId = @TenantId",
+                new
+                {
+                    Id = existingId.Value,
+                    TenantId = tenantId,
+                    dto.AlertOnEnter,
+                    dto.AlertOnExit,
+                    dto.SpeedLimitKmh,
+                    IsActive = ruleActive,
+                    UpdatedBy = currentUser.UserId?.ToString()
+                },
+                cancellationToken: cancellationToken));
+            return ApiResponse<int>.SuccessResponse(
+                existingId.Value,
+                ruleActive ? "Alert rule updated." : "Alert rule deactivated.");
+        }
+
+        if (!ruleActive)
+            return ApiResponse<int>.SuccessResponse(0, "No Entry/Exit monitoring — alert rule not created.");
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"INSERT INTO GpsAlertRules (TenantId, VehicleId, SpeedLimitKmh, GeofenceId, AlertOnEnter, AlertOnExit, IsActive, CreatedAt, CreatedBy, IsDeleted)

@@ -109,7 +109,8 @@ public sealed partial class GpsTrackingRepository
             int Id, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
             new CommandDefinition(
                 @"SELECT Id, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson
-                  FROM Geofences WHERE IsDeleted = 0 AND IsActive = 1",
+                  FROM Geofences WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken))).ToList();
 
         if (fences.Count == 0) return 0;
@@ -127,8 +128,11 @@ public sealed partial class GpsTrackingRepository
 
         var assignments = (await connection.QueryAsync<(int GeofenceId, int? VehicleId, int? BranchId, int? DepartmentId)>(
             new CommandDefinition(
-                @"SELECT GeofenceId, VehicleId, BranchId, DepartmentId
-                  FROM GeofenceAssignments WHERE IsDeleted = 0",
+                @"SELECT a.GeofenceId, a.VehicleId, a.BranchId, a.DepartmentId
+                  FROM GeofenceAssignments a
+                  INNER JOIN Geofences g ON g.Id = a.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
+                  WHERE a.IsDeleted = 0",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken))).ToList();
 
         var inside = new HashSet<int>();

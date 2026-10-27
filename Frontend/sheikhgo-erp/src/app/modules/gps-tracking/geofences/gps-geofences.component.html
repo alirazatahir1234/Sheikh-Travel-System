@@ -3,7 +3,7 @@
   <div class="page-header">
     <div>
       <h2 class="page-title">Geofences</h2>
-      <p class="page-sub">Draw circle, polygon, or rectangle on Google Maps. Assign vehicles by fleet org scope.</p>
+      <p class="page-sub">Search a place, then draw or adjust a circle / polygon / rectangle. Assign vehicles by fleet org scope.</p>
     </div>
     <button class="btn btn-primary" type="button" (click)="openCreate()">
       <mat-icon>add_location_alt</mat-icon>
@@ -22,53 +22,88 @@
 
   <div class="split-layout">
 
-    <div class="map-panel">
-      <div class="map-toolbar" *ngIf="mapReady && !mapError">
-        <button
-          type="button"
-          class="tool-btn"
-          [class.active]="drawMode === 'circle'"
-          [disabled]="shapeLocked"
-          (click)="setDrawMode(drawMode === 'circle' ? '' : 'circle')"
-          matTooltip="Draw circle">
-          <mat-icon>radio_button_unchecked</mat-icon>
-          Circle
-        </button>
-        <button
-          type="button"
-          class="tool-btn"
-          [class.active]="drawMode === 'polygon'"
-          [disabled]="shapeLocked"
-          (click)="setDrawMode(drawMode === 'polygon' ? '' : 'polygon')"
-          matTooltip="Draw polygon">
-          <mat-icon>pentagon</mat-icon>
-          Polygon
-        </button>
-        <button
-          type="button"
-          class="tool-btn"
-          [class.active]="drawMode === 'rectangle'"
-          [disabled]="shapeLocked"
-          (click)="setDrawMode(drawMode === 'rectangle' ? '' : 'rectangle')"
-          matTooltip="Draw rectangle">
-          <mat-icon>crop_square</mat-icon>
-          Rectangle
-        </button>
-        <button
-          type="button"
-          class="tool-btn tool-btn--muted"
-          [disabled]="shapeLocked || !showForm"
-          (click)="clearDraftShape()"
-          matTooltip="Clear draft shape">
-          <mat-icon>layers_clear</mat-icon>
-          Clear
-        </button>
+    <div class="map-panel" [class.map-panel--editing]="showForm">
+      <div #mapEl class="gmap-host" [class.hidden]="!!mapError"></div>
+
+      <div class="map-chrome" *ngIf="!mapError">
+        <div class="map-search" [class.map-search--pending]="!mapReady">
+          <mat-icon class="map-search__ico" aria-hidden="true">search</mat-icon>
+          <input
+            #placeSearchInput
+            class="map-search__input"
+            type="search"
+            autocomplete="off"
+            placeholder="Search place or address…"
+            [attr.aria-label]="'Search place for geofence'"
+            [disabled]="!mapReady || placesSearchUnavailable" />
+          <span class="map-search__hint" *ngIf="placesSearchUnavailable">Places search unavailable</span>
+          <button
+            *ngIf="mapReady && placeSearchLabel"
+            type="button"
+            class="map-search__clear"
+            (click)="clearPlaceSearch()"
+            matTooltip="Clear pin">
+            <mat-icon>close</mat-icon>
+          </button>
+          <span class="map-search__hint" *ngIf="mapReady && placeSearchLabel" [title]="placeSearchLabel">
+            {{ placeSearchLabel }}
+          </span>
+        </div>
+        <div class="map-toolbar" [class.map-toolbar--disabled]="!mapReady">
+          <button
+            type="button"
+            class="tool-btn"
+            [class.active]="drawMode === 'circle' || (!drawMode && form.value.areaType === 'circle' && showForm)"
+            [disabled]="!mapReady || shapeLocked"
+            (click)="selectShapeType('circle')"
+            matTooltip="Draw circle">
+            <mat-icon>radio_button_unchecked</mat-icon>
+            Circle
+          </button>
+          <button
+            type="button"
+            class="tool-btn"
+            [class.active]="drawMode === 'polygon' || (!drawMode && form.value.areaType === 'polygon' && showForm)"
+            [disabled]="!mapReady || shapeLocked"
+            (click)="selectShapeType('polygon')"
+            matTooltip="Draw polygon">
+            <mat-icon>pentagon</mat-icon>
+            Polygon
+          </button>
+          <button
+            type="button"
+            class="tool-btn"
+            [class.active]="drawMode === 'rectangle' || (!drawMode && form.value.areaType === 'rectangle' && showForm)"
+            [disabled]="!mapReady || shapeLocked"
+            (click)="selectShapeType('rectangle')"
+            matTooltip="Draw rectangle">
+            <mat-icon>crop_square</mat-icon>
+            Rectangle
+          </button>
+          <button
+            type="button"
+            class="tool-btn tool-btn--muted"
+            [disabled]="!mapReady || shapeLocked || !showForm"
+            (click)="clearDraftShape()"
+            matTooltip="Clear draft shape">
+            <mat-icon>layers_clear</mat-icon>
+            Clear
+          </button>
+        </div>
+        <div class="map-edit-banner" *ngIf="showForm">
+          <mat-icon>{{ editGeofence ? 'edit_location_alt' : 'add_location_alt' }}</mat-icon>
+          <span>{{ editGeofence ? 'Editing' : 'Creating' }} — adjust draft on the map, then save.</span>
+        </div>
       </div>
+
       <div *ngIf="mapError" class="map-error">
         <mat-icon>error_outline</mat-icon>
         <p>{{ mapError }}</p>
       </div>
-      <div #mapEl class="gmap-host" [class.hidden]="!!mapError"></div>
+      <div *ngIf="!mapReady && !mapError" class="map-loading">
+        <mat-spinner diameter="32"></mat-spinner>
+        <span>Loading map…</span>
+      </div>
     </div>
 
     <div class="side-panel">
@@ -91,8 +126,15 @@
 
       <div *ngIf="!loading && filteredGeofences.length === 0" class="empty-state">
         <mat-icon>location_off</mat-icon>
-        <p>No geofences match.</p>
-        <p class="sub">Use the map draw tools or Add Geofence.</p>
+        <ng-container *ngIf="geofences.length === 0; else noMatch">
+          <p>No geofences yet</p>
+          <p class="sub">Search a place on the map, draw a boundary, or click Add Geofence.</p>
+          <button type="button" class="btn btn-primary empty-cta" (click)="openCreate()">Add Geofence</button>
+        </ng-container>
+        <ng-template #noMatch>
+          <p>No geofences match.</p>
+          <p class="sub">Clear filters or try a different search.</p>
+        </ng-template>
       </div>
 
       <div
@@ -191,7 +233,7 @@
           maxlength="250"
           placeholder="Main warehouse boundary"></textarea>
         <div class="geo-field-meta">
-          <span class="geo-counter">{{ form.value.description?.length || 0 }} / 250 characters</span>
+          <span class="geo-counter">{{ form.value.description?.length || 0 }} / 250</span>
         </div>
 
         <label class="geo-label" for="geo-category">Category *</label>
@@ -240,12 +282,25 @@
         <h4 class="section-title">Boundary</h4>
 
         <div class="shape-card">
-          <div class="boundary-grid">
-            <div class="bound-item">
-              <span class="bound-label">Shape</span>
-              <span class="bound-value capitalize">{{ form.value.areaType || 'circle' }}</span>
-            </div>
+          <div class="shape-switch" role="group" aria-label="Boundary shape">
+            <button type="button" class="shape-switch__btn"
+              [class.active]="form.value.areaType === 'circle'"
+              [disabled]="shapeLocked"
+              (click)="selectShapeType('circle')">Circle</button>
+            <button type="button" class="shape-switch__btn"
+              [class.active]="form.value.areaType === 'polygon'"
+              [disabled]="shapeLocked"
+              (click)="selectShapeType('polygon')">Polygon</button>
+            <button type="button" class="shape-switch__btn"
+              [class.active]="form.value.areaType === 'rectangle'"
+              [disabled]="shapeLocked"
+              (click)="selectShapeType('rectangle')">Rectangle</button>
+          </div>
+          <p class="shape-switch__hint" *ngIf="form.value.areaType !== 'circle'">
+            Click the map to draw a {{ form.value.areaType }}. Finish polygon by clicking the first point.
+          </p>
 
+          <div class="boundary-grid">
             <ng-container *ngIf="form.value.areaType === 'circle'">
               <div class="bound-item bound-item--wide">
                 <label class="geo-label" for="geo-radius">Radius (meters) *</label>
@@ -311,81 +366,9 @@
         </div>
       </section>
 
-      <section class="form-section" *ngIf="!editGeofence">
-        <h4 class="section-title">Assign Vehicles <span class="optional">(Optional)</span></h4>
-
-        <div class="selected-summary">
-          <div class="selected-summary__head">
-            <strong>Selected Vehicles</strong>
-            <span class="count-pill">{{ formVehicleIds.size }} selected</span>
-          </div>
-          <div *ngIf="selectedFormVehicles.length === 0" class="empty-selected">No vehicles selected.</div>
-          <div class="selected-chips" *ngIf="selectedFormVehicles.length">
-            <span class="sel-chip" *ngFor="let v of selectedFormVehicles">
-              ✓ {{ v.name }}
-              <button type="button" class="chip-x" (click)="toggleFormVehicle(v.id)" aria-label="Remove">×</button>
-            </span>
-          </div>
-        </div>
-
-        <div class="search-wrap">
-          <mat-icon class="search-ico">search</mat-icon>
-          <input
-            class="search-input"
-            type="search"
-            [(ngModel)]="formVehicleSearch"
-            [ngModelOptions]="{standalone: true}"
-            placeholder="Search by vehicle name, plate, driver or IMEI" />
-        </div>
-
-        <div class="vehicle-pick-list">
-          <button
-            type="button"
-            class="veh-card"
-            *ngFor="let v of formAssignableVehicles"
-            [class.veh-card--on]="formVehicleIds.has(v.id)"
-            (click)="toggleFormVehicle(v.id)">
-            <span class="veh-check" [class.on]="formVehicleIds.has(v.id)">
-              <mat-icon>{{ formVehicleIds.has(v.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-            </span>
-            <span class="veh-body">
-              <span class="veh-name" [innerHTML]="highlightMatch(v.name, formVehicleSearch)"></span>
-              <span class="veh-meta">Plate: <span [innerHTML]="highlightMatch(v.registrationNumber, formVehicleSearch)"></span></span>
-              <span class="veh-meta" *ngIf="v.driverName">Driver: <span [innerHTML]="highlightMatch(v.driverName, formVehicleSearch)"></span></span>
-              <span class="veh-meta" *ngIf="v.gpsImei">IMEI: <span [innerHTML]="highlightMatch(v.gpsImei, formVehicleSearch)"></span></span>
-            </span>
-          </button>
-          <div class="empty-mini" *ngIf="formAssignableVehicles.length === 0">No vehicles match your search.</div>
-        </div>
-
-        <div class="coord-row org-row">
-          <div class="org-field">
-            <label class="geo-label" for="geo-branch">Branch (Optional)</label>
-            <div class="geo-select-wrap">
-              <select id="geo-branch" class="geo-input geo-select"
-                [(ngModel)]="assignBranchId" [ngModelOptions]="{standalone: true}">
-                <option [ngValue]="null">—</option>
-                <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
-              </select>
-              <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
-            </div>
-          </div>
-          <div class="org-field">
-            <label class="geo-label" for="geo-dept">Department (Optional)</label>
-            <div class="geo-select-wrap">
-              <select id="geo-dept" class="geo-input geo-select"
-                [(ngModel)]="assignDepartmentId" [ngModelOptions]="{standalone: true}">
-                <option [ngValue]="null">—</option>
-                <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
-              </select>
-              <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="form-section">
         <h4 class="section-title">Monitoring <span class="optional">(Optional)</span></h4>
+        <p class="section-note" *ngIf="!editGeofence">Vehicles &amp; branches are assigned after create.</p>
         <div class="monitor-list">
           <mat-checkbox formControlName="notifyOnEntry">Entry Alert</mat-checkbox>
           <mat-checkbox formControlName="notifyOnExit">Exit Alert</mat-checkbox>
@@ -403,7 +386,7 @@
           maxlength="250"
           placeholder="Example: Warehouse boundary for delivery vehicles only."></textarea>
         <div class="geo-field-meta">
-          <span class="geo-counter">{{ form.value.notes?.length || 0 }} / 250 characters</span>
+          <span class="geo-counter">{{ form.value.notes?.length || 0 }} / 240</span>
         </div>
       </section>
 
@@ -418,7 +401,7 @@
 </div>
 
 <!-- Post-create prompt -->
-<div class="drawer-overlay" *ngIf="showPostCreatePrompt" (click)="postCreateAssignLater()"></div>
+<div class="drawer-overlay drawer-overlay--modal" *ngIf="showPostCreatePrompt" (click)="postCreateAssignLater()"></div>
 <div class="prompt-card" *ngIf="showPostCreatePrompt">
   <h3>Geofence created</h3>
   <p>Assign vehicles or a branch/department now?</p>
@@ -429,7 +412,7 @@
 </div>
 
 <!-- Assign drawer -->
-<div class="drawer-overlay" *ngIf="showAssign" (click)="showAssign = false"></div>
+<div class="drawer-overlay drawer-overlay--modal" *ngIf="showAssign" (click)="showAssign = false"></div>
 <div class="drawer drawer-wide assign-drawer" [class.open]="showAssign">
   <div class="drawer-header">
     <h3>Assign — {{ selected?.name }}</h3>

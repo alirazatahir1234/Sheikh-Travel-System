@@ -54,21 +54,170 @@
   min-height: 360px;
   /* Keep map interactive while the form drawer is open */
   z-index: 1;
+  isolation: isolate;
+  &--editing {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25);
+  }
 }
 .gmap-host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   &.hidden { display: none; }
 }
-.map-toolbar {
+.map-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  > * { pointer-events: auto; }
+}
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(248, 250, 252, 0.72);
+  color: #64748b;
+  font-size: 13px;
+  pointer-events: none;
+}
+.map-edit-banner {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-width: min(520px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+  mat-icon { font-size: 18px; width: 18px; height: 18px; color: #5eead4; flex-shrink: 0; }
+}
+.map-search {
   position: absolute;
   top: 12px;
   left: 12px;
-  z-index: 2;
+  right: 12px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 0 10px 0 12px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+  pointer-events: auto;
+  &--pending { opacity: 0.85; }
+}
+.map-search__ico {
+  color: #64748b;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.map-search__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0f172a;
+  &::placeholder { color: #94a3b8; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+.map-search__hint {
+  flex-shrink: 0;
+  max-width: 36%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f766e;
+}
+.map-search__clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &:hover { background: #f1f5f9; color: #0f172a; }
+}
+
+.map-toolbar {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 11;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   pointer-events: auto;
+  &--disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+}
+.shape-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.shape-switch__btn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  &.active {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #fff;
+  }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+.shape-switch__hint,
+.section-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+.empty-cta {
+  margin-top: 12px;
 }
 .tool-btn {
   display: inline-flex;
@@ -231,8 +380,8 @@
 .ev-when { color: #9ca3af; white-space: nowrap; }
 
 /*
- * Form overlay must NOT block the map. pointer-events stay off so
- * Google DrawingManager / editable shapes remain usable while the drawer is open.
+ * Form overlay must NOT block the map (pointer-events off).
+ * Modal overlays (assign / post-create) stay clickable to dismiss.
  */
 .drawer-overlay {
   position: fixed;
@@ -240,6 +389,15 @@
   background: transparent;
   z-index: 1000;
   pointer-events: none;
+}
+.drawer-overlay--form {
+  background: transparent;
+  pointer-events: none;
+}
+.drawer-overlay--modal {
+  background: rgba(15, 23, 42, 0.35);
+  pointer-events: auto;
+  z-index: 1190;
 }
 .drawer {
   position: fixed;
@@ -255,8 +413,16 @@
   flex-direction: column;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   pointer-events: auto;
-  &.open { transform: translateX(0); }
+  border-left: 3px solid transparent;
+  &.open {
+    transform: translateX(0);
+    border-left-color: #0f766e;
+    box-shadow: -8px 0 32px rgba(15, 23, 42, 0.22);
+  }
   &.drawer-wide { width: min(460px, 100vw); }
+}
+.assign-drawer.open {
+  z-index: 1200;
 }
 .drawer-header {
   display: flex;

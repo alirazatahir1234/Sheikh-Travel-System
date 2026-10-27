@@ -59,7 +59,7 @@ export function normalizeTripAnalyticsBundle(raw: BundleWire | null | undefined)
 }
 
 /** Normalizes a GPS trip row from API (camelCase or PascalCase). */
-export function normalizeGpsTrip(raw: TripWire): GpsTrip {
+export function normalizeGpsTrip(raw: Partial<GpsTrip> | Record<string, unknown>): GpsTrip {
   const w = raw as Record<string, unknown>;
   const pick = <T>(camel: string, pascal: string, fallback: T): T =>
     (w[camel] ?? w[pascal] ?? fallback) as T;

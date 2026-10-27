@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, NgZone
+  Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, NgZone, ChangeDetectorRef
 } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -26,11 +26,19 @@ import {
   type GmapEditableShape
 } from '../../../core/google-maps/gmap-geofence-layer';
 import { triggerGmapResize } from '../../../core/google-maps/gmap-theme';
+import {
+  attachSheikhGoPlacesAutocomplete,
+  type SheikhGoPlaceSelection,
+  type SheikhGoPlacesAutocompleteHandle
+} from '../../../core/google-maps/place-autocomplete.new';
 
 const CATEGORIES = [
   'Warehouse', 'Office', 'Customer', 'Parking', 'Fuel Station',
   'Restricted', 'Home', 'Service Area', 'Delivery Zone'
 ];
+
+/** Packs description + operational notes into Geofences.Description for round-trip edit. */
+const NOTES_SEP = '\n---NOTES---\n';
 
 const COLOR_PRESETS: { hex: string; label: string }[] = [
   { hex: '#0f766e', label: 'Teal' },
@@ -57,6 +65,7 @@ interface FenceOverlayEntry {
 })
 export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapEl', { static: false }) mapEl!: ElementRef<HTMLDivElement>;
+  @ViewChild('placeSearchInput', { static: false }) placeSearchInput?: ElementRef<HTMLInputElement>;
 
   geofences: Geofence[] = [];
   stats: GeofenceStats | null = null;
@@ -71,6 +80,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   mapError: string | null = null;
   mapReady = false;
   drawMode: '' | 'circle' | 'polygon' | 'rectangle' = '';
+  placeSearchLabel = '';
+  placesSearchUnavailable = false;
 
   search = '';
   filterType = '';
@@ -90,7 +101,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   vehiclePickSearch = '';
   formVehicleSearch = '';
   shapeLocked = false;
-  drawHint = 'Use Draw tools on the map, or Add Geofence for a default circle you can drag.';
+  drawHint = 'Search a place, or use Draw tools / Add Geofence for a default circle.';
 
   private map: google.maps.Map | null = null;
   /** Runtime DrawingManager; @types/google.maps omit MVC helpers (setMap/setOptions). */
@@ -105,6 +116,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   private authFailSub?: Subscription;
   private syncingFromMap = false;
   private resizeObserver: ResizeObserver | null = null;
+  private placesHandle: SheikhGoPlacesAutocompleteHandle | null = null;
+  private placesInitAttempts = 0;
+  private searchMarker: google.maps.Marker | null = null;
 
   form!: ReturnType<FormBuilder['group']>;
 
@@ -116,12 +130,13 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     private toast: UiToastService,
     private sanitizer: DomSanitizer,
     private googleMapsLoader: GoogleMapsLoaderService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
       description: ['', Validators.maxLength(250)],
-      notes: ['', Validators.maxLength(250)],
+      notes: ['', Validators.maxLength(240)],
       color: ['#0f766e', Validators.required],
       category: ['Warehouse', Validators.required],
       areaType: ['circle'],
@@ -153,6 +168,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    setTimeout(() => void this.initPlaceSearch(), 0);
     setTimeout(() => void this.initMap(), 40);
   }
 
@@ -160,6 +176,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.formSub?.unsubscribe();
     this.authFailSub?.unsubscribe();
     this.resizeObserver?.disconnect();
+    this.placesHandle?.destroy();
+    this.placesHandle = null;
+    this.clearSearchMarker();
     this.clearDraftListeners();
     this.clearFenceOverlays();
     this.clearDraft();
@@ -285,17 +304,126 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       center: { lat: 31.52, lng: 74.35 },
       zoom: 11,
       mapTypeControl: true,
+      mapTypeControlOptions: {
+        position: google.maps.ControlPosition.TOP_RIGHT
+      },
       streetViewControl: false,
       fullscreenControl: true,
+      fullscreenControlOptions: {
+        position: google.maps.ControlPosition.RIGHT_TOP
+      },
       zoomControl: true,
+      zoomControlOptions: {
+        position: google.maps.ControlPosition.RIGHT_BOTTOM
+      },
       gestureHandling: 'greedy'
     });
 
     this.setupDrawingManager();
     this.observeMapResize();
     this.mapReady = true;
+    this.cdr.detectChanges(); // render place-search input before attaching autocomplete
     this.renderFences();
     setTimeout(() => triggerGmapResize(this.map), 100);
+    setTimeout(() => void this.initPlaceSearch(), 0);
+  }
+
+  private async initPlaceSearch(): Promise<void> {
+    if (this.placesHandle || this.mapError) return;
+    const input = this.placeSearchInput?.nativeElement;
+    if (!input) {
+      if (this.placesInitAttempts++ < 40) {
+        setTimeout(() => void this.initPlaceSearch(), 50);
+      }
+      return;
+    }
+    this.placesInitAttempts = 0;
+
+    try {
+      const bootstrapped = await this.googleMapsLoader.load();
+      if (!bootstrapped) {
+        this.placesSearchUnavailable = true;
+        return;
+      }
+      await this.googleMapsLoader.importLibrary('places');
+      if (this.googleMapsLoader.authFailed) {
+        this.placesSearchUnavailable = true;
+        return;
+      }
+      this.placesHandle = await attachSheikhGoPlacesAutocomplete({
+        input,
+        ngZone: this.ngZone,
+        mapsLoader: this.googleMapsLoader,
+        onSelect: place => this.onPlaceSelected(place)
+      });
+      this.placesSearchUnavailable = false;
+    } catch (err) {
+      console.warn('Geofences place search init failed:', err);
+      this.placesSearchUnavailable = true;
+      this.placesHandle?.destroy();
+      this.placesHandle = null;
+    }
+  }
+
+  /** Pan to place, drop pin, open create with a circle centered on the result. */
+  onPlaceSelected(place: SheikhGoPlaceSelection): void {
+    if (!this.map || !Number.isFinite(place.lat) || !Number.isFinite(place.lng)) {
+      this.toast.error('Selected place has no coordinates');
+      return;
+    }
+
+    const lat = place.lat;
+    const lng = place.lng;
+    this.placeSearchLabel = place.name || place.address || '';
+    this.map.panTo({ lat, lng });
+    this.map.setZoom(Math.max(this.map.getZoom() ?? 14, 15));
+    this.dropSearchPin(lat, lng, this.placeSearchLabel);
+
+    // Start (or recenter) create flow around the searched point
+    this.editGeofence = null;
+    this.formVehicleIds = new Set();
+    this.formVehicleSearch = '';
+    this.shapeLocked = false;
+    const suggestedName = (place.name || '').trim().slice(0, 100);
+    this.form.reset({
+      name: suggestedName,
+      description: place.address ? place.address.slice(0, 250) : '',
+      notes: '',
+      color: '#0f766e',
+      category: 'Warehouse',
+      areaType: 'circle',
+      centerLat: +lat.toFixed(6),
+      centerLng: +lng.toFixed(6),
+      radiusMeters: 500,
+      geoJson: null,
+      isActive: true,
+      notifyOnEntry: true,
+      notifyOnExit: true,
+      lockShape: false
+    });
+    this.showForm = true;
+    this.setDrawMode('');
+    setTimeout(() => {
+      triggerGmapResize(this.map);
+      this.ensureDefaultDraftCircle({ lat, lng });
+      this.drawHint = `Zone centered on “${this.placeSearchLabel || 'search result'}”. Adjust radius or redraw, then save.`;
+    }, 40);
+  }
+
+  private dropSearchPin(lat: number, lng: number, title: string): void {
+    this.clearSearchMarker();
+    if (!this.map) return;
+    this.searchMarker = new google.maps.Marker({
+      map: this.map,
+      position: { lat, lng },
+      title: title || 'Search result',
+      animation: google.maps.Animation.DROP
+    });
+  }
+
+  private clearSearchMarker(): void {
+    this.searchMarker?.setMap(null);
+    this.searchMarker = null;
   }
 
   private setupDrawingManager(): void {
@@ -391,6 +519,75 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     else this.dm.setDrawingMode(null);
   }
 
+  /** Switch shape from map toolbar or form — circle places a draft; poly/rect enter draw mode. */
+  selectShapeType(type: 'circle' | 'polygon' | 'rectangle'): void {
+    if (this.shapeLocked) {
+      this.toast.info('Shape is locked. Unlock to change.');
+      return;
+    }
+    if (!this.showForm) {
+      this.beginCreateForm(false);
+    }
+    this.form.patchValue({ areaType: type }, { emitEvent: false });
+
+    if (type === 'circle') {
+      this.setDrawMode('');
+      const center = this.map?.getCenter();
+      this.ensureDefaultDraftCircle(
+        center ? { lat: center.lat(), lng: center.lng() } : undefined
+      );
+      this.drawHint = 'Circle draft ready — drag handles or change radius, then name & save.';
+      this.focusNameField();
+      return;
+    }
+
+    this.clearDraft();
+    this.form.patchValue({ geoJson: null }, { emitEvent: false });
+    this.setDrawMode(type);
+    this.drawHint = type === 'polygon'
+      ? 'Click the map to place polygon vertices. Click the first point to finish.'
+      : 'Click and drag on the map to draw a rectangle.';
+    this.focusNameField();
+  }
+
+  private beginCreateForm(placeDefaultCircle: boolean): void {
+    this.editGeofence = null;
+    this.formVehicleIds = new Set();
+    this.formVehicleSearch = '';
+    this.assignBranchId = null;
+    this.assignDepartmentId = null;
+    this.shapeLocked = false;
+    this.form.reset({
+      name: '',
+      description: '',
+      notes: '',
+      color: '#0f766e',
+      category: 'Warehouse',
+      areaType: 'circle',
+      centerLat: 31.52,
+      centerLng: 74.35,
+      radiusMeters: 500,
+      geoJson: null,
+      isActive: true,
+      notifyOnEntry: true,
+      notifyOnExit: true,
+      lockShape: false
+    });
+    this.showForm = true;
+    this.setDrawMode('');
+    setTimeout(() => {
+      triggerGmapResize(this.map);
+      if (placeDefaultCircle) this.ensureDefaultDraftCircle();
+      this.focusNameField();
+    }, 50);
+  }
+
+  private focusNameField(): void {
+    setTimeout(() => {
+      document.getElementById('geo-name')?.focus();
+    }, 80);
+  }
+
   private attachDraftListeners(shape: GmapEditableShape): void {
     this.clearDraftListeners();
     const bump = (): void => {
@@ -482,12 +679,12 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private ensureDefaultDraftCircle(): void {
+  private ensureDefaultDraftCircle(at?: { lat: number; lng: number }): void {
     if (!this.map) return;
     this.clearDraft();
     const center = this.map.getCenter();
-    const lat = center?.lat() ?? 31.52;
-    const lng = center?.lng() ?? 74.35;
+    const lat = at?.lat ?? center?.lat() ?? 31.52;
+    const lng = at?.lng ?? center?.lng() ?? 74.35;
     const radius = Number(this.form.value.radiusMeters) || 500;
     const color = this.form.value.color || '#0f766e';
     const circle = new google.maps.Circle({
@@ -595,32 +792,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openCreate(): void {
-    this.editGeofence = null;
-    this.formVehicleIds = new Set();
-    this.formVehicleSearch = '';
-    this.shapeLocked = false;
-    this.form.reset({
-      name: '',
-      description: '',
-      notes: '',
-      color: '#0f766e',
-      category: 'Warehouse',
-      areaType: 'circle',
-      centerLat: 31.52,
-      centerLng: 74.35,
-      radiusMeters: 500,
-      geoJson: null,
-      isActive: true,
-      notifyOnEntry: true,
-      notifyOnExit: true,
-      lockShape: false
-    });
-    this.showForm = true;
-    this.setDrawMode('');
-    setTimeout(() => {
-      triggerGmapResize(this.map);
-      this.ensureDefaultDraftCircle();
-    }, 50);
+    this.beginCreateForm(true);
+    this.drawHint = 'Name the zone, adjust the draft circle, or switch to Polygon / Rectangle.';
   }
 
   openEdit(g: Geofence): void {
@@ -628,10 +801,11 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selected = g;
     this.clearDraft();
     this.formVehicleIds = new Set();
+    const packed = this.unpackDescription(g.description);
     this.form.patchValue({
       name: g.name,
-      description: g.description ?? '',
-      notes: '',
+      description: packed.description,
+      notes: packed.notes,
       color: g.color || '#0f766e',
       category: g.category || 'Warehouse',
       areaType: g.areaType || 'circle',
@@ -640,8 +814,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       radiusMeters: g.radiusMeters || 500,
       geoJson: g.geoJson ?? null,
       isActive: g.isActive,
-      notifyOnEntry: true,
-      notifyOnExit: true,
+      notifyOnEntry: false,
+      notifyOnExit: false,
       lockShape: false
     });
     this.showForm = true;
@@ -683,8 +857,17 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showForm = false;
     this.setDrawMode('');
     this.clearDraft();
+    this.clearPlaceSearch();
     this.renderFences();
     setTimeout(() => triggerGmapResize(this.map), 50);
+  }
+
+  clearPlaceSearch(): void {
+    this.placeSearchLabel = '';
+    this.clearSearchMarker();
+    if (this.placeSearchInput?.nativeElement) {
+      this.placeSearchInput.nativeElement.value = '';
+    }
   }
 
   openAssign(g: Geofence): void {
@@ -698,8 +881,38 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       next: a => {
         this.assignments = a;
         a.filter(x => x.vehicleId).forEach(x => this.selectedVehicleIds.add(x.vehicleId!));
+        const branch = a.find(x => x.branchId);
+        const dept = a.find(x => x.departmentId);
+        this.assignBranchId = branch?.branchId ?? null;
+        this.assignDepartmentId = dept?.departmentId ?? null;
       }
     });
+  }
+
+  private packDescription(description: string, notes: string): string | null {
+    const d = (description || '').trim().slice(0, 250);
+    const n = (notes || '').trim().slice(0, 240);
+    if (!d && !n) return null;
+    if (!n) return d.slice(0, 500);
+    if (!d) return `${NOTES_SEP}${n}`.slice(0, 500);
+    return `${d}${NOTES_SEP}${n}`.slice(0, 500);
+  }
+
+  private unpackDescription(raw: string | null | undefined): { description: string; notes: string } {
+    const text = raw ?? '';
+    const idx = text.indexOf(NOTES_SEP);
+    if (idx >= 0) {
+      return {
+        description: text.slice(0, idx).trim(),
+        notes: text.slice(idx + NOTES_SEP.length).trim()
+      };
+    }
+    // Legacy: first line = description, remainder = notes (previous join('\n'))
+    const nl = text.indexOf('\n');
+    if (nl >= 0 && text.length > nl + 1) {
+      return { description: text.slice(0, nl).trim(), notes: text.slice(nl + 1).trim() };
+    }
+    return { description: text, notes: '' };
   }
 
   toggleVehiclePick(id: number): void {
@@ -763,7 +976,6 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const descriptionParts = [v.description, v.notes].filter(Boolean);
     const payload = {
       name: (v.name || '').trim(),
       areaType,
@@ -773,7 +985,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       geoJson: v.geoJson,
       color: v.color || '#0f766e',
       category: v.category || null,
-      description: descriptionParts.length ? descriptionParts.join('\n') : null,
+      description: this.packDescription(String(v.description || ''), String(v.notes || '')),
       isActive: !!v.isActive
     };
 
@@ -784,28 +996,25 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       const notifyOnExit = !!v['notifyOnExit'];
       this.gps.updateGeofence(geofenceId, payload).subscribe({
         next: () => {
-          const finishEdit = (extraMsg?: string): void => {
+          const finishEdit = (): void => {
             this.saving = false;
-            this.toast.success(extraMsg || 'Geofence updated');
+            this.toast.success('Geofence updated');
             this.closeForm();
             this.load();
             this.loadStats();
           };
-          if (notifyOnEntry || notifyOnExit) {
-            this.gps.createAlertRule({
-              geofenceId,
-              alertOnEnter: notifyOnEntry,
-              alertOnExit: notifyOnExit
-            }).subscribe({
-              next: () => finishEdit(),
-              error: (err: { error?: { message?: string } }) => {
-                finishEdit();
-                this.toast.warning(err?.error?.message || 'Geofence saved, but Entry/Exit alert rule failed.');
-              }
-            });
-          } else {
-            finishEdit();
-          }
+          // Backend upserts a single fleet-wide geofence rule from Entry/Exit checkboxes.
+          this.gps.createAlertRule({
+            geofenceId,
+            alertOnEnter: notifyOnEntry,
+            alertOnExit: notifyOnExit
+          }).subscribe({
+            next: () => finishEdit(),
+            error: (err: { error?: { message?: string } }) => {
+              finishEdit();
+              this.toast.warning(err?.error?.message || 'Geofence saved, but Entry/Exit alert rule failed.');
+            }
+          });
         },
         error: (err: { error?: { message?: string } }) => {
           this.saving = false;
@@ -827,9 +1036,6 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private afterCreate(geofenceId: number, v: Record<string, unknown>): void {
-    const vehicleIds = [...this.formVehicleIds];
-    const branchId = this.assignBranchId;
-    const departmentId = this.assignDepartmentId;
     const notifyOnEntry = !!v['notifyOnEntry'];
     const notifyOnExit = !!v['notifyOnExit'];
 
@@ -840,48 +1046,21 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       this.load();
       this.loadStats();
       this.pendingAssignGeofenceId = geofenceId;
-      if (vehicleIds.length || branchId || departmentId) {
-        this.selected = { id: geofenceId } as Geofence;
-        this.loadFenceDetails(geofenceId);
-      } else {
-        this.showPostCreatePrompt = true;
-      }
+      this.showPostCreatePrompt = true;
     };
 
-    const createRuleThenFinish = (): void => {
-      if (notifyOnEntry || notifyOnExit) {
-        this.gps.createAlertRule({
-          geofenceId,
-          alertOnEnter: notifyOnEntry,
-          alertOnExit: notifyOnExit
-        }).subscribe({
-          next: () => finish(),
-          error: (err: { error?: { message?: string } }) => {
-            finish();
-            this.toast.warning(err?.error?.message || 'Geofence created, but Entry/Exit alert rule failed.');
-          }
-        });
-      } else {
+    // Always upsert so unchecked Entry/Exit deactivates / skips a dead rule.
+    this.gps.createAlertRule({
+      geofenceId,
+      alertOnEnter: notifyOnEntry,
+      alertOnExit: notifyOnExit
+    }).subscribe({
+      next: () => finish(),
+      error: (err: { error?: { message?: string } }) => {
         finish();
+        this.toast.warning(err?.error?.message || 'Geofence created, but Entry/Exit alert rule failed.');
       }
-    };
-
-    if (vehicleIds.length || branchId || departmentId) {
-      this.gps.upsertGeofenceAssignments(geofenceId, {
-        vehicleIds,
-        branchId: branchId || undefined,
-        departmentId: departmentId || undefined,
-        replaceVehicles: true
-      }).subscribe({
-        next: () => createRuleThenFinish(),
-        error: (err: { error?: { message?: string } }) => {
-          this.toast.warning(err?.error?.message || 'Geofence created, but vehicle/branch assignment failed.');
-          createRuleThenFinish();
-        }
-      });
-    } else {
-      createRuleThenFinish();
-    }
+    });
   }
 
   postCreateAssignYes(): void {
