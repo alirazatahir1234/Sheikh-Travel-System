@@ -11,6 +11,18 @@ const routes: Routes = [
   { path: 'auth', loadChildren: () => import('./modules/auth/auth.module').then(m => m.AuthModule) },
   { path: 'login', redirectTo: 'auth/login', pathMatch: 'full' },
 
+  {
+    path: 'rate/:token',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/trip-feedback/trip-feedback.page').then(m => m.TripFeedbackPage),
+      },
+    ],
+  },
+
   // Always-public legal pages (Play Store / compliance — available while signed in too)
   {
     path: 'privacy-policy',
@@ -85,6 +97,17 @@ const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./modules/website/pages/driver-performance/driver-performance.page').then(m => m.DriverPerformancePage),
+      },
+    ],
+  },
+  {
+    path: 'driver-ratings',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/driver-ratings/driver-ratings.page').then(m => m.DriverRatingsPage),
       },
     ],
   },

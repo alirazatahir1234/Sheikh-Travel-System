@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { VEHICLE_UPLOAD_SIZE_ERROR } from './upload-url.util';
 
-export function apiErrorMessage(error: unknown, fallback: string): string {
+export function apiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
   if (error instanceof HttpErrorResponse) {
     const payload = error.error as {
       message?: string;

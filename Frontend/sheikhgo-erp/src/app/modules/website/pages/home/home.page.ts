@@ -51,6 +51,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.clientBilling'), fragment: 'client-billing', icon: 'receipt_long' },
       { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
       { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
+      { label: this.i18n.t('home.pill.liveTraffic'), fragment: 'live-traffic', icon: 'traffic' },
       { label: this.i18n.t('home.pill.driverVerification'), fragment: 'driver-verification', icon: 'verified_user' },
       { label: this.i18n.t('home.pill.driverVoice'), fragment: 'driver-voice', icon: 'mic' },
       { label: this.i18n.t('home.pill.fatigueDetection'), fragment: 'fatigue-detection', icon: 'bedtime' },
@@ -89,7 +90,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
         priceNote: this.i18n.t('pages.pricing.enterprise.priceNote'),
         featured: false,
       },
-    ] as const;
+    ];
   });
 
   readonly nexusCallouts = computed(() => {

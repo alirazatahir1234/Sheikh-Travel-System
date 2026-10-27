@@ -38,6 +38,11 @@ export const WEBSITE_ROUTES: Routes = [
           import('./pages/driver-performance/driver-performance.page').then(m => m.DriverPerformancePage),
       },
       {
+        path: 'driver-ratings',
+        loadComponent: () =>
+          import('./pages/driver-ratings/driver-ratings.page').then(m => m.DriverRatingsPage),
+      },
+      {
         path: 'predictive-maintenance',
         loadComponent: () =>
           import('./pages/predictive-maintenance/predictive-maintenance.page').then(m => m.PredictiveMaintenancePage),

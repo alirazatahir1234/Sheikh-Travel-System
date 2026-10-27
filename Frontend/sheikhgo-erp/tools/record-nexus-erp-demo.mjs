@@ -117,13 +117,15 @@ async function recordSegment(slug, run) {
   try {
     await run(page);
   } finally {
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(800).catch(() => undefined);
     const video = page.video();
     const dest = join(SEG_DIR, `${slug}.webm`);
+    if (video) {
+      await video.saveAs(dest);
+    }
     await context.close();
     await browser.close();
     if (!video) throw new Error(`no video for segment ${slug}`);
-    await video.saveAs(dest);
     return dest;
   }
 }
@@ -174,7 +176,7 @@ async function visitModule(page, mod) {
   const dwell = mod.shotMs ?? SHOT_DEFAULT;
   await page.goto(`${BASE}${mod.path}`, { waitUntil: 'networkidle' });
   await waitForErpShell(page);
-  await page.waitForSelector('.ui-toast, .toast-error', { state: 'hidden', timeout: 8000 }).catch(() => undefined);
+  await page.waitForTimeout(1200);
   await dismissDevOverlays(page);
   await showModuleCaption(page, mod.label);
   await page.waitForTimeout(dwell);

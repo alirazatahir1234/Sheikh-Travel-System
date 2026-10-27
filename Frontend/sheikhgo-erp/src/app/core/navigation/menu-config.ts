@@ -45,6 +45,13 @@ const fleetGroup: NavGroup = {
     { id: 'fleet-dashboard', label: 'Dashboard', icon: 'dashboard', route: '/fleet/dashboard', moduleKey: 'vehicles' },
     { id: 'vehicles', label: 'Vehicles', icon: 'directions_bus', route: '/vehicles', moduleKey: 'vehicles' },
     { id: 'drivers', label: 'Drivers', icon: 'badge', route: '/drivers', moduleKey: 'drivers' },
+    {
+      id: 'driver-client-ratings',
+      label: 'Client ratings',
+      icon: 'star_rate',
+      route: '/drivers/client-ratings',
+      moduleKey: 'drivers',
+    },
     { id: 'assignments', label: 'Assignments', icon: 'event_available', route: '/fleet/assignments', moduleKey: 'vehicles' }
   ]
 };

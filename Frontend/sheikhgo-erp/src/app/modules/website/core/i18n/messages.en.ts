@@ -193,6 +193,22 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.smartAssignment.adminTitle': 'Admin override & audit',
   'home.smartAssignment.adminText':
     'Fleet Operations includes a Smart Assignment workspace with factor weights, routing source labels, and a decision history for client demos and dispatch audits.',
+  'home.pill.liveTraffic': 'Live traffic',
+  'home.liveTraffic.kicker': 'Dubai · Pakistan · Saudi Arabia',
+  'home.liveTraffic.title': 'Real-time traffic on every route',
+  'home.liveTraffic.lead':
+    'Google Routes traffic-aware ETAs across ERP dispatch, driver navigation, and shareable client tracking — for fleets in UAE, Pakistan, and Saudi Arabia. No simulated congestion; when Maps is unavailable, Nexus labels straight-line estimates clearly.',
+  'home.liveTraffic.erpTitle': 'ERP & smart assignment',
+  'home.liveTraffic.erpText':
+    'Trip forms, route planning, and Smart Assignment scoring use TRAFFIC_AWARE Compute Routes when your server key is configured — the same signal admins see in assignment explainability.',
+  'home.liveTraffic.mobileTitle': 'Driver navigation',
+  'home.liveTraffic.mobileText':
+    'In-app maps show Google traffic layers plus refreshed drive times from live GPS to pickup or drop-off across supported regions.',
+  'home.liveTraffic.trackingTitle': 'Client tracking links',
+  'home.liveTraffic.trackingText':
+    'Public /t/{token} pages show traffic-adjusted delivery ETAs (light / moderate / heavy) when Routes is enabled — otherwise documented estimates.',
+  'home.liveTraffic.costNote':
+    'Saudi Arabia uses the same Routes Pro SKU as UAE/Pakistan (no country surcharge). Research suggests roughly +$24–72/mo incremental for 10–30 SA vehicles at moderate routing volume — see LIVE_TRAFFIC_REGIONS.md.',
   'home.pill.driverVerification': 'Driver verification',
   'home.driverVerification.kicker': 'Compliance · NADRA & UAE KYC',
   'home.driverVerification.title': 'Digital driver verification with live provider checks',
@@ -469,6 +485,33 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.driverPerformance.f2.text': 'Distance vs logged fuel liters produces km/L bands when fuel data exists — no invented economy figures.',
   'pages.driverPerformance.f3.title': 'On-time delivery',
   'pages.driverPerformance.f3.text': 'Completed trips compared to planned end times with a grace window — on-time percent feeds the ranking.',
+  'pages.driverPerformance.clientRatingsLink': 'See public client ratings',
+
+  'pages.driverRatings.kicker': 'Trust & transparency',
+  'pages.driverRatings.title': 'Driver client ratings',
+  'pages.driverRatings.tagline': 'Real post-trip feedback from your customers — averaged on each driver profile.',
+  'pages.driverRatings.lead':
+    'After every completed trip, clients can rate politeness, on-time delivery, and vehicle condition on a 1–5 star scale. Aggregates appear here and in Nexus ERP — driver names only, never photos.',
+  'pages.driverRatings.linkPerformance': 'Internal performance scoring',
+  'pages.driverRatings.loading': 'Loading rated drivers…',
+  'pages.driverRatings.empty': 'No public ratings yet for this fleet demo tenant.',
+  'pages.driverRatings.reviews': 'Reviews',
+  'pages.driverRatings.privacy': 'We show driver first and last names and star averages only — no profile photos on the public site.',
+
+  'pages.tripFeedback.kicker': 'Trip feedback',
+  'pages.tripFeedback.title': 'Rate your trip',
+  'pages.tripFeedback.driverLine': 'Driver: {{name}}',
+  'pages.tripFeedback.hint': 'Tap stars for each category (1 = poor, 5 = excellent).',
+  'pages.tripFeedback.politeness': 'Politeness',
+  'pages.tripFeedback.onTime': 'On-time delivery',
+  'pages.tripFeedback.vehicle': 'Vehicle condition',
+  'pages.tripFeedback.comment': 'Optional comment',
+  'pages.tripFeedback.commentPh': 'Anything else we should know?',
+  'pages.tripFeedback.submit': 'Submit feedback',
+  'pages.tripFeedback.loading': 'Loading form…',
+  'pages.tripFeedback.thanksTitle': 'Thank you',
+  'pages.tripFeedback.thanksLead': 'Your rating helps us improve service for every client.',
+  'pages.tripFeedback.already': 'Feedback was already submitted for this trip.',
 
   'pages.predictiveMaintenance.kicker': 'Smart maintenance',
   'pages.predictiveMaintenance.title': 'Predictive maintenance scheduling',
@@ -500,7 +543,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.clientTracking.title': 'Shareable client tracking links',
   'pages.clientTracking.tagline': 'Customers follow shipments live — no login required.',
   'pages.clientTracking.lead':
-    'Tokenized public URLs expire and revoke like WhatsApp trip links. Mobile-friendly tracking pages show ETA, driver, and last known position.',
+    'Tokenized public URLs expire and revoke like WhatsApp trip links. Mobile-friendly tracking pages show traffic-adjusted ETA (Google Routes in AE, PK, and SA when configured), driver, and last known position.',
   'pages.clientTracking.f1.title': 'Secure tokens',
   'pages.clientTracking.f1.text': 'Hashed lookup, protected storage, and hard expiry — share only the link you generate in ERP.',
   'pages.clientTracking.f2.title': 'Mobile web',

@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DriverService } from '../../../core/services/driver.service';
+import { DriverClientRatingSummary, TripFeedbackService } from '../../../core/services/trip-feedback.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { Driver } from '../../../core/models/driver.model';
 import { Booking } from '../../../core/models/booking.model';
@@ -23,6 +24,7 @@ export class DriverProfileComponent implements OnInit {
   completedTrips = 0;
   totalRevenue = 0;
   licenseExpiringSoon = false;
+  clientRatings: DriverClientRatingSummary | null = null;
 
   bookingColumns = ['bookingNumber', 'customerName', 'pickupTime', 'totalAmount', 'status'];
 
@@ -30,7 +32,8 @@ export class DriverProfileComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private driverService: DriverService,
-    private bookingService: BookingService
+    private bookingService: BookingService,
+    private tripFeedbackService: TripFeedbackService
   ) {}
 
   ngOnInit(): void {
@@ -42,10 +45,12 @@ export class DriverProfileComponent implements OnInit {
     forkJoin({
       driver: this.driverService.getById(id),
       performance: this.driverService.getPerformanceSummary(id).pipe(catchError(() => of(null))),
+      clientRatings: this.tripFeedbackService.getDriverSummary(id).pipe(catchError(() => of(null))),
       bookings: this.bookingService.getAll(1, 50).pipe(catchError(() => of({ items: [] as Booking[] })))
     }).subscribe({
-      next: ({ driver, performance, bookings }) => {
+      next: ({ driver, performance, clientRatings, bookings }) => {
         this.driver = driver;
+        this.clientRatings = clientRatings;
         this.licenseExpiringSoon = !!driver.licenseExpiringSoon || !!driver.licenseExpired;
 
         if (performance) {

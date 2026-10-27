@@ -3,6 +3,7 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { DriverScore } from '../../../core/models/gps-tracking.model';
 import { UiTableColumn } from '../../../shared/components/ui';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { toDateInputValue } from '../../../core/utils/date-input.util';
 import {
   TripDatePreset,
   ANALYTICS_DATE_PRESETS,
@@ -47,8 +48,8 @@ export class DriverPerformancePageComponent implements OnInit {
   applyPreset(preset: TripDatePreset): void {
     this.datePreset = preset;
     const range = applyTripDatePreset(preset);
-    this.from = range.from;
-    this.to = range.to;
+    this.from = toDateInputValue(range.from);
+    this.to = toDateInputValue(range.to);
     this.dateRangeError = validateAnalyticsDateRange(this.from, this.to);
   }
 

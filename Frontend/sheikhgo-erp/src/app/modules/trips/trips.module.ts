@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { GoogleMapsModule } from '@angular/google-maps';
 import { SharedModule } from '../../shared/shared.module';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
+import { UiEmptyStateComponent } from '../../shared/components/ui/empty-state/ui-empty-state.component';
 import { TripsLayoutComponent } from './trips-layout.component';
 import { TripDashboardComponent } from './trip-dashboard/trip-dashboard.component';
 import { TripListComponent } from './trip-list/trip-list.component';
@@ -49,6 +50,6 @@ function tripIdCanMatch(route: import('@angular/router').Route, segments: import
     TripReportsComponent,
     TripSmartAssignmentComponent
   ],
-  imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes), UiButtonComponent]
+  imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes), UiButtonComponent, UiEmptyStateComponent]
 })
 export class TripsModule {}

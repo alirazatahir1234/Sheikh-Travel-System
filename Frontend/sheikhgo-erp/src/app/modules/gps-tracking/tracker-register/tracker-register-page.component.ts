@@ -2,7 +2,7 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, filter, finalize, forkJoin, of, switchMap } from 'rxjs';
+import { catchError, filter, finalize, forkJoin, of, switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TrackerCatalogService } from '../../../core/services/tracker-catalog.service';

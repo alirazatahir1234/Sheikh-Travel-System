@@ -6,6 +6,7 @@ import {
   RouteAccidentRisk
 } from '../../../core/models/gps-tracking.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { toDateInputValue } from '../../../core/utils/date-input.util';
 import {
   TripDatePreset,
   ANALYTICS_DATE_PRESETS,
@@ -50,8 +51,8 @@ export class AccidentRiskPageComponent implements OnInit {
   applyPreset(preset: TripDatePreset): void {
     this.datePreset = preset;
     const range = applyTripDatePreset(preset);
-    this.from = range.from;
-    this.to = range.to;
+    this.from = toDateInputValue(range.from);
+    this.to = toDateInputValue(range.to);
     this.dateRangeError = validateAnalyticsDateRange(this.from, this.to);
   }
 

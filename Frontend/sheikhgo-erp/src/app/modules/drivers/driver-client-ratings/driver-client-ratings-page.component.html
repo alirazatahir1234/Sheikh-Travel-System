@@ -1,0 +1,59 @@
+<div class="page-header">
+  <div>
+    <h2>Client driver ratings</h2>
+    <p class="subtitle">Post-trip feedback from email and WhatsApp — fleet managers see all; admins can hide entries from public averages.</p>
+  </div>
+  <a mat-stroked-button routerLink="/drivers"><mat-icon>arrow_back</mat-icon> Drivers</a>
+</div>
+
+<div class="filters">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Driver ID (optional)</mat-label>
+    <input matInput type="number" [(ngModel)]="driverIdFilter" (keyup.enter)="page = 1; load()" />
+  </mat-form-field>
+  <mat-slide-toggle [(ngModel)]="includeHidden" (change)="page = 1; load()">Show hidden</mat-slide-toggle>
+  <button mat-raised-button color="primary" (click)="page = 1; load()">Apply</button>
+</div>
+
+<app-brand-loader *ngIf="loading" />
+
+<table mat-table [dataSource]="rows" *ngIf="!loading" class="ratings-table">
+  <ng-container matColumnDef="trip">
+    <th mat-header-cell *matHeaderCellDef>Trip</th>
+    <td mat-cell *matCellDef="let r">{{ r.tripNumber || r.tripId }}</td>
+  </ng-container>
+  <ng-container matColumnDef="driver">
+    <th mat-header-cell *matHeaderCellDef>Driver</th>
+    <td mat-cell *matCellDef="let r">{{ r.driverName || '—' }}</td>
+  </ng-container>
+  <ng-container matColumnDef="scores">
+    <th mat-header-cell *matHeaderCellDef>Scores (1–5)</th>
+    <td mat-cell *matCellDef="let r">
+      <span class="score-chip" title="Politeness">P {{ r.politeness ?? r.score }}</span>
+      <span class="score-chip" title="On-time">T {{ r.onTimeDelivery ?? r.score }}</span>
+      <span class="score-chip" title="Vehicle">V {{ r.vehicleCondition ?? r.score }}</span>
+      <strong class="avg">Ø {{ avgStars(r) }}</strong>
+    </td>
+  </ng-container>
+  <ng-container matColumnDef="source">
+    <th mat-header-cell *matHeaderCellDef>Source</th>
+    <td mat-cell *matCellDef="let r">{{ r.source }}</td>
+  </ng-container>
+  <ng-container matColumnDef="date">
+    <th mat-header-cell *matHeaderCellDef>Submitted</th>
+    <td mat-cell *matCellDef="let r">{{ r.createdAt | date: 'medium' }}</td>
+  </ng-container>
+  <ng-container matColumnDef="actions">
+    <th mat-header-cell *matHeaderCellDef></th>
+    <td mat-cell *matCellDef="let r">
+      <button mat-icon-button *ngIf="canManage" (click)="toggleHidden(r)" [matTooltip]="r.isHidden ? 'Show on public profile' : 'Hide from public profile'">
+        <mat-icon>{{ r.isHidden ? 'visibility_off' : 'visibility' }}</mat-icon>
+      </button>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns" [class.row-hidden]="row.isHidden"></tr>
+</table>
+
+<p *ngIf="!loading && !rows.length" class="empty">No client ratings yet — they appear after trip completion when customers submit feedback.</p>

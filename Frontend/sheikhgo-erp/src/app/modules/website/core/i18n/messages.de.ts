@@ -422,6 +422,33 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.driverPerformance.f2.text': 'Strecke zu geloggten Litern — keine erfundenen km/L.',
   'pages.driverPerformance.f3.title': 'Pünktliche Zustellung',
   'pages.driverPerformance.f3.text': 'Abgeschlossene Fahrten vs. Plan-Ende mit Toleranzfenster.',
+  'pages.driverPerformance.clientRatingsLink': 'Öffentliche Kundenbewertungen',
+
+  'pages.driverRatings.kicker': 'Vertrauen & Transparenz',
+  'pages.driverRatings.title': 'Kundenbewertungen für Fahrer',
+  'pages.driverRatings.tagline': 'Echtes Feedback nach jeder Fahrt — gemittelt im Fahrerprofil.',
+  'pages.driverRatings.lead':
+    'Nach Abschluss bewerten Kunden Höflichkeit, Pünktlichkeit und Fahrzeugzustand (1–5). Durchschnitte hier und im ERP — nur Namen, keine Fotos.',
+  'pages.driverRatings.linkPerformance': 'Internes Performance-Scoring',
+  'pages.driverRatings.loading': 'Bewertete Fahrer werden geladen…',
+  'pages.driverRatings.empty': 'Noch keine öffentlichen Bewertungen.',
+  'pages.driverRatings.reviews': 'Bewertungen',
+  'pages.driverRatings.privacy': 'Nur Name und Sterne-Durchschnitt — keine Profilfotos auf der Website.',
+
+  'pages.tripFeedback.kicker': 'Fahrt-Feedback',
+  'pages.tripFeedback.title': 'Bewerten Sie Ihre Fahrt',
+  'pages.tripFeedback.driverLine': 'Fahrer: {{name}}',
+  'pages.tripFeedback.hint': 'Sterne pro Kategorie (1 = schlecht, 5 = ausgezeichnet).',
+  'pages.tripFeedback.politeness': 'Höflichkeit',
+  'pages.tripFeedback.onTime': 'Pünktliche Zustellung',
+  'pages.tripFeedback.vehicle': 'Fahrzeugzustand',
+  'pages.tripFeedback.comment': 'Optionaler Kommentar',
+  'pages.tripFeedback.commentPh': 'Noch etwas mitteilen?',
+  'pages.tripFeedback.submit': 'Feedback senden',
+  'pages.tripFeedback.loading': 'Formular wird geladen…',
+  'pages.tripFeedback.thanksTitle': 'Danke',
+  'pages.tripFeedback.thanksLead': 'Ihre Bewertung hilft uns, den Service zu verbessern.',
+  'pages.tripFeedback.already': 'Feedback wurde für diese Fahrt bereits abgegeben.',
 
   'pages.predictiveMaintenance.kicker': 'Smart Maintenance',
   'pages.predictiveMaintenance.title': 'Predictive Maintenance Scheduling',
@@ -525,4 +552,20 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.smartAssignment.adminTitle': 'Admin-Override & Audit',
   'home.smartAssignment.adminText':
     'Smart-Assignment-Bereich unter Fleet Operations mit Faktorgewichten und Entscheidungshistorie für Demos.',
+  'home.pill.liveTraffic': 'Live-Verkehr',
+  'home.liveTraffic.kicker': 'Dubai · Pakistan · Saudi-Arabien',
+  'home.liveTraffic.title': 'Echtzeit-Verkehr auf jeder Route',
+  'home.liveTraffic.lead':
+    'Verkehrsbewusste ETAs via Google Routes in ERP, Fahrer-Navigation und öffentlichen Tracking-Links — für Flotten in VAE, Pakistan und Saudi-Arabien. Kein simulierter Stau; ohne Maps klar als Luftlinien-Schätzung gekennzeichnet.',
+  'home.liveTraffic.erpTitle': 'ERP & Smart Assignment',
+  'home.liveTraffic.erpText':
+    'Trip-Formulare, Routenplanung und Smart Assignment nutzen TRAFFIC_AWARE Compute Routes mit Server-Key — dieselbe Quelle in der Erklärbarkeit.',
+  'home.liveTraffic.mobileTitle': 'Fahrer-Navigation',
+  'home.liveTraffic.mobileText':
+    'In-App-Karten mit Google-Verkehrslayer und aktualisierten Fahrzeiten von Live-GPS zu Abholung oder Ziel.',
+  'home.liveTraffic.trackingTitle': 'Kunden-Tracking-Links',
+  'home.liveTraffic.trackingText':
+    'Öffentliche /t/{token}-Seiten mit verkehrsangepasster ETA (leicht/mittel/stark), wenn Routes aktiv ist.',
+  'home.liveTraffic.costNote':
+    'Saudi-Arabien: gleiche Routes-Pro-SKU wie VAE/PK. Schätzung: ca. +24–72 USD/Monat für 10–30 SA-Fahrzeuge bei moderatem Routing — siehe LIVE_TRAFFIC_REGIONS.md.',
 };

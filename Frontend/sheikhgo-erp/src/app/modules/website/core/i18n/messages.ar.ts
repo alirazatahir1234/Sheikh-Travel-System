@@ -417,6 +417,33 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.driverPerformance.f2.text': 'المسافة مقابل اللترات المسجلة — بدون أرقام وهمية.',
   'pages.driverPerformance.f3.title': 'الالتزام بالموعد',
   'pages.driverPerformance.f3.text': 'مقارنة الإنهاء الفعلي بالموعد الم planned مع هامش سماح.',
+  'pages.driverPerformance.clientRatingsLink': 'عرض تقييمات العملاء العامة',
+
+  'pages.driverRatings.kicker': 'الثقة والشفافية',
+  'pages.driverRatings.title': 'تقييمات العملاء للسائقين',
+  'pages.driverRatings.tagline': 'ملاحظات حقيقية بعد كل رحلة — متوسطات على ملف كل سائق.',
+  'pages.driverRatings.lead':
+    'بعد اكتمال الرحلة يقيّم العميل الأدب والالتزام بالموعد وحالة المركبة (1–5). المتوسطات تظهر هنا وفي ERP — أسماء السائقين فقط بدون صور.',
+  'pages.driverRatings.linkPerformance': 'تقييم الأداء الداخلي',
+  'pages.driverRatings.loading': 'جاري تحميل السائقين…',
+  'pages.driverRatings.empty': 'لا توجد تقييمات عامة بعد.',
+  'pages.driverRatings.reviews': 'التقييمات',
+  'pages.driverRatings.privacy': 'نعرض الأسماء ومتوسط النجوم فقط — بدون صور على الموقع العام.',
+
+  'pages.tripFeedback.kicker': 'تقييم الرحلة',
+  'pages.tripFeedback.title': 'قيّم رحلتك',
+  'pages.tripFeedback.driverLine': 'السائق: {{name}}',
+  'pages.tripFeedback.hint': 'اضغط النجوم لكل فئة (1 = ضعيف، 5 = ممتاز).',
+  'pages.tripFeedback.politeness': 'الأدب',
+  'pages.tripFeedback.onTime': 'الالتزام بالموعد',
+  'pages.tripFeedback.vehicle': 'حالة المركبة',
+  'pages.tripFeedback.comment': 'تعليق اختياري',
+  'pages.tripFeedback.commentPh': 'هل لديك ملاحظة إضافية؟',
+  'pages.tripFeedback.submit': 'إرسال التقييم',
+  'pages.tripFeedback.loading': 'جاري تحميل النموذج…',
+  'pages.tripFeedback.thanksTitle': 'شكراً لك',
+  'pages.tripFeedback.thanksLead': 'تقييمك يساعدنا على تحسين الخدمة.',
+  'pages.tripFeedback.already': 'تم إرسال التقييم مسبقاً لهذه الرحلة.',
 
   'pages.predictiveMaintenance.kicker': 'صيانة ذكية',
   'pages.predictiveMaintenance.title': 'جدولة الصيانة الت predictive',
@@ -506,6 +533,22 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.smartAssignment.adminTitle': 'تجاوز المسؤول وسجل',
   'home.smartAssignment.adminText':
     'مساحة Smart Assignment في عمليات الأسطول مع أوزان العوامل وسجل القرارات للعروض.',
+  'home.pill.liveTraffic': 'حركة مرور مباشرة',
+  'home.liveTraffic.kicker': 'دبي · باكستان · السعودية',
+  'home.liveTraffic.title': 'حركة مرور فورية على كل مسار',
+  'home.liveTraffic.lead':
+    'أوقات وصول مع Google Routes في ERP والتطبيق وروابط تتبع العملاء — للأساطيل في الإمارات وباكستان والسعودية. بلا ازدحام وهمي؛ عند غياب Maps تظهر تقديرات خطية بوضوح.',
+  'home.liveTraffic.erpTitle': 'ERP والتعيين الذكي',
+  'home.liveTraffic.erpText':
+    'نماذج الرحلات والمسارات والتعيين الذكي تستخدم TRAFFIC_AWARE عند تفعيل مفتاح الخادم — نفس الإشارة في تفسير التعيين.',
+  'home.liveTraffic.mobileTitle': 'ملاحة السائق',
+  'home.liveTraffic.mobileText':
+    'خرائط التطبيق تعرض طبقة المرور وأوقات القيادة المحدّثة من GPS إلى الالتقاط أو التسليم.',
+  'home.liveTraffic.trackingTitle': 'روابط تتبع العملاء',
+  'home.liveTraffic.trackingText':
+    'صفحات /t/{token} تعرض ETA معدّل بالمرور (خفيف/متوسط/كثيف) عند تفعيل Routes — وإلا تقديرات موثّقة.',
+  'home.liveTraffic.costNote':
+    'السعودية تستخدم نفس SKU Routes Pro مثل الإمارات/باكستان. بحث داخلي: تقريباً +24–72$/شهر لـ 10–30 مركبة SA عند استخدام متوسط — راجع LIVE_TRAFFIC_REGIONS.md.',
   'home.pill.driverVerification': 'تحقق السائق',
   'home.driverVerification.kicker': 'امتثال · NADRA و KYC الإمارات',
   'home.driverVerification.title': 'تحقق رقمي من السائق مع مزودين حقيقيين',

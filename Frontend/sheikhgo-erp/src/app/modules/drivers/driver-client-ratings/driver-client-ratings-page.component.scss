@@ -1,0 +1,40 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.subtitle {
+  color: #64748b;
+  margin: 0.25rem 0 0;
+  max-width: 42rem;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.ratings-table {
+  width: 100%;
+}
+.score-chip {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-size: 0.85rem;
+}
+.avg {
+  margin-left: 0.25rem;
+}
+.row-hidden {
+  opacity: 0.55;
+}
+.empty {
+  color: #64748b;
+  padding: 2rem 0;
+}

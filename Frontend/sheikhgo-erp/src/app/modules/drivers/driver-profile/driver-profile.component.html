@@ -82,6 +82,14 @@
         <span class="stat-label">Total Revenue</span>
       </div>
     </mat-card>
+    <mat-card class="stat-card" *ngIf="clientRatings as cr">
+      <mat-icon>star_rate</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ cr.averageRating ?? '—' }}<small *ngIf="cr.reviewCount"> ({{ cr.reviewCount }})</small></span>
+        <span class="stat-label">Client rating avg</span>
+        <span class="stat-sub" *ngIf="cr.reviewCount">P {{ cr.avgPoliteness ?? '—' }} · T {{ cr.avgOnTime ?? '—' }} · V {{ cr.avgVehicle ?? '—' }}</span>
+      </div>
+    </mat-card>
   </div>
 
   <!-- Recent Bookings -->

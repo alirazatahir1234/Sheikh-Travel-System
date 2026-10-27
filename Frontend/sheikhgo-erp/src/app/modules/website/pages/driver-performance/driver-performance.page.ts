@@ -20,6 +20,7 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
           <div class="hero-actions">
             <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemo' | wsTranslate }}</a>
             <a routerLink="/live-tracking" class="btn btn-ghost">{{ 'common.liveTrackingArrow' | wsTranslate }}</a>
+            <a routerLink="/driver-ratings" class="btn btn-ghost">{{ 'pages.driverPerformance.clientRatingsLink' | wsTranslate }}</a>
           </div>
         </div>
       </div>
