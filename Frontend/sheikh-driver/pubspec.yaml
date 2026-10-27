@@ -82,16 +82,16 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/app_icon.png
-    - assets/branding/sheikhgo_logo.png
+    - assets/branding/sheikhgo_nexus_logo.png
     - assets/icons/playback/
 
+# Native layer: solid brand navy only (no bitmap — avoids black-matte logo artifacts).
+# Full Nexus logo + loader animation live in Flutter `SplashScreen`.
 flutter_native_splash:
   color: "#0A1628"
   color_dark: "#0A1628"
-  image: assets/branding/sheikhgo_logo.png
   android_12:
     color: "#0A1628"
-    image: assets/branding/sheikhgo_logo.png
   ios: true
   android: true
 

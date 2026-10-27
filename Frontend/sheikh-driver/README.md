@@ -13,13 +13,17 @@ Mobile tracking & fleet operations for **Owners** (live map, drivers, fuel) and 
 
 ## Splash / native launch
 
-After changing `assets/branding/sheikhgo_logo.png` or `flutter_native_splash` in `pubspec.yaml`:
+Native iOS/Android launch is **solid brand navy** (`#0A1628`) only — no bitmap logo (avoids black-matte compression on OS splash).
+
+The official Nexus logo + animated loader appear on the Flutter route `/splash` (`SplashScreen`, min ~2s, then login or dashboard).
+
+After changing `flutter_native_splash` in `pubspec.yaml`:
 
 ```bash
 dart run flutter_native_splash:create
 ```
 
-The in-app splash route is `/splash` (2s minimum, then login or dashboard).
+In-app logo asset: `assets/branding/sheikhgo_nexus_logo.png` (ERP login v8, transparent).
 
 ## Install Flutter (one-time, macOS)
 

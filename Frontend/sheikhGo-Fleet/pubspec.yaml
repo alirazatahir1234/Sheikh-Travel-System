@@ -74,7 +74,15 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/app_icon.png
-    - assets/branding/sheikhgo_logo.png
+    - assets/branding/sheikhgo_nexus_logo.png
+
+flutter_native_splash:
+  color: "#0A1628"
+  color_dark: "#0A1628"
+  android_12:
+    color: "#0A1628"
+  ios: true
+  android: true
 
 flutter_launcher_icons:
   android: true

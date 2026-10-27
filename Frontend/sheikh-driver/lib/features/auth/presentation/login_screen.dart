@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/app_brand.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/providers/locale_provider.dart';
 import '../../../core/providers/theme_provider.dart';
@@ -115,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
                   ),
                   child: Image.asset(
-                    'assets/branding/sheikhgo_logo.png',
+                    AppBrand.logoAsset,
                     fit: BoxFit.contain,
                   ),
                 ),
