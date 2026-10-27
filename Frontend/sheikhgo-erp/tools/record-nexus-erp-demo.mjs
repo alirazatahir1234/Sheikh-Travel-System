@@ -8,7 +8,7 @@
  *   STITCH_ONLY=1 node tools/record-nexus-erp-demo.mjs
  */
 import { chromium } from 'playwright';
-import { mkdir, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, rm, readdir, copyFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -103,7 +103,7 @@ async function smoothScroll(page, deltaY, steps = 10, pauseMs = 70) {
 }
 
 async function recordSegment(slug, run) {
-  const browser = await chromium.launch({ channel: 'chromium', headless: true });
+  const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: 1,
@@ -114,24 +114,27 @@ async function recordSegment(slug, run) {
   const page = await context.newPage();
   page.setDefaultTimeout(60000);
 
+  let dest;
   try {
     await run(page);
   } finally {
     await page.waitForTimeout(800).catch(() => undefined);
     const video = page.video();
-    const dest = join(SEG_DIR, `${slug}.webm`);
-    if (video) {
-      await video.saveAs(dest);
-    }
+    dest = join(SEG_DIR, `${slug}.webm`);
     await context.close();
-    await browser.close();
     if (!video) throw new Error(`no video for segment ${slug}`);
-    return dest;
+    const src = await video.path();
+    if (!src || !existsSync(src)) {
+      throw new Error(`video file missing after context close for segment ${slug}`);
+    }
+    await copyFile(src, dest);
+    await browser.close();
   }
+  return dest;
 }
 
 async function login(page) {
-  await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/auth/login`, { waitUntil: 'domcontentloaded' });
   await dismissDevOverlays(page);
   await page.fill('#login-email', EMAIL);
   await page.fill('#login-password', PASSWORD);
@@ -172,18 +175,40 @@ async function showModuleCaption(page, label) {
   }, label);
 }
 
+async function waitForLiveMapReady(page) {
+  const refreshBtn = page.locator('button[matTooltip*="Refresh"], button[aria-label*="Refresh"]').first();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const card = page.locator('.vehicle-card').first();
+    if (await card.isVisible().catch(() => false)) {
+      await page.waitForTimeout(1200);
+      return;
+    }
+    if (await refreshBtn.isVisible().catch(() => false)) {
+      await refreshBtn.click().catch(() => undefined);
+    }
+    await page.waitForTimeout(3500);
+  }
+  await page
+    .locator('.vehicle-card')
+    .first()
+    .waitFor({ state: 'visible', timeout: 20000 })
+    .catch(() => undefined);
+}
+
 async function visitModule(page, mod) {
   const dwell = mod.shotMs ?? SHOT_DEFAULT;
-  await page.goto(`${BASE}${mod.path}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}${mod.path}`, { waitUntil: 'domcontentloaded' });
   await waitForErpShell(page);
   await page.waitForTimeout(1200);
   await dismissDevOverlays(page);
-  await showModuleCaption(page, mod.label);
-  await page.waitForTimeout(dwell);
-  if (mod.path.includes('live')) {
+  if (mod.path.includes('/gps-tracking/live')) {
+    await waitForLiveMapReady(page);
     await smoothScroll(page, 400, 8, 60);
     await page.waitForTimeout(900);
-  } else if (mod.path === '/reports') {
+  }
+  await showModuleCaption(page, mod.label);
+  await page.waitForTimeout(dwell);
+  if (mod.path === '/reports') {
     await smoothScroll(page, 320, 6, 55);
     await page.waitForTimeout(700);
   }
@@ -235,7 +260,7 @@ async function makeSceneCard(outPath, opts) {
     imagePublicPath = DRIVER_MOCK_IMAGE,
   } = opts;
   const pngPath = outPath.replace(/\.mp4$/i, '.png');
-  const browser = await chromium.launch({ channel: 'chromium', headless: true });
+  const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: VIEWPORT });
   const esc = s =>
     String(s)
@@ -243,7 +268,11 @@ async function makeSceneCard(outPath, opts) {
       .replace(/</g, '&lt;')
       .replace(/"/g, '&quot;');
   const imageFile = join(ERP_ROOT, 'public', imagePublicPath);
-  const imageSrc = existsSync(imageFile) ? `file://${imageFile}` : '';
+  let imageSrc = '';
+  if (existsSync(imageFile)) {
+    const imageBytes = await readFile(imageFile);
+    imageSrc = `data:image/png;base64,${imageBytes.toString('base64')}`;
+  }
 
   let body = '';
   if (variant === 'faq') {
@@ -411,11 +440,20 @@ async function loadExistingSegments() {
 
 async function main() {
   const stitchOnly = process.env.STITCH_ONLY === '1';
+  const lockPath = join(SEG_DIR, '.recording.lock');
   if (!stitchOnly) {
+    if (existsSync(lockPath)) {
+      throw new Error(
+        `Another recording may be in progress (lock: ${lockPath}). Remove the lock if no recorder is running.`,
+      );
+    }
     await rm(SEG_DIR, { recursive: true, force: true });
   }
   await mkdir(SEG_DIR, { recursive: true });
   await mkdir(OUT_DIR, { recursive: true });
+  if (!stitchOnly) {
+    await writeFile(lockPath, `${process.pid} ${new Date().toISOString()}\n`);
+  }
 
   let segments = stitchOnly ? await loadExistingSegments() : [];
 
@@ -485,7 +523,7 @@ async function main() {
     console.log('Recording: Book a Demo CTA…');
     segments.push(
       await recordSegment('05-book-demo', async page => {
-        await page.goto(`${BASE}/request-demo`, { waitUntil: 'networkidle' });
+        await page.goto(`${BASE}/request-demo`, { waitUntil: 'domcontentloaded' });
         const acceptCookies = page.getByRole('button', { name: 'Accept All' });
         if (await acceptCookies.isVisible().catch(() => false)) {
           await acceptCookies.click();
@@ -618,9 +656,16 @@ async function main() {
   );
 
   console.log('Done:', FINAL_MP4);
+  if (existsSync(lockPath)) {
+    await rm(lockPath, { force: true });
+  }
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error(err);
+  const lockPath = join(SEG_DIR, '.recording.lock');
+  if (existsSync(lockPath)) {
+    await rm(lockPath, { force: true }).catch(() => undefined);
+  }
   process.exit(1);
 });
