@@ -25,8 +25,8 @@
     <div class="map-panel" [class.map-panel--editing]="showForm">
       <div #mapEl class="gmap-host" [class.hidden]="!!mapError"></div>
 
-      <div class="map-chrome" *ngIf="!mapError">
-        <div class="map-search" [class.map-search--pending]="!mapReady">
+      <div class="map-chrome">
+        <div class="map-search" [class.map-search--pending]="!mapReady || !!mapError">
           <mat-icon class="map-search__ico" aria-hidden="true">search</mat-icon>
           <input
             #placeSearchInput
@@ -35,26 +35,26 @@
             autocomplete="off"
             placeholder="Search place or address…"
             [attr.aria-label]="'Search place for geofence'"
-            [disabled]="!mapReady || placesSearchUnavailable" />
-          <span class="map-search__hint" *ngIf="placesSearchUnavailable">Places search unavailable</span>
+            [disabled]="!mapReady || !!mapError || placesSearchUnavailable" />
+          <span class="map-search__hint" *ngIf="placesSearchUnavailable || mapError">Places search unavailable</span>
           <button
-            *ngIf="mapReady && placeSearchLabel"
+            *ngIf="mapReady && !mapError && placeSearchLabel"
             type="button"
             class="map-search__clear"
             (click)="clearPlaceSearch()"
             matTooltip="Clear pin">
             <mat-icon>close</mat-icon>
           </button>
-          <span class="map-search__hint" *ngIf="mapReady && placeSearchLabel" [title]="placeSearchLabel">
+          <span class="map-search__hint" *ngIf="mapReady && !mapError && placeSearchLabel" [title]="placeSearchLabel">
             {{ placeSearchLabel }}
           </span>
         </div>
-        <div class="map-toolbar" [class.map-toolbar--disabled]="!mapReady">
+        <div class="map-toolbar" [class.map-toolbar--disabled]="!mapReady || !!mapError">
           <button
             type="button"
             class="tool-btn"
             [class.active]="drawMode === 'circle' || (!drawMode && form.value.areaType === 'circle' && showForm)"
-            [disabled]="!mapReady || shapeLocked"
+            [disabled]="!mapReady || !!mapError || shapeLocked"
             (click)="selectShapeType('circle')"
             matTooltip="Draw circle">
             <mat-icon>radio_button_unchecked</mat-icon>
@@ -64,7 +64,7 @@
             type="button"
             class="tool-btn"
             [class.active]="drawMode === 'polygon' || (!drawMode && form.value.areaType === 'polygon' && showForm)"
-            [disabled]="!mapReady || shapeLocked"
+            [disabled]="!mapReady || !!mapError || shapeLocked"
             (click)="selectShapeType('polygon')"
             matTooltip="Draw polygon">
             <mat-icon>pentagon</mat-icon>
@@ -74,7 +74,7 @@
             type="button"
             class="tool-btn"
             [class.active]="drawMode === 'rectangle' || (!drawMode && form.value.areaType === 'rectangle' && showForm)"
-            [disabled]="!mapReady || shapeLocked"
+            [disabled]="!mapReady || !!mapError || shapeLocked"
             (click)="selectShapeType('rectangle')"
             matTooltip="Draw rectangle">
             <mat-icon>crop_square</mat-icon>
@@ -83,14 +83,14 @@
           <button
             type="button"
             class="tool-btn tool-btn--muted"
-            [disabled]="!mapReady || shapeLocked || !showForm"
+            [disabled]="!mapReady || !!mapError || shapeLocked || !showForm"
             (click)="clearDraftShape()"
             matTooltip="Clear draft shape">
             <mat-icon>layers_clear</mat-icon>
             Clear
           </button>
         </div>
-        <div class="map-edit-banner" *ngIf="showForm">
+        <div class="map-edit-banner" *ngIf="showForm && !mapError">
           <mat-icon>{{ editGeofence ? 'edit_location_alt' : 'add_location_alt' }}</mat-icon>
           <span>{{ editGeofence ? 'Editing' : 'Creating' }} — adjust draft on the map, then save.</span>
         </div>

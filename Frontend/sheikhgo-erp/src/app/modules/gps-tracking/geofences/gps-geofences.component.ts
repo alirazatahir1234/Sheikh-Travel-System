@@ -552,6 +552,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private beginCreateForm(placeDefaultCircle: boolean): void {
     this.editGeofence = null;
+    this.showAssign = false;
+    this.showPostCreatePrompt = false;
     this.formVehicleIds = new Set();
     this.formVehicleSearch = '';
     this.assignBranchId = null;
