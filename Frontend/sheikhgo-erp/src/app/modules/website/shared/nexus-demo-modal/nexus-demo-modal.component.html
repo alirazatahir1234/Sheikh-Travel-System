@@ -3,16 +3,48 @@
     class="demo-modal"
     role="dialog"
     aria-modal="true"
-    [attr.aria-label]="videoTitle"
+    [attr.aria-label]="mode() === 'promo' ? promoTitle : erpTitle"
     (click)="$event.stopPropagation()"
   >
     <header class="demo-modal-head">
       <div>
-        <p class="demo-modal-kicker">Product walkthrough</p>
-        <h2>{{ videoTitle }}</h2>
-        <p class="demo-modal-lead">
-          ~2½ min inside the logged-in Nexus ERP — sidebar, GPS, bookings, finance, WhatsApp, and AI.
+        <p class="demo-modal-kicker">
+          {{
+            mode() === 'promo'
+              ? ('common.productPromoKicker' | wsTranslate)
+              : ('common.productWalkthroughKicker' | wsTranslate)
+          }}
         </p>
+        <h2>{{ mode() === 'promo' ? promoTitle : erpTitle }}</h2>
+        <p class="demo-modal-lead">
+          {{
+            mode() === 'promo'
+              ? ('common.productPromoLead' | wsTranslate)
+              : ('common.productWalkthroughLead' | wsTranslate)
+          }}
+        </p>
+        <div class="demo-modal-tabs" role="tablist" [attr.aria-label]="'common.demoVideos' | wsTranslate">
+          <button
+            type="button"
+            role="tab"
+            class="demo-modal-tab"
+            [class.is-active]="mode() === 'erp'"
+            [attr.aria-selected]="mode() === 'erp'"
+            (click)="setMode('erp')"
+          >
+            {{ 'common.watchDemo' | wsTranslate }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="demo-modal-tab"
+            [class.is-active]="mode() === 'promo'"
+            [attr.aria-selected]="mode() === 'promo'"
+            (click)="setMode('promo')"
+          >
+            {{ 'common.watchPromo' | wsTranslate }}
+          </button>
+        </div>
       </div>
       <button type="button" class="demo-modal-close" (click)="close()" aria-label="Close demo video">
         <mat-icon aria-hidden="true">close</mat-icon>
@@ -27,10 +59,20 @@
         disablePictureInPicture
         playsinline
         preload="metadata"
-        [src]="videoSrc"
+        [src]="mode() === 'promo' ? promoSrc : erpSrc"
         (canplay)="onCanPlay()"
         (dragstart)="$event.preventDefault()"
+        [attr.crossorigin]="mode() === 'promo' ? 'anonymous' : null"
       >
+        @if (mode() === 'promo') {
+          <track
+            kind="captions"
+            [src]="promoCaptionsSrc"
+            srclang="en"
+            label="English"
+            default
+          />
+        }
         Your browser does not support embedded video.
       </video>
     </div>
@@ -45,9 +87,15 @@
           {{ downloadInProgress ? 'Preparing download…' : 'Download ERP tour (MP4)' }}
         </button>
       }
-      <a [href]="websiteTourSrc" class="demo-modal-download demo-modal-download--secondary">
-        Marketing site tour
-      </a>
+      @if (mode() === 'promo') {
+        <a routerLink="/request-demo" class="demo-modal-download" (click)="close()">
+          {{ 'common.requestDemoArrow' | wsTranslate }}
+        </a>
+      } @else {
+        <a [href]="websiteTourSrc" class="demo-modal-download demo-modal-download--secondary">
+          Marketing site tour
+        </a>
+      }
     </footer>
   </div>
 </div>

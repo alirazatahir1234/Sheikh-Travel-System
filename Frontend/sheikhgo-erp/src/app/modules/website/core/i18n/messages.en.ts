@@ -9,6 +9,14 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'common.requestDemo': 'Request a Demo',
   'common.requestDemoArrow': 'Request a Demo →',
   'common.watchDemo': 'Watch Demo',
+  'common.watchPromo': 'Watch Promo',
+  'common.demoVideos': 'Demo videos',
+  'common.productWalkthroughKicker': 'Product walkthrough',
+  'common.productWalkthroughLead':
+    '~2½ min inside the logged-in Nexus ERP — sidebar, GPS, bookings, finance, WhatsApp, and AI.',
+  'common.productPromoKicker': 'Product promo',
+  'common.productPromoLead':
+    '2-minute SheikhGo Nexus overview — live GPS, fleet health, fuel, EV, documents, AI, and Book a Demo.',
   'common.contactUs': 'Contact Us',
   'common.contactUsArrow': 'Contact Us →',
   'common.letsTalk': "Let's Talk",

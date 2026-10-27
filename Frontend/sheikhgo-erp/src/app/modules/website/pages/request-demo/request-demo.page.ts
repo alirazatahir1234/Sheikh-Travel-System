@@ -2,6 +2,11 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteLeadsService } from '../../core/leads.service';
+import {
+  NEXUS_PROMO_120S_CAPTIONS_VTT,
+  NEXUS_PROMO_120S_SRC,
+  NEXUS_PROMO_120S_TITLE,
+} from '../../core/demo-media';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 @Component({
@@ -15,6 +20,10 @@ export class RequestDemoPage implements OnInit {
   private readonly seo = inject(WebsiteSeoService);
   private readonly leads = inject(WebsiteLeadsService);
   private readonly fb = inject(FormBuilder);
+
+  readonly promoSrc = NEXUS_PROMO_120S_SRC;
+  readonly promoCaptionsSrc = NEXUS_PROMO_120S_CAPTIONS_VTT;
+  readonly promoTitle = NEXUS_PROMO_120S_TITLE;
 
   readonly submitting = signal(false);
   readonly status = signal<{ type: 'ok' | 'err'; text: string } | null>(null);

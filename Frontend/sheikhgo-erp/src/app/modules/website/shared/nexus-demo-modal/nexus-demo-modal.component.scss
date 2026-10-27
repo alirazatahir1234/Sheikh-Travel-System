@@ -52,6 +52,39 @@
   max-width: 52ch;
 }
 
+.demo-modal-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.demo-modal-tab {
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+}
+
+.demo-modal-tab.is-active {
+  color: #032f32;
+  background: #99f6e4;
+}
+
+.demo-modal-tab:hover:not(.is-active) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .demo-modal-close {
   flex-shrink: 0;
   display: inline-flex;

@@ -12,6 +12,10 @@
           <mat-icon aria-hidden="true">play_circle</mat-icon>
           {{ 'common.watchDemo' | wsTranslate }}
         </button>
+        <button type="button" class="btn btn-ghost" id="watch-promo" (click)="openPromoModal()">
+          <mat-icon aria-hidden="true">movie</mat-icon>
+          {{ 'common.watchPromo' | wsTranslate }}
+        </button>
         <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost btn-compact">
           {{ 'home.hero.seeDashboard' | wsTranslate }}
         </a>
@@ -552,11 +556,15 @@
         <mat-icon aria-hidden="true">play_circle</mat-icon>
         {{ 'common.watchDemo' | wsTranslate }}
       </button>
+      <button type="button" class="btn btn-ghost" (click)="openPromoModal()">
+        <mat-icon aria-hidden="true">movie</mat-icon>
+        {{ 'common.watchPromo' | wsTranslate }}
+      </button>
       <a routerLink="/contact" class="btn btn-ghost">{{ 'common.contactUs' | wsTranslate }}</a>
     </div>
   </div>
 </section>
 
 @if (demoModalOpen()) {
-  <app-nexus-demo-modal (closed)="closeDemoModal()" />
+  <app-nexus-demo-modal [initialMode]="demoModalMode()" (closed)="closeDemoModal()" />
 }

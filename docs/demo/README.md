@@ -4,6 +4,7 @@
 |-------|------|
 | **ERP walkthrough video (~3 min, Watch Demo primary)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-erp-walkthrough.mp4` (prod playback: streamed — see [VIDEO-PROTECTION.md](./VIDEO-PROTECTION.md)) |
 | **ERP recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-erp-walkthrough.manifest.json` |
+| **Fleet promo (~120s, Watch Promo)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-promo-120s.mp4` (+ `.srt` / `.vtt` captions; public static) |
 | **Nexus walkthrough video (~2:57, marketing + ERP montage)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.mp4` |
 | **Recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.manifest.json` |
 | **ERP app narrated / shot list (~3 min)** | [SheikhGo-Nexus-ERP-Walkthrough-Script.md](./SheikhGo-Nexus-ERP-Walkthrough-Script.md) |

@@ -60,6 +60,41 @@
   margin-bottom: 1.15rem;
 }
 
+.aside-promo {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sg-line);
+}
+
+.aside-promo h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.45rem;
+}
+
+.aside-promo p {
+  margin: 0 0 0.85rem;
+  color: var(--sg-muted);
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.aside-promo-video {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+
+.aside-promo-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  user-select: none;
+}
+
 ol {
   list-style: none;
   margin: 0;

@@ -11,6 +11,7 @@ import { HOME_MODULE_JUMPS, NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
 import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
+import { NexusDemoModalMode } from '../../core/demo-media';
 
 @Component({
   selector: 'app-home-page',
@@ -30,6 +31,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   nexusImageError = false;
   readonly demoModalOpen = signal(false);
+  readonly demoModalMode = signal<NexusDemoModalMode>('erp');
   readonly newsPreview = NEWS_ANNOUNCEMENTS.slice(0, 4);
 
   readonly heroPerks = computed(() => {
@@ -288,12 +290,19 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openDemoModal(): void {
+    this.demoModalMode.set('erp');
+    this.demoModalOpen.set(true);
+  }
+
+  openPromoModal(): void {
+    this.demoModalMode.set('promo');
     this.demoModalOpen.set(true);
   }
 
   closeDemoModal(): void {
     this.demoModalOpen.set(false);
-    if (this.route.snapshot.fragment === 'watch-demo') {
+    const fragment = this.route.snapshot.fragment;
+    if (fragment === 'watch-demo' || fragment === 'watch-promo') {
       void this.router.navigate([], { fragment: undefined, replaceUrl: true });
     }
   }
@@ -317,6 +326,12 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
       if (fragment === 'watch-demo') {
+        this.demoModalMode.set('erp');
+        this.demoModalOpen.set(true);
+        return;
+      }
+      if (fragment === 'watch-promo') {
+        this.demoModalMode.set('promo');
         this.demoModalOpen.set(true);
         return;
       }

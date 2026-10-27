@@ -10,6 +10,14 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'common.requestDemo': 'اطلب عرضاً',
   'common.requestDemoArrow': 'اطلب عرضاً ←',
   'common.watchDemo': 'شاهد العرض',
+  'common.watchPromo': 'شاهد الإعلان',
+  'common.demoVideos': 'مقاطع العرض',
+  'common.productWalkthroughKicker': 'جولة المنتج',
+  'common.productWalkthroughLead':
+    'حوالي دقيقتين ونصف داخل Nexus ERP — الشريط الجانبي وGPS والحجوزات والمالية وواتساب والذكاء الاصطناعي.',
+  'common.productPromoKicker': 'إعلان المنتج',
+  'common.productPromoLead':
+    'نظرة عامة لمدة دقيقتين على SheikhGo Nexus — GPS مباشر وصحة الأسطول والوقود والمركبات الكهربائية والمستندات والذكاء الاصطناعي وحجز عرض.',
   'common.contactUs': 'تواصل معنا',
   'common.contactUsArrow': 'تواصل معنا ←',
   'common.letsTalk': 'لنتحدث',

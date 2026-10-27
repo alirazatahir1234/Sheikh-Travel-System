@@ -87,6 +87,32 @@
           <li><span>{{ i + 1 }}</span>{{ step }}</li>
         }
       </ol>
+
+      <div class="aside-promo">
+        <h3>{{ 'common.watchPromo' | wsTranslate }}</h3>
+        <p>{{ 'common.productPromoLead' | wsTranslate }}</p>
+        <div class="aside-promo-video" (contextmenu)="$event.preventDefault()">
+          <video
+            controls
+            controlsList="nodownload noplaybackrate"
+            disablePictureInPicture
+            playsinline
+            preload="metadata"
+            [src]="promoSrc"
+            [attr.title]="promoTitle"
+            crossorigin="anonymous"
+            (dragstart)="$event.preventDefault()"
+          >
+            <track
+              kind="captions"
+              [src]="promoCaptionsSrc"
+              srclang="en"
+              label="English"
+              default
+            />
+          </video>
+        </div>
+      </div>
     </aside>
   </div>
 </section>
