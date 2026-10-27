@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Invoices.Services;
+using SheikhTravelSystem.Application.Features.TripFeedback;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -57,7 +58,10 @@ public class UpdateTripStatusCommandHandler(
             request.CancellationReason);
 
         if (request.Status == TripStatus.Completed)
+        {
             QueueTripCompletedInvoice(tenantId, request.Id);
+            QueueTripFeedbackInvite(tenantId, request.Id);
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, $"Trip status updated to {request.Status}.");
     }
@@ -167,6 +171,24 @@ public class UpdateTripStatusCommandHandler(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Background trip invoice automation failed for trip {TripId}", tripId);
+            }
+        });
+    }
+
+    private void QueueTripFeedbackInvite(int tenantId, int tripId)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                scope.ServiceProvider.GetRequiredService<ITenantContext>().SetTenant(tenantId);
+                var feedback = scope.ServiceProvider.GetRequiredService<ITripFeedbackAutomation>();
+                await feedback.TrySendFeedbackInviteOnTripCompletedAsync(tenantId, tripId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Background trip feedback invite failed for trip {TripId}", tripId);
             }
         });
     }

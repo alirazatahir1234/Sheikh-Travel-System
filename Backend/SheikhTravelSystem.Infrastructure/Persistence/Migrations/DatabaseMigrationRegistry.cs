@@ -164,6 +164,7 @@ public static class DatabaseMigrationRegistry
             M("AiConversationContextPhase7Migration", AiConversationContextPhase7Migration.ApplyAsync),
             M("IgnitionSmsAlertsMigration", IgnitionSmsAlertsMigration.ApplyAsync),
             M("SinotrackSt901H02ProtocolMigration", SinotrackSt901H02ProtocolMigration.ApplyAsync),
+            M("DriverTripFeedbackMigration", DriverTripFeedbackMigration.ApplyAsync),
         ];
     }
 }

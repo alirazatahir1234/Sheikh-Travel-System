@@ -426,10 +426,30 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
         try
         {
             await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO TripRatings (TenantId, TripId, DriverId, Score, Source, MessageId)
-                VALUES (@TenantId, @TripId, @DriverId, @Score, N'WhatsApp', @MessageId)
+                INSERT INTO TripRatings (
+                    TenantId, TripId, DriverId, Score, Politeness, OnTimeDelivery, VehicleCondition,
+                    Source, MessageId, IsHidden)
+                VALUES (
+                    @TenantId, @TripId, @DriverId, @Score, @Score, @Score, @Score,
+                    N'WhatsApp', @MessageId, 0)
                 """, new { TenantId = tenantId, TripId = tripId, DriverId = driverId, Score = score, MessageId = messageId },
                 cancellationToken: ct));
+            if (driverId is > 0)
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE d SET Rating = agg.AvgStars, UpdatedAt = GETUTCDATE()
+                    FROM Drivers d
+                    OUTER APPLY (
+                        SELECT CAST(ROUND(AVG(
+                            (CAST(COALESCE(r.Politeness, r.Score) AS DECIMAL(5,2))
+                           + CAST(COALESCE(r.OnTimeDelivery, r.Score) AS DECIMAL(5,2))
+                           + CAST(COALESCE(r.VehicleCondition, r.Score) AS DECIMAL(5,2))) / 3.0), 2) AS DECIMAL(4,2)) AS AvgStars
+                        FROM TripRatings r
+                        WHERE r.TenantId = d.TenantId AND r.DriverId = d.Id AND r.IsHidden = 0
+                    ) agg
+                    WHERE d.Id = @DriverId AND d.TenantId = @TenantId AND d.IsDeleted = 0
+                    """, new { DriverId = driverId, TenantId = tenantId }, cancellationToken: ct));
+            }
             return true;
         }
         catch (Exception ex) when (IsUniqueViolation(ex))

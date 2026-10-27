@@ -321,6 +321,7 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-dashboard',
     'vehicles',
     'drivers',
+    'driver-client-ratings',
     'assignments',
     'live-tracking',
     'gps-trips',

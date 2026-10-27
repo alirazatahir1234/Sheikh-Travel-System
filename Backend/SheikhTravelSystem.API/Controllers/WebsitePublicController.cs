@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using SheikhTravelSystem.Application.Features.TripFeedback;
 using SheikhTravelSystem.Application.Features.Website.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -30,4 +31,8 @@ public class WebsitePublicController : BaseApiController
     [HttpGet("settings")]
     public async Task<IActionResult> GetSettings()
         => Ok(await Mediator.Send(new GetPublicSettingsQuery()));
+
+    [HttpGet("driver-ratings")]
+    public async Task<IActionResult> GetDriverRatings([FromQuery] int take = 12)
+        => Ok(await Mediator.Send(new GetPublicDriverRatingsQuery(take)));
 }

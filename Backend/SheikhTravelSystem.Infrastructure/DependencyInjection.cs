@@ -111,6 +111,9 @@ public static class DependencyInjection
             SheikhTravelSystem.Application.Features.Invoices.Services.InvoiceEmailService>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Invoices.Services.ITripInvoiceAutomation,
             SheikhTravelSystem.Application.Features.Invoices.Services.TripInvoiceAutomation>();
+        services.AddScoped<ITripFeedbackRepository, TripFeedbackRepository>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.TripFeedback.ITripFeedbackAutomation,
+            SheikhTravelSystem.Application.Features.TripFeedback.TripFeedbackAutomation>();
         services.AddScoped<IDriverSettlementRepository, DriverSettlementRepository>();
         services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
         services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();
