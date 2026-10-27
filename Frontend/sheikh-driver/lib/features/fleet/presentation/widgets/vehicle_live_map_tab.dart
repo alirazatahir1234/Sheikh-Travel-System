@@ -821,29 +821,16 @@ class _LiveActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: () =>
-                context.push('/fleet/vehicles/$vehicleId/history'),
-            icon: const Icon(Icons.play_circle_outline),
-            label: const Text('Open history playback'),
-          ),
-        ),
-        if (hasDevice) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => showVehicleCommandsSheet(context, vehicleId),
-              icon: const Icon(Icons.power_settings_new),
-              label: const Text('Engine / GPS commands'),
-            ),
-          ),
-        ],
-      ],
+    if (!hasDevice) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => showVehicleCommandsSheet(context, vehicleId),
+        icon: const Icon(Icons.power_settings_new),
+        label: const Text('Engine / GPS commands'),
+      ),
     );
   }
 }

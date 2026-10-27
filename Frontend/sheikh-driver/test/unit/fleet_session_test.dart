@@ -322,6 +322,9 @@ void main() {
       expect(routes, contains('/fleet'));
       expect(routes, isNot(contains('/ai')));
       expect(routes, contains('/earnings'));
+      // Bottom tab already exposes Drivers and Fuel — no duplicate tiles in More.
+      expect(routes, isNot(contains('/more/drivers')));
+      expect(routes, isNot(contains('/gps/fuel')));
     });
 
     test('tenant admin uses owner tracking shell', () {
@@ -341,6 +344,25 @@ void main() {
         tabs.map((t) => t.id).toList(),
         ['dashboard', 'map', 'drivers', 'fuel', 'more'],
       );
+    });
+
+    test('fleet manager more omits bottom-tab duplicates', () {
+      final session = _session(
+        roles: const [FleetRole.fleetManager],
+        permissions: const [
+          FleetPermissions.gpsView,
+          FleetPermissions.vehicleView,
+          FleetPermissions.tripView,
+          FleetPermissions.driverView,
+          FleetPermissions.reportView,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      final routes =
+          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      expect(routes, isNot(contains('/fleet/map')));
+      expect(routes, isNot(contains('/trips')));
     });
 
     test('index prefers longest path match for map tab', () {

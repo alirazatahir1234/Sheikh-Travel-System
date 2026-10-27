@@ -132,7 +132,7 @@ abstract final class FleetNavConfig {
     icon: Icons.map_outlined,
     activeIcon: Icons.map_rounded,
     path: '/fleet/map',
-    matchPaths: ['/fleet/map', '/live'],
+    matchPaths: ['/fleet/map'],
   );
 
   /// Owner / staff fuel overview (not driver receipt capture).
@@ -450,7 +450,13 @@ abstract final class FleetNavConfig {
       route: '/sos',
       isVisible: _driverWorkflow,
     ),
-        MoreMenuEntry(
+    MoreMenuEntry(
+      label: 'Fatigue check',
+      icon: Icons.visibility_outlined,
+      route: '/fatigue/monitor',
+      isVisible: _driverWorkflow,
+    ),
+    MoreMenuEntry(
       label: 'AI Copilot',
       icon: Icons.auto_awesome_outlined,
       route: '/ai',
@@ -587,13 +593,44 @@ abstract final class FleetNavConfig {
   }
 
   static List<MoreMenuEntry> visibleMoreEntries(FleetSession session) {
+    final tabs = visibleTabs(session);
+    final List<MoreMenuEntry> raw;
     if (session.isGpsOperator) {
-      return operatorMoreEntries.where((e) => e.isVisible(session)).toList();
+      raw = operatorMoreEntries.where((e) => e.isVisible(session)).toList();
+    } else if (session.isOwnerTracking) {
+      raw = ownerMoreEntries.where((e) => e.isVisible(session)).toList();
+    } else {
+      raw = moreEntries.where((entry) => entry.isVisible(session)).toList();
     }
-    if (session.isOwnerTracking) {
-      return ownerMoreEntries.where((e) => e.isVisible(session)).toList();
+    return _dedupeMoreAgainstTabs(raw, tabs);
+  }
+
+  /// More grid only lists destinations that are not already bottom-nav tabs.
+  static List<MoreMenuEntry> _dedupeMoreAgainstTabs(
+    List<MoreMenuEntry> entries,
+    List<FleetNavTab> tabs,
+  ) {
+    return [
+      for (final entry in entries)
+        if (!_isMoreRouteOnBottomBar(entry.route, tabs) &&
+            !(entry.route == '/profile' &&
+                tabs.any((t) => t.id == 'profile')))
+          entry,
+    ];
+  }
+
+  static bool _isMoreRouteOnBottomBar(String route, List<FleetNavTab> tabs) {
+    for (final tab in tabs) {
+      // `/more` is the hub route only — not a prefix for `/more/drivers`, etc.
+      if (tab.id == 'more') {
+        if (route == tab.path) return true;
+        continue;
+      }
+      for (final p in [tab.path, ...tab.matchPaths]) {
+        if (route == p || route.startsWith('$p/')) return true;
+      }
     }
-    return moreEntries.where((entry) => entry.isVisible(session)).toList();
+    return false;
   }
 
   static bool isShellRoute(String path) {
@@ -675,6 +712,11 @@ abstract final class FleetNavConfig {
     '/gps/geofences',
     '/gps/operator-ai',
     '/legal/',
+    '/performance',
+    '/sos',
+    '/voice',
+    '/fatigue/',
+    '/ev-charging',
   ];
 
   static bool _alwaysEntry(FleetSession _) => true;

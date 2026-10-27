@@ -72,7 +72,11 @@ class MoreScreen extends ConsumerWidget {
                     _showComingSoon(context, entry);
                     return;
                   }
-                  context.push(entry.route);
+                  if (FleetNavConfig.isShellRoute(entry.route)) {
+                    context.go(entry.route);
+                  } else {
+                    context.push(entry.route);
+                  }
                 },
               );
             },

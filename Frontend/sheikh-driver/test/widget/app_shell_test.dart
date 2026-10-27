@@ -132,7 +132,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Fleet live map'), findsOneWidget);
+    expect(find.text('Fleet live map'), findsNothing);
     expect(find.text('Drivers'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Attendance'), findsNothing);

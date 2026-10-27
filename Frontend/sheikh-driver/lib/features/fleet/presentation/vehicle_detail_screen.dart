@@ -84,12 +84,6 @@ class VehicleDetailScreen extends ConsumerWidget {
             error: (_, __) => const Text('Vehicle'),
           ),
           actions: [
-            IconButton(
-              tooltip: 'History playback',
-              icon: const Icon(Icons.timeline_outlined),
-              onPressed: () =>
-                  context.push('/fleet/vehicles/$vehicleId/history'),
-            ),
             if (hubLoc?.hasMapCoords == true)
               IconButton(
                 tooltip: 'Show on map',
@@ -239,27 +233,6 @@ class _OverviewTab extends StatelessWidget {
               ],
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push('/fleet/vehicles/${vehicle.id}/history'),
-                icon: const Icon(Icons.history),
-                label: const Text('Playback'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => context.push('/fleet/map'),
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Live map'),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 12),
         VehicleCommsButtons(
