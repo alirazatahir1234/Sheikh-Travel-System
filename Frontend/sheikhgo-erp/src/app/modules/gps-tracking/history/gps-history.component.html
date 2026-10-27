@@ -181,19 +181,27 @@
     [class.history-grid--detail-open]="detailPanelOpen">
     <aside class="history-panel history-panel--left">
       <div class="recent-block" *ngIf="recentVehicles.length && !vehicleSearch">
-        <h3 class="panel-subtitle">Recent</h3>
-        <button
-          type="button"
-          class="vehicle-card"
-          *ngFor="let v of recentVehicles"
-          [class.vehicle-card--active]="vehicleId === v.id"
-          (click)="selectVehicle(v.id)">
-          <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
-        </button>
+        <div class="panel-subtitle-row">
+          <h3 class="panel-subtitle">Recent</h3>
+          <span class="panel-subtitle-meta">{{ recentVehicles.length }}</span>
+        </div>
+        <div class="recent-scroll">
+          <button
+            type="button"
+            class="vehicle-card vehicle-card--compact"
+            *ngFor="let v of recentVehicles"
+            [class.vehicle-card--active]="vehicleId === v.id"
+            (click)="selectVehicle(v.id)">
+            <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v, compact: true }"></ng-container>
+          </button>
+        </div>
       </div>
 
       <div class="vehicle-scroll">
-        <h3 class="panel-subtitle" *ngIf="!vehicleSearch">All vehicles</h3>
+        <div class="panel-subtitle-row" *ngIf="!vehicleSearch">
+          <h3 class="panel-subtitle">All vehicles</h3>
+          <span class="panel-subtitle-meta">{{ filteredVehicles.length }}</span>
+        </div>
         <button
           type="button"
           class="vehicle-card"
@@ -221,7 +229,7 @@
         [vehicleName]="selectedVehicle?.name ?? ''"
         [plateNumber]="selectedVehicle?.registrationNumber ?? ''"
         [vehicleType]="selectedVehicle?.vehicleType ?? ''"
-        [mapHeight]="'min(78vh, 780px)'"
+        [mapHeight]="'min(74vh, 720px)'"
         [showLayerControls]="true"
         [showLegend]="true"
         [showGpsPointsLayer]="showGpsPoints"
@@ -421,8 +429,8 @@
   </div>
 </div>
 
-<ng-template #vehicleCardBody let-v>
-  <div class="vehicle-card__row">
+<ng-template #vehicleCardBody let-v let-compact="compact">
+  <div class="vehicle-card__row" [class.vehicle-card__row--compact]="compact">
     <label class="vehicle-card__compare touch-target" (click)="$event.stopPropagation()">
       <input
         type="checkbox"
@@ -449,20 +457,26 @@
       <span class="vehicle-card__tracker">Tracker: {{ trackerLabel(v.id) }}</span>
       <span class="vehicle-card__imei" *ngIf="imeiLabel(v.id) !== '—'">IMEI: {{ imeiLabel(v.id) }}</span>
       <span class="vehicle-card__imei vehicle-card__imei--missing" *ngIf="imeiLabel(v.id) === '—'">No tracker linked</span>
-      <div class="vehicle-card__actions">
+      <div class="vehicle-card__actions" [class.vehicle-card__actions--compact]="compact">
         <button
           type="button"
           class="vehicle-card__map-btn touch-target"
+          [class.vehicle-card__map-btn--icon]="compact"
           (click)="openMapForVehicle(v.id, $event)"
-          matTooltip="Open last location in Google Maps">
-          <mat-icon>map</mat-icon> Map
+          matTooltip="Open last location in Google Maps"
+          [attr.aria-label]="compact ? 'Open last location in Google Maps' : null">
+          <mat-icon>map</mat-icon>
+          <span *ngIf="!compact">Map</span>
         </button>
         <button
           type="button"
           class="vehicle-card__map-btn touch-target"
+          [class.vehicle-card__map-btn--icon]="compact"
           (click)="openLiveFleetMap(v.id, $event)"
-          matTooltip="Open on live fleet map">
-          <mat-icon>gps_fixed</mat-icon> Live
+          matTooltip="Open on live fleet map"
+          [attr.aria-label]="compact ? 'Open on live fleet map' : null">
+          <mat-icon>gps_fixed</mat-icon>
+          <span *ngIf="!compact">Live</span>
         </button>
       </div>
     </div>
