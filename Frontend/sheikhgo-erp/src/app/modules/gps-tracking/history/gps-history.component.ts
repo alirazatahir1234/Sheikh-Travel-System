@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, timer, Subject, mergeMap, catchError, of, tap } from 'rxjs';
+import { Subscription, timer, Subject, mergeMap, catchError, of, tap, forkJoin, interval } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -12,7 +12,8 @@ import {
   PositionDto,
   TripAnalyticsSummary,
   TripReplayPosition,
-  TripStop
+  TripStop,
+  VehicleLocation
 } from '../../../core/models/gps-tracking.model';
 import {
   HISTORY_DATE_PRESETS,
@@ -21,7 +22,10 @@ import {
   formatPeriodLabel,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
-import { TripReplayMapComponent } from '../shared/trip-replay-map/trip-replay-map.component';
+import {
+  HistoryCompareRouteOverlay,
+  TripReplayMapComponent
+} from '../shared/trip-replay-map/trip-replay-map.component';
 import { resolveReplayStatus } from '../../../core/google-maps/fleet-vehicle-marker.gmap';
 import {
   formatFleetDisplayAddress,
@@ -33,6 +37,19 @@ import {
   formatNonMovingStandingUrdu,
   nonMovingExceedsAlertThreshold
 } from '../utils/non-moving-duration.util';
+import {
+  COMPARE_ROUTE_COLORS,
+  formatStalenessLabel,
+  googleMapsUrl,
+  HISTORY_COMPARE_MAX_VEHICLES,
+  HISTORY_STATIONARY_ALERT_MINUTES,
+  isOfflineOrCachedTracker,
+  isVehicleStationaryNow,
+  readHistoryPagePrefs,
+  resolveLastKnownIso,
+  stationaryMinutes,
+  storeHistoryPagePrefs
+} from '../utils/history-fleet-context.util';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
@@ -113,6 +130,22 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private rawCacheKey: string | null = null;
   selectedStopIndex: number | null = null;
 
+  /** Live fleet rows keyed by vehicle — refreshed for staleness & stationary filters. */
+  liveLocations = new Map<number, VehicleLocation>();
+  clockNow = Date.now();
+
+  filterStationaryOverOneHour = false;
+  hideRecordsBefore = '';
+  alertStationary24h = false;
+
+  compareSelectedIds = new Set<number>();
+  compareOverlays: HistoryCompareRouteOverlay[] = [];
+  compareLoading = false;
+
+  private liveLocSub?: Subscription;
+  private clockSub?: Subscription;
+  private compareLoadSub?: Subscription;
+
   constructor(
     private gps: GpsTrackingService,
     private vehicleService: VehicleService,
@@ -123,8 +156,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    const prefs = readHistoryPagePrefs();
+    this.filterStationaryOverOneHour = prefs.stationaryOverOneHour;
+    this.hideRecordsBefore = prefs.hideRecordsBefore ?? '';
+    this.alertStationary24h = prefs.alertStationary24h;
+
     this.loadRecentVehicles();
     this.applyPreset(this.preset, true);
+    this.refreshLiveLocations();
+    this.clockSub = interval(30_000).subscribe(tick => {
+      this.clockNow = Date.now();
+      if (tick > 0 && tick % 4 === 0) this.refreshLiveLocations();
+    });
 
     this.geocodeSub = this.geocodeRequests$.pipe(
       // Queue all visible stop/position geocodes (concurrency 2) instead of
@@ -174,6 +217,9 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.rawLoadSub?.unsubscribe();
     this.geocodeSub?.unsubscribe();
+    this.liveLocSub?.unsubscribe();
+    this.clockSub?.unsubscribe();
+    this.compareLoadSub?.unsubscribe();
     this.geocodeRequests$.complete();
   }
 
@@ -201,7 +247,34 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       if (plate) seenPlates.add(plate);
       result.push(v);
     }
+    if (this.filterStationaryOverOneHour) {
+      return result.filter(v =>
+        isVehicleStationaryNow(v, this.liveLocations.get(v.id), this.clockNow));
+    }
     return result;
+  }
+
+  get visibleStops(): TripStop[] {
+    const stops = this.bundle?.stops ?? [];
+    if (!this.hideRecordsBefore) return stops;
+    const cut = new Date(this.hideRecordsBefore);
+    if (Number.isNaN(cut.getTime())) return stops;
+    cut.setHours(0, 0, 0, 0);
+    return stops.filter(s => new Date(s.endTime).getTime() >= cut.getTime());
+  }
+
+  get compareSelectionCount(): number {
+    return this.compareSelectedIds.size;
+  }
+
+  get showOfflineHistoryBanner(): boolean {
+    const v = this.selectedVehicle;
+    if (!v) return false;
+    return isOfflineOrCachedTracker(
+      v,
+      this.liveLocations.get(v.id),
+      !!(v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id))
+    );
   }
 
   get recentVehicles(): VehicleListItem[] {
@@ -371,6 +444,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   selectVehicle(id: number): void {
     this.vehicleId = id;
+    this.compareSelectedIds.add(id);
+    this.compareSelectedIds = new Set(this.compareSelectedIds);
     this.pushRecentVehicle(id);
     this.updateUrl();
     this.load();
@@ -469,6 +544,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         if (this.showGpsPoints) {
           void this.ensureRawPositionsLoaded(fromDate, toDate);
         }
+        this.reloadCompareRoutes(fromDate, toDate);
       },
       error: err => {
         this.finishLoading();
@@ -784,7 +860,142 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   driverLabel(vehicleId: number): string {
     const v = this.vehicles.find(x => x.id === vehicleId);
     const d = this.deviceFor(vehicleId);
-    return d?.driverName ?? v?.driverName ?? '—';
+    const live = this.liveLocations.get(vehicleId);
+    return live?.driverName ?? d?.driverName ?? v?.driverName ?? '—';
+  }
+
+  lastKnownLabel(vehicleId: number): string {
+    const v = this.vehicles.find(x => x.id === vehicleId);
+    if (!v) return '—';
+    const iso = resolveLastKnownIso(v, this.liveLocations.get(vehicleId));
+    return formatStalenessLabel(iso, this.clockNow);
+  }
+
+  isCompareSelected(vehicleId: number): boolean {
+    return this.compareSelectedIds.has(vehicleId);
+  }
+
+  toggleCompareVehicle(vehicleId: number, event: Event): void {
+    event.stopPropagation();
+    if (this.compareSelectedIds.has(vehicleId)) {
+      this.compareSelectedIds.delete(vehicleId);
+    } else if (this.compareSelectedIds.size >= HISTORY_COMPARE_MAX_VEHICLES) {
+      this.toast.error(`Compare up to ${HISTORY_COMPARE_MAX_VEHICLES} vehicles at once.`);
+      return;
+    } else {
+      this.compareSelectedIds.add(vehicleId);
+    }
+    this.compareSelectedIds = new Set(this.compareSelectedIds);
+    if (this.vehicleId) {
+      void this.reloadCompareRoutes();
+    }
+  }
+
+  clearCompareSelection(): void {
+    this.compareSelectedIds = new Set();
+    this.compareOverlays = [];
+  }
+
+  onFilterStationaryChange(enabled: boolean): void {
+    this.filterStationaryOverOneHour = enabled;
+    this.persistHistoryPrefs();
+  }
+
+  onHideBeforeChange(): void {
+    this.persistHistoryPrefs();
+  }
+
+  async onAlert24hChange(enabled: boolean): Promise<void> {
+    this.alertStationary24h = enabled;
+    this.persistHistoryPrefs();
+    if (enabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+  }
+
+  openExternalMap(lat: number, lng: number): void {
+    window.open(googleMapsUrl(lat, lng), '_blank', 'noopener,noreferrer');
+  }
+
+  openMapForVehicle(vehicleId: number, event?: Event): void {
+    event?.stopPropagation();
+    const live = this.liveLocations.get(vehicleId);
+    const v = this.vehicles.find(x => x.id === vehicleId);
+    const lat = live?.latitude ?? v?.locationLatitude;
+    const lng = live?.longitude ?? v?.locationLongitude;
+    if (lat == null || lng == null) {
+      this.toast.error('No map coordinates for this vehicle yet.');
+      return;
+    }
+    this.openExternalMap(lat, lng);
+  }
+
+  openLiveFleetMap(vehicleId: number, event?: Event): void {
+    event?.stopPropagation();
+    void this.router.navigate(['/gps-tracking/live'], {
+      queryParams: { vehicleId: String(vehicleId) }
+    });
+  }
+
+  isVehicleOfflineCached(v: VehicleListItem): boolean {
+    return isOfflineOrCachedTracker(
+      v,
+      this.liveLocations.get(v.id),
+      !!(v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id))
+    );
+  }
+
+  exportHistoryReportPdf(): void {
+    if (!this.vehicleId || !this.bundle) {
+      this.toast.error('Load a route before exporting the report.');
+      return;
+    }
+    const vehicle = this.selectedVehicle;
+    const label = vehicle
+      ? `${vehicle.name} (${vehicle.registrationNumber || '—'})`
+      : `Vehicle #${this.vehicleId}`;
+    const driver = this.driverLabel(this.vehicleId);
+    const stats = this.quickStats;
+    const summaryLine = [
+      `Driver: ${driver}`,
+      stats.distanceKm != null ? `Distance: ${Number(stats.distanceKm).toFixed(1)} km` : '',
+      `Moving: ${stats.moving}`,
+      `Non-moving: ${this.nonMovingDurationLabel}`,
+      `Stops: ${stats.stops}`,
+      `Parking: ${stats.parking}`,
+      stats.maxSpeed != null ? `Max speed: ${stats.maxSpeed} km/h` : ''
+    ].filter(Boolean).join(' · ');
+
+    type StopRow = {
+      driver: string;
+      kind: string;
+      window: string;
+      duration: string;
+      address: string;
+    };
+    const rows: StopRow[] = this.visibleStops.slice(0, 200).map(s => ({
+      driver,
+      kind: this.stopLabel(s),
+      window: this.stopTimeWindowLabel(s),
+      duration: this.formatCompactDuration(s.durationMinutes),
+      address: this.stopPrimaryLine(s)
+    }));
+
+    const columns: ExportColumn<StopRow>[] = [
+      { header: 'Driver', accessor: r => r.driver, excelWidth: 18 },
+      { header: 'Type', accessor: r => r.kind, excelWidth: 10 },
+      { header: 'Time window', accessor: r => r.window, excelWidth: 28 },
+      { header: 'Duration', accessor: r => r.duration, excelWidth: 10 },
+      { header: 'Location', accessor: r => r.address, excelWidth: 36 }
+    ];
+
+    void this.exportService.exportPdf(rows, columns, {
+      filename: `fleet-history-report-${this.vehicleId}`,
+      title: `Fleet History Report — ${label}`,
+      subtitle: `${this.periodLabelDetailed}\n${summaryLine}`,
+      sheetName: 'History',
+      orientation: 'portrait'
+    });
   }
 
   exportClient(format: 'csv' | 'excel' | 'pdf'): void {
@@ -888,6 +1099,90 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   stopLabel(stop: TripStop): string {
     return stop.durationMinutes >= 120 ? 'Parking' : 'Stop';
+  }
+
+  private refreshLiveLocations(): void {
+    this.liveLocSub?.unsubscribe();
+    this.liveLocSub = this.gps.getAllVehicleLocations().subscribe({
+      next: rows => {
+        this.liveLocations = new Map(rows.map(r => [r.vehicleId, r]));
+        this.clockNow = Date.now();
+        this.evaluateStationary24hAlerts();
+      },
+      error: () => {}
+    });
+  }
+
+  private persistHistoryPrefs(): void {
+    storeHistoryPagePrefs({
+      stationaryOverOneHour: this.filterStationaryOverOneHour,
+      hideRecordsBefore: this.hideRecordsBefore || null,
+      alertStationary24h: this.alertStationary24h
+    });
+  }
+
+  private evaluateStationary24hAlerts(): void {
+    if (!this.alertStationary24h) return;
+    const offenders = this.vehicles.filter(v => {
+      const mins = stationaryMinutes(v, this.liveLocations.get(v.id), this.clockNow);
+      return mins >= HISTORY_STATIONARY_ALERT_MINUTES;
+    });
+    if (!offenders.length) return;
+
+    const dayKey = new Date().toDateString();
+    const storageKey = 'gps_history_stationary_24h_notified';
+    if (sessionStorage.getItem(storageKey) === dayKey) return;
+    sessionStorage.setItem(storageKey, dayKey);
+
+    const names = offenders.slice(0, 5).map(v => v.name).join(', ');
+    const suffix = offenders.length > 5 ? ` (+${offenders.length - 5} more)` : '';
+    const body = `${offenders.length} vehicle(s) stationary ≥24h: ${names}${suffix}`;
+    this.toast.warning(body, undefined, 8000);
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification('Fleet stationary alert', { body });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  private reloadCompareRoutes(fromArg?: Date, toArg?: Date): void {
+    const fromDate = fromArg ?? new Date(this.from);
+    const toDate = toArg ?? new Date(this.to);
+    const ids = [...this.compareSelectedIds].filter(id => id !== this.vehicleId);
+    if (!ids.length) {
+      this.compareOverlays = [];
+      return;
+    }
+
+    this.compareLoadSub?.unsubscribe();
+    this.compareLoading = true;
+    this.compareLoadSub = forkJoin(
+      ids.map(id =>
+        this.gps.getHistoryReplay(id, fromDate, toDate, this.replayOptionsForWindow(fromDate, toDate)).pipe(
+          catchError(() => of(null))
+        )
+      )
+    ).subscribe(bundles => {
+      this.compareLoading = false;
+      const overlays: HistoryCompareRouteOverlay[] = [];
+      ids.forEach((id, idx) => {
+        const bundle = bundles[idx];
+        const route = bundle?.route?.length
+          ? bundle.route
+          : bundle?.playback ?? [];
+        if (!route.length) return;
+        const v = this.vehicles.find(x => x.id === id);
+        overlays.push({
+          label: v?.name ?? `Vehicle ${id}`,
+          color: COMPARE_ROUTE_COLORS[idx % COMPARE_ROUTE_COLORS.length],
+          route
+        });
+      });
+      this.compareOverlays = overlays;
+    });
   }
 
   private vehicleSearchHaystack(v: VehicleListItem): string {

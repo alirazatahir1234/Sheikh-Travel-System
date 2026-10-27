@@ -35,6 +35,12 @@ import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-l
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { splitDisplayAddress } from '../../utils/gps-address.util';
 
+export interface HistoryCompareRouteOverlay {
+  label: string;
+  color: string;
+  route: TripReplayPosition[];
+}
+
 @Component({
   standalone: false,
   selector: 'app-trip-replay-map',
@@ -68,6 +74,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() showRouteLayer = true;
   /** Optional Roads API snap overlay (display only — never replaces Traccar coords). */
   @Input() showSnappedLayer = false;
+  /** Additional vehicle routes for history compare mode (display-only polylines). */
+  @Input() compareRoutes: HistoryCompareRouteOverlay[] = [];
   @Output() positionSelected = new EventEmitter<TripReplayPosition>();
   @Output() retryRequested = new EventEmitter<void>();
 
@@ -106,6 +114,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private scrubDebounce?: ReturnType<typeof setTimeout>;
   private mapReady = false;
   private pendingRender = false;
+  private comparePolylines: google.maps.Polyline[] = [];
 
   constructor(
     private googleMapsLoader: GoogleMapsLoaderService,
@@ -249,7 +258,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       changes['showGeofencesLayer'] ||
       changes['showHeatmap'] ||
       changes['showRouteLayer'] ||
-      changes['showSnappedLayer'];
+      changes['showSnappedLayer'] ||
+      changes['compareRoutes'];
     if (dataChange && this.mapReady) {
       this.stopAndReset();
       requestAnimationFrame(() => this.renderRoute());
@@ -494,6 +504,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       m.map = null;
     });
     this.overlayMarkers = [];
+    this.comparePolylines.forEach(p => p.setMap(null));
+    this.comparePolylines = [];
   }
 
   private clearGpsPoints(): void {
@@ -554,6 +566,24 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
           /* Roads optional — ignore failures */
         }
       });
+  }
+
+  private renderCompareRoutes(): void {
+    if (!this.map || !this.compareRoutes.length) return;
+    this.compareRoutes.forEach(overlay => {
+      const path = this.downsampleForDraw(overlay.route, 1200);
+      if (path.length < 2) return;
+      const line = new google.maps.Polyline({
+        map: this.map,
+        path: path.map(p => this.toLatLng(p)),
+        strokeColor: overlay.color,
+        strokeOpacity: 0.88,
+        strokeWeight: 5,
+        geodesic: true,
+        zIndex: 5
+      });
+      this.comparePolylines.push(line);
+    });
   }
 
   private renderRoute(): void {
@@ -647,6 +677,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       const end = endpointSource[endpointSource.length - 1];
       this.addEndpointMarker(start, 'Start', '#059669', 'flag-start');
       this.addEndpointMarker(end, 'End', '#dc2626', 'flag-end');
+      this.renderCompareRoutes();
     }
 
     if (this.showGeofencesLayer) {

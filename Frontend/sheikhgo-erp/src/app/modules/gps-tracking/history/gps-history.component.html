@@ -37,6 +37,35 @@
       {{ periodLabelDetailed }}
     </p>
 
+    <div class="history-filters" aria-label="History list filters">
+      <label class="filter-toggle touch-target">
+        <input
+          type="checkbox"
+          [checked]="filterStationaryOverOneHour"
+          (change)="onFilterStationaryChange($any($event.target).checked)" />
+        <span>Stationary &gt; 1 hour</span>
+      </label>
+      <label class="filter-date touch-target">
+        <span>Hide records before</span>
+        <input
+          type="date"
+          [(ngModel)]="hideRecordsBefore"
+          (change)="onHideBeforeChange()" />
+      </label>
+      <label class="filter-toggle filter-toggle--admin touch-target">
+        <input
+          type="checkbox"
+          [checked]="alertStationary24h"
+          (change)="onAlert24hChange($any($event.target).checked)" />
+        <span>Admin alert if any vehicle stationary &gt; 24h</span>
+      </label>
+      <span class="compare-chip" *ngIf="compareSelectionCount > 0">
+        {{ compareSelectionCount }} selected for compare
+        <button type="button" class="link-btn" (click)="clearCompareSelection()">Clear</button>
+      </span>
+      <span class="compare-chip compare-chip--loading" *ngIf="compareLoading">Loading compare routes…</span>
+    </div>
+
     <div class="history-toolbar__actions">
       <button
         mat-flat-button
@@ -50,11 +79,21 @@
         {{ loadButtonLabel }}
       </button>
 
+      <button
+        mat-stroked-button
+        type="button"
+        class="action-btn"
+        (click)="exportHistoryReportPdf()"
+        [disabled]="!bundle"
+        matTooltip="Summary report with driver and stops">
+        <mat-icon>picture_as_pdf</mat-icon> Report PDF
+      </button>
+
       <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="!bundle" class="action-btn">
         <mat-icon>download</mat-icon> Export
       </button>
       <mat-menu #exportMenu="matMenu">
-        <button mat-menu-item (click)="exportClient('pdf')"><mat-icon>picture_as_pdf</mat-icon> PDF</button>
+        <button mat-menu-item (click)="exportClient('pdf')"><mat-icon>picture_as_pdf</mat-icon> GPS points PDF</button>
         <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
         <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
         <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
@@ -92,6 +131,14 @@
       <button mat-stroked-button type="button" (click)="retryLoad()">Retry</button>
     </div>
   </header>
+
+  <div class="offline-banner" *ngIf="showOfflineHistoryBanner">
+    <mat-icon>cloud_off</mat-icon>
+    <div>
+      <strong>Tracker not live</strong>
+      <span>Last known location and history route may be cached — not real-time telemetry.</span>
+    </div>
+  </div>
 
   <!-- Quick stats (single summary strip — right panel has the detail card) -->
   <div class="quick-stats" *ngIf="bundle">
@@ -184,9 +231,16 @@
         [showHeatmap]="showHeatmap"
         [showRouteLayer]="showRouteLayer"
         [historyMode]="true"
+        [compareRoutes]="compareOverlays"
         (positionSelected)="onPositionSelected($event)"
         (retryRequested)="retryLoad()">
       </app-trip-replay-map>
+      <div class="compare-legend" *ngIf="compareOverlays.length">
+        <span class="compare-legend__title">Compare</span>
+        <span class="compare-legend__item" *ngFor="let o of compareOverlays">
+          <i [style.background]="o.color"></i>{{ o.label }}
+        </span>
+      </div>
     </main>
 
     <aside
@@ -308,7 +362,7 @@
         <h2 class="panel-title"><mat-icon>pause_circle</mat-icon> Stops &amp; parking</h2>
         <ul class="stops-list">
           <li
-            *ngFor="let s of bundle!.stops | slice:0:15; let i = index"
+            *ngFor="let s of visibleStops | slice:0:15; let i = index"
             class="stops-list__item"
             [class.stops-list__item--active]="selectedStopIndex === i"
             (click)="focusStop(s, i)"
@@ -340,9 +394,19 @@
             <span class="stop-meta">
               {{ stopTimeWindowLabel(s) }}
             </span>
+            <span class="stop-driver" *ngIf="vehicleId">
+              Driver: <strong>{{ driverLabel(vehicleId) }}</strong>
+            </span>
             <span class="stop-duration">
               Duration: <strong>{{ formatCompactDuration(s.durationMinutes) }}</strong>
             </span>
+            <button
+              type="button"
+              class="stop-map-btn stop-map-btn--external touch-target"
+              (click)="openExternalMap(s.latitude, s.longitude); $event.stopPropagation()"
+              title="Open in Google Maps">
+              <mat-icon>open_in_new</mat-icon> Maps
+            </button>
           </li>
         </ul>
       </section>
@@ -351,16 +415,49 @@
 </div>
 
 <ng-template #vehicleCardBody let-v>
-  <div class="vehicle-card__head">
-    <span class="vehicle-card__name">{{ v.name }}</span>
-    <span class="vehicle-card__status" [class]="'vehicle-card__status--' + vehicleStatusClass(v)">
-      <span class="status-dot"></span>
-      {{ vehicleStatusLabel(v) }}
-    </span>
+  <div class="vehicle-card__row">
+    <label class="vehicle-card__compare touch-target" (click)="$event.stopPropagation()">
+      <input
+        type="checkbox"
+        [checked]="isCompareSelected(v.id)"
+        (change)="toggleCompareVehicle(v.id, $event)"
+        [attr.aria-label]="'Compare ' + v.name" />
+    </label>
+    <div class="vehicle-card__main">
+      <div class="vehicle-card__head">
+        <span class="vehicle-card__name">{{ v.name }}</span>
+        <span class="vehicle-card__status" [class]="'vehicle-card__status--' + vehicleStatusClass(v)">
+          <span class="status-dot"></span>
+          {{ vehicleStatusLabel(v) }}
+        </span>
+      </div>
+      <span class="vehicle-card__driver"><mat-icon>person</mat-icon> {{ driverLabel(v.id) }}</span>
+      <span class="vehicle-card__plate">Plate: {{ v.registrationNumber || '—' }}</span>
+      <span class="vehicle-card__staleness">
+        <mat-icon>schedule</mat-icon> Last known: {{ lastKnownLabel(v.id) }}
+      </span>
+      <span class="vehicle-card__cached" *ngIf="isVehicleOfflineCached(v)">
+        <mat-icon>cloud_off</mat-icon> Cached / not live
+      </span>
+      <span class="vehicle-card__tracker">Tracker: {{ trackerLabel(v.id) }}</span>
+      <span class="vehicle-card__imei" *ngIf="imeiLabel(v.id) !== '—'">IMEI: {{ imeiLabel(v.id) }}</span>
+      <span class="vehicle-card__imei vehicle-card__imei--missing" *ngIf="imeiLabel(v.id) === '—'">No tracker linked</span>
+      <div class="vehicle-card__actions">
+        <button
+          type="button"
+          class="vehicle-card__map-btn touch-target"
+          (click)="openMapForVehicle(v.id, $event)"
+          matTooltip="Open last location in Google Maps">
+          <mat-icon>map</mat-icon> Map
+        </button>
+        <button
+          type="button"
+          class="vehicle-card__map-btn touch-target"
+          (click)="openLiveFleetMap(v.id, $event)"
+          matTooltip="Open on live fleet map">
+          <mat-icon>gps_fixed</mat-icon> Live
+        </button>
+      </div>
+    </div>
   </div>
-  <span class="vehicle-card__plate">Plate: {{ v.registrationNumber || '—' }}</span>
-  <span class="vehicle-card__driver">Driver: {{ driverLabel(v.id) }}</span>
-  <span class="vehicle-card__tracker">Tracker: {{ trackerLabel(v.id) }}</span>
-  <span class="vehicle-card__imei" *ngIf="imeiLabel(v.id) !== '—'">IMEI: {{ imeiLabel(v.id) }}</span>
-  <span class="vehicle-card__imei vehicle-card__imei--missing" *ngIf="imeiLabel(v.id) === '—'">No tracker linked</span>
 </ng-template>
