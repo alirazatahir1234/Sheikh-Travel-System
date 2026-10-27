@@ -139,6 +139,8 @@ abstract class ApiEndpoints {
   static String driverAssignments(int id) => '/drivers/$id/assignments';
   static String driverPerformance(int id) => '/drivers/$id/performance/summary';
   static const driverAppPerformanceScore = '/driver-app/performance/score';
+  static const driverEvStatus = '/driver-app/ev/status';
+  static const driverVehicleDocExpiries = '/driver-app/vehicle/documents/expiring';
   static String driverViolations(int id) => '/drivers/$id/violations';
   static String driverAttendance(int id) => '/drivers/$id/attendance';
   static String driverDocuments(int id) => '/drivers/$id/documents';

@@ -367,6 +367,42 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.clientTracking.f3.title': 'Jederzeit widerrufen',
   'pages.clientTracking.f3.text': 'Ops kann Links bei Trip-Wechsel deaktivieren oder neu erzeugen.',
 
+  'pages.electricFleet.kicker': 'Elektromobilität',
+  'pages.electricFleet.title': 'Elektroflotte',
+  'pages.electricFleet.tagline': 'Akku, Laden, Reichweitenwarnungen, smarte Zuweisung.',
+  'pages.electricFleet.lead':
+    'Fahrzeuge als Electric markieren, Live-Akku aus GPS-Telemetrie, Ladestationen, Reichweiten-Alerts und Smart Assignment mit Reichweiten-Filter.',
+  'pages.electricFleet.f1.title': 'Akku-Dashboard',
+  'pages.electricFleet.f1.text': 'Ladezustand und geschätzte Reichweite pro EV.',
+  'pages.electricFleet.f2.title': 'Ladestationen',
+  'pages.electricFleet.f2.text': 'Tenant-POIs in ERP; Fahrer sehen Stationen in der App.',
+  'pages.electricFleet.f3.title': 'Reichweitenbewusste Disposition',
+  'pages.electricFleet.f3.text': 'Kandidaten ohne ausreichende Reichweite werden übersprungen.',
+
+  'pages.documentTracker.kicker': 'Compliance',
+  'pages.documentTracker.title': 'Versicherung & Dokumente',
+  'pages.documentTracker.tagline': 'Zulassung, Versicherung, TÜV — rechtzeitig erneuern.',
+  'pages.documentTracker.lead':
+    'ComplianceDocuments plus Fahrzeug-Felder in einer Tracker-Ansicht — Erinnerungen an Admins und zugewiesene Fahrer.',
+  'pages.documentTracker.f1.title': 'Dokumente pro Fahrzeug',
+  'pages.documentTracker.f1.text': 'Versicherung, Zulassung, Fitness-Nachweis, Uploads.',
+  'pages.documentTracker.f2.title': 'Erneuerungs-Alerts',
+  'pages.documentTracker.f2.text': 'Täglicher Scan 30 Tage vor Ablauf.',
+  'pages.documentTracker.f3.title': 'Flottenmanager-UI',
+  'pages.documentTracker.f3.text': 'Document tracker unter Fleet in Nexus ERP.',
+
+  'pages.anomalyDetection.kicker': 'Sicherheits-Intelligenz',
+  'pages.anomalyDetection.title': 'Fahranomalien erkennen',
+  'pages.anomalyDetection.tagline': 'Ungewöhnliche Muster aus Live-GPS.',
+  'pages.anomalyDetection.lead':
+    'Regelbasierte Checks bei Positions-Import: Nachtfahrt in unbekannten Gebieten, harte Geschwindigkeitsabfälle, Abweichung vom Trip-Korridor — Review-Queue für Admins.',
+  'pages.anomalyDetection.f1.title': 'Nacht & unbekanntes Gebiet',
+  'pages.anomalyDetection.f1.text': 'Fahrt nachts ohne kürzliche Stopphistorie am Ort.',
+  'pages.anomalyDetection.f2.title': 'Plötzlicher Tempoabfall',
+  'pages.anomalyDetection.f2.text': 'Starker Rückgang von hoher Geschwindigkeit.',
+  'pages.anomalyDetection.f3.title': 'Off-Route',
+  'pages.anomalyDetection.f3.text': 'Aktive Fahrt weit vom Abhol–Ziel-Korridor.',
+
   'home.pill.smartAssignment': 'Smarte Zuweisung',
   'home.smartAssignment.kicker': 'Flottenbetrieb · gewichtete KI',
   'home.smartAssignment.title': 'Smarte Trip-Zuweisung mit Erklärbarkeit',

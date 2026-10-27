@@ -150,6 +150,11 @@ abstract final class DashboardLayoutRegistry {
             iconName: 'mic',
             route: '/voice',
           ),
+          DashboardQuickAction(
+            label: 'EV',
+            iconName: 'ev_station',
+            route: '/ev-charging',
+          ),
         ];
       case DashboardRole.owner:
         return const [

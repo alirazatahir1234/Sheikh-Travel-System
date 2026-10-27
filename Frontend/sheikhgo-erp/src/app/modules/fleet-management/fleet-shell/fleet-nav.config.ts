@@ -35,7 +35,10 @@ export const FLEET_NAV_GROUPS: FleetNavGroup[] = [
       { id: 'predictive-maintenance', label: 'Predictive Maintenance', icon: 'auto_fix_high', route: '/fleet/maintenance/predictive' },
       { id: 'fuel', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs' },
       { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections' },
-      { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance' }
+      { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance' },
+      { id: 'documents', label: 'Documents', icon: 'description', route: '/fleet/documents' },
+      { id: 'ev-fleet', label: 'Electric fleet', icon: 'ev_station', route: '/fleet/ev' },
+      { id: 'anomalies', label: 'Anomalies', icon: 'crisis_alert', route: '/fleet/anomalies' }
     ]
   },
   {

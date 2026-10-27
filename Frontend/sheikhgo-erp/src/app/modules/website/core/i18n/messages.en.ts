@@ -399,4 +399,40 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.clientTracking.f2.text': 'Responsive /t/{token} pages tuned for phones — no app install for your customer.',
   'pages.clientTracking.f3.title': 'Revoke anytime',
   'pages.clientTracking.f3.text': 'Ops can revoke or regenerate links when trips change or privacy requires it.',
+
+  'pages.electricFleet.kicker': 'Electric operations',
+  'pages.electricFleet.title': 'Electric vehicle fleet',
+  'pages.electricFleet.tagline': 'Battery, charging, range alerts, and smarter trip assignment.',
+  'pages.electricFleet.lead':
+    'Mark vehicles as Electric, surface live battery from GPS fuel telemetry, map charging stations, warn when range is tight, and skip smart-assign candidates that cannot finish the trip.',
+  'pages.electricFleet.f1.title': 'Battery dashboard',
+  'pages.electricFleet.f1.text': 'Fleet managers see SOC-style battery % and estimated range per EV.',
+  'pages.electricFleet.f2.title': 'Charging locations',
+  'pages.electricFleet.f2.text': 'Tenant charging POIs on the EV board; drivers see stations in the mobile app.',
+  'pages.electricFleet.f3.title': 'Range-aware dispatch',
+  'pages.electricFleet.f3.text': 'Smart assignment weighs battery and rated range before proposing a driver.',
+
+  'pages.documentTracker.kicker': 'Compliance',
+  'pages.documentTracker.title': 'Insurance & document tracker',
+  'pages.documentTracker.tagline': 'Never miss registration, insurance, or fitness renewal.',
+  'pages.documentTracker.lead':
+    'Unified tracker merges ComplianceDocuments rows with vehicle insurance, registration, and fitness dates — with admin management and driver push when their assigned vehicle is expiring.',
+  'pages.documentTracker.f1.title': 'Per-vehicle documents',
+  'pages.documentTracker.f1.text': 'Insurance, registration, fitness certificate, and uploaded compliance files.',
+  'pages.documentTracker.f2.title': 'Renewal alerts',
+  'pages.documentTracker.f2.text': 'Daily scans notify fleet admins and assigned drivers before expiry.',
+  'pages.documentTracker.f3.title': 'Fleet manager workspace',
+  'pages.documentTracker.f3.text': 'Document tracker screen in ERP alongside the compliance hub.',
+
+  'pages.anomalyDetection.kicker': 'Safety intelligence',
+  'pages.anomalyDetection.title': 'Driving anomaly detection',
+  'pages.anomalyDetection.tagline': 'Unusual patterns surfaced from live GPS.',
+  'pages.anomalyDetection.lead':
+    'Rule-based checks on each position ingest flag night driving in unfamiliar areas, harsh speed drops, and corridor deviation on active trips — with an admin review queue and instant notifications.',
+  'pages.anomalyDetection.f1.title': 'Night & unknown area',
+  'pages.anomalyDetection.f1.text': 'Moving at night where the vehicle has no recent stop history.',
+  'pages.anomalyDetection.f2.title': 'Sudden speed drop',
+  'pages.anomalyDetection.f2.text': 'Sharp deceleration from highway speeds — possible incident signal.',
+  'pages.anomalyDetection.f3.title': 'Off-route',
+  'pages.anomalyDetection.f3.text': 'Active trip deviates far from pickup–destination corridor.',
 };

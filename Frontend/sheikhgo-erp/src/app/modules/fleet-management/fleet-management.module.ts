@@ -22,6 +22,9 @@ import { PartsInventoryPageComponent } from './maintenance/parts/parts-inventory
 
 import { MaintenanceReportsPageComponent } from './maintenance/reports/maintenance-reports-page.component';
 import { PredictiveMaintenancePageComponent } from './maintenance/predictive/predictive-maintenance-page.component';
+import { EvDashboardPageComponent } from './ev/ev-dashboard-page.component';
+import { AnomalyReviewPageComponent } from './anomaly/anomaly-review-page.component';
+import { DocumentsTrackerPageComponent } from './compliance/documents-tracker-page.component';
 
 const routes: Routes = [
   {
@@ -31,6 +34,9 @@ const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: FleetDashboardComponent },
       { path: 'compliance', component: ComplianceDashboardComponent },
+      { path: 'documents', component: DocumentsTrackerPageComponent },
+      { path: 'ev', component: EvDashboardPageComponent },
+      { path: 'anomalies', component: AnomalyReviewPageComponent },
       { path: 'inspections', component: InspectionListComponent },
       { path: 'assignments/calendar', component: AssignmentCalendarComponent },
       { path: 'assignments', component: AssignmentBoardComponent },

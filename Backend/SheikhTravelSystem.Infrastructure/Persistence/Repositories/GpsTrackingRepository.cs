@@ -41,6 +41,7 @@ public sealed partial class GpsTrackingRepository(
     IDriverTelematicsEnforcementService telematicsEnforcement,
     IRoadSpeedAlertEvaluator roadSpeedAlertEvaluator,
     IFuelStationStopEvaluator fuelStationStopEvaluator,
+    IFleetAnomalyEvaluator fleetAnomalyEvaluator,
     MediatR.IMediator mediator,
     ITraccarClient traccar,
     IReverseGeocodingService geocoder,
@@ -2128,6 +2129,15 @@ public sealed partial class GpsTrackingRepository(
         await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
+        try
+        {
+            await fleetAnomalyEvaluator.EvaluateAsync(
+                connection, ingestDto, previousSpeed, recordedAt, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Fleet anomaly evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+        }
 
         await EvaluateWhatsAppTripProximityAsync(ingestDto, recordedAt, cancellationToken);
 

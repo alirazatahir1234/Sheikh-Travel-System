@@ -53,6 +53,7 @@ import '../../features/maintenance/presentation/maintenance_detail_screens.dart'
 import '../../features/staff_fuel/presentation/fuel_entry_screen.dart';
 import '../../features/staff_fuel/presentation/staff_fuel_list_screen.dart';
 import '../../features/compliance/presentation/documents_entry_screen.dart';
+import '../../features/ev/presentation/ev_charging_screen.dart';
 import '../../features/reports/presentation/reports_hub_screen.dart';
 import '../../core/navigation/fleet_nav_config.dart';
 import '../../shared/widgets/app_shell.dart';
@@ -426,6 +427,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/documents',
             builder: (_, __) => const DocumentsEntryScreen(),
+          ),
+          GoRoute(
+            path: '/ev-charging',
+            builder: (_, __) => const EvChargingScreen(),
           ),
           GoRoute(
             path: '/earnings',

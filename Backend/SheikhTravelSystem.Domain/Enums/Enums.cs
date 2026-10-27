@@ -105,7 +105,8 @@ public enum FuelType
 {
     Petrol = 1,
     Diesel = 2,
-    CNG = 3
+    CNG = 3,
+    Electric = 4
 }
 
 /// <summary>
@@ -139,9 +140,11 @@ public enum BranchStatus
 public enum InvoiceStatus
 {
     Draft = 1,
-    Issued = 2,
+    /// <summary>Open invoice awaiting payment (stored as Pending; legacy Issued migrated).</summary>
+    Pending = 2,
     Paid = 3,
-    Void = 4
+    Void = 4,
+    Overdue = 5
 }
 
 public enum SettlementStatus

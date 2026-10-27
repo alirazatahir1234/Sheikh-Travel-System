@@ -64,6 +64,9 @@ const fleetOperationsGroup: NavGroup = {
     { id: 'fuel-logs', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
     { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections', moduleKey: 'vehicles' },
     { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance', moduleKey: 'vehicles' },
+    { id: 'fleet-documents', label: 'Document tracker', icon: 'description', route: '/fleet/documents', moduleKey: 'vehicles' },
+    { id: 'ev-fleet', label: 'Electric fleet', icon: 'ev_station', route: '/fleet/ev', moduleKey: 'vehicles' },
+    { id: 'fleet-anomalies', label: 'Driving anomalies', icon: 'crisis_alert', route: '/fleet/anomalies', moduleKey: 'gps-tracking' },
     { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking', moduleKey: 'gps-tracking' }
   ]
 };

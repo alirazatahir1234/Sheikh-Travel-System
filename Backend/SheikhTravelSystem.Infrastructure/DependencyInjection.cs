@@ -99,6 +99,12 @@ public static class DependencyInjection
         services.AddScoped<IFuelLogRepository, FuelLogRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ICustomerInvoiceRepository, CustomerInvoiceRepository>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.Invoices.Services.IInvoiceIssueService,
+            SheikhTravelSystem.Application.Features.Invoices.Services.InvoiceIssueService>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.Invoices.Services.IInvoiceEmailService,
+            SheikhTravelSystem.Application.Features.Invoices.Services.InvoiceEmailService>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.Invoices.Services.ITripInvoiceAutomation,
+            SheikhTravelSystem.Application.Features.Invoices.Services.TripInvoiceAutomation>();
         services.AddScoped<IDriverSettlementRepository, DriverSettlementRepository>();
         services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
         services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();

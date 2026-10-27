@@ -48,6 +48,21 @@ export const WEBSITE_ROUTES: Routes = [
           import('./pages/client-tracking/client-tracking.page').then(m => m.ClientTrackingPage),
       },
       {
+        path: 'electric-fleet',
+        loadComponent: () =>
+          import('./pages/electric-fleet/electric-fleet.page').then(m => m.ElectricFleetPage),
+      },
+      {
+        path: 'document-tracker',
+        loadComponent: () =>
+          import('./pages/document-tracker/document-tracker.page').then(m => m.DocumentTrackerPage),
+      },
+      {
+        path: 'anomaly-detection',
+        loadComponent: () =>
+          import('./pages/anomaly-detection/anomaly-detection.page').then(m => m.AnomalyDetectionPage),
+      },
+      {
         path: 'features',
         loadComponent: () => import('./pages/features/features.page').then(m => m.FeaturesPage),
       },

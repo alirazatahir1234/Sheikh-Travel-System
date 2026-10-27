@@ -10,6 +10,7 @@ using SheikhTravelSystem.Application.Features.Settlements.Queries;
 using SheikhTravelSystem.Application.Features.DriverWallets;
 using SheikhTravelSystem.Application.Features.DriverWallets.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
+using SheikhTravelSystem.Application.Features.Fleet.EvAnomaly;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -494,6 +495,18 @@ public class DriverAppController : BaseApiController
     [HttpPost("devices/register")]
     public async Task<IActionResult> RegisterDevice([FromBody] RegisterDriverDeviceRequest request)
         => Ok(await Mediator.Send(new RegisterDriverDeviceCommand(request)));
+
+    // ── EV & vehicle documents ────────────────────────────────────────────────
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("ev/status")]
+    public async Task<IActionResult> GetEvStatus()
+        => Ok(await Mediator.Send(new GetDriverEvStatusQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("vehicle/documents/expiring")]
+    public async Task<IActionResult> GetVehicleDocumentExpiries()
+        => Ok(await Mediator.Send(new GetDriverVehicleDocumentExpiriesQuery()));
 
     // ── App Version ───────────────────────────────────────────────────────────
 

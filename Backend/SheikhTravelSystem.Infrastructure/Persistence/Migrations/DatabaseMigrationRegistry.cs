@@ -64,6 +64,7 @@ public static class DatabaseMigrationRegistry
             M("VehicleDocumentOcrMigration", VehicleDocumentOcrMigration.ApplyAsync),
             M("DriverPerformanceMigration", DriverPerformanceMigration.ApplyAsync),
             M("DriverVerificationMigration", DriverVerificationMigration.ApplyAsync),
+            M("DriverProviderVerificationMigration", DriverProviderVerificationMigration.ApplyAsync),
             M("AssignmentSchemaMigration", AssignmentSchemaMigration.ApplyAsync),
             M("MaintenanceModuleMigration", MaintenanceModuleMigration.ApplyAsync),
             M("TripsModuleMigration", TripsModuleMigration.ApplyAsync),
@@ -145,6 +146,7 @@ public static class DatabaseMigrationRegistry
             M("FuelStationAlertModuleMigration", FuelStationAlertModuleMigration.ApplyAsync),
             M("TripSmartAssignmentMigration", TripSmartAssignmentMigration.ApplyAsync),
             M("FleetEvAnomalyMigration", FleetEvAnomalyMigration.ApplyAsync),
+            M("ClientTripBillingMigration", ClientTripBillingMigration.ApplyAsync),
         ];
     }
 }

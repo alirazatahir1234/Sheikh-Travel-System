@@ -143,5 +143,47 @@ public class ComplianceReminderHostedService(
                 SuggestedPriority: 3,
                 RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
+
+        var driverVehicleDocs = await connection.QueryAsync<(int UserId, string VehicleName, string DocType, DateTime Expiry, int TenantId)>(
+            new CommandDefinition(
+                """
+                SELECT d.UserId, v.Name, x.DocumentType, x.ExpiryDate, v.TenantId
+                FROM Drivers d
+                INNER JOIN AssignmentHistory ah ON ah.DriverId = d.Id AND ah.Status = N'Active' AND ah.IsDeleted = 0
+                INNER JOIN Vehicles v ON v.Id = ah.VehicleId
+                CROSS APPLY (
+                    SELECT DocumentType, ExpiryDate FROM (
+                        SELECT N'Insurance' AS DocumentType, v.InsuranceExpiryDate AS ExpiryDate
+                        UNION ALL SELECT N'Registration', v.RegistrationExpiryDate
+                        UNION ALL SELECT N'Fitness Certificate', v.FitnessCertificateExpiryDate
+                    ) cols WHERE ExpiryDate IS NOT NULL AND ExpiryDate <= @Threshold
+                    UNION ALL
+                    SELECT c.DocumentType, c.ExpiryDate
+                    FROM ComplianceDocuments c
+                    WHERE c.EntityType = N'Vehicle' AND c.EntityId = v.Id AND c.IsDeleted = 0
+                      AND c.ExpiryDate IS NOT NULL AND c.ExpiryDate <= @Threshold
+                ) x
+                WHERE d.IsDeleted = 0 AND d.IsActive = 1 AND d.UserId IS NOT NULL
+                  AND v.TenantId IS NOT NULL AND v.TenantId > 0
+                """,
+                new { Threshold = threshold },
+                cancellationToken: cancellationToken));
+
+        foreach (var item in driverVehicleDocs)
+        {
+            if (item.UserId <= 0)
+                continue;
+
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "vehicle_document_expiry",
+                $"{item.DocType} expiring",
+                $"{item.VehicleName}: {item.DocType} expires on {item.Expiry:yyyy-MM-dd}.",
+                NotificationType.VehicleOffline,
+                ReferenceId: item.UserId,
+                TenantId: item.TenantId,
+                TargetUserId: item.UserId,
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Push]), cancellationToken);
+        }
     }
 }

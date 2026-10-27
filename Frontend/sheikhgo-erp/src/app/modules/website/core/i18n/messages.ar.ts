@@ -362,6 +362,42 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.clientTracking.f3.title': 'إلغاء في أي وقت',
   'pages.clientTracking.f3.text': 'Ops يلغi أو يجدد الروابط عند تغيّر الرحلة.',
 
+  'pages.electricFleet.kicker': 'المركبات الكهربائية',
+  'pages.electricFleet.title': 'أسطول المركبات الكهربائية',
+  'pages.electricFleet.tagline': 'البطارية والشحن وتنبيهات المدى.',
+  'pages.electricFleet.lead':
+    'حدّد نوع الوقود Electric، اعرض نسبة البطارية من GPS، مواقع الشحن، تنبيهات المدى، وتعيين الرحلات وفق المدى المتاح.',
+  'pages.electricFleet.f1.title': 'لوحة البطارية',
+  'pages.electricFleet.f1.text': 'نسبة الشحن والمدى التقديري لكل مركبة كهربائية.',
+  'pages.electricFleet.f2.title': 'محطات الشحن',
+  'pages.electricFleet.f2.text': 'نقاط شحن للمستأجر — يراها السائق في التطبيق.',
+  'pages.electricFleet.f3.title': 'تعيين حسب المدى',
+  'pages.electricFleet.f3.text': 'التعيين الذكي يستبعد مرشحين لا يكفي مدى بطاريتهم للرحلة.',
+
+  'pages.documentTracker.kicker': 'الامتثال',
+  'pages.documentTracker.title': 'تتبع التأمين والمستندات',
+  'pages.documentTracker.tagline': 'لا تفوت تجديد التسجيل أو التأمين أو اللياقة.',
+  'pages.documentTracker.lead':
+    'دمج مستندات الامتثال مع تواريخ التأمين والتسجيل واللياقة — تنبيهات للإدارة والسائق المعيّن.',
+  'pages.documentTracker.f1.title': 'مستندات لكل مركبة',
+  'pages.documentTracker.f1.text': 'تأمين، تسجيل، شهادة لياقة، وملفات مرفوعة.',
+  'pages.documentTracker.f2.title': 'تنبيهات التجديد',
+  'pages.documentTracker.f2.text': 'فحص يومي قبل 30 يوماً من الانتهاء.',
+  'pages.documentTracker.f3.title': 'مساحة مدير الأسطول',
+  'pages.documentTracker.f3.text': 'شاشة Document tracker في ERP.',
+
+  'pages.anomalyDetection.kicker': 'ذكاء السلامة',
+  'pages.anomalyDetection.title': 'كشف شذوذ القيادة',
+  'pages.anomalyDetection.tagline': 'أنماط غير اعتيادية من GPS المباشر.',
+  'pages.anomalyDetection.lead':
+    'قواعد على كل موقع: قيادة ليلية في مناطق غير مألوفة، انخفاض مفاجئ في السرعة، والخروج عن ممر الرحلة — مع مراجعة للمسؤول.',
+  'pages.anomalyDetection.f1.title': 'ليل ومنطقة غير معروفة',
+  'pages.anomalyDetection.f1.text': 'حركة ليلاً بلا سجل توقفات حديث.',
+  'pages.anomalyDetection.f2.title': 'انخفاض سرعة مفاجئ',
+  'pages.anomalyDetection.f2.text': 'تباطؤ حاد من سرعات عالية — إشارة حادث محتمل.',
+  'pages.anomalyDetection.f3.title': 'خارج المسار',
+  'pages.anomalyDetection.f3.text': 'انحراف كبير عن خط الالتقاط–الوجهة.',
+
   'home.pill.smartAssignment': 'تعيين ذكي',
   'home.smartAssignment.kicker': 'عمليات الأسطول · أوزان ذكية',
   'home.smartAssignment.title': 'تعيين الرحلات بذكاء مع تفسير النتائج',
