@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_theme.dart';
 import '../data/documents_api.dart';
 import '../domain/document_models.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 final documentsProvider =
     FutureProvider.autoDispose<DocumentsBundle>(
@@ -32,7 +33,7 @@ class DocumentsScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -282,7 +283,7 @@ class _DocumentCard extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => Center(child: SgBrandLoader()),
     );
 
     try {

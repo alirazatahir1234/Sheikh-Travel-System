@@ -15,7 +15,7 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(fleetSessionProvider);
     if (session == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: SgBrandLoader()));
     }
 
     final entries = FleetNavConfig.visibleMoreEntries(session);

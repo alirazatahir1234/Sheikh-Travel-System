@@ -111,7 +111,7 @@ class _GpsMileageDashboardScreenState
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: SgBrandLoader())
                 : _error != null
                     ? Center(
                         child: Padding(

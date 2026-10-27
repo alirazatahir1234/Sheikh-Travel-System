@@ -71,7 +71,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

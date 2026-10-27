@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/security/security_block_screen.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class SecurityStatusScreen extends ConsumerWidget {
   const SecurityStatusScreen({super.key});
@@ -14,7 +15,7 @@ class SecurityStatusScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Security status')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),
         data: (r) => ListView(
           padding: const EdgeInsets.all(16),

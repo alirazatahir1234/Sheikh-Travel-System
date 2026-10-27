@@ -8,6 +8,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../inspection/data/inspection_api.dart';
 import '../../inspection/domain/inspection_models.dart';
 import 'fuel_notifier.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 final _fuelVehiclesProvider = FutureProvider.autoDispose<List<InspectionVehicle>>(
   (ref) => ref.read(inspectionApiProvider).getVehicles(),
@@ -423,7 +424,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
             historyAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: SgBrandLoader()),
               ),
               error: (e, _) => Text('$e'),
               data: (logs) {

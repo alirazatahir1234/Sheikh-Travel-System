@@ -18,6 +18,7 @@ import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/pulse_vehicle_overlay.dart';
 import 'widgets/vehicle_live_map_sheet.dart';
 import 'widgets/vehicle_pulse_icons.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
@@ -512,7 +513,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                 async.requireValue,
                 canCommands: canCommands,
               )
-            : const Center(child: CircularProgressIndicator()),
+            : Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),
         data: (hub) => _buildMapBody(hub, canCommands: canCommands),
       ),

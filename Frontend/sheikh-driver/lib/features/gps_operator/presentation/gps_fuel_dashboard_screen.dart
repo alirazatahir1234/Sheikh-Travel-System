@@ -69,7 +69,7 @@ class _GpsFuelDashboardScreenState extends ConsumerState<GpsFuelDashboardScreen>
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: SgBrandLoader())
           : _error != null
               ? Center(
                   child: Padding(

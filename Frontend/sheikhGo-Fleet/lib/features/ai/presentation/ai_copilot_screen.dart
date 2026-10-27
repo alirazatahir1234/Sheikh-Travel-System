@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../data/ai_chat_api.dart';
 import '../domain/ai_chat_models.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class AiCopilotScreen extends ConsumerStatefulWidget {
   const AiCopilotScreen({super.key, this.initialPrompt});
@@ -314,7 +315,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
         ],
       ),
       body: _bootLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: SgBrandLoader())
           : Column(
               children: [
                 if (_health != null) _ProviderStrip(health: _health!),

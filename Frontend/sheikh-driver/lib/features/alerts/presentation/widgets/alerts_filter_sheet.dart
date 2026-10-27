@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../domain/alert_display.dart';
 import '../alerts_notifier.dart';
+import '../../../../shared/widgets/sg_brand_loader.dart';
 
 Future<void> showAlertsFilterSheet(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet<void>(
@@ -23,7 +24,7 @@ class AlertsFilterSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(alertsProvider).valueOrNull;
     if (state == null) {
-      return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+      return const SizedBox(height: 200, child: Center(child: SgBrandLoader()));
     }
     final notifier = ref.read(alertsProvider.notifier);
 

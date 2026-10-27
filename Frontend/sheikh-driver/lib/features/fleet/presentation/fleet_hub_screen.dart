@@ -8,6 +8,7 @@ import 'fleet_hub_notifier.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/fleet_vehicle_filter_sheet.dart';
 import 'widgets/fleet_vehicle_tile.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class FleetHubScreen extends ConsumerWidget {
   const FleetHubScreen({super.key});
@@ -43,7 +44,7 @@ class FleetHubScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

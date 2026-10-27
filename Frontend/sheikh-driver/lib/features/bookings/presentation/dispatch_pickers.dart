@@ -431,7 +431,7 @@ class _AssignPickerShell extends StatelessWidget {
               ),
               Expanded(
                 child: loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(child: SgBrandLoader())
                     : error != null
                         ? SgErrorView(message: error!, onRetry: onRetry)
                         : itemCount == 0

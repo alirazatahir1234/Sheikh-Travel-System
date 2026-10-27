@@ -6,6 +6,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/offline_models.dart';
 import '../domain/attendance_model.dart';
 import 'attendance_notifier.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -91,7 +92,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         ],
       ),
       body: historyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: () => ref.read(attendanceHistoryProvider.notifier).refresh(),

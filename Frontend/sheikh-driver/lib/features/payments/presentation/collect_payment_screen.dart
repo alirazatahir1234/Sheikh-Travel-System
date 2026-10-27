@@ -88,7 +88,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Collect Payment')),
       body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (s) {
           if (!_seededAmount && _amountCtrl.text.isEmpty) {

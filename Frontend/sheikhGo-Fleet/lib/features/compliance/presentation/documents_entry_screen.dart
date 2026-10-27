@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../documents/presentation/documents_screen.dart';
 import 'compliance_list_screen.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 /// Staff see fleet compliance docs; drivers keep self-service documents.
 class DocumentsEntryScreen extends ConsumerWidget {
@@ -12,7 +13,7 @@ class DocumentsEntryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(fleetSessionProvider);
     if (session == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: SgBrandLoader()));
     }
     if (session.isDriverOnly) return const DocumentsScreen();
     return const ComplianceListScreen();

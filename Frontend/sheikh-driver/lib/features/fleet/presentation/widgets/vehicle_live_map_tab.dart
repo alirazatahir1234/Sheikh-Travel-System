@@ -265,7 +265,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
     final gpsError = widget.gpsAsync.hasError ? widget.gpsAsync.error : null;
 
     if (widget.gpsAsync.isLoading && gps == null && widget.live == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: SgBrandLoader());
     }
 
     if (gpsError != null && gps == null && _position == null) {

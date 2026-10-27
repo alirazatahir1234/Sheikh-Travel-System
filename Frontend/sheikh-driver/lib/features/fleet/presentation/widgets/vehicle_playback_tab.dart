@@ -316,7 +316,7 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
           if (_loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: SgBrandLoader()),
             )
           else if (_error != null)
             _ErrorBlock(message: _error!, onRetry: _load)

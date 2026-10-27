@@ -19,7 +19,7 @@ class TripDetailScreen extends ConsumerWidget {
     final tripsAsync = ref.watch(tripsProvider);
     return tripsAsync.when(
       loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+          const Scaffold(body: Center(child: SgBrandLoader())),
       error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
       data: (trips) {
         final trip = trips.where((t) => t.matchesRouteId(tripId)).firstOrNull;

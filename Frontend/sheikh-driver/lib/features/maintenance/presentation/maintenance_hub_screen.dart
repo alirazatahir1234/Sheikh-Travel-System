@@ -108,7 +108,7 @@ class _MaintenanceHubScreenState extends ConsumerState<MaintenanceHubScreen>
       floatingActionButton: _fab(canCreateRequest, canManageWo),
       body: async.when(
         skipLoadingOnReload: true,
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () => ref.read(maintenanceHubProvider.notifier).refresh(),

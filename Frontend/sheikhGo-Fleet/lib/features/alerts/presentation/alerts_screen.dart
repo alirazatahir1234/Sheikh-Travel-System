@@ -34,7 +34,7 @@ class AlertsScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -447,7 +447,7 @@ class AlertDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Alert')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),
         data: (a) => ListView(
           padding: const EdgeInsets.all(16),

@@ -16,6 +16,7 @@ import '../data/navigation_api.dart';
 import '../domain/gps_eta.dart';
 import '../utils/external_maps.dart';
 import '../utils/gps_geo.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class TripNavigationScreen extends ConsumerStatefulWidget {
   const TripNavigationScreen({super.key, required this.tripId});
@@ -454,7 +455,7 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       loading: () {
         if (cached != null) return _buildScaffold(cached);
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(child: SgBrandLoader()),
         );
       },
       error: (e, _) {

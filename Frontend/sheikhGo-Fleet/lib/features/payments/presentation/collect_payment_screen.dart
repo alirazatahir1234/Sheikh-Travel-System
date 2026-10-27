@@ -5,6 +5,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../data/payments_api.dart';
 import '../domain/payment_summary_model.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   const CollectPaymentScreen({super.key, required this.tripId});
@@ -76,7 +77,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Collect Payment')),
       body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (s) {
           if (_amountCtrl.text.isEmpty) {

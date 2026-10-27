@@ -144,7 +144,7 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
     )));
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

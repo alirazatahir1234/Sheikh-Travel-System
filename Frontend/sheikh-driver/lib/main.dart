@@ -30,6 +30,7 @@ import 'core/offline/trips_cache.dart';
 import 'core/api/dio_client.dart';
 import 'core/security/security_block_screen.dart';
 import 'core/analytics/analytics_service.dart';
+import 'shared/widgets/sg_brand_loader.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -182,7 +183,7 @@ class _SheikhGoFleetAppState extends ConsumerState<SheikhGoFleetApp> {
         darkTheme: AppTheme.dark,
         themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
         home: const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(child: SgBrandLoader()),
         ),
         debugShowCheckedModeBanner: false,
       ),

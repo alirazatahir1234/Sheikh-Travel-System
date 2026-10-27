@@ -35,7 +35,7 @@ class DeviceHealthScreen extends ConsumerWidget {
         ],
       ),
       body: gpsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

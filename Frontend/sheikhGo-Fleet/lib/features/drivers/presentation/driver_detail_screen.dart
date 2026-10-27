@@ -123,7 +123,7 @@ class DriverDetailScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -322,7 +322,7 @@ class _PerformanceCard extends ConsumerWidget {
     final async = ref.watch(driverPerformanceProvider(driverId));
     return async.when(
       loading: () => const SgCard(
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: SgProgressLoader(size: SgLoaderSize.sm)),
       ),
       error: (_, __) => const SgCard(child: Text('Performance unavailable')),
       data: (p) {
@@ -362,7 +362,7 @@ class _ViolationsCard extends ConsumerWidget {
     final async = ref.watch(driverViolationsProvider(driverId));
     return async.when(
       loading: () => const SgCard(
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: SgProgressLoader(size: SgLoaderSize.sm)),
       ),
       error: (_, __) => const SgCard(child: Text('No violations loaded')),
       data: (items) {
@@ -409,7 +409,7 @@ class _AttendanceCard extends ConsumerWidget {
     final async = ref.watch(driverAttendanceProvider(driverId));
     return async.when(
       loading: () => const SgCard(
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: SgProgressLoader(size: SgLoaderSize.sm)),
       ),
       error: (_, __) => const SgCard(child: Text('No attendance loaded')),
       data: (items) {
@@ -456,7 +456,7 @@ class _DocumentsCard extends ConsumerWidget {
     final async = ref.watch(driverDocumentsProvider(driverId));
     return async.when(
       loading: () => const SgCard(
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: SgProgressLoader(size: SgLoaderSize.sm)),
       ),
       error: (_, __) => const SgCard(child: Text('No documents loaded')),
       data: (items) {

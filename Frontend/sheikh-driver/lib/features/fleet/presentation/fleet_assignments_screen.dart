@@ -207,7 +207,7 @@ class _FleetAssignmentsScreenState
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: '$e',
           onRetry: () => ref.invalidate(fleetAssignmentsProvider),

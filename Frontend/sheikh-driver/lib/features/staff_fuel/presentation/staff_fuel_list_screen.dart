@@ -60,7 +60,7 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -285,7 +285,7 @@ class StaffFuelDetailScreen extends ConsumerWidget {
       backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Fuel log')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
         data: (l) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),

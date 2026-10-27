@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sheikh_go_driver/features/auth/presentation/splash_screen.dart';
+import 'package:sheikh_go_driver/shared/widgets/sg_brand_loader.dart';
 
 void main() {
   group('resolveSplashRoute', () {
@@ -34,13 +35,12 @@ void main() {
           isDark: true,
           logoFade: const AlwaysStoppedAnimation(1),
           logoScale: const AlwaysStoppedAnimation(1),
-          loaderValue: const AlwaysStoppedAnimation(0.5),
         ),
       ),
     );
 
     expect(find.text(kSplashTagline), findsOneWidget);
     expect(find.text('Loading…'), findsOneWidget);
-    expect(find.byType(SplashLoaderBar), findsOneWidget);
+    expect(find.byType(SgProgressLoader), findsOneWidget);
   });
 }

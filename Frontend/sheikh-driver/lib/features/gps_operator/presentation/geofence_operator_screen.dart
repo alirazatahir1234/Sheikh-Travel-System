@@ -92,7 +92,7 @@ class _GeofenceOperatorScreenState extends ConsumerState<GeofenceOperatorScreen>
           ],
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: SgBrandLoader())
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _rows.length,

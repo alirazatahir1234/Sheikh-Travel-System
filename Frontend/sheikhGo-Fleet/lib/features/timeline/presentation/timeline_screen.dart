@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../data/timeline_api.dart';
 import '../domain/timeline_event_model.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 final _timelineProvider = FutureProvider.autoDispose<List<TimelineEvent>>(
   (ref) => ref.read(timelineApiProvider).getTimeline(),
@@ -27,7 +28,7 @@ class TimelineScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: () => ref.invalidate(_timelineProvider),

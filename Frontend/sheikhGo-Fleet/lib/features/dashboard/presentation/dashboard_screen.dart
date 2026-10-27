@@ -68,7 +68,7 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       body: dashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),

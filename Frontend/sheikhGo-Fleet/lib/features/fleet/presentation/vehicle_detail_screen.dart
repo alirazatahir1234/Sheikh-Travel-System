@@ -90,7 +90,7 @@ class VehicleDetailScreen extends ConsumerWidget {
           ),
         ),
         body: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(child: SgBrandLoader()),
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -258,7 +258,7 @@ class _GpsTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
@@ -363,7 +363,7 @@ class _DocsTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleDocumentsProvider(vehicleId)),
@@ -423,7 +423,7 @@ class _MaintTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleMaintenanceProvider(vehicleId)),
@@ -492,7 +492,7 @@ class _FuelTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleFuelProvider(vehicleId)),

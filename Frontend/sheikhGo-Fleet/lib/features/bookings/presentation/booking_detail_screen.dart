@@ -95,7 +95,7 @@ class BookingDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Booking detail')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

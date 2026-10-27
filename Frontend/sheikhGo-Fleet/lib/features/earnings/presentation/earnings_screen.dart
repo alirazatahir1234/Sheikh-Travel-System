@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../data/earnings_api.dart';
 import '../domain/earnings_models.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 final earningsProvider = FutureProvider.autoDispose<EarningsSummary>(
   (ref) => ref.read(earningsApiProvider).getEarnings(),
@@ -29,7 +30,7 @@ class EarningsScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

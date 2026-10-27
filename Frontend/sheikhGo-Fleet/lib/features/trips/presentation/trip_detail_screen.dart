@@ -17,7 +17,7 @@ class TripDetailScreen extends ConsumerWidget {
     final tripsAsync = ref.watch(tripsProvider);
     return tripsAsync.when(
       loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+          const Scaffold(body: Center(child: SgBrandLoader())),
       error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
       data: (trips) {
         final trip = trips
@@ -230,7 +230,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
           ),
           const SizedBox(height: 24),
           if (_busy)
-            const Center(child: CircularProgressIndicator())
+            Center(child: SgBrandLoader())
           else ...[
             if (latest.canAccept) ...[
               SgPrimaryButton(

@@ -8,6 +8,7 @@ import '../data/drivers_api.dart';
 import '../domain/driver_models.dart';
 import 'drivers_notifier.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 /// Create or edit a driver (OWNER / staff with Driver.Create|Update).
 class DriverFormScreen extends ConsumerStatefulWidget {
@@ -206,7 +207,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         title: Text(widget.isEdit ? 'Edit driver' : 'Add driver'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: SgBrandLoader())
           : _loadError != null
               ? Center(
                   child: Padding(

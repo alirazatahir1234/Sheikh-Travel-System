@@ -10,6 +10,7 @@ import 'widgets/alerts_filter_sheet.dart';
 import 'widgets/in_cab_radio_modal.dart';
 import 'widgets/incident_detail_sheet.dart';
 import 'widgets/telematics_alert_card.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 export 'widgets/incident_detail_sheet.dart' show AlertDetailScreen;
 
@@ -55,17 +56,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         skipLoadingOnReload: true,
         skipLoadingOnRefresh: true,
         loading: () => const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              SizedBox(height: 12),
-              Text(
-                'Loading alerts…',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+          child: SgBrandLoader(message: 'Loading alerts…'),
         ),
         error: (e, _) => Center(
           child: Padding(

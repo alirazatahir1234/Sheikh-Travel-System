@@ -4,6 +4,7 @@ import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 Future<void> showVehicleCommandsSheet(
   BuildContext context,
@@ -345,7 +346,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
                 if (_loading)
                   const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: SgBrandLoader()),
                   )
                 else if (_error != null)
                   Padding(

@@ -116,7 +116,7 @@ class VehicleDetailScreen extends ConsumerWidget {
           ),
         ),
         body: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(child: SgBrandLoader()),
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -544,7 +544,7 @@ class _FuelTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleFuelProvider(vehicleId)),
@@ -731,7 +731,7 @@ class _DeviceTab extends ConsumerWidget {
         ]);
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),

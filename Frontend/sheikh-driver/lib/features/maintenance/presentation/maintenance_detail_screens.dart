@@ -100,7 +100,7 @@ class _MaintenanceRequestDetailScreenState
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Service request')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () =>
@@ -215,7 +215,7 @@ class _MaintenanceRequestDetailScreenState
             ],
             if (_busy) ...[
               const SizedBox(height: 16),
-              const Center(child: CircularProgressIndicator()),
+              Center(child: SgBrandLoader()),
             ],
           ],
         ),
@@ -275,7 +275,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Work order')),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () => ref.invalidate(workOrderProvider(widget.workOrderId)),
@@ -423,7 +423,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
             ],
             if (_busy) ...[
               const SizedBox(height: 16),
-              const Center(child: CircularProgressIndicator()),
+              Center(child: SgBrandLoader()),
             ],
           ],
         ),

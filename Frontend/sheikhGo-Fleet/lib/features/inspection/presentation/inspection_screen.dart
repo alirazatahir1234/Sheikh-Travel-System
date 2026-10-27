@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../data/inspection_api.dart';
 import '../domain/inspection_models.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 final _templateProvider = FutureProvider.autoDispose<InspectionTemplate>(
   (ref) => ref.read(inspectionApiProvider).getTemplate(),
@@ -204,7 +205,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
     final vehiclesAsync = ref.watch(_vehiclesProvider);
 
     return templateAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => Center(child: Text('$e')),
       data: (template) {
         _ensureResults(template);
@@ -386,7 +387,7 @@ class _HistoryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_historyProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: SgBrandLoader()),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

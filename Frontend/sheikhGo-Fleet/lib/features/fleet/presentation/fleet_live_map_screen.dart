@@ -8,6 +8,7 @@ import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import 'fleet_hub_notifier.dart';
 import 'widgets/fleet_kpi_strip.dart';
+import '../../../shared/widgets/sg_brand_loader.dart';
 
 class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
@@ -150,7 +151,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),
         data: (hub) {
           final visible = hub.visible;
