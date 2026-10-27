@@ -41,6 +41,7 @@ public sealed partial class GpsTrackingRepository(
     IDriverTelematicsEnforcementService telematicsEnforcement,
     IRoadSpeedAlertEvaluator roadSpeedAlertEvaluator,
     IFuelStationStopEvaluator fuelStationStopEvaluator,
+    IFuelFraudVerifier fuelFraudVerifier,
     IFleetAnomalyEvaluator fleetAnomalyEvaluator,
     MediatR.IMediator mediator,
     ITraccarClient traccar,
@@ -2125,6 +2126,14 @@ public sealed partial class GpsTrackingRepository(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Fuel station stop evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+        }
+        try
+        {
+            await fuelFraudVerifier.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Fuel fraud verification failed for vehicle {VehicleId}", dto.VehicleId);
         }
         await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);

@@ -45,6 +45,9 @@ public class GpsSettings
 
     /// <summary>GPS stop + Places proximity detection for fuel-station visit alerts.</summary>
     public FuelStationStopOptions FuelStationStop { get; set; } = new();
+
+    /// <summary>Compare driver pump liters vs OBD fuel-level increase after leaving station.</summary>
+    public FuelFraudOptions FuelFraud { get; set; } = new();
 }
 
 /// <summary>
@@ -68,6 +71,26 @@ public class FuelStationStopOptions
 
     /// <summary>Suppress repeat alerts for the same vehicle within this window.</summary>
     public int DedupMinutes { get; set; } = 120;
+}
+
+/// <summary>OBD verification of driver-entered pump liters (requires FuelLevel + tank capacity).</summary>
+public class FuelFraudOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Speed (km/h) indicating the vehicle left the pump island.</summary>
+    public decimal LeaveSpeedKmh { get; set; } = 8m;
+
+    /// <summary>Minimum minutes after order before verifying while still stopped.</summary>
+    public int MinWaitBeforeVerifyMinutes { get; set; } = 3;
+
+    /// <summary>Verify even without movement after this many minutes (uses latest OBD level).</summary>
+    public int ForceVerifyAfterMinutes { get; set; } = 25;
+
+    public int MaxOrderAgeMinutes { get; set; } = 180;
+
+    /// <summary>Under-delivery beyond this volume triggers fraud alert.</summary>
+    public decimal ToleranceLiters { get; set; } = 1.5m;
 }
 
 /// <summary>Gmeet offline → SOS-number SMS (site-side via Notifications:Sms).</summary>

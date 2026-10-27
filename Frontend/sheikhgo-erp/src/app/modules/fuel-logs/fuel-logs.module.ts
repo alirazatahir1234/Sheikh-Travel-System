@@ -6,9 +6,11 @@ import { FuelLogFormComponent } from './fuel-log-form/fuel-log-form.component';
 import { FuelLogAnalyticsComponent } from './fuel-log-analytics/fuel-log-analytics.component';
 import { FuelEfficiencyReportComponent } from './fuel-efficiency-report/fuel-efficiency-report.component';
 import { FuelTelemetryPanelComponent } from './fuel-telemetry-panel/fuel-telemetry-panel.component';
+import { FuelFraudEventsPageComponent } from './fuel-fraud-events/fuel-fraud-events-page.component';
 
 const routes: Routes = [
   { path: '', component: FuelLogListComponent },
+  { path: 'fraud-events', component: FuelFraudEventsPageComponent },
   { path: 'efficiency', component: FuelEfficiencyReportComponent },
   { path: 'telemetry', component: FuelTelemetryPanelComponent },
   { path: 'new', component: FuelLogFormComponent },

@@ -43,6 +43,7 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
           <li>{{ 'pages.fuel.integration.obd' | wsTranslate }}</li>
           <li>{{ 'pages.fuel.integration.station' | wsTranslate }}</li>
           <li>{{ 'pages.fuel.integration.receipts' | wsTranslate }}</li>
+          <li>{{ 'pages.fuel.integration.fraud' | wsTranslate }}</li>
         </ul>
       </div>
     </section>
@@ -113,6 +114,11 @@ export class FuelPage implements OnInit {
       icon: 'receipt_long',
       titleKey: 'pages.fuel.feature.logs.title',
       textKey: 'pages.fuel.feature.logs.text'
+    },
+    {
+      icon: 'gpp_bad',
+      titleKey: 'pages.fuel.feature.fraud.title',
+      textKey: 'pages.fuel.feature.fraud.text'
     }
   ] as const;
 

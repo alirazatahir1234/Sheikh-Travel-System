@@ -24,6 +24,8 @@ class FuelScreen extends ConsumerStatefulWidget {
 class _FuelScreenState extends ConsumerState<FuelScreen> {
   final _formKey = GlobalKey<FormState>();
   final _litersCtrl = TextEditingController();
+  final _pumpLitersCtrl = TextEditingController();
+  final _pumpStationCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _odoCtrl = TextEditingController();
   final _stationCtrl = TextEditingController();
@@ -44,6 +46,8 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
   @override
   void dispose() {
     _litersCtrl.dispose();
+    _pumpLitersCtrl.dispose();
+    _pumpStationCtrl.dispose();
     _priceCtrl.dispose();
     _odoCtrl.dispose();
     _stationCtrl.dispose();
@@ -164,6 +168,37 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
     });
   }
 
+  Future<void> _submitPumpOrder() async {
+    if (_vehicleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a vehicle')),
+      );
+      return;
+    }
+    final liters =
+        double.tryParse(_pumpLitersCtrl.text.trim().replaceAll(',', '.'));
+    if (liters == null || liters <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter liters ordered at the pump')),
+      );
+      return;
+    }
+    final msg = await ref.read(fuelNotifierProvider.notifier).submitPumpOrder(
+          vehicleId: _vehicleId!,
+          orderedLiters: liters,
+          stationName: _pumpStationCtrl.text.trim().isEmpty
+              ? null
+              : _pumpStationCtrl.text.trim(),
+        );
+    if (!mounted) return;
+    if (msg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.success),
+      );
+      _pumpLitersCtrl.clear();
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_vehicleId == null) {
@@ -220,7 +255,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
     return Scaffold(
       backgroundColor: context.sg.surface,
       appBar: AppBar(
-        title: const Text('Fuel Receipt'),
+        title: const Text('Fuel'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -239,6 +274,98 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            vehiclesAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('$e',
+                  style: const TextStyle(color: AppColors.error)),
+              data: (vehicles) {
+                if (vehicles.isEmpty) {
+                  return Text(
+                    'No vehicles available. Assign a vehicle to a trip first.',
+                    style: TextStyle(color: context.sg.textSecondary),
+                  );
+                }
+                _vehicleId ??= vehicles.first.id;
+                return DropdownMenu<int>(
+                  initialSelection: _vehicleId,
+                  label: const Text('Vehicle'),
+                  width: double.infinity,
+                  dropdownMenuEntries: vehicles
+                      .map(
+                        (v) => DropdownMenuEntry(
+                          value: v.id,
+                          label: v.plate == null || v.plate!.isEmpty
+                              ? v.name
+                              : '${v.name} · ${v.plate}',
+                        ),
+                      )
+                      .toList(),
+                  onSelected: (id) => setState(() => _vehicleId = id),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              color: AppColors.primary.withValues(alpha: 0.06),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Log liters at pump',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'After you leave the station, OBD fuel level is checked against this order.',
+                      style: TextStyle(
+                        color: context.sg.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SgSheetAmountFormField(
+                      controller: _pumpLitersCtrl,
+                      label: 'Liters ordered',
+                      unit: 'L',
+                      helperExample: 'e.g. 10',
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _pumpStationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Station (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: fuel.loading ? null : _submitPumpOrder,
+                        icon: const Icon(Icons.local_gas_station),
+                        label: Text(
+                          fuel.loading ? 'Saving…' : 'Submit pump order',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Full receipt',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 8),
             Form(
               key: _formKey,
               child: Column(
@@ -269,37 +396,6 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  vehiclesAsync.when(
-                    loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text('$e',
-                        style: const TextStyle(color: AppColors.error)),
-                    data: (vehicles) {
-                      if (vehicles.isEmpty) {
-                        return Text(
-                          'No vehicles available. Assign a vehicle to a trip first.',
-                          style: TextStyle(color: context.sg.textSecondary),
-                        );
-                      }
-                      _vehicleId ??= vehicles.first.id;
-                      return DropdownMenu<int>(
-                        initialSelection: _vehicleId,
-                        label: const Text('Vehicle'),
-                        width: double.infinity,
-                        dropdownMenuEntries: vehicles
-                            .map(
-                              (v) => DropdownMenuEntry(
-                                value: v.id,
-                                label: v.plate == null || v.plate!.isEmpty
-                                    ? v.name
-                                    : '${v.name} · ${v.plate}',
-                              ),
-                            )
-                            .toList(),
-                        onSelected: (id) => setState(() => _vehicleId = id),
-                      );
-                    },
                   ),
                   const SizedBox(height: 16),
                   const Text('Fuel Type',

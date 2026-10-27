@@ -77,6 +77,26 @@ class FuelNotifier extends AutoDisposeNotifier<FuelSubmitState> {
     }
   }
 
+  Future<String?> submitPumpOrder({
+    required int vehicleId,
+    required double orderedLiters,
+    String? stationName,
+  }) async {
+    state = state.copyWith(loading: true, error: null, success: false);
+    try {
+      final msg = await ref.read(fuelApiProvider).submitPumpOrder(
+            vehicleId: vehicleId,
+            orderedLiters: orderedLiters,
+            stationName: stationName,
+          );
+      state = state.copyWith(loading: false, success: true);
+      return msg;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+      return null;
+    }
+  }
+
   Future<FuelOcrSuggestion?> scan(File receipt) async {
     state = state.copyWith(scanning: true, error: null);
     try {

@@ -80,6 +80,28 @@ class FuelApi {
         );
   }
 
+  Future<String> submitPumpOrder({
+    required int vehicleId,
+    required double orderedLiters,
+    String? stationName,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.fuelPumpOrder,
+      data: {
+        'vehicleId': vehicleId,
+        'orderedLiters': orderedLiters,
+        if (stationName != null && stationName.isNotEmpty)
+          'stationName': stationName,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+    );
+    final data = res.data?['data'] as Map<String, dynamic>? ?? {};
+    return data['message'] as String? ?? 'Pump order logged';
+  }
+
   Future<FuelOcrSuggestion> scanReceipt(File receipt) async {
     final form = FormData.fromMap({
       'receipt': await MultipartFile.fromFile(

@@ -255,7 +255,7 @@ public static class AlertTypeCatalog
     [
         "sos", "power_cut", "overspeed", "road_speed_exceeded", "geofence_enter", "geofence_exit",
         "offline", "online", "ignition_on", "ignition_off", "low_battery",
-        "gps_lost", "low_fuel", "fuel_station_stop"
+        "gps_lost", "low_fuel", "fuel_station_stop", "fuel_fraud"
     ];
 }
 

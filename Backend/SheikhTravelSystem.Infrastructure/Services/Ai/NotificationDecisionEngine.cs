@@ -284,6 +284,7 @@ public sealed class NotificationDecisionEngine(
         "ignition_on" or "ignition_off" => 5,
         "low_fuel" or "low_battery" => 60,
         "fuel_station_stop" => 120,
+        "fuel_fraud" => 60,
         "compliance_reminder" => 1440,
         "trip_created" or "trip_started" or "trip_completed" or "trip_driver_arriving"
             or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_assigned" => 1,

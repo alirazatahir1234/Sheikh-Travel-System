@@ -81,6 +81,10 @@ public static class AlertModuleCatalog
             "Vehicle stopped near a petrol station (GPS stop + Places POI proximity)", "local_gas_station",
             "alert-fuel-station-stop", 214,
             IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["fuel_station_stop"]),
+        new("ALERT_FUEL_FRAUD", "fuel_fraud", "Fuel Fraud Detection", "Fuel Fraud Detection",
+            "Pump liters ordered vs OBD fuel level increase at petrol stations", "gpp_bad",
+            "alert-fuel-fraud", 215,
+            IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["fuel_fraud"]),
     ];
 
     /// <summary>Parent + default-on children (excludes premium opt-in types).</summary>
