@@ -795,7 +795,7 @@ export class GpsTrackingService {
     return this.http.get<PagedResult<GpsTrip>>(`${this.base}/trips`, { params }).pipe(
       map(r => {
         const page = normalizePagedResult(r);
-        return { ...page, items: page.items.map(t => normalizeGpsTrip(t)) };
+        return { ...page, items: page.items.map(t => normalizeGpsTrip(t as Partial<GpsTrip>)) };
       })
     );
   }

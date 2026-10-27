@@ -40,9 +40,11 @@ public sealed class FleetAnomalyEvaluator(
                 ORDER BY t.PlannedStart DESC
                 """, new { dto.VehicleId, TenantId = tenantId.Value }, cancellationToken: cancellationToken));
 
-        await TryNightDrivingAsync(connection, tenantId.Value, dto, ctx.DriverId, timestampUtc, cancellationToken);
-        await TrySuddenSpeedDropAsync(tenantId.Value, dto, ctx.DriverId, previousSpeedKmh, timestampUtc, cancellationToken);
-        await TryOffRouteAsync(connection, tenantId.Value, dto, ctx, timestampUtc, cancellationToken);
+        var driverId = ctx?.DriverId;
+        await TryNightDrivingAsync(connection, tenantId.Value, dto, driverId, timestampUtc, cancellationToken);
+        await TrySuddenSpeedDropAsync(tenantId.Value, dto, driverId, previousSpeedKmh, timestampUtc, cancellationToken);
+        if (ctx is not null)
+            await TryOffRouteAsync(connection, tenantId.Value, dto, ctx, timestampUtc, cancellationToken);
     }
 
     private async Task TryNightDrivingAsync(
