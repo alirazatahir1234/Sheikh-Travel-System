@@ -93,7 +93,11 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   drawHint = 'Use Draw tools on the map, or Add Geofence for a default circle you can drag.';
 
   private map: google.maps.Map | null = null;
+  /** Runtime DrawingManager; @types/google.maps omit MVC helpers (setMap/setOptions). */
   private drawingManager: google.maps.drawing.DrawingManager | null = null;
+  private get dm(): any {
+    return this.drawingManager;
+  }
   private draftShape: GmapEditableShape | null = null;
   private draftListeners: google.maps.MapsEventListener[] = [];
   private fenceEntries: FenceOverlayEntry[] = [];
@@ -159,7 +163,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearDraftListeners();
     this.clearFenceOverlays();
     this.clearDraft();
-    this.drawingManager?.setMap(null);
+    this.dm?.setMap(null);
     this.drawingManager = null;
     this.map = null;
   }
@@ -298,7 +302,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.map || this.drawingManager) return;
 
     const color = this.form.value.color || '#0f766e';
-    this.drawingManager = new google.maps.drawing.DrawingManager({
+    this.drawingManager = new (google.maps.drawing.DrawingManager as any)({
       drawingMode: null,
       drawingControl: false,
       circleOptions: {
@@ -329,14 +333,14 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
         clickable: true
       }
     });
-    this.drawingManager.setMap(this.map);
+    this.dm.setMap(this.map);
 
-    this.drawingManager.addListener('overlaycomplete', (event: google.maps.drawing.OverlayCompleteEvent) => {
+    this.dm.addListener('overlaycomplete', (event: { overlay: GmapEditableShape; type: string }) => {
       this.ngZone.run(() => this.onOverlayComplete(event));
     });
   }
 
-  private onOverlayComplete(event: google.maps.drawing.OverlayCompleteEvent): void {
+  private onOverlayComplete(event: { overlay: GmapEditableShape; type: string }): void {
     if (this.shapeLocked) {
       event.overlay.setMap(null);
       this.toast.info('Shape is locked. Unlock to redraw.');
@@ -376,15 +380,15 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.drawMode = mode;
     if (!this.drawingManager) return;
     if (this.shapeLocked) {
-      this.drawingManager.setDrawingMode(null);
+      this.dm.setDrawingMode(null);
       this.drawMode = '';
       return;
     }
     const OverlayType = google.maps.drawing.OverlayType;
-    if (mode === 'circle') this.drawingManager.setDrawingMode(OverlayType.CIRCLE);
-    else if (mode === 'polygon') this.drawingManager.setDrawingMode(OverlayType.POLYGON);
-    else if (mode === 'rectangle') this.drawingManager.setDrawingMode(OverlayType.RECTANGLE);
-    else this.drawingManager.setDrawingMode(null);
+    if (mode === 'circle') this.dm.setDrawingMode(OverlayType.CIRCLE);
+    else if (mode === 'polygon') this.dm.setDrawingMode(OverlayType.POLYGON);
+    else if (mode === 'rectangle') this.dm.setDrawingMode(OverlayType.RECTANGLE);
+    else this.dm.setDrawingMode(null);
   }
 
   private attachDraftListeners(shape: GmapEditableShape): void {
@@ -450,13 +454,13 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
         editable: !this.shapeLocked,
         draggable: !this.shapeLocked
       };
-      this.drawingManager.setOptions({
+      this.dm.setOptions({
         circleOptions: opts,
         polygonOptions: opts,
         rectangleOptions: opts
       });
       if (this.shapeLocked) {
-        this.drawingManager.setDrawingMode(null);
+        this.dm.setDrawingMode(null);
         this.drawMode = '';
       }
     }
