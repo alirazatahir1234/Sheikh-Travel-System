@@ -8,29 +8,46 @@
   @if (hasPreview()) {
     <div class="vd-host" [class.vd-host--loading]="loading()">
 
-      <!-- HEADER + HERO -->
+      <!-- HEADER + HERO SLIDER -->
       <div
         class="vd-header"
-        [class.vd-header--has-image]="resolvedImageUrl()"
-        [style.backgroundImage]="resolvedImageUrl() ? 'url(' + resolvedImageUrl() + ')' : null">
+        [class.vd-header--has-image]="hasHeroPhotos()"
+        (pointerdown)="onHeroPointerDown($event)"
+        (pointerup)="onHeroPointerUp($event)">
+
+        <div class="vd-hero-track" [style.transform]="'translateX(-' + (heroSlideIndex() * 100) + '%)'">
+          @for (slide of heroSlides(); track slide.id) {
+            <div class="vd-hero-slide" [class.vd-hero-slide--empty]="!slide.url">
+              @if (slide.url) {
+                <img [src]="slide.url" [alt]="slide.label" class="vd-hero-img" draggable="false" />
+              } @else {
+                <div class="vd-truck-area" aria-hidden="true">
+                  <div class="vd-truck-glow"></div>
+                  <svg class="vd-truck-svg" viewBox="0 0 160 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 62h78c2 0 4-1.5 4-4V36c0-3-2-5-5-5H36c-2 0-3.5 1-4.5 2.5L22 48c-1 1.5-2 3-2 5v5c0 2 1.5 4 4 4z" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.28)" stroke-width="1.5"/>
+                    <path d="M96 42h28c3 0 5 2 6 4l8 16c1 2 0 4-2 4h-8" stroke="rgba(255,255,255,.32)" stroke-width="1.5" fill="rgba(255,255,255,.1)"/>
+                    <rect x="100" y="34" width="22" height="14" rx="2" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>
+                    <circle cx="40" cy="68" r="10" fill="rgba(2,26,19,.55)" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+                    <circle cx="40" cy="68" r="4" fill="rgba(255,255,255,.2)"/>
+                    <circle cx="118" cy="68" r="10" fill="rgba(2,26,19,.55)" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+                    <circle cx="118" cy="68" r="4" fill="rgba(255,255,255,.2)"/>
+                    <path d="M28 42h42" stroke="rgba(16,185,129,.45)" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  <span class="vd-truck-caption">Add vehicle photos</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
 
         <div class="vd-header-top">
-          <div class="vd-badges">
-            <span class="vd-badge" [ngClass]="statusBadgeClass(displayStatus())">
-              <span class="vd-badge-dot"></span>
-              {{ statusLabel(displayStatus()) }}
-            </span>
-            @if (displayStatus() === 2) {
-              <span class="vd-badge vd-badge-transit">In Transit</span>
+          <div class="vd-status-slider" role="list" aria-label="Vehicle status">
+            @for (chip of statusChips(); track chip.id) {
+              <span class="vd-status-chip-slide" [attr.data-tone]="chip.tone" role="listitem">
+                <mat-icon>{{ chip.icon }}</mat-icon>
+                {{ chip.label }}
+              </span>
             }
-            <span
-              class="vd-badge"
-              [class.vd-badge-gps-on]="hasGpsTracker() && gpsOnline()"
-              [class.vd-badge-gps-off]="hasGpsTracker() && !gpsOnline()"
-              [class.vd-badge-gps-none]="!hasGpsTracker()">
-              <span class="vd-badge-dot"></span>
-              {{ gpsBadgeLabel() }}
-            </span>
           </div>
           <div class="vd-header-actions">
             <button class="vd-more-btn" type="button" [matMenuTriggerFor]="moreMenu" aria-label="More actions" (click)="$event.stopPropagation()">
@@ -48,18 +65,47 @@
           </div>
         </div>
 
-        @if (!resolvedImageUrl()) {
-          <div class="vd-truck-area">
-            <mat-icon class="vd-truck-ico">local_shipping</mat-icon>
+        @if (heroSlides().length > 1) {
+          <div class="vd-hero-nav">
+            <button type="button" class="vd-hero-nav-btn" aria-label="Previous photo" (click)="prevHeroSlide(); $event.stopPropagation()">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <button type="button" class="vd-hero-nav-btn" aria-label="Next photo" (click)="nextHeroSlide(); $event.stopPropagation()">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
           </div>
+          <div class="vd-hero-dots" role="tablist" aria-label="Photo slides">
+            @for (slide of heroSlides(); track slide.id; let i = $index) {
+              <button
+                type="button"
+                class="vd-hero-dot"
+                role="tab"
+                [class.vd-hero-dot--active]="heroSlideIndex() === i"
+                [attr.aria-label]="slide.label"
+                [attr.aria-selected]="heroSlideIndex() === i"
+                (click)="goToHeroSlide(i); $event.stopPropagation()"></button>
+            }
+          </div>
+        }
+
+        @if (activeHeroSlide(); as slide) {
+          <button
+            type="button"
+            class="vd-hero-angle"
+            [disabled]="!slide.url"
+            (click)="openActiveHeroPreview(); $event.stopPropagation()">
+            {{ slide.label }}
+            @if (slide.isPrimary) { <span>Display</span> }
+            @if (slide.url) { <mat-icon>zoom_in</mat-icon> }
+          </button>
         }
 
         <div class="vd-title-bar">
           <div class="vd-title-icon">
-            @if (resolvedImageUrl()) {
-              <img [src]="resolvedImageUrl()!" alt="" class="vd-title-thumb" />
+            @if (activeHeroSlide()?.url; as thumb) {
+              <img [src]="thumb" alt="" class="vd-title-thumb" />
             } @else {
-              <mat-icon>directions_bus</mat-icon>
+              <mat-icon>local_shipping</mat-icon>
             }
           </div>
           <div class="vd-title-text">
@@ -89,20 +135,21 @@
               </div>
             }
 
-            <div class="vd-kpi-row">
-              <div class="vd-kpi-card">
-                <span class="vd-kpi-label">Odometer</span>
-                <span class="vd-kpi-value">{{ displayMileage() | number }}<span class="vd-kpi-unit">km</span></span>
-              </div>
-              <div class="vd-kpi-card vd-kpi-card--green">
-                <span class="vd-kpi-label">Fuel Avg</span>
-                <span class="vd-kpi-value">{{ displayFuelAverage() }}<span class="vd-kpi-unit">km/L</span></span>
-                <div class="vd-fuel-bar"><div class="vd-fuel-fill" [style.width.%]="Math.min(displayFuelAverage() * 10, 100)"></div></div>
-              </div>
-              <div class="vd-kpi-card vd-kpi-card--blue">
-                <span class="vd-kpi-label">Tracker</span>
-                <span class="vd-kpi-value vd-kpi-value--sm">{{ trackerStatusLabel() }}</span>
-              </div>
+            <div class="vd-metrics-slider" role="list" aria-label="Vehicle metrics">
+              @for (metric of metricSlides(); track metric.id) {
+                <div class="vd-metric-card" [attr.data-tone]="metric.tone" role="listitem">
+                  <div class="vd-metric-top">
+                    <span class="vd-metric-icon"><mat-icon>{{ metric.icon }}</mat-icon></span>
+                    <span class="vd-kpi-label">{{ metric.label }}</span>
+                  </div>
+                  <span class="vd-kpi-value" [class.vd-kpi-value--sm]="!metric.unit && metric.value.length > 6">
+                    {{ metric.value }}@if (metric.unit) { <span class="vd-kpi-unit">{{ metric.unit }}</span> }
+                  </span>
+                  @if (metric.barPercent != null) {
+                    <div class="vd-fuel-bar"><div class="vd-fuel-fill" [style.width.%]="metric.barPercent"></div></div>
+                  }
+                </div>
+              }
             </div>
 
             <div class="vd-section vd-photo-section">
@@ -110,6 +157,8 @@
                 <span class="vd-section-title">Vehicle Photos</span>
                 @if (documentsLoading() && vehicleImageDocuments().length === 0) {
                   <span class="vd-section-meta">Loading…</span>
+                } @else {
+                  <span class="vd-section-meta">Swipe gallery above</span>
                 }
               </div>
 
@@ -119,18 +168,20 @@
                   <p>Loading vehicle photos…</p>
                 </div>
               } @else {
-                <div class="vd-photo-grid">
+                <div class="vd-photo-slider" role="list" aria-label="Photo angles">
                   @for (slot of vehiclePhotoSlots(); track slot.angle) {
                     <div
-                      class="vd-photo-slot"
+                      class="vd-photo-slot vd-photo-slot--slide"
                       [class.vd-photo-slot--filled]="!!slot.document"
-                      [class.vd-photo-slot--primary]="slot.isPrimary">
+                      [class.vd-photo-slot--primary]="slot.isPrimary"
+                      [class.vd-photo-slot--active]="hasHeroPhotos() && activeHeroSlide()?.id === slot.angle"
+                      role="listitem">
                       @if (vehicleImagePreviewUrl(slot.document); as previewUrl) {
                         <button
                           type="button"
                           class="vd-photo-preview"
                           [attr.aria-label]="'View ' + slot.label"
-                          (click)="openPhotoPreview(previewUrl, slot.label)">
+                          (click)="selectHeroAngle(slot.angle); openPhotoPreview(previewUrl, slot.label)">
                           <img [src]="previewUrl" [alt]="slot.label" loading="lazy" />
                           @if (slot.isPrimary) {
                             <span class="vd-photo-badge">Display</span>

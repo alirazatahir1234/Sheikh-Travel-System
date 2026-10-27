@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -80,6 +80,30 @@ interface VehiclePhotoSlot {
   isPrimary: boolean;
 }
 
+interface HeroSlide {
+  id: string;
+  label: string;
+  url: string | null;
+  isPrimary: boolean;
+}
+
+interface MetricSlide {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  tone: 'default' | 'green' | 'blue' | 'orange' | 'red';
+  icon: string;
+  barPercent?: number;
+}
+
+interface StatusChip {
+  id: string;
+  label: string;
+  tone: 'active' | 'transit' | 'maint' | 'inactive' | 'gps-on' | 'gps-off' | 'gps-none' | 'info' | 'warn';
+  icon: string;
+}
+
 const COMPLIANCE_TYPES: { key: string; label: string; aliases: string[] }[] = [
   { key: 'Registration', label: 'Registration Card', aliases: ['Registration'] },
   { key: 'Insurance', label: 'Insurance Policy', aliases: ['Insurance'] },
@@ -125,6 +149,7 @@ export class VehicleDetailsDrawerComponent {
   private readonly platformService = inject(PlatformService);
   private readonly bookingService = inject(BookingService);
   private readonly toast = inject(UiToastService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly router = inject(Router);
 
   readonly vehicleId = input<number | null>(null);
@@ -174,6 +199,91 @@ export class VehicleDetailsDrawerComponent {
       };
     });
   });
+  readonly heroSlides = computed((): HeroSlide[] => {
+    const slots = this.vehiclePhotoSlots();
+    const slides = slots
+      .map(slot => ({
+        id: slot.angle,
+        label: slot.label,
+        url: this.vehicleImagePreviewUrl(slot.document),
+        isPrimary: slot.isPrimary
+      }))
+      .filter(s => !!s.url);
+
+    if (slides.length > 0) return slides;
+
+    const listUrl = resolveVehicleImageUrl(this.listItem()?.imageUrl);
+    if (listUrl) {
+      return [{ id: 'list', label: 'Display', url: listUrl, isPrimary: true }];
+    }
+
+    return [{ id: 'empty', label: 'No photos yet', url: null, isPrimary: false }];
+  });
+  readonly activeHeroSlide = computed(() => {
+    const slides = this.heroSlides();
+    if (slides.length === 0) return null;
+    const idx = ((this.heroSlideIndex() % slides.length) + slides.length) % slides.length;
+    return slides[idx] ?? slides[0];
+  });
+  readonly hasHeroPhotos = computed(() => this.heroSlides().some(s => !!s.url));
+  readonly statusChips = computed((): StatusChip[] => {
+    const chips: StatusChip[] = [
+      {
+        id: 'status',
+        label: this.statusLabel(this.displayStatus()),
+        tone: this.statusChipTone(this.displayStatus()),
+        icon: 'directions_bus'
+      }
+    ];
+
+    if (this.displayStatus() === VehicleStatus.OnTrip) {
+      chips.push({ id: 'transit', label: 'In Transit', tone: 'transit', icon: 'near_me' });
+    }
+
+    chips.push({
+      id: 'gps',
+      label: this.gpsBadgeLabel(),
+      tone: !this.hasGpsTracker() ? 'gps-none' : this.gpsOnline() ? 'gps-on' : 'gps-off',
+      icon: this.hasGpsTracker() ? 'gps_fixed' : 'gps_off'
+    });
+
+    const ignition = this.displayIgnition();
+    if (ignition != null) {
+      chips.push({
+        id: 'ignition',
+        label: ignition ? 'Ignition ON' : 'Ignition OFF',
+        tone: ignition ? 'active' : 'inactive',
+        icon: 'power_settings_new'
+      });
+    }
+
+    if (this.driverName()) {
+      chips.push({ id: 'driver', label: this.driverName()!, tone: 'info', icon: 'person' });
+    } else {
+      chips.push({ id: 'driver', label: 'No driver', tone: 'warn', icon: 'person_off' });
+    }
+
+    const seating = this.displaySeating();
+    if (seating > 0) {
+      chips.push({ id: 'seats', label: `${seating} seats`, tone: 'info', icon: 'event_seat' });
+    }
+
+    return chips;
+  });
+  readonly metricSlides = computed((): MetricSlide[] => {
+    const fuel = this.displayFuelAverage();
+    const slides: MetricSlide[] = [
+      { id: 'odometer', label: 'Odometer', value: (this.displayMileage() || 0).toLocaleString(), unit: 'km', tone: 'default', icon: 'speed' },
+      { id: 'fuel', label: 'Fuel Avg', value: String(fuel || 0), unit: 'km/L', tone: 'green', icon: 'local_gas_station', barPercent: Math.min(fuel * 10, 100) },
+      { id: 'tracker', label: 'Tracker', value: this.trackerStatusLabel(), tone: this.hasGpsTracker() && this.gpsOnline() ? 'blue' : 'orange', icon: 'gps_fixed' }
+    ];
+    const year = this.displayYear();
+    if (year) slides.push({ id: 'year', label: 'Model Year', value: String(year), tone: 'default', icon: 'calendar_today' });
+    const seating = this.displaySeating();
+    if (seating > 0) slides.push({ id: 'seating', label: 'Capacity', value: String(seating), unit: 'pax', tone: 'blue', icon: 'groups' });
+    slides.push({ id: 'fuel-type', label: 'Fuel Type', value: this.fuelTypeLabel(this.displayFuelType()), tone: 'green', icon: 'ev_station' });
+    return slides;
+  });
   readonly maintenance = signal<VehicleMaintenance[]>([]);
   readonly nextService = signal<VehicleMaintenance | null>(null);
   readonly fuelSummary = signal<VehicleFuelSummary | null>(null);
@@ -207,6 +317,9 @@ export class VehicleDetailsDrawerComponent {
   docModalOpen = false;
   photoPreviewUrl: string | null = null;
   photoPreviewLabel = '';
+  readonly heroSlideIndex = signal(0);
+  private heroAutoplayTimer: ReturnType<typeof setInterval> | null = null;
+  private heroPointerStartX: number | null = null;
 
   selectedStatus = String(VehicleStatus.Available);
   statusReason = '';
@@ -594,6 +707,8 @@ export class VehicleDetailsDrawerComponent {
       const isOpen = this.open();
 
       if (!isOpen) {
+        this.stopHeroAutoplay();
+        this.heroSlideIndex.set(0);
         this.vehicle.set(null);
         this.loading.set(false);
         this.loadError.set(false);
@@ -613,6 +728,7 @@ export class VehicleDetailsDrawerComponent {
       this.loadedTabs.clear();
       this.activeTab = 'general';
       this.historyFilter = 'month';
+      this.heroSlideIndex.set(0);
       this.vehicle.set(null);
       this.loadError.set(false);
       this.maintenance.set([]);
@@ -622,6 +738,17 @@ export class VehicleDetailsDrawerComponent {
       this.prefetchTabDataEarly(id);
       this.loadVehicle(id);
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      const isOpen = this.open();
+      const slideCount = this.heroSlides().filter(s => !!s.url).length;
+      this.stopHeroAutoplay();
+      if (isOpen && slideCount > 1) {
+        this.heroAutoplayTimer = setInterval(() => this.nextHeroSlide(), 4500);
+      }
+    });
+
+    this.destroyRef.onDestroy(() => this.stopHeroAutoplay());
   }
 
   retryLoad(): void {
@@ -688,6 +815,65 @@ export class VehicleDetailsDrawerComponent {
   closePhotoPreview(): void {
     this.photoPreviewUrl = null;
     this.photoPreviewLabel = '';
+  }
+
+  nextHeroSlide(): void {
+    const count = this.heroSlides().length;
+    if (count <= 1) return;
+    this.heroSlideIndex.update(i => (i + 1) % count);
+  }
+
+  prevHeroSlide(): void {
+    const count = this.heroSlides().length;
+    if (count <= 1) return;
+    this.heroSlideIndex.update(i => (i - 1 + count) % count);
+  }
+
+  goToHeroSlide(index: number): void {
+    const count = this.heroSlides().length;
+    if (index < 0 || index >= count) return;
+    this.heroSlideIndex.set(index);
+  }
+
+  selectHeroAngle(angle: string): void {
+    const index = this.heroSlides().findIndex(s => s.id === angle);
+    if (index >= 0) this.heroSlideIndex.set(index);
+  }
+
+  onHeroPointerDown(event: PointerEvent): void {
+    this.heroPointerStartX = event.clientX;
+  }
+
+  onHeroPointerUp(event: PointerEvent): void {
+    if (this.heroPointerStartX == null) return;
+    const delta = event.clientX - this.heroPointerStartX;
+    this.heroPointerStartX = null;
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) this.nextHeroSlide();
+    else this.prevHeroSlide();
+  }
+
+  openActiveHeroPreview(): void {
+    const slide = this.activeHeroSlide();
+    if (slide?.url) this.openPhotoPreview(slide.url, slide.label);
+  }
+
+  private stopHeroAutoplay(): void {
+    if (this.heroAutoplayTimer) {
+      clearInterval(this.heroAutoplayTimer);
+      this.heroAutoplayTimer = null;
+    }
+  }
+
+  private statusChipTone(status: VehicleStatus): StatusChip['tone'] {
+    switch (normalizeVehicleStatus(status)) {
+      case VehicleStatus.Available: return 'active';
+      case VehicleStatus.OnTrip: return 'transit';
+      case VehicleStatus.Maintenance: return 'maint';
+      case VehicleStatus.Retired:
+      case VehicleStatus.Draft: return 'inactive';
+      default: return 'active';
+    }
   }
 
   isPdfDoc(doc: VehicleDocument): boolean {
