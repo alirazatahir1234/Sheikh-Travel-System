@@ -29,6 +29,13 @@
 
   <!-- Events tab -->
   <div *ngIf="activeTab === 'events'">
+    <div class="platform-fallback-banner" *ngIf="isSuperAdmin && platformCrossTenantLimited && scopeMode === 'all'">
+      <mat-icon>info</mat-icon>
+      <span>
+        Cross-company alerts need an updated API. Showing alerts for your current company until the platform endpoint is deployed.
+      </span>
+    </div>
+
     <div class="scope-bar" *ngIf="isSuperAdmin">
       <div class="chip-row scope-toggle">
         <button class="chip" [class.active]="scopeMode === 'all'" type="button" (click)="setScopeMode('all')">

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, of, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
@@ -175,6 +175,12 @@ function mapNearbyPlace(row: NearbyPlaceApiRow): NearbyPlace | null {
 export class GpsTrackingService {
   private readonly base = `${environment.apiUrl}/gps`;
   private readonly platformAlertsBase = `${environment.apiUrl}/platform/gps/alerts`;
+
+  /**
+   * True after a platform cross-tenant alerts call returned 404 and tenant APIs were used instead
+   * (older API build without PlatformGpsAlertsController).
+   */
+  readonly platformAlertsApiMissing$ = new BehaviorSubject(false);
 
   constructor(
     private http: HttpClient,
@@ -872,6 +878,8 @@ export class GpsTrackingService {
       eventType?: string;
       geofenceId?: number;
       limit?: number;
+      /** Super Admin tenant override (X-Tenant-Id) when not using platform feed. */
+      tenantScopeId?: number | null;
     },
     severity?: string,
     status?: string,
@@ -894,13 +902,19 @@ export class GpsTrackingService {
     if (options?.driverId) params['driverId'] = String(options.driverId);
     if (options?.eventType) params['eventType'] = options.eventType;
     if (options?.geofenceId) params['geofenceId'] = String(options.geofenceId);
-    return this.http.get<GpsAlertEvent[]>(`${this.base}/alerts/events`, { params }).pipe(
+    return this.http.get<GpsAlertEvent[]>(`${this.base}/alerts/events`, {
+      params,
+      ...this.tenantScopedHttpOptions(options?.tenantScopeId)
+    }).pipe(
       map(events => (options?.limit ? events.slice(0, options.limit) : events))
     );
   }
 
-  getAlertStats(): Observable<GpsAlertStats> {
-    return this.http.get<GpsAlertStats>(`${this.base}/alerts/stats`);
+  getAlertStats(tenantScopeId?: number | null): Observable<GpsAlertStats> {
+    return this.http.get<GpsAlertStats>(
+      `${this.base}/alerts/stats`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
   getPlatformAlertEvents(
@@ -928,14 +942,33 @@ export class GpsTrackingService {
     if (options?.eventType) params['eventType'] = options.eventType;
     if (options?.geofenceId) params['geofenceId'] = String(options.geofenceId);
     return this.http.get<GpsAlertEvent[]>(`${this.platformAlertsBase}/events`, { params }).pipe(
-      map(events => (options?.limit ? events.slice(0, options.limit) : events))
+      map(events => (options?.limit ? events.slice(0, options.limit) : events)),
+      catchError(err => this.fallbackPlatformAlerts404(err, () =>
+        this.getAlertEvents(options?.vehicleId, {
+          ...options,
+          tenantScopeId: tenantId
+        })
+      ))
     );
   }
 
   getPlatformAlertStats(tenantId?: number | null): Observable<GpsAlertStats> {
     let params = new HttpParams();
     if (tenantId != null) params = params.set('tenantId', tenantId);
-    return this.http.get<GpsAlertStats>(`${this.platformAlertsBase}/stats`, { params });
+    return this.http.get<GpsAlertStats>(`${this.platformAlertsBase}/stats`, { params }).pipe(
+      catchError(err => this.fallbackPlatformAlerts404(err, () => this.getAlertStats(tenantId)))
+    );
+  }
+
+  private fallbackPlatformAlerts404<T>(
+    err: unknown,
+    tenantFallback: () => Observable<T>
+  ): Observable<T> {
+    if (!(err instanceof HttpErrorResponse) || err.status !== 404) {
+      return throwError(() => err);
+    }
+    this.platformAlertsApiMissing$.next(true);
+    return tenantFallback();
   }
 
   acknowledgeAlert(id: number, tenantScopeId?: number | null): Observable<boolean> {

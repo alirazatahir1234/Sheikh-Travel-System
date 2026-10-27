@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { FormBuilder, Validators } from '@angular/forms';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -38,12 +39,15 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   isSuperAdmin = false;
   /** Super Admin: all tenants vs current company (X-Tenant-Id). */
   scopeMode: 'all' | 'company' = 'company';
+  /** Platform cross-tenant API unavailable — showing current-tenant data instead. */
+  platformCrossTenantLimited = false;
   companyFilterId: number | null = null;
   companies: Tenant[] = [];
   companiesLoading = false;
 
   ruleForm!: ReturnType<FormBuilder['group']>;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
+  private platformAlertsSub: Subscription | null = null;
 
   constructor(
     private gps: GpsTrackingService,
@@ -64,8 +68,10 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.isSuperAdmin = this.auth.hasRole('SUPER_ADMIN');
     if (this.isSuperAdmin) {
-      this.scopeMode = 'all';
       this.loadCompanies();
+      this.platformAlertsSub = this.gps.platformAlertsApiMissing$.subscribe(missing => {
+        this.platformCrossTenantLimited = missing;
+      });
     }
     this.load();
     this.gps.getGeofences().subscribe({ next: g => { this.geofences = g; } });
@@ -74,6 +80,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.platformAlertsSub?.unsubscribe();
   }
 
   load(): void {
@@ -89,7 +96,10 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   setScopeMode(mode: 'all' | 'company'): void {
     if (this.scopeMode === mode) return;
     this.scopeMode = mode;
-    if (mode === 'company') this.companyFilterId = null;
+    if (mode === 'company') {
+      this.companyFilterId = null;
+      this.platformCrossTenantLimited = false;
+    }
     this.loadEvents();
   }
 
@@ -113,7 +123,10 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
       : this.gps.getAlertStats();
     const events$ = usePlatform
       ? this.gps.getPlatformAlertEvents(this.companyFilterId, filterOpts)
-      : this.gps.getAlertEvents(undefined, filterOpts);
+      : this.gps.getAlertEvents(undefined, {
+        ...filterOpts,
+        tenantScopeId: this.isSuperAdmin ? this.companyFilterId : undefined
+      });
 
     stats$.subscribe({
       next: s => { this.stats = s; },
