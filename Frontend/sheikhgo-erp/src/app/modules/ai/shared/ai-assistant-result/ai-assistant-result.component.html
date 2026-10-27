@@ -57,7 +57,7 @@
   <ul class="warnings" *ngIf="warnings?.length" aria-label="Warnings">
     <li *ngFor="let w of warnings">
       <mat-icon aria-hidden="true">warning</mat-icon>
-      {{ w }}
+      {{ polishedWarning(w) }}
     </li>
   </ul>
 </div>

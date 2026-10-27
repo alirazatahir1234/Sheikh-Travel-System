@@ -24,6 +24,7 @@ import { TenantConfigService } from '../../../core/services/tenant-config.servic
 import { Tenant } from '../../../core/models/platform.model';
 import { VehicleListItem, VehicleStatus, VehicleStatusLabels } from '../../../core/models/vehicle.model';
 import { AiAssistantScopeService } from '../services/ai-assistant-scope.service';
+import { AI_ASSISTANT_UI } from '../shared/ai-assistant-ui.constants';
 
 @Component({
   selector: 'app-ai-assistant-scope',
@@ -39,6 +40,8 @@ import { AiAssistantScopeService } from '../services/ai-assistant-scope.service'
   styleUrls: ['./ai-assistant-scope.component.scss']
 })
 export class AiAssistantScopeComponent implements OnInit, OnDestroy {
+  readonly aiUi = AI_ASSISTANT_UI;
+
   /** Compact drawer vs full-page toolbar density. */
   @Input() compact = false;
   /**

@@ -15,6 +15,8 @@ import {
 } from '../../../core/services/ai-platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { AiAssistantResultComponent } from '../shared/ai-assistant-result/ai-assistant-result.component';
+import { AiAssistantOpenSoundService } from '../services/ai-assistant-open-sound.service';
+import { AI_ASSISTANT_UI, polishAssistantEmojis } from '../shared/ai-assistant-ui.constants';
 
 interface ChatBubble {
   role: 'user' | 'assistant' | 'system';
@@ -43,6 +45,8 @@ interface ChatBubble {
   styleUrls: ['./ai-chat.component.scss']
 })
 export class AiChatComponent implements OnInit {
+  readonly aiUi = AI_ASSISTANT_UI;
+
   /** Narrow slide-over / FAB embed — tighter layout, fewer chips. */
   @Input() compact = false;
 
@@ -83,10 +87,12 @@ export class AiChatComponent implements OnInit {
 
   constructor(
     private ai: AiPlatformService,
-    private toast: UiToastService
+    private toast: UiToastService,
+    private aiAssistantOpenSound: AiAssistantOpenSoundService
   ) {}
 
   ngOnInit(): void {
+    this.aiAssistantOpenSound.notifyAssistantOpened();
     this.refresh();
   }
 
@@ -181,7 +187,7 @@ export class AiChatComponent implements OnInit {
       return;
     }
 
-    this.messages.push({ role: 'user', content: text });
+    this.messages.push({ role: 'user', content: polishAssistantEmojis(text) });
     if (!confirmWrite) this.draft = '';
 
     this.sending = true;
@@ -219,7 +225,7 @@ export class AiChatComponent implements OnInit {
     this.sending = false;
     this.messages.push({
       role: 'assistant',
-      content: res?.answer ?? 'No answer returned.',
+      content: polishAssistantEmojis(res?.answer ?? 'No answer returned.'),
       period: this.shouldShowPeriod(res) ? res.period : undefined,
       toolUsed: res?.toolUsed,
       data: res?.data,
@@ -252,7 +258,7 @@ export class AiChatComponent implements OnInit {
     }
     this.messages.push({
       role: 'assistant',
-      content: res?.answer ?? 'No answer returned.'
+      content: polishAssistantEmojis(res?.answer ?? 'No answer returned.')
     });
     this.pendingAction = res.pendingAction ?? null;
     if (res.mode === 'confirm_executed') {

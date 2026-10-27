@@ -12,6 +12,7 @@ import {
   parseAssistantAnswer,
   asFleetHealthData
 } from '../assistant-answer.util';
+import { polishAssistantEmojis } from '../ai-assistant-ui.constants';
 
 @Component({
   selector: 'app-ai-assistant-result',
@@ -57,5 +58,9 @@ export class AiAssistantResultComponent {
   metricPercent(m: AssistantMetricTile): number {
     if (m.unit !== '%') return 0;
     return Math.max(0, Math.min(100, m.value));
+  }
+
+  polishedWarning(text: string): string {
+    return polishAssistantEmojis(text);
   }
 }

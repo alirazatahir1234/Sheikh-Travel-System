@@ -28,7 +28,7 @@
   <section class="chat-main" *ngIf="!accessDeniedMessage">
     <div class="connection-strip" [attr.data-state]="connectionState" role="status">
       <mat-icon>{{ connectionState === 'connected' ? 'check_circle' : 'hourglass_empty' }}</mat-icon>
-      <span>{{ connectionState === 'connected' ? 'Connected' : 'Connecting…' }}</span>
+      <span>{{ connectionState === 'connected' ? ('Connected ' + aiUi.smile) : ('Connecting… ' + aiUi.wave) }}</span>
       <button
         *ngIf="!hasSessions"
         mat-icon-button
@@ -47,9 +47,9 @@
 
     <div class="messages" *ngIf="!loading">
       <div class="empty" *ngIf="!messages.length">
-        <mat-icon>smart_toy</mat-icon>
-        <h3>Fleet intelligence</h3>
-        <p>Ask about fleet health, offline vehicles, fuel, maintenance, trips, and utilization — answers use live SheikhGo tools, not guesswork.</p>
+        <span class="empty-emoji" aria-hidden="true">{{ aiUi.wave }}</span>
+        <h3>Fleet intelligence {{ aiUi.smile }}</h3>
+        <p>{{ aiUi.chat }} Ask about fleet health, offline vehicles, fuel, maintenance, trips, and utilization — answers use live SheikhGo tools, not guesswork.</p>
         <label class="mode-toggle" *ngIf="!compact">
           <input type="checkbox" [(ngModel)]="useAssistant" />
           Use read-only Assistant (recommended)
@@ -77,7 +77,7 @@
 
       <div class="typing" *ngIf="sending">
         <mat-spinner diameter="20"></mat-spinner>
-        <span>Thinking…</span>
+        <span>Thinking… {{ aiUi.smile }}</span>
       </div>
       <div #scrollAnchor></div>
     </div>
@@ -89,7 +89,7 @@
         role="listitem"
         *ngFor="let s of visibleSuggestions"
         (click)="useSuggestion(s)">
-        {{ s }}
+        {{ aiUi.idea }} {{ s }}
       </button>
     </div>
 
@@ -101,7 +101,7 @@
       </div>
       <div class="confirm-actions">
         <button mat-stroked-button type="button" (click)="dismissConfirm()">Cancel</button>
-        <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm</button>
+        <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm {{ aiUi.thumbsUp }}</button>
       </div>
     </div>
 

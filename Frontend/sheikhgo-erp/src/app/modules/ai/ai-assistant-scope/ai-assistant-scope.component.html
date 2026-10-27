@@ -90,11 +90,11 @@
     <div class="ai-scope-empty" *ngIf="!selectedCompany && !companiesLoading" role="status">
       <mat-icon aria-hidden="true">business</mat-icon>
       <div>
-        <strong>Choose a company to get started</strong>
-        <p>Select a company above to view its vehicles and ask questions about its fleet.</p>
+        <strong>{{ aiUi.wave }} Choose a company to get started</strong>
+        <p>{{ aiUi.chat }} Select a company above to view its vehicles and ask questions about its fleet.</p>
       </div>
       <button type="button" class="ai-scope-cta" (click)="openDropdown(); searchInput.focus()">
-        Search companies
+        {{ aiUi.search }} Search companies
       </button>
     </div>
 

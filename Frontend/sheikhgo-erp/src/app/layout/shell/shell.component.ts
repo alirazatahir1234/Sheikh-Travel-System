@@ -28,6 +28,8 @@ import { isNavItemActive } from '../../core/navigation/nav-route-active.util';
 import { resolveTenantType } from '../../core/navigation/tenant-type';
 import { APP_PRODUCT_NAME, APP_PRODUCT_TAGLINE, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
 import { environment } from '../../../environments/environment';
+import { AiAssistantOpenSoundService } from '../../modules/ai/services/ai-assistant-open-sound.service';
+import { AI_ASSISTANT_UI } from '../../modules/ai/shared/ai-assistant-ui.constants';
 
 interface NotifMetaRow {
   icon: string;
@@ -45,6 +47,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   readonly appProductName = APP_PRODUCT_NAME;
   readonly appProductTagline = APP_PRODUCT_TAGLINE;
   readonly appLogoPath = APP_SIDEBAR_LOGO_PATH;
+  readonly aiUi = AI_ASSISTANT_UI;
   private readonly sidebarPinnedStorageKey = 'stb_sidebar_pinned';
   private readonly enabledModules$ = new BehaviorSubject<string[]>([]);
   private latestMenu?: ResolvedMenu;
@@ -101,7 +104,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private tenantConfig: TenantConfigService,
     private menuService: MenuService,
-    private http: HttpClient
+    private http: HttpClient,
+    private aiAssistantOpenSound: AiAssistantOpenSoundService
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
@@ -476,6 +480,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   openAiChat(event?: Event): void {
     event?.stopPropagation();
     this.closeNotifPanel();
+    this.aiAssistantOpenSound.notifyAssistantOpened();
     this.aiChatOpen = true;
   }
 

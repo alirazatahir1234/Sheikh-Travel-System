@@ -1,3 +1,5 @@
+import { polishAssistantEmojis } from './ai-assistant-ui.constants';
+
 /** Parsed assistant prose — safe for template binding (no HTML). */
 export type AssistantAnswerBlock =
   | { kind: 'paragraph'; text: string }
@@ -29,7 +31,7 @@ export interface AssistantDataTable {
 const BULLET = /^[\s]*[•\-*]\s+/;
 
 export function parseAssistantAnswer(text: string): AssistantAnswerBlock[] {
-  const raw = (text ?? '').trim();
+  const raw = polishAssistantEmojis(text).trim();
   if (!raw) return [];
 
   const blocks: AssistantAnswerBlock[] = [];

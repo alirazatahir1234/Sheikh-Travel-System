@@ -24,6 +24,7 @@ import {
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { AiChatComponent } from '../ai-chat/ai-chat.component';
 import { healthBand } from '../shared/assistant-answer.util';
+import { AI_ASSISTANT_UI } from '../shared/ai-assistant-ui.constants';
 
 @Component({
   selector: 'app-ai-management-center',
@@ -45,6 +46,8 @@ import { healthBand } from '../shared/assistant-answer.util';
   styleUrls: ['./ai-management-center.component.scss']
 })
 export class AiManagementCenterComponent implements OnInit {
+  readonly aiUi = AI_ASSISTANT_UI;
+
   /** Management data load only — Chat tab is never gated on this. */
   loading = true;
   loadError: string | null = null;

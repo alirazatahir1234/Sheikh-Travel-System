@@ -1,8 +1,8 @@
 <div class="ai-page">
   <header class="ai-header">
     <div>
-      <h1>Fleet Intelligence</h1>
-      <p>Live fleet health, recommendations, and predictions — plus AI provider settings and escalations.</p>
+      <h1>Fleet Intelligence {{ aiUi.smile }}</h1>
+      <p>{{ aiUi.wave }} Live fleet health, recommendations, and predictions — plus AI provider settings and escalations.</p>
     </div>
     <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading">
       <mat-icon>refresh</mat-icon> Refresh
@@ -71,7 +71,7 @@
 
           <div class="empty-state" *ngIf="!health">
             <mat-icon>insights</mat-icon>
-            <p>Fleet health is unavailable right now. Provider settings below still load when permitted.</p>
+            <p>{{ aiUi.smile }} Fleet health is unavailable right now. Provider settings below still load when permitted.</p>
           </div>
 
           <h3 class="section-title section-title--spaced">Provider &amp; feature toggles</h3>
@@ -124,7 +124,7 @@
           <input matInput [(ngModel)]="question" (keyup.enter)="ask()" placeholder="How many vehicles are offline?" />
         </mat-form-field>
         <button mat-flat-button color="primary" type="button" [disabled]="asking" (click)="ask()">
-          {{ asking ? 'Thinking…' : 'Ask' }}
+          {{ asking ? ('Thinking… ' + aiUi.smile) : ('Ask ' + aiUi.chat) }}
         </button>
         <div class="answer" *ngIf="copilotAnswer as a">
           <pre>{{ a.answer }}</pre>
@@ -162,7 +162,7 @@
           <ng-template #noRecs>
             <div class="empty-state">
               <mat-icon>task_alt</mat-icon>
-              <p>No active recommendations — your fleet signals look clear.</p>
+              <p>{{ aiUi.thumbsUp }} No active recommendations — your fleet signals look clear.</p>
             </div>
           </ng-template>
         </ng-container>
@@ -194,7 +194,7 @@
           <ng-template #noDatasets>
             <div class="empty-state empty-state--compact">
               <mat-icon>database</mat-icon>
-              <p>No dataset status returned yet.</p>
+              <p>{{ aiUi.smile }} No dataset status returned yet.</p>
             </div>
           </ng-template>
 
@@ -219,7 +219,7 @@
           <ng-template #noPreds>
             <div class="empty-state">
               <mat-icon>timeline</mat-icon>
-              <p>No predictions yet — run predictions from the Fleet dashboard tab.</p>
+              <p>{{ aiUi.idea }} No predictions yet — run predictions from the Fleet dashboard tab.</p>
             </div>
           </ng-template>
         </ng-container>
