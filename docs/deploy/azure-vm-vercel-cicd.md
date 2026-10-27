@@ -48,8 +48,21 @@ unset AZP_TOKEN
 | `VERCEL_ERP_PROJECT_ID` | sheikhgo-erp project settings |
 | `VERCEL_HUB_PROJECT_ID` | customer-hub project settings (optional; `PLACEHOLDER` skips hub so ERP still deploys) |
 | `VERCEL_PROD` | `true` (default) |
-| `GOOGLE_MAPS_API_KEY` | SheikhGo-Frontend browser key (**secret**) — injected into `environment.prod.ts` at build |
+| `GOOGLE_MAPS_API_KEY` | SheikhGo-Frontend **browser** key (**secret**) — injected at build by `Frontend/sheikhgo-erp/scripts/inject-maps-env.mjs` into `environment.prod.ts`, then placeholders restored. Never commit the live value. |
 | `GOOGLE_MAPS_MAP_ID` | Optional Map ID for Advanced Markers |
+
+Also set the same `GOOGLE_MAPS_*` names on the **Vercel project → Settings → Environment Variables** (Production) so remote `vercel build` / Hobby rebuilds see them. `deploy/vercel/deploy-frontends.sh` additionally writes them into `.vercel/.env.production.local` before prebuilt deploy.
+
+**HTTP referrer restrictions** (Google Cloud Console → Credentials → this browser key) — required; browser keys are visible in the SPA by design:
+
+- `https://www.sheikhgo.com/*`
+- `https://sheikhgo.com/*`
+- `http://localhost:4200/*`
+- `http://127.0.0.1:4200/*`
+
+Enable APIs on the same GCP project: Maps JavaScript API, Places API, Geocoding API, Routes API. Billing must be linked for live traffic — the ERP only blames billing when Google’s own error URL/copy says so.
+
+**Local / laptop builds:** prefer `Frontend/sheikhgo-erp/.env.local` (from `.env.example`), or gitignored `secrets/local.env`, or `environment.secrets.local.ts` (from the `.example`). `npm start` / `build:prod` run inject automatically.
 
 Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pipeline.
 
