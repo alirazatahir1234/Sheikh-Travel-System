@@ -5,11 +5,13 @@
 | **ERP walkthrough video (~3 min, Watch Demo primary)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-erp-walkthrough.mp4` (prod playback: streamed — see [VIDEO-PROTECTION.md](./VIDEO-PROTECTION.md)) |
 | **ERP recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-erp-walkthrough.manifest.json` |
 | **Fleet promo (~120s, Watch Promo)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-promo-120s.mp4` (+ `.srt` / `.vtt` captions; public static) |
+| **Mobile app promo (~54s, Watch Demo → Mobile App)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-mobile-promo.mp4` (+ `.srt` / `.vtt`; VO + titles; Eco Nexus on splash/Live Map) |
+| **Mobile promo build** | `Frontend/sheikhgo-erp/public/website/demo/mobile-promo-production/build_mobile_promo.py` |
 | **Nexus walkthrough video (~2:57, marketing + ERP montage)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.mp4` |
 | **Recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-walkthrough.manifest.json` |
 | **ERP app narrated / shot list (~3 min)** | [SheikhGo-Nexus-ERP-Walkthrough-Script.md](./SheikhGo-Nexus-ERP-Walkthrough-Script.md) |
 | **Marketing site narrated script (6–8 min)** | [SheikhGo-Nexus-Walkthrough-Script.md](./SheikhGo-Nexus-Walkthrough-Script.md) |
-| **iOS mobile walkthrough video (automated Simulator)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-ios-walkthrough.mp4` |
+| **iOS mobile walkthrough video (automated Simulator source)** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-ios-walkthrough.mp4` |
 | **iOS recording manifest** | `Frontend/sheikhgo-erp/public/website/demo/sheikhgo-nexus-ios-walkthrough.manifest.json` |
 | **iOS narrated script (5–7 min)** | [SheikhGo-Nexus-iOS-Walkthrough-Script.md](./SheikhGo-Nexus-iOS-Walkthrough-Script.md) |
 | **Slide deck outline** | [SheikhGo-Demo-Slides.md](./SheikhGo-Demo-Slides.md) |

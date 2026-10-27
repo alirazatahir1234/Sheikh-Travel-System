@@ -1,27 +1,20 @@
 <div class="demo-modal-root" role="presentation" (click)="onBackdropClick($event)">
   <div
     class="demo-modal"
+    [class.demo-modal--portrait]="mode() === 'mobile'"
     role="dialog"
     aria-modal="true"
-    [attr.aria-label]="mode() === 'promo' ? promoTitle : erpTitle"
+    [attr.aria-label]="activeTitle()"
     (click)="$event.stopPropagation()"
   >
     <header class="demo-modal-head">
       <div>
         <p class="demo-modal-kicker">
-          {{
-            mode() === 'promo'
-              ? ('common.productPromoKicker' | wsTranslate)
-              : ('common.productWalkthroughKicker' | wsTranslate)
-          }}
+          {{ kickerKey() | wsTranslate }}
         </p>
-        <h2>{{ mode() === 'promo' ? promoTitle : erpTitle }}</h2>
+        <h2>{{ activeTitle() }}</h2>
         <p class="demo-modal-lead">
-          {{
-            mode() === 'promo'
-              ? ('common.productPromoLead' | wsTranslate)
-              : ('common.productWalkthroughLead' | wsTranslate)
-          }}
+          {{ leadKey() | wsTranslate }}
         </p>
         <div class="demo-modal-tabs" role="tablist" [attr.aria-label]="'common.demoVideos' | wsTranslate">
           <button
@@ -44,13 +37,27 @@
           >
             {{ 'common.watchPromo' | wsTranslate }}
           </button>
+          <button
+            type="button"
+            role="tab"
+            class="demo-modal-tab"
+            [class.is-active]="mode() === 'mobile'"
+            [attr.aria-selected]="mode() === 'mobile'"
+            (click)="setMode('mobile')"
+          >
+            {{ 'common.watchMobile' | wsTranslate }}
+          </button>
         </div>
       </div>
       <button type="button" class="demo-modal-close" (click)="close()" aria-label="Close demo video">
         <mat-icon aria-hidden="true">close</mat-icon>
       </button>
     </header>
-    <div class="demo-modal-video-wrap" (contextmenu)="$event.preventDefault()">
+    <div
+      class="demo-modal-video-wrap"
+      [class.demo-modal-video-wrap--portrait]="mode() === 'mobile'"
+      (contextmenu)="$event.preventDefault()"
+    >
       <video
         #player
         class="demo-modal-video"
@@ -59,15 +66,15 @@
         disablePictureInPicture
         playsinline
         preload="metadata"
-        [src]="mode() === 'promo' ? promoSrc : erpSrc"
+        [src]="activeSrc()"
         (canplay)="onCanPlay()"
         (dragstart)="$event.preventDefault()"
-        [attr.crossorigin]="mode() === 'promo' ? 'anonymous' : null"
+        [attr.crossorigin]="mode() === 'erp' ? null : 'anonymous'"
       >
-        @if (mode() === 'promo') {
+        @if (activeCaptionsSrc(); as captionsSrc) {
           <track
             kind="captions"
-            [src]="promoCaptionsSrc"
+            [src]="captionsSrc"
             srclang="en"
             label="English"
             default
@@ -87,7 +94,7 @@
           {{ downloadInProgress ? 'Preparing download…' : 'Download ERP tour (MP4)' }}
         </button>
       }
-      @if (mode() === 'promo') {
+      @if (mode() === 'promo' || mode() === 'mobile') {
         <a routerLink="/request-demo" class="demo-modal-download" (click)="close()">
           {{ 'common.requestDemoArrow' | wsTranslate }}
         </a>

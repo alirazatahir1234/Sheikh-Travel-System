@@ -11,6 +11,7 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'common.requestDemoArrow': 'اطلب عرضاً ←',
   'common.watchDemo': 'شاهد العرض',
   'common.watchPromo': 'شاهد الإعلان',
+  'common.watchMobile': 'تطبيق الجوال',
   'common.demoVideos': 'مقاطع العرض',
   'common.productWalkthroughKicker': 'جولة المنتج',
   'common.productWalkthroughLead':
@@ -18,6 +19,9 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'common.productPromoKicker': 'إعلان المنتج',
   'common.productPromoLead':
     'نظرة عامة لمدة دقيقتين على SheikhGo Nexus — GPS مباشر وصحة الأسطول والوقود والمركبات الكهربائية والمستندات والذكاء الاصطناعي وحجز عرض.',
+  'common.productMobileKicker': 'إعلان تطبيق الجوال',
+  'common.productMobileLead':
+    'حوالي 55 ثانية من تطبيق الأسطول على iOS — الشاشة الافتتاحية والخريطة المباشرة والمركبات والرحلات. احجز عرضاً.',
   'common.contactUs': 'تواصل معنا',
   'common.contactUsArrow': 'تواصل معنا ←',
   'common.letsTalk': 'لنتحدث',

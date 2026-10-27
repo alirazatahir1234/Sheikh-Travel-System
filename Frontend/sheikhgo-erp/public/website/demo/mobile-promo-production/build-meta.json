@@ -1,0 +1,23 @@
+{
+  "title": "SheikhGo Nexus \u2014 Mobile app promo",
+  "durationSec": 54.06,
+  "source": "ios-walkthrough.mov",
+  "ecoNexusBeats": [
+    1,
+    4
+  ],
+  "claims": [
+    "splash",
+    "login",
+    "dashboard",
+    "live map",
+    "vehicles",
+    "trips",
+    "role shell"
+  ],
+  "outputs": [
+    "sheikhgo-nexus-mobile-promo.mp4",
+    "sheikhgo-nexus-mobile-promo.vtt",
+    "sheikhgo-nexus-mobile-promo.srt"
+  ]
+}

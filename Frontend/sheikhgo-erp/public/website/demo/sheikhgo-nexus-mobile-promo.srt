@@ -1,0 +1,23 @@
+1
+00:00:00,000 --> 00:00:08,000
+Every journey matters. Eco Nexus brings your entire fleet into one intelligent workplace.
+
+2
+00:00:08,000 --> 00:00:14,000
+Sign in with work email or phone — owners track the fleet, drivers run trips.
+
+3
+00:00:14,000 --> 00:00:24,000
+The command dashboard mirrors Nexus priorities — fleet status and what needs attention now.
+
+4
+00:00:24,000 --> 00:00:36,000
+Track every vehicle real-time. Live map is a first-class tab for fleet managers — same live tracking hub as the web.
+
+5
+00:00:36,000 --> 00:00:46,000
+Open More for Vehicles, Trips, geofences, and GPS tools — the role-based shell shows what your permissions allow.
+
+6
+00:00:46,000 --> 00:00:54,000
+SheikhGo Nexus — web ERP and iOS fleet app, one platform. Book a demo at sheikhgo.com.

@@ -19,6 +19,9 @@ import {
   NEXUS_ERP_WALKTHROUGH_DEMO_STATIC,
   NEXUS_ERP_WALKTHROUGH_DEMO_STREAM,
   NEXUS_ERP_WALKTHROUGH_DEMO_TITLE,
+  NEXUS_MOBILE_PROMO_CAPTIONS_VTT,
+  NEXUS_MOBILE_PROMO_SRC,
+  NEXUS_MOBILE_PROMO_TITLE,
   NEXUS_PROMO_120S_CAPTIONS_VTT,
   NEXUS_PROMO_120S_SRC,
   NEXUS_PROMO_120S_TITLE,
@@ -39,7 +42,7 @@ import { WebsiteTranslatePipe } from '../website-translate.pipe';
 export class NexusDemoModalComponent implements AfterViewInit, OnDestroy {
   readonly closed = output<void>();
 
-  /** Initial video mode — ERP walkthrough (default) or public 120s promo. */
+  /** Initial video mode — ERP walkthrough (default), 120s promo, or mobile promo. */
   readonly initialMode = input<NexusDemoModalMode>('erp');
 
   readonly mode = signal<NexusDemoModalMode>('erp');
@@ -49,7 +52,45 @@ export class NexusDemoModalComponent implements AfterViewInit, OnDestroy {
   readonly promoSrc = NEXUS_PROMO_120S_SRC;
   readonly promoTitle = NEXUS_PROMO_120S_TITLE;
   readonly promoCaptionsSrc = NEXUS_PROMO_120S_CAPTIONS_VTT;
+  readonly mobileSrc = NEXUS_MOBILE_PROMO_SRC;
+  readonly mobileTitle = NEXUS_MOBILE_PROMO_TITLE;
+  readonly mobileCaptionsSrc = NEXUS_MOBILE_PROMO_CAPTIONS_VTT;
   readonly websiteTourSrc = NEXUS_WEBSITE_WALKTHROUGH_DEMO_SRC;
+
+  activeTitle(): string {
+    const m = this.mode();
+    if (m === 'promo') return this.promoTitle;
+    if (m === 'mobile') return this.mobileTitle;
+    return this.erpTitle;
+  }
+
+  activeSrc(): string {
+    const m = this.mode();
+    if (m === 'promo') return this.promoSrc;
+    if (m === 'mobile') return this.mobileSrc;
+    return this.erpSrc;
+  }
+
+  activeCaptionsSrc(): string | null {
+    const m = this.mode();
+    if (m === 'promo') return this.promoCaptionsSrc;
+    if (m === 'mobile') return this.mobileCaptionsSrc;
+    return null;
+  }
+
+  kickerKey(): string {
+    const m = this.mode();
+    if (m === 'promo') return 'common.productPromoKicker';
+    if (m === 'mobile') return 'common.productMobileKicker';
+    return 'common.productWalkthroughKicker';
+  }
+
+  leadKey(): string {
+    const m = this.mode();
+    if (m === 'promo') return 'common.productPromoLead';
+    if (m === 'mobile') return 'common.productMobileLead';
+    return 'common.productWalkthroughLead';
+  }
 
   @ViewChild('player') private player?: ElementRef<HTMLVideoElement>;
 

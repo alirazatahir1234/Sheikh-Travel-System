@@ -23,6 +23,10 @@
   color: #fff;
 }
 
+.demo-modal--portrait {
+  width: min(440px, 100%);
+}
+
 .demo-modal-head {
   display: flex;
   align-items: flex-start;
@@ -108,6 +112,13 @@
   overflow: hidden;
   background: #000;
   aspect-ratio: 16 / 9;
+}
+
+.demo-modal-video-wrap--portrait {
+  aspect-ratio: 9 / 19.5;
+  max-height: min(62vh, 640px);
+  margin-inline: auto;
+  width: min(100%, 320px);
 }
 
 .demo-modal-video {

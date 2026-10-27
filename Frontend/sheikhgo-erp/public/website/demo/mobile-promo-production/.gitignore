@@ -1,0 +1,6 @@
+segments/
+vo/
+overlays/
+concat.txt
+build-run.log
+*.tmp.mp4

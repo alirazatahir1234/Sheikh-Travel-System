@@ -299,10 +299,15 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     this.demoModalOpen.set(true);
   }
 
+  openMobilePromoModal(): void {
+    this.demoModalMode.set('mobile');
+    this.demoModalOpen.set(true);
+  }
+
   closeDemoModal(): void {
     this.demoModalOpen.set(false);
     const fragment = this.route.snapshot.fragment;
-    if (fragment === 'watch-demo' || fragment === 'watch-promo') {
+    if (fragment === 'watch-demo' || fragment === 'watch-promo' || fragment === 'watch-mobile') {
       void this.router.navigate([], { fragment: undefined, replaceUrl: true });
     }
   }
@@ -332,6 +337,11 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       }
       if (fragment === 'watch-promo') {
         this.demoModalMode.set('promo');
+        this.demoModalOpen.set(true);
+        return;
+      }
+      if (fragment === 'watch-mobile') {
+        this.demoModalMode.set('mobile');
         this.demoModalOpen.set(true);
         return;
       }

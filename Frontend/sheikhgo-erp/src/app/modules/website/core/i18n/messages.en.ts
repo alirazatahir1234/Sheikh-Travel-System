@@ -10,6 +10,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'common.requestDemoArrow': 'Request a Demo →',
   'common.watchDemo': 'Watch Demo',
   'common.watchPromo': 'Watch Promo',
+  'common.watchMobile': 'Mobile App',
   'common.demoVideos': 'Demo videos',
   'common.productWalkthroughKicker': 'Product walkthrough',
   'common.productWalkthroughLead':
@@ -17,6 +18,9 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'common.productPromoKicker': 'Product promo',
   'common.productPromoLead':
     '2-minute SheikhGo Nexus overview — live GPS, fleet health, fuel, EV, documents, AI, and Book a Demo.',
+  'common.productMobileKicker': 'Mobile app promo',
+  'common.productMobileLead':
+    '~55s iOS fleet app — splash, Live Map, Vehicles, Trips, and role shells. Book a Demo.',
   'common.contactUs': 'Contact Us',
   'common.contactUsArrow': 'Contact Us →',
   'common.letsTalk': "Let's Talk",

@@ -31,7 +31,16 @@ export const NEXUS_PROMO_120S_CAPTIONS_SRT = '/website/demo/sheikhgo-nexus-promo
 
 export const NEXUS_PROMO_120S_TITLE = 'SheikhGo Nexus — Smarter Fleet Management';
 
-export type NexusDemoModalMode = 'erp' | 'promo';
+/** Public mobile app promo (iOS capture + VO/captions; portrait). */
+export const NEXUS_MOBILE_PROMO_SRC = '/website/demo/sheikhgo-nexus-mobile-promo.mp4';
+
+export const NEXUS_MOBILE_PROMO_CAPTIONS_VTT = '/website/demo/sheikhgo-nexus-mobile-promo.vtt';
+
+export const NEXUS_MOBILE_PROMO_CAPTIONS_SRT = '/website/demo/sheikhgo-nexus-mobile-promo.srt';
+
+export const NEXUS_MOBILE_PROMO_TITLE = 'SheikhGo Nexus — Mobile app';
+
+export type NexusDemoModalMode = 'erp' | 'promo' | 'mobile';
 
 /** @deprecated Use {@link NEXUS_ERP_WALKTHROUGH_DEMO_SRC} for Watch Demo. */
 export const NEXUS_WALKTHROUGH_DEMO_SRC = NEXUS_ERP_WALKTHROUGH_DEMO_SRC;
