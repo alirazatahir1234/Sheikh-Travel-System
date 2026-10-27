@@ -32,7 +32,7 @@
           </div>
           <div class="mega-foot">
             <a class="mega-all" routerLink="/services" (click)="closeMenu()">Explore SheikhGo Nexus →</a>
-            <a class="btn btn-primary mega-cta" routerLink="/request-demo" (click)="closeMenu()">Request a Quote</a>
+            <a class="btn btn-primary mega-cta" routerLink="/request-demo" (click)="closeMenu()">{{ demoCtaLabel }}</a>
           </div>
         </div>
       </div>
@@ -78,12 +78,18 @@
       <a routerLink="/contact" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Contact</a>
 
       <a class="nav-link mobile-only" routerLink="/contact" (click)="closeMenu()">Let's Talk</a>
-      <a routerLink="/request-demo" class="btn btn-primary mobile-only" (click)="closeMenu()">Request a Quote →</a>
+      <div class="header-demo-cta mobile-stack mobile-only">
+        <p class="header-demo-tagline">{{ demoCtaTagline }}</p>
+        <a routerLink="/request-demo" class="btn btn-primary" (click)="closeMenu()">{{ demoCtaLabel }} →</a>
+      </div>
     </nav>
 
     <div class="actions">
       <a class="login" routerLink="/contact">Let's Talk</a>
-      <a routerLink="/request-demo" class="btn btn-primary">Request a Quote →</a>
+      <div class="header-demo-cta actions-cta">
+        <p class="header-demo-tagline">{{ demoCtaTagline }}</p>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ demoCtaLabel }} →</a>
+      </div>
       <button type="button" class="burger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>

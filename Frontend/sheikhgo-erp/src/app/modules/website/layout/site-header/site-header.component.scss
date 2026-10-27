@@ -276,6 +276,34 @@
     font-size: var(--type-nav, 0.875rem);
   }
 
+  .header-demo-cta {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .header-demo-tagline {
+    margin: 0;
+    max-width: 10.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--sg-muted, #5b7377);
+    text-align: right;
+  }
+
+  .header-demo-cta.mobile-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+
+    .header-demo-tagline {
+      max-width: none;
+      text-align: center;
+      font-size: 0.8125rem;
+    }
+  }
+
   .actions .btn {
     font-size: var(--type-btn, 0.9375rem);
     padding: 0.75rem 1.2rem;
@@ -381,7 +409,8 @@
     }
 
     .actions .login,
-    .actions .btn {
+    .actions .btn,
+    .actions-cta {
       display: none;
     }
 
@@ -389,6 +418,11 @@
       display: inline-flex;
       margin-top: 0.55rem;
       justify-content: center;
+    }
+
+    .header-demo-cta.mobile-stack.mobile-only {
+      display: flex;
+      width: 100%;
     }
 
     .burger {

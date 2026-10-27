@@ -34,6 +34,9 @@ export class SiteHeaderComponent implements OnInit {
   readonly serviceLinks = SERVICE_ITEMS;
   readonly industryLinks = INDUSTRY_ITEMS;
 
+  readonly demoCtaLabel = 'Book a Demo';
+  readonly demoCtaTagline = 'Get a free walkthrough of your fleet operations';
+
   ngOnInit(): void {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
