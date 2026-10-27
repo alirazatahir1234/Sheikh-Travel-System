@@ -273,27 +273,29 @@ String formatDurationMinutes(int minutes) {
 
 const nonMovingAlertMinutes = 22 * 60;
 
-/// Urdu “standing still” label for history non-moving KPI (e.g. `22 گھنٹے سے کھڑی ہے`).
-String formatNonMovingStandingUrdu(int totalMinutes) {
+/// English “standing still” label for history non-moving KPI (e.g. `Standing for 22 hours 18 minutes`).
+String formatNonMovingStandingEnglish(int totalMinutes) {
   final minutes = totalMinutes < 0 ? 0 : totalMinutes;
-  if (minutes < 1) return '0 منٹ سے کھڑی ہے';
+  if (minutes < 1) return 'Standing for 0 minutes';
 
   final days = minutes ~/ (24 * 60);
   final afterDays = minutes % (24 * 60);
   final hours = afterDays ~/ 60;
   final mins = afterDays % 60;
 
+  final parts = <String>[];
   if (days > 0) {
-    final parts = <String>['$days دن'];
-    if (hours > 0) parts.add('$hours گھنٹے');
-    if (mins > 0) parts.add('$mins منٹ');
-    return '${parts.join(' ')} سے کھڑی ہے';
+    parts.add(days == 1 ? '1 day' : '$days days');
   }
   if (hours > 0) {
-    if (mins == 0) return '$hours گھنٹے سے کھڑی ہے';
-    return '$hours گھنٹے $mins منٹ سے کھڑی ہے';
+    parts.add(hours == 1 ? '1 hour' : '$hours hours');
   }
-  return '$mins منٹ سے کھڑی ہے';
+  if (mins > 0) {
+    parts.add(mins == 1 ? '1 minute' : '$mins minutes');
+  }
+
+  if (parts.isEmpty) return 'Standing for 0 minutes';
+  return 'Standing for ${parts.join(' ')}';
 }
 
 bool nonMovingExceedsAlertThreshold(int totalMinutes) {

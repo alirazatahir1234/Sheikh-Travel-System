@@ -61,7 +61,7 @@ class PlaybackSummaryCard extends StatelessWidget {
               Expanded(
                 child: _secondaryCell(
                   '',
-                  formatNonMovingStandingUrdu(idle),
+                  formatNonMovingStandingEnglish(idle),
                   valueColor: nonMovingExceedsAlertThreshold(idle)
                       ? const Color(0xFFDC2626)
                       : null,

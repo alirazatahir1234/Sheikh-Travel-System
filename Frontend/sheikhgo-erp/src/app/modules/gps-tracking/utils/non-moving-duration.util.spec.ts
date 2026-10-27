@@ -1,24 +1,29 @@
 import {
-  formatNonMovingStandingUrdu,
+  formatNonMovingStandingEnglish,
   nonMovingExceedsAlertThreshold,
   NON_MOVING_ALERT_MINUTES
 } from './non-moving-duration.util';
 
-describe('formatNonMovingStandingUrdu', () => {
+describe('formatNonMovingStandingEnglish', () => {
   it('formats minutes only', () => {
-    expect(formatNonMovingStandingUrdu(18)).toBe('18 منٹ سے کھڑی ہے');
+    expect(formatNonMovingStandingEnglish(18)).toBe('Standing for 18 minutes');
   });
 
   it('formats whole hours', () => {
-    expect(formatNonMovingStandingUrdu(22 * 60)).toBe('22 گھنٹے سے کھڑی ہے');
+    expect(formatNonMovingStandingEnglish(22 * 60)).toBe('Standing for 22 hours');
   });
 
   it('formats hours and minutes', () => {
-    expect(formatNonMovingStandingUrdu(22 * 60 + 18)).toBe('22 گھنٹے 18 منٹ سے کھڑی ہے');
+    expect(formatNonMovingStandingEnglish(21 * 60 + 57)).toBe(
+      'Standing for 21 hours 57 minutes'
+    );
+    expect(formatNonMovingStandingEnglish(22 * 60 + 18)).toBe(
+      'Standing for 22 hours 18 minutes'
+    );
   });
 
   it('formats days', () => {
-    expect(formatNonMovingStandingUrdu(2 * 24 * 60)).toBe('2 دن سے کھڑی ہے');
+    expect(formatNonMovingStandingEnglish(2 * 24 * 60)).toBe('Standing for 2 days');
   });
 });
 

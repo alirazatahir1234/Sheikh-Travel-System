@@ -1751,7 +1751,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     Expanded(
                       flex: 2,
                       child: _kpiTile(
-                        formatNonMovingStandingUrdu(
+                        formatNonMovingStandingEnglish(
                           b.statistics?.idleMinutes ?? 0,
                         ),
                         '',

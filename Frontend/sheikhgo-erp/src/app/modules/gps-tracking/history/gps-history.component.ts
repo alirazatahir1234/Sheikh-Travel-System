@@ -34,7 +34,7 @@ import {
   splitDisplayAddress
 } from '../utils/gps-address.util';
 import {
-  formatNonMovingStandingUrdu,
+  formatNonMovingStandingEnglish,
   nonMovingExceedsAlertThreshold
 } from '../utils/non-moving-duration.util';
 import {
@@ -406,7 +406,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   get nonMovingDurationLabel(): string {
-    return formatNonMovingStandingUrdu(this.idleMinutes);
+    return formatNonMovingStandingEnglish(this.idleMinutes);
   }
 
   get nonMovingDurationAlert(): boolean {
