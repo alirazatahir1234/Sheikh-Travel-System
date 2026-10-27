@@ -26,7 +26,8 @@ public static class MenuRegistrySeed
     public static IReadOnlyList<ModuleEntry> Modules { get; } =
     [
         new("dashboard", "Dashboard", "Home and operational dashboards"),
-        new("operations", "Operations", "Bookings, routes, and trips"),
+        new("operations", "Operations", "Bookings and dispatch"),
+        new("travel-fleet-operations", "Fleet Operations", "Trip lifecycle and route catalog"),
         new("fleet", "Fleet", "Vehicles, drivers, fuel, maintenance, GPS"),
         new("customers", "Customers", "CRM and customer management"),
         new("finance", "Finance", "Payments and financial ops"),

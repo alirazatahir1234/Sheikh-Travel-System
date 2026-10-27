@@ -18,9 +18,19 @@ const operationsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
-    { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
-    { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' },
     { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/trips/live', moduleKey: 'trips' }
+  ]
+};
+
+/** Travel / agency trip + route catalog — mirrors PlatformModules.travel-fleet-operations. */
+const travelFleetOperationsGroup: NavGroup = {
+  id: 'travel-fleet-operations',
+  label: 'Fleet Operations',
+  icon: 'route',
+  collapsible: true,
+  items: [
+    { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
+    { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' }
   ]
 };
 
@@ -233,6 +243,7 @@ const websiteGroup: NavGroup = {
 const allGroups: NavGroup[] = [
   dashboardGroup,
   operationsGroup,
+  travelFleetOperationsGroup,
   fleetGroup,
   fleetOperationsGroup,
   fleetResourcesGroup,
@@ -259,7 +270,7 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
