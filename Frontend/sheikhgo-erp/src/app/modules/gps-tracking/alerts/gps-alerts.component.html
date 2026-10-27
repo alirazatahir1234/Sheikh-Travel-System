@@ -78,31 +78,46 @@
       <span>Quiet hours active ({{ quietHours.start }}–{{ quietHours.end }}) — push may be suppressed per your prefs.</span>
     </div>
 
-    <div class="filter-toolbar">
-      <mat-form-field appearance="outline" class="filter-field" *ngIf="isSuperAdmin">
-        <mat-label>Company</mat-label>
-        <mat-select [value]="companyFilterId" [disabled]="companiesLoading" (selectionChange)="onCompanyFilterChange($event.value)">
-          <mat-option [value]="null">All companies</mat-option>
-          <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Vehicle</mat-label>
-        <mat-select [value]="vehicleFilterId" (selectionChange)="onVehicleFilterChange($event.value)">
-          <mat-option [value]="null">All vehicles</mat-option>
-          <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber || '—' }})</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Driver</mat-label>
-        <mat-select [value]="driverFilterId" (selectionChange)="onDriverFilterChange($event.value)">
-          <mat-option [value]="null">All drivers</mat-option>
-          <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-    </div>
+    <section class="filters-panel" aria-label="Alert scope filters">
+      <div class="filter-block filter-block--last">
+        <div class="filter-block__head">
+          <mat-icon aria-hidden="true">travel_explore</mat-icon>
+          <span class="filter-block__title">Scope</span>
+        </div>
+        <div class="filter-entity-row">
+          <div class="filter-entity filter-entity--company" *ngIf="isSuperAdmin">
+            <mat-icon class="filter-entity__icon" aria-hidden="true">business</mat-icon>
+            <mat-form-field appearance="outline" class="filter-entity__field">
+              <mat-label>Company</mat-label>
+              <mat-select [value]="companyFilterId" [disabled]="companiesLoading" (selectionChange)="onCompanyFilterChange($event.value)">
+                <mat-option [value]="null">All companies</mat-option>
+                <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+          <div class="filter-entity filter-entity--vehicle">
+            <mat-icon class="filter-entity__icon" aria-hidden="true">directions_car</mat-icon>
+            <mat-form-field appearance="outline" class="filter-entity__field">
+              <mat-label>Vehicle</mat-label>
+              <mat-select [value]="vehicleFilterId" (selectionChange)="onVehicleFilterChange($event.value)">
+                <mat-option [value]="null">All vehicles</mat-option>
+                <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber || '—' }})</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+          <div class="filter-entity filter-entity--driver">
+            <mat-icon class="filter-entity__icon" aria-hidden="true">person</mat-icon>
+            <mat-form-field appearance="outline" class="filter-entity__field">
+              <mat-label>Driver</mat-label>
+              <mat-select [value]="driverFilterId" (selectionChange)="onDriverFilterChange($event.value)">
+                <mat-option [value]="null">All drivers</mat-option>
+                <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <div class="lifecycle-tabs">
       <div class="lifecycle-tab-row" role="tablist" aria-label="Alert status">
@@ -139,34 +154,73 @@
           <span class="lifecycle-tab__count" *ngIf="stats.resolved > 0">{{ stats.resolved }}</span>
         </button>
       </div>
-      <button class="chip group-similar-chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">
-        <mat-icon>filter_list</mat-icon> Group similar
+      <button class="filter-chip filter-chip--group group-similar-chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">
+        <mat-icon aria-hidden="true">filter_list</mat-icon>
+        <span class="filter-chip__label">Group similar</span>
       </button>
     </div>
 
-    <div class="filter-stack">
-      <div class="chip-row">
-        <span class="chip-label">Type</span>
-        <button class="chip chip-sm" *ngFor="let t of eventTypes" [class.active]="eventTypeFilter === t" (click)="toggleEventType(t)">
-          {{ eventTypeLabel(t) }}
-        </button>
+    <section class="filters-panel" aria-label="Alert type and time filters">
+      <div class="filter-block">
+        <div class="filter-block__head">
+          <mat-icon aria-hidden="true">category</mat-icon>
+          <span class="filter-block__title">Alert type</span>
+          <span class="filter-block__hint" *ngIf="eventTypeFilter">One selected — tap again to clear</span>
+        </div>
+        <div class="filter-chip-row" role="group" aria-label="Alert type">
+          <button
+            type="button"
+            class="filter-chip"
+            *ngFor="let t of eventTypes"
+            [ngClass]="eventTypeChipModifier(t)"
+            [class.active]="eventTypeFilter === t"
+            [attr.aria-pressed]="eventTypeFilter === t"
+            (click)="toggleEventType(t)">
+            <mat-icon aria-hidden="true">{{ eventTypeIcon(t) }}</mat-icon>
+            <span class="filter-chip__label">{{ eventTypeLabel(t) }}</span>
+          </button>
+        </div>
       </div>
-      <div class="chip-row">
-        <span class="chip-label">Severity</span>
-        <button class="chip" [class.active]="severityFilter === 'critical'" (click)="toggleSeverity('critical')">Critical</button>
-        <button class="chip" [class.active]="severityFilter === 'high'" (click)="toggleSeverity('high')">High</button>
-        <button class="chip" [class.active]="severityFilter === 'medium'" (click)="toggleSeverity('medium')">Medium</button>
-        <button class="chip" [class.active]="severityFilter === 'low'" (click)="toggleSeverity('low')">Low</button>
+
+      <div class="filter-block">
+        <div class="filter-block__head">
+          <mat-icon aria-hidden="true">signal_cellular_alt</mat-icon>
+          <span class="filter-block__title">Severity</span>
+        </div>
+        <div class="filter-chip-row" role="group" aria-label="Severity">
+          <button
+            type="button"
+            class="filter-chip"
+            *ngFor="let s of severityLevels"
+            [ngClass]="severityChipModifier(s)"
+            [class.active]="severityFilter === s"
+            [attr.aria-pressed]="severityFilter === s"
+            (click)="toggleSeverity(s)">
+            <mat-icon aria-hidden="true">{{ severityIcon(s) }}</mat-icon>
+            <span class="filter-chip__label">{{ eventTypeLabel(s) }}</span>
+          </button>
+        </div>
       </div>
-      <div class="chip-row">
-        <span class="chip-label">When</span>
-        <button class="chip" [class.active]="datePreset === 'last24'" (click)="setDatePreset('last24')">Last 24h</button>
-        <button class="chip" [class.active]="datePreset === 'today'" (click)="setDatePreset('today')">Today</button>
-        <button class="chip" [class.active]="datePreset === 'yesterday'" (click)="setDatePreset('yesterday')">Yesterday</button>
-        <button class="chip" [class.active]="datePreset === 'last7'" (click)="setDatePreset('last7')">Last 7</button>
-        <button class="chip" [class.active]="datePreset === 'last30'" (click)="setDatePreset('last30')">Last 30</button>
+
+      <div class="filter-block filter-block--last">
+        <div class="filter-block__head">
+          <mat-icon aria-hidden="true">event</mat-icon>
+          <span class="filter-block__title">Date range</span>
+        </div>
+        <div class="filter-chip-row" role="group" aria-label="Date range">
+          <button
+            type="button"
+            class="filter-chip filter-chip--date"
+            *ngFor="let p of datePresets"
+            [class.active]="datePreset === p"
+            [attr.aria-pressed]="datePreset === p"
+            (click)="setDatePreset(p)">
+            <mat-icon aria-hidden="true">{{ datePresetIcon(p) }}</mat-icon>
+            <span class="filter-chip__label">{{ datePresetLabel(p) }}</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
 
     <div class="bulk-bar" *ngIf="selectedCount > 0">
       <span>{{ selectedCount }} selected</span>

@@ -662,6 +662,76 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
+  eventTypeIcon(type: string): string {
+    const icons: Record<string, string> = {
+      sos: 'sos',
+      speed_exceeded: 'speed',
+      road_speed_exceeded: 'traffic',
+      geofence_enter: 'login',
+      geofence_exit: 'logout',
+      offline: 'cloud_off',
+      online: 'cloud_done',
+      ignition_on: 'power',
+      ignition_off: 'power_off',
+      low_battery: 'battery_alert',
+      power_cut: 'electrical_services',
+      fuel_station_stop: 'local_gas_station',
+      fuel_fraud: 'warning'
+    };
+    return icons[type] ?? 'notifications';
+  }
+
+  eventTypeChipModifier(type: string): string {
+    if (type === 'sos') return 'filter-chip--sos';
+    if (type === 'speed_exceeded' || type === 'road_speed_exceeded') return 'filter-chip--speed';
+    if (type === 'geofence_enter') return 'filter-chip--geofence-in';
+    if (type === 'geofence_exit') return 'filter-chip--geofence-out';
+    if (type === 'offline' || type === 'online') return 'filter-chip--connectivity';
+    if (type === 'ignition_on' || type === 'ignition_off') return 'filter-chip--ignition';
+    if (type === 'low_battery' || type === 'power_cut') return 'filter-chip--power';
+    if (type === 'fuel_station_stop' || type === 'fuel_fraud') return 'filter-chip--fuel';
+    return 'filter-chip--neutral';
+  }
+
+  severityIcon(severity: string): string {
+    switch (severity) {
+      case 'critical': return 'report';
+      case 'high': return 'priority_high';
+      case 'medium': return 'info';
+      case 'low': return 'low_priority';
+      default: return 'info';
+    }
+  }
+
+  severityChipModifier(severity: string): string {
+    return `filter-chip--sev-${severity}`;
+  }
+
+  datePresetIcon(preset: string): string {
+    switch (preset) {
+      case 'last24': return 'schedule';
+      case 'today': return 'today';
+      case 'yesterday': return 'history';
+      case 'last7': return 'date_range';
+      case 'last30': return 'calendar_month';
+      default: return 'event';
+    }
+  }
+
+  datePresetLabel(preset: string): string {
+    switch (preset) {
+      case 'last24': return 'Last 24h';
+      case 'today': return 'Today';
+      case 'yesterday': return 'Yesterday';
+      case 'last7': return 'Last 7 days';
+      case 'last30': return 'Last 30 days';
+      default: return preset;
+    }
+  }
+
+  readonly datePresets = ['last24', 'today', 'yesterday', 'last7', 'last30'] as const;
+  readonly severityLevels = ['critical', 'high', 'medium', 'low'] as const;
+
   inlineMeta(event: GpsAlertEvent): string {
     const parts = [
       event.registrationNumber ? `Plate ${event.registrationNumber}` : null,
