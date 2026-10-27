@@ -31,7 +31,6 @@ const travelFleetOperationsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
-    { id: 'trip-smart-assignment', label: 'Smart Assignment', icon: 'auto_awesome', route: '/trips/smart-assignment', moduleKey: 'trips' },
     { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' }
   ]
 };

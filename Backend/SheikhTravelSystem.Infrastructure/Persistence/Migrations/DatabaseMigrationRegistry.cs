@@ -142,6 +142,7 @@ public static class DatabaseMigrationRegistry
             M("ModuleAiAssistantActiveMigration", ModuleAiAssistantActiveMigration.ApplyAsync),
             M("BookingsTripsModuleSplitMigration", BookingsTripsModuleSplitMigration.ApplyAsync),
             M("TravelFleetOperationsMenuMigration", TravelFleetOperationsMenuMigration.ApplyAsync),
+            M("TravelNavMenuFixMigration", TravelNavMenuFixMigration.ApplyAsync),
             M("ModuleRoadSpeedAlertsActiveMigration", ModuleRoadSpeedAlertsActiveMigration.ApplyAsync),
             M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
             M("FuelObdTelemetryMigration", FuelObdTelemetryMigration.ApplyAsync),

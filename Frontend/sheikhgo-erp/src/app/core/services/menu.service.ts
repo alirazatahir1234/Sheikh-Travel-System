@@ -4,6 +4,7 @@ import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NavGroup, NavItem, ResolvedMenu } from '../navigation/nav-models';
 import { resolveMenu } from '../navigation/menu-config';
+import { normalizeNavMenuRoute } from '../navigation/nav-menu-route.util';
 import { resolveTenantType } from '../navigation/tenant-type';
 import { AuthService } from './auth.service';
 
@@ -174,8 +175,15 @@ export class MenuService {
   }
 
   private toNavItem(item: MenuItemDto): NavItem {
-    const rawRoute = item.route || '/dashboard';
-    const [path, queryString] = rawRoute.split('?', 2);
+    const normalized = normalizeNavMenuRoute({
+      route: item.route,
+      label: item.label,
+      name: item.name,
+      displayName: item.displayName,
+      permissionCode: item.permissionCode,
+      id: item.id,
+    });
+    const [path, queryString] = normalized.split('?', 2);
     let queryParams: Record<string, string> | undefined;
     if (queryString) {
       const params = new URLSearchParams(queryString);
@@ -185,27 +193,29 @@ export class MenuService {
       });
     }
 
-    // Defend against legacy DB seed that pointed Trips → /bookings
-    const label = (item.displayName || item.label || '').trim();
-    const name = (item.name || '').trim();
-    let routePath = path;
-    if (
-      routePath === '/bookings' &&
-      (label.toLowerCase() === 'trips' ||
-        name.toLowerCase() === 'trips' ||
-        item.permissionCode === 'Trip.View')
-    ) {
-      routePath = '/trips';
-    }
-
     return {
       id: item.id,
       label: item.displayName || item.label,
       icon: item.icon,
-      route: routePath,
+      route: path || '/dashboard',
       queryParams: queryParams && Object.keys(queryParams).length ? queryParams : undefined,
-      moduleKey: item.moduleKey || item.permissionCode?.split('.')[0]?.toLowerCase()
+      moduleKey: this.resolveNavModuleKey(item)
     };
+  }
+
+  private resolveNavModuleKey(item: MenuItemDto): string | undefined {
+    const perm = item.permissionCode?.trim();
+    if (perm === 'Booking.View') return 'bookings';
+    if (perm === 'Trip.View') return 'trips';
+    if (perm === 'Route.View') return 'routes';
+    if (item.moduleKey) {
+      const key = item.moduleKey.toLowerCase();
+      if (key === 'travel') return 'routes';
+      if (key === 'bookings') return 'bookings';
+      if (key === 'trips') return 'trips';
+      return item.moduleKey;
+    }
+    return perm?.split('.')[0]?.toLowerCase();
   }
 
   private fallbackMenu(roles: string[], enabledModules: string[]): ResolvedMenu {

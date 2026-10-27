@@ -62,8 +62,27 @@ public static class MenuBuilderQueries
         if (string.IsNullOrWhiteSpace(permissionCode)) return true;
         if (permissionCode.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
             return enabled.Contains("gps-tracking", StringComparer.OrdinalIgnoreCase);
+
+        if (enabled.Count > 0 && IsTravelPermission(permissionCode))
+        {
+            return IsTravelNavEntitled(permissionCode, enabled);
+        }
+
         return true;
     }
+
+    private static bool IsTravelPermission(string permissionCode) =>
+        permissionCode is "Booking.View" or "Trip.View" or "Route.View";
+
+    private static bool IsTravelNavEntitled(string permissionCode, IReadOnlyList<string> enabled) =>
+        permissionCode switch
+        {
+            "Route.View" => enabled.Contains("routes", StringComparer.OrdinalIgnoreCase),
+            "Booking.View" or "Trip.View" => enabled.Any(k =>
+                k.Equals("bookings", StringComparison.OrdinalIgnoreCase)
+                || k.Equals("trips", StringComparison.OrdinalIgnoreCase)),
+            _ => true
+        };
 
     public static bool IsNavModuleEnabled(string moduleKey, IReadOnlyList<string> enabled) =>
         moduleKey switch

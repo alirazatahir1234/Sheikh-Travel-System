@@ -58,7 +58,7 @@ public static class TravelFleetOperationsMenuMigration
 
         var menus = new (string Name, string Route, string Icon, string Perm, int Sort, string Display, string ProductModule)[]
         {
-            ("Trips", "/trips", "route", "Trip.View", 10, "Trips", TenantModuleCatalog.TripsModuleCode),
+            ("Trips", "/trips", "route", "Trip.View", 10, "Trips", TenantModuleCatalog.BookingsModuleCode),
             ("Routes", "/routes", "alt_route", "Route.View", 20, "Routes", TenantModuleCatalog.TravelRoutesModuleCode),
         };
 

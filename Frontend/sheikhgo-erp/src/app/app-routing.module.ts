@@ -264,13 +264,13 @@ const routes: Routes = [
       {
         path: 'bookings',
         canActivate: [permissionGuard],
-        data: { permissions: ['Booking.View'], modules: ['bookings'] },
+        data: { permissions: ['Booking.View'], modules: ['bookings', 'trips'] },
         loadChildren: () => import('./modules/bookings/bookings.module').then(m => m.BookingsModule)
       },
       {
         path: 'trips',
         canActivate: [permissionGuard],
-        data: { permissions: ['Trip.View'], modules: ['trips'] },
+        data: { permissions: ['Trip.View'], modules: ['trips', 'bookings'] },
         loadChildren: () => import('./modules/trips/trips.module').then(m => m.TripsModule)
       },
       {

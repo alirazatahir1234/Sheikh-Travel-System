@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { map, take } from 'rxjs/operators';
 import { Observable } from 'rxjs';
+import { isAnyModuleEntitled } from '../navigation/module-entitlement.util';
 import { AuthService } from '../services/auth.service';
 import { TenantConfigService } from '../services/tenant-config.service';
 
@@ -44,10 +45,7 @@ export const permissionGuard: CanActivateFn = (route): boolean | UrlTree | Obser
     take(1),
     map(branding => {
       const enabled = branding?.enabledModules ?? [];
-      // Premium modules: deny unless we can prove the legacy key is entitled.
-      const entitled = requiredModules.every(m =>
-        enabled.some(e => e.toLowerCase() === m.toLowerCase())
-      );
+      const entitled = isAnyModuleEntitled(enabled, requiredModules);
       return entitled ? true : router.createUrlTree([auth.getHomeRoute()]);
     })
   );

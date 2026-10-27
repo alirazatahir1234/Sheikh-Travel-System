@@ -42,9 +42,9 @@ public static class MenuRegistrySeed
     public static IReadOnlyList<MenuEntry> Menus { get; } =
     [
         M("/dashboard", "Dashboard", "Dashboard", "Operational home", "Platform", null, "DASHBOARD", true),
-        M("/bookings", "Bookings", "Bookings", "Travel bookings", "Travel", "bookings", "TRAVEL", true),
+        M("/bookings", "Bookings", "Bookings", "Travel bookings", "Travel", "bookings", "BOOKINGS", true),
         M("/routes", "Routes", "Routes", "Route catalog", "Travel", null, "TRAVEL", false),
-        M("/trips", "Trips", "Trips", "Trip lifecycle", "Travel", "trips", "TRAVEL", true),
+        M("/trips", "Trips", "Trips", "Trip lifecycle", "Travel", "trips", "BOOKINGS", true),
         M("/vehicles", "Vehicles", "Vehicles", "Vehicle registry", "Fleet", "vehicles", "FLEET", true),
         M("/drivers", "Drivers", "Drivers", "Driver directory", "Fleet", "drivers", "FLEET", true),
         M("/gps-tracking", "GPS Tracking", "GPS Tracking", "Live tracking", "Fleet", "gps-tracking", "GPS", true),
