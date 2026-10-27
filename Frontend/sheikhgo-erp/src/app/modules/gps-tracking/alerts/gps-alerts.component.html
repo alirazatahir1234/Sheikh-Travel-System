@@ -29,7 +29,7 @@
 
   <!-- Events tab -->
   <div *ngIf="activeTab === 'events'">
-    <div class="platform-fallback-banner" *ngIf="isSuperAdmin && platformCrossTenantLimited && scopeMode === 'all'">
+    <div class="platform-fallback-banner" *ngIf="isSuperAdmin && platformCrossTenantLimited">
       <mat-icon>info</mat-icon>
       <span>
         Cross-company alerts need an updated API. Showing alerts for your current company until the platform endpoint is deployed.
@@ -37,20 +37,17 @@
     </div>
 
     <div class="scope-bar" *ngIf="isSuperAdmin">
-      <div class="chip-row scope-toggle">
-        <button class="chip" [class.active]="scopeMode === 'all'" type="button" (click)="setScopeMode('all')">
-          All companies
-        </button>
-        <button class="chip" [class.active]="scopeMode === 'company'" type="button" (click)="setScopeMode('company')">
-          Current company
-        </button>
-      </div>
-      <mat-form-field appearance="outline" class="company-filter" *ngIf="scopeMode === 'all'">
-        <mat-label>Filter by company</mat-label>
-        <mat-select [value]="companyFilterId" (selectionChange)="onCompanyFilterChange($event.value)">
+      <mat-form-field appearance="outline" class="company-filter">
+        <mat-label>Company</mat-label>
+        <mat-select
+          [value]="companyFilterId"
+          [disabled]="companiesLoading"
+          (selectionChange)="onCompanyFilterChange($event.value)">
           <mat-option [value]="null">All companies</mat-option>
           <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
         </mat-select>
+        <mat-hint *ngIf="companyFilterId == null">Alerts across every tenant</mat-hint>
+        <mat-hint *ngIf="companyFilterId != null">All vehicles and drivers under this company</mat-hint>
       </mat-form-field>
     </div>
 

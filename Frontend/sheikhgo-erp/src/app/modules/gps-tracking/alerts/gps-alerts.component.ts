@@ -37,10 +37,9 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   severityFilter: string | null = null;
   datePreset = 'today';
   isSuperAdmin = false;
-  /** Super Admin: all tenants vs current company (X-Tenant-Id). */
-  scopeMode: 'all' | 'company' = 'company';
   /** Platform cross-tenant API unavailable — showing current-tenant data instead. */
   platformCrossTenantLimited = false;
+  /** Super Admin: null = all companies; otherwise filter to tenant (all vehicles/drivers under it). */
   companyFilterId: number | null = null;
   companies: Tenant[] = [];
   companiesLoading = false;
@@ -90,17 +89,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   get showCompanyColumn(): boolean {
-    return this.isSuperAdmin && this.scopeMode === 'all';
-  }
-
-  setScopeMode(mode: 'all' | 'company'): void {
-    if (this.scopeMode === mode) return;
-    this.scopeMode = mode;
-    if (mode === 'company') {
-      this.companyFilterId = null;
-      this.platformCrossTenantLimited = false;
-    }
-    this.loadEvents();
+    return this.isSuperAdmin && this.companyFilterId == null;
   }
 
   onCompanyFilterChange(tenantId: number | null): void {
@@ -117,16 +106,12 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
       severity: this.severityFilter ?? undefined,
       datePreset: this.datePreset
     };
-    const usePlatform = this.isSuperAdmin && this.scopeMode === 'all';
-    const stats$ = usePlatform
+    const stats$ = this.isSuperAdmin
       ? this.gps.getPlatformAlertStats(this.companyFilterId)
       : this.gps.getAlertStats();
-    const events$ = usePlatform
+    const events$ = this.isSuperAdmin
       ? this.gps.getPlatformAlertEvents(this.companyFilterId, filterOpts)
-      : this.gps.getAlertEvents(undefined, {
-        ...filterOpts,
-        tenantScopeId: this.isSuperAdmin ? this.companyFilterId : undefined
-      });
+      : this.gps.getAlertEvents(undefined, filterOpts);
 
     stats$.subscribe({
       next: s => { this.stats = s; },
@@ -165,7 +150,8 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   private tenantScopeFor(event: GpsAlertEvent): number | null | undefined {
-    return this.showCompanyColumn && event.tenantId ? event.tenantId : undefined;
+    if (!this.isSuperAdmin) return undefined;
+    return event.tenantId ?? this.companyFilterId ?? undefined;
   }
 
   toggleLifecycle(value: string): void {
