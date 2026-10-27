@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { ApiResponse } from '../models/common.model';
 
 export interface EvFleetDashboard {
   electricVehicleCount: number;
@@ -125,20 +124,20 @@ export class FleetEvAnomalyService {
 
   getEvDashboard(): Observable<EvFleetDashboard> {
     return this.http
-      .get<ApiResponse<EvFleetDashboard>>(`${this.base}/ev/dashboard`)
-      .pipe(map((r) => normalizeEvDashboard(r.data)));
+      .get<EvFleetDashboard>(`${this.base}/ev/dashboard`)
+      .pipe(map((r) => normalizeEvDashboard(r)));
   }
 
   listChargingStations(): Observable<ChargingStation[]> {
     return this.http
-      .get<ApiResponse<ChargingStation[]>>(`${this.base}/ev/charging-stations`)
-      .pipe(map((r) => r.data ?? []));
+      .get<ChargingStation[]>(`${this.base}/ev/charging-stations`)
+      .pipe(map((r) => r ?? []));
   }
 
   saveChargingStation(body: Partial<ChargingStation> & { name: string; latitude: number; longitude: number }): Observable<number> {
     return this.http
-      .post<ApiResponse<number>>(`${this.base}/ev/charging-stations`, body)
-      .pipe(map((r) => r.data!));
+      .post<number>(`${this.base}/ev/charging-stations`, body)
+      .pipe(map((r) => r));
   }
 
   listAnomalies(unreviewedOnly = false, vehicleId?: number): Observable<FleetAnomalyEvent[]> {
@@ -146,20 +145,20 @@ export class FleetEvAnomalyService {
     if (unreviewedOnly) params['unreviewedOnly'] = 'true';
     if (vehicleId) params['vehicleId'] = String(vehicleId);
     return this.http
-      .get<ApiResponse<FleetAnomalyEvent[]>>(`${this.base}/anomalies`, { params })
-      .pipe(map((r) => r.data ?? []));
+      .get<FleetAnomalyEvent[]>(`${this.base}/anomalies`, { params })
+      .pipe(map((r) => r ?? []));
   }
 
   reviewAnomaly(id: number, notes?: string): Observable<boolean> {
     return this.http
-      .post<ApiResponse<boolean>>(`${this.base}/anomalies/${id}/review`, { notes: notes ?? null })
-      .pipe(map((r) => r.data ?? false));
+      .post<boolean>(`${this.base}/anomalies/${id}/review`, { notes: notes ?? null })
+      .pipe(map((r) => r ?? false));
   }
 
   getDocumentTracker(): Observable<VehicleDocumentTrackerItem[]> {
     return this.http
-      .get<ApiResponse<VehicleDocumentTrackerItem[]>>(`${this.base}/documents/tracker`)
-      .pipe(map((r) => r.data ?? []));
+      .get<VehicleDocumentTrackerItem[]>(`${this.base}/documents/tracker`)
+      .pipe(map((r) => r ?? []));
   }
 
   upsertDocument(body: {
@@ -173,7 +172,7 @@ export class FleetEvAnomalyService {
     notes?: string | null;
   }): Observable<number> {
     return this.http
-      .post<ApiResponse<number>>(`${this.base}/documents/tracker`, body)
-      .pipe(map((r) => r.data!));
+      .post<number>(`${this.base}/documents/tracker`, body)
+      .pipe(map((r) => r));
   }
 }
