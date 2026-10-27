@@ -1,4 +1,4 @@
-import { APP_PRODUCT_NAME, COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
+import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 /**
  * Public marketing brand — SheikhGo Technologies (IT / AI company).
@@ -12,7 +12,10 @@ export const WEBSITE_BRAND = {
   /** Alias used by chrome that already reads companyName */
   companyName: 'SheikhGo Technologies',
   legalEntity: COMPANY_NAME,
-  erpProductName: APP_PRODUCT_NAME,
+  /** Marketing-site product name (login app may still show legacy ERP label). */
+  nexusProductName: 'SheikhGo Nexus',
+  erpProductName: 'SheikhGo Nexus',
+  signInToProductLabel: 'Sign in to Nexus',
   tagline: 'Technology Today. A Smarter Tomorrow.',
   positioning: 'Your Technology Partner for a Smarter Future',
   mission:

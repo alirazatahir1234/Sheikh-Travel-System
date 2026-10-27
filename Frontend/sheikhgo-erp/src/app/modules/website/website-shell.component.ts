@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { SiteHeaderComponent } from './layout/site-header/site-header.component';
 import { SiteFooterComponent } from './layout/site-footer/site-footer.component';
 import { CookieConsentComponent } from './shared/cookie-consent/cookie-consent.component';
@@ -10,7 +10,6 @@ import { WebsiteWhatsAppFabComponent } from './shared/website-whatsapp-fab/websi
   selector: 'app-website-shell',
   imports: [
     RouterOutlet,
-    RouterLink,
     SiteHeaderComponent,
     SiteFooterComponent,
     CookieConsentComponent,
@@ -25,9 +24,6 @@ import { WebsiteWhatsAppFabComponent } from './shared/website-whatsapp-fab/websi
       <app-site-footer />
       <app-cookie-consent />
       <app-website-whatsapp-fab />
-      <div class="mobile-cta">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
-      </div>
     </div>
   `,
   styleUrl: './website-shell.component.scss',

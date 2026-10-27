@@ -87,7 +87,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'devices',
       count: '2 surfaces',
       title: 'Where you use it',
-      lead: 'ERP AI Management Center, in-app chat and FAB, plus Driver & Fleet mobile copilot — same intelligence, right context.',
+      lead: 'Nexus AI Management Center, in-app chat and FAB, plus Driver & Fleet mobile copilot — same intelligence, right context.',
     },
   ] as const;
 
@@ -123,7 +123,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       icon: 'devices',
-      title: 'ERP + mobile surfaces',
+      title: 'Nexus + mobile surfaces',
       text: 'Management Center, in-app chat, FAB, and Driver & Fleet copilot.',
     },
   ] as const;
@@ -132,7 +132,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     {
       step: '1',
       title: 'Connect your fleet data',
-      text: 'GPS, trips, alerts, fuel, and ERP records already live in SheikhGo — AI reads the same sources your maps and reports use.',
+      text: 'GPS, trips, alerts, fuel, and operations records already live in SheikhGo Nexus — AI reads the same sources your maps and reports use.',
     },
     {
       step: '2',
@@ -142,7 +142,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     {
       step: '3',
       title: 'Ask, review, act',
-      text: 'Chat in ERP or mobile copilot, scan morning digests, follow recommendations, and approve WhatsApp drafts before anything goes out.',
+      text: 'Chat in Nexus or mobile copilot, scan morning digests, follow recommendations, and approve WhatsApp drafts before anything goes out.',
     },
   ] as const;
 
@@ -155,7 +155,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: 'memory',
       title: 'Conversation context',
-      text: 'Sessions remember recent turns so follow-up questions stay coherent across the ERP chat, gateway, and copilot experiences.',
+      text: 'Sessions remember recent turns so follow-up questions stay coherent across the Nexus chat, gateway, and copilot experiences.',
     },
     {
       icon: 'tune',
@@ -203,7 +203,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
           what:
             'Session-based chat with tool access and an optional LLM layer. Keeps conversation state, routes requests safely, and supports the same fleet capabilities across clients.',
           why:
-            'One consistent chat backbone for ERP, integrations, and future channels — with guardrails around what the assistant can do.',
+            'One consistent chat backbone for Nexus, integrations, and future channels — with guardrails around what the assistant can do.',
         },
         {
           title: 'AI Copilot',
@@ -330,7 +330,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       title: 'Surfaces & access',
       kicker: 'Same brain, right screen',
       lead:
-        'Fleet AI is not a separate product bolted on — it lives where your team already works: ERP management, floating chat, and mobile apps for drivers and fleet managers.',
+        'Fleet AI is not a separate product bolted on — it lives where your team already works: Nexus management, floating chat, and mobile apps for drivers and fleet managers.',
       icon: 'devices',
       accent: 'surfaces',
       count: 2,
@@ -338,17 +338,17 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       sceneToast: {
         tone: 'info',
         icon: 'dashboard',
-        title: 'ERP · /ai',
+        title: 'Nexus · /ai',
         detail: 'Management Center + mobile copilot',
       },
       items: [
         {
-          title: 'ERP AI Management Center',
+          title: 'Nexus AI Management Center',
           icon: 'dashboard',
           what:
-            'The `/ai` area in SheikhGo ERP centralizes AI settings, provider configuration, session oversight, and management tools — plus in-app chat and a floating action button for quick questions.',
+            'The `/ai` area in SheikhGo Nexus centralizes AI settings, provider configuration, session oversight, and management tools — plus in-app chat and a floating action button for quick questions.',
           why:
-            'Administrators configure and monitor AI in one place; operators chat without leaving the ERP.',
+            'Administrators configure and monitor AI in one place; operators chat without leaving Nexus.',
         },
         {
           title: 'Driver & Fleet mobile copilot',
@@ -392,7 +392,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.seo.set(
       'AI Solutions',
-      'SheikhGo AI for fleets — assistant & chat with fleet tools, heuristic intelligence, WhatsApp AI Assist (human-approved), ERP AI Management Center, and mobile copilot. Honest, configurable, tool-first.',
+      'SheikhGo AI for fleets — assistant & chat with fleet tools, heuristic intelligence, WhatsApp AI Assist (human-approved), Nexus AI Management Center, and mobile copilot. Honest, configurable, tool-first.',
       '/ai-solutions',
     );
   }

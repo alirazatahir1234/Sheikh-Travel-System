@@ -6,7 +6,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
-import { SERVICE_ITEMS } from '../../core/site-catalog';
 
 @Component({
   selector: 'app-home-page',
@@ -28,7 +27,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly heroPerks = [
     { icon: 'my_location', text: 'Real-time GPS tracking' },
     { icon: 'auto_awesome', text: 'Tool-first AI insights' },
-    { icon: 'shield', text: 'Secure & scalable ERP' },
+    { icon: 'shield', text: 'Secure & scalable platform' },
     { icon: 'hub', text: 'All-in-one NEXUS dashboard' },
   ] as const;
 
@@ -39,12 +38,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     link?: string;
   }[] = [
     { label: 'NEXUS Dashboard', fragment: 'see-the-platform', icon: 'dashboard' },
-    { label: 'GPS Tracking', fragment: 'platform-features', icon: 'gps_fixed' },
-    { label: 'Live Map', fragment: 'platform-features', icon: 'map' },
-    { label: 'Geofencing', fragment: 'platform-features', icon: 'fence' },
+    { label: 'Capabilities', fragment: 'platform-features', icon: 'grid_view' },
     { label: 'AI Solutions', link: '/ai-solutions', icon: 'auto_awesome' },
-    { label: 'ERP', fragment: 'erp-ai', icon: 'business' },
-    { label: 'Services', fragment: 'services', icon: 'code' },
+    { label: 'Services', link: '/services', icon: 'code' },
     { label: 'Request Demo', fragment: 'cta', icon: 'rocket_launch' },
   ];
 
@@ -107,13 +103,13 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'AI Solutions',
-      text: 'Assistants and copilots that query live GPS and ERP tools — optional LLM when configured.',
+      text: 'Assistants and copilots that query live GPS and Nexus tools — optional LLM when configured.',
       icon: 'auto_awesome',
       link: '/ai-solutions',
       linkLabel: 'AI Solutions',
     },
     {
-      title: 'SheikhGo ERP',
+      title: 'SheikhGo Nexus',
       text: 'Vehicles, drivers, fuel, maintenance, bookings, reports, and tenant-ready operations.',
       icon: 'business',
       link: WEBSITE_BRAND.loginPath,
@@ -128,38 +124,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     },
   ] as const;
 
-  readonly erpPillars = [
-    {
-      title: 'SheikhGo ERP operations',
-      text: 'Multi-tenant fleet and travel operations with the modules transport teams use every day.',
-      icon: 'domain',
-      link: WEBSITE_BRAND.loginPath,
-      linkLabel: 'Open ERP',
-      items: [
-        'Vehicles, drivers & trips',
-        'Fuel & maintenance workflows',
-        'Bookings & customer records',
-        'Reports & audit trails',
-      ],
-    },
-    {
-      title: 'Fleet intelligence layer',
-      text: 'Transparent scores and digests on top of GPS and ERP — no black-box “AI magic.”',
-      icon: 'monitoring',
-      link: '/ai-solutions',
-      linkLabel: 'AI Solutions',
-      items: [
-        'Morning digests & health views',
-        'AI assistant via fleet tools',
-        'WhatsApp drafts (human-approved)',
-        'Mobile copilot experiences',
-      ],
-    },
-  ] as const;
-
   readonly aiFeatures = [
     'AI Assistant & chat gateway',
-    'ERP AI Management Center',
+    'Nexus AI Management Center',
     'Fleet health & morning digest',
     'Heuristic recommendations',
     'WhatsApp AI Assist (human-approved)',
@@ -174,26 +141,15 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'Connected insights',
-      text: 'Vehicles, drivers, and ERP records in one explainable view.',
+      text: 'Vehicles, drivers, and operations records in one explainable view.',
       icon: 'hub',
     },
   ] as const;
 
-  readonly trustedTech = [
-    'Microsoft',
-    'Azure',
-    'Google Cloud',
-    'Flutter',
-    'Shopify',
-    'Figma',
-  ] as const;
-
-  readonly services = SERVICE_ITEMS;
-
   ngOnInit(): void {
     this.seo.set(
-      'SheikhGo | Fleet Intelligence, GPS, ERP & AI',
-      'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, ERP operations, and honest AI assistants for transport teams.',
+      'SheikhGo Nexus | Fleet Intelligence, GPS & AI',
+      'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, Nexus operations, and honest AI assistants for transport teams.',
       '/',
     );
 
@@ -202,9 +158,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       if (home.settings.defaultMetaTitle || home.settings.defaultMetaDescription) {
         this.seo.set(
           home.settings.defaultMetaTitle ||
-            'SheikhGo | Fleet Intelligence, GPS, ERP & AI',
+            'SheikhGo Nexus | Fleet Intelligence, GPS & AI',
           home.settings.defaultMetaDescription ||
-            'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, ERP operations, and honest AI assistants for transport teams.',
+            'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, Nexus operations, and honest AI assistants for transport teams.',
         );
       }
     });

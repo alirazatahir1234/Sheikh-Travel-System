@@ -40,7 +40,7 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
           <h2>Technology</h2>
           <p>
             SheikhGo connects GPS devices through Traccar into a dedicated GPS engine, then surfaces live tracking,
-            history, alerts and operational workflows in the web ERP and mobile apps — with role-based access and tenant isolation.
+            history, alerts and operational workflows in SheikhGo Nexus and mobile apps — with role-based access and tenant isolation.
           </p>
         }
         <a routerLink="/contact" class="btn btn-primary" style="margin-top:1.5rem">Contact us</a>

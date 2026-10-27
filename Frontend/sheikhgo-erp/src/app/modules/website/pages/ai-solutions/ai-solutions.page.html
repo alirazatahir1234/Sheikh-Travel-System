@@ -6,14 +6,14 @@
       <h1 id="ai-solutions-title">AI Solutions</h1>
       <p class="hero-tagline">Fleet intelligence you can trust — tools first, humans in control.</p>
       <p class="hero-lead">
-        SheikhGo brings AI into daily fleet operations: structured assistants that query live GPS and ERP
+        SheikhGo brings AI into daily fleet operations: structured assistants that query live GPS and Nexus
         data, heuristic scores and digests you can explain, WhatsApp drafting that never auto-sends, and
         copilot experiences on web and mobile. Optional language models when you configure them — honest
         capabilities, premium execution.
       </p>
       <div class="hero-actions">
         <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
-        <a [routerLink]="brand.loginPath" class="btn btn-ghost">Sign in to ERP</a>
+        <a [routerLink]="brand.loginPath" class="btn btn-ghost">{{ brand.signInToProductLabel }}</a>
       </div>
       <ul class="hero-perks">
         @for (p of heroPerks; track p.text) {
@@ -70,7 +70,7 @@
       <h2 class="section-title">AI that sits on real fleet data</h2>
       <p class="section-lead">
         Every assistant path is designed to call SheikhGo tools — live tracking, alerts, trips, fuel, and
-        ERP records — so answers match what you see on the map and in reports.
+        operations records — so answers match what you see on the map and in reports.
       </p>
     </header>
     <div class="platform-grid">
@@ -207,7 +207,7 @@
       <span class="section-kicker">How teams adopt it</span>
       <h2 class="section-title">From live data to daily decisions</h2>
       <p class="section-lead">
-        SheikhGo AI is designed for transport operators who already run GPS and ERP on the platform — not a separate
+        SheikhGo AI is designed for transport operators who already run GPS and operations on SheikhGo Nexus — not a separate
         chatbot SKU.
       </p>
     </header>
@@ -229,7 +229,7 @@
       <span class="section-kicker">Transparency</span>
       <h2 class="section-title">What we promise — and what we do not</h2>
       <p class="section-lead">
-        SheikhGo AI is production-ready where it ships in ERP and mobile apps. We avoid hype labels so your
+        SheikhGo AI is production-ready where it ships in Nexus and mobile apps. We avoid hype labels so your
         team and customers know exactly what is automated and what is not.
       </p>
     </header>
@@ -251,7 +251,7 @@
 
 <app-cta-band
   title="See SheikhGo AI on your fleet"
-  lead="Book a demo. We will walk through the ERP AI Management Center, assistant tools, digests, WhatsApp Assist, and mobile copilot — with clear answers on LLM setup and data boundaries."
+  lead="Book a demo. We will walk through the Nexus AI Management Center, assistant tools, digests, WhatsApp Assist, and mobile copilot — with clear answers on LLM setup and data boundaries."
   primaryText="Request a Demo"
   primaryUrl="/request-demo"
   secondaryText="Contact Us →"

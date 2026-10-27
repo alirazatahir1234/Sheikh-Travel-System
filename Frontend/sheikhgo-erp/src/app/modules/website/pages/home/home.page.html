@@ -4,10 +4,10 @@
     <div class="hero-copy reveal">
       <span class="section-kicker">Fleet &amp; travel management platform</span>
       <h1>Move Smarter.<br />Travel Further.</h1>
-      <p class="hero-tagline">GPS, ERP, and AI in one premium operations stack.</p>
+      <p class="hero-tagline">GPS, Nexus, and AI in one premium operations stack.</p>
       <p class="hero-lead">
         SheikhGo NEXUS brings live tracking, geofencing, trip playback, offline sync, fleet health alerts, and
-        tool-first AI assistants into a single fleet intelligence experience — plus the ERP depth operators need
+        tool-first AI assistants into a single fleet intelligence experience — plus the operations depth teams need
         day to day.
       </p>
       <div class="hero-actions">
@@ -84,7 +84,7 @@
       </p>
       <div class="nexus-showcase-actions">
         <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
-        <a [routerLink]="brand.loginPath" class="btn btn-outline">Sign in to ERP</a>
+        <a [routerLink]="brand.loginPath" class="btn btn-outline">{{ brand.signInToProductLabel }}</a>
       </div>
     </header>
 
@@ -163,34 +163,6 @@
   </div>
 </section>
 
-<section class="section section-band-alt" id="erp-ai" aria-labelledby="erp-ai-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">ERP &amp; intelligence</span>
-      <h2 id="erp-ai-heading" class="section-title">Operations depth + fleet AI</h2>
-      <p class="section-lead">
-        NEXUS sits on SheikhGo ERP — vehicles, drivers, fuel, maintenance, bookings, and reports — with AI layers
-        that respect human approval and transparent logic.
-      </p>
-    </header>
-    <div class="premium-card-grid cols-2">
-      @for (pillar of erpPillars; track pillar.title) {
-        <a class="premium-card pillar-card" [routerLink]="pillar.link">
-          <span class="pillar-icon" aria-hidden="true"><mat-icon>{{ pillar.icon }}</mat-icon></span>
-          <h3>{{ pillar.title }}</h3>
-          <p>{{ pillar.text }}</p>
-          <ul class="pillar-list">
-            @for (item of pillar.items; track item) {
-              <li><mat-icon aria-hidden="true">check</mat-icon>{{ item }}</li>
-            }
-          </ul>
-          <span class="pillar-link">{{ pillar.linkLabel }} →</span>
-        </a>
-      }
-    </div>
-  </div>
-</section>
-
 <section class="home-ai-spotlight" id="home-ai">
   <div class="ai-spotlight-bg" aria-hidden="true"></div>
   <div class="container ai-spotlight-grid">
@@ -217,40 +189,6 @@
         </article>
       }
     </div>
-  </div>
-</section>
-
-<section class="section section-band-white" id="services">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">Services</span>
-      <h2 class="section-title">Complete IT solutions for modern businesses</h2>
-      <p class="section-lead">
-        Custom software, mobile, cloud, and design — the same team that ships SheikhGo Fleet and NEXUS for
-        transport operators worldwide.
-      </p>
-    </header>
-    <div class="premium-card-grid">
-      @for (s of services; track s.title) {
-        <a class="premium-card service-link-card" routerLink="/services" [fragment]="s.slug">
-          <span class="cap-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
-          <h3>{{ s.title }}</h3>
-          <p>{{ s.text }}</p>
-          <span class="cap-link">Learn more →</span>
-        </a>
-      }
-    </div>
-  </div>
-</section>
-
-<section class="trusted" id="trusted" aria-labelledby="trusted-heading">
-  <div class="container">
-    <h2 id="trusted-heading" class="trusted-heading">Trusted technologies &amp; platforms</h2>
-    <ul class="trusted-row">
-      @for (t of trustedTech; track t) {
-        <li><mat-icon aria-hidden="true">verified</mat-icon><span>{{ t }}</span></li>
-      }
-    </ul>
   </div>
 </section>
 
