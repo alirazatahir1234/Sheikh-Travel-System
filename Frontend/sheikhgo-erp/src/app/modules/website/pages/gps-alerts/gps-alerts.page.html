@@ -3,22 +3,18 @@
   <div class="hero-shade" aria-hidden="true"></div>
   <div class="container hero-inner">
     <div class="hero-copy">
-      <span class="section-kicker">GPS Tracking</span>
-      <h1 id="gps-alerts-title">GPS Alerts</h1>
-      <p class="hero-tagline">Know the moment something needs your attention.</p>
-      <p class="hero-lead">
-        SheikhGo watches your vehicles around the clock and notifies owners and managers when something needs
-        attention — speeding, leaving a zone, device issues, panic, fuel and more. Alerts reach you on the app,
-        dashboard, email or SMS so you can act before a small issue becomes a costly one.
-      </p>
+      <span class="section-kicker">{{ 'pages.gpsAlerts.kicker' | wsTranslate }}</span>
+      <h1 id="gps-alerts-title">{{ 'pages.gpsAlerts.title' | wsTranslate }}</h1>
+      <p class="hero-tagline">{{ 'pages.gpsAlerts.tagline' | wsTranslate }}</p>
+      <p class="hero-lead">{{ 'pages.gpsAlerts.lead' | wsTranslate }}</p>
       <div class="hero-actions">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
-        <a routerLink="/live-tracking" class="btn btn-ghost">Live Tracking →</a>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
+        <a routerLink="/live-tracking" class="btn btn-ghost">{{ 'common.liveTrackingArrow' | wsTranslate }}</a>
       </div>
       <ul class="hero-perks">
-        <li><mat-icon aria-hidden="true">notifications_active</mat-icon> Real-time alerts</li>
-        <li><mat-icon aria-hidden="true">health_and_safety</mat-icon> Safer operations</li>
-        <li><mat-icon aria-hidden="true">tune</mat-icon> Greater control</li>
+        <li><mat-icon aria-hidden="true">notifications_active</mat-icon> {{ 'pages.gpsAlerts.perk.realtime' | wsTranslate }}</li>
+        <li><mat-icon aria-hidden="true">health_and_safety</mat-icon> {{ 'pages.gpsAlerts.perk.safer' | wsTranslate }}</li>
+        <li><mat-icon aria-hidden="true">tune</mat-icon> {{ 'pages.gpsAlerts.perk.control' | wsTranslate }}</li>
       </ul>
     </div>
     <div class="hero-visual" aria-hidden="true">

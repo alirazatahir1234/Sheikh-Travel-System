@@ -5,7 +5,7 @@
     </a>
 
     <nav class="nav" [class.show]="menuOpen()">
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">Home</a>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">{{ 'nav.home' | wsTranslate }}</a>
 
       <div class="dropdown" [class.open]="servicesOpen()">
         <button
@@ -15,7 +15,7 @@
           [attr.aria-expanded]="servicesOpen()"
           aria-controls="services-menu"
         >
-          Services
+          {{ 'nav.services' | wsTranslate }}
           <span class="chev" aria-hidden="true"></span>
         </button>
         <div class="dropdown-panel mega" id="services-menu">
@@ -24,15 +24,15 @@
               <a class="mega-item" routerLink="/services" [fragment]="s.slug" (click)="closeMenu()">
                 <span class="mega-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
                 <span class="mega-copy">
-                  <span class="mega-title">{{ s.title }}</span>
-                  <span class="mega-text">{{ s.text }}</span>
+                  <span class="mega-title">{{ i18n.catalogField(s.slug, 'title') }}</span>
+                  <span class="mega-text">{{ i18n.catalogField(s.slug, 'text') }}</span>
                 </span>
               </a>
             }
           </div>
           <div class="mega-foot">
-            <a class="mega-all" routerLink="/services" (click)="closeMenu()">Explore SheikhGo Nexus →</a>
-            <a class="btn btn-primary mega-cta" routerLink="/request-demo" (click)="closeMenu()">{{ demoCtaLabel }}</a>
+            <a class="mega-all" routerLink="/services" (click)="closeMenu()">{{ 'nav.exploreNexus' | wsTranslate }}</a>
+            <a class="btn btn-primary mega-cta" routerLink="/request-demo" (click)="closeMenu()">{{ 'nav.bookDemo' | wsTranslate }}</a>
           </div>
         </div>
       </div>
@@ -45,12 +45,12 @@
           [attr.aria-expanded]="industriesOpen()"
           aria-controls="industries-menu"
         >
-          Industries
+          {{ 'nav.industries' | wsTranslate }}
           <span class="chev" aria-hidden="true"></span>
         </button>
         <div class="dropdown-panel mega" id="industries-menu">
           <div class="mega-grid">
-            @for (i of industryLinks; track i.title) {
+            @for (i of industryLinks; track i.i18nKey) {
               <a
                 class="mega-item"
                 [routerLink]="i.link"
@@ -59,57 +59,59 @@
               >
                 <span class="mega-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
                 <span class="mega-copy">
-                  <span class="mega-title">{{ i.title }}</span>
-                  <span class="mega-text">{{ i.text }}</span>
+                  <span class="mega-title">{{ i18n.industryField(i.i18nKey, 'title') }}</span>
+                  <span class="mega-text">{{ i18n.industryField(i.i18nKey, 'text') }}</span>
                 </span>
               </a>
             }
           </div>
           <div class="mega-foot">
-            <a class="mega-all" routerLink="/contact" (click)="closeMenu()">Discuss your industry →</a>
-            <a class="btn btn-primary mega-cta" [routerLink]="brand.loginPath" (click)="closeMenu()">Sign in</a>
+            <a class="mega-all" routerLink="/contact" (click)="closeMenu()">{{ 'nav.discussIndustry' | wsTranslate }}</a>
+            <a class="btn btn-primary mega-cta" [routerLink]="brand.loginPath" (click)="closeMenu()">{{ 'common.signIn' | wsTranslate }}</a>
           </div>
         </div>
       </div>
 
-      <a routerLink="/ai-solutions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">AI Solutions</a>
+      <a routerLink="/ai-solutions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">{{ 'nav.aiSolutions' | wsTranslate }}</a>
       <a
         routerLink="/live-tracking"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
         class="nav-link nav-link--live"
-        title="Live Tracking"
+        [title]="'nav.liveTracking' | wsTranslate"
         (click)="closeMenu()"
       >
-        <span class="nav-link-label nav-link-label--long">Live Tracking</span>
-        <span class="nav-link-label nav-link-label--short" aria-hidden="true">Tracking</span>
+        <span class="nav-link-label nav-link-label--long">{{ 'nav.liveTracking' | wsTranslate }}</span>
+        <span class="nav-link-label nav-link-label--short" aria-hidden="true">{{ 'nav.liveTrackingShort' | wsTranslate }}</span>
       </a>
       <a
         routerLink="/features"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
         class="nav-link nav-link--features"
-        title="Platform Features"
+        [title]="'nav.platformFeatures' | wsTranslate"
         (click)="closeMenu()"
       >
-        <span class="nav-link-label nav-link-label--long">Platform Features</span>
-        <span class="nav-link-label nav-link-label--short" aria-hidden="true">Features</span>
+        <span class="nav-link-label nav-link-label--long">{{ 'nav.platformFeatures' | wsTranslate }}</span>
+        <span class="nav-link-label nav-link-label--short" aria-hidden="true">{{ 'nav.platformFeaturesShort' | wsTranslate }}</span>
       </a>
-      <a routerLink="/about" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">About</a>
-      <a routerLink="/contact" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link nav-contact-item" (click)="closeMenu()">Contact</a>
+      <a routerLink="/about" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">{{ 'nav.about' | wsTranslate }}</a>
+      <a routerLink="/contact" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link nav-contact-item" (click)="closeMenu()">{{ 'nav.contact' | wsTranslate }}</a>
+      <app-website-language-switcher class="lang-switch-mobile mobile-only" />
       <div class="header-demo-cta mobile-stack mobile-only">
-        <p class="header-demo-tagline">{{ demoCtaTagline }}</p>
-        <a routerLink="/request-demo" class="btn btn-primary" (click)="closeMenu()">{{ demoCtaLabel }} →</a>
+        <p class="header-demo-tagline">{{ 'nav.demoTagline' | wsTranslate }}</p>
+        <a routerLink="/request-demo" class="btn btn-primary" (click)="closeMenu()">{{ 'nav.bookDemo' | wsTranslate }} →</a>
       </div>
     </nav>
 
     <div class="actions">
-      <a class="login" routerLink="/contact">Let's Talk</a>
+      <app-website-language-switcher class="lang-switch-desktop" />
+      <a class="login" routerLink="/contact">{{ 'common.letsTalk' | wsTranslate }}</a>
       <div class="header-demo-cta actions-cta">
-        <p class="header-demo-tagline">{{ demoCtaTagline }}</p>
-        <a routerLink="/request-demo" class="btn btn-primary">{{ demoCtaLabel }} →</a>
+        <p class="header-demo-tagline">{{ 'nav.demoTagline' | wsTranslate }}</p>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'nav.bookDemo' | wsTranslate }} →</a>
       </div>
-      <button type="button" class="burger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Menu">
+      <button type="button" class="burger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" [attr.aria-label]="'nav.menu' | wsTranslate">
         <span></span><span></span><span></span>
       </button>
     </div>

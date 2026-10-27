@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, OnInit, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
@@ -10,17 +10,20 @@ import {
   NEXUS_PORTFOLIO_ITEMS,
   NEXUS_VALUE_PILLARS,
 } from '../../core/site-catalog';
+import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 @Component({
   selector: 'app-services-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent],
+  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   templateUrl: './services.page.html',
   styleUrl: './services.page.scss',
 })
 export class ServicesPage implements OnInit, AfterViewInit {
   private readonly seo = inject(WebsiteSeoService);
   private readonly route = inject(ActivatedRoute);
+  readonly i18n = inject(WebsiteI18nService);
 
   readonly brand = WEBSITE_BRAND;
   readonly portfolio = NEXUS_PORTFOLIO_ITEMS;
@@ -28,9 +31,14 @@ export class ServicesPage implements OnInit, AfterViewInit {
   readonly moduleShots = NEXUS_MODULE_SHOTS;
   readonly dashboardImage = NEXUS_DASHBOARD_IMAGE;
 
-  readonly pageTitle = 'SheikhGo Nexus';
-  readonly pageLead =
-    'Portfolio showcase of the flagship fleet intelligence and operations platform — modules, GPS depth, and SheikhGo AI in one client-ready product.';
+  readonly pageTitle = computed(() => {
+    this.i18n.lang();
+    return this.i18n.t('pages.services.title');
+  });
+  readonly pageLead = computed(() => {
+    this.i18n.lang();
+    return this.i18n.t('pages.services.lead');
+  });
 
   dashboardImageError = false;
 
@@ -46,7 +54,7 @@ export class ServicesPage implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.seo.set(
-      this.pageTitle,
+      this.pageTitle(),
       'SheikhGo Nexus portfolio — fleet intelligence dashboard, GPS suite, operations modules, product UI gallery, and SheikhGo AI for transport teams.',
       '/services',
     );

@@ -1,8 +1,8 @@
 <section class="page-hero">
   <div class="container">
-    <span class="section-kicker" style="color:#99f6e4">Get in touch</span>
-    <h1>Contact</h1>
-    <p>Talk to SheikhGo about fleet management, GPS tracking and enterprise rollout.</p>
+    <span class="section-kicker" style="color:#99f6e4">{{ 'pages.contact.kicker' | wsTranslate }}</span>
+    <h1>{{ 'pages.contact.title' | wsTranslate }}</h1>
+    <p>{{ 'pages.contact.lead' | wsTranslate }}</p>
   </div>
 </section>
 
@@ -11,41 +11,41 @@
     <form class="panel premium-card" [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-grid two">
         <div class="field">
-          <label for="firstName">First name *</label>
+          <label for="firstName">{{ 'form.firstName' | wsTranslate }}</label>
           <input id="firstName" formControlName="firstName" autocomplete="given-name" />
         </div>
         <div class="field">
-          <label for="lastName">Last name *</label>
+          <label for="lastName">{{ 'form.lastName' | wsTranslate }}</label>
           <input id="lastName" formControlName="lastName" autocomplete="family-name" />
         </div>
       </div>
       <div class="form-grid two">
         <div class="field">
-          <label for="company">Company *</label>
+          <label for="company">{{ 'form.company' | wsTranslate }}</label>
           <input id="company" formControlName="company" autocomplete="organization" />
         </div>
         <div class="field">
-          <label for="email">Business email *</label>
+          <label for="email">{{ 'form.email' | wsTranslate }}</label>
           <input id="email" type="email" formControlName="email" autocomplete="email" />
         </div>
       </div>
       <div class="form-grid two">
         <div class="field">
-          <label for="phone">Phone</label>
+          <label for="phone">{{ 'form.phone' | wsTranslate }}</label>
           <input id="phone" formControlName="phone" autocomplete="tel" />
         </div>
         <div class="field">
-          <label for="country">Country</label>
+          <label for="country">{{ 'form.country' | wsTranslate }}</label>
           <input id="country" formControlName="country" autocomplete="country-name" />
         </div>
       </div>
       <div class="form-grid two">
         <div class="field">
-          <label for="fleetSize">Fleet size</label>
-          <input id="fleetSize" formControlName="fleetSize" placeholder="e.g. 25 vehicles" />
+          <label for="fleetSize">{{ 'form.fleetSize' | wsTranslate }}</label>
+          <input id="fleetSize" formControlName="fleetSize" [placeholder]="'form.fleetSizePlaceholder' | wsTranslate" />
         </div>
         <div class="field">
-          <label for="interestedIn">Interested in</label>
+          <label for="interestedIn">{{ 'form.interestedIn' | wsTranslate }}</label>
           <select id="interestedIn" formControlName="interestedIn">
             @for (i of interests; track i) {
               <option [value]="i">{{ i }}</option>
@@ -54,14 +54,14 @@
         </div>
       </div>
       <div class="field">
-        <label for="message">Message *</label>
+        <label for="message">{{ 'form.message' | wsTranslate }}</label>
         <textarea id="message" formControlName="message"></textarea>
       </div>
       <div class="hp" aria-hidden="true">
         <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
       </div>
       <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Sending…' : 'Send Message' }}
+        {{ submitting() ? ('common.submitting' | wsTranslate) : ('common.submit' | wsTranslate) }}
       </button>
       @if (status(); as s) {
         <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">{{ s.text }}</div>

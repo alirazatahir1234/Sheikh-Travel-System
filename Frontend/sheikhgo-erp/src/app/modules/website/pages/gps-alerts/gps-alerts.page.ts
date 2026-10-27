@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Subscription } from 'rxjs';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 interface AlertItem {
   title: string;
@@ -33,7 +34,7 @@ interface AlertGroup {
 @Component({
   selector: 'app-gps-alerts-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent],
+  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   templateUrl: './gps-alerts.page.html',
   styleUrl: './gps-alerts.page.scss',
 })

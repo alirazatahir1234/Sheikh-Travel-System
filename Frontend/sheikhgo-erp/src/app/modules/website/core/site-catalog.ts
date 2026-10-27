@@ -15,6 +15,8 @@ export interface NexusPortfolioItem {
 }
 
 export interface IndustryItem {
+  /** Key under `industry.{i18nKey}` in website i18n dictionaries. */
+  i18nKey: string;
   title: string;
   text: string;
   icon: string;
@@ -143,6 +145,7 @@ export const NEXUS_VALUE_PILLARS = [
 
 export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
   {
+    i18nKey: 'logistics-fleet',
     title: 'Logistics & Fleet',
     text: 'Fleet, GPS tracking and trip operations in one platform.',
     icon: 'local_shipping',
@@ -150,6 +153,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'travel-tourism',
     title: 'Travel & Tourism',
     text: 'Bookings, vehicles and passenger operations end to end.',
     icon: 'flight_takeoff',
@@ -157,6 +161,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'healthcare',
     title: 'Healthcare',
     text: 'Patient transport, scheduling and compliant record keeping.',
     icon: 'local_hospital',
@@ -164,6 +169,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'retail-ecommerce',
     title: 'Retail & E-Commerce',
     text: 'Storefronts, delivery tracking and inventory integrations.',
     icon: 'shopping_cart',
@@ -171,6 +177,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'finance',
     title: 'Finance',
     text: 'Secure portals, reporting and process automation.',
     icon: 'account_balance',
@@ -178,6 +185,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'education',
     title: 'Education',
     text: 'Student transport, campus systems and learning portals.',
     icon: 'school',
@@ -185,6 +193,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'real-estate',
     title: 'Real Estate',
     text: 'Listing platforms, CRM integration and field operations.',
     icon: 'apartment',
@@ -192,6 +201,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'manufacturing',
     title: 'Manufacturing',
     text: 'Plant logistics, asset tracking and operations dashboards.',
     icon: 'precision_manufacturing',
@@ -199,6 +209,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     fragment: null,
   },
   {
+    i18nKey: 'enterprise-operations',
     title: 'Enterprise & Operations',
     text: 'Cross-department workflows, dashboards and custom integrations.',
     icon: 'business_center',

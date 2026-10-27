@@ -6,17 +6,29 @@ import { filter } from 'rxjs/operators';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { INDUSTRY_ITEMS, SERVICE_ITEMS } from '../../core/site-catalog';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
+import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteLanguageSwitcherComponent } from '../../shared/website-language-switcher/website-language-switcher.component';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
 
 @Component({
   selector: 'app-site-header',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, NgClass, MatIconModule, SgLogoComponent],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    NgClass,
+    MatIconModule,
+    SgLogoComponent,
+    WebsiteLanguageSwitcherComponent,
+    WebsiteTranslatePipe,
+  ],
   templateUrl: './site-header.component.html',
   styleUrl: './site-header.component.scss',
 })
 export class SiteHeaderComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
+  readonly i18n = inject(WebsiteI18nService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);
@@ -33,9 +45,6 @@ export class SiteHeaderComponent implements OnInit {
 
   readonly serviceLinks = SERVICE_ITEMS;
   readonly industryLinks = INDUSTRY_ITEMS;
-
-  readonly demoCtaLabel = 'Book a Demo';
-  readonly demoCtaTagline = 'Get a free walkthrough of your fleet operations';
 
   ngOnInit(): void {
     this.router.events

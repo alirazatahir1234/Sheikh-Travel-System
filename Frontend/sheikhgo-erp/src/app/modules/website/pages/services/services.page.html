@@ -1,15 +1,15 @@
 <section class="page-hero portfolio-hero">
   <div class="container">
-    <span class="section-kicker" style="color:#99f6e4">Flagship product</span>
-    <h1>{{ pageTitle }}</h1>
-    <p>{{ pageLead }}</p>
+    <span class="section-kicker" style="color:#99f6e4">{{ 'pages.services.kicker' | wsTranslate }}</span>
+    <h1>{{ pageTitle() }}</h1>
+    <p>{{ pageLead() }}</p>
     <div class="hero-actions">
-      <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+      <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
       <a [routerLink]="brand.loginPath" class="btn btn-ghost">{{ brand.signInToProductLabel }}</a>
     </div>
     <nav class="jump" aria-label="SheikhGo Nexus portfolio">
       @for (s of portfolio; track s.slug) {
-        <a [routerLink]="[]" [fragment]="s.slug">{{ s.title }}</a>
+        <a [routerLink]="[]" [fragment]="s.slug">{{ i18n.catalogField(s.slug, 'title') }}</a>
       }
     </nav>
   </div>
@@ -18,12 +18,9 @@
 <section class="portfolio-section" id="nexus-overview">
   <div class="container">
     <header class="section-head">
-      <span class="section-kicker">Portfolio</span>
-      <h2 class="section-title">Why teams lead with SheikhGo Nexus</h2>
-      <p class="section-lead">
-        A client-facing portfolio of the platform Ali delivers — fleet intelligence, operational depth, and honest AI —
-        not a generic agency services list.
-      </p>
+      <span class="section-kicker">{{ 'pages.services.portfolioKicker' | wsTranslate }}</span>
+      <h2 class="section-title">{{ 'pages.services.portfolioTitle' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'pages.services.portfolioLead' | wsTranslate }}</p>
     </header>
     <div class="value-pillar-grid">
       @for (p of valuePillars; track p.title) {

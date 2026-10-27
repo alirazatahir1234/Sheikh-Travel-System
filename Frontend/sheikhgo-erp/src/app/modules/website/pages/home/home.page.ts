@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -6,18 +6,21 @@ import { MatIconModule } from '@angular/material/icon';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
+import { WebsiteI18nService } from '../../core/website-i18n.service';
 import { NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
 
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, NgClass, MatIconModule, NexusDemoModalComponent],
+  imports: [RouterLink, NgClass, MatIconModule, NexusDemoModalComponent, WebsiteTranslatePipe],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
 export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly brand = WEBSITE_BRAND;
+  readonly i18n = inject(WebsiteI18nService);
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly route = inject(ActivatedRoute);
@@ -27,33 +30,37 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   nexusImageError = false;
   readonly demoModalOpen = signal(false);
 
-  readonly heroPerks = [
-    { icon: 'my_location', text: 'Real-time GPS tracking' },
-    { icon: 'auto_awesome', text: 'Tool-first AI insights' },
-    { icon: 'shield', text: 'Secure & scalable platform' },
-    { icon: 'hub', text: 'All-in-one NEXUS dashboard' },
-  ] as const;
+  readonly heroPerks = computed(() => {
+    this.i18n.lang();
+    return [
+      { icon: 'my_location', text: this.i18n.t('home.perk.gps') },
+      { icon: 'auto_awesome', text: this.i18n.t('home.perk.ai') },
+      { icon: 'shield', text: this.i18n.t('home.perk.secure') },
+      { icon: 'hub', text: this.i18n.t('home.perk.nexus') },
+    ] as const;
+  });
 
-  readonly pillLinks: {
-    label: string;
-    icon: string;
-    fragment?: string;
-    link?: string;
-  }[] = [
-    { label: 'NEXUS Dashboard', fragment: 'see-the-platform', icon: 'dashboard' },
-    { label: 'Platform modules', fragment: 'platform-modules', icon: 'view_module' },
-    { label: 'Capabilities', fragment: 'platform-features', icon: 'grid_view' },
-    { label: 'AI Solutions', link: '/ai-solutions', icon: 'auto_awesome' },
-    { label: 'SheikhGo Nexus', link: '/services', icon: 'hub' },
-    { label: 'Request Demo', fragment: 'cta', icon: 'rocket_launch' },
-  ];
+  readonly pillLinks = computed(() => {
+    this.i18n.lang();
+    return [
+      { label: this.i18n.t('home.pill.dashboard'), fragment: 'see-the-platform', icon: 'dashboard' },
+      { label: this.i18n.t('home.pill.modules'), fragment: 'platform-modules', icon: 'view_module' },
+      { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
+      { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
+      { label: this.i18n.t('home.pill.nexus'), link: '/services', icon: 'hub' },
+      { label: this.i18n.t('home.pill.demo'), fragment: 'cta', icon: 'rocket_launch' },
+    ];
+  });
 
-  readonly nexusCallouts = [
-    { title: 'Live GPS Tracking', text: 'Map, speed, trip state', icon: 'gps_fixed' },
-    { title: 'AI Assistant', text: 'Plain-language fleet Q&A', icon: 'smart_toy' },
-    { title: 'Geofencing', text: 'Zone entry & exit alerts', icon: 'fence' },
-    { title: 'GPS Alerts', text: 'Speed, health & device events', icon: 'notifications_active' },
-  ] as const;
+  readonly nexusCallouts = computed(() => {
+    this.i18n.lang();
+    return [
+      { title: this.i18n.t('home.callout.liveGps.title'), text: this.i18n.t('home.callout.liveGps.text'), icon: 'gps_fixed' },
+      { title: this.i18n.t('home.callout.ai.title'), text: this.i18n.t('home.callout.ai.text'), icon: 'smart_toy' },
+      { title: this.i18n.t('home.callout.geo.title'), text: this.i18n.t('home.callout.geo.text'), icon: 'fence' },
+      { title: this.i18n.t('home.callout.alerts.title'), text: this.i18n.t('home.callout.alerts.text'), icon: 'notifications_active' },
+    ] as const;
+  });
 
   readonly platformCapabilities = [
     {

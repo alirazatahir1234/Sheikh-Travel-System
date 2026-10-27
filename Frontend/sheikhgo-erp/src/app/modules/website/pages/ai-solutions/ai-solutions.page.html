@@ -2,21 +2,16 @@
   <div class="hero-mesh" aria-hidden="true"></div>
   <div class="container hero-inner">
     <div class="hero-copy">
-      <span class="section-kicker">SheikhGo AI</span>
-      <h1 id="ai-solutions-title">AI Solutions</h1>
-      <p class="hero-tagline">Fleet intelligence you can trust — tools first, humans in control.</p>
-      <p class="hero-lead">
-        SheikhGo brings AI into daily fleet operations: structured assistants that query live GPS and Nexus
-        data, heuristic scores and digests you can explain, WhatsApp drafting that never auto-sends, and
-        copilot experiences on web and mobile. Optional language models when you configure them — honest
-        capabilities, premium execution.
-      </p>
+      <span class="section-kicker">{{ 'pages.aiSolutions.kicker' | wsTranslate }}</span>
+      <h1 id="ai-solutions-title">{{ 'pages.aiSolutions.title' | wsTranslate }}</h1>
+      <p class="hero-tagline">{{ 'pages.aiSolutions.tagline' | wsTranslate }}</p>
+      <p class="hero-lead">{{ 'pages.aiSolutions.lead' | wsTranslate }}</p>
       <div class="hero-actions">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
         <a [routerLink]="brand.loginPath" class="btn btn-ghost">{{ brand.signInToProductLabel }}</a>
       </div>
       <ul class="hero-perks">
-        @for (p of heroPerks; track p.text) {
+        @for (p of heroPerks(); track p.text) {
           <li><mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>{{ p.text }}</li>
         }
       </ul>

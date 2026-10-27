@@ -19,49 +19,49 @@
     </div>
 
     <div>
-      <h3>SheikhGo Nexus</h3>
+      <h3>{{ 'footer.nexus' | wsTranslate }}</h3>
       @for (s of serviceLinks; track s.slug) {
-        <a routerLink="/services" [fragment]="s.slug">{{ s.title }}</a>
+        <a routerLink="/services" [fragment]="s.slug">{{ i18n.catalogField(s.slug, 'title') }}</a>
       }
     </div>
 
     <div>
-      <h3>Industries</h3>
-      <a routerLink="/auth/login">Logistics &amp; Fleet</a>
-      <a routerLink="/contact">Retail &amp; E-Commerce</a>
-      <a routerLink="/contact">Healthcare</a>
-      <a routerLink="/contact">Education</a>
-      <a routerLink="/contact">Finance</a>
-      <a routerLink="/auth/login">Travel &amp; Tourism</a>
-      <a routerLink="/contact">Manufacturing</a>
-      <a routerLink="/contact">More Industries</a>
+      <h3>{{ 'footer.industries' | wsTranslate }}</h3>
+      <a routerLink="/auth/login">{{ 'footer.ind.logistics' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.retail' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.healthcare' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.education' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.finance' | wsTranslate }}</a>
+      <a routerLink="/auth/login">{{ 'footer.ind.travel' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.manufacturing' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'footer.ind.more' | wsTranslate }}</a>
     </div>
 
     <div>
-      <h3>Company</h3>
-      <a routerLink="/about">About Us</a>
-      <a routerLink="/fleet-management">Fleet Management</a>
-      <a routerLink="/gps-tracking">GPS Tracking</a>
-      <a routerLink="/live-tracking">Live Tracking</a>
-      <a routerLink="/gps-alerts">GPS Alerts</a>
-      <a routerLink="/ai-solutions">AI Solutions</a>
-      <a routerLink="/features">Platform Features</a>
-      <a routerLink="/contact">Contact</a>
-      <a [routerLink]="brand.loginPath">Sign In</a>
+      <h3>{{ 'footer.company' | wsTranslate }}</h3>
+      <a routerLink="/about">{{ 'footer.aboutUs' | wsTranslate }}</a>
+      <a routerLink="/fleet-management">{{ 'footer.fleetManagement' | wsTranslate }}</a>
+      <a routerLink="/gps-tracking">{{ 'footer.gpsTracking' | wsTranslate }}</a>
+      <a routerLink="/live-tracking">{{ 'footer.liveTracking' | wsTranslate }}</a>
+      <a routerLink="/gps-alerts">{{ 'footer.gpsAlerts' | wsTranslate }}</a>
+      <a routerLink="/ai-solutions">{{ 'footer.aiSolutions' | wsTranslate }}</a>
+      <a routerLink="/features">{{ 'footer.platformFeatures' | wsTranslate }}</a>
+      <a routerLink="/contact">{{ 'nav.contact' | wsTranslate }}</a>
+      <a [routerLink]="brand.loginPath">{{ 'footer.signIn' | wsTranslate }}</a>
     </div>
 
     <div>
-      <h3>Legal</h3>
-      <a routerLink="/privacy-policy">Privacy Policy</a>
-      <a routerLink="/cookie-policy">Cookie Policy</a>
-      <a routerLink="/terms-and-conditions">Terms &amp; Conditions</a>
-      <a routerLink="/delete-account">Delete Account</a>
-      <button type="button" class="footer-text-btn" (click)="openCookieSettings()">Cookie Settings</button>
+      <h3>{{ 'footer.legal' | wsTranslate }}</h3>
+      <a routerLink="/privacy-policy">{{ 'footer.privacy' | wsTranslate }}</a>
+      <a routerLink="/cookie-policy">{{ 'footer.cookies' | wsTranslate }}</a>
+      <a routerLink="/terms-and-conditions">{{ 'footer.terms' | wsTranslate }}</a>
+      <a routerLink="/delete-account">{{ 'footer.deleteAccount' | wsTranslate }}</a>
+      <button type="button" class="footer-text-btn" (click)="openCookieSettings()">{{ 'footer.cookieSettings' | wsTranslate }}</button>
     </div>
   </div>
 
   <div class="container bottom">
-    <p>© {{ brand.year }} {{ brand.companyName }}. All rights reserved.</p>
+    <p>© {{ brand.year }} {{ brand.companyName }}. {{ 'footer.rights' | wsTranslate }}</p>
     <p class="note">{{ brand.positioning }}</p>
   </div>
 </footer>

@@ -2,26 +2,22 @@
   <div class="hero-mesh" aria-hidden="true"></div>
   <div class="container hero-inner">
     <div class="hero-copy reveal">
-      <span class="section-kicker">Fleet &amp; travel management platform</span>
-      <h1>Move Smarter.<br />Travel Further.</h1>
-      <p class="hero-tagline">GPS, Nexus, and AI in one premium operations stack.</p>
-      <p class="hero-lead">
-        SheikhGo NEXUS brings live tracking, geofencing, trip playback, offline sync, fleet health alerts, and
-        tool-first AI assistants into a single fleet intelligence experience — plus the operations depth teams need
-        day to day.
-      </p>
+      <span class="section-kicker">{{ 'home.hero.kicker' | wsTranslate }}</span>
+      <h1>{{ 'home.hero.titleLine1' | wsTranslate }}<br />{{ 'home.hero.titleLine2' | wsTranslate }}</h1>
+      <p class="hero-tagline">{{ 'home.hero.tagline' | wsTranslate }}</p>
+      <p class="hero-lead">{{ 'home.hero.lead' | wsTranslate }}</p>
       <div class="hero-actions" id="watch-demo">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
         <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
           <mat-icon aria-hidden="true">play_circle</mat-icon>
-          Watch Demo
+          {{ 'common.watchDemo' | wsTranslate }}
         </button>
         <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost btn-compact">
-          See NEXUS Dashboard
+          {{ 'home.hero.seeDashboard' | wsTranslate }}
         </a>
       </div>
       <ul class="hero-perks">
-        @for (p of heroPerks; track p.text) {
+        @for (p of heroPerks(); track p.text) {
           <li class="hero-perk">
             <mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>
             {{ p.text }}
@@ -34,15 +30,15 @@
       <div class="float-chip">
         <mat-icon>gps_fixed</mat-icon>
         <div>
-          <strong>Live fleet map</strong>
-          <span>Speed, status &amp; geofences</span>
+          <strong>{{ 'home.hero.chipMapTitle' | wsTranslate }}</strong>
+          <span>{{ 'home.hero.chipMapSub' | wsTranslate }}</span>
         </div>
       </div>
       <div class="chat-shell">
         <div class="chat-head">
           <mat-icon>auto_awesome</mat-icon>
-          <span>SheikhGo AI</span>
-          <span class="live">Tools connected</span>
+          <span>{{ 'home.hero.aiLabel' | wsTranslate }}</span>
+          <span class="live">{{ 'home.hero.aiLive' | wsTranslate }}</span>
         </div>
         <div class="chat-body">
           <div class="bubble user">Which vehicles are offline right now?</div>
@@ -57,9 +53,9 @@
   </div>
 </section>
 
-<nav class="premium-pill-nav" aria-label="Explore the platform">
+<nav class="premium-pill-nav" [attr.aria-label]="'home.pill.explore' | wsTranslate">
   <div class="container pills">
-    @for (pill of pillLinks; track pill.label) {
+    @for (pill of pillLinks(); track pill.label) {
       @if (pill.link) {
         <a [routerLink]="pill.link">
           <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
@@ -79,14 +75,11 @@
   <div class="nexus-showcase-bg" aria-hidden="true"></div>
   <div class="container nexus-container">
     <header class="section-head nexus-showcase-head">
-      <span class="section-kicker">Centerpiece · SheikhGo NEXUS</span>
-      <h2 id="nexus-showcase-heading" class="section-title">Fleet intelligence dashboard</h2>
-      <p class="section-lead">
-        Live map, recent GPS alerts, geofences, trip playback, fleet health, fuel and maintenance signals — with
-        an AI assistant panel that answers from operational tools, not marketing fiction.
-      </p>
+      <span class="section-kicker">{{ 'home.showcase.kicker' | wsTranslate }}</span>
+      <h2 id="nexus-showcase-heading" class="section-title">{{ 'home.showcase.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.showcase.lead' | wsTranslate }}</p>
       <div class="nexus-showcase-actions">
-        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
         <a [routerLink]="brand.loginPath" class="btn btn-outline">{{ brand.signInToProductLabel }}</a>
       </div>
     </header>
@@ -113,7 +106,7 @@
           </div>
         }
       </div>
-      @for (callout of nexusCallouts; track callout.title; let i = $index) {
+      @for (callout of nexusCallouts(); track callout.title; let i = $index) {
         <div class="nexus-callout reveal" [ngClass]="'callout-' + i" aria-hidden="true">
           <span class="nexus-callout-icon"><mat-icon>{{ callout.icon }}</mat-icon></span>
           <div>
@@ -122,9 +115,7 @@
           </div>
         </div>
       }
-      <figcaption class="nexus-caption">
-        Product UI illustration — sample metrics in the image are for demonstration, not live customer data.
-      </figcaption>
+      <figcaption class="nexus-caption">{{ 'home.showcase.caption' | wsTranslate }}</figcaption>
     </figure>
   </div>
 </section>
@@ -132,12 +123,9 @@
 <section class="section nexus-modules-showcase" id="platform-modules" aria-labelledby="platform-modules-heading">
   <div class="container">
     <header class="section-head">
-      <span class="section-kicker">SheikhGo Nexus · Product UI</span>
-      <h2 id="platform-modules-heading" class="section-title">Platform modules, captured from the live app</h2>
-      <p class="section-lead">
-        Screens from the Nexus workspace your team signs into — GPS, fleet, operations, AI, and notifications in one
-        stack. Sample data from the demo tenant; your production tenant reflects your fleet.
-      </p>
+      <span class="section-kicker">{{ 'home.modules.kicker' | wsTranslate }}</span>
+      <h2 id="platform-modules-heading" class="section-title">{{ 'home.modules.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.modules.lead' | wsTranslate }}</p>
     </header>
     <div class="nexus-modules-grid">
       @for (mod of nexusModuleShots; track mod.caption) {
@@ -155,21 +143,16 @@
         </figure>
       }
     </div>
-    <p class="nexus-modules-footnote">
-      Bookings and other modules appear when enabled for your tenant. Request a demo to walk through your workflow.
-    </p>
+    <p class="nexus-modules-footnote">{{ 'home.modules.footnote' | wsTranslate }}</p>
   </div>
 </section>
 
 <section class="section platform-capabilities" id="platform-features" aria-labelledby="platform-features-heading">
   <div class="container">
     <header class="section-head">
-      <span class="section-kicker">Platform</span>
-      <h2 id="platform-features-heading" class="section-title">Everything operators expect — honestly delivered</h2>
-      <p class="section-lead">
-        From first GPS fix to ERP records, playback, and AI-assisted decisions. Each capability links to a product
-        page with clear scope.
-      </p>
+      <span class="section-kicker">{{ 'home.capabilities.kicker' | wsTranslate }}</span>
+      <h2 id="platform-features-heading" class="section-title">{{ 'home.capabilities.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.capabilities.lead' | wsTranslate }}</p>
     </header>
     <div class="platform-cap-grid">
       @for (cap of platformCapabilities; track cap.title) {
@@ -188,12 +171,8 @@
   <div class="container trust-inner">
     <mat-icon aria-hidden="true">verified</mat-icon>
     <div>
-      <strong>Built for operators, described honestly</strong>
-      <p>
-        Fleet intelligence scores and digests are <em>heuristic and rule-based</em> on your signals. AI assistants
-        call SheikhGo tools (GPS, trips, alerts, ERP). WhatsApp AI <em>never auto-sends</em>. LLM features need a
-        provider you configure.
-      </p>
+      <strong>{{ 'home.trust.title' | wsTranslate }}</strong>
+      <p>{{ 'home.trust.body' | wsTranslate }}</p>
     </div>
   </div>
 </section>
@@ -202,18 +181,15 @@
   <div class="ai-spotlight-bg" aria-hidden="true"></div>
   <div class="container ai-spotlight-grid">
     <div class="ai-spotlight-copy">
-      <span class="section-kicker light">AI Solutions</span>
-      <h2>Fleet AI that answers from your data</h2>
-      <p>
-        Assistants, copilot chat, health scores, morning digests, and WhatsApp drafting — tool-first, optionally
-        powered by LLMs you configure.
-      </p>
+      <span class="section-kicker light">{{ 'home.ai.kicker' | wsTranslate }}</span>
+      <h2>{{ 'home.ai.title' | wsTranslate }}</h2>
+      <p>{{ 'home.ai.lead' | wsTranslate }}</p>
       <ul class="ai-spotlight-list">
         @for (f of aiFeatures; track f) {
           <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
       </ul>
-      <a routerLink="/ai-solutions" class="btn btn-primary">Explore AI Capabilities →</a>
+      <a routerLink="/ai-solutions" class="btn btn-primary">{{ 'common.exploreAi' | wsTranslate }}</a>
     </div>
     <div class="ai-spotlight-cards" aria-hidden="true">
       @for (card of aiSpotlightCards; track card.title) {
@@ -231,16 +207,16 @@
   <div class="cta-bg" aria-hidden="true"></div>
   <div class="container final-cta-inner">
     <div class="copy">
-      <h2>Let's build something great together</h2>
-      <p>See NEXUS live, talk through your fleet workflow, or scope custom software with our team.</p>
+      <h2>{{ 'home.final.title' | wsTranslate }}</h2>
+      <p>{{ 'home.final.lead' | wsTranslate }}</p>
     </div>
     <div class="actions">
-      <a routerLink="/request-demo" class="btn btn-primary">Request a Demo →</a>
+      <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
       <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
         <mat-icon aria-hidden="true">play_circle</mat-icon>
-        Watch Demo
+        {{ 'common.watchDemo' | wsTranslate }}
       </button>
-      <a routerLink="/contact" class="btn btn-ghost">Contact Us</a>
+      <a routerLink="/contact" class="btn btn-ghost">{{ 'common.contactUs' | wsTranslate }}</a>
     </div>
   </div>
 </section>

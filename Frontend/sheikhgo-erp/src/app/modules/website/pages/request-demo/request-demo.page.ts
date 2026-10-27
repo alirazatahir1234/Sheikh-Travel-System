@@ -2,11 +2,12 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteLeadsService } from '../../core/leads.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 @Component({
   selector: 'app-request-demo-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WebsiteTranslatePipe],
   templateUrl: './request-demo.page.html',
   styleUrl: './request-demo.page.scss',
 })

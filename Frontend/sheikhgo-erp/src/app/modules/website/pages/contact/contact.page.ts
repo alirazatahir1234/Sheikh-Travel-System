@@ -12,11 +12,12 @@ import {
   WebsiteContactPhone,
 } from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 @Component({
   selector: 'app-contact-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WebsiteTranslatePipe],
   templateUrl: './contact.page.html',
   styleUrl: './contact.page.scss',
 })

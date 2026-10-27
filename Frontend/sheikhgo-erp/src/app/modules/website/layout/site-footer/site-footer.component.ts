@@ -10,17 +10,20 @@ import {
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
 import { CookieConsentService } from '../../core/cookie-consent.service';
 import { SERVICE_ITEMS } from '../../core/site-catalog';
+import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
 
 @Component({
   selector: 'app-site-footer',
   standalone: true,
-  imports: [RouterLink, SgLogoComponent],
+  imports: [RouterLink, SgLogoComponent, WebsiteTranslatePipe],
   templateUrl: './site-footer.component.html',
   styleUrl: './site-footer.component.scss',
 })
 export class SiteFooterComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
+  readonly i18n = inject(WebsiteI18nService);
   readonly serviceLinks = SERVICE_ITEMS;
   private readonly content = inject(WebsitePublicContentService);
   private readonly cookies = inject(CookieConsentService);

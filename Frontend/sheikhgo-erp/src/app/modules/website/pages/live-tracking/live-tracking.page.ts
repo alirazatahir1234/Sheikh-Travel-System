@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 interface FeatureItem {
   title: string;
@@ -25,23 +26,18 @@ interface FeatureGroup {
 @Component({
   selector: 'app-live-tracking-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent],
+  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   template: `
     <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/product/live-map.png')">
       <div class="container hero-layout">
         <div class="hero-copy">
-          <span class="section-kicker" style="color:#99f6e4">GPS Tracking</span>
-          <h1>Live Tracking</h1>
-          <p class="hero-tagline">Your fleet on one map — updated as devices report in.</p>
-          <p class="hero-lead">
-            SheikhGo brings every tracked vehicle onto an interactive fleet map with live location,
-            speed, ignition and connectivity status. Filter by movement, follow a single unit, overlay
-            geofences, and jump to history playback when you need to review a route — without calling
-            the driver first.
-          </p>
+          <span class="section-kicker" style="color:#99f6e4">{{ 'pages.liveTracking.kicker' | wsTranslate }}</span>
+          <h1>{{ 'pages.liveTracking.title' | wsTranslate }}</h1>
+          <p class="hero-tagline">{{ 'pages.liveTracking.tagline' | wsTranslate }}</p>
+          <p class="hero-lead">{{ 'pages.liveTracking.lead' | wsTranslate }}</p>
           <div class="hero-actions">
-            <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
-            <a routerLink="/gps-alerts" class="btn btn-ghost">GPS Alerts →</a>
+            <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemo' | wsTranslate }}</a>
+            <a routerLink="/gps-alerts" class="btn btn-ghost">{{ 'common.gpsAlertsArrow' | wsTranslate }}</a>
           </div>
         </div>
         <aside class="hero-panel" aria-label="Live tracking at a glance">
@@ -70,8 +66,8 @@ interface FeatureGroup {
     <section class="section categories">
       <div class="container">
         <header class="section-head">
-          <span class="section-kicker">Overview</span>
-          <h2 class="section-title">Three layers of fleet visibility</h2>
+          <span class="section-kicker">{{ 'pages.liveTracking.overviewKicker' | wsTranslate }}</span>
+          <h2 class="section-title">{{ 'pages.liveTracking.overviewTitle' | wsTranslate }}</h2>
           <p class="section-lead">
             Alerts tell you when something breaks the rules. Live Tracking shows you what is happening
             right now — and gives you the context to investigate with history and geofences.

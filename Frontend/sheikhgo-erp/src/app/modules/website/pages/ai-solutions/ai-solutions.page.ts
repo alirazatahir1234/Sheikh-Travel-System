@@ -1,10 +1,12 @@
-import { AfterViewInit, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { Subscription } from 'rxjs';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
+import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 
 interface SolutionItem {
   title: string;
@@ -42,7 +44,7 @@ interface PlatformHighlight {
 @Component({
   selector: 'app-ai-solutions-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent],
+  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   templateUrl: './ai-solutions.page.html',
   styleUrl: './ai-solutions.page.scss',
 })
@@ -52,13 +54,17 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
   private fragmentSub?: Subscription;
 
   readonly brand = WEBSITE_BRAND;
+  private readonly i18n = inject(WebsiteI18nService);
   activeSection = 'assistant-chat';
 
-  readonly heroPerks = [
-    { icon: 'verified_user', text: 'Grounded in your fleet data' },
-    { icon: 'psychology', text: 'Tools + optional LLM' },
-    { icon: 'shield', text: 'Human stays in control' },
-  ] as const;
+  readonly heroPerks = computed(() => {
+    this.i18n.lang();
+    return [
+      { icon: 'verified_user', text: this.i18n.t('pages.aiSolutions.perk.grounded') },
+      { icon: 'psychology', text: this.i18n.t('pages.aiSolutions.perk.tools') },
+      { icon: 'shield', text: this.i18n.t('pages.aiSolutions.perk.control') },
+    ] as const;
+  });
 
   readonly pillars = [
     {
