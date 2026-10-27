@@ -10,12 +10,38 @@ public sealed class FleetEvAnomalyRepository(IDbConnectionFactory dbFactory) : I
 {
     private const int ElectricFuelType = (int)FuelType.Electric;
 
+    // Dapper cannot construct EvFleetVehicleRowDto: SQL materializes CASE AS int and
+    // non-nullable decimals/doubles while the record uses bool and nullable value types.
+    private sealed class EvFleetVehicleRow
+    {
+        public int VehicleId { get; init; }
+        public string VehicleName { get; init; } = "";
+        public string RegistrationNumber { get; init; } = "";
+        public decimal? BatteryPercent { get; init; }
+        public decimal? ElectricRangeKm { get; init; }
+        public decimal? EstimatedRangeKm { get; init; }
+        public double? Latitude { get; init; }
+        public double? Longitude { get; init; }
+        public int RangeAlert { get; init; }
+
+        public EvFleetVehicleRowDto ToDto() => new(
+            VehicleId,
+            VehicleName,
+            RegistrationNumber,
+            BatteryPercent,
+            ElectricRangeKm,
+            EstimatedRangeKm,
+            Latitude,
+            Longitude,
+            RangeAlert != 0);
+    }
+
     public async Task<EvFleetDashboardDto> GetEvDashboardAsync(
         int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
-        var vehicles = (await connection.QueryAsync<EvFleetVehicleRowDto>(new CommandDefinition("""
+        var vehicleRows = (await connection.QueryAsync<EvFleetVehicleRow>(new CommandDefinition("""
             SELECT
                 v.Id AS VehicleId,
                 v.Name AS VehicleName,
@@ -40,6 +66,7 @@ public sealed class FleetEvAnomalyRepository(IDbConnectionFactory dbFactory) : I
             WHERE v.TenantId = @TenantId AND v.IsDeleted = 0 AND v.FuelType = @Electric
             ORDER BY v.Name
             """, new { TenantId = tenantId, Electric = ElectricFuelType }, cancellationToken: cancellationToken))).ToList();
+        var vehicles = vehicleRows.Select(r => r.ToDto()).ToList();
 
         var stations = await ListChargingStationsAsync(tenantId, cancellationToken);
         var avgBattery = vehicles.Where(v => v.BatteryPercent.HasValue).Select(v => v.BatteryPercent!.Value).DefaultIfEmpty()
