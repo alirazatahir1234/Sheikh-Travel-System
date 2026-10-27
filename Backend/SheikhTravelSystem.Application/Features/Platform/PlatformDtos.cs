@@ -278,7 +278,8 @@ public record ModuleRegistryDto(
     bool IsEnableable,
     int? Id = null,
     bool IsInstalled = false,
-    bool IsLicensed = false);
+    bool IsLicensed = false,
+    bool IsPremiumAddOn = false);
 
 public record GetTenantModulesQuery : IRequest<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>>;
 public record GetModuleCatalogQuery : IRequest<ApiResponse<IReadOnlyList<ModuleRegistryDto>>>;
@@ -486,7 +487,8 @@ public record ModuleStatusDto(
     string? DocumentationUrl = null,
     bool IsInstalled = false,
     bool IsLicensed = false,
-    bool CanToggle = true);
+    bool CanToggle = true,
+    bool IsPremiumAddOn = false);
 
 public record LicenseLimitDto(
     string Resource,
@@ -527,6 +529,8 @@ public record SubscriptionDetailDto
     public int? AICredits { get; init; }
     public bool GPSEnabled { get; init; } = true;
     public IReadOnlyList<string> LicensedModuleCodes { get; init; } = [];
+    public bool FeaturesLocked { get; init; }
+    public DateTime? NextBillingDate { get; init; }
 }
 
 public record SubscriptionPlanDto(
@@ -591,7 +595,10 @@ public record LicenseSummaryDto(
     int? MaxVehicles,
     int? StorageQuotaGb,
     int? AICredits,
-    bool GPSEnabled);
+    bool GPSEnabled,
+    bool FeaturesLocked = false,
+    decimal OverdueAmount = 0,
+    string? BillingMessage = null);
 
 public record GetSubscriptionCatalogQuery : IRequest<ApiResponse<IReadOnlyList<SubscriptionPlanDto>>>;
 public record GetCompanyLicenseQuery(int? TenantId = null) : IRequest<ApiResponse<CompanyLicenseDto>>;
@@ -618,11 +625,24 @@ public record PaymentDto(
     string? Reference,
     DateTime PaidAt);
 
+/// <summary>Premium paid add-on available for a tenant subscription (not included in base plan modules).</summary>
+public record SubscriptionAddOnDto(
+    string ModuleCode,
+    string DisplayName,
+    string Description,
+    string Category,
+    IReadOnlyList<string> Dependencies,
+    string CurrencyCode,
+    decimal? MonthlyAmount,
+    bool IsSubscribed,
+    int SortOrder);
+
 public record SubscriptionOverviewDto(
     SubscriptionDetailDto Subscription,
     IReadOnlyList<InvoiceDto> Invoices,
     IReadOnlyList<PaymentDto> Payments,
-    CompanyLicenseDto? License = null);
+    CompanyLicenseDto? License = null,
+    IReadOnlyList<SubscriptionAddOnDto>? AvailableAddOns = null);
 
 public record GetSubscriptionOverviewQuery(int TenantId) : IRequest<ApiResponse<SubscriptionOverviewDto>>;
 
@@ -635,3 +655,41 @@ public record UpdateSubscriptionCommand(
     decimal? MonthlyAmount,
     bool? AutoRenew,
     string? BillingCycle) : IRequest<ApiResponse<bool>>;
+
+public record SubscriptionRenewalRowDto(
+    int TenantId,
+    string TenantName,
+    string? PlanName,
+    DateTime? NextBillingDate,
+    decimal? MonthlyAmount,
+    string CurrencyCode);
+
+public record SubscriptionOverdueAccountDto(
+    int TenantId,
+    string TenantName,
+    string? PlanName,
+    decimal OverdueAmount,
+    DateTime? OldestDueDate,
+    int OverdueInvoiceCount,
+    bool FeaturesLocked);
+
+public record SubscriptionRevenueDashboardDto(
+    int ActiveSubscriptions,
+    int AutoRenewSubscriptions,
+    int OverdueAccounts,
+    decimal MonthlyRecurringRevenue,
+    decimal OutstandingAmount,
+    decimal CollectedLast30Days,
+    IReadOnlyList<SubscriptionRenewalRowDto> UpcomingRenewals,
+    IReadOnlyList<SubscriptionOverdueAccountDto> OverdueAccountRows);
+
+public record GetSubscriptionRevenueDashboardQuery : IRequest<ApiResponse<SubscriptionRevenueDashboardDto>>;
+
+public record MarkTenantSubscriptionInvoicePaidCommand(
+    int TenantId,
+    int InvoiceId,
+    string? PaymentMethod,
+    string? Reference) : IRequest<ApiResponse<bool>>;
+
+public record SendTenantSubscriptionInvoiceEmailCommand(int TenantId, int InvoiceId)
+    : IRequest<ApiResponse<bool>>;

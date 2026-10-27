@@ -557,6 +557,28 @@ public class TenantSubscriptionController : BaseApiController
         return Ok(await Mediator.Send(new UpdateSubscriptionCommand(
             tenantId, action, request.PlanName, request.MonthlyAmount, request.AutoRenew, request.BillingCycle)));
     }
+
+    [HttpPost("subscription/invoices/{invoiceId:int}/mark-paid")]
+    public async Task<IActionResult> MarkSubscriptionInvoicePaid(
+        int tenantId, int invoiceId, [FromBody] MarkSubscriptionInvoicePaidRequest? request)
+        => Ok(await Mediator.Send(new MarkTenantSubscriptionInvoicePaidCommand(
+            tenantId, invoiceId, request?.PaymentMethod, request?.Reference)));
+
+    [HttpPost("subscription/invoices/{invoiceId:int}/email")]
+    public async Task<IActionResult> EmailSubscriptionInvoice(int tenantId, int invoiceId)
+        => Ok(await Mediator.Send(new SendTenantSubscriptionInvoiceEmailCommand(tenantId, invoiceId)));
+}
+
+public record MarkSubscriptionInvoicePaidRequest(string? PaymentMethod, string? Reference);
+
+[RequirePermission(PlatformPermissions.TenantsManage)]
+[ApiController]
+[Route("api/platform/subscription-billing")]
+public class SubscriptionBillingController : BaseApiController
+{
+    [HttpGet("revenue-dashboard")]
+    public async Task<IActionResult> RevenueDashboard()
+        => Ok(await Mediator.Send(new GetSubscriptionRevenueDashboardQuery()));
 }
 
 public record UpdateSubscriptionRequest(

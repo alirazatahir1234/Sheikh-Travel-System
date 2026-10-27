@@ -38,6 +38,11 @@
           <mat-card-title>Current Plan</mat-card-title>
         </mat-card-header>
         <mat-card-content>
+          <div class="plan-banner danger" *ngIf="subscription.featuresLocked">
+            <mat-icon>lock</mat-icon>
+            <span>Premium modules are locked until overdue subscription invoices are paid.</span>
+          </div>
+
           <div class="plan-banner" [class.warn]="isExpiringSoon()" [class.danger]="isExpired()" *ngIf="isExpiringSoon() || isExpired()">
             <mat-icon>{{ isExpired() ? 'error' : 'warning' }}</mat-icon>
             <span>{{ isExpired() ? 'This subscription has expired.' : 'This subscription expires within 30 days.' }}</span>
@@ -57,6 +62,10 @@
               <div class="info-item">
                 <span class="label">Billing Cycle</span>
                 <span class="value">{{ subscription.billingCycle }}</span>
+              </div>
+              <div class="info-item" *ngIf="subscription.nextBillingDate">
+                <span class="label">Next billing</span>
+                <span class="value">{{ subscription.nextBillingDate | date:'mediumDate' }}</span>
               </div>
               <div class="info-item">
                 <span class="label">Start Date</span>
@@ -224,8 +233,15 @@
               <th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let i"><span class="inv-pill" [ngClass]="invoiceStatusClass(i.status)">{{ i.status }}</span></td>
             </ng-container>
-            <tr mat-header-row *matHeaderRowDef="['number','plan','amount','issued','due','status']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['number','plan','amount','issued','due','status'];"></tr>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let i">
+                <button mat-button type="button" (click)="emailInvoice(i)" [disabled]="saving">Email</button>
+                <button mat-button type="button" (click)="markInvoicePaid(i)" [disabled]="saving || i.status === 'Paid'">Mark paid</button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['number','plan','amount','issued','due','status','actions']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['number','plan','amount','issued','due','status','actions'];"></tr>
           </table>
 
           <div class="empty-state" *ngIf="!invoices.length">

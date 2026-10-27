@@ -939,6 +939,93 @@
   }
 }
 
+.subscription-plans-showcase {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.subscription-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.15rem;
+}
+
+@media (max-width: 900px) {
+  .subscription-plans-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subscription-plan-card {
+  position: relative;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 1.35rem 1.25rem;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+.subscription-plan-card.featured {
+  border-color: rgba(8, 201, 151, 0.55);
+}
+
+.subscription-plan-badge {
+  position: absolute;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--sg-teal, #08c997), #005f49);
+  color: #fff;
+}
+
+.subscription-plan-card h3 {
+  margin: 0 0 0.35rem;
+}
+
+.subscription-plan-fleet {
+  margin: 0 0 0.85rem;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.subscription-plan-price {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.subscription-plan-price .amount {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.subscription-plan-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.subscription-plans-footnote {
+  margin: 1.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  max-width: 70ch;
+}
+
+.subscription-plans-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 .news-announcements {
   background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
 }

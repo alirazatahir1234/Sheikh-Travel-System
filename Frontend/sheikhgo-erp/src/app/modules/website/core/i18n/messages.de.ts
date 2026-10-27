@@ -140,6 +140,14 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.showcase.title': 'Flotten-Intelligence-Dashboard',
   'home.showcase.lead':
     'Live-Karte, aktuelle GPS-Alarme, Geofences, Wiedergabe, Flottengesundheit, Kraftstoff- und Wartungssignale — mit KI-Assistenten-Panel aus echten Betriebstools.',
+  'home.pill.subscriptionPlans': 'Nexus-Abos',
+  'home.subscriptionPlans.kicker': 'SheikhGo Nexus · Abrechnung',
+  'home.subscriptionPlans.title': 'Automatisch verlängernde Flotten-Abos',
+  'home.subscriptionPlans.lead':
+    'Starter-, Pro- und Enterprise-Pläne werden monatlich in PKR abgerechnet. Nexus erstellt Abo-Rechnungen, mailt Ihren Billing-Kontakt, verfolgt den Zahlungsstatus und sperrt Premium-Module bei Überfälligkeit — dieselben Stufen wie auf der Preisseite.',
+  'home.subscriptionPlans.footnote':
+    'Karten- und Wallet-Checkout für Nexus-Pläne erfolgt manuell (Banküberweisung), bis ein Payment-Gateway angebunden ist; Reisekundenrechnungen nutzen dieselbe E-Mail-Infrastruktur.',
+  'home.subscriptionPlans.viewPricing': 'Pläne auf Preise vergleichen',
   'home.pill.clientBilling': 'Kundenabrechnung',
   'home.clientBilling.kicker': 'Finanzen · Forderungen',
   'home.clientBilling.title': 'Rechnungen pro Fahrt per E-Mail',

@@ -34,6 +34,7 @@ using SheikhTravelSystem.Application.Features.WhatsApp.Bot;
 using SheikhTravelSystem.Application.Features.WhatsApp.AiAssist;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
+using SheikhTravelSystem.Infrastructure.Services.Sos;
 
 namespace SheikhTravelSystem.Infrastructure;
 
@@ -127,6 +128,8 @@ public static class DependencyInjection
         services.AddScoped<IDevDataService, DevDataService>();
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IDriverAppRepository, DriverAppRepository>();
+        services.AddScoped<ISosDispatchRepository, SosDispatchRepository>();
+        services.AddScoped<ISosAutoDispatchService, SosAutoDispatchService>();
         services.AddScoped<IDriverMobileSyncRepository, DriverMobileSyncRepository>();
         services.AddScoped<IDriverAllowanceRepository, DriverAllowanceRepository>();
         services.AddScoped<ICustomerPortalRepository, CustomerPortalRepository>();

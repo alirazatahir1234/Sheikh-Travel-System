@@ -47,6 +47,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     return [
       { label: this.i18n.t('home.pill.dashboard'), fragment: 'see-the-platform', icon: 'dashboard' },
       { label: this.i18n.t('home.pill.modules'), fragment: 'platform-modules', icon: 'view_module' },
+      { label: this.i18n.t('home.pill.subscriptionPlans'), fragment: 'subscription-plans', icon: 'subscriptions' },
       { label: this.i18n.t('home.pill.clientBilling'), fragment: 'client-billing', icon: 'receipt_long' },
       { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
       { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
@@ -59,6 +60,35 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.nexus'), link: '/services', icon: 'hub' },
       { label: this.i18n.t('home.pill.demo'), fragment: 'cta', icon: 'rocket_launch' },
     ];
+  });
+
+  readonly subscriptionTiers = computed(() => {
+    this.i18n.lang();
+    return [
+      {
+        id: 'starter',
+        name: this.i18n.t('pages.pricing.starter.name'),
+        fleet: this.i18n.t('pages.pricing.starter.fleet'),
+        price: '79,000',
+        featured: false,
+      },
+      {
+        id: 'pro',
+        name: this.i18n.t('pages.pricing.pro.name'),
+        fleet: this.i18n.t('pages.pricing.pro.fleet'),
+        price: '119,000',
+        featured: true,
+        badge: this.i18n.t('pages.pricing.pro.badge'),
+      },
+      {
+        id: 'enterprise',
+        name: this.i18n.t('pages.pricing.enterprise.name'),
+        fleet: this.i18n.t('pages.pricing.enterprise.fleet'),
+        price: '165,000',
+        priceNote: this.i18n.t('pages.pricing.enterprise.priceNote'),
+        featured: false,
+      },
+    ] as const;
   });
 
   readonly nexusCallouts = computed(() => {

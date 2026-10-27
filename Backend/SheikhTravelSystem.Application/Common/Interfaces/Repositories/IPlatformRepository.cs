@@ -85,6 +85,18 @@ public interface IPlatformRepository
     Task<IReadOnlyList<InvoiceDto>> GetTenantInvoicesAsync(int tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PaymentDto>> GetTenantBillingHistoryAsync(int tenantId, CancellationToken cancellationToken = default);
     Task ApplySubscriptionActionAsync(int tenantId, SubscriptionAction action, string? planName, decimal? monthlyAmount, string? billingCycle, bool? autoRenew, CancellationToken cancellationToken = default);
+    Task<SubscriptionRevenueDashboardDto> LoadSubscriptionRevenueDashboardAsync(CancellationToken cancellationToken = default);
+    Task<int> CountActiveVehiclesAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task<string?> ResolveBillingEmailAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task SyncTenantSubscriptionInvoicesAsync(int tenantId, DateTime asOfUtc, CancellationToken cancellationToken = default);
+    Task RefreshSubscriptionFeatureLockAsync(int tenantId, DateTime asOfUtc, CancellationToken cancellationToken = default);
+    Task<bool> AreSubscriptionFeaturesLockedAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task<decimal> SumOverdueSubscriptionInvoicesAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task<int?> CreateSubscriptionRenewalInvoiceAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task<bool> MarkSubscriptionInvoicePaidAsync(int tenantId, int invoiceId, string? paymentMethod, string? reference, CancellationToken cancellationToken = default);
+    Task<(int Id, string InvoiceNumber, decimal Amount, string CurrencyCode, string? PlanName, DateTime? DueDate)?> GetSubscriptionInvoiceAsync(int tenantId, int invoiceId, CancellationToken cancellationToken = default);
+    Task RecordSubscriptionInvoiceEmailSentAsync(int invoiceId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<int>> ListActiveTenantIdsForBillingAsync(CancellationToken cancellationToken = default);
 
     // ── Feature registry ──────────────────────────────────────────────────
     Task<IReadOnlyList<FeatureRegistryQueries.FeatureRow>> LoadVisibleFeaturesAsync(bool activeOnly = false, CancellationToken cancellationToken = default);

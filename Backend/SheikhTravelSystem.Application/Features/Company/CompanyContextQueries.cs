@@ -66,7 +66,10 @@ public record CompanySubscriptionDto(
     bool GPSEnabled,
     int UsedUsers = 0,
     int UsedDrivers = 0,
-    int UsedVehicles = 0);
+    int UsedVehicles = 0,
+    bool FeaturesLocked = false,
+    decimal OverdueAmount = 0,
+    string? BillingMessage = null);
 
 public record CompanyCurrentUserDto(
     string? JobTitle,

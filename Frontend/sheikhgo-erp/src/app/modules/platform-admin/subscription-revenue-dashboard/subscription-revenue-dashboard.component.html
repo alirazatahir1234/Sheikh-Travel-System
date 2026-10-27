@@ -1,0 +1,103 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Subscription revenue</h1>
+      <p class="page-sub">Active Nexus plans, renewals, overdue accounts, and collections (manual settlement until a gateway is configured).</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </header>
+
+  <div class="loading" *ngIf="loading && !dashboard">Loading…</div>
+
+  <ng-container *ngIf="dashboard">
+    <div class="kpi-grid">
+      <mat-card class="kpi">
+        <span class="kpi-label">Active subscriptions</span>
+        <strong class="kpi-value">{{ dashboard.activeSubscriptions }}</strong>
+        <span class="kpi-hint">{{ dashboard.autoRenewSubscriptions }} auto-renew</span>
+      </mat-card>
+      <mat-card class="kpi">
+        <span class="kpi-label">MRR (listed)</span>
+        <strong class="kpi-value">{{ money(dashboard.monthlyRecurringRevenue) }}</strong>
+        <span class="kpi-hint">Sum of tenant MonthlyAmount</span>
+      </mat-card>
+      <mat-card class="kpi">
+        <span class="kpi-label">Outstanding</span>
+        <strong class="kpi-value">{{ money(dashboard.outstandingAmount) }}</strong>
+        <span class="kpi-hint">{{ dashboard.overdueAccounts }} overdue tenants</span>
+      </mat-card>
+      <mat-card class="kpi">
+        <span class="kpi-label">Collected (30d)</span>
+        <strong class="kpi-value">{{ money(dashboard.collectedLast30Days) }}</strong>
+        <span class="kpi-hint">TenantBillingHistory</span>
+      </mat-card>
+    </div>
+
+    <div class="tables">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Upcoming renewals (14 days)</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="dashboard.upcomingRenewals" class="admin-table" *ngIf="dashboard.upcomingRenewals.length">
+            <ng-container matColumnDef="tenant">
+              <th mat-header-cell *matHeaderCellDef>Tenant</th>
+              <td mat-cell *matCellDef="let r">
+                <a [routerLink]="['/platform/subscription-management']" [queryParams]="{ tenantId: r.tenantId }">{{ r.tenantName }}</a>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="plan">
+              <th mat-header-cell *matHeaderCellDef>Plan</th>
+              <td mat-cell *matCellDef="let r">{{ r.planName || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="next">
+              <th mat-header-cell *matHeaderCellDef>Next billing</th>
+              <td mat-cell *matCellDef="let r">{{ r.nextBillingDate | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let r">{{ money(r.monthlyAmount, r.currencyCode) }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['tenant','plan','next','amount']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['tenant','plan','next','amount'];"></tr>
+          </table>
+          <p class="empty" *ngIf="!dashboard.upcomingRenewals.length">No renewals due in the next two weeks.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Overdue accounts</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="dashboard.overdueAccountRows" class="admin-table" *ngIf="dashboard.overdueAccountRows.length">
+            <ng-container matColumnDef="tenant">
+              <th mat-header-cell *matHeaderCellDef>Tenant</th>
+              <td mat-cell *matCellDef="let o">
+                <a [routerLink]="['/platform/subscription-management']" [queryParams]="{ tenantId: o.tenantId }">{{ o.tenantName }}</a>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="plan">
+              <th mat-header-cell *matHeaderCellDef>Plan</th>
+              <td mat-cell *matCellDef="let o">{{ o.planName || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Overdue</th>
+              <td mat-cell *matCellDef="let o">{{ money(o.overdueAmount) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="locked">
+              <th mat-header-cell *matHeaderCellDef>Locked</th>
+              <td mat-cell *matCellDef="let o">{{ o.featuresLocked ? 'Yes' : 'No' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['tenant','plan','amount','locked']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['tenant','plan','amount','locked'];"></tr>
+          </table>
+          <p class="empty" *ngIf="!dashboard.overdueAccountRows.length">No overdue subscription invoices.</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

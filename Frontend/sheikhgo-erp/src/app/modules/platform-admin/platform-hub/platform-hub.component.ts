@@ -172,6 +172,13 @@ export class PlatformHubComponent {
           icon: 'subscriptions',
           route: '/platform/subscription-management',
           permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage']
+        },
+        {
+          label: 'Subscription revenue',
+          description: 'MRR, renewals, overdue accounts.',
+          icon: 'monitoring',
+          route: '/platform/subscription-revenue',
+          permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage']
         }
       ]
     },

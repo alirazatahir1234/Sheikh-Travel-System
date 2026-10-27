@@ -140,6 +140,14 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.showcase.title': 'Fleet intelligence dashboard',
   'home.showcase.lead':
     'Live map, recent GPS alerts, geofences, trip playback, fleet health, fuel and maintenance signals — with an AI assistant panel that answers from operational tools, not marketing fiction.',
+  'home.pill.subscriptionPlans': 'Nexus subscriptions',
+  'home.subscriptionPlans.kicker': 'SheikhGo Nexus · Billing',
+  'home.subscriptionPlans.title': 'Auto-renewing fleet subscriptions',
+  'home.subscriptionPlans.lead':
+    'Starter, Pro, and Enterprise plans bill monthly in PKR. Nexus generates subscription invoices, emails your billing contact, tracks payment status, and locks premium modules if invoices go overdue—same tier numbers as our full pricing page.',
+  'home.subscriptionPlans.footnote':
+    'Card and wallet checkout for Nexus plans is manual (bank transfer) until a payment gateway is connected; trip client invoices use the same email infrastructure.',
+  'home.subscriptionPlans.viewPricing': 'Compare plans on Pricing',
   'home.pill.clientBilling': 'Client billing',
   'home.clientBilling.kicker': 'Finance · Accounts receivable',
   'home.clientBilling.title': 'Trip invoices emailed to clients',

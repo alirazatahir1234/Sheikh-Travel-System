@@ -19,6 +19,7 @@ import { AuditCenterComponent } from './audit-center/audit-center.component';
 import { GpsControlCenterComponent } from './gps-control-center/gps-control-center.component';
 import { PermissionCoverageComponent } from './permission-coverage/permission-coverage.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
+import { SubscriptionRevenueDashboardComponent } from './subscription-revenue-dashboard/subscription-revenue-dashboard.component';
 import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
 import { DatabaseResetComponent } from './database-reset/database-reset.component';
 import { ResetDatabaseDialogComponent } from './database-reset/reset-database-dialog.component';
@@ -173,6 +174,12 @@ const routes: Routes = [
     data: { permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage'] }
   },
   {
+    path: 'subscription-revenue',
+    component: SubscriptionRevenueDashboardComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage'] }
+  },
+  {
     path: 'migrations',
     component: MigrationManagerComponent,
     canActivate: [permissionGuard],
@@ -206,6 +213,7 @@ const routes: Routes = [
     GpsControlCenterComponent,
     PermissionCoverageComponent,
     SubscriptionManagementComponent,
+    SubscriptionRevenueDashboardComponent,
     MigrationManagerComponent,
     DatabaseResetComponent,
     ResetDatabaseDialogComponent

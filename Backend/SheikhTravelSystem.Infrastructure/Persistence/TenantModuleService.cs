@@ -1,10 +1,14 @@
 using Dapper;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence;
 
-public class TenantModuleService(IDbConnectionFactory dbFactory) : ITenantModuleService
+public class TenantModuleService(
+    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository) : ITenantModuleService
 {
     public async Task<IReadOnlyList<string>> GetLegacyModuleKeysAsync(int tenantId, CancellationToken cancellationToken = default)
     {
@@ -54,6 +58,10 @@ public class TenantModuleService(IDbConnectionFactory dbFactory) : ITenantModule
         CancellationToken cancellationToken = default)
     {
         if (tenantId <= 0 || string.IsNullOrWhiteSpace(moduleCode))
+            return false;
+
+        if (await platformRepository.AreSubscriptionFeaturesLockedAsync(tenantId, cancellationToken)
+            && !SubscriptionBillingLifecycle.IsModuleAllowedWhenLocked(moduleCode))
             return false;
 
         using var connection = dbFactory.CreateConnection();

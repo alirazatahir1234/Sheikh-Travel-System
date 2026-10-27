@@ -246,10 +246,16 @@ public class GetCompanyModulesQueryHandler(
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var result = catalog
-            .Select(m => m with
+            .Select(m =>
             {
-                IsInstalled = installed.Contains(m.Code),
-                IsLicensed = licensed.Contains(m.Code)
+                var isInstalled = installed.Contains(m.Code);
+                var isPremium = m.IsPremiumAddOn || SubscriptionAddOnCatalog.IsPremiumAddOn(m.Code);
+                return m with
+                {
+                    IsInstalled = isInstalled,
+                    IsLicensed = licensed.Contains(m.Code) || (isPremium && isInstalled),
+                    IsPremiumAddOn = isPremium
+                };
             })
             .ToList();
 
@@ -973,6 +979,7 @@ public class GetCompanyLicenseQueryHandler(
 
 public class GetLicenseSummaryQueryHandler(
     IPlatformRepository platformRepository,
+    ISubscriptionBillingService subscriptionBilling,
     ITenantContext tenantContext,
     IPlatformScope platformScope)
     : IRequestHandler<GetLicenseSummaryQuery, ApiResponse<LicenseSummaryDto>>
@@ -985,7 +992,18 @@ public class GetLicenseSummaryQueryHandler(
         var license = await platformRepository.LoadCompanyLicenseAsync(tenantId, cancellationToken);
         if (license is null)
             return ApiResponse<LicenseSummaryDto>.FailResponse("Company not found.");
-        return ApiResponse<LicenseSummaryDto>.SuccessResponse(LicenseQueries.ToSummary(license));
+
+        var locked = await subscriptionBilling.AreFeaturesLockedAsync(tenantId, cancellationToken);
+        var overdue = await platformRepository.SumOverdueSubscriptionInvoicesAsync(tenantId, cancellationToken);
+        var summary = LicenseQueries.ToSummary(license) with
+        {
+            FeaturesLocked = locked,
+            OverdueAmount = overdue,
+            BillingMessage = locked
+                ? "Subscription payment is overdue. Premium modules are locked until the invoice is settled."
+                : null
+        };
+        return ApiResponse<LicenseSummaryDto>.SuccessResponse(summary);
     }
 }
 
@@ -1008,8 +1026,24 @@ public class GetSubscriptionOverviewQueryHandler(IPlatformRepository platformRep
         var payments = await platformRepository.GetTenantBillingHistoryAsync(request.TenantId, cancellationToken);
         var license = await platformRepository.LoadCompanyLicenseAsync(request.TenantId, cancellationToken);
 
+        var installed = (await platformRepository.GetInstalledModuleCodesAsync(request.TenantId, cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var addOns = SubscriptionAddOnCatalog.All
+            .OrderBy(a => a.SortOrder)
+            .Select(a => new SubscriptionAddOnDto(
+                a.ModuleCode,
+                a.DisplayName,
+                a.Description,
+                a.Category,
+                a.Dependencies,
+                a.CurrencyCode,
+                a.MonthlyAmount,
+                IsSubscribed: installed.Contains(a.ModuleCode),
+                a.SortOrder))
+            .ToList();
+
         return ApiResponse<SubscriptionOverviewDto>.SuccessResponse(
-            new SubscriptionOverviewDto(subscription, invoices, payments, license));
+            new SubscriptionOverviewDto(subscription, invoices, payments, license, addOns));
     }
 }
 

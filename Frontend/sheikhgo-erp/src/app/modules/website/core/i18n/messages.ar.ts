@@ -141,6 +141,14 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.showcase.title': 'لوحة ذكاء الأسطول',
   'home.showcase.lead':
     'خريطة مباشرة وتنبيهات GPS حديثة وسياج وتشغيل وصحة أسطول وإشارات وقود وصيانة — مع لوحة مساعد ذكاء اصطناعي تجيب من أدوات التشغيل.',
+  'home.pill.subscriptionPlans': 'اشتراكات Nexus',
+  'home.subscriptionPlans.kicker': 'SheikhGo Nexus · الفوترة',
+  'home.subscriptionPlans.title': 'اشتراكات أسطول متجددة تلقائياً',
+  'home.subscriptionPlans.lead':
+    'باقات Starter وPro وEnterprise تُفوتر شهرياً بالروبية. يولّد Nexus فواتير الاشتراك، يرسلها لجهة الفوترة، يتتبع حالة الدفع، ويقفل الوحدات المميزة عند التأخر — نفس الأسعار في صفحة التسعير.',
+  'home.subscriptionPlans.footnote':
+    'الدفع بالبطاقة أو المحفظة لخطط Nexus يتم يدوياً (تحويل بنكي) حتى ربط بوابة دفع؛ فواتير رحلات العملاء تستخدم نفس البنية التحتية للبريد.',
+  'home.subscriptionPlans.viewPricing': 'قارن الباقات في الأسعار',
   'home.pill.clientBilling': 'فوترة العملاء',
   'home.clientBilling.kicker': 'المالية · الذمم المدينة',
   'home.clientBilling.title': 'فواتير الرحلات تُرسل بالبريد للعملاء',

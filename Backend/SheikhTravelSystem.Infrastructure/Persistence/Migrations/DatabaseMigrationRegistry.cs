@@ -71,6 +71,7 @@ public static class DatabaseMigrationRegistry
             M("TripsPhase2Migration", TripsPhase2Migration.ApplyAsync),
             M("TripsPhase4Migration", TripsPhase4Migration.ApplyAsync),
             M("DriverAppSosMigration", DriverAppSosMigration.ApplyAsync),
+            M("SosAutoDispatchMigration", SosAutoDispatchMigration.ApplyAsync),
             M("DriverMobileSyncMigration", DriverMobileSyncMigration.ApplyAsync),
             M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
             M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),

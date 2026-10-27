@@ -15,6 +15,7 @@ import {
   RoleSummary,
   RoleTemplate,
   SubscriptionOverview,
+  SubscriptionRevenueDashboard,
   TenantModuleOverview,
   TenantSecuritySettings,
   UpdateSubscriptionRequest,
@@ -336,6 +337,24 @@ export class PlatformService {
 
   updateSubscription(tenantId: number, request: UpdateSubscriptionRequest): Observable<boolean> {
     return this.http.post<boolean>(`${this.base}/tenants/${tenantId}/subscription/action`, request);
+  }
+
+  getSubscriptionRevenueDashboard(): Observable<SubscriptionRevenueDashboard> {
+    return this.http.get<SubscriptionRevenueDashboard>(`${this.base}/subscription-billing/revenue-dashboard`);
+  }
+
+  markSubscriptionInvoicePaid(tenantId: number, invoiceId: number, paymentMethod?: string): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/tenants/${tenantId}/subscription/invoices/${invoiceId}/mark-paid`,
+      { paymentMethod: paymentMethod ?? 'Bank Transfer', reference: null }
+    );
+  }
+
+  emailSubscriptionInvoice(tenantId: number, invoiceId: number): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/tenants/${tenantId}/subscription/invoices/${invoiceId}/email`,
+      {}
+    );
   }
 
   // Menu Builder (Stage 9)

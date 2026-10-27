@@ -199,6 +199,7 @@ const platformGroup: NavGroup = {
     { id: 'gps-control-center', label: 'GPS Control Center', icon: 'gps_fixed', route: '/platform/gps-control-center', adminOnly: true, moduleKey: 'platform' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
+    { id: 'subscription-revenue', label: 'Subscription revenue', icon: 'monitoring', route: '/platform/subscription-revenue', adminOnly: true, moduleKey: 'platform' },
     { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },
     { id: 'database-reset', label: 'Database Reset', icon: 'build_circle', route: '/platform/maintenance', adminOnly: true, moduleKey: 'platform' },
     { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' }

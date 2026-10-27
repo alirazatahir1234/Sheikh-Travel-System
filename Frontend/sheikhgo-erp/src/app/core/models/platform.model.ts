@@ -1140,6 +1140,38 @@ export interface SubscriptionDetail {
   aiCredits?: number | null;
   gpsEnabled?: boolean;
   licensedModuleCodes?: string[];
+  featuresLocked?: boolean;
+  nextBillingDate?: string | null;
+}
+
+export interface SubscriptionRevenueDashboard {
+  activeSubscriptions: number;
+  autoRenewSubscriptions: number;
+  overdueAccounts: number;
+  monthlyRecurringRevenue: number;
+  outstandingAmount: number;
+  collectedLast30Days: number;
+  upcomingRenewals: SubscriptionRenewalRow[];
+  overdueAccountRows: SubscriptionOverdueRow[];
+}
+
+export interface SubscriptionRenewalRow {
+  tenantId: number;
+  tenantName: string;
+  planName?: string | null;
+  nextBillingDate?: string | null;
+  monthlyAmount?: number | null;
+  currencyCode: string;
+}
+
+export interface SubscriptionOverdueRow {
+  tenantId: number;
+  tenantName: string;
+  planName?: string | null;
+  overdueAmount: number;
+  oldestDueDate?: string | null;
+  overdueInvoiceCount: number;
+  featuresLocked: boolean;
 }
 
 export interface CompanyLicense {

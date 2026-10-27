@@ -289,6 +289,9 @@ public sealed class CompanyRepository(
             var license = await platformRepository.LoadCompanyLicenseAsync(tenantId, cancellationToken);
             if (license is null) return null;
 
+            var locked = await platformRepository.AreSubscriptionFeaturesLockedAsync(tenantId, cancellationToken);
+            var overdue = await platformRepository.SumOverdueSubscriptionInvoicesAsync(tenantId, cancellationToken);
+
             return new CompanySubscriptionDto(
                 license.SubscriptionCode,
                 license.PlanName,
@@ -308,7 +311,12 @@ public sealed class CompanyRepository(
                 license.GPSEnabled,
                 license.UsedUsers,
                 license.UsedDrivers,
-                license.UsedVehicles);
+                license.UsedVehicles,
+                locked,
+                overdue,
+                locked
+                    ? "Subscription payment is overdue. Premium modules are locked until the invoice is settled."
+                    : null);
         }
         catch
         {

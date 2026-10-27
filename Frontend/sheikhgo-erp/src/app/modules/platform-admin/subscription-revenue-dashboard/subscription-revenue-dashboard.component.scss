@@ -1,0 +1,45 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi {
+  padding: 1rem 1.1rem;
+}
+
+.kpi-label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted, #64748b);
+}
+
+.kpi-value {
+  display: block;
+  font-size: 1.35rem;
+  margin: 0.35rem 0;
+}
+
+.kpi-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+}
+
+.tables {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.empty {
+  margin: 0.75rem 0 0;
+  color: var(--text-muted, #64748b);
+}

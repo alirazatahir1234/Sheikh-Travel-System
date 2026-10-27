@@ -154,7 +154,7 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
   }
 
   renew(): void {
-    if (!confirm('Renew this subscription for another year? A new invoice will be generated.')) return;
+    if (!confirm('Renew this subscription for another monthly period? A new invoice will be generated.')) return;
     this.runAction({ action: 'Renew' });
   }
 
@@ -191,6 +191,40 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.saving = false;
         this.toast.error(apiErrorMessage(err, 'Action failed.'));
+      }
+    });
+  }
+
+  markInvoicePaid(invoice: Invoice): void {
+    if (!this.overview || invoice.status === 'Paid') return;
+    if (!confirm(`Mark ${invoice.invoiceNumber} as paid?`)) return;
+    const tenantId = this.overview.subscription.tenantId;
+    this.saving = true;
+    this.platform.markSubscriptionInvoicePaid(tenantId, invoice.id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.toast.success('Invoice marked paid — feature lock cleared if no other overdue invoices.');
+        this.loadOverview(tenantId);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.toast.error(apiErrorMessage(err, 'Failed to mark paid.'));
+      }
+    });
+  }
+
+  emailInvoice(invoice: Invoice): void {
+    if (!this.overview) return;
+    const tenantId = this.overview.subscription.tenantId;
+    this.saving = true;
+    this.platform.emailSubscriptionInvoice(tenantId, invoice.id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.toast.success('Invoice emailed to billing contact.');
+      },
+      error: (err) => {
+        this.saving = false;
+        this.toast.error(apiErrorMessage(err, 'Failed to send email.'));
       }
     });
   }
