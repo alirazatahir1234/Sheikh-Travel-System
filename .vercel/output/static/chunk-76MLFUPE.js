@@ -1,1 +1,0 @@
-var e={production:!0,apiUrl:"https://20-174-1-230.sslip.io/api",filesBaseUrl:"",tenantSlug:"default",googleMapsApiKey:"AIzaSyDeqJpntzLNHOvmSa57hz5g5GZDkqmnJBs",googleMapsMapId:"b9b19db02b452b19e9cc5d26"};export{e as a};

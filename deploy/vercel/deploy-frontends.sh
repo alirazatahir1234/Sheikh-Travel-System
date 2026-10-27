@@ -3,6 +3,13 @@
 # Requires: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_ERP_PROJECT_ID
 # Optional: VERCEL_HUB_PROJECT_ID — skipped when unset or PLACEHOLDER so ERP still deploys.
 #
+# Prebuilt output / Git regression (do not ignore):
+#   This script runs `vercel build` then `vercel deploy --prebuilt`. Never commit repo-root
+#   `.vercel/output/` to Git. If it is tracked, Vercel Git auto-deploy can ship that stale
+#   bundle (e.g. old main-*.js, missing /website/demo/*.mp4) and overwrite a good CLI deploy
+#   within seconds. Fix: add `.vercel/` to .gitignore, remove `.vercel/output` from the index,
+#   and use this script (or Vercel remote build) for production — not committed prebuilt artifacts.
+#
 # Path model (critical):
 #   Vercel project Root Directory = Frontend/<app>
 #   Always run vercel from the REPO ROOT so that path resolves once.

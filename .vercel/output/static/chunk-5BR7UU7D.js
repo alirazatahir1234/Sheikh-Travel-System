@@ -1,1 +1,0 @@
-import{b as o}from"./chunk-RBYZMOPP.js";import{d as i}from"./chunk-AUSKG266.js";import{ha as r}from"./chunk-2YNXAGXH.js";var f=s=>{let e=r(o),t=r(i);if(!e.isLoggedIn())return t.createUrlTree(["/auth/login"]);let n=s.data?.permissions??[];return n.length===0||e.hasAnyPermission(n)?!0:t.createUrlTree([e.getHomeRoute()])};export{f as a};

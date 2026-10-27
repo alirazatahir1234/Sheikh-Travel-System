@@ -1,1 +1,0 @@
-var t="SheikhGo ERP";var e="Smarter Fleet. Stronger Business.",n="Sheikh Travel Group";var r="/brand/sheikhgo-logo.png",P="/brand/sheikhgo-logo-white.png",A="/brand/sheikhgo-logo-login-v8.png";function _(o){return`${t} \u2013 ${o}`}export{t as a,e as b,n as c,r as d,P as e,A as f,_ as g};
