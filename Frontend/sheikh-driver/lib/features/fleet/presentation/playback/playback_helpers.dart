@@ -271,6 +271,36 @@ String formatDurationMinutes(int minutes) {
   return '$h hr $m min';
 }
 
+const nonMovingAlertMinutes = 22 * 60;
+
+/// Urdu “standing still” label for history non-moving KPI (e.g. `22 گھنٹے سے کھڑی ہے`).
+String formatNonMovingStandingUrdu(int totalMinutes) {
+  final minutes = totalMinutes < 0 ? 0 : totalMinutes;
+  if (minutes < 1) return '0 منٹ سے کھڑی ہے';
+
+  final days = minutes ~/ (24 * 60);
+  final afterDays = minutes % (24 * 60);
+  final hours = afterDays ~/ 60;
+  final mins = afterDays % 60;
+
+  if (days > 0) {
+    final parts = <String>['$days دن'];
+    if (hours > 0) parts.add('$hours گھنٹے');
+    if (mins > 0) parts.add('$mins منٹ');
+    return '${parts.join(' ')} سے کھڑی ہے';
+  }
+  if (hours > 0) {
+    if (mins == 0) return '$hours گھنٹے سے کھڑی ہے';
+    return '$hours گھنٹے $mins منٹ سے کھڑی ہے';
+  }
+  return '$mins منٹ سے کھڑی ہے';
+}
+
+bool nonMovingExceedsAlertThreshold(int totalMinutes) {
+  final minutes = totalMinutes < 0 ? 0 : totalMinutes;
+  return minutes > nonMovingAlertMinutes;
+}
+
 String formatDurationMinutesCompact(int minutes) {
   if (minutes <= 0) return '0m';
   if (minutes < 60) return '${minutes}m';

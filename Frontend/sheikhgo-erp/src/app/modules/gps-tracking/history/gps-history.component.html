@@ -103,9 +103,13 @@
       <span class="qs-val">{{ quickStats.moving }}</span>
       <span class="qs-lbl">Moving</span>
     </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.idle }}</span>
-      <span class="qs-lbl">Non-moving</span>
+    <div class="qs-item qs-item--non-moving">
+      <span
+        class="qs-val qs-val--non-moving"
+        [class.qs-val--non-moving-alert]="nonMovingDurationAlert"
+        [attr.title]="'Non-moving · ' + idleMinutes + ' min'">
+        {{ quickStats.idle }}
+      </span>
     </div>
     <div class="qs-item">
       <span class="qs-val">{{ quickStats.stops }}</span>
@@ -268,8 +272,12 @@
             <dd>{{ mileageKm != null ? (mileageKm | number:'1.1-1') + ' km' : '—' }}</dd>
             <dt>Moving time</dt>
             <dd>{{ formatDuration(movingMinutes) }}</dd>
-            <dt>Non-moving time</dt>
-            <dd>{{ formatDuration(statistics?.idleMinutes ?? 0) }}</dd>
+            <dt>Non-moving</dt>
+            <dd
+              class="non-moving-detail"
+              [class.non-moving-detail--alert]="nonMovingDurationAlert">
+              {{ nonMovingDurationLabel }}
+            </dd>
             <dt>Max speed</dt>
             <dd>{{ statistics?.maxSpeedKmh ?? bundle.summary?.maxSpeedKmh ?? '—' }} km/h</dd>
             <dt>Avg speed</dt>

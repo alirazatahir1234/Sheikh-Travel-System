@@ -1602,25 +1602,30 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
 
   /// Content-only KPI cell. Call sites wrap with [Expanded] so gesture
   /// wrappers never become the parent of an [Expanded] (ParentDataWidget).
-  Widget _kpiTile(String value, String label) {
+  Widget _kpiTile(String value, String label, {Color? valueColor}) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.success,
-            fontSize: 15,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: valueColor ?? AppColors.success,
+            fontSize: label.isEmpty ? 12 : 15,
+            height: 1.25,
             fontWeight: FontWeight.w800,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+        if (label.isNotEmpty)
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1744,9 +1749,17 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                       ),
                     ),
                     Expanded(
+                      flex: 2,
                       child: _kpiTile(
-                        formatDurationMinutes(b.statistics?.idleMinutes ?? 0),
-                        'Non-moving',
+                        formatNonMovingStandingUrdu(
+                          b.statistics?.idleMinutes ?? 0,
+                        ),
+                        '',
+                        valueColor: nonMovingExceedsAlertThreshold(
+                          b.statistics?.idleMinutes ?? 0,
+                        )
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFF374151),
                       ),
                     ),
                     Expanded(

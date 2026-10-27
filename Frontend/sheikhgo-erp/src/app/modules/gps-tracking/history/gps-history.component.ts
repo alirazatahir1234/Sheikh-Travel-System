@@ -29,6 +29,10 @@ import {
   looksLikeRoadSegment,
   splitDisplayAddress
 } from '../utils/gps-address.util';
+import {
+  formatNonMovingStandingUrdu,
+  nonMovingExceedsAlertThreshold
+} from '../utils/non-moving-duration.util';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
@@ -282,7 +286,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       return {
         distanceKm: display.distance ?? this.mileageKm,
         moving: display.movingTime,
-        idle: display.nonMovingTime,
+        idle: this.nonMovingDurationLabel,
         stops: display.stops,
         parking: display.parking,
         maxSpeed: display.maxSpeed,
@@ -294,7 +298,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return {
       distanceKm: this.mileageKm,
       moving: this.formatDuration(this.movingMinutes),
-      idle: this.formatDuration(stats?.idleMinutes ?? 0),
+      idle: this.nonMovingDurationLabel,
       stops: stats?.stopCount ?? this.bundle?.stops.length ?? 0,
       parking: this.parkingCount,
       maxSpeed: stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? null,
@@ -321,10 +325,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return this.showTodayMileageChip ? `${base} · Includes today` : base;
   }
 
-  get stoppedMinutes(): number {
+  get idleMinutes(): number {
     const stats = this.statistics;
     if (!stats) return 0;
     return Math.max(0, stats.idleMinutes);
+  }
+
+  get nonMovingDurationLabel(): string {
+    return formatNonMovingStandingUrdu(this.idleMinutes);
+  }
+
+  get nonMovingDurationAlert(): boolean {
+    return nonMovingExceedsAlertThreshold(this.idleMinutes);
   }
 
   get movingMinutes(): number {

@@ -59,7 +59,13 @@ class PlaybackSummaryCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _secondaryCell('Non-moving', formatDurationMinutes(idle)),
+                child: _secondaryCell(
+                  '',
+                  formatNonMovingStandingUrdu(idle),
+                  valueColor: nonMovingExceedsAlertThreshold(idle)
+                      ? const Color(0xFFDC2626)
+                      : null,
+                ),
               ),
               Expanded(
                 child: _secondaryCell('Parking', '$parkingCount'),
@@ -173,23 +179,31 @@ class PlaybackSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _secondaryCell(String label, String value) {
+  Widget _secondaryCell(
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Column(
       children: [
         Text(
           value,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: AppColors.textPrimary,
+            fontSize: 12,
+            height: 1.25,
+            color: valueColor ?? AppColors.textPrimary,
           ),
         ),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-        ),
+        if (label.isNotEmpty)
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+          ),
       ],
     );
   }
