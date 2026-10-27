@@ -50,6 +50,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.clientBilling'), fragment: 'client-billing', icon: 'receipt_long' },
       { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
       { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
+      { label: this.i18n.t('home.pill.driverVerification'), fragment: 'driver-verification', icon: 'verified_user' },
       { label: this.i18n.t('home.pill.driverVoice'), fragment: 'driver-voice', icon: 'mic' },
       { label: this.i18n.t('home.pill.driverOffline'), fragment: 'driver-offline-sync', icon: 'sync_disabled' },
       { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },

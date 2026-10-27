@@ -233,6 +233,26 @@ public sealed class BookingRepository(
         if (driverStatus != (int)DriverStatus.Available)
             return BookingMutationResult.Fail("Driver is not available.");
 
+        var guardRow = await connection.QuerySingleOrDefaultAsync<(bool IsActive, int Status, string? VerificationStatus, DateTime LicenseExpiry)>(
+            new CommandDefinition(
+                @"SELECT IsActive, Status, VerificationStatus, LicenseExpiryDate
+                  FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = driverId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        try
+        {
+            DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
+                guardRow.IsActive,
+                (DriverStatus)guardRow.Status,
+                guardRow.VerificationStatus,
+                guardRow.LicenseExpiry);
+        }
+        catch (ConflictException ex)
+        {
+            return BookingMutationResult.Fail(ex.Message);
+        }
+
         // Check for double booking - driver already assigned to active trip at same time
         var booking = await connection.QuerySingleAsync<(DateTime PickupTime, DateTime? DropoffTime)>(
             new CommandDefinition(

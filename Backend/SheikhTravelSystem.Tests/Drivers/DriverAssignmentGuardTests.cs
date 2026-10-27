@@ -65,14 +65,26 @@ public class DriverAssignmentGuardTests
     [Theory]
     [InlineData("Pending")]
     [InlineData("UnderReview")]
-    [InlineData("Verified")]
     [InlineData(null)]
-    public void EnsureAssignableForVehicleTrip_AllowsOperationalVerificationStates(string? verificationStatus)
+    public void EnsureAssignableForVehicleTrip_BlocksUnverified(string? verificationStatus)
     {
         var act = () => DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
             isActive: true,
             status: DriverStatus.Available,
             verificationStatus: verificationStatus,
+            licenseExpiry: ValidLicense);
+
+        act.Should().Throw<ConflictException>()
+            .WithMessage("*verified*");
+    }
+
+    [Fact]
+    public void EnsureAssignableForVehicleTrip_VerifiedDriver_DoesNotThrow()
+    {
+        var act = () => DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
+            isActive: true,
+            status: DriverStatus.Available,
+            verificationStatus: "Verified",
             licenseExpiry: ValidLicense);
 
         act.Should().NotThrow();

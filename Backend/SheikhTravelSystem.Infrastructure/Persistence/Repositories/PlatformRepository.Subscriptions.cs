@@ -77,7 +77,8 @@ public sealed partial class PlatformRepository
             Status: (string)row.Status,
             StartDate: (DateTime?)row.StartDate,
             EndDate: (DateTime?)row.EndDate,
-            AutoRenew: (bool)row.AutoRenew,
+            // SQL BIT / COALESCE(..., 1) often arrives as int via Dapper dynamic — do not cast (bool).
+            AutoRenew: AsSqlBool(row.AutoRenew),
             LicensedModules: licensed.ToList(),
             InstalledModules: installed,
             MaxUsers: (int?)row.MaxUsers,
@@ -87,13 +88,30 @@ public sealed partial class PlatformRepository
             MaxGpsDevices: (int?)row.MaxGpsDevices,
             StorageQuotaGb: (int?)row.StorageQuotaGb,
             AICredits: (int?)row.AICredits,
-            GPSEnabled: (bool)row.GPSEnabled,
+            GPSEnabled: AsSqlBool(row.GPSEnabled),
             UsedUsers: (int)row.UsedUsers,
             UsedDrivers: (int)row.UsedDrivers,
             UsedVehicles: (int)row.UsedVehicles,
             UsedBranches: (int)row.UsedBranches,
             UsedGpsDevices: (int)row.UsedGpsDevices);
     }
+
+    /// <summary>
+    /// Dapper <c>dynamic</c> maps SQL Server BIT (and numeric COALESCE defaults) as
+    /// <see cref="int"/> / <see cref="byte"/>; a direct <c>(bool)</c> cast throws
+    /// <see cref="Microsoft.CSharp.RuntimeBinder.RuntimeBinderException"/>.
+    /// </summary>
+    private static bool AsSqlBool(object? value) => value switch
+    {
+        null => false,
+        bool b => b,
+        byte by => by != 0,
+        short s => s != 0,
+        int i => i != 0,
+        long l => l != 0,
+        decimal d => d != 0,
+        _ => Convert.ToBoolean(value)
+    };
 
     public async Task<string?> ResolvePlanNameAsync(int tenantId, CancellationToken cancellationToken = default)
     {
@@ -123,6 +141,7 @@ public sealed partial class PlatformRepository
                                StorageQuotaGb, AICredits, GPSEnabled
                         FROM SubscriptionPlans
                         WHERE Visible = 1
+                          AND (PlanType IS NULL OR PlanType <> N'TrackerAnnual')
                         ORDER BY SortOrder, DisplayName
                         """, cancellationToken: cancellationToken))).ToList();
 
@@ -173,6 +192,8 @@ public sealed partial class PlatformRepository
                     s.SubscriptionStartDate,
                     s.SubscriptionEndDate,
                     s.TrialEndDate,
+                    s.NextBillingDate,
+                    COALESCE(s.FeaturesLocked, 0) AS FeaturesLocked,
                     s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices,
                     s.StorageQuotaGb, s.AICredits, COALESCE(s.GPSEnabled, 1) AS GPSEnabled
                 FROM Tenants t
@@ -239,11 +260,14 @@ public sealed partial class PlatformRepository
             case SubscriptionAction.Upgrade:
             {
                 var plan = SubscriptionPlanCatalog.Resolve(planName);
+                var vehicleCount = await CountActiveVehiclesAsync(tenantId, cancellationToken);
+                var resolvedAmount = monthlyAmount
+                    ?? SubscriptionPlanPricing.ResolveMonthlyAmount(planName ?? plan.DisplayName, vehicleCount);
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE TenantSubscriptions
                     SET PlanName = COALESCE(@PlanName, PlanName),
                         SubscriptionCode = @SubscriptionCode,
-                        MonthlyAmount = COALESCE(@MonthlyAmount, MonthlyAmount),
+                        MonthlyAmount = COALESCE(@MonthlyAmount, @ResolvedAmount, MonthlyAmount),
                         BillingCycle = COALESCE(@BillingCycle, BillingCycle),
                         MaxUsers = @MaxUsers,
                         MaxVehicles = @MaxVehicles,
@@ -261,8 +285,9 @@ public sealed partial class PlatformRepository
                     TenantId = tenantId,
                     PlanName = planName ?? plan.DisplayName,
                     SubscriptionCode = plan.SubscriptionCode,
-                    MonthlyAmount = monthlyAmount,
-                    BillingCycle = billingCycle,
+                    MonthlyAmount = monthlyAmount ?? resolvedAmount,
+                    ResolvedAmount = resolvedAmount,
+                    BillingCycle = billingCycle ?? "Monthly",
                     plan.MaxUsers,
                     plan.MaxVehicles,
                     plan.MaxDrivers,
@@ -277,17 +302,25 @@ public sealed partial class PlatformRepository
             }
 
             case SubscriptionAction.Renew:
+            {
+                var vehicleCount = await CountActiveVehiclesAsync(tenantId, cancellationToken);
+                var renewPlanName = await ResolvePlanNameAsync(tenantId, cancellationToken);
+                var amount = monthlyAmount ?? SubscriptionPlanPricing.ResolveMonthlyAmount(renewPlanName, vehicleCount);
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE TenantSubscriptions
-                    SET SubscriptionEndDate = DATEADD(year, 1,
+                    SET SubscriptionEndDate = DATEADD(month, 1,
                             CASE WHEN SubscriptionEndDate IS NULL OR SubscriptionEndDate < GETUTCDATE()
                                  THEN GETUTCDATE() ELSE SubscriptionEndDate END),
+                        NextBillingDate = DATEADD(month, 1, COALESCE(NextBillingDate, GETUTCDATE())),
+                        MonthlyAmount = @Amount,
+                        BillingCycle = N'Monthly',
                         Status = N'Active',
                         UpdatedAt = GETUTCDATE()
                     WHERE TenantId = @TenantId;
-                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
-                await GenerateRenewalInvoiceAsync(connection, tenantId, cancellationToken);
+                    """, new { TenantId = tenantId, Amount = amount }, cancellationToken: cancellationToken));
+                await CreateSubscriptionRenewalInvoiceAsync(tenantId, cancellationToken);
                 break;
+            }
 
             case SubscriptionAction.Suspend:
                 await connection.ExecuteAsync(new CommandDefinition(
@@ -320,10 +353,22 @@ public sealed partial class PlatformRepository
     {
         await connection.ExecuteAsync(new CommandDefinition("""
             IF NOT EXISTS (SELECT 1 FROM TenantSubscriptions WHERE TenantId = @TenantId)
-            INSERT INTO TenantSubscriptions (TenantId, PlanName, Status, SubscriptionStartDate, SubscriptionEndDate, AutoRenew, BillingCycle, CurrencyCode, MonthlyAmount)
-            SELECT @TenantId, COALESCE(t.SubscriptionPlan, N'Enterprise'), N'Active', GETUTCDATE(), DATEADD(year, 1, GETUTCDATE()), 1, N'Monthly', N'PKR', 5000
+            INSERT INTO TenantSubscriptions (TenantId, PlanName, Status, SubscriptionStartDate, SubscriptionEndDate, AutoRenew, BillingCycle, CurrencyCode, MonthlyAmount, NextBillingDate)
+            SELECT @TenantId, COALESCE(t.SubscriptionPlan, N'Enterprise'), N'Active', GETUTCDATE(), DATEADD(month, 1, GETUTCDATE()), 1, N'Monthly', N'PKR',
+                   CASE
+                       WHEN UPPER(COALESCE(t.SubscriptionPlan, N'')) LIKE N'%STARTER%' THEN @Starter
+                       WHEN UPPER(COALESCE(t.SubscriptionPlan, N'')) LIKE N'%PRO%' THEN @Pro
+                       ELSE @Enterprise
+                   END,
+                   DATEADD(month, 1, GETUTCDATE())
             FROM Tenants t WHERE t.Id = @TenantId;
-            """, new { TenantId = tenantId }, cancellationToken: ct));
+            """, new
+        {
+            TenantId = tenantId,
+            Starter = SubscriptionPlanPricing.StarterMonthlyPkr,
+            Pro = SubscriptionPlanPricing.ProMonthlyPkr,
+            Enterprise = SubscriptionPlanPricing.EnterpriseBaseMonthlyPkr
+        }, cancellationToken: ct));
     }
 
     private static async Task SyncTenantPlanAsync(System.Data.IDbConnection connection, int tenantId, string? planName, CancellationToken ct)
@@ -334,21 +379,4 @@ public sealed partial class PlatformRepository
             new { TenantId = tenantId, PlanName = planName }, cancellationToken: ct));
     }
 
-    private static async Task GenerateRenewalInvoiceAsync(System.Data.IDbConnection connection, int tenantId, CancellationToken ct)
-    {
-        var sub = await connection.QuerySingleOrDefaultAsync<(string? Plan, decimal? Amount, string? Currency)>(
-            new CommandDefinition(
-                "SELECT PlanName, MonthlyAmount AS Amount, CurrencyCode AS Currency FROM TenantSubscriptions WHERE TenantId = @TenantId",
-                new { TenantId = tenantId }, cancellationToken: ct));
-
-        var amount = sub.Amount ?? 5000m;
-        var currency = string.IsNullOrWhiteSpace(sub.Currency) ? "PKR" : sub.Currency;
-        var invoiceNumber = $"INV-{tenantId:D4}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO TenantInvoices (TenantId, InvoiceNumber, PlanName, Amount, CurrencyCode, Status, IssuedDate, DueDate, CreatedAt)
-            VALUES (@TenantId, @InvoiceNumber, @Plan, @Amount, @Currency, N'Pending', GETUTCDATE(), DATEADD(day, 14, GETUTCDATE()), GETUTCDATE());
-            """, new { TenantId = tenantId, InvoiceNumber = invoiceNumber, Plan = sub.Plan, Amount = amount, Currency = currency },
-            cancellationToken: ct));
-    }
 }

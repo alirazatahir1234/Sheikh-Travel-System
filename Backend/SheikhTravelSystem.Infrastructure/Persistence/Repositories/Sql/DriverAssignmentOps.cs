@@ -1,6 +1,7 @@
 using System.Data;
 using Dapper;
 using SheikhTravelSystem.Application.Common.Exceptions;
+using SheikhTravelSystem.Application.Features.Drivers;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.Sql;
@@ -14,6 +15,39 @@ internal static class DriverAssignmentOps
     {
         if (connection.State != ConnectionState.Open)
             connection.Open();
+    }
+
+    public static async Task EnsureDriverAssignableForTripAsync(
+        IDbConnection connection,
+        int tenantId,
+        int driverId,
+        CancellationToken cancellationToken,
+        IDbTransaction? transaction = null)
+    {
+        var found = await connection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Drivers WHERE Id = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
+                  ) THEN 1 ELSE 0 END",
+                new { DriverId = driverId, TenantId = tenantId },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
+        if (!found)
+            throw new NotFoundException("Driver", driverId);
+
+        var row = await connection.QuerySingleAsync<(bool IsActive, int Status, string? VerificationStatus, DateTime LicenseExpiry)>(
+            new CommandDefinition(
+                @"SELECT IsActive, Status, VerificationStatus, LicenseExpiryDate
+                  FROM Drivers WHERE Id = @DriverId AND TenantId = @TenantId AND IsDeleted = 0",
+                new { DriverId = driverId, TenantId = tenantId },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
+
+        DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
+            row.IsActive,
+            (DriverStatus)row.Status,
+            row.VerificationStatus,
+            row.LicenseExpiry);
     }
 
     public static Task<int> CompleteActiveAssignmentsAsync(

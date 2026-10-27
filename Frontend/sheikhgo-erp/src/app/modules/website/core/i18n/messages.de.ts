@@ -308,6 +308,29 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
     'Monatliche Pläne für wachsende Flotten auf SheikhGo Nexus — GPS, Betrieb, Alarme und KI in einem Mandanten. Listenpreise unten; SMS-Volumen, Maps-Nutzung und Rollout klären wir vor Vertrag.',
   'pages.pricing.currency': 'PKR',
   'pages.pricing.perMonth': '/ Monat',
+  'pages.pricing.perYear': '/ Jahr · pro Tracker',
+  'pages.pricing.tracker.kicker': 'Einzeltracker · Pakistan',
+  'pages.pricing.tracker.title': 'Jährliche GPS-Plattform (ein Gerät)',
+  'pages.pricing.tracker.lead':
+    'Nur Software auf SheikhGo Nexus — an GoTrack- und Sky-Track-AMC (PKR 8.000–10.000/Jahr) angeglichen. Gerät und Installation separat.',
+  'pages.pricing.tracker.note':
+    'Marktreferenz: überwachtes AMC in Pakistan typisch PKR 8.000–10.000/Jahr; Self-Monitoring ab ~PKR 4.600/Jahr.',
+  'pages.pricing.trackerEssential.name': 'Essential',
+  'pages.pricing.trackerEssential.subtitle': 'Live-Karte, Geofence, Standardalarme',
+  'pages.pricing.trackerEssential.feature1': 'Live-Tracking Web + Mobil, Routen-Playback',
+  'pages.pricing.trackerEssential.feature2': 'Geofences und Standard-GPS-Alarme',
+  'pages.pricing.trackerEssential.feature3': 'Ein Tracker in Ihrem Nexus-Mandanten',
+  'pages.pricing.trackerPlus.name': 'Plus',
+  'pages.pricing.trackerPlus.badge': 'Beliebteste Wahl',
+  'pages.pricing.trackerPlus.subtitle': 'SMS-Workflows + Motor sperren',
+  'pages.pricing.trackerPlus.feature1': 'Alles aus Essential',
+  'pages.pricing.trackerPlus.feature2': 'SMS/WhatsApp-Alarme (Fair-Use-Paket)',
+  'pages.pricing.trackerPlus.feature3': 'Remote Motor sperren mit Relay-Hardware',
+  'pages.pricing.trackerPremium.name': 'Premium',
+  'pages.pricing.trackerPremium.subtitle': 'Volles Alarmset + Live teilen',
+  'pages.pricing.trackerPremium.feature1': 'Alles aus Plus',
+  'pages.pricing.trackerPremium.feature2': 'Live-Share-Links und Priority-Support',
+  'pages.pricing.trackerPremium.feature3': 'Voice-Listening-fähige Geräte wo Hardware es erlaubt',
   'pages.pricing.enterpriseCustom': 'Individuelle Enterprise-Preise und SLAs auf Anfrage — sprechen Sie uns bei 51+ Fahrzeugen, Multi-Branch-Rollouts oder dediziertem Hosting an.',
   'pages.pricing.starter.name': 'Starter',
   'pages.pricing.starter.fleet': 'Ideal für 1–25 Fahrzeuge',
@@ -418,6 +441,20 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.anomalyDetection.f3.text': 'Aktive Fahrt weit vom Abhol–Ziel-Korridor.',
 
   'home.pill.smartAssignment': 'Smarte Zuweisung',
+  'home.pill.driverVerification': 'Fahrer-Verifizierung',
+  'home.driverVerification.kicker': 'Compliance · NADRA & UAE KYC',
+  'home.driverVerification.title': 'Digitale Fahrerverifizierung mit Live-Providern',
+  'home.driverVerification.lead':
+    'Fahrer laden Führerschein, CNIC und Hintergrunddokumente hoch. Nexus ruft NADRA Verisys / Nishaan (Pakistan) und Ihren UAE-KYC-Partner auf—Audit-Historie, Trip-Sperre für Unverifizierte, Ablauf-Alerts.',
+  'home.driverVerification.uploadTitle': 'Upload & OCR',
+  'home.driverVerification.uploadText':
+    'Slots für Führerschein, CNIC/Personalausweis und Background Check mit Ablaufdatum. Upload startet Provider-Checks bei konfigurierten Credentials.',
+  'home.driverVerification.providersTitle': 'NADRA & UAE Screening',
+  'home.driverVerification.providersText':
+    'CNIC über Nishaan oder e-Sahulat; UAE-Fahrer über Bayzat/Partner—keine Mock-Verifizierung im Produktionspfad.',
+  'home.driverVerification.opsTitle': 'Fleet-Gate & Alerts',
+  'home.driverVerification.opsText':
+    'Nur Verified-Fahrer erhalten Trips. Admins prüfen im Verification Hub, manuelles Re-Run, Push bei Ablehnung oder ablaufenden Dokumenten.',
   'home.smartAssignment.kicker': 'Flottenbetrieb · gewichtete KI',
   'home.smartAssignment.title': 'Smarte Trip-Zuweisung mit Erklärbarkeit',
   'home.smartAssignment.lead':

@@ -18,6 +18,7 @@ export function driverAssignBlockReason(driver: DriverListItem): string | null {
   const verification = (driver.verificationStatus || '').toLowerCase();
   if (verification === 'rejected') return 'Verification rejected';
   if (verification === 'expireddocs') return 'Documents expired';
+  if (verification !== 'verified') return 'Driver not verified';
 
   return null;
 }

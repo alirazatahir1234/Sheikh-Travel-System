@@ -29,7 +29,44 @@
         <mat-icon>cancel</mat-icon> Reject Driver
       </ui-button>
     }
+    <ui-button variant="outline" size="sm" [disabled]="providerCheckRunning()" (clicked)="rerunProviderChecks()">
+      <mat-icon>published_with_changes</mat-icon> Re-run NADRA / UAE KYC
+    </ui-button>
   </ui-page-header>
+
+  @if (configStatus(); as cfg) {
+    @if (!cfg.nadraEnabled || !cfg.uaeKycEnabled) {
+      <div class="provider-config-banner" role="status">
+        <mat-icon>info</mat-icon>
+        <div>
+          <strong>Provider credentials incomplete</strong>
+          @if (!cfg.nadraEnabled && cfg.nadraMissingKeys.length) {
+            <p>NADRA: {{ cfg.nadraMissingKeys.join(' · ') }}</p>
+          }
+          @if (!cfg.uaeKycEnabled && cfg.uaeKycMissingKeys.length) {
+            <p>UAE KYC: {{ cfg.uaeKycMissingKeys.join(' · ') }}</p>
+          }
+          <p class="provider-config-banner__hint">See Backend/docs/DRIVER_VERIFICATION_PROVIDERS.md for env var names.</p>
+        </div>
+      </div>
+    }
+  }
+
+  @if (providerChecks().length) {
+    <section class="provider-checks" aria-label="Provider verification history">
+      <h3>Provider verification (NADRA / UAE KYC)</h3>
+      <ul class="provider-checks__list">
+        @for (check of providerChecks(); track check.id) {
+          <li>
+            <span class="provider-checks__provider">{{ check.provider }} · {{ check.documentType }}</span>
+            <ui-status-badge [status]="check.status"></ui-status-badge>
+            <span class="provider-checks__summary">{{ check.summary }}</span>
+            <time>{{ check.checkedAt | date:'medium' }}</time>
+          </li>
+        }
+      </ul>
+    </section>
+  }
 
   <!-- ── STATUS PIPELINE ──────────────────────────────────────────────────── -->
   <div class="pipeline-wrap">

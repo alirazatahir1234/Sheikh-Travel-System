@@ -27,7 +27,9 @@ import {
   DriverVerificationStatus,
   VerificationReviewNote,
   DocumentStatus,
-  driverDisplayName
+  driverDisplayName,
+  DriverProviderVerificationCheck,
+  DriverVerificationConfigStatus
 } from '../../../core/models/driver.model';
 import {
   resolveUploadUrl,
@@ -107,6 +109,9 @@ export class DriverVerificationHubComponent implements OnInit {
   readonly docSlots = signal<DocSlot[]>([]);
   readonly timeline = signal<DriverTimelineEvent[]>([]);
   readonly reviewNotes = signal<VerificationReviewNote[]>([]);
+  readonly providerChecks = signal<DriverProviderVerificationCheck[]>([]);
+  readonly configStatus = signal<DriverVerificationConfigStatus | null>(null);
+  readonly providerCheckRunning = signal(false);
 
   readonly ocrResult = signal<Record<string, string | null>>({});
   readonly ocrLoading = signal<Record<string, boolean>>({});
@@ -154,9 +159,9 @@ export class DriverVerificationHubComponent implements OnInit {
     const slots = this.docSlots();
     if (!slots.length) return 0;
     const checks = [
-      slots.some(s => s.type === 'DrivingLicense'      && s.doc?.status === 'Approved'),
-      slots.some(s => s.type === 'MedicalCertificate'  && s.doc?.status === 'Approved'),
-      slots.some(s => s.type === 'BackgroundCheck'      && s.doc?.status === 'Approved'),
+      slots.some(s => s.type === 'DrivingLicense' && s.doc?.status === 'Approved'),
+      slots.some(s => s.type === 'CNIC' && s.doc?.status === 'Approved'),
+      slots.some(s => s.type === 'BackgroundCheck' && s.doc?.status === 'Approved'),
       !this.driver()?.licenseExpired
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
@@ -186,14 +191,18 @@ export class DriverVerificationHubComponent implements OnInit {
       driver:    this.driverService.getById(this.driverId),
       documents: this.driverService.getDocumentsDetailed(this.driverId),
       timeline:  this.driverService.getTimeline(this.driverId).pipe(catchError(() => of([]))),
-      notes:     this.driverService.getReviewNotes(this.driverId).pipe(catchError(() => of([])))
+      notes:     this.driverService.getReviewNotes(this.driverId).pipe(catchError(() => of([]))),
+      providers: this.driverService.getProviderChecks(this.driverId).pipe(catchError(() => of([]))),
+      config:    this.driverService.getVerificationConfigStatus().pipe(catchError(() => of(null)))
     })
     .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe({
-      next: ({ driver, documents, timeline, notes }) => {
+      next: ({ driver, documents, timeline, notes, providers, config }) => {
         this.driver.set(driver);
         this.timeline.set(timeline);
         this.reviewNotes.set(notes);
+        this.providerChecks.set(providers);
+        this.configStatus.set(config);
         this.buildDocSlots(documents);
         this.loading.set(false);
       },
@@ -389,5 +398,20 @@ export class DriverVerificationHubComponent implements OnInit {
 
   goBack(): void {
     void this.router.navigate(['/drivers', this.driverId]);
+  }
+
+  rerunProviderChecks(): void {
+    this.providerCheckRunning.set(true);
+    this.driverService.triggerProviderCheck(this.driverId).subscribe({
+      next: () => {
+        this.providerCheckRunning.set(false);
+        this.toast.success('Provider verification run completed');
+        this.load();
+      },
+      error: err => {
+        this.providerCheckRunning.set(false);
+        this.toast.error(apiErrorMessage(err, 'Provider check failed'));
+      }
+    });
   }
 }

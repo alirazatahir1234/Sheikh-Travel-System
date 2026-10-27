@@ -57,7 +57,7 @@ public sealed class FleetAnomalyEvaluator(
         if (hour is >= 6 and < 22)
             return;
 
-        if (dto.Speed is null or < 15)
+        if (dto.Speed < 15)
             return;
 
         var known = await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""
@@ -95,7 +95,7 @@ public sealed class FleetAnomalyEvaluator(
         DateTime timestampUtc,
         CancellationToken cancellationToken)
     {
-        if (previousSpeedKmh is null or < 40 || dto.Speed is null)
+        if (previousSpeedKmh is null or < 40)
             return;
 
         if (previousSpeedKmh >= 40 && dto.Speed <= 5 && (previousSpeedKmh - dto.Speed) >= 30)
@@ -114,7 +114,7 @@ public sealed class FleetAnomalyEvaluator(
         DateTime timestampUtc,
         CancellationToken cancellationToken)
     {
-        if (dto.Speed is null or < 10)
+        if (dto.Speed < 10)
             return;
 
         if (ctx.PickupLatitude is null || ctx.PickupLongitude is null

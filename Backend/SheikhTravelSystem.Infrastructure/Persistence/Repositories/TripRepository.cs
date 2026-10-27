@@ -54,6 +54,20 @@ public sealed class TripRepository(
                     throw new NotFoundException("Booking", bookingId);
             }
 
+            if (dto.DriverId is int createDriverId)
+            {
+                try
+                {
+                    await DriverAssignmentOps.EnsureDriverAssignableForTripAsync(
+                        connection, tenantId, createDriverId, cancellationToken, tx);
+                }
+                catch (ConflictException ex)
+                {
+                    tx.Rollback();
+                    throw new ConflictException(ex.Message);
+                }
+            }
+
             var initialStatus = dto.DriverId.HasValue || dto.VehicleId.HasValue
                 ? TripLifecycle.ResolveAssignmentStatus(TripStatus.Scheduled, dto.DriverId.HasValue, dto.VehicleId.HasValue)
                 : TripStatus.Scheduled;
@@ -385,6 +399,17 @@ public sealed class TripRepository(
             {
                 tx.Rollback();
                 return TripMutationResult.Fail("Driver is not available.");
+            }
+
+            try
+            {
+                await DriverAssignmentOps.EnsureDriverAssignableForTripAsync(
+                    connection, tenantId, driverId, cancellationToken, tx);
+            }
+            catch (ConflictException ex)
+            {
+                tx.Rollback();
+                return TripMutationResult.Fail(ex.Message);
             }
 
             var conflict = await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""

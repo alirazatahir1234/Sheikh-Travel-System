@@ -147,6 +147,8 @@ public static class DatabaseMigrationRegistry
             M("TripSmartAssignmentMigration", TripSmartAssignmentMigration.ApplyAsync),
             M("FleetEvAnomalyMigration", FleetEvAnomalyMigration.ApplyAsync),
             M("ClientTripBillingMigration", ClientTripBillingMigration.ApplyAsync),
+            M("TrackerAnnualSubscriptionMigration", TrackerAnnualSubscriptionMigration.ApplyAsync),
+            M("SubscriptionBillingLifecycleMigration", SubscriptionBillingLifecycleMigration.ApplyAsync),
         ];
     }
 }

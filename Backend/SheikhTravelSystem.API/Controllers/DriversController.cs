@@ -215,6 +215,21 @@ public class DriversController : BaseApiController
     [HttpGet("{id:int}/verification/review-notes")]
     public async Task<IActionResult> GetReviewNotes(int id)
         => Ok(await Mediator.Send(new GetDriverReviewNotesQuery(id)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/verification/provider-checks")]
+    public async Task<IActionResult> GetProviderChecks(int id, [FromQuery] int limit = 30)
+        => Ok(await Mediator.Send(new GetDriverProviderVerificationChecksQuery(id, limit)));
+
+    [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPost("{id:int}/verification/provider-check")]
+    public async Task<IActionResult> TriggerProviderCheck(int id, [FromBody] TriggerDriverProviderVerificationRequest? body)
+        => Ok(await Mediator.Send(new TriggerDriverProviderVerificationCommand(id, body?.DocumentType)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("verification/config-status")]
+    public async Task<IActionResult> GetVerificationConfigStatus()
+        => Ok(await Mediator.Send(new GetDriverVerificationConfigStatusQuery()));
 }
 
 public record UploadDriverDocumentForm(string DocumentType, DateTime? ExpiryDate, IFormFile? File);

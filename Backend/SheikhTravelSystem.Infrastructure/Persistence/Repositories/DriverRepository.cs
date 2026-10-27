@@ -1284,6 +1284,120 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                 cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<int> InsertProviderVerificationCheckAsync(
+        int tenantId,
+        int driverId,
+        string provider,
+        string documentType,
+        string status,
+        string summary,
+        string? externalReference,
+        int? httpStatusCode,
+        IReadOnlyList<string>? missingConfigKeys,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var missing = missingConfigKeys is { Count: > 0 }
+            ? string.Join(", ", missingConfigKeys)
+            : null;
+
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            @"INSERT INTO DriverProviderVerificationChecks
+              (TenantId, DriverId, Provider, DocumentType, Status, Summary, ExternalReference, HttpStatusCode, MissingConfigKeys, CheckedAt, IsDeleted)
+              VALUES (@TenantId, @DriverId, @Provider, @DocumentType, @Status, @Summary, @ExternalReference, @HttpStatusCode, @MissingConfigKeys, GETUTCDATE(), 0);
+              SELECT CAST(SCOPE_IDENTITY() AS INT);",
+            new
+            {
+                TenantId = tenantId,
+                DriverId = driverId,
+                Provider = provider,
+                DocumentType = documentType,
+                Status = status,
+                Summary = TrimTo(summary, 500),
+                ExternalReference = externalReference,
+                HttpStatusCode = httpStatusCode,
+                MissingConfigKeys = missing is null ? null : TrimTo(missing, 500)
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<DriverProviderVerificationCheckDto>> GetProviderVerificationChecksAsync(
+        int tenantId, int driverId, int limit, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<ProviderCheckRow>(new CommandDefinition(
+            @"SELECT TOP (@Limit) Id, Provider, DocumentType, Status, Summary, ExternalReference, HttpStatusCode, MissingConfigKeys, CheckedAt
+              FROM DriverProviderVerificationChecks
+              WHERE TenantId = @TenantId AND DriverId = @DriverId AND IsDeleted = 0
+              ORDER BY CheckedAt DESC",
+            new { TenantId = tenantId, DriverId = driverId, Limit = Math.Clamp(limit, 1, 100) },
+            cancellationToken: cancellationToken));
+
+        return rows.Select(r => new DriverProviderVerificationCheckDto(
+            r.Id,
+            r.Provider,
+            r.DocumentType,
+            r.Status,
+            r.Summary,
+            r.ExternalReference,
+            r.HttpStatusCode,
+            string.IsNullOrWhiteSpace(r.MissingConfigKeys)
+                ? null
+                : r.MissingConfigKeys.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            r.CheckedAt)).ToList();
+    }
+
+    public async Task<IReadOnlyList<(int DriverId, int? UserId, string FullName, DateTime LicenseExpiry, string VerificationStatus)>> GetDriversForVerificationExpiryScanAsync(
+        int tenantId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<(int DriverId, int? UserId, string FullName, DateTime LicenseExpiry, string VerificationStatus)>(
+            new CommandDefinition(
+                @"SELECT Id AS DriverId, UserId, FullName, LicenseExpiryDate AS LicenseExpiry, VerificationStatus
+                  FROM Drivers WHERE TenantId = @TenantId AND IsDeleted = 0 AND IsActive = 1",
+                new { TenantId = tenantId },
+                cancellationToken: cancellationToken));
+        return rows.ToList();
+    }
+
+    public async Task MarkDriverVerificationExpiredDocsAsync(
+        int tenantId, int driverId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE Drivers SET VerificationStatus = N'ExpiredDocs', UpdatedAt = GETUTCDATE()
+              WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+                AND VerificationStatus = N'Verified'",
+            new { Id = driverId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<int?> GetDriverUserIdAsync(
+        int tenantId, int driverId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT UserId FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = driverId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+    }
+
+    private sealed class ProviderCheckRow
+    {
+        public int Id { get; init; }
+        public string Provider { get; init; } = "";
+        public string DocumentType { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string Summary { get; init; } = "";
+        public string? ExternalReference { get; init; }
+        public int? HttpStatusCode { get; init; }
+        public string? MissingConfigKeys { get; init; }
+        public DateTime CheckedAt { get; init; }
+    }
+
+    private static string TrimTo(string value, int maxLength)
+        => value.Length <= maxLength ? value : value[..maxLength];
+
     private static Task<bool> ExistsOn(IDbConnection connection, int tenantId, int id, CancellationToken cancellationToken)
         => connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(

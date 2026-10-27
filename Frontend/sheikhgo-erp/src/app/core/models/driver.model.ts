@@ -480,6 +480,25 @@ export function sanitizeUpdateDriverDto(dto: UpdateDriverDto): UpdateDriverDto {
 
 export const DRIVER_VERIFICATION_DOC_TYPES = [
   { type: 'DrivingLicense', label: 'Driving License' },
-  { type: 'MedicalCertificate', label: 'Medical Certificate' },
+  { type: 'CNIC', label: 'CNIC / National ID' },
   { type: 'BackgroundCheck', label: 'Background Check' }
 ] as const;
+
+export interface DriverProviderVerificationCheck {
+  id: number;
+  provider: string;
+  documentType: string;
+  status: string;
+  summary: string;
+  externalReference?: string | null;
+  httpStatusCode?: number | null;
+  missingConfigKeys?: string[] | null;
+  checkedAt: string;
+}
+
+export interface DriverVerificationConfigStatus {
+  nadraEnabled: boolean;
+  nadraMissingKeys: string[];
+  uaeKycEnabled: boolean;
+  uaeKycMissingKeys: string[];
+}

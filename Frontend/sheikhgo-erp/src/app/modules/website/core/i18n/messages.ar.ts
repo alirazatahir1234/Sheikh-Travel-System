@@ -303,6 +303,29 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
     'خطط شهرية تناسب نمو الأسطول على SheikhGo Nexus — GPS والعمليات والتنبيهات والذكاء الاصطناعي في مستأجر واحد. الأسعار أدناه؛ نحدد حجم SMS وخرائط Google والإطلاق معك قبل العقد.',
   'pages.pricing.currency': 'PKR',
   'pages.pricing.perMonth': '/ شهر',
+  'pages.pricing.perYear': '/ سنة · لكل جهاز',
+  'pages.pricing.tracker.kicker': 'جهاز واحد · باكستان',
+  'pages.pricing.tracker.title': 'منصة GPS سنوية (جهاز واحد)',
+  'pages.pricing.tracker.lead':
+    'اشتراك برمجيات فقط على SheikhGo Nexus — متوافق مع AMC محلي (~8,000–10,000 PKR/سنة). شراء الجهاز والتركيب منفصلان.',
+  'pages.pricing.tracker.note':
+    'مرجع السوق: AMC المراقب في باكستان عادة 8,000–10,000 PKR/سنة (GoTrack، Sky Track)؛ المراقبة الذاتية من ~4,600 PKR/سنة.',
+  'pages.pricing.trackerEssential.name': 'Essential',
+  'pages.pricing.trackerEssential.subtitle': 'خريطة مباشرة، سياج، تنبيهات قياسية',
+  'pages.pricing.trackerEssential.feature1': 'تتبع مباشر عبر الويب والجوال وتشغيل المسار',
+  'pages.pricing.trackerEssential.feature2': 'سياج جغرافي وتنبيهات GPS قياسية',
+  'pages.pricing.trackerEssential.feature3': 'جهاز GPS واحد في مستأجر Nexus',
+  'pages.pricing.trackerPlus.name': 'Plus',
+  'pages.pricing.trackerPlus.badge': 'الأكثر شيوعاً',
+  'pages.pricing.trackerPlus.subtitle': 'SMS + قفل المحرك',
+  'pages.pricing.trackerPlus.feature1': 'كل ما في Essential',
+  'pages.pricing.trackerPlus.feature2': 'تنبيهات SMS / واتساب (حزمة استخدام عادل)',
+  'pages.pricing.trackerPlus.feature3': 'قفل المحرك عن بُعد عند تركيب relay',
+  'pages.pricing.trackerPremium.name': 'Premium',
+  'pages.pricing.trackerPremium.subtitle': 'تنبيهات كاملة + مشاركة مباشرة',
+  'pages.pricing.trackerPremium.feature1': 'كل ما في Plus',
+  'pages.pricing.trackerPremium.feature2': 'روابط مشاركة مباشرة ودعم أولوية',
+  'pages.pricing.trackerPremium.feature3': 'أجهزة جاهزة للاستماع الصوتي حيث يسمح العتاد',
   'pages.pricing.enterpriseCustom': 'تسعير مؤسسي مخصص واتفاقيات مستوى الخدمة عند الطلب — تحدث معنا عن 51+ مركبة أو فروع متعددة أو استضافة مخصصة.',
   'pages.pricing.starter.name': 'Starter',
   'pages.pricing.starter.fleet': 'مناسب لـ 1–25 مركبة',
@@ -426,4 +449,18 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.smartAssignment.adminTitle': 'تجاوز المسؤول وسجل',
   'home.smartAssignment.adminText':
     'مساحة Smart Assignment في عمليات الأسطول مع أوزان العوامل وسجل القرارات للعروض.',
+  'home.pill.driverVerification': 'تحقق السائق',
+  'home.driverVerification.kicker': 'امتثال · NADRA و KYC الإمارات',
+  'home.driverVerification.title': 'تحقق رقمي من السائق مع مزودين حقيقيين',
+  'home.driverVerification.lead':
+    'يرفع السائق الرخصة والهوية/WCNIC ومستندات الخلفية. Nexus يستدعي NADRA Verisys / Nishaan (باكستان) وشريك KYC في الإمارات، يحفظ السجل، يمنع غير الموثق من الرحلات، وينبه قبل انتهاء الصلاحية.',
+  'home.driverVerification.uploadTitle': 'رفع المستندات و OCR',
+  'home.driverVerification.uploadText':
+    'فتحات للرخصة والهوية الوطنية وفحص الخلفية مع تواريخ انتهاء. الرفع يطلق التحقق من المزود عند ضبط الاعتمادات.',
+  'home.driverVerification.providersTitle': 'NADRA وفحص الإمارات',
+  'home.driverVerification.providersText':
+    'تحقق CNIC عبر Nishaan أو e-Sahulat؛ سائقو الإمارات يمكنهم فحص الخلفية عبر Bayzat أو الشريك—بدون تحقق وهمي.',
+  'home.driverVerification.opsTitle': 'بوابة الأسطول والتنبيهات',
+  'home.driverVerification.opsText':
+    'الرحلات للسائقين Verified فقط. المراجعون في Verification Hub مع إعادة التحقق يدوياً وتنبيهات push عند الرفض أو قرب انتهاء المستندات.',
 };

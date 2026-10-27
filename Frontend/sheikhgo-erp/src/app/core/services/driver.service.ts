@@ -21,6 +21,8 @@ import {
   DriverTimelineEvent,
   DriverViolation,
   DriversAvailabilitySummary,
+  DriverProviderVerificationCheck,
+  DriverVerificationConfigStatus,
   TransferDriverVehicleRequest,
   UpdateDocumentStatusRequest,
   AddReviewNoteRequest,
@@ -257,5 +259,20 @@ export class DriverService {
   getLocationHistory(id: number, from: string, to: string): Observable<DriverLocation[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<DriverLocation[]>(`${this.base}/${id}/location/history`, { params });
+  }
+
+  getProviderChecks(id: number, limit = 30): Observable<DriverProviderVerificationCheck[]> {
+    const params = new HttpParams().set('limit', limit);
+    return this.http.get<DriverProviderVerificationCheck[]>(`${this.base}/${id}/verification/provider-checks`, { params });
+  }
+
+  triggerProviderCheck(id: number, documentType?: string): Observable<DriverProviderVerificationCheck[]> {
+    return this.http.post<DriverProviderVerificationCheck[]>(`${this.base}/${id}/verification/provider-check`, {
+      documentType: documentType ?? null
+    });
+  }
+
+  getVerificationConfigStatus(): Observable<DriverVerificationConfigStatus> {
+    return this.http.get<DriverVerificationConfigStatus>(`${this.base}/verification/config-status`);
   }
 }

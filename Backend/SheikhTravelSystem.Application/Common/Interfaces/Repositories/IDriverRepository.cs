@@ -139,6 +139,38 @@ public interface IDriverRepository
         int driverId,
         CancellationToken cancellationToken = default);
 
+    Task<int> InsertProviderVerificationCheckAsync(
+        int tenantId,
+        int driverId,
+        string provider,
+        string documentType,
+        string status,
+        string summary,
+        string? externalReference,
+        int? httpStatusCode,
+        IReadOnlyList<string>? missingConfigKeys,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DriverProviderVerificationCheckDto>> GetProviderVerificationChecksAsync(
+        int tenantId,
+        int driverId,
+        int limit,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<(int DriverId, int? UserId, string FullName, DateTime LicenseExpiry, string VerificationStatus)>> GetDriversForVerificationExpiryScanAsync(
+        int tenantId,
+        CancellationToken cancellationToken = default);
+
+    Task MarkDriverVerificationExpiredDocsAsync(
+        int tenantId,
+        int driverId,
+        CancellationToken cancellationToken = default);
+
+    Task<int?> GetDriverUserIdAsync(
+        int tenantId,
+        int driverId,
+        CancellationToken cancellationToken = default);
+
     // ── Assignment ──────────────────────────────────────────────────────────
 
     Task<(string VerificationStatus, DateTime LicenseExpiry, bool IsActive, int Status)?> GetAssignmentGuardRowAsync(

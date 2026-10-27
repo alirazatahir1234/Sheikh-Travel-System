@@ -48,8 +48,25 @@ dotnet user-secrets set "Ai:McpBridge:RepositoryPath" "/absolute/path/to/Sheikh-
 #   SHEIKHGO_REPOSITORY=/absolute/path/to/Sheikh-Travel-System
 #   SHEIKHGO_DB_CONNECTION=<read-only SQL connection for live MCP SELECT tools>
 # Never set SHEIKHGO_ALLOW_WRITES=true for the SheikhGo AI Assistant MCP bridge (API forces false).
+
+# Optional Phase 6 Logs — Serilog file search root for MCP (no secrets in path):
+#   SHEIKHGO_SERILOG_LOG_DIR=/path/to/SheikhTravelSystem.API/Logs
 ```
 
+## AI Assistant Phase 8 — deploy config (names only)
+
+| Purpose | Config key / env | Notes |
+|---------|------------------|-------|
+| DeepInfra API | `DeepInfra:ApiKey` / `DEEPINFRA_API_KEY` | User-secrets or host env only |
+| MCP bridge enable | `Ai:McpBridge:Enabled` | Default false in committed `appsettings.json` |
+| MCP command/args | `Ai:McpBridge:Command`, `Ai:McpBridge:Args:*` or `SHEIKHGO_MCP_*` | Point at SheikhGo-MCP `dist/index.js` |
+| MCP timeouts / rounds | `Ai:McpBridge:CallTimeoutMs`, `MaxToolRounds`, `ProviderMaxRetries` | See Phase 8 doc |
+| Conversation bounds | `Ai:ConversationContext:*` | Phase 7 |
+| DB for MCP tools | `SHEIKHGO_DB_CONNECTION` | Prefer read-only SQL login |
+| Serilog search | `SHEIKHGO_SERILOG_LOG_DIR` | Optional Logs tools |
+| Phase 8 live SQL CI | `SHEIKHGO_PHASE8_LIVE_SQL=require`, `SHEIKHGO_PHASE8_SQL_*`, `SHEIKHGO_PHASE8_MCP_ENTRY` | Fixture DB `SheikhGo_Phase8_CI`; see `scripts/ci/phase8-live-sql-e2e.sh` — never log connection strings |
+
+Rollback: disable `Ai:McpBridge:Enabled`; Phase 7 columns (`ContextSummary`, `SummaryUpdatedAt`) and `McpToolExecutions` are additive — safe to leave in place. See `docs/AI-MCP-Phase8-ProductionReadiness.md`.
 
 Alternatively, copy [`docs/local-dev-config.example.json`](docs/local-dev-config.example.json) into a
 gitignored `SheikhTravelSystem.API/appsettings.Development.json` and add connection/JWT/Maps values
@@ -62,6 +79,18 @@ Set the environment variables in the table above on the host. Do **not** rely on
 
 Also rotate any credential that was previously committed to git history (SQL password, JWT secret,
 Traccar password, Maps key) — scrubbing the repo does **not** rotate the live credential.
+
+## Driver verification (NADRA / UAE KYC)
+
+See [`docs/DRIVER_VERIFICATION_PROVIDERS.md`](docs/DRIVER_VERIFICATION_PROVIDERS.md). No secrets are committed; when unset, ERP records `NotConfigured` provider checks instead of fake verification.
+
+| Purpose | Configuration key | Environment variable |
+|---------|-------------------|----------------------|
+| NADRA enable | `DriverVerification:Nadra:Enabled` | `DriverVerification__Nadra__Enabled` |
+| NADRA API base | `DriverVerification:Nadra:BaseUrl` | `DriverVerification__Nadra__BaseUrl` |
+| NADRA API key | `DriverVerification:Nadra:ApiKey` | `DriverVerification__Nadra__ApiKey` |
+| UAE KYC enable | `DriverVerification:UaeKyc:Enabled` | `DriverVerification__UaeKyc__Enabled` |
+| UAE OAuth client | `DriverVerification:UaeKyc:ClientId` / `ClientSecret` | `DriverVerification__UaeKyc__ClientId` etc. |
 
 ## PortalAuth OTP
 

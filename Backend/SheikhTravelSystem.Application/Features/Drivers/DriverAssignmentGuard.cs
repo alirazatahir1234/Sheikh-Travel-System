@@ -14,7 +14,7 @@ public static class DriverAssignmentGuard
     }
 
     /// <summary>
-    /// Fleet/trip assignment: active driver with valid license; pending verification is allowed.
+    /// Fleet vehicle link and trip assignment: verified driver with valid license.
     /// </summary>
     public static void EnsureAssignableForVehicleTrip(
         bool isActive,
@@ -23,7 +23,7 @@ public static class DriverAssignmentGuard
         DateTime licenseExpiry)
     {
         EnsureCoreAssignable(isActive, status, licenseExpiry);
-        EnsureVerificationAllowsAssignment(verificationStatus);
+        EnsureVerifiedForTripAssignment(verificationStatus);
     }
 
     private static void EnsureCoreAssignable(bool isActive, DriverStatus status, DateTime licenseExpiry)
@@ -38,16 +38,16 @@ public static class DriverAssignmentGuard
             throw new ConflictException("Driver license is expired.");
     }
 
-    private static void EnsureVerificationAllowsAssignment(string? verificationStatus)
+    private static void EnsureVerifiedForTripAssignment(string? verificationStatus)
     {
-        if (string.IsNullOrWhiteSpace(verificationStatus))
-            return;
-
         if (string.Equals(verificationStatus, "Rejected", StringComparison.OrdinalIgnoreCase))
             throw new ConflictException("Driver verification was rejected.");
 
         if (string.Equals(verificationStatus, "ExpiredDocs", StringComparison.OrdinalIgnoreCase))
             throw new ConflictException("Driver documents have expired.");
+
+        if (!string.Equals(verificationStatus, "Verified", StringComparison.OrdinalIgnoreCase))
+            throw new ConflictException("Driver must be verified before trip assignment.");
     }
 
     public static bool CanManuallySetStatus(DriverStatus target)

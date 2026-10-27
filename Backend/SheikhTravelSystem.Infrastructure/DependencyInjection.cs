@@ -146,6 +146,7 @@ public static class DependencyInjection
         services.AddScoped<IDataScopeEngine, DataScopeEngine>();
         services.AddScoped<ISecurityEngine, SecurityEngine>();
         services.AddScoped<ITenantModuleService, TenantModuleService>();
+        services.AddScoped<ISubscriptionBillingService, SubscriptionBillingService>();
         services.AddScoped<ITenantRoleSeedService, TenantRoleSeedService>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -303,9 +304,18 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayProvider, JazzCashPaymentGatewayService>();
         services.AddScoped<IPaymentGatewayProvider, EasyPaisaPaymentGatewayService>();
         services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
+        services.AddHostedService<SubscriptionBillingHostedService>();
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
         services.AddHostedService<PredictiveMaintenanceDriverNotifyHostedService>();
+        services.Configure<SheikhTravelSystem.Application.Common.DriverVerificationOptions>(
+            configuration.GetSection(SheikhTravelSystem.Application.Common.DriverVerificationOptions.SectionName));
+        services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Drivers.NadraCnicVerificationClient.HttpClientName);
+        services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Drivers.UaeKycBackgroundScreeningClient.HttpClientName);
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Drivers.NadraCnicVerificationClient>();
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Drivers.UaeKycBackgroundScreeningClient>();
+        services.AddScoped<IDriverVerificationOrchestrator, SheikhTravelSystem.Infrastructure.Services.Drivers.DriverVerificationOrchestrator>();
+        services.AddHostedService<DriverVerificationExpiryHostedService>();
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOperationsHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsDailyRollupHostedService>();
