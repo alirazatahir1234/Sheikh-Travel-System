@@ -38,6 +38,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     link?: string;
   }[] = [
     { label: 'NEXUS Dashboard', fragment: 'see-the-platform', icon: 'dashboard' },
+    { label: 'Platform modules', fragment: 'platform-modules', icon: 'view_module' },
     { label: 'Capabilities', fragment: 'platform-features', icon: 'grid_view' },
     { label: 'AI Solutions', link: '/ai-solutions', icon: 'auto_awesome' },
     { label: 'Services', link: '/services', icon: 'code' },
@@ -122,6 +123,24 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       link: '/',
       linkLabel: 'See showcase',
     },
+  ] as const;
+
+  /** Product UI captures from SheikhGo Nexus ERP (local demo tenant). */
+  readonly nexusModuleShots = [
+    { caption: 'Dashboard', src: '/website/nexus/modules/dashboard.png', alt: 'SheikhGo Nexus operations dashboard' },
+    { caption: 'Live Tracking', src: '/website/nexus/modules/live-tracking.png', alt: 'Live GPS fleet map in SheikhGo Nexus' },
+    { caption: 'GPS Alerts', src: '/website/nexus/modules/gps-alerts.png', alt: 'GPS alerts inbox in SheikhGo Nexus' },
+    { caption: 'Geofencing', src: '/website/nexus/modules/geofencing.png', alt: 'Geofence editor in SheikhGo Nexus' },
+    { caption: 'Trip History', src: '/website/nexus/modules/trip-history.png', alt: 'GPS trip history and playback in SheikhGo Nexus' },
+    { caption: 'Vehicles', src: '/website/nexus/modules/vehicles.png', alt: 'Vehicle registry in SheikhGo Nexus' },
+    { caption: 'Drivers', src: '/website/nexus/modules/drivers.png', alt: 'Driver management in SheikhGo Nexus' },
+    { caption: 'Trips', src: '/website/nexus/modules/trips.png', alt: 'Trip operations in SheikhGo Nexus' },
+    { caption: 'Fuel', src: '/website/nexus/modules/fuel.png', alt: 'Fuel logs in SheikhGo Nexus' },
+    { caption: 'Maintenance', src: '/website/nexus/modules/maintenance.png', alt: 'Fleet maintenance in SheikhGo Nexus' },
+    { caption: 'Reports', src: '/website/nexus/modules/reports.png', alt: 'Operational reports in SheikhGo Nexus' },
+    { caption: 'AI Assistant', src: '/website/nexus/modules/ai-assistant.png', alt: 'SheikhGo AI assistant in Nexus' },
+    { caption: 'Customers', src: '/website/nexus/modules/customers.png', alt: 'Customer records in SheikhGo Nexus' },
+    { caption: 'Notifications', src: '/website/nexus/modules/notifications.png', alt: 'Notification center in SheikhGo Nexus' },
   ] as const;
 
   readonly aiFeatures = [
