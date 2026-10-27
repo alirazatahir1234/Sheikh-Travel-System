@@ -24,7 +24,8 @@ public static class DriverTelematicsEnforcementPolicy
         eventType.Equals("harsh_braking", StringComparison.OrdinalIgnoreCase) ||
         eventType.Equals("harsh_acceleration", StringComparison.OrdinalIgnoreCase) ||
         eventType.Equals("speed_exceeded", StringComparison.OrdinalIgnoreCase) ||
-        eventType.Equals("overspeed", StringComparison.OrdinalIgnoreCase);
+        eventType.Equals("overspeed", StringComparison.OrdinalIgnoreCase) ||
+        eventType.Equals("road_speed_exceeded", StringComparison.OrdinalIgnoreCase);
 
     public static bool CountsTowardSuspend(string violationType) =>
         violationType.Equals(ViolationTypeHarshBrake, StringComparison.OrdinalIgnoreCase) ||
@@ -34,14 +35,14 @@ public static class DriverTelematicsEnforcementPolicy
     {
         "harsh_braking" => ViolationTypeHarshBrake,
         "harsh_acceleration" => ViolationTypeHarshAccel,
-        "speed_exceeded" or "overspeed" => ViolationTypeOverspeed,
+        "speed_exceeded" or "overspeed" or "road_speed_exceeded" => ViolationTypeOverspeed,
         _ => eventType
     };
 
     public static string SeverityForEvent(string eventType) => eventType.ToLowerInvariant() switch
     {
         "harsh_braking" or "harsh_acceleration" => "High",
-        "speed_exceeded" or "overspeed" => "Medium",
+        "speed_exceeded" or "overspeed" or "road_speed_exceeded" => "Medium",
         _ => "Medium"
     };
 }

@@ -1,10 +1,39 @@
 {
   "buildCommand": "npm run build:prod",
   "outputDirectory": "dist/sheikhgo-erp/browser",
+  "functions": {
+    "api/website-demo/erp-walkthrough.js": {
+      "includeFiles": "public/website/demo/sheikhgo-nexus-erp-walkthrough.mp4"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/website/demo/sheikhgo-nexus-erp-walkthrough.mp4",
+      "destination": "/api/website-demo/erp-walkthrough"
+    },
+    {
+      "source": "/website-demo/erp-walkthrough",
+      "destination": "/api/website-demo/erp-walkthrough"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/website-demo/erp-walkthrough",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/website/demo/sheikhgo-nexus-erp-walkthrough.mp4",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
     }
   ]
 }

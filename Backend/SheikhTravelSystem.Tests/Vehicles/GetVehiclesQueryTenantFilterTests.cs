@@ -19,8 +19,7 @@ public class GetVehiclesQueryTenantFilterTests
         var dataScope = new Mock<IDataScopeEngine>();
         var files = new Mock<IFileStorageService>();
 
-        scope.Setup(s => s.TenantId).Returns(1);
-        scope.Setup(s => s.EnsureTenantAccess(3));
+        scope.Setup(s => s.ResolveTenantId(3)).Returns(3);
         currentUser.SetupGet(c => c.UserId).Returns((int?)null);
         repo.Setup(r => r.GetPagedAsync(3, 1, 20, false, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Array.Empty<VehicleListItemDto>(), 0));
@@ -31,7 +30,7 @@ public class GetVehiclesQueryTenantFilterTests
         var result = await handler.Handle(new GetVehiclesQuery(TenantId: 3), CancellationToken.None);
 
         result.Success.Should().BeTrue();
-        scope.Verify(s => s.EnsureTenantAccess(3), Times.Once);
+        scope.Verify(s => s.ResolveTenantId(3), Times.Once);
         repo.Verify(r => r.GetPagedAsync(3, 1, 20, false, null, It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.GetPagedAsync(1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<DataScopeResult?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -45,7 +44,7 @@ public class GetVehiclesQueryTenantFilterTests
         var dataScope = new Mock<IDataScopeEngine>();
         var files = new Mock<IFileStorageService>();
 
-        scope.Setup(s => s.TenantId).Returns(7);
+        scope.Setup(s => s.ResolveTenantId(null)).Returns(7);
         currentUser.SetupGet(c => c.UserId).Returns((int?)null);
         repo.Setup(r => r.GetPagedAsync(7, 1, 20, false, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Array.Empty<VehicleListItemDto>(), 0));
@@ -56,7 +55,7 @@ public class GetVehiclesQueryTenantFilterTests
         var result = await handler.Handle(new GetVehiclesQuery(), CancellationToken.None);
 
         result.Success.Should().BeTrue();
-        scope.Verify(s => s.EnsureTenantAccess(It.IsAny<int>()), Times.Never);
+        scope.Verify(s => s.ResolveTenantId(null), Times.Once);
         repo.Verify(r => r.GetPagedAsync(7, 1, 20, false, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

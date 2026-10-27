@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Dapper;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -112,30 +113,163 @@ public sealed class EmailNotificationSender(
     }
 }
 
+/// <summary>
+/// SMS channel for alert/notification fan-out.
+/// Providers: Console (log-only), Http (generic JSON/form gateway — Twilio-compatible body fields).
+/// Recipients: <see cref="ChannelSendRequest.Phone"/> or Users.Phone for the target user.
+/// </summary>
 public sealed class SmsNotificationSender(
     IConfiguration configuration,
+    IDbConnectionFactory dbFactory,
+    IHttpClientFactory httpClientFactory,
     ILogger<SmsNotificationSender> logger) : INotificationChannelSender
 {
+    public const string HttpClientName = "SheikhGoSmsGateway";
+
     public string Channel => NotificationChannels.Sms;
 
-    public Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
+    public async Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
     {
         var section = configuration.GetSection("Notifications:Sms");
         var enabled = section.GetValue("Enabled", false);
         var provider = section.GetValue<string>("Provider") ?? "Console";
 
+        var phone = await ResolvePhoneAsync(request, cancellationToken);
+        var body = string.IsNullOrWhiteSpace(request.Message)
+            ? request.Title
+            : $"{request.Title}\n{request.Message}";
+
         if (!enabled || string.Equals(provider, "Console", StringComparison.OrdinalIgnoreCase))
         {
             logger.LogInformation(
                 "SMS [{Provider}] notification {Id}: {Title} → {Phone}: {Message}",
-                provider, request.NotificationId, request.Title, request.Phone ?? "(user)", request.Message);
-            return Task.FromResult(new ChannelSendResult(true, "Sent", $"Logged via {provider}"));
+                provider, request.NotificationId, request.Title, phone ?? "(no phone)", body);
+            return new ChannelSendResult(true, "Sent", $"Logged via {provider}", provider);
         }
 
+        if (string.IsNullOrWhiteSpace(phone))
+            return new ChannelSendResult(false, "Failed", "No recipient phone (Users.Phone empty)", provider);
+
+        if (string.Equals(provider, "Http", StringComparison.OrdinalIgnoreCase))
+            return await SendViaHttpAsync(section.GetSection("Http"), phone, body, request.NotificationId, cancellationToken);
+
         logger.LogWarning(
-            "SMS provider {Provider} is selected but not fully wired; logging notification {Id}",
+            "SMS provider {Provider} is not implemented; refusing live send for notification {Id}",
             provider, request.NotificationId);
-        return Task.FromResult(new ChannelSendResult(true, "Sent", $"Queued for {provider} (stub)"));
+        return new ChannelSendResult(false, "Failed", $"Provider '{provider}' not implemented — use Console or Http", provider);
+    }
+
+    private async Task<string?> ResolvePhoneAsync(ChannelSendRequest request, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+            return request.Phone.Trim();
+
+        if (request.UserId is not int uid)
+            return null;
+
+        using var connection = dbFactory.CreateConnection();
+        var phone = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            "SELECT Phone FROM Users WHERE Id = @Id AND IsDeleted = 0 AND (@TenantId IS NULL OR TenantId = @TenantId)",
+            new { Id = uid, TenantId = request.TenantId },
+            cancellationToken: cancellationToken));
+        return string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+    }
+
+    private async Task<ChannelSendResult> SendViaHttpAsync(
+        IConfigurationSection http,
+        string phone,
+        string message,
+        int notificationId,
+        CancellationToken cancellationToken)
+    {
+        var baseUrl = http.GetValue<string>("BaseUrl");
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return new ChannelSendResult(false, "Failed", "Notifications:Sms:Http:BaseUrl missing", "Http");
+
+        var apiKey = http.GetValue<string>("ApiKey");
+        var toField = http.GetValue<string>("ToField") ?? "to";
+        var bodyField = http.GetValue<string>("BodyField") ?? "text";
+        var fromField = http.GetValue<string>("FromField") ?? "from";
+        var from = http.GetValue<string>("From") ?? configuration.GetValue<string>("Notifications:Sms:DefaultFrom");
+        var contentType = http.GetValue<string>("ContentType") ?? "application/json";
+        var apiKeyHeader = http.GetValue<string>("ApiKeyHeader") ?? "X-Api-Key";
+        var authScheme = http.GetValue<string>("AuthScheme") ?? "ApiKey"; // ApiKey | Bearer | Basic
+
+        try
+        {
+            var client = httpClientFactory.CreateClient(HttpClientName);
+            using var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                if (string.Equals(authScheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+                    req.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
+                else if (string.Equals(authScheme, "Basic", StringComparison.OrdinalIgnoreCase))
+                {
+                    var user = http.GetValue<string>("Username") ?? apiKey;
+                    var pass = http.GetValue<string>("Password") ?? "";
+                    var token = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{user}:{pass}"));
+                    req.Headers.TryAddWithoutValidation("Authorization", $"Basic {token}");
+                }
+                else
+                    req.Headers.TryAddWithoutValidation(apiKeyHeader, apiKey);
+            }
+
+            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                var payload = new Dictionary<string, string?>
+                {
+                    [toField] = phone,
+                    [bodyField] = message
+                };
+                if (!string.IsNullOrWhiteSpace(from))
+                    payload[fromField] = from;
+                req.Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
+            }
+            else
+            {
+                var form = new Dictionary<string, string>
+                {
+                    [toField] = phone,
+                    [bodyField] = message
+                };
+                if (!string.IsNullOrWhiteSpace(from))
+                    form[fromField] = from!;
+                req.Content = new FormUrlEncodedContent(form);
+            }
+
+            using var response = await client.SendAsync(req, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "SMS Http gateway failed for notification {Id}: {Status} {Body}",
+                    notificationId, (int)response.StatusCode, Truncate(responseBody, 200));
+                return new ChannelSendResult(false, "Failed",
+                    $"HTTP {(int)response.StatusCode}: {Truncate(responseBody, 120)}", "Http");
+            }
+
+            logger.LogInformation("SMS Http ok notification {Id} → {Phone}", notificationId, MaskPhone(phone));
+            return new ChannelSendResult(true, "Sent", Truncate(responseBody, 200), "Http");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SMS Http send failed for notification {Id}", notificationId);
+            return new ChannelSendResult(false, "Failed", ex.Message, "Http");
+        }
+    }
+
+    private static string Truncate(string? value, int max) =>
+        string.IsNullOrEmpty(value) ? "" : value.Length <= max ? value : value[..max] + "…";
+
+    private static string MaskPhone(string phone)
+    {
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        if (digits.Length <= 4) return "****";
+        return new string('*', Math.Max(0, digits.Length - 4)) + digits[^4..];
     }
 }
 

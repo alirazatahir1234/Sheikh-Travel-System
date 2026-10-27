@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.AI.Commands;
 using SheikhTravelSystem.Infrastructure.Services.Ai;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
@@ -44,7 +45,12 @@ public class AiAssistantGatewayTests
 
         var handler = new QueryAiAssistantCommandHandler(gateway.Object);
         var result = await handler.Handle(
-            new QueryAiAssistantCommand(42, 7, "Which vehicles had the highest fuel costs this month?", IsPlatformSuperAdmin: true),
+            new QueryAiAssistantCommand(
+                42,
+                7,
+                "Which vehicles had the highest fuel costs this month?",
+                IsPlatformSuperAdmin: true,
+                VehicleId: 99),
             CancellationToken.None);
 
         result.Success.Should().BeTrue();
@@ -53,8 +59,27 @@ public class AiAssistantGatewayTests
             42,
             7,
             It.Is<AiAssistantQueryRequest>(r =>
-                r.Question.Contains("fuel", StringComparison.OrdinalIgnoreCase) && r.IsPlatformSuperAdmin),
+                r.Question.Contains("fuel", StringComparison.OrdinalIgnoreCase) &&
+                r.IsPlatformSuperAdmin &&
+                r.VehicleId == 99),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task QueryCommand_rejects_missing_tenant()
+    {
+        var gateway = new Mock<IAiAssistantGateway>();
+        var handler = new QueryAiAssistantCommandHandler(gateway.Object);
+
+        var result = await handler.Handle(
+            new QueryAiAssistantCommand(0, 7, "How many offline vehicles?"),
+            CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("Tenant");
+        gateway.Verify(
+            g => g.QueryAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<AiAssistantQueryRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -83,6 +108,11 @@ public class AiAssistantGatewayTests
             new IAiTool[] { fuel.Object, other.Object },
             provider.Object,
             management.Object,
+            CreateDisabledMcpRouter(),
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -120,6 +150,11 @@ public class AiAssistantGatewayTests
             new IAiTool[] { write.Object, fuel.Object },
             provider.Object,
             new Mock<IAiManagementService>().Object,
+            CreateDisabledMcpRouter(),
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -155,7 +190,9 @@ public class AiAssistantGatewayTests
             "GetPeakHoursAnalysis",
             "GetMaintenanceRiskForecast",
             "GetTripDelayRisk",
-            "GetFuelAnomalyInvestigation"
+            "GetFuelAnomalyInvestigation",
+            "GetTenantSubscriptionModules",
+            "GetTenantCompanyImage"
         });
     }
 
@@ -173,6 +210,7 @@ public class AiAssistantGatewayTests
     [InlineData("What is our fleet utilization rate this month?", "GetVehicleUtilizationSummary")]
     [InlineData("Summarize overspeed and geofence violations this month", "GetOverspeedGeofenceSummary")]
     [InlineData("Which vehicles have maintenance due?", "GetVehicleMaintenanceSummary")]
+    [InlineData("Which vehicles need maintenance?", "GetVehicleMaintenanceSummary")]
     [InlineData("Show idle time report this month", "GetIdleTimeReport")]
     [InlineData("Any SOS events this month?", "GetSosEventsSummary")]
     [InlineData("Summarize expenses this month", "GetExpenseTracking")]
@@ -180,6 +218,12 @@ public class AiAssistantGatewayTests
     [InlineData("Which vehicles are at maintenance risk?", "GetMaintenanceRiskForecast")]
     [InlineData("Which trips are at risk of delay?", "GetTripDelayRisk")]
     [InlineData("Show fuel anomaly investigation for this month", "GetFuelAnomalyInvestigation")]
+    [InlineData("What subscription modules does Shake Travel have?", "GetTenantSubscriptionModules")]
+    [InlineData("Which modules are enabled for Sheikh Travel?", "GetTenantSubscriptionModules")]
+    [InlineData("मेरी शेक ट्रैवल की कौन सी सब्सक्रिप्शन मॉड्यूल है", "GetTenantSubscriptionModules")]
+    [InlineData("show me Shake Travel's 9th image", "GetTenantCompanyImage")]
+    [InlineData("शेक ट्रैवल की नवीं तस्वीर मुझे दिखाओ", "GetTenantCompanyImage")]
+    [InlineData("Show Sheikh Travel company photo", "GetTenantCompanyImage")]
     public async Task Gateway_selects_batch1_tools_by_question(string question, string expectedTool)
     {
         var tools = AiAssistantGateway.AllowlistedToolNames
@@ -200,6 +244,11 @@ public class AiAssistantGatewayTests
             tools,
             provider.Object,
             new Mock<IAiManagementService>().Object,
+            CreateDisabledMcpRouter(),
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(1, 1, new AiAssistantQueryRequest(question), CancellationToken.None);
@@ -250,7 +299,9 @@ public class AiAssistantGatewayTests
             "GetPeakHoursAnalysis",
             "GetMaintenanceRiskForecast",
             "GetTripDelayRisk",
-            "GetFuelAnomalyInvestigation"
+            "GetFuelAnomalyInvestigation",
+            "GetTenantSubscriptionModules",
+            "GetTenantCompanyImage"
         });
 
         var maintRisk = new GetMaintenanceRiskForecastTool(Mock.Of<IDbConnectionFactory>(f => f.CreateConnection() == null!));
@@ -324,6 +375,11 @@ public class AiAssistantGatewayTests
             tools,
             provider.Object,
             new Mock<IAiManagementService>().Object,
+            CreateDisabledMcpRouter(),
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var denied = await gateway.QueryAsync(
@@ -343,6 +399,119 @@ public class AiAssistantGatewayTests
     }
 
     [Fact]
+    public async Task Gateway_falls_back_to_database_mcp_for_list_vehicles()
+    {
+        var tools = AiAssistantGateway.AllowlistedToolNames
+            .Select(name => CreateStubTool(name).Object)
+            .ToArray();
+
+        var router = new Mock<IMcpDatabaseRecordRouter>();
+        router.Setup(r => r.LooksLikeRecordQuery(It.IsAny<string>())).Returns(true);
+        router.Setup(r => r.TryFetchAsync(5, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new McpRecordFetchResult(
+                "[list_vehicles]\nId=1 Plate=ABC",
+                ["mcp:list_vehicles"],
+                true));
+
+        var provider = new Mock<IAiProviderResolver>();
+        provider.Setup(p => p.ResolveAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((null, new AiProviderConfigDto()));
+
+        var gateway = new AiAssistantGateway(
+            tools,
+            provider.Object,
+            new Mock<IAiManagementService>().Object,
+            router.Object,
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
+            NullLogger<AiAssistantGateway>.Instance);
+
+        var response = await gateway.QueryAsync(
+            5, 1, new AiAssistantQueryRequest("List vehicles for my fleet"), CancellationToken.None);
+
+        response.Mode.Should().Be("mcp_database");
+        response.ToolUsed.Should().Be("mcp:list_vehicles");
+        response.Answer.Should().Contain("ABC");
+    }
+
+    [Fact]
+    public async Task Gateway_uses_shared_mcp_tool_loop_for_vehicle_count()
+    {
+        var tools = AiAssistantGateway.AllowlistedToolNames
+            .Select(name => CreateStubTool(name).Object)
+            .ToArray();
+
+        var deepInfra = new Mock<IAiProvider>();
+        deepInfra.SetupGet(p => p.ProviderName).Returns("DeepInfra");
+
+        var provider = new Mock<IAiProviderResolver>();
+        provider.Setup(p => p.ResolveAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((deepInfra.Object, new AiProviderConfigDto(
+                Provider: "DeepInfra",
+                IsEnabled: true,
+                CopilotEnabled: true,
+                ModelName: "Qwen/Qwen3-32B")));
+
+        var loop = new Mock<IAiMcpToolCallingLoop>();
+        loop.SetupGet(l => l.IsAvailable).Returns(true);
+        loop.Setup(l => l.RunAsync(
+                deepInfra.Object,
+                1,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<AiChatMessageDto>>(),
+                It.IsAny<IList<string>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<Guid?>()))
+            .Callback<IAiProvider, int, string, string, IReadOnlyList<AiChatMessageDto>, IList<string>, CancellationToken, Guid?>(
+                (_, _, _, _, _, toolsUsed, _, _) =>
+                {
+                    toolsUsed.Add("mcp:list_vehicles");
+                    toolsUsed.Add("mcp_tool_loop");
+                })
+            .ReturnsAsync(new AiMcpToolLoopResult(
+                "You have 1 vehicle in your system.",
+                "mcp+llm",
+                "Qwen/Qwen3-32B",
+                120));
+
+        var management = new Mock<IAiManagementService>();
+
+        var gateway = new AiAssistantGateway(
+            tools,
+            provider.Object,
+            management.Object,
+            CreateDisabledMcpRouter(),
+            loop.Object,
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
+            NullLogger<AiAssistantGateway>.Instance);
+
+        var response = await gateway.QueryAsync(
+            1, 1,
+            new AiAssistantQueryRequest("How many vehicles are in my system?"),
+            CancellationToken.None);
+
+        response.Mode.Should().Be("mcp+llm");
+        response.UsedLlm.Should().BeTrue();
+        response.Answer.Should().Contain("1 vehicle");
+        response.ToolUsed.Should().Be("mcp:list_vehicles");
+        response.Mode.Should().NotBe("help");
+        loop.Verify(l => l.RunAsync(
+            deepInfra.Object,
+            1,
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<IReadOnlyList<AiChatMessageDto>>(),
+            It.IsAny<IList<string>>(),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<Guid?>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Gateway_help_is_owner_friendly_not_tool_catalog()
     {
         var tools = AiAssistantGateway.AllowlistedToolNames
@@ -357,6 +526,11 @@ public class AiAssistantGatewayTests
             tools,
             provider.Object,
             new Mock<IAiManagementService>().Object,
+            CreateDisabledMcpRouter(),
+            CreateDisabledMcpToolLoop(),
+            CreatePassthroughMemory(),
+            CreatePassthroughContextBuilder(),
+            CreateAmbient(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -383,6 +557,61 @@ public class AiAssistantGatewayTests
         result.Error.Should().Contain("super-admin");
     }
 
+    [Theory]
+    [InlineData("Shake Travel", "Sheikh Travel")]
+    [InlineData("shake travel", "Sheikh Travel")]
+    [InlineData("शेक ट्रैवल", "Sheikh Travel")]
+    public void TenantNameNormalizer_maps_shake_to_sheikh(string input, string expected)
+    {
+        AssistantTenantNameNormalizer.Normalize(input).Should().Be(expected);
+    }
+
+    [Fact]
+    public void TenantNameNormalizer_extracts_shake_travel_from_hindi_question()
+    {
+        var hint = AssistantTenantNameNormalizer.ExtractTenantNameHint(
+            "मेरी शेक ट्रैवल की कौन सी सब्सक्रिप्शन मॉड्यूल है");
+        hint.Should().NotBeNullOrWhiteSpace();
+        AssistantTenantNameNormalizer.Normalize(hint!).Should().Contain("Sheikh");
+    }
+
+    [Fact]
+    public void SubscriptionModules_tool_is_on_allowlist_and_read_only()
+    {
+        AiAssistantGateway.AllowlistedToolNames.Should().Contain("GetTenantSubscriptionModules");
+        var tool = new GetTenantSubscriptionModulesTool(
+            Mock.Of<IPlatformRepository>(),
+            Mock.Of<IDbConnectionFactory>(f => f.CreateConnection() == null!));
+        tool.Name.Should().Be("GetTenantSubscriptionModules");
+        tool.Kind.Should().Be("read");
+        tool.RequiresConfirmation.Should().BeFalse();
+        tool.TriggerKeywords.Should().Contain(k => k.Contains("सब्सक्रिप्शन", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("show me Shake Travel's 9th image", 9)]
+    [InlineData("शेक ट्रैवल की नवीं तस्वीर मुझे दिखाओ", 9)]
+    [InlineData("Show the first company photo", 1)]
+    [InlineData("image number 3 of Sheikh Travel", 3)]
+    public void ImageIndexParser_extracts_ordinals(string question, int expected)
+    {
+        AssistantImageIndexParser.ExtractIndex(question).Should().Be(expected);
+    }
+
+    [Fact]
+    public void CompanyImage_tool_is_on_allowlist_and_read_only()
+    {
+        AiAssistantGateway.AllowlistedToolNames.Should().Contain("GetTenantCompanyImage");
+        var tool = new GetTenantCompanyImageTool(
+            Mock.Of<IPlatformRepository>(),
+            Mock.Of<IDbConnectionFactory>(f => f.CreateConnection() == null!),
+            Mock.Of<IFileStorageService>());
+        tool.Name.Should().Be("GetTenantCompanyImage");
+        tool.Kind.Should().Be("read");
+        tool.RequiresConfirmation.Should().BeFalse();
+        tool.TriggerKeywords.Should().Contain(k => k.Contains("तस्वीर", StringComparison.Ordinal));
+    }
+
     private static Mock<IAiTool> CreateStubTool(string name, string kind = "read")
     {
         var m = new Mock<IAiTool>();
@@ -390,6 +619,87 @@ public class AiAssistantGatewayTests
         m.SetupGet(t => t.Kind).Returns(kind);
         m.SetupGet(t => t.TriggerKeywords).Returns(Array.Empty<string>());
         return m;
+    }
+
+    private static IMcpDatabaseRecordRouter CreateDisabledMcpRouter()
+    {
+        var m = new Mock<IMcpDatabaseRecordRouter>();
+        m.Setup(r => r.LooksLikeRecordQuery(It.IsAny<string>())).Returns(false);
+        m.Setup(r => r.TryFetchAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((McpRecordFetchResult?)null);
+        return m.Object;
+    }
+
+    private static IAiMcpToolCallingLoop CreateDisabledMcpToolLoop()
+    {
+        var m = new Mock<IAiMcpToolCallingLoop>();
+        m.SetupGet(l => l.IsAvailable).Returns(false);
+        m.Setup(l => l.RunAsync(
+                It.IsAny<IAiProvider>(),
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<AiChatMessageDto>>(),
+                It.IsAny<IList<string>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<Guid?>()))
+            .ReturnsAsync((AiMcpToolLoopResult?)null);
+        return m.Object;
+    }
+
+    private static IAiConversationMemoryService CreatePassthroughMemory()
+    {
+        var sessionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var m = new Mock<IAiConversationMemoryService>();
+        m.Setup(s => s.EnsureSessionAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Guid?>(), It.IsAny<string?>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AiConversationSessionEnsureResult(sessionId, true, false, null));
+        m.Setup(s => s.AppendMessageAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        m.Setup(s => s.TouchSessionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        m.Setup(s => s.MaybeSummarizeAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        m.Setup(s => s.LoadAuthorizedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int tid, int uid, Guid sid, CancellationToken _) =>
+                new AiConversationMemorySnapshot(sid, tid, uid, null, [], 0, Authorized: true));
+        return m.Object;
+    }
+
+    private static IAiConversationContextBuilder CreatePassthroughContextBuilder()
+    {
+        var m = new Mock<IAiConversationContextBuilder>();
+        m.Setup(b => b.BuildAsync(It.IsAny<AiConversationContextRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AiConversationContextRequest req, CancellationToken _) =>
+                new AiAssembledContext(
+                    "=== Conversation context ===\n(empty)\n=== End ===",
+                    "=== Business context ===\n=== End ===",
+                    "=== Live retrieved data ===\n=== End ===",
+                    RagSection: null,
+                    LooksLikeFollowUp: false,
+                    NeedsClarification: false,
+                    ClarificationPrompt: null,
+                    BoundedHistoryMessages: req.Memory?.RecentMessages ?? []));
+        return m.Object;
+    }
+
+    private static IMcpExecutionAmbient CreateAmbient()
+    {
+        var m = new Mock<IMcpExecutionAmbient>();
+        m.SetupProperty(a => a.ChatSessionId);
+        m.SetupProperty(a => a.CorrelationId);
+        m.SetupProperty(a => a.ToolCallIndex);
+        m.SetupProperty(a => a.ModelLatencyMs);
+        m.SetupProperty(a => a.McpLatencyMs);
+        m.Setup(a => a.EnsureCorrelationId())
+            .Returns(() =>
+            {
+                if (string.IsNullOrWhiteSpace(m.Object.CorrelationId))
+                    m.Object.CorrelationId = Guid.NewGuid().ToString("N");
+                return m.Object.CorrelationId!;
+            });
+        return m.Object;
     }
 }
 

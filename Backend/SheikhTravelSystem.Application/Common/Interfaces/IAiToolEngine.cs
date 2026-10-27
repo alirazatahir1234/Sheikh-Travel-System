@@ -46,7 +46,8 @@ public record AiToolExecutionContext(
     bool AllowWriteTools = false,
     bool ConfirmWrite = false,
     bool CanExecuteWrite = false,
-    bool IsPlatformSuperAdmin = false);
+    bool IsPlatformSuperAdmin = false,
+    int? VehicleId = null);
 
 public record AiToolExecutionResult(
     string ToolName,

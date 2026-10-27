@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
@@ -29,21 +30,73 @@ public class AiController(
     IUserPresenceService presence,
     IEscalationService escalation,
     ITenantContext tenantContext,
-    ICurrentUserService currentUser) : BaseApiController
+    ICurrentUserService currentUser,
+    IMcpExecutionAmbient executionAmbient) : BaseApiController
 {
-    private int TenantId => tenantContext.TenantId ?? 1;
     private int UserId => currentUser.UserId ?? throw new UnauthorizedAccessException();
+
+    /// <summary>Fail closed — never fall back to tenant 1 when context is missing.</summary>
+    private bool TryResolveTenantId(out int tenantId, out IActionResult? error)
+    {
+        if (tenantContext.TenantId is int tid && tid > 0)
+        {
+            tenantId = tid;
+            error = null;
+            return true;
+        }
+
+        tenantId = 0;
+        error = Unauthorized(new { message = "Tenant context is required." });
+        return false;
+    }
+
+    /// <summary>
+    /// Platform SuperAdmin may narrow scope via body <c>targetTenantId</c> (defense in depth with X-Tenant-Id).
+    /// Non–SuperAdmin forged <c>targetTenantId</c> that differs from JWT/middleware tenant is rejected (403).
+    /// </summary>
+    private bool TryResolveEffectiveTenantId(
+        int? requestedTargetTenantId,
+        out int tenantId,
+        out IActionResult? error)
+    {
+        var resolved = AiEffectiveTenantResolver.Resolve(
+            tenantContext.TenantId,
+            currentUser.IsPlatformSuperAdmin,
+            requestedTargetTenantId);
+
+        switch (resolved.Status)
+        {
+            case AiEffectiveTenantResolver.ResolveStatus.Ok:
+                tenantId = resolved.TenantId;
+                error = null;
+                return true;
+            case AiEffectiveTenantResolver.ResolveStatus.ForgedTargetTenantRejected:
+                tenantId = 0;
+                error = StatusCode(StatusCodes.Status403Forbidden, new { message = resolved.Message });
+                return false;
+            default:
+                tenantId = 0;
+                error = Unauthorized(new { message = resolved.Message ?? "Tenant context is required." });
+                return false;
+        }
+    }
 
     [RequirePermission(AiPermissions.View)]
     [HttpGet("health")]
     public async Task<IActionResult> GetFleetHealth(CancellationToken ct)
-        => Ok(await fleetHealth.ComputeAsync(TenantId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await fleetHealth.ComputeAsync(tenantId, ct));
+    }
 
     [RequirePermission(AiPermissions.ViewRecommendations)]
     [HttpGet("recommendations")]
     public async Task<IActionResult> GetRecommendations(CancellationToken ct)
     {
-        var result = await Mediator.Send(new GetAiRecommendationsQuery(TenantId), ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        var result = await Mediator.Send(new GetAiRecommendationsQuery(tenantId), ct);
         return FromAiResponse(result);
     }
 
@@ -51,7 +104,9 @@ public class AiController(
     [HttpPost("recommendations/refresh")]
     public async Task<IActionResult> RefreshRecommendations(CancellationToken ct)
     {
-        var result = await Mediator.Send(new RefreshAiRecommendationsCommand(TenantId), ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        var result = await Mediator.Send(new RefreshAiRecommendationsCommand(tenantId), ct);
         if (!result.Success)
             return BadRequest(new { message = result.Message });
         return Ok(new { refreshed = true });
@@ -61,7 +116,9 @@ public class AiController(
     [HttpGet("predictions")]
     public async Task<IActionResult> GetPredictions([FromQuery] string? entityType, CancellationToken ct)
     {
-        var result = await Mediator.Send(new GetAiPredictionsQuery(TenantId, entityType), ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        var result = await Mediator.Send(new GetAiPredictionsQuery(tenantId, entityType), ct);
         return FromAiResponse(result);
     }
 
@@ -69,7 +126,9 @@ public class AiController(
     [HttpPost("predictions/run")]
     public async Task<IActionResult> RunPredictions(CancellationToken ct)
     {
-        var result = await Mediator.Send(new RunAiPredictionsCommand(TenantId), ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        var result = await Mediator.Send(new RunAiPredictionsCommand(tenantId), ct);
         return FromAiResponse(result);
     }
 
@@ -77,7 +136,9 @@ public class AiController(
     [HttpPost("digest/morning")]
     public async Task<IActionResult> GenerateDigest(CancellationToken ct)
     {
-        await digests.GenerateMorningDigestAsync(TenantId, ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        await digests.GenerateMorningDigestAsync(tenantId, ct);
         return Ok(new { generated = true });
     }
 
@@ -89,7 +150,9 @@ public class AiController(
     {
         if (string.IsNullOrWhiteSpace(request.Question))
             return BadRequest(new { message = "Question is required." });
-        return Ok(await copilot.AskAsync(TenantId, UserId, request.Question, ct));
+        if (!TryResolveEffectiveTenantId(request.TargetTenantId, out var tenantId, out var error))
+            return error!;
+        return Ok(await copilot.AskAsync(tenantId, UserId, request.Question, ct));
     }
 
     /// <summary>Phase 2 AI Assistant — allowlisted read-only reporting tools.</summary>
@@ -98,12 +161,19 @@ public class AiController(
     [HttpPost("assistant/query")]
     public async Task<IActionResult> AssistantQuery([FromBody] AiAskRequest request, CancellationToken ct)
     {
+        if (!TryResolveEffectiveTenantId(request.TargetTenantId, out var tenantId, out var error))
+            return error!;
+
+        var vehicleId = request.VehicleId is int vid && vid > 0 ? vid : (int?)null;
+        var sessionId = request.SessionId is Guid sid && sid != Guid.Empty ? sid : (Guid?)null;
         var result = await Mediator.Send(
             new QueryAiAssistantCommand(
-                TenantId,
+                tenantId,
                 UserId,
                 request.Question ?? string.Empty,
-                currentUser.IsPlatformSuperAdmin),
+                currentUser.IsPlatformSuperAdmin,
+                vehicleId,
+                sessionId),
             ct);
         return FromAiResponse(result);
     }
@@ -133,9 +203,11 @@ public class AiController(
     [HttpPost("chat")]
     public async Task<IActionResult> Chat([FromBody] AiChatRequest request, CancellationToken ct)
     {
+        if (!TryResolveEffectiveTenantId(request.TargetTenantId, out var tenantId, out var error))
+            return error!;
         var result = await Mediator.Send(
             new SendAiChatCommand(
-                TenantId,
+                tenantId,
                 UserId,
                 request.Message ?? string.Empty,
                 request.SessionId,
@@ -149,26 +221,40 @@ public class AiController(
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/pending")]
     public async Task<IActionResult> GetPendingAction(Guid sessionId, CancellationToken ct)
-        => Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await chatGateway.GetPendingActionAsync(tenantId, UserId, sessionId, ct));
+    }
 
     [RequireModule(TenantModuleCatalog.AiAssistantModuleCode)]
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions")]
     public async Task<IActionResult> ListChatSessions(CancellationToken ct)
-        => Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await chatGateway.ListSessionsAsync(tenantId, UserId, ct));
+    }
 
     [RequireModule(TenantModuleCatalog.AiAssistantModuleCode)]
     [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/messages")]
     public async Task<IActionResult> GetChatMessages(Guid sessionId, CancellationToken ct)
-        => Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await chatGateway.GetMessagesAsync(tenantId, UserId, sessionId, ct));
+    }
 
     [RequireModule(TenantModuleCatalog.AiAssistantModuleCode)]
     [RequirePermission(AiPermissions.ViewProviderHealth)]
     [HttpGet("chat/provider-health")]
     public async Task<IActionResult> GetChatProviderHealth(CancellationToken ct)
     {
-        var result = await Mediator.Send(new GetAiProviderHealthQuery(TenantId), ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        var result = await Mediator.Send(new GetAiProviderHealthQuery(tenantId), ct);
         return FromAiResponse(result);
     }
 
@@ -181,18 +267,28 @@ public class AiController(
     [RequirePermission(AiPermissions.ManageProviders)]
     [HttpGet("management/config")]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
-        => Ok(await management.GetConfigAsync(TenantId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await management.GetConfigAsync(tenantId, ct));
+    }
 
     [RequirePermission(AiPermissions.ManageProviders)]
     [HttpPut("management/config")]
     public async Task<IActionResult> UpsertConfig([FromBody] AiProviderConfigDto config, CancellationToken ct)
-        => Ok(await management.UpsertConfigAsync(TenantId, config, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await management.UpsertConfigAsync(tenantId, config, ct));
+    }
 
     [RequirePermission(AiPermissions.Chat)]
     [HttpPost("learning")]
     public async Task<IActionResult> RecordLearning([FromBody] AiLearningRequest request, CancellationToken ct)
     {
-        await management.RecordLearningAsync(TenantId, UserId, request.EventType, request.Action, ct);
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        await management.RecordLearningAsync(tenantId, UserId, request.EventType, request.Action, ct);
         return Ok(new { recorded = true });
     }
 
@@ -224,12 +320,20 @@ public class AiController(
     [RequirePermission(AiPermissions.Manage)]
     [HttpGet("escalation/rules")]
     public async Task<IActionResult> GetEscalationRules(CancellationToken ct)
-        => Ok(await escalation.GetRulesAsync(TenantId, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await escalation.GetRulesAsync(tenantId, ct));
+    }
 
     [RequirePermission(AiPermissions.Manage)]
     [HttpPut("escalation/rules")]
     public async Task<IActionResult> UpsertEscalationRule([FromBody] EscalationRuleDto rule, CancellationToken ct)
-        => Ok(await escalation.UpsertRuleAsync(rule with { TenantId = rule.TenantId ?? TenantId }, ct));
+    {
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        return Ok(await escalation.UpsertRuleAsync(rule with { TenantId = rule.TenantId ?? tenantId }, ct));
+    }
 
     [RequirePermission(AiPermissions.View)]
     [HttpGet("escalation/pending")]
@@ -248,24 +352,42 @@ public class AiController(
     [HttpGet("datasets")]
     public async Task<IActionResult> GetDatasets(CancellationToken ct)
     {
-        await predictions.CaptureFeaturesAsync(TenantId, ct);
-        return Ok(await predictions.GetDatasetStatusAsync(TenantId, ct));
+        if (!TryResolveTenantId(out var tenantId, out var error))
+            return error!;
+        await predictions.CaptureFeaturesAsync(tenantId, ct);
+        return Ok(await predictions.GetDatasetStatusAsync(tenantId, ct));
     }
 
     /// <summary>Preserve pre-CQRS AI response shape (raw payload, not ApiResponse envelope).</summary>
     private IActionResult FromAiResponse<T>(ApiResponse<T> response)
     {
+        StampCorrelationHeader();
         if (!response.Success)
             return BadRequest(new { message = response.Message, errors = response.Errors });
         return Ok(response.Data);
     }
+
+    /// <summary>Phase 8 — expose turn correlation id without leaking payloads.</summary>
+    private void StampCorrelationHeader()
+    {
+        var id = executionAmbient.CorrelationId;
+        if (string.IsNullOrWhiteSpace(id))
+            return;
+        Response.Headers["X-Correlation-Id"] = id;
+    }
 }
 
-public record AiAskRequest(string Question);
+public record AiAskRequest(
+    string Question,
+    int? TargetTenantId = null,
+    int? VehicleId = null,
+    Guid? SessionId = null);
 public record AiChatRequest(
     string Message,
     Guid? SessionId = null,
     string? Title = null,
-    bool ConfirmWrite = false);
+    bool ConfirmWrite = false,
+    int? TargetTenantId = null,
+    int? VehicleId = null);
 public record AiLearningRequest(string EventType, string Action);
 public record RegisterDeviceTokenRequest(string Token, string? Platform = null, string? AppName = null);

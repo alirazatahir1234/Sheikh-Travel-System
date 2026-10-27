@@ -12,6 +12,7 @@ public class DriverTelematicsEnforcementPolicyTests
     [InlineData("harsh_acceleration", true)]
     [InlineData("speed_exceeded", true)]
     [InlineData("overspeed", true)]
+    [InlineData("road_speed_exceeded", true)]
     [InlineData("geofence_enter", false)]
     public void ShouldCreateViolation_matches_enforced_types(string eventType, bool expected)
         => DriverTelematicsEnforcementPolicy.ShouldCreateViolation(eventType).Should().Be(expected);

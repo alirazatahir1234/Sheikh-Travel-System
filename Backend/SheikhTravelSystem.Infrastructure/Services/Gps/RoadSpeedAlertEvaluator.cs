@@ -3,7 +3,6 @@ using System.Data;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Drivers.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking;
@@ -16,11 +15,11 @@ namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 
 /// <summary>
 /// Evaluates road-posted speed-limit overspeed on GPS ingest.
-/// Tenant gate: <see cref="TenantModuleCatalog.RoadSpeedAlertsModuleCode"/>.
+/// Tenant gate: Alerts module + <see cref="TenantModuleCatalog.RoadSpeedAlertsModuleCode"/> (premium).
 /// Threshold: currentSpeed ≥ roadLimitKmh + <see cref="RoadSpeedAlertOptions.OverspeedMarginKmh"/>.
 /// </summary>
 public sealed class RoadSpeedAlertEvaluator(
-    ITenantModuleService tenantModules,
+    IAlertModuleGate alertModuleGate,
     IRoadSpeedLimitLookup speedLimitLookup,
     IGpsAlertWriter alertWriter,
     INotificationDecisionEngine decisionEngine,
@@ -59,11 +58,9 @@ public sealed class RoadSpeedAlertEvaluator(
         if (tenantId is null or <= 0)
             return;
 
-        // Never call Google / raise alerts when the company module is off.
-        if (!await tenantModules.IsModuleEnabledAsync(
-                tenantId.Value,
-                TenantModuleCatalog.RoadSpeedAlertsModuleCode,
-                cancellationToken))
+        // Never call Google / raise alerts when Alerts parent or road-speed child is off.
+        if (!await alertModuleGate.IsAlertTypeEnabledAsync(
+                tenantId.Value, EventType, cancellationToken))
             return;
 
         RoadSpeedLimitResult? limit = null;
@@ -130,6 +127,8 @@ public sealed class RoadSpeedAlertEvaluator(
             connection, dto.VehicleId, dto.Latitude, dto.Longitude, dto.Speed,
             EventType, message, timestamp, driverId: dto.DriverId,
             cancellationToken: cancellationToken);
+        if (alertId <= 0)
+            return;
 
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
             EventType,

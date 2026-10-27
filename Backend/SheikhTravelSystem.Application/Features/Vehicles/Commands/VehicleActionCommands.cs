@@ -68,7 +68,7 @@ public class AssignVehicleDriverCommandHandler(
     }
 }
 
-public record AssignVehicleGpsCommand(int Id, AssignVehicleGpsRequest Body)
+public record AssignVehicleGpsCommand(int Id, AssignVehicleGpsRequest Body, int? TenantId = null)
     : IRequest<ApiResponse<bool>>, IAuditableCommand
 {
     public string AuditAction => "AssignGps";
@@ -85,13 +85,14 @@ public class AssignVehicleGpsCommandValidator : AbstractValidator<AssignVehicleG
     }
 }
 
-public class AssignVehicleGpsCommandHandler(IVehicleRepository vehicleRepository, ITenantContext tenantContext)
+public class AssignVehicleGpsCommandHandler(IVehicleRepository vehicleRepository, IPlatformScope platformScope)
     : IRequestHandler<AssignVehicleGpsCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(AssignVehicleGpsCommand request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         await vehicleRepository.AssignGpsAsync(
-            request.Id, tenantContext.GetRequiredTenantId(), request.Body.GpsDeviceId, cancellationToken);
+            request.Id, tenantId, request.Body.GpsDeviceId, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "GPS device assigned to vehicle.");
     }
 }

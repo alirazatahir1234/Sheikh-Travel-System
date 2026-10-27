@@ -45,6 +45,7 @@ internal static class ModuleRegistryQueries
     {
         var enableable = ModuleRegistrySeed.IsEnableable(row.Code)
             && string.Equals(row.Status, "Active", StringComparison.OrdinalIgnoreCase);
+        var premium = SubscriptionAddOnCatalog.IsPremiumAddOn(row.Code);
         return new ModuleRegistryDto(
             Code: row.Code,
             Name: row.Name,
@@ -66,13 +67,15 @@ internal static class ModuleRegistryQueries
             IsEnableable: enableable,
             Id: row.Id,
             IsInstalled: installed,
-            IsLicensed: licensed);
+            IsLicensed: licensed || (premium && installed),
+            IsPremiumAddOn: premium);
     }
 
     public static ModuleRegistryDto FromSeed(ModuleRegistrySeed.Entry e, bool installed = false, bool licensed = false)
     {
         var enableable = ModuleRegistrySeed.IsEnableable(e.Code)
             && string.Equals(e.Status, "Active", StringComparison.OrdinalIgnoreCase);
+        var premium = SubscriptionAddOnCatalog.IsPremiumAddOn(e.Code);
         return new ModuleRegistryDto(
             Code: e.Code,
             Name: e.Name,
@@ -94,7 +97,8 @@ internal static class ModuleRegistryQueries
             IsEnableable: enableable,
             Id: null,
             IsInstalled: installed,
-            IsLicensed: licensed);
+            IsLicensed: licensed || (premium && installed),
+            IsPremiumAddOn: premium);
     }
 
     public static TenantModuleDefinitionDto ToDefinitionDto(ModuleRegistryDto m)
@@ -120,7 +124,9 @@ internal static class ModuleRegistryQueries
             m.Id);
 
     public static ModuleStatusDto ToStatusDto(ModuleRegistryDto m, bool enabled, bool licensed)
-        => new(
+    {
+        var premium = m.IsPremiumAddOn || SubscriptionAddOnCatalog.IsPremiumAddOn(m.Code);
+        return new(
             m.Code,
             m.Name,
             enabled,
@@ -139,7 +145,9 @@ internal static class ModuleRegistryQueries
             m.Status,
             m.DocumentationUrl,
             IsInstalled: enabled,
-            IsLicensed: licensed,
-            CanToggle: m.IsEnableable);
+            IsLicensed: licensed || (premium && enabled),
+            CanToggle: m.IsEnableable,
+            IsPremiumAddOn: premium);
+    }
 
 }

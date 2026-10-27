@@ -15,15 +15,24 @@ public interface IAiAssistantGateway
     IReadOnlyList<string> ListAllowlistedTools();
 }
 
-public record AiAssistantQueryRequest(string Question, bool IsPlatformSuperAdmin = false);
+public record AiAssistantQueryRequest(
+    string Question,
+    bool IsPlatformSuperAdmin = false,
+    int? VehicleId = null,
+    /// <summary>Phase 7 — optional SQL-backed conversation session (tenant+user scoped).</summary>
+    Guid? SessionId = null);
 
 public record AiAssistantPeriodDto(DateTime Start, DateTime End);
 
 public record AiAssistantQueryResponse(
     string Answer,
-    AiAssistantPeriodDto Period,
+    AiAssistantPeriodDto? Period,
     string? ToolUsed,
     object? Data,
     IReadOnlyList<string> Warnings,
     bool UsedLlm,
-    string Mode);
+    string Mode,
+    /// <summary>Phase 7 — conversation session for follow-ups (null when persistence skipped).</summary>
+    Guid? SessionId = null,
+    /// <summary>Phase 8 — turn correlation id for support / log linkage.</summary>
+    string? CorrelationId = null);

@@ -88,11 +88,27 @@ public sealed class GetFuelCostSummaryTool(IDbConnectionFactory dbFactory) : IAi
         var (from, to, _) = AssistantPeriodHelper.Resolve(null, args);
         using var connection = dbFactory.CreateConnection();
 
+        // Fleet-wide totals via SQL — never sum truncated TOP N rows.
+        var totals = await connection.QuerySingleAsync<(decimal TotalCost, decimal TotalLiters, int EntryCount, int VehicleCount)>(
+            new CommandDefinition("""
+            SELECT
+                ISNULL(SUM(f.TotalCost), 0) AS TotalCost,
+                ISNULL(SUM(f.Liters), 0) AS TotalLiters,
+                COUNT(*) AS EntryCount,
+                COUNT(DISTINCT f.VehicleId) AS VehicleCount
+            FROM FuelLogs f
+            INNER JOIN Vehicles v ON v.Id = f.VehicleId AND v.TenantId = f.TenantId AND v.IsDeleted = 0
+            WHERE f.IsDeleted = 0
+              AND f.TenantId = @TenantId
+              AND f.FuelDate >= @From
+              AND f.FuelDate < @To
+            """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken));
+
         var rows = (await connection.QueryAsync<FuelCostRow>(new CommandDefinition("""
             SELECT TOP 25
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 COUNT(*) AS EntryCount,
                 ISNULL(SUM(f.Liters), 0) AS TotalLiters,
                 ISNULL(SUM(f.TotalCost), 0) AS TotalCost
@@ -102,29 +118,47 @@ public sealed class GetFuelCostSummaryTool(IDbConnectionFactory dbFactory) : IAi
               AND f.TenantId = @TenantId
               AND f.FuelDate >= @From
               AND f.FuelDate < @To
-            GROUP BY v.Id, v.PlateNumber, v.Name
+            GROUP BY v.Id, v.RegistrationNumber, v.Name
             ORDER BY TotalCost DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
 
-        var grandTotal = rows.Sum(r => r.TotalCost);
-        var totalLiters = rows.Sum(r => r.TotalLiters);
+        var grandTotal = totals.TotalCost;
+        var totalLiters = totals.TotalLiters;
 
-        if (rows.Count == 0)
+        if (totals.EntryCount == 0)
         {
             return new AiToolExecutionResult(
                 Name, true,
                 $"No fuel entries found for {from:yyyy-MM-dd} … {to:yyyy-MM-dd} (UTC).",
-                new { period = new { start = from, end = to }, vehicles = rows, grandTotal, totalLiters });
+                new
+                {
+                    period = new { start = from, end = to },
+                    vehicles = rows,
+                    grandTotal,
+                    totalLiters,
+                    entryCount = 0,
+                    vehicleCount = 0
+                });
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Fuel cost summary {from:yyyy-MM-dd} → {to:yyyy-MM-dd} (UTC): total {grandTotal:N2} across {rows.Count} vehicle(s), {totalLiters:N1} L.");
+        sb.AppendLine(
+            $"Fuel cost summary {from:yyyy-MM-dd} → {to:yyyy-MM-dd} (UTC): total {grandTotal:N2} across {totals.VehicleCount} vehicle(s), {totalLiters:N1} L " +
+            $"(showing top {rows.Count}; fleet totals from SQL SUM).");
         foreach (var r in rows.Take(10))
             sb.AppendLine($"• {r.VehicleName} ({r.PlateNumber}): {r.TotalCost:N2} ({r.TotalLiters:N1} L, {r.EntryCount} entries)");
 
         return new AiToolExecutionResult(
             Name, true, sb.ToString().Trim(),
-            new { period = new { start = from, end = to }, vehicles = rows, grandTotal, totalLiters });
+            new
+            {
+                period = new { start = from, end = to },
+                vehicles = rows,
+                grandTotal,
+                totalLiters,
+                entryCount = totals.EntryCount,
+                vehicleCount = totals.VehicleCount
+            });
     }
 
     private sealed record FuelCostRow(
@@ -140,12 +174,13 @@ public sealed class GetVehicleMaintenanceSummaryTool(IDbConnectionFactory dbFact
 {
     public string Name => "GetVehicleMaintenanceSummary";
     public string Description =>
-        "Surfaces Smart Operations maintenance-due alerts (read-only) and vehicles with schedules due/overdue.";
+        "Surfaces Smart Operations maintenance-due alerts, schedule dues, and Maintenance work-order dues (read-only).";
     public string Kind => "read";
     public bool RequiresConfirmation => false;
     public IReadOnlyList<string> TriggerKeywords { get; } =
     [
         "maintenance due", "service due", "maintenance overdue", "which vehicles have maintenance",
+        "which vehicles need maintenance", "need maintenance", "vehicles need maintenance",
         "maintenance summary", "maintenance alert", "smart alert maintenance"
     ];
 
@@ -166,45 +201,92 @@ public sealed class GetVehicleMaintenanceSummaryTool(IDbConnectionFactory dbFact
                 CreatedAt DESC
             """, new { context.TenantId }, cancellationToken: cancellationToken))).ToList();
 
+        // Align with MaintenanceSql / schema: RegistrationNumber + NextDueMileage (alias NextServiceMileage).
         var rows = (await connection.QueryAsync<MaintRow>(new CommandDefinition("""
             SELECT TOP 25
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
-                ISNULL(st.Name, N'Service') AS ServiceName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
+                ISNULL(NULLIF(s.ServiceTypeName, N''), ISNULL(st.Name, N'Service')) AS ServiceName,
                 s.NextDueDate,
-                s.NextServiceMileage,
+                s.NextDueMileage AS NextServiceMileage,
                 CASE
                     WHEN s.NextDueDate IS NOT NULL AND s.NextDueDate < GETUTCDATE() THEN N'Overdue'
                     WHEN s.NextDueDate IS NOT NULL AND s.NextDueDate < DATEADD(DAY, 14, GETUTCDATE()) THEN N'DueSoon'
                     ELSE N'Scheduled'
-                END AS Status
+                END AS Status,
+                s.GeofenceId AS ZoneId,
+                COALESCE(s.ZoneName, g.Name) AS ZoneName,
+                COALESCE(s.ZoneCategory, g.Category) AS ZoneCategory,
+                COALESCE(s.ZoneAreaType, g.AreaType) AS ZoneAreaType
             FROM VehicleMaintenanceSchedules s
             INNER JOIN Vehicles v ON v.Id = s.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
             LEFT JOIN ServiceTypes st ON st.Id = s.ServiceTypeId
+            LEFT JOIN Geofences g ON g.Id = s.GeofenceId AND g.IsDeleted = 0
             WHERE s.IsDeleted = 0 AND s.IsActive = 1
               AND (s.TenantId = @TenantId OR s.TenantId IS NULL)
               AND (
                     s.NextDueDate IS NOT NULL AND s.NextDueDate < DATEADD(DAY, 30, GETUTCDATE())
-                 OR s.NextServiceMileage IS NOT NULL
+                 OR s.NextDueMileage IS NOT NULL
               )
             ORDER BY
                 CASE WHEN s.NextDueDate < GETUTCDATE() THEN 0 ELSE 1 END,
                 s.NextDueDate ASC
             """, new { context.TenantId }, cancellationToken: cancellationToken))).ToList();
 
-        if (smartAlerts.Count == 0 && rows.Count == 0)
+        // Same due logic as SheikhGo MCP get_maintenance_due (Maintenance work-order table).
+        var workOrders = (await connection.QueryAsync<WorkOrderDueRow>(new CommandDefinition("""
+            SELECT TOP 25
+                m.Id AS MaintenanceId,
+                v.Id AS VehicleId,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
+                m.Description AS ServiceName,
+                m.NextDueDate,
+                m.NextDueMileage AS NextServiceMileage,
+                CASE
+                    WHEN m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE() THEN N'Overdue'
+                    WHEN m.Status IN (1, 2) THEN N'Due'
+                    WHEN v.Status = 3 THEN N'VehicleInMaintenance'
+                    WHEN m.NextDueDate IS NOT NULL THEN N'Upcoming'
+                    ELSE N'Watch'
+                END AS Status,
+                m.GeofenceId AS ZoneId,
+                COALESCE(m.ZoneName, g.Name) AS ZoneName,
+                COALESCE(m.ZoneCategory, g.Category) AS ZoneCategory,
+                COALESCE(m.ZoneAreaType, g.AreaType) AS ZoneAreaType
+            FROM Maintenance m
+            INNER JOIN Vehicles v ON v.Id = m.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId
+            LEFT JOIN Geofences g ON g.Id = m.GeofenceId AND g.IsDeleted = 0
+            WHERE m.IsDeleted = 0
+              AND (m.TenantId = @TenantId OR m.TenantId IS NULL)
+              AND (
+                    m.Status IN (1, 2)
+                 OR (m.NextDueDate IS NOT NULL AND m.NextDueDate <= DATEADD(DAY, 30, GETUTCDATE()))
+                 OR v.Status = 3
+              )
+            ORDER BY
+                CASE
+                    WHEN m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE() THEN 0
+                    WHEN m.Status IN (1, 2) THEN 1
+                    ELSE 2
+                END,
+                m.NextDueDate ASC
+            """, new { context.TenantId }, cancellationToken: cancellationToken))).ToList();
+
+        if (smartAlerts.Count == 0 && rows.Count == 0 && workOrders.Count == 0)
         {
             return new AiToolExecutionResult(
                 Name, true,
-                "No active Smart Operations maintenance alerts and no schedules due within the next 30 days.",
-                new { smartAlerts, schedules = rows });
+                "No vehicles need maintenance right now — no Smart Ops alerts, schedules, or work orders due within 30 days.",
+                new { smartAlerts, schedules = rows, workOrders });
         }
 
-        var overdue = rows.Count(r => r.Status == "Overdue");
+        var overdue = rows.Count(r => r.Status == "Overdue") + workOrders.Count(r => r.Status == "Overdue");
         var sb = new StringBuilder();
         sb.AppendLine(
-            $"Maintenance due: {smartAlerts.Count} Smart Ops alert(s), {rows.Count} schedule(s) ({overdue} overdue).");
+            $"Vehicles needing maintenance: {smartAlerts.Count} Smart Ops alert(s), " +
+            $"{rows.Count} schedule(s), {workOrders.Count} work order(s) ({overdue} overdue).");
         if (smartAlerts.Count > 0)
         {
             sb.AppendLine("Smart alerts:");
@@ -216,12 +298,29 @@ public sealed class GetVehicleMaintenanceSummaryTool(IDbConnectionFactory dbFact
         {
             sb.AppendLine("Schedules:");
             foreach (var r in rows.Take(10))
-                sb.AppendLine($"• {r.VehicleName} ({r.PlateNumber}) — {r.ServiceName}: {r.Status}, due {(r.NextDueDate?.ToString("yyyy-MM-dd") ?? "n/a")}");
+            {
+                var zone = string.IsNullOrWhiteSpace(r.ZoneName) ? "" : $", zone {r.ZoneName}";
+                sb.AppendLine(
+                    $"• {r.VehicleName} ({r.PlateNumber}) — {r.ServiceName}: {r.Status}, " +
+                    $"due {(r.NextDueDate?.ToString("yyyy-MM-dd") ?? "n/a")}{zone}");
+            }
+        }
+
+        if (workOrders.Count > 0)
+        {
+            sb.AppendLine("Work orders / service records:");
+            foreach (var r in workOrders.Take(10))
+            {
+                var zone = string.IsNullOrWhiteSpace(r.ZoneName) ? "" : $", zone {r.ZoneName}";
+                sb.AppendLine(
+                    $"• {r.VehicleName} ({r.PlateNumber}) — {r.ServiceName}: {r.Status}, " +
+                    $"due {(r.NextDueDate?.ToString("yyyy-MM-dd") ?? "n/a")}{zone}");
+            }
         }
 
         return new AiToolExecutionResult(
             Name, true, sb.ToString().Trim(),
-            new { smartAlerts, schedules = rows });
+            new { smartAlerts, schedules = rows, workOrders });
     }
 
     private sealed record SmartMaintAlertRow(
@@ -239,7 +338,25 @@ public sealed class GetVehicleMaintenanceSummaryTool(IDbConnectionFactory dbFact
         string ServiceName,
         DateTime? NextDueDate,
         decimal? NextServiceMileage,
-        string Status);
+        string Status,
+        int? ZoneId,
+        string? ZoneName,
+        string? ZoneCategory,
+        string? ZoneAreaType);
+
+    private sealed record WorkOrderDueRow(
+        int MaintenanceId,
+        int VehicleId,
+        string PlateNumber,
+        string VehicleName,
+        string ServiceName,
+        DateTime? NextDueDate,
+        decimal? NextServiceMileage,
+        string Status,
+        int? ZoneId,
+        string? ZoneName,
+        string? ZoneCategory,
+        string? ZoneAreaType);
 }
 
 public sealed class GetOverdueInvoicesTool(IDbConnectionFactory dbFactory) : IAiTool
@@ -460,8 +577,8 @@ public sealed class GetVehicleUtilizationSummaryTool(IDbConnectionFactory dbFact
         var rows = (await connection.QueryAsync<UtilRow>(new CommandDefinition("""
             SELECT TOP 25
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 COUNT(*) AS TripCount,
                 ISNULL(SUM(t.DistanceKm), 0) AS TotalDistanceKm,
                 ISNULL(SUM(t.DurationMinutes), 0) AS TotalDurationMinutes
@@ -469,7 +586,7 @@ public sealed class GetVehicleUtilizationSummaryTool(IDbConnectionFactory dbFact
             INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId
             WHERE t.StartTime >= @From
               AND t.StartTime < @To
-            GROUP BY v.Id, v.PlateNumber, v.Name
+            GROUP BY v.Id, v.RegistrationNumber, v.Name
             ORDER BY TotalDistanceKm DESC, TotalDurationMinutes DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
 
@@ -638,8 +755,8 @@ public sealed class GetOverspeedGeofenceSummaryTool(IDbConnectionFactory dbFacto
         var topVehicles = (await connection.QueryAsync<TopVehicleRow>(new CommandDefinition("""
             SELECT TOP 10
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 SUM(CASE WHEN e.EventType IN (N'speed_exceeded', N'overspeed') THEN 1 ELSE 0 END) AS OverspeedCount,
                 SUM(CASE WHEN e.EventType IN (N'geofence_enter', N'geofence_exit') THEN 1 ELSE 0 END) AS GeofenceCount
             FROM GpsAlertEvents e
@@ -647,7 +764,7 @@ public sealed class GetOverspeedGeofenceSummaryTool(IDbConnectionFactory dbFacto
             WHERE e.IsDeleted = 0
               AND e.Timestamp >= @From AND e.Timestamp < @To
               AND e.EventType IN (N'speed_exceeded', N'overspeed', N'geofence_enter', N'geofence_exit')
-            GROUP BY v.Id, v.PlateNumber, v.Name
+            GROUP BY v.Id, v.RegistrationNumber, v.Name
             ORDER BY (SUM(CASE WHEN e.EventType IN (N'speed_exceeded', N'overspeed') THEN 1 ELSE 0 END)
                     + SUM(CASE WHEN e.EventType IN (N'geofence_enter', N'geofence_exit') THEN 1 ELSE 0 END)) DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
@@ -784,8 +901,8 @@ public sealed class GetFuelUsageTopVehicleTool(IDbConnectionFactory dbFactory) :
         var rows = (await connection.QueryAsync<FuelUsageRow>(new CommandDefinition("""
             SELECT TOP 15
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 COUNT(*) AS EntryCount,
                 ISNULL(SUM(f.Liters), 0) AS TotalLiters,
                 ISNULL(SUM(f.TotalCost), 0) AS TotalCost
@@ -795,7 +912,7 @@ public sealed class GetFuelUsageTopVehicleTool(IDbConnectionFactory dbFactory) :
               AND f.TenantId = @TenantId
               AND f.FuelDate >= @From
               AND f.FuelDate < @To
-            GROUP BY v.Id, v.PlateNumber, v.Name
+            GROUP BY v.Id, v.RegistrationNumber, v.Name
             ORDER BY TotalLiters DESC, TotalCost DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
 
@@ -942,15 +1059,15 @@ public sealed class GetIdleTimeReportTool(IDbConnectionFactory dbFactory) : IAiT
         var alerts = (await connection.QueryAsync<IdleAlertRow>(new CommandDefinition("""
             SELECT TOP 15
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 COUNT(*) AS AlertCount
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId
             WHERE e.IsDeleted = 0
               AND e.EventType = N'idle_vehicle'
               AND e.Timestamp >= @From AND e.Timestamp < @To
-            GROUP BY v.Id, v.PlateNumber, v.Name
+            GROUP BY v.Id, v.RegistrationNumber, v.Name
             ORDER BY AlertCount DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
 
@@ -1023,8 +1140,8 @@ public sealed class GetSosEventsSummaryTool(IDbConnectionFactory dbFactory) : IA
                 e.IsAcknowledged,
                 e.Status,
                 v.Id AS VehicleId,
-                v.PlateNumber,
-                ISNULL(v.Name, v.PlateNumber) AS VehicleName,
+                v.RegistrationNumber AS PlateNumber,
+                ISNULL(v.Name, v.RegistrationNumber) AS VehicleName,
                 e.DriverId
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId

@@ -18,13 +18,12 @@
     <button
       type="button"
       class="wa-tab"
-      *ngFor="let a of accounts"
+      *ngFor="let a of inboxAccounts"
       [class.active]="selectedAccountId === a.id"
       (click)="selectAccount(a.id)"
       [attr.title]="a.e164Phone + ' · ' + a.purpose">
       <strong>{{ a.code }}</strong>
       <span>{{ a.displayName }}</span>
-      <small *ngIf="!a.hasAccessToken" class="wa-warn">No token</small>
     </button>
   </div>
 

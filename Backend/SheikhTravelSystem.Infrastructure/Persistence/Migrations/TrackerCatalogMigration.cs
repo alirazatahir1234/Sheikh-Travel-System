@@ -116,13 +116,18 @@ public static class TrackerCatalogMigration
                 ("FM-Eco4", "ruptela_fm_eco4", "ruptela", "Ruptela", 5046, true, true),
             ]),
             ("Sinotrack", "sinotrack", [
-                ("ST-901", "sinotrack_st901", "gt06", "GT06", 5023, true, true),
+                // Official Traccar mapping: H02 / 5013 (not GT06 / 5023). Buffer upload needs H02.
+                ("ST-901", "sinotrack_st901", "h02", "H02", 5013, true, true),
             ]),
             ("Coban", "coban", [
                 ("TK103", "coban_tk103", "gt06", "GT06", 5023, true, true),
             ]),
             ("Eelink", "eelink", [
                 ("GPT06", "eelink_gpt06", "gt06", "GT06", 5023, true, true),
+            ]),
+            // White-label / local brand used by Ali's fleet — protocol default GT06; retarget if needed.
+            ("Gmeet", "gmeet", [
+                ("Gmeet Generic", "gmeet_generic", "gt06", "GT06", 5023, true, true),
             ]),
         };
 

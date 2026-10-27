@@ -11,17 +11,18 @@ using VehicleFuelSummaryDto = SheikhTravelSystem.Application.Features.Vehicles.D
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
-public record GetVehicleMaintenanceQuery(int VehicleId, int Page = 1, int PageSize = 20)
+public record GetVehicleMaintenanceQuery(int VehicleId, int Page = 1, int PageSize = 20, int? TenantId = null)
     : IRequest<ApiResponse<PagedResult<VehicleMaintenanceDto>>>;
 
-public class GetVehicleMaintenanceQueryHandler(IVehicleRepository vehicleRepository, ITenantContext tenantContext)
+public class GetVehicleMaintenanceQueryHandler(IVehicleRepository vehicleRepository, IPlatformScope platformScope)
     : IRequestHandler<GetVehicleMaintenanceQuery, ApiResponse<PagedResult<VehicleMaintenanceDto>>>
 {
     public async Task<ApiResponse<PagedResult<VehicleMaintenanceDto>>> Handle(
         GetVehicleMaintenanceQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var (items, totalCount) = await vehicleRepository.GetMaintenancePagedAsync(
-            request.VehicleId, tenantContext.GetRequiredTenantId(),
+            request.VehicleId, tenantId,
             request.Page, request.PageSize, cancellationToken);
 
         return ApiResponse<PagedResult<VehicleMaintenanceDto>>.SuccessResponse(new PagedResult<VehicleMaintenanceDto>
@@ -34,27 +35,28 @@ public class GetVehicleMaintenanceQueryHandler(IVehicleRepository vehicleReposit
     }
 }
 
-public record GetVehicleFuelQuery(int VehicleId, int Page = 1, int PageSize = 20)
+public record GetVehicleFuelQuery(int VehicleId, int Page = 1, int PageSize = 20, int? TenantId = null)
     : IRequest<ApiResponse<VehicleFuelSummaryDto>>;
 
-public class GetVehicleFuelQueryHandler(IVehicleRepository vehicleRepository, ITenantContext tenantContext)
+public class GetVehicleFuelQueryHandler(IVehicleRepository vehicleRepository, IPlatformScope platformScope)
     : IRequestHandler<GetVehicleFuelQuery, ApiResponse<VehicleFuelSummaryDto>>
 {
     public async Task<ApiResponse<VehicleFuelSummaryDto>> Handle(
         GetVehicleFuelQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var result = await vehicleRepository.GetFuelSummaryAsync(
-            request.VehicleId, tenantContext.GetRequiredTenantId(),
+            request.VehicleId, tenantId,
             request.Page, request.PageSize, cancellationToken);
         return ApiResponse<VehicleFuelSummaryDto>.SuccessResponse(result);
     }
 }
 
-public record GetVehicleGpsQuery(int VehicleId) : IRequest<ApiResponse<VehicleGpsDto>>;
+public record GetVehicleGpsQuery(int VehicleId, int? TenantId = null) : IRequest<ApiResponse<VehicleGpsDto>>;
 
 public class GetVehicleGpsQueryHandler(
     IVehicleRepository vehicleRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<GetVehicleGpsQuery, ApiResponse<VehicleGpsDto>>
@@ -62,8 +64,9 @@ public class GetVehicleGpsQueryHandler(
     public async Task<ApiResponse<VehicleGpsDto>> Handle(
         GetVehicleGpsQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var row = await vehicleRepository.GetGpsSnapshotAsync(
-            request.VehicleId, tenantContext.GetRequiredTenantId(), cancellationToken);
+            request.VehicleId, tenantId, cancellationToken);
 
         if (row is null)
             throw new NotFoundException("Vehicle", request.VehicleId);

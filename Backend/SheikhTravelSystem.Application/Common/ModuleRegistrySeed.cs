@@ -34,6 +34,15 @@ public static class ModuleRegistrySeed
             ["DASHBOARD"], true, true, false, true, "Active", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
         E("GPS", "Fleet Tracking", "GPS", "Live tracking and GPS telemetry", "Fleet", "my_location", "/gps-tracking", 30,
             ["FLEET"], true, true, false, true, "Active", ["gps-tracking"]),
+        // Major Alerts module (parent) + per-type children — Category "Alerts"
+        E(AlertModuleCatalog.AlertsModuleCode, "Fleet Alerts", "Fleet Alerts",
+            "Fleet alert types — enable the parent and toggle individual alert capabilities per company",
+            AlertModuleCatalog.AlertsCategory, "notifications_active", "/gps-tracking/alerts", 200,
+            ["GPS"], true, true, false, true, "Active", ["alerts"]),
+        ..AlertModuleCatalog.Types.Select(t => E(
+            t.ModuleCode, t.Name, t.DisplayName, t.Description,
+            AlertModuleCatalog.AlertsCategory, t.Icon, "/gps-tracking/alerts", t.SortOrder,
+            [AlertModuleCatalog.AlertsModuleCode], true, true, false, true, "Active", [t.LegacyKey])),
         E("TRAVEL", "Routes", "Routes", "Roads and route catalog (independent of bookings/trips)", "Travel", "alt_route", "/routes", 50,
             ["DASHBOARD"], true, true, false, false, "Active", ["routes"]),
         // Opt-in: bookings + trips (not in DefaultModuleCodes — avoid over-provisioning)
@@ -70,13 +79,11 @@ public static class ModuleRegistrySeed
         E("NOTIFICATIONS", "Notifications", "Notifications", "Notification center and push", "Platform", "notifications", "/notifications", 110,
             [], true, true, true, false, "Beta", []),
 
-        // Premium enableable (TenantModuleCatalog) — default off for new/existing tenants
+        // Premium subscription add-ons — default off; not in plan defaults.
+        // Alert premium children (ROAD_SPEED_ALERTS, ALERT_OVERSPEED, ALERT_GPS_LOST, ALERT_LOW_FUEL)
+        // come from AlertModuleCatalog.Types (IsPremium / DefaultEnabled).
         E("AI", "SheikhGo AI Assistant", "SheikhGo AI Assistant", "Premium SheikhGo AI Assistant for operations chat and tools", "Platform", "smart_toy", "/ai", 120,
             ["DASHBOARD"], true, true, true, false, "Active", ["ai"]),
-        E("ROAD_SPEED_ALERTS", "Road Speed Alerts", "Road Speed Alerts",
-            "Alert when vehicle speed exceeds the posted road speed limit by a configurable margin (Google Roads Speed Limits)",
-            "Fleet", "speed", "/gps-tracking/alerts", 31,
-            ["GPS"], true, true, false, true, "Active", ["road-speed-alerts"]),
 
         // Coming soon / roadmap catalog-only product modules
         E("RENTAL", "Vehicle Rental", "Rental", "Vehicle hire and rental workflows", "Fleet", "car_rental", null, 40,

@@ -42,7 +42,7 @@ public static class SubscriptionPlanCatalog
             IsDefault: false,
             Visible: true,
             DocumentationUrl: null,
-            DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", "ACCESS"],
+            DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes, "ACCESS"],
             MaxUsers: 10,
             MaxVehicles: 50,
             MaxDrivers: 50,
@@ -62,7 +62,7 @@ public static class SubscriptionPlanCatalog
             IsDefault: false,
             Visible: true,
             DocumentationUrl: null,
-            DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", "RENTAL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"],
+            DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes, "RENTAL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"],
             MaxUsers: 50,
             MaxVehicles: 250,
             MaxDrivers: 250,
@@ -84,7 +84,8 @@ public static class SubscriptionPlanCatalog
             DocumentationUrl: null,
             DefaultModuleCodes:
             [
-                "DASHBOARD", "FLEET", "GPS", "RENTAL", "TRAVEL", "CRM", "FINANCE", "HR", "ANALYTICS", "ACCESS"
+                "DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes,
+                "RENTAL", "TRAVEL", "CRM", "FINANCE", "HR", "ANALYTICS", "ACCESS"
             ],
             MaxUsers: null,
             MaxVehicles: null,

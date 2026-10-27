@@ -124,9 +124,12 @@ public sealed class DeepInfraAiProvider(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("DeepInfra chat failed ({Status}): {Body}", response.StatusCode, Truncate(raw, 400));
+                var code = (int)response.StatusCode;
+                var error = code == 429
+                    ? "DeepInfra returned 429 rate limit. Retry shortly."
+                    : $"DeepInfra returned {code}. Check model id and API key.";
                 return new AiProviderChatResult(
-                    false, string.Empty, ProviderName, model,
-                    Error: $"DeepInfra returned {(int)response.StatusCode}. Check model id and API key.");
+                    false, string.Empty, ProviderName, model, Error: error);
             }
 
             using var doc = JsonDocument.Parse(raw);

@@ -40,6 +40,40 @@ const BGM_SOURCE = {
 
 const VIEWPORT = { width: 1920, height: 1080 };
 
+const COOKIE_CONSENT = JSON.stringify({
+  necessary: true,
+  analytics: true,
+  functional: true,
+  marketing: true,
+  decidedAt: new Date().toISOString(),
+});
+
+async function prepareBrowserContext(context) {
+  await context.addInitScript(consentJson => {
+    localStorage.setItem('sg_cookie_consent_v1', consentJson);
+    localStorage.setItem('stb_sidebar_pinned', 'true');
+  }, COOKIE_CONSENT);
+}
+
+/** Remove dev-server compile overlays so they never appear in demo footage. */
+async function dismissDevOverlays(page) {
+  await page.evaluate(() => {
+    for (const sel of [
+      'vite-error-overlay',
+      '#webpack-dev-server-client-overlay',
+      '.webpack-dev-server-client-overlay',
+    ]) {
+      document.querySelector(sel)?.remove();
+    }
+  });
+}
+
+async function waitForErpShell(page) {
+  await page.waitForSelector('.stb-rail-nav', { timeout: 45000 }).catch(() => undefined);
+  await dismissDevOverlays(page);
+  await page.waitForTimeout(400);
+}
+
 /** ~10–15 s per module; priority modules at upper range (see docs/demo/SheikhGo-Nexus-ERP-Walkthrough-Script.md). */
 const SHOT_DEFAULT = 12_000;
 const SHOT_PRIORITY = 14_000;
@@ -76,6 +110,7 @@ async function recordSegment(slug, run) {
     ignoreHTTPSErrors: true,
     recordVideo: { dir: SEG_DIR, size: VIEWPORT },
   });
+  await prepareBrowserContext(context);
   const page = await context.newPage();
   page.setDefaultTimeout(60000);
 
@@ -95,10 +130,12 @@ async function recordSegment(slug, run) {
 
 async function login(page) {
   await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle' });
+  await dismissDevOverlays(page);
   await page.fill('#login-email', EMAIL);
   await page.fill('#login-password', PASSWORD);
   await page.click('button[type="submit"]');
   await page.waitForURL(url => !url.pathname.startsWith('/auth'), { timeout: 45000 });
+  await waitForErpShell(page);
 }
 
 async function expandSidebar(page) {
@@ -135,7 +172,10 @@ async function showModuleCaption(page, label) {
 
 async function visitModule(page, mod) {
   const dwell = mod.shotMs ?? SHOT_DEFAULT;
-  await page.goto(`${BASE}${mod.path}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}${mod.path}`, { waitUntil: 'networkidle' });
+  await waitForErpShell(page);
+  await page.waitForSelector('.ui-toast, .toast-error', { state: 'hidden', timeout: 8000 }).catch(() => undefined);
+  await dismissDevOverlays(page);
   await showModuleCaption(page, mod.label);
   await page.waitForTimeout(dwell);
   if (mod.path.includes('live')) {
@@ -444,6 +484,12 @@ async function main() {
     segments.push(
       await recordSegment('05-book-demo', async page => {
         await page.goto(`${BASE}/request-demo`, { waitUntil: 'networkidle' });
+        const acceptCookies = page.getByRole('button', { name: 'Accept All' });
+        if (await acceptCookies.isVisible().catch(() => false)) {
+          await acceptCookies.click();
+          await page.waitForTimeout(400);
+        }
+        await dismissDevOverlays(page);
         await showModuleCaption(page, 'Book a demo');
         await page.waitForTimeout(5000);
       }),

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Providers;
 
@@ -11,6 +12,8 @@ namespace SheikhTravelSystem.Infrastructure.Services.Ai;
 /// <summary>
 /// Phase 1–3 AI Gateway: chat memory + Ollama/DeepInfra + tool engine + confirm-write execution.
 /// Optional MCP bridge (Ai:McpBridge) adds allowlisted SheikhGo MCP tool-calling for Qwen/DeepInfra.
+/// When keyword IAiTools are empty/insufficient, <see cref="IMcpDatabaseRecordRouter"/> prefetches
+/// Database/Fleet MCP records for “show me …” questions (CRUD ERP remains on repositories).
 /// </summary>
 public sealed class AiChatGateway(
     IDbConnectionFactory dbFactory,
@@ -21,6 +24,11 @@ public sealed class AiChatGateway(
     IAiManagementService aiManagement,
     ICurrentUserService currentUser,
     ISheikhGoMcpBridge mcpBridge,
+    IMcpDatabaseRecordRouter mcpRecordRouter,
+    IAiMcpToolCallingLoop mcpToolLoop,
+    IAiConversationMemoryService conversationMemory,
+    IAiConversationContextBuilder contextBuilder,
+    IMcpExecutionAmbient executionAmbient,
     ILogger<AiChatGateway> logger) : IAiChatGateway
 {
     private static readonly TimeSpan PendingTtl = TimeSpan.FromMinutes(15);
@@ -51,17 +59,32 @@ public sealed class AiChatGateway(
         if (isConfirm && (request.SessionId is null || request.SessionId == Guid.Empty))
             throw new ArgumentException("SessionId is required to confirm a pending action.");
 
-        var sessionId = isConfirm
-            ? request.SessionId!.Value
-            : await EnsureSessionAsync(tenantId, userId, request.SessionId, request.Title, message, cancellationToken);
+        var correlationId = executionAmbient.EnsureCorrelationId();
+        logger.LogInformation(
+            "AI chat turn start correlationId={CorrelationId} tenant={TenantId} user={UserId} confirm={Confirm}",
+            correlationId, tenantId, userId, isConfirm);
+
+        string? tenantChangeNotice = null;
+        Guid sessionId;
+        if (isConfirm)
+        {
+            sessionId = request.SessionId!.Value;
+        }
+        else
+        {
+            var ensured = await conversationMemory.EnsureSessionAsync(
+                tenantId, userId, request.SessionId, request.Title, message, cancellationToken);
+            sessionId = ensured.SessionId;
+            tenantChangeNotice = ensured.Notice;
+        }
 
         if (!isConfirm)
         {
-            await AppendMessageAsync(sessionId, "user", message, cancellationToken);
+            await conversationMemory.AppendMessageAsync(sessionId, "user", message, cancellationToken);
         }
         else if (!string.IsNullOrWhiteSpace(message))
         {
-            await AppendMessageAsync(sessionId, "user", message, cancellationToken);
+            await conversationMemory.AppendMessageAsync(sessionId, "user", message, cancellationToken);
         }
 
         logger.LogInformation(
@@ -86,9 +109,16 @@ public sealed class AiChatGateway(
         }
         else
         {
-            var history = await LoadHistoryAsync(sessionId, cancellationToken);
+            var memory = await conversationMemory.LoadAuthorizedAsync(
+                tenantId, userId, sessionId, cancellationToken);
+
             var toolCtx = new AiToolExecutionContext(
-                tenantId, userId, AllowWriteTools: true, ConfirmWrite: false, CanExecuteWrite: CanExecuteWrite);
+                tenantId,
+                userId,
+                AllowWriteTools: true,
+                ConfirmWrite: false,
+                CanExecuteWrite: CanExecuteWrite,
+                IsPlatformSuperAdmin: currentUser.IsPlatformSuperAdmin);
             var toolResults = await toolEngine.SelectAndExecuteAsync(toolCtx, message, cancellationToken);
             foreach (var tr in toolResults.Where(tr => tr.Success && !tr.PendingConfirmation))
                 tools.Add(tr.ToolName);
@@ -98,6 +128,52 @@ public sealed class AiChatGateway(
                 sessionId,
                 string.Join(",", toolResults.Select(t => t.ToolName)));
 
+            // When keyword IAiTools miss or the user asks for raw records, prefetch via Database MCP.
+            // Skip when subscription entitlements already answered (richer than raw TenantModules SELECT).
+            McpRecordFetchResult? mcpPrefetch = null;
+            var keywordHit = toolResults.Any(t => t.Success && !t.PendingConfirmation);
+            var subscriptionHandled = toolResults.Any(t =>
+                t.Success && t.ToolName.Equals("GetTenantSubscriptionModules", StringComparison.OrdinalIgnoreCase));
+            if (mcpBridge.IsEnabled &&
+                !subscriptionHandled &&
+                (!keywordHit || mcpRecordRouter.LooksLikeRecordQuery(message)))
+            {
+                try
+                {
+                    mcpPrefetch = await mcpRecordRouter.TryFetchAsync(tenantId, message, cancellationToken);
+                    if (mcpPrefetch is { Success: true })
+                    {
+                        foreach (var t in mcpPrefetch.ToolsUsed)
+                            tools.Add(t);
+                        tools.Add("mcp_database_prefetch");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "MCP database prefetch failed");
+                }
+            }
+
+            var assembled = await contextBuilder.BuildAsync(
+                new AiConversationContextRequest(
+                    tenantId,
+                    userId,
+                    message,
+                    memory,
+                    toolResults,
+                    mcpPrefetch is { Success: true } ? mcpPrefetch.Summary : null,
+                    VehicleId: null,
+                    IsPlatformSuperAdmin: currentUser.IsPlatformSuperAdmin),
+                cancellationToken);
+
+            if (assembled.NeedsClarification && !string.IsNullOrWhiteSpace(assembled.ClarificationPrompt))
+            {
+                answer = assembled.ClarificationPrompt!;
+                mode = "clarify";
+                tools.Add("conversation_clarify");
+            }
+            else
+            {
             var pendingPreviews = toolResults.Where(t => t.PendingConfirmation).ToList();
             if (pendingPreviews.Count > 0)
             {
@@ -113,28 +189,31 @@ public sealed class AiChatGateway(
 
             if (provider is not null && pendingPreviews.Count == 0)
             {
-                var system = await BuildSystemPromptAsync(tenantId, toolResults, cancellationToken);
+                var system = await BuildSystemPromptAsync(
+                    tenantId, toolResults, mcpPrefetch, assembled, cancellationToken);
                 var llmMessages = new List<AiChatMessageDto> { new("system", system) };
-                llmMessages.AddRange(history.TakeLast(20));
+                llmMessages.AddRange(assembled.BoundedHistoryMessages);
+                llmMessages.Add(new AiChatMessageDto("user", message));
 
                 var modelName = ResolveModelName(config.Provider, config.ModelName);
                 var baseUrl = ResolveProviderBase(config.Provider, config.ApiEndpoint);
 
-                // Prefer MCP tool-calling loop when bridge is enabled (DeepInfra/Qwen).
-                if (mcpBridge.IsEnabled &&
+                // Prefer shared MCP tool-calling loop when bridge is enabled (DeepInfra/Qwen).
+                if (mcpToolLoop.IsAvailable &&
                     string.Equals(provider.ProviderName, "DeepInfra", StringComparison.OrdinalIgnoreCase))
                 {
-                    var mcpTurn = await RunMcpToolCallingLoopAsync(
-                        provider, tenantId, modelName, baseUrl, llmMessages, tools, cancellationToken);
+                    var mcpTurn = await mcpToolLoop.RunAsync(
+                        provider, tenantId, modelName, baseUrl, llmMessages, tools, cancellationToken,
+                        chatSessionId: sessionId);
                     if (mcpTurn is not null)
                     {
-                        answer = mcpTurn.Value.Answer;
-                        mode = mcpTurn.Value.Mode;
+                        answer = mcpTurn.Answer;
+                        mode = mcpTurn.Mode;
                         usedLlm = true;
-                        model = mcpTurn.Value.Model;
+                        model = mcpTurn.Model;
                         await aiManagement.RecordUsageAsync(
                             tenantId, "chat", provider.ProviderName,
-                            mcpTurn.Value.Tokens, costUsd: 0, cancellationToken);
+                            mcpTurn.Tokens, costUsd: 0, cancellationToken);
                     }
                     else
                     {
@@ -176,6 +255,11 @@ public sealed class AiChatGateway(
                 answer = string.Join("\n\n", toolResults.Where(t => t.Success).Select(t => t.Summary));
                 mode = "tools_only";
             }
+            else if (mcpPrefetch is { Success: true } && !string.IsNullOrWhiteSpace(mcpPrefetch.Summary))
+            {
+                answer = mcpPrefetch.Summary;
+                mode = "mcp_database";
+            }
             else
             {
                 var fallback = await ruleCopilot.AskAsync(tenantId, userId, message, cancellationToken);
@@ -188,13 +272,29 @@ public sealed class AiChatGateway(
                     answer += "\n\n_(OpenAI/Azure adapters are not used. Configure Provider = DeepInfra with model `Qwen/Qwen3-32B`, or Ollama with `qwen3:8b`.)_";
                 }
             }
+            } // end !NeedsClarification
         }
 
-        await AppendMessageAsync(sessionId, "assistant", answer, cancellationToken);
-        await TouchSessionAsync(sessionId, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(tenantChangeNotice))
+            answer = tenantChangeNotice + "\n\n" + answer;
+
+        await conversationMemory.AppendMessageAsync(sessionId, "assistant", answer, cancellationToken);
+        await conversationMemory.TouchSessionAsync(sessionId, cancellationToken);
+        try
+        {
+            await conversationMemory.MaybeSummarizeAsync(tenantId, userId, sessionId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Conversation summarize skipped");
+        }
 
         if (pendingAction is null && !isConfirm)
             pendingAction = await GetPendingActionAsync(tenantId, userId, sessionId, cancellationToken);
+
+        logger.LogInformation(
+            "AI chat turn end correlationId={CorrelationId} tenant={TenantId} mode={Mode} modelMs={ModelMs} mcpMs={McpMs}",
+            executionAmbient.CorrelationId, tenantId, mode, executionAmbient.ModelLatencyMs, executionAmbient.McpLatencyMs);
 
         return new AiChatTurnResponse(
             sessionId,
@@ -205,7 +305,8 @@ public sealed class AiChatGateway(
             model,
             DefaultSuggestions,
             tools,
-            pendingAction);
+            pendingAction,
+            CorrelationId: executionAmbient.CorrelationId);
     }
 
     public async Task<AiPendingActionDto?> GetPendingActionAsync(
@@ -394,34 +495,37 @@ public sealed class AiChatGateway(
     private async Task<string> BuildSystemPromptAsync(
         int tenantId,
         IReadOnlyList<AiToolExecutionResult> toolResults,
+        McpRecordFetchResult? mcpPrefetch,
+        AiAssembledContext assembled,
         CancellationToken ct)
     {
         var sb = new StringBuilder();
         sb.AppendLine("You are SheikhGo AI Assistant for company owners and fleet managers.");
         sb.AppendLine("Answer the user's question directly in plain language. Lead with the answer (counts, names, company).");
-        sb.AppendLine("Base answers strictly on the tool data provided below. Do not invent vehicle IDs, driver names, plate numbers, or GPS coordinates.");
+        sb.AppendLine("Base live numbers strictly on the Live retrieved data section and tool calls. Do not invent vehicle IDs, driver names, plate numbers, or GPS coordinates.");
+        sb.AppendLine("Conversation context is for follow-ups only — never treat prior chat answers as current fleet metrics.");
         sb.AppendLine("Do not dump menus of reports or tool names. Do not mention providers, models, or LLM.");
         sb.AppendLine("If data is missing, say so briefly. Stay on topic: fleet, GPS, bookings, maintenance, drivers, and compliance.");
-
-        var succeeded = toolResults.Where(t => t.Success && !t.PendingConfirmation).ToList();
-        if (succeeded.Count > 0)
+        if (mcpBridge.IsEnabled)
         {
-            sb.AppendLine();
-            sb.AppendLine("=== Live fleet data (from tools — treat as ground truth) ===");
-            foreach (var tr in succeeded)
-            {
-                sb.AppendLine($"[{tr.ToolName}]");
-                sb.AppendLine(tr.Summary);
-            }
-            sb.AppendLine("=== End of live data ===");
+            sb.AppendLine(
+                "For live record lists (vehicles, drivers, bookings, trips, fuel, subscription modules, table schema), " +
+                "prefer Database MCP tool results already below or call allowlisted MCP tools — do not invent SQL.");
         }
-        else
+
+        sb.AppendLine();
+        sb.AppendLine(assembled.ToSystemPromptAppendix());
+
+        // Optional fleet snapshot only when no live tool/MCP data was attached this turn.
+        var succeeded = toolResults.Where(t => t.Success && !t.PendingConfirmation).ToList();
+        if (succeeded.Count == 0 &&
+            (mcpPrefetch is null || !mcpPrefetch.Success || string.IsNullOrWhiteSpace(mcpPrefetch.Summary)))
         {
             try
             {
                 var health = await fleetHealth.ComputeAsync(tenantId, ct);
                 sb.AppendLine();
-                sb.AppendLine("Fleet snapshot:");
+                sb.AppendLine("Fleet snapshot (supplemental — prefer tools when available):");
                 sb.AppendLine($"- Health: {health.HealthPercent:0.#}%, GPS online: {health.GpsOnlineRate:0.#}%");
                 sb.AppendLine($"- Maintenance: {health.MaintenanceScore:0.#}%, compliance: {health.ComplianceScore:0.#}%");
                 sb.AppendLine($"- Driver score: {health.DriverScore:0.#}, critical alerts: {health.CriticalAlerts}");
@@ -433,61 +537,6 @@ public sealed class AiChatGateway(
         }
 
         return sb.ToString();
-    }
-
-    private async Task<Guid> EnsureSessionAsync(
-        int tenantId, int userId, Guid? sessionId, string? title, string firstMessage, CancellationToken ct)
-    {
-        using var connection = dbFactory.CreateConnection();
-        if (sessionId is Guid id && id != Guid.Empty)
-        {
-            var ok = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-                SELECT COUNT(*) FROM AiChatSessions
-                WHERE Id = @Id AND TenantId = @TenantId AND UserId = @UserId AND IsDeleted = 0
-                """, new { Id = id, TenantId = tenantId, UserId = userId }, cancellationToken: ct));
-            if (ok > 0) return id;
-        }
-
-        var newId = Guid.NewGuid();
-        var sessionTitle = string.IsNullOrWhiteSpace(title)
-            ? (firstMessage.Length > 60 ? firstMessage[..60] + "…" : firstMessage)
-            : title!.Trim();
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO AiChatSessions (Id, TenantId, UserId, Title, CreatedAt, UpdatedAt, IsDeleted)
-            VALUES (@Id, @TenantId, @UserId, @Title, GETUTCDATE(), GETUTCDATE(), 0)
-            """,
-            new { Id = newId, TenantId = tenantId, UserId = userId, Title = sessionTitle },
-            cancellationToken: ct));
-        return newId;
-    }
-
-    private async Task AppendMessageAsync(Guid sessionId, string role, string content, CancellationToken ct)
-    {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO AiChatMessages (SessionId, Role, Content, CreatedAt)
-            VALUES (@SessionId, @Role, @Content, GETUTCDATE())
-            """, new { SessionId = sessionId, Role = role, Content = content }, cancellationToken: ct));
-    }
-
-    private async Task TouchSessionAsync(Guid sessionId, CancellationToken ct)
-    {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE AiChatSessions SET UpdatedAt = GETUTCDATE() WHERE Id = @Id
-            """, new { Id = sessionId }, cancellationToken: ct));
-    }
-
-    private async Task<List<AiChatMessageDto>> LoadHistoryAsync(Guid sessionId, CancellationToken ct)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<(string Role, string Content)>(new CommandDefinition("""
-            SELECT Role, Content FROM AiChatMessages
-            WHERE SessionId = @SessionId
-            ORDER BY Id ASC
-            """, new { SessionId = sessionId }, cancellationToken: ct));
-        return rows.Select(r => new AiChatMessageDto(r.Role, r.Content)).ToList();
     }
 
     private async Task<(string Answer, string Mode, bool UsedLlm, string? Model)> CallPlainLlmAsync(
@@ -534,171 +583,6 @@ public sealed class AiChatGateway(
         tools.Add("llm_fallback");
         return ($"{fallback.Answer}\n\n_(LLM note: {result.Error})_", "rules_fallback", false, null);
     }
-
-    /// <summary>
-    /// DeepInfra/Qwen tool-calling loop against allowlisted MCP tools. Returns null to fall back.
-    /// </summary>
-    private async Task<(string Answer, string Mode, string? Model, int Tokens)?> RunMcpToolCallingLoopAsync(
-        IAiProvider provider,
-        int tenantId,
-        string modelName,
-        string baseUrl,
-        List<AiChatMessageDto> seedMessages,
-        List<string> toolsUsed,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<AiLlmToolDefinition> mcpTools;
-        try
-        {
-            mcpTools = await mcpBridge.GetAllowlistedLlmToolsAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "MCP schemas unavailable; skipping tool-calling loop");
-            return null;
-        }
-
-        if (mcpTools.Count == 0)
-        {
-            logger.LogInformation("MCP bridge enabled but no allowlisted schemas; skipping loop");
-            return null;
-        }
-
-        // Instruct model to use tools for live ops data; never invent tenant scope
-        var mcpSystem = new AiChatMessageDto(
-            "system",
-            "You are SheikhGo AI Assistant for fleet operators. " +
-            "Use the provided tools for live operational data (trips, fuel, GPS, alerts, bookings). " +
-            "Do not invent numbers. Tenant scope is applied by the server — never ask for or pass tenantId. " +
-            "Do not attempt Architecture, code, scaffold, or write tools. " +
-            "After tools return, answer concisely in the user's language.");
-
-        var messages = new List<AiChatMessageDto> { mcpSystem };
-        // Keep prior system (keyword tool data) as extra context, then history
-        messages.AddRange(seedMessages);
-
-        var totalTokens = 0;
-        string? lastModel = modelName;
-        const int maxRounds = 3;
-
-        for (var round = 0; round < maxRounds; round++)
-        {
-            logger.LogInformation(
-                "AI MCP tool-calling round={Round} provider={Provider} model={Model} tools={ToolCount}",
-                round + 1, provider.ProviderName, modelName, mcpTools.Count);
-
-            var result = await provider.ChatAsync(
-                new AiProviderChatRequest(
-                    modelName,
-                    messages,
-                    baseUrl,
-                    Temperature: 0.2,
-                    MaxTokens: 1024,
-                    Tools: mcpTools,
-                    ToolChoice: "auto"),
-                cancellationToken);
-
-            totalTokens += result.PromptTokens + result.CompletionTokens;
-            lastModel = result.Model;
-
-            if (!result.Success)
-            {
-                logger.LogInformation("MCP LLM round failed: {Error}", result.Error);
-                return null;
-            }
-
-            toolsUsed.Add("llm_chat");
-            toolsUsed.Add("mcp_bridge");
-
-            if (result.ToolCalls is not { Count: > 0 })
-            {
-                if (string.IsNullOrWhiteSpace(result.Content))
-                    return null;
-
-                toolsUsed.Add("mcp_tool_loop");
-                return (result.Content.Trim(), "mcp+llm", lastModel, totalTokens);
-            }
-
-            // Append assistant tool_calls message, then execute each allowlisted tool
-            messages.Add(new AiChatMessageDto(
-                "assistant",
-                result.Content ?? string.Empty,
-                ToolCalls: result.ToolCalls));
-
-            foreach (var call in result.ToolCalls)
-            {
-                toolsUsed.Add($"mcp:{call.Name}");
-                var args = ParseToolArguments(call.ArgumentsJson);
-                McpToolCallResult mcpResult;
-                try
-                {
-                    mcpResult = await mcpBridge.CallAsync(tenantId, call.Name, args, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "MCP execute failed for {Tool}", call.Name);
-                    mcpResult = new McpToolCallResult(false, call.Name, string.Empty, ex.Message);
-                }
-
-                var payload = mcpResult.Success
-                    ? mcpResult.Content
-                    : $"ERROR: {mcpResult.Error ?? "tool failed"}";
-
-                messages.Add(new AiChatMessageDto(
-                    "tool",
-                    TruncateForLlm(payload, 8000),
-                    ToolCallId: call.Id));
-            }
-        }
-
-        // Final wording pass without tools if we exhausted rounds with pending tool data
-        var final = await provider.ChatAsync(
-            new AiProviderChatRequest(modelName, messages, baseUrl, Temperature: 0.2, MaxTokens: 768),
-            cancellationToken);
-        totalTokens += final.PromptTokens + final.CompletionTokens;
-        if (!final.Success || string.IsNullOrWhiteSpace(final.Content))
-            return null;
-
-        toolsUsed.Add("mcp_tool_loop");
-        return (final.Content.Trim(), "mcp+llm", final.Model, totalTokens);
-    }
-
-    private static Dictionary<string, object?> ParseToolArguments(string? argumentsJson)
-    {
-        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(argumentsJson))
-            return dict;
-
-        try
-        {
-            using var doc = JsonDocument.Parse(argumentsJson);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                return dict;
-
-            foreach (var prop in doc.RootElement.EnumerateObject())
-            {
-                dict[prop.Name] = prop.Value.ValueKind switch
-                {
-                    JsonValueKind.String => prop.Value.GetString(),
-                    JsonValueKind.Number when prop.Value.TryGetInt64(out var l) => l,
-                    JsonValueKind.Number when prop.Value.TryGetDouble(out var d) => d,
-                    JsonValueKind.True => true,
-                    JsonValueKind.False => false,
-                    JsonValueKind.Null => null,
-                    _ => prop.Value.GetRawText()
-                };
-            }
-        }
-        catch (JsonException)
-        {
-            // leave empty — bridge still injects tenantId
-        }
-
-        return dict;
-    }
-
-    private static string TruncateForLlm(string value, int max)
-        => value.Length <= max ? value : value[..max] + "…";
 
     private static string ResolveProviderBase(string? provider, string? endpoint)
     {

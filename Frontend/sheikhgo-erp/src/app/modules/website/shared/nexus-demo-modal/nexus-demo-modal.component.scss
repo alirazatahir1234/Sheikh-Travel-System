@@ -83,6 +83,8 @@
   height: 100%;
   object-fit: contain;
   background: #000;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .demo-modal-foot {
@@ -100,6 +102,19 @@
   color: #99f6e4;
   font-size: 0.88rem;
   text-decoration: none;
+}
+
+.demo-modal-download--button {
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.demo-modal-download--button:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .demo-modal-download:hover {

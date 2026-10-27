@@ -79,7 +79,7 @@ public sealed class TrackerRegistrationService(
         {
             var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 @"INSERT INTO GpsDevices (
-                    TenantId, VehicleId, DriverId, UniqueId, Name, Category, Phone, Contact, Disabled,
+                    TenantId, VehicleId, DriverId, UniqueId, Name, Category, Phone, Contact, SosNumber, Disabled,
                     Protocol, Model, Vendor, TrackerModelKey, TrackerModelId, SupportsEngineCutoff, RelayOutput, RelayPurpose,
                     SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
                     CountryCode, SIMProvider, SIMPackage, MonthlySIMCost,
@@ -87,7 +87,7 @@ public sealed class TrackerRegistrationService(
                     TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
                   OUTPUT INSERTED.Id
                   VALUES (
-                    @TenantId, @VehicleId, @DriverId, @UniqueId, @Name, @Category, @Phone, @Contact, @Disabled,
+                    @TenantId, @VehicleId, @DriverId, @UniqueId, @Name, @Category, @Phone, @Contact, @SosNumber, @Disabled,
                     @Protocol, @Model, @Vendor, @TrackerModelKey, @TrackerModelId, @SupportsEngineCutoff, @RelayOutput, @RelayPurpose,
                     @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
                     @CountryCode, @SIMProvider, @SIMPackage, @MonthlySIMCost,
@@ -186,7 +186,7 @@ public sealed class TrackerRegistrationService(
                     TenantId = COALESCE(TenantId, @TenantId),
                     Name = @Name,
                     UniqueId = @UniqueId,
-                    Category = @Category, Phone = @Phone, Contact = @Contact, Disabled = @Disabled,
+                    Category = @Category, Phone = @Phone, Contact = @Contact, SosNumber = @SosNumber, Disabled = @Disabled,
                     Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
                     TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
                     SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput, RelayPurpose = @RelayPurpose,
@@ -205,6 +205,7 @@ public sealed class TrackerRegistrationService(
                     Category = dto.Category.ToLowerInvariant(),
                     dto.Phone,
                     dto.Contact,
+                    SosNumber = string.IsNullOrWhiteSpace(dto.SosNumber) ? null : dto.SosNumber.Trim(),
                     dto.Disabled,
                     Protocol = model.Protocol,
                     Model = FormatModelLabel(model),
@@ -556,6 +557,7 @@ public sealed class TrackerRegistrationService(
         Category = dto.Category.ToLowerInvariant(),
         dto.Phone,
         dto.Contact,
+        SosNumber = string.IsNullOrWhiteSpace(dto.SosNumber) ? null : dto.SosNumber.Trim(),
         dto.Disabled,
         Protocol = model.Protocol,
         Model = FormatModelLabel(model),

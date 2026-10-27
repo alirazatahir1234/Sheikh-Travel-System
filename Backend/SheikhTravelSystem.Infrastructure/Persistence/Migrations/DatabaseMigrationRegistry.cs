@@ -153,6 +153,17 @@ public static class DatabaseMigrationRegistry
             M("TrackerAnnualSubscriptionMigration", TrackerAnnualSubscriptionMigration.ApplyAsync),
             M("SubscriptionBillingLifecycleMigration", SubscriptionBillingLifecycleMigration.ApplyAsync),
             M("FatigueDetectionMigration", FatigueDetectionMigration.ApplyAsync),
+            M("MaintenanceZoneLinkMigration", MaintenanceZoneLinkMigration.ApplyAsync),
+            M("ModuleRoadSpeedAlertsPremiumAddOnMigration", ModuleRoadSpeedAlertsPremiumAddOnMigration.ApplyAsync),
+            M("ModuleAlertsRestructureMigration", ModuleAlertsRestructureMigration.ApplyAsync),
+            M("TrackerStoreAndForwardNotesMigration", TrackerStoreAndForwardNotesMigration.ApplyAsync),
+            M("ModuleAlertPremiumTagsMigration", ModuleAlertPremiumTagsMigration.ApplyAsync),
+            M("AlertsMenuMigration", AlertsMenuMigration.ApplyAsync),
+            M("GmeetOfflineSosSmsMigration", GmeetOfflineSosSmsMigration.ApplyAsync),
+            M("McpToolExecutionsMigration", McpToolExecutionsMigration.ApplyAsync),
+            M("AiConversationContextPhase7Migration", AiConversationContextPhase7Migration.ApplyAsync),
+            M("IgnitionSmsAlertsMigration", IgnitionSmsAlertsMigration.ApplyAsync),
+            M("SinotrackSt901H02ProtocolMigration", SinotrackSt901H02ProtocolMigration.ApplyAsync),
         ];
     }
 }

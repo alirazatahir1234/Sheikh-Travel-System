@@ -9,6 +9,7 @@ namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
 [RequirePermission(FinancePermissions.DriverWalletView)]
+[Route("api/driver-wallets")]
 public class DriverWalletsController : BaseApiController
 {
     [HttpGet("policy")]

@@ -11,15 +11,17 @@ Company-toggleable overspeed alerts based on the **posted road speed limit** at 
 3. Persist `GpsAlertEvents` with `EventType = road_speed_exceeded`, notify via `NotificationDecisionEngine` (template `speed_alert`), optional telematics violation.
 4. Dedup: at most one alert per vehicle per `AlertDedupMinutes` (default 5) while continuously overspeed.
 
-## Module toggle (same pattern as AI)
+## Module toggle / premium subscription add-on (same pattern as AI)
 
 | Item | Value |
 |------|--------|
 | Module code | `ROAD_SPEED_ALERTS` |
 | Legacy key | `road-speed-alerts` |
+| Commercial | **Premium paid add-on** (`SubscriptionAddOnCatalog`) — not in Starter/Pro/Enterprise plan module packs |
+| Price | `MonthlyAmount` null / config placeholder (no invented list price; same as AI add-on) |
 | Default for new tenants | **Off** |
-| Dependencies | `GPS` → `FLEET` → `DASHBOARD` |
-| Super Admin UI | Platform → Module Management / Tenant Modules |
+| Dependencies | `ALERTS` → `GPS` → `FLEET` → `DASHBOARD` |
+| Subscribe / enable | Platform → Subscription Management (add-ons) · Module Management · Company Profile → Modules |
 | API | `PUT /api/platform/tenants/{id}/modules` with `"ROAD_SPEED_ALERTS"` in `moduleCodes` |
 | Runtime gate | `ITenantModuleService.IsModuleEnabledAsync(tenantId, "ROAD_SPEED_ALERTS")` inside `RoadSpeedAlertEvaluator` |
 
@@ -75,8 +77,8 @@ Assume 50 vehicles, 1 fix / 10 s while moving, 8 h/day:
 
 ## Key files
 
-- `TenantModuleCatalog.cs` / `ModuleRegistrySeed.cs`
-- `ModuleRoadSpeedAlertsActiveMigration.cs` / `RoadSpeedLimitCacheMigration.cs`
+- `TenantModuleCatalog.cs` / `ModuleRegistrySeed.cs` / `SubscriptionAddOnCatalog.cs`
+- `ModuleRoadSpeedAlertsActiveMigration.cs` / `ModuleRoadSpeedAlertsPremiumAddOnMigration.cs` / `RoadSpeedLimitCacheMigration.cs`
 - `RoadSpeedAlertOptions.cs` / `RoadSpeedAlertEvaluator.cs` / `RoadSpeedLimitLookupService.cs`
 - `GoogleRoadsService.GetSpeedLimitAsync`
 - Hook: `GpsTrackingRepository.IngestPositionAsync`

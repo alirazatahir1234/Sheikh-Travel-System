@@ -150,7 +150,13 @@ public class SmartOpsRuleScanner(
 
         // Vehicle insurance column (when no ComplianceDocuments row)
         var insurance = await connection.QueryAsync<(int Id, string Name, DateTime Expiry)>(new CommandDefinition("""
-            SELECT v.Id, v.Name, v.InsuranceExpiryDate AS Expiry
+            SELECT v.Id,
+                   COALESCE(
+                       NULLIF(LTRIM(RTRIM(CONCAT(ISNULL(v.Make, N''), N' ', ISNULL(v.Model, N'')))), N''),
+                       NULLIF(LTRIM(RTRIM(v.Name)), N''),
+                       v.PlateNumber,
+                       CONCAT(N'Vehicle #', v.Id)) AS Name,
+                   v.InsuranceExpiryDate AS Expiry
             FROM Vehicles v
             WHERE v.TenantId = @TenantId AND v.IsDeleted = 0 AND v.InsuranceExpiryDate IS NOT NULL
               AND v.InsuranceExpiryDate <= DATEADD(DAY, @LeadDays, @AsOf)

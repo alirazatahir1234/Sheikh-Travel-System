@@ -83,7 +83,9 @@ public record AiChatTurnResponse(
     string? Model,
     IReadOnlyList<string> SuggestedPrompts,
     IReadOnlyList<string> ToolsUsed,
-    AiPendingActionDto? PendingAction = null);
+    AiPendingActionDto? PendingAction = null,
+    /// <summary>Phase 8 — turn correlation id for support / log linkage.</summary>
+    string? CorrelationId = null);
 
 public record AiPendingActionDto(
     string ToolName,

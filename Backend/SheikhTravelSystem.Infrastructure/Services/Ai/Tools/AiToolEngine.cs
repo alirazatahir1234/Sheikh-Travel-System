@@ -86,6 +86,18 @@ public sealed class AiToolEngine(
             return AssistantPeriodHelper.PeriodArgs(from, to);
         }
 
+        if (toolName is "GetTenantSubscriptionModules" or "GetTenantCompanyImage")
+        {
+            var hint = AssistantTenantNameNormalizer.ExtractTenantNameHint(userMessage);
+            var index = AssistantImageIndexParser.ExtractIndex(userMessage, defaultIndex: 1);
+            return JsonSerializer.SerializeToElement(new
+            {
+                tenantNameHint = hint,
+                index = toolName == "GetTenantCompanyImage" ? index : (int?)null,
+                question = toolName == "GetTenantCompanyImage" ? userMessage : null
+            });
+        }
+
         if (toolName == "GetVehicleStatus")
         {
             var plate = ExtractPlateHint(userMessage);
@@ -234,15 +246,23 @@ public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAi
             cancellationToken: cancellationToken));
         companyName = string.IsNullOrWhiteSpace(companyName) ? "your company" : companyName.Trim();
 
-        var rows = (await connection.QueryAsync<(int Id, string PlateNumber, string? Make, string? Model, DateTime? LastUpdate)>(
+        // Vehicles table uses RegistrationNumber (not PlateNumber).
+        var rows = (await connection.QueryAsync<(int Id, string PlateNumber, string? Name, string? Make, string? Model, DateTime? LastUpdate)>(
             new CommandDefinition("""
-                SELECT TOP 25 v.Id, v.PlateNumber, v.Make, v.Model, vcl.LastUpdate
+                SELECT TOP 25
+                    v.Id,
+                    v.RegistrationNumber AS PlateNumber,
+                    v.Name,
+                    v.Make,
+                    v.Model,
+                    vcl.LastUpdate
                 FROM Vehicles v
                 LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
                 WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
                   AND (vcl.LastUpdate IS NULL OR vcl.LastUpdate < DATEADD(MINUTE, -30, GETUTCDATE()))
+                  AND (@VehicleId IS NULL OR v.Id = @VehicleId)
                 ORDER BY vcl.LastUpdate ASC
-                """, new { context.TenantId }, cancellationToken: cancellationToken))).ToList();
+                """, new { context.TenantId, VehicleId = context.VehicleId }, cancellationToken: cancellationToken))).ToList();
 
         if (rows.Count == 0)
         {
@@ -255,7 +275,7 @@ public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAi
         sb.AppendLine($"For {companyName}: {rows.Count} vehicle{(rows.Count == 1 ? "" : "s")} offline (no GPS for 30+ minutes).");
         foreach (var r in rows.Take(15))
         {
-            var label = string.Join(' ', new[] { r.Make, r.Model }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            var label = string.Join(' ', new[] { r.Name, r.Make, r.Model }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
             var ago = r.LastUpdate is null
                 ? "never reported"
                 : $"last seen {r.LastUpdate.Value:yyyy-MM-dd HH:mm} UTC";
@@ -285,15 +305,33 @@ public sealed class GetCriticalAlertsTool(IDbConnectionFactory dbFactory) : IAiT
     public async Task<AiToolExecutionResult> ExecuteAsync(
         AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
     {
+        if (context.TenantId <= 0)
+            return new AiToolExecutionResult(Name, false, string.Empty, Error: "Tenant context is required.");
+
         using var connection = dbFactory.CreateConnection();
+        // GpsAlertEvents has no TenantId column — scope via Vehicles join (same pattern as GpsFleetHealthCalculator).
+        var sql = """
+            SELECT TOP 20 e.Id, e.EventType, e.Severity, e.Timestamp, e.VehicleId
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE e.IsDeleted = 0 AND e.IsAcknowledged = 0 AND e.Severity = 'critical'
+              AND e.Timestamp > DATEADD(DAY, -1, GETUTCDATE())
+            """;
+        object param;
+        if (context.VehicleId is int vehicleId && vehicleId > 0)
+        {
+            sql += " AND e.VehicleId = @VehicleId";
+            param = new { context.TenantId, VehicleId = vehicleId };
+        }
+        else
+        {
+            param = new { context.TenantId };
+        }
+
+        sql += " ORDER BY e.Timestamp DESC";
+
         var rows = (await connection.QueryAsync<(int Id, string EventType, string Severity, DateTime Timestamp, int? VehicleId)>(
-            new CommandDefinition("""
-                SELECT TOP 20 Id, EventType, Severity, Timestamp, VehicleId
-                FROM GpsAlertEvents
-                WHERE IsDeleted = 0 AND IsAcknowledged = 0 AND Severity = 'critical'
-                  AND Timestamp > DATEADD(DAY, -1, GETUTCDATE())
-                ORDER BY Timestamp DESC
-                """, cancellationToken: cancellationToken))).ToList();
+            new CommandDefinition(sql, param, cancellationToken: cancellationToken))).ToList();
 
         if (rows.Count == 0)
             return new AiToolExecutionResult(Name, true, "No unacknowledged critical alerts in the last 24 hours.", rows);
@@ -382,12 +420,17 @@ public sealed class GetVehicleStatusTool(IDbConnectionFactory dbFactory) : IAiTo
         using var connection = dbFactory.CreateConnection();
         var rows = (await connection.QueryAsync<(int Id, string PlateNumber, string Status, decimal? Speed, DateTime? LastUpdate, decimal? Lat, decimal? Lng)>(
             new CommandDefinition("""
-                SELECT TOP 10 v.Id, v.PlateNumber, ISNULL(v.Status, 'Unknown') AS Status,
+                SELECT TOP 10
+                       v.Id,
+                       v.RegistrationNumber AS PlateNumber,
+                       CAST(ISNULL(v.Status, 0) AS nvarchar(32)) AS Status,
                        vcl.Speed, vcl.LastUpdate, vcl.Latitude AS Lat, vcl.Longitude AS Lng
                 FROM Vehicles v
                 LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
                 WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
-                  AND (@Plate IS NULL OR v.PlateNumber LIKE '%' + @Plate + '%')
+                  AND (@Plate IS NULL
+                       OR v.RegistrationNumber LIKE '%' + @Plate + '%'
+                       OR v.Name LIKE '%' + @Plate + '%')
                 ORDER BY vcl.LastUpdate DESC
                 """, new { context.TenantId, Plate = plate }, cancellationToken: cancellationToken))).ToList();
 

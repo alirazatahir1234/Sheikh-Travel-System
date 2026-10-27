@@ -12,6 +12,11 @@ export class WebsiteSeoService {
   private readonly meta = inject(Meta);
   private readonly document = inject(DOCUMENT);
 
+  /** Object form used by newer marketing pages (accident-risk, etc.). */
+  setPage(opts: { title: string; description: string; path?: string }): void {
+    this.set(opts.title, opts.description, opts.path);
+  }
+
   set(pageTitle: string, description: string, path?: string): void {
     // If caller already supplies a full "Brand | Topic" title, use it as-is.
     const full = pageTitle.includes('|')

@@ -27,7 +27,7 @@ public class GetVehiclesQueryHandler(
         int tenantId;
         try
         {
-            tenantId = ResolveTenantFilter(request.TenantId);
+            tenantId = platformScope.ResolveTenantId(request.TenantId);
         }
         catch (InvalidOperationException)
         {
@@ -55,16 +55,5 @@ public class GetVehiclesQueryHandler(
             Page = request.Page,
             PageSize = request.PageSize
         });
-    }
-
-    private int ResolveTenantFilter(int? requestedTenantId)
-    {
-        if (requestedTenantId.HasValue)
-        {
-            platformScope.EnsureTenantAccess(requestedTenantId.Value);
-            return requestedTenantId.Value;
-        }
-
-        return platformScope.TenantId;
     }
 }

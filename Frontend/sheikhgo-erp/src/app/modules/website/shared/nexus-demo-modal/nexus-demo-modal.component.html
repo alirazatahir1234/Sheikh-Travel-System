@@ -18,22 +18,33 @@
         <mat-icon aria-hidden="true">close</mat-icon>
       </button>
     </header>
-    <div class="demo-modal-video-wrap">
+    <div class="demo-modal-video-wrap" (contextmenu)="$event.preventDefault()">
       <video
         #player
         class="demo-modal-video"
         controls
+        controlsList="nodownload noplaybackrate"
+        disablePictureInPicture
         playsinline
         preload="metadata"
         [src]="videoSrc"
         (canplay)="onCanPlay()"
+        (dragstart)="$event.preventDefault()"
       >
         Your browser does not support embedded video.
-        <a [href]="videoSrc">Download the walkthrough (MP4)</a>
       </video>
     </div>
     <footer class="demo-modal-foot">
-      <a [href]="videoSrc" download class="demo-modal-download">Download ERP tour (MP4)</a>
+      @if (canDownloadDemo) {
+        <button
+          type="button"
+          class="demo-modal-download demo-modal-download--button"
+          [disabled]="downloadInProgress"
+          (click)="downloadDemoForOwner()"
+        >
+          {{ downloadInProgress ? 'Preparing download…' : 'Download ERP tour (MP4)' }}
+        </button>
+      }
       <a [href]="websiteTourSrc" class="demo-modal-download demo-modal-download--secondary">
         Marketing site tour
       </a>

@@ -151,9 +151,9 @@ public class SubmitDemoLeadCommandHandler(
                 ["Email"] = request.Email,
                 ["Phone"] = request.Phone,
                 ["Country"] = request.Country,
-                ["Vehicles"] = request.VehicleCount,
-                ["Current GPS"] = request.CurrentGpsProvider,
-                ["Product"] = request.InterestedProduct,
+                ["Fleet size"] = request.VehicleCount,
+                ["Current GPS provider"] = request.CurrentGpsProvider,
+                ["Interested in"] = request.InterestedProduct,
                 ["Message"] = request.Message,
             },
             cancellationToken);
@@ -207,13 +207,13 @@ internal static class MarketingLeadEmail
         sb.Append("<table cellpadding=\"0\" cellspacing=\"0\" style=\"width:100%;border-collapse:collapse;\">");
         foreach (var kv in fields)
         {
-            if (string.IsNullOrWhiteSpace(kv.Value)) continue;
+            var display = string.IsNullOrWhiteSpace(kv.Value) ? "—" : kv.Value;
             sb.Append("<tr>")
                 .Append("<td style=\"padding:6px 0;color:#64748b;width:140px;vertical-align:top;\">")
                 .Append(WebUtility.HtmlEncode(kv.Key))
                 .Append("</td>")
                 .Append("<td style=\"padding:6px 0;color:#0f172a;\">")
-                .Append(WebUtility.HtmlEncode(kv.Value).Replace("\n", "<br/>", StringComparison.Ordinal))
+                .Append(WebUtility.HtmlEncode(display).Replace("\n", "<br/>", StringComparison.Ordinal))
                 .Append("</td></tr>");
         }
         sb.Append("</table></div></div></body></html>");

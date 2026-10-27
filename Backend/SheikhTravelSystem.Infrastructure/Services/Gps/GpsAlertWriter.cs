@@ -1,10 +1,12 @@
 using System.Data;
 using Dapper;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 
-public sealed class GpsAlertWriter : IGpsAlertWriter
+public sealed class GpsAlertWriter(
+    IAlertModuleGate alertModuleGate) : IGpsAlertWriter
 {
     public async Task<int> InsertAsync(
         IDbConnection connection,
@@ -21,6 +23,17 @@ public sealed class GpsAlertWriter : IGpsAlertWriter
         string? externalEventId = null,
         CancellationToken cancellationToken = default)
     {
+        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = vehicleId },
+            cancellationToken: cancellationToken));
+
+        if (tenantId is null or <= 0)
+            return 0;
+
+        if (!await alertModuleGate.IsAlertTypeEnabledAsync(tenantId.Value, eventType, cancellationToken))
+            return 0;
+
         driverId ??= await ResolveDriverIdAsync(connection, vehicleId, cancellationToken);
 
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition(

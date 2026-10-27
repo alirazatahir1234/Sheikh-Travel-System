@@ -30,13 +30,82 @@ trigger:
       - Frontend/sheikh-travel-customer-hub/**
       - deploy/azure-vm/**
       - deploy/vercel/**
+      - scripts/ci/**
+      - docs/AI-MCP-Phase8-ProductionReadiness.md
       - azure-pipelines.yml
+      - .github/workflows/backend_phase8_ci.yml
 
 pr: none
 
 stages:
+  # ── Phase 8 AI/MCP tests (incl. live SQL + MCP stdio when SQL/MCP available) ──
+  - stage: Phase8_CI
+    displayName: Phase 8 AI/MCP tests
+    condition: always()
+    jobs:
+      - job: Phase8_Tests
+        displayName: Phase 8 + live SQL MCP E2E
+        pool:
+          name: SheikhGo-VM
+        steps:
+          - checkout: self
+            clean: false
+            fetchDepth: 1
+
+          - bash: |
+              set -euo pipefail
+              if git rev-parse HEAD^ >/dev/null 2>&1; then
+                if git diff --name-only HEAD^ HEAD | grep -qE '^Backend/|^scripts/ci/|^docs/AI-MCP-Phase8|^azure-pipelines\.yml|^\.github/workflows/backend_phase8'; then
+                  echo "##vso[task.setvariable variable=SKIP_PHASE8]false"
+                  echo "Backend/Phase8 paths changed — running Phase 8 tests."
+                else
+                  echo "##vso[task.setvariable variable=SKIP_PHASE8]true"
+                  echo "No Backend/Phase8 path changes — skipping Phase 8 tests."
+                fi
+              else
+                echo "##vso[task.setvariable variable=SKIP_PHASE8]false"
+              fi
+            displayName: Detect Phase 8 test scope
+
+          - bash: |
+              set -euo pipefail
+              # Unresolved ADO macros look like $(NAME) — treat as unset (never log values).
+              for v in SHEIKHGO_PHASE8_SQL_PASSWORD MSSQL_SA_PASSWORD SHEIKHGO_MCP_ROOT; do
+                val="${!v:-}"
+                if [[ -z "$val" || "$val" =~ ^\$\( ]]; then
+                  unset "$v" || true
+                fi
+              done
+              # Prefer Library secret SHEIKHGO_PHASE8_SQL_PASSWORD; fall back to docker-compose.db.env on VM (never echo).
+              if [[ -z "${SHEIKHGO_PHASE8_SQL_PASSWORD:-}" && -f "$(Build.SourcesDirectory)/docker-compose.db.env" ]]; then
+                MSSQL_SA_PASSWORD="$(grep -E '^MSSQL_SA_PASSWORD=' "$(Build.SourcesDirectory)/docker-compose.db.env" | cut -d= -f2- | tr -d '\r')"
+                export MSSQL_SA_PASSWORD
+                export SHEIKHGO_PHASE8_SQL_PASSWORD="$MSSQL_SA_PASSWORD"
+              fi
+              if [[ -z "${SHEIKHGO_PHASE8_SQL_PASSWORD:-}" ]]; then
+                echo "##vso[task.logissue type=warning]No SQL password for Phase 8 — unit Phase8 still runs; live E2E soft-skips."
+              fi
+              export SHEIKHGO_MCP_ROOT="${SHEIKHGO_MCP_ROOT:-/home/azureuser/SheikhGo-MCP}"
+              if [[ ! -f "${SHEIKHGO_MCP_ROOT}/dist/index.js" ]]; then
+                CANDIDATE="$(dirname "$(Build.SourcesDirectory)")/SheikhGo-MCP"
+                if [[ -f "${CANDIDATE}/dist/index.js" ]]; then
+                  export SHEIKHGO_MCP_ROOT="$CANDIDATE"
+                fi
+              fi
+              chmod +x "$(Build.SourcesDirectory)/scripts/ci/phase8-live-sql-e2e.sh"
+              "$(Build.SourcesDirectory)/scripts/ci/phase8-live-sql-e2e.sh"
+            condition: ne(variables['SKIP_PHASE8'], 'true')
+            displayName: Run Phase 8 live SQL MCP E2E
+            env:
+              SHEIKHGO_PHASE8_SQL_PASSWORD: $(SHEIKHGO_PHASE8_SQL_PASSWORD)
+              MSSQL_SA_PASSWORD: $(MSSQL_SA_PASSWORD)
+              SHEIKHGO_MCP_ROOT: $(SHEIKHGO_MCP_ROOT)
+
   - stage: Deploy
     displayName: Deploy Backend (Azure VM) and Frontend (Vercel)
+    dependsOn: Phase8_CI
+    # Deploy proceeds when Phase8 skipped (path filter) or succeeded; blocks on Phase8 failure.
+    condition: in(dependencies.Phase8_CI.result, 'Succeeded', 'SucceededWithIssues')
     jobs:
       # ── Backend → Azure VM (self-hosted on 20.174.1.230) ───────────
       - job: Backend_AzureVM

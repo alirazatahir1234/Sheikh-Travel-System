@@ -29,8 +29,8 @@ public sealed class AiEntityResolver(IDbConnectionFactory dbFactory)
         return await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
             SELECT TOP 1 Id FROM Vehicles
             WHERE IsDeleted = 0 AND TenantId = @TenantId
-              AND PlateNumber LIKE '%' + @Plate + '%'
-            ORDER BY PlateNumber
+              AND (RegistrationNumber LIKE '%' + @Plate + '%' OR Name LIKE '%' + @Plate + '%')
+            ORDER BY RegistrationNumber
             """, new { TenantId = tenantId, Plate = plate.Trim() }, cancellationToken: ct));
     }
 

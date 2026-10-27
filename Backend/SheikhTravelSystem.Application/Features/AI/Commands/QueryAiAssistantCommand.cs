@@ -8,7 +8,9 @@ public record QueryAiAssistantCommand(
     int TenantId,
     int UserId,
     string Question,
-    bool IsPlatformSuperAdmin = false) : IRequest<ApiResponse<AiAssistantQueryResponse>>;
+    bool IsPlatformSuperAdmin = false,
+    int? VehicleId = null,
+    Guid? SessionId = null) : IRequest<ApiResponse<AiAssistantQueryResponse>>;
 
 public sealed class QueryAiAssistantCommandHandler(IAiAssistantGateway assistant)
     : IRequestHandler<QueryAiAssistantCommand, ApiResponse<AiAssistantQueryResponse>>
@@ -26,10 +28,17 @@ public sealed class QueryAiAssistantCommandHandler(IAiAssistantGateway assistant
         if (request.UserId <= 0)
             return ApiResponse<AiAssistantQueryResponse>.FailResponse("User context is required.");
 
+        var vehicleId = request.VehicleId is int vid && vid > 0 ? vid : (int?)null;
+        var sessionId = request.SessionId is Guid sid && sid != Guid.Empty ? sid : (Guid?)null;
+
         var result = await assistant.QueryAsync(
             request.TenantId,
             request.UserId,
-            new AiAssistantQueryRequest(request.Question.Trim(), request.IsPlatformSuperAdmin),
+            new AiAssistantQueryRequest(
+                request.Question.Trim(),
+                request.IsPlatformSuperAdmin,
+                vehicleId,
+                sessionId),
             cancellationToken);
 
         return ApiResponse<AiAssistantQueryResponse>.SuccessResponse(result);

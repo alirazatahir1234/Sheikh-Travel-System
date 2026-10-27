@@ -78,6 +78,7 @@ Outbound driver location remains HTTP → ingest. Do not invent broker queues fo
 - Traccar WebSocket client or position-forward webhook (**Phase 2**)
 - Automated Jimi SMS / device provisioning
 - Rewriting trip / geofence / overspeed engines
+- Implementing tracker flash store-and-forward inside Traccar (firmware-only; see [TRACKER_STORE_AND_FORWARD.md](./TRACKER_STORE_AND_FORWARD.md))
 
 ## Explainable Fleet Health (`GET /api/gps/fleet-health`)
 
@@ -131,6 +132,7 @@ Weights, bands, and thresholds default in `GpsSettings.FleetHealth` (code). Over
 - Ingest / push: `IngestPositionCommand`, `LocationBroadcastService`, `TrackingHub`
 - ERP: `gps-realtime.service.ts`, live-map + vehicle profile GPS panels
 - Flutter: `signalr_service.dart`, `live_map_screen.dart`, `fleet_realtime_service.dart`
+- ACC / ignition SMS (SheikhGo, not Traccar SMS): [ACC_IGNITION_SMS.md](./ACC_IGNITION_SMS.md)
 
 ## Google Maps (ERP browser key)
 

@@ -27,8 +27,8 @@ public class VehiclesController : BaseApiController
     /// Gets vehicle details by identifier.
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
-        => Ok(await Mediator.Send(new GetVehicleByIdQuery(id)));
+    public async Task<IActionResult> GetById(int id, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetVehicleByIdQuery(id, tenantId)));
 
     /// <summary>
     /// Creates a new vehicle.
@@ -71,8 +71,8 @@ public class VehiclesController : BaseApiController
         => Ok(await Mediator.Send(new ToggleVehicleStatusCommand(id)));
 
     [HttpGet("{id}/documents")]
-    public async Task<IActionResult> GetDocuments(int id)
-        => Ok(await Mediator.Send(new GetVehicleDocumentsQuery(id)));
+    public async Task<IActionResult> GetDocuments(int id, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetVehicleDocumentsQuery(id, tenantId)));
 
     [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/documents")]
@@ -113,16 +113,18 @@ public class VehiclesController : BaseApiController
         => Ok(await Mediator.Send(new PublishVehicleCommand(id)));
 
     [HttpGet("{id}/maintenance")]
-    public async Task<IActionResult> GetMaintenance(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => Ok(await Mediator.Send(new GetVehicleMaintenanceQuery(id, page, pageSize)));
+    public async Task<IActionResult> GetMaintenance(
+        int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetVehicleMaintenanceQuery(id, page, pageSize, tenantId)));
 
     [HttpGet("{id}/fuel")]
-    public async Task<IActionResult> GetFuel(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => Ok(await Mediator.Send(new GetVehicleFuelQuery(id, page, pageSize)));
+    public async Task<IActionResult> GetFuel(
+        int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetVehicleFuelQuery(id, page, pageSize, tenantId)));
 
     [HttpGet("{id}/gps")]
-    public async Task<IActionResult> GetGps(int id)
-        => Ok(await Mediator.Send(new GetVehicleGpsQuery(id)));
+    public async Task<IActionResult> GetGps(int id, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetVehicleGpsQuery(id, tenantId)));
 
     [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/change-status")]
@@ -136,8 +138,9 @@ public class VehiclesController : BaseApiController
 
     [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/assign-gps")]
-    public async Task<IActionResult> AssignGps(int id, [FromBody] AssignVehicleGpsRequest body)
-        => Ok(await Mediator.Send(new AssignVehicleGpsCommand(id, body)));
+    public async Task<IActionResult> AssignGps(
+        int id, [FromBody] AssignVehicleGpsRequest body, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new AssignVehicleGpsCommand(id, body, tenantId)));
 }
 
 public record CreateVehicleDocumentRequest(

@@ -8,19 +8,21 @@ namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 public record VehicleDocumentDto(
     int Id, int VehicleId, string DocumentType, string? FileUrl, DateTime? ExpiryDate, string? Notes);
 
-public record GetVehicleDocumentsQuery(int VehicleId) : IRequest<ApiResponse<IReadOnlyList<VehicleDocumentDto>>>;
+public record GetVehicleDocumentsQuery(int VehicleId, int? TenantId = null)
+    : IRequest<ApiResponse<IReadOnlyList<VehicleDocumentDto>>>;
 
 public class GetVehicleDocumentsQueryHandler(
     IVehicleRepository vehicleRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     IFileStorageService fileStorage)
     : IRequestHandler<GetVehicleDocumentsQuery, ApiResponse<IReadOnlyList<VehicleDocumentDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<VehicleDocumentDto>>> Handle(
         GetVehicleDocumentsQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var rows = (await vehicleRepository.GetDocumentsAsync(
-                request.VehicleId, tenantContext.GetRequiredTenantId(), cancellationToken))
+                request.VehicleId, tenantId, cancellationToken))
             .Select(row => string.IsNullOrWhiteSpace(row.FileUrl)
                 ? row
                 : row with { FileUrl = fileStorage.ResolveReadUrl(row.FileUrl) })

@@ -253,13 +253,16 @@ public sealed class SheikhGoMcpStdioClient : IAsyncDisposable
 
     private async Task WriteMessageLockedAsync(object message, CancellationToken cancellationToken)
     {
-        if (_stdin is null)
+        if (_stdin is null || _process is null)
             throw new InvalidOperationException("MCP stdin unavailable.");
 
-        var json = JsonSerializer.Serialize(message, JsonOpts);
+        // Raw UTF-8 without BOM — Encoding.UTF8 can prepend EF BB BF; MCP then silently
+        // drops the first JSON-RPC line (ReadBuffer continues on SyntaxError).
+        var json = JsonSerializer.Serialize(message, JsonOpts) + "\n";
+        var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(json);
         cancellationToken.ThrowIfCancellationRequested();
-        await _stdin.WriteLineAsync(json.AsMemory(), cancellationToken);
-        await _stdin.FlushAsync(cancellationToken);
+        await _process.StandardInput.BaseStream.WriteAsync(bytes.AsMemory(), cancellationToken);
+        await _process.StandardInput.BaseStream.FlushAsync(cancellationToken);
     }
 
     private async Task ReadLoopAsync(StreamReader stdout, CancellationToken cancellationToken)

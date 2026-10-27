@@ -302,7 +302,8 @@ public sealed class AiCopilotService(
     IFleetHealthService fleetHealth,
     IAiRecommendationService recommendations,
     IAiPredictionService predictions,
-    IAiManagementService aiManagement) : IAiCopilotService
+    IAiManagementService aiManagement,
+    IMcpDatabaseRecordRouter mcpRecordRouter) : IAiCopilotService
 {
     public async Task<AiCopilotResponse> AskAsync(
         int tenantId, int userId, string question, CancellationToken cancellationToken = default)
@@ -381,6 +382,26 @@ public sealed class AiCopilotService(
             return new AiCopilotResponse(
                 top.Any() ? "Driver risk today:\n" + string.Join("\n", top) : "No elevated driver risk predictions.",
                 "rules", tools, false);
+        }
+
+        // Database MCP for list/record questions when keyword rules do not match
+        if (mcpRecordRouter.LooksLikeRecordQuery(question))
+        {
+            try
+            {
+                var fetched = await mcpRecordRouter.TryFetchAsync(tenantId, question, cancellationToken);
+                if (fetched is { Success: true } && !string.IsNullOrWhiteSpace(fetched.Summary))
+                {
+                    tools.AddRange(fetched.ToolsUsed);
+                    tools.Add("mcp_database");
+                    await MaybeBillAsync(tenantId, config, cancellationToken);
+                    return new AiCopilotResponse(fetched.Summary, "mcp_database", tools, false);
+                }
+            }
+            catch
+            {
+                // fall through to help
+            }
         }
 
         tools.Add("help");

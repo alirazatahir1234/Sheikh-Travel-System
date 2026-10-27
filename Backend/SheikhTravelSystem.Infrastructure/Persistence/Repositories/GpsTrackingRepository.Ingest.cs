@@ -48,7 +48,10 @@ public sealed partial class GpsTrackingRepository
 
         var alertId = await InsertAlertAsync(connection, null, dto, null, "sos",
             "SOS / panic alarm triggered", timestamp, cancellationToken);
+        if (alertId <= 0)
+            return;
 
+        var sosTenantId = await ResolveVehicleTenantIdAsync(connection, dto.VehicleId, cancellationToken);
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
             "sos",
             "SOS alert",
@@ -56,6 +59,7 @@ public sealed partial class GpsTrackingRepository
             NotificationType.Sos,
             ReferenceId: dto.VehicleId,
             AlertEventId: alertId,
+            TenantId: sosTenantId,
             SuggestedPriority: 4,
             RequestedChannels:
             [
@@ -106,6 +110,10 @@ public sealed partial class GpsTrackingRepository
                 var alertId = await InsertAlertAsync(connection, rule.Id, dto, null, "speed_exceeded",
                     $"Speed {dto.Speed:F0} km/h exceeds limit {rule.SpeedLimitKmh:F0} km/h",
                     timestamp, cancellationToken);
+                if (alertId <= 0)
+                    continue;
+
+                var speedTenantId = await ResolveVehicleTenantIdAsync(connection, dto.VehicleId, cancellationToken);
                 await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
                     "speed_exceeded",
                     "Speed alert",
@@ -113,6 +121,7 @@ public sealed partial class GpsTrackingRepository
                     NotificationType.TripDelayed,
                     ReferenceId: dto.VehicleId,
                     AlertEventId: alertId,
+                    TenantId: speedTenantId,
                     SuggestedPriority: 3,
                     RequestedChannels:
                     [
@@ -229,6 +238,12 @@ public sealed partial class GpsTrackingRepository
         }
     }
 
+    /// <summary>
+    /// Debounce window for ACC ignition flapping (false ON/OFF from noisy ACC / motion override).
+    /// Decision-engine Redis cooldown is a second layer; this blocks GpsAlertEvents spam.
+    /// </summary>
+    private const int IgnitionDedupMinutes = 2;
+
     private async Task EvaluateIgnitionTransitionAsync(
         System.Data.IDbConnection connection,
         IngestPositionDto dto,
@@ -244,7 +259,75 @@ public sealed partial class GpsTrackingRepository
         var eventType = dto.Ignition.Value ? "ignition_on" : "ignition_off";
         var message = dto.Ignition.Value ? "Ignition turned ON" : "Ignition turned OFF";
 
-        await InsertAlertAsync(connection, null, dto, null, eventType, message, timestamp, cancellationToken);
+        // Suppress rapid ON↔OFF flaps (miswired ACC / motion-forced OFF).
+        var recentSame = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = @EventType AND IsDeleted = 0
+                  AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, EventType = eventType, Minutes = IgnitionDedupMinutes, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentSame)
+        {
+            return;
+        }
+
+        var alertId = await InsertAlertAsync(connection, null, dto, null, eventType, message, timestamp, cancellationToken);
+        if (alertId <= 0)
+            return;
+
+        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, string? PlateNumber, string? Name)>(
+            new CommandDefinition(
+                "SELECT TenantId, RegistrationNumber AS PlateNumber, Name FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = dto.VehicleId },
+                cancellationToken: cancellationToken));
+
+        if (vehicle.TenantId is null or <= 0)
+        {
+            logger.LogDebug(
+                "Ignition {EventType} alert {AlertId} stored but notification skipped — vehicle {VehicleId} has no TenantId",
+                eventType, alertId, dto.VehicleId);
+            return;
+        }
+
+        var label = !string.IsNullOrWhiteSpace(vehicle.PlateNumber)
+            ? vehicle.PlateNumber.Trim()
+            : !string.IsNullOrWhiteSpace(vehicle.Name)
+                ? vehicle.Name.Trim()
+                : $"#{dto.VehicleId}";
+
+        var title = dto.Ignition.Value ? "Ignition ON" : "Ignition OFF";
+        var body = dto.Ignition.Value
+            ? $"Vehicle {label}: ignition / ACC turned ON."
+            : $"Vehicle {label}: ignition / ACC turned OFF.";
+
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            eventType,
+            title,
+            body,
+            NotificationType.EngineCommandSent,
+            ReferenceId: dto.VehicleId,
+            AlertEventId: alertId,
+            TenantId: vehicle.TenantId,
+            SuggestedPriority: 3,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser,
+                NotificationChannels.Push, NotificationChannels.Sms
+            ]), cancellationToken);
+    }
+
+    private static async Task<int?> ResolveVehicleTenantIdAsync(
+        System.Data.IDbConnection connection,
+        int vehicleId,
+        CancellationToken cancellationToken)
+    {
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = vehicleId },
+            cancellationToken: cancellationToken));
     }
 
     private const decimal LowFuelThresholdPercent = 15m;

@@ -34,8 +34,21 @@ public sealed class AiMcpBridgeOptions
 
     public int StartupTimeoutMs { get; set; } = 20_000;
 
+    /// <summary>Per MCP tool-call timeout (linked to request cancellation).</summary>
     public int CallTimeoutMs { get; set; } = 45_000;
 
-    /// <summary>Max LLM ↔ tool rounds per chat turn (safety cap).</summary>
+    /// <summary>Max LLM ↔ tool rounds per chat turn (safety cap, clamped 1–8).</summary>
     public int MaxToolRounds { get; set; } = 3;
+
+    /// <summary>Max non-system seed messages kept from conversation history.</summary>
+    public int MaxHistoryMessages { get; set; } = 20;
+
+    /// <summary>
+    /// Extra provider ChatAsync attempts after a transient failure (timeout / 429 / 5xx).
+    /// Tool executions are never retried — only the LLM round is.
+    /// </summary>
+    public int ProviderMaxRetries { get; set; } = 2;
+
+    /// <summary>Base delay (ms) for exponential backoff between provider retries.</summary>
+    public int ProviderRetryBaseDelayMs { get; set; } = 400;
 }

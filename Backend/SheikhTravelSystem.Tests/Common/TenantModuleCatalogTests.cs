@@ -24,14 +24,25 @@ public class TenantModuleCatalogTests
     }
 
     [Fact]
-    public void RoadSpeedAlerts_IsOptIn_NotInDefaults()
+    public void PremiumAlerts_NotInDefaultsOrPlanCodes_BasicAlertsAre()
     {
         TenantModuleCatalog.RoadSpeedAlertsModuleCode.Should().Be("ROAD_SPEED_ALERTS");
-        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain(
-            TenantModuleCatalog.RoadSpeedAlertsModuleCode);
-        TenantModuleCatalog.IsEntitled("ROAD_SPEED_ALERTS", TenantModuleCatalog.LegacyKeysFromCodes(
-            TenantModuleCatalog.DefaultModuleCodes)).Should().BeFalse();
+        TenantModuleCatalog.AlertsModuleCode.Should().Be("ALERTS");
+        TenantModuleCatalog.DefaultModuleCodes.Should().Contain(TenantModuleCatalog.AlertsModuleCode);
+        TenantModuleCatalog.DefaultModuleCodes.Should().Contain("ALERT_SOS");
+        TenantModuleCatalog.DefaultModuleCodes.Should().Contain("ALERT_ONLINE");
+
+        foreach (var code in new[] { "ROAD_SPEED_ALERTS", "ALERT_OVERSPEED", "ALERT_GPS_LOST", "ALERT_LOW_FUEL" })
+        {
+            TenantModuleCatalog.DefaultModuleCodes.Should().NotContain(code);
+            SubscriptionAddOnCatalog.IsPremiumAddOn(code).Should().BeTrue();
+            TenantModuleCatalog.IsEntitled(code, TenantModuleCatalog.LegacyKeysFromCodes(
+                TenantModuleCatalog.DefaultModuleCodes)).Should().BeFalse();
+        }
+
         TenantModuleCatalog.IsEntitled("ROAD_SPEED_ALERTS", ["road-speed-alerts"]).Should().BeTrue();
+        TenantModuleCatalog.IsEntitled("ALERTS", TenantModuleCatalog.LegacyKeysFromCodes(
+            TenantModuleCatalog.DefaultModuleCodes)).Should().BeTrue();
         TenantModuleCatalog.LegacyKeysFromCodes(["ROAD_SPEED_ALERTS"])
             .Should().BeEquivalentTo(["road-speed-alerts"]);
     }

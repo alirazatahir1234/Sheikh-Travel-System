@@ -1,0 +1,142 @@
+{
+  "fixtureTenantId": 9001,
+  "fixtureTenantBId": 9002,
+  "note": "Seeded fixture IDs only — never treat production counts as universal expected answers.",
+  "cases": [
+    {
+      "id": "vehicle_count",
+      "question": "How many vehicles do I have?",
+      "expectedTools": ["get_vehicle_count"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"count\":7,\"source\":\"fixture\"}",
+      "expectedAnswerContains": ["7"],
+      "expectedAnswerMustNotContain": ["999", "tenant 9002"],
+      "source": "MCP get_vehicle_count over fixture inventory",
+      "calculation": "COUNT(*) WHERE TenantId=@tenant from seeded Vehicles"
+    },
+    {
+      "id": "vehicle_status",
+      "question": "What is my fleet status breakdown?",
+      "expectedTools": ["get_fleet_inventory_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"active\":5,\"maintenance\":1,\"inactive\":1,\"total\":7}",
+      "expectedAnswerContains": ["5", "7"],
+      "expectedAnswerMustNotContain": ["fabricated"],
+      "source": "MCP get_fleet_inventory_summary",
+      "calculation": "Group by status from seeded Vehicles"
+    },
+    {
+      "id": "maintenance_due",
+      "question": "Which vehicles need maintenance?",
+      "expectedTools": ["get_maintenance_due"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"due\":[{\"reg\":\"FIX-001\",\"dueInDays\":3}],\"count\":1}",
+      "expectedAnswerContains": ["FIX-001"],
+      "expectedAnswerMustNotContain": ["PROD-"],
+      "source": "MCP get_maintenance_due",
+      "calculation": "Due date <= today+window from seeded MaintenanceSchedules"
+    },
+    {
+      "id": "fuel_period",
+      "question": "Fuel costs this month",
+      "expectedTools": ["get_fuel_cost_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"period\":\"fixture-month\",\"totalCost\":1250.50,\"currency\":\"SAR\"}",
+      "expectedAnswerContains": ["1250"],
+      "expectedAnswerMustNotContain": ["password", "apiKey"],
+      "source": "MCP get_fuel_cost_summary",
+      "calculation": "SUM(Amount) for fixture period"
+    },
+    {
+      "id": "trip_summary",
+      "question": "Summarize trips this week",
+      "expectedTools": ["get_trip_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"trips\":12,\"completed\":10,\"cancelled\":2}",
+      "expectedAnswerContains": ["12"],
+      "expectedAnswerMustNotContain": [],
+      "source": "MCP get_trip_summary",
+      "calculation": "COUNT trips in fixture week window"
+    },
+    {
+      "id": "booking_summary",
+      "question": "Booking summary for this month",
+      "expectedTools": ["get_booking_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"bookings\":4,\"confirmed\":3}",
+      "expectedAnswerContains": ["4"],
+      "expectedAnswerMustNotContain": [],
+      "source": "MCP get_booking_summary",
+      "calculation": "COUNT bookings in fixture month"
+    },
+    {
+      "id": "revenue",
+      "question": "What was revenue last month?",
+      "expectedTools": ["get_revenue_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"revenue\":8800,\"currency\":\"SAR\",\"period\":\"fixture-prev-month\"}",
+      "expectedAnswerContains": ["8800"],
+      "expectedAnswerMustNotContain": [],
+      "source": "MCP get_revenue_summary",
+      "calculation": "SUM invoice/payment amounts for fixture period"
+    },
+    {
+      "id": "gps_freshness",
+      "question": "How fresh is GPS coverage?",
+      "expectedTools": ["get_gps_coverage_summary"],
+      "fixtureToolPayload": "{\"tenantId\":9001,\"online\":6,\"stale\":1,\"offline\":0,\"freshWithinMinutes\":15}",
+      "expectedAnswerContains": ["6"],
+      "expectedAnswerMustNotContain": ["fleet-health%"],
+      "source": "MCP get_gps_coverage_summary",
+      "calculation": "Positions updated within freshness window from seeded GPS"
+    },
+    {
+      "id": "multi_tool",
+      "question": "Compare vehicle count and revenue",
+      "expectedTools": ["get_vehicle_count", "get_revenue_summary"],
+      "fixtureToolPayload": "{\"multi\":true}",
+      "expectedAnswerContains": ["7", "8800"],
+      "expectedAnswerMustNotContain": [],
+      "source": "Sequential MCP tools in one turn",
+      "calculation": "Independent fixture payloads composed by model"
+    },
+    {
+      "id": "follow_up",
+      "question": "which of those needs maintenance first?",
+      "expectedTools": [],
+      "fixtureToolPayload": null,
+      "expectedMode": "clarify_or_followup",
+      "expectedAnswerContains": [],
+      "expectedAnswerMustNotContain": ["invented"],
+      "source": "Phase 7 conversation context",
+      "calculation": "Follow-up heuristic without inventing prior set"
+    },
+    {
+      "id": "ambiguous",
+      "question": "asdf qwerty nonsense xyz",
+      "expectedTools": [],
+      "fixtureToolPayload": null,
+      "expectedMode": "help",
+      "expectedAnswerContains": ["not sure"],
+      "expectedAnswerMustNotContain": ["99 vehicles"],
+      "source": "Assistant help path",
+      "calculation": "No tool; do not fabricate"
+    },
+    {
+      "id": "no_data",
+      "question": "Show fuel for vehicle FIX-MISSING",
+      "expectedTools": ["get_fuel_expenses"],
+      "fixtureToolPayload": "",
+      "emptyResult": true,
+      "expectedAnswerContains": [],
+      "expectedAnswerMustNotContain": ["secret"],
+      "source": "MCP empty payload",
+      "calculation": "EMPTY_RESULT → safe empty UX"
+    },
+    {
+      "id": "tool_failure",
+      "question": "Get trip statistics",
+      "expectedTools": ["get_trip_statistics"],
+      "fixtureToolPayload": null,
+      "toolFails": true,
+      "expectedMode": "mcp+llm_error",
+      "expectedAnswerContains": ["couldn't retrieve"],
+      "expectedAnswerMustNotContain": ["47 trips"],
+      "source": "Forced MCP failure",
+      "calculation": "Safe failure; never fabricate"
+    }
+  ]
+}

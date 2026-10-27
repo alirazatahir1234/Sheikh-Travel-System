@@ -1,0 +1,194 @@
+<section
+  *ngIf="visible"
+  class="ai-scope"
+  [class.is-compact]="compact"
+  [attr.aria-label]="isSuperAdmin ? 'Company and vehicle scope' : 'Company context'">
+
+  <!-- Regular company user: scoped label only -->
+  <div class="ai-scope-readonly" *ngIf="!isSuperAdmin" role="status">
+    <mat-icon class="ai-scope-info" aria-hidden="true">info</mat-icon>
+    <div>
+      <span class="ai-scope-readonly-label">Company</span>
+      <strong>{{ companyLabel }}</strong>
+      <p>Fleet context is managed automatically</p>
+    </div>
+  </div>
+
+  <!-- SuperAdmin company search + vehicles -->
+  <ng-container *ngIf="isSuperAdmin">
+    <div class="ai-scope-label-row">
+      <span class="ai-scope-section-label" id="ai-company-scope-label">Company scope</span>
+    </div>
+
+    <div class="ai-scope-search" [class.is-open]="dropdownOpen">
+      <mat-icon class="ai-scope-search-icon" aria-hidden="true">search</mat-icon>
+      <input
+        #searchInput
+        type="search"
+        class="ai-scope-search-input"
+        [ngModel]="companySearch"
+        (ngModelChange)="onSearchInput($event)"
+        (focus)="openDropdown()"
+        (keydown)="onSearchKeydown($event)"
+        placeholder="Search companies by name..."
+        autocomplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-controls="ai-company-results"
+        [attr.aria-expanded]="dropdownOpen"
+        aria-labelledby="ai-company-scope-label" />
+      <mat-spinner *ngIf="companiesLoading" diameter="18" class="ai-scope-spinner"></mat-spinner>
+      <button
+        *ngIf="selectedCompany"
+        type="button"
+        class="ai-scope-clear"
+        mat-icon-button
+        aria-label="Clear company selection"
+        (click)="clearCompany(); $event.stopPropagation()">
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <div
+        *ngIf="dropdownOpen"
+        id="ai-company-results"
+        class="ai-scope-results"
+        role="listbox"
+        aria-label="Companies"
+        #resultsList>
+        <div class="ai-scope-results-status" *ngIf="companiesLoading" role="status">
+          Loading companies...
+        </div>
+        <div class="ai-scope-results-status ai-scope-results-status--error" *ngIf="companiesError && !companiesLoading">
+          <span>{{ companiesError }}</span>
+          <button type="button" class="ai-scope-link-btn" (click)="retryCompanies()">Retry</button>
+        </div>
+        <div
+          class="ai-scope-results-status"
+          *ngIf="!companiesLoading && !companiesError && !filteredCompanies.length"
+          role="status">
+          No companies found. Try another search.
+        </div>
+        <button
+          type="button"
+          role="option"
+          class="ai-scope-result"
+          *ngFor="let c of filteredCompanies; trackBy: trackCompany; let i = index"
+          [class.is-active]="i === activeResultIndex"
+          [class.is-selected]="selectedCompany?.id === c.id"
+          [attr.aria-selected]="selectedCompany?.id === c.id"
+          (click)="selectCompany(c)">
+          <span class="ai-scope-result-name">{{ c.name }}</span>
+          <span class="ai-scope-result-meta">
+            {{ c.activeVehicleCount || 0 }} vehicles
+            <ng-container *ngIf="c.location"> · {{ c.location }}</ng-container>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty: no company -->
+    <div class="ai-scope-empty" *ngIf="!selectedCompany && !companiesLoading" role="status">
+      <mat-icon aria-hidden="true">business</mat-icon>
+      <div>
+        <strong>Choose a company to get started</strong>
+        <p>Select a company above to view its vehicles and ask questions about its fleet.</p>
+      </div>
+      <button type="button" class="ai-scope-cta" (click)="openDropdown(); searchInput.focus()">
+        Search companies
+      </button>
+    </div>
+
+    <!-- Selected company card -->
+    <article class="ai-scope-company" *ngIf="selectedCompany" aria-live="polite">
+      <div class="ai-scope-company-mark" aria-hidden="true">
+        <mat-icon>apartment</mat-icon>
+      </div>
+      <div class="ai-scope-company-body">
+        <strong>{{ selectedCompany.name }}</strong>
+        <span>
+          {{ vehicles.length || selectedCompany.activeVehicleCount || 0 }} vehicles
+          <ng-container *ngIf="!vehiclesLoading && vehicles.length">
+            · {{ activeVehicleCount }} active
+          </ng-container>
+          <ng-container *ngIf="selectedCompany.location"> · {{ selectedCompany.location }}</ng-container>
+          <ng-container *ngIf="selectedCompany.country && !selectedCompany.location">
+            · {{ selectedCompany.country }}
+          </ng-container>
+        </span>
+      </div>
+    </article>
+
+    <div class="ai-scope-notice" *ngIf="scopeNotice" role="status">{{ scopeNotice }}</div>
+
+    <!-- Vehicles strip -->
+    <div class="ai-scope-vehicles" *ngIf="selectedCompany">
+      <div class="ai-scope-vehicles-head">
+        <span class="ai-scope-section-label" id="ai-vehicle-scope-label">Select a vehicle</span>
+        <input
+          *ngIf="vehicles.length > 6"
+          type="search"
+          class="ai-scope-vehicle-filter"
+          [ngModel]="vehicleFilter"
+          (ngModelChange)="onVehicleFilter($event)"
+          placeholder="Filter…"
+          aria-label="Filter vehicles" />
+      </div>
+
+      <div class="ai-scope-vehicles-status" *ngIf="vehiclesLoading" role="status">
+        <mat-spinner diameter="16"></mat-spinner>
+        Loading vehicles...
+      </div>
+
+      <div class="ai-scope-vehicles-status ai-scope-vehicles-status--error" *ngIf="vehiclesError && !vehiclesLoading">
+        <mat-icon aria-hidden="true">warning</mat-icon>
+        <span>{{ vehiclesError }}</span>
+        <button type="button" class="ai-scope-link-btn" (click)="retryVehicles()">Retry</button>
+      </div>
+
+      <div
+        class="ai-scope-vehicles-status"
+        *ngIf="!vehiclesLoading && !vehiclesError && !vehicles.length"
+        role="status">
+        No vehicles are registered for this company yet.
+      </div>
+
+      <div
+        class="ai-scope-vehicles-status"
+        *ngIf="!vehiclesLoading && !vehiclesError && vehicles.length && !filteredVehicles.length"
+        role="status">
+        No vehicles match this search.
+      </div>
+
+      <div
+        class="ai-scope-vehicle-strip"
+        role="listbox"
+        aria-labelledby="ai-vehicle-scope-label"
+        *ngIf="!vehiclesLoading && !vehiclesError && vehicles.length">
+        <button
+          type="button"
+          role="option"
+          class="ai-scope-chip"
+          [class.is-selected]="selectedVehicleId == null"
+          [attr.aria-selected]="selectedVehicleId == null"
+          (click)="selectAllVehicles()">
+          <mat-icon aria-hidden="true">directions_car</mat-icon>
+          <span>All vehicles</span>
+          <span class="ai-scope-chip-count">{{ vehicles.length }}</span>
+        </button>
+        <button
+          type="button"
+          role="option"
+          class="ai-scope-chip"
+          *ngFor="let v of filteredVehicles; trackBy: trackVehicle"
+          [class.is-selected]="selectedVehicleId === v.id"
+          [attr.aria-selected]="selectedVehicleId === v.id"
+          [attr.aria-label]="v.registrationNumber + ', ' + statusLabel(v)"
+          (click)="selectVehicle(v)">
+          <mat-icon aria-hidden="true">directions_car</mat-icon>
+          <span class="ai-scope-chip-plate">{{ v.registrationNumber }}</span>
+          <span class="ai-scope-chip-badge" [attr.data-tone]="statusTone(v)">{{ statusLabel(v) }}</span>
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</section>

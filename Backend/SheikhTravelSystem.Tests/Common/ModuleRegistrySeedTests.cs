@@ -9,11 +9,14 @@ public class ModuleRegistrySeedTests
     /// Active modules that ship with a non-null ERP route. Keep in sync when adding real routes.
     /// </summary>
     private static readonly HashSet<string> ActiveModulesWithRoutes =
-    [
-        "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
-        "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
-        "PAYMENTS", "INVOICES", "SETTINGS", "AI", "ROAD_SPEED_ALERTS",
-    ];
+        new[]
+        {
+            "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
+            "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
+            "PAYMENTS", "INVOICES", "SETTINGS", "AI",
+        }
+        .Concat(AlertModuleCatalog.AllModuleCodes)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     [Fact]
     public void AiAssistant_IsActiveEnableable_NotInDefaultModuleCodes()
@@ -27,22 +30,51 @@ public class ModuleRegistrySeedTests
     }
 
     [Fact]
-    public void RoadSpeedAlerts_IsActiveEnableable_DependsOnGps_NotInDefaults()
+    public void PremiumAlertChildren_AreActiveEnableable_NotInDefaults()
     {
-        var mod = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "ROAD_SPEED_ALERTS").Subject;
-        mod.Status.Should().Be("Active");
-        mod.LegacyKeys.Should().BeEquivalentTo(["road-speed-alerts"]);
-        mod.Dependencies.Should().Contain("GPS");
-        ModuleRegistrySeed.IsEnableable("ROAD_SPEED_ALERTS").Should().BeTrue();
-        ModuleRegistrySeed.IsToggleable(mod).Should().BeTrue();
-        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("ROAD_SPEED_ALERTS");
-        TenantModuleCatalog.All.Should().Contain(m => m.Code == TenantModuleCatalog.RoadSpeedAlertsModuleCode);
+        foreach (var code in new[] { "ROAD_SPEED_ALERTS", "ALERT_OVERSPEED", "ALERT_GPS_LOST", "ALERT_LOW_FUEL" })
+        {
+            var mod = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == code).Subject;
+            mod.Status.Should().Be("Active");
+            mod.Category.Should().Be(AlertModuleCatalog.AlertsCategory);
+            mod.Description.Should().StartWith("Premium");
+            mod.Dependencies.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
+            ModuleRegistrySeed.IsEnableable(code).Should().BeTrue();
+            ModuleRegistrySeed.IsToggleable(mod).Should().BeTrue();
+            SubscriptionAddOnCatalog.IsPremiumAddOn(code).Should().BeTrue();
+            AlertModuleCatalog.IsPremium(code).Should().BeTrue();
+            TenantModuleCatalog.DefaultModuleCodes.Should().NotContain(code);
+        }
+
+        var road = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "ROAD_SPEED_ALERTS").Subject;
+        road.LegacyKeys.Should().BeEquivalentTo(["road-speed-alerts"]);
+        road.Dependencies.Should().NotContain("GPS");
 
         var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["ROAD_SPEED_ALERTS"]);
         expanded.Should().Contain("ROAD_SPEED_ALERTS");
+        expanded.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
         expanded.Should().Contain("GPS");
         expanded.Should().Contain("FLEET");
         expanded.Should().Contain("DASHBOARD");
+    }
+
+    [Fact]
+    public void Alerts_IsMajorEnableableModule_WithPerTypeChildren()
+    {
+        var alerts = ModuleRegistrySeed.All.Should()
+            .ContainSingle(e => e.Code == AlertModuleCatalog.AlertsModuleCode).Subject;
+        alerts.Category.Should().Be(AlertModuleCatalog.AlertsCategory);
+        alerts.Dependencies.Should().Contain("GPS");
+        ModuleRegistrySeed.IsEnableable(AlertModuleCatalog.AlertsModuleCode).Should().BeTrue();
+        TenantModuleCatalog.DefaultModuleCodes.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
+
+        foreach (var type in AlertModuleCatalog.Types)
+        {
+            var child = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == type.ModuleCode).Subject;
+            child.Category.Should().Be(AlertModuleCatalog.AlertsCategory);
+            child.Dependencies.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
+            ModuleRegistrySeed.IsEnableable(type.ModuleCode).Should().BeTrue();
+        }
     }
 
     [Fact]

@@ -30,6 +30,10 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
   private windowTimer: ReturnType<typeof setInterval> | null = null;
 
   accounts: WhatsAppAccount[] = [];
+  /** Inbox tabs only show WhatsApp lines that can receive/send (configured token). */
+  get inboxAccounts(): WhatsAppAccount[] {
+    return this.accounts.filter(a => a.hasAccessToken);
+  }
   selectedAccountId: number | null = null;
   conversations: WhatsAppConversation[] = [];
   selected: WhatsAppConversation | null = null;

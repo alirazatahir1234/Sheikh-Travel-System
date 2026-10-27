@@ -19,9 +19,13 @@ public static class TenantModuleCatalog
     /// <summary>Roads / routes catalog — independent of bookings/trips.</summary>
     public const string TravelRoutesModuleCode = "TRAVEL";
 
+    /// <summary>Major Fleet Alerts module — parent of per-type alert capabilities.</summary>
+    public const string AlertsModuleCode = AlertModuleCatalog.AlertsModuleCode;
+
     /// <summary>
-    /// Road-posted speed limit overspeed alerts (Google Roads Speed Limits) — opt-in only;
-    /// never in <see cref="DefaultModuleCodes"/>.
+    /// Premium road-posted speed limit overspeed alerts (Google Roads Speed Limits) —
+    /// paid subscription add-on under <see cref="AlertsModuleCode"/>; never in <see cref="DefaultModuleCodes"/>.
+    /// See <see cref="SubscriptionAddOnCatalog"/> and <see cref="AlertModuleCatalog"/>.
     /// </summary>
     public const string RoadSpeedAlertsModuleCode = "ROAD_SPEED_ALERTS";
 
@@ -32,28 +36,35 @@ public static class TenantModuleCatalog
         new("GPS", "Fleet Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
         // Roads/routes only — bookings & trips are separate opt-in modules.
+        // TRIPS stays catalog-only under BOOKINGS (not listed here → not separately enableable).
         new(TravelRoutesModuleCode, "Routes", ["routes"]),
-        new(BookingsModuleCode, "Bookings", ["bookings"]),
-        new(TripsModuleCode, "Trips", ["trips"]),
+        new(BookingsModuleCode, "Bookings", ["bookings", "trips"]),
         new("CRM", "CRM", ["customers"]),
         new("FINANCE", "Finance", ["payments"]),
         new("HR", "HR", ["hr"]),
         new("ANALYTICS", "Analytics Pro", ["reports", "audit-logs"]),
         new("ACCESS", "Access Control", ["users", "driver-allowance-rules"]),
+        // Major Alerts parent + per-type children (see AlertModuleCatalog).
+        new(AlertsModuleCode, "Fleet Alerts", ["alerts"]),
+        ..AlertModuleCatalog.Types.Select(t => new ModuleDefinition(t.ModuleCode, t.DisplayName, [t.LegacyKey])),
         // Premium: SheikhGo AI Assistant — enable only via explicit company opt-in (provision / module management).
         new(AiAssistantModuleCode, "SheikhGo AI Assistant", ["ai"]),
-        // Premium: road-based overspeed (posted limit + margin) — opt-in; requires GPS + Maps key.
-        new(RoadSpeedAlertsModuleCode, "Road Speed Alerts", ["road-speed-alerts"]),
     ];
 
     /// <summary>
     /// Modules enabled for new tenants when none are specified.
     /// Does <b>not</b> include <see cref="AiAssistantModuleCode"/>, <see cref="BookingsModuleCode"/>,
-    /// <see cref="TripsModuleCode"/>, or <see cref="RoadSpeedAlertsModuleCode"/> (opt-in).
-    /// Includes <see cref="TravelRoutesModuleCode"/> (roads/routes) only.
+    /// <see cref="TripsModuleCode"/>, or premium alert types
+    /// (<see cref="RoadSpeedAlertsModuleCode"/>, ALERT_OVERSPEED, ALERT_GPS_LOST, ALERT_LOW_FUEL).
+    /// Includes <see cref="TravelRoutesModuleCode"/> (roads/routes) and basic fleet alert types
+    /// (online/offline, ignition, battery, power cut, geofence, SOS) — always default-on, not premium.
     /// </summary>
     public static IReadOnlyList<string> DefaultModuleCodes { get; } =
-        ["DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"];
+        new[] { "DASHBOARD", "FLEET", "GPS" }
+            .Concat(AlertModuleCatalog.DefaultModuleCodes)
+            .Concat(["TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"])
+            .ToList();
+
     /// <summary>
     /// Whether a product module code (or legacy key) is covered by the tenant's enabled legacy keys.
     /// Used by menu/dashboard soft gates; empty enabled set is treated as "no filter" by callers.

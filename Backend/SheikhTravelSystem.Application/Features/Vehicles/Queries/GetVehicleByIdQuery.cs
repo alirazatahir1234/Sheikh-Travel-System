@@ -8,18 +8,20 @@ using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
-public record GetVehicleByIdQuery(int Id) : IRequest<ApiResponse<VehicleDto>>;
+public record GetVehicleByIdQuery(int Id, int? TenantId = null) : IRequest<ApiResponse<VehicleDto>>;
 
 public class GetVehicleByIdQueryHandler(
     IVehicleRepository vehicleRepository,
-    ITenantContext tenantContext,
+    IPlatformScope platformScope,
     IFileStorageService fileStorage)
     : IRequestHandler<GetVehicleByIdQuery, ApiResponse<VehicleDto>>
 {
-    public async Task<ApiResponse<VehicleDto>> Handle(GetVehicleByIdQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<VehicleDto>> Handle(
+        GetVehicleByIdQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = platformScope.ResolveTenantId(request.TenantId);
         var vehicle = await vehicleRepository.GetByIdAsync(
-            request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
+            request.Id, tenantId, cancellationToken);
 
         if (vehicle is null)
             throw new NotFoundException("Vehicle", request.Id);
