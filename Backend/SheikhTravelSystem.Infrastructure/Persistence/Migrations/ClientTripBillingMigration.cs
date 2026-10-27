@@ -55,8 +55,8 @@ public static class ClientTripBillingMigration
                     SELECT 1 FROM sys.indexes
                     WHERE name = N'IX_CustomerInvoices_TenantId_TripId'
                       AND object_id = OBJECT_ID(N'dbo.CustomerInvoices'))
-                    CREATE INDEX IX_CustomerInvoices_TenantId_TripId
-                        ON dbo.CustomerInvoices (TenantId, TripId) WHERE IsDeleted = 0 AND TripId IS NOT NULL;
+                    EXEC(N'CREATE INDEX IX_CustomerInvoices_TenantId_TripId
+                        ON dbo.CustomerInvoices (TenantId, TripId) WHERE IsDeleted = 0 AND TripId IS NOT NULL');
             END
             """, cancellationToken: cancellationToken));
 

@@ -60,34 +60,45 @@ public static class DriverTripFeedbackMigration
             END
             """, cancellationToken: cancellationToken));
 
+        // TenantId is NOT NULL; seed once against the lowest tenant id (platform default).
         await connection.ExecuteAsync(new CommandDefinition("""
             IF NOT EXISTS (
                 SELECT 1 FROM NotificationTemplates
                 WHERE TemplateKey = N'trip_feedback_request' AND Channel = N'Email' AND IsDeleted = 0)
-            INSERT INTO NotificationTemplates (TemplateKey, TemplateName, Subject, Body, Channel, IsActive, CreatedAt, IsDeleted)
-            VALUES (
+            INSERT INTO NotificationTemplates
+                (TenantId, TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Language, Variables, CreatedAt, IsDeleted)
+            SELECT TOP 1 ten.Id,
                 N'trip_feedback_request',
                 N'Trip feedback request',
                 N'Rate your trip {{TripNumber}}',
                 N'{{Message}}',
                 N'Email',
                 1,
+                N'en',
+                N'["TripNumber","Message","PortalUrl"]',
                 GETUTCDATE(),
-                0);
+                0
+            FROM Tenants ten
+            ORDER BY ten.Id;
 
             IF NOT EXISTS (
                 SELECT 1 FROM NotificationTemplates
                 WHERE TemplateKey = N'trip_feedback_request' AND Channel = N'InApp' AND IsDeleted = 0)
-            INSERT INTO NotificationTemplates (TemplateKey, TemplateName, Subject, Body, Channel, IsActive, CreatedAt, IsDeleted)
-            VALUES (
+            INSERT INTO NotificationTemplates
+                (TenantId, TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Language, Variables, CreatedAt, IsDeleted)
+            SELECT TOP 1 ten.Id,
                 N'trip_feedback_request',
                 N'Trip feedback request',
                 N'Trip feedback',
                 N'{{Message}}',
                 N'InApp',
                 1,
+                N'en',
+                N'["Message"]',
                 GETUTCDATE(),
-                0);
+                0
+            FROM Tenants ten
+            ORDER BY ten.Id;
             """, cancellationToken: cancellationToken));
 
         await TenantRolePermissionSeeder.AssignRolePermissionsForAllTenantsAsync(
