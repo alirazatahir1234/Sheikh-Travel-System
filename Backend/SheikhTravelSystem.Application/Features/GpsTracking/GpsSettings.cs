@@ -36,6 +36,56 @@ public class GpsSettings
     /// see <see cref="FleetHealth"/>. Null factors are Unknown (excluded), never treated as healthy.
     /// </summary>
     public GpsFleetHealthOptions FleetHealth { get; set; } = new();
+
+    /// <summary>
+    /// When a Gmeet tracker stops reporting (no GPRS / stale location), SMS the device SOS number.
+    /// Separate from ACC ignition SMS (Admin/Dispatcher Users.Phone).
+    /// </summary>
+    public GmeetOfflineSmsOptions GmeetOfflineSms { get; set; } = new();
+
+    /// <summary>GPS stop + Places proximity detection for fuel-station visit alerts.</summary>
+    public FuelStationStopOptions FuelStationStop { get; set; } = new();
+}
+
+/// <summary>
+/// Detects prolonged stops near petrol-station POIs (Google Places Nearby Search).
+/// Requires configured Places API; never fabricates station visits.
+/// </summary>
+public class FuelStationStopOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Speed at or below this value (km/h) counts as stopped.</summary>
+    public decimal StopSpeedKmh { get; set; } = 3m;
+
+    /// <summary>Minimum continuous stop duration before a Places lookup runs.</summary>
+    public int MinStopMinutes { get; set; } = 4;
+
+    /// <summary>Vehicle must be within this distance (m) of a fuel POI to raise an alert.</summary>
+    public int ProximityRadiusMeters { get; set; } = 120;
+
+    public int PlacesSearchRadiusMeters { get; set; } = 250;
+
+    /// <summary>Suppress repeat alerts for the same vehicle within this window.</summary>
+    public int DedupMinutes { get; set; } = 120;
+}
+
+/// <summary>Gmeet offline → SOS-number SMS (site-side via Notifications:Sms).</summary>
+public class GmeetOfflineSmsOptions
+{
+    /// <summary>Master switch. When false, offline detection still runs for ops InApp alerts.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Stale minutes before SMS. 0 = use <see cref="GpsSettings.OfflineStaleMinutes"/>.
+    /// </summary>
+    public int StaleMinutes { get; set; }
+
+    /// <summary>Background scan interval for offline detection (seconds). Default 60.</summary>
+    public int ScanIntervalSeconds { get; set; } = 60;
+
+    /// <summary>Extra name/vendor tokens treated as Gmeet (besides "gmeet" / catalog <c>gmeet_*</c>).</summary>
+    public string[] ExtraNameContains { get; set; } = [];
 }
 
 /// <summary>

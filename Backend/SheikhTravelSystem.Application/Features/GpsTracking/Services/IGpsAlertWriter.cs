@@ -35,7 +35,7 @@ public static class GpsAlertSeverity
         "sos" or "power_cut" => "critical",
         "speed_exceeded" or "overspeed" or "road_speed_exceeded" or "harsh_braking" or "harsh_acceleration"
             or "geofence_exit" or "vehicle_offline" or "device_offline" or "alarm" => "high",
-        "ignition_on" or "low_battery" or "gps_lost" or "low_fuel" or "geofence_enter" => "medium",
+        "ignition_on" or "low_battery" or "gps_lost" or "low_fuel" or "fuel_station_stop" or "geofence_enter" => "medium",
         "ignition_off" or "online" or "device_online" or "vehicle_online" => "low",
         _ => "medium"
     };

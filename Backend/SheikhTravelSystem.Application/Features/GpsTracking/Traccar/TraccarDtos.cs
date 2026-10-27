@@ -55,7 +55,11 @@ public record TraccarPositionAttributes(
     [property: JsonPropertyName("temp")] decimal? Temp = null,
     [property: JsonPropertyName("deviceTemp")] decimal? DeviceTemp = null,
     [property: JsonPropertyName("temp1")] decimal? Temp1 = null,
-    [property: JsonPropertyName("temp2")] decimal? Temp2 = null)
+    [property: JsonPropertyName("temp2")] decimal? Temp2 = null,
+    [property: JsonPropertyName("fuelConsumption")] decimal? FuelConsumption = null,
+    [property: JsonPropertyName("fuelUsed")] decimal? FuelUsed = null,
+    [property: JsonPropertyName("spentFuel")] decimal? SpentFuel = null,
+    [property: JsonPropertyName("obdOdometer")] decimal? ObdOdometer = null)
 {
     public decimal? ResolvedTemperature => Temperature ?? Temp ?? DeviceTemp ?? Temp1 ?? Temp2;
 }

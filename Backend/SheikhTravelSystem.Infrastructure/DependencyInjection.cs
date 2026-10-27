@@ -116,6 +116,7 @@ public static class DependencyInjection
         services.AddScoped<IDevDataService, DevDataService>();
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IDriverAppRepository, DriverAppRepository>();
+        services.AddScoped<IDriverMobileSyncRepository, DriverMobileSyncRepository>();
         services.AddScoped<IDriverAllowanceRepository, DriverAllowanceRepository>();
         services.AddScoped<ICustomerPortalRepository, CustomerPortalRepository>();
         services.AddScoped<IPortalPricingService, PortalPricingService>();
@@ -293,6 +294,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
+        services.AddHostedService<PredictiveMaintenanceDriverNotifyHostedService>();
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.SmartOperations.SmartOperationsHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsDailyRollupHostedService>();
@@ -407,6 +409,7 @@ public static class DependencyInjection
         // Scoped (not singleton): depends on scoped IGoogleRoadsService; process memory cache is static.
         services.AddScoped<IRoadSpeedLimitLookup, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedLimitLookupService>();
         services.AddScoped<IRoadSpeedAlertEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.RoadSpeedAlertEvaluator>();
+        services.AddScoped<IFuelStationStopEvaluator, SheikhTravelSystem.Infrastructure.Services.Gps.FuelStationStopEvaluator>();
         services.AddScoped<IGoogleTimeZoneService, GoogleTimeZoneService>();
         services.AddScoped<IGoogleStaticMapsService, GoogleStaticMapsService>();
         services.AddScoped<IGoogleStreetViewService, GoogleStreetViewService>();

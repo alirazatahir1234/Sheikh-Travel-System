@@ -1,0 +1,70 @@
+.telemetry-page header {
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--stb-muted, #64748b);
+    font-size: 0.9rem;
+    max-width: 40rem;
+  }
+}
+
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  mat-form-field {
+    min-width: 260px;
+  }
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  .lbl {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--stb-muted, #64748b);
+  }
+
+  strong {
+    font-size: 1.25rem;
+  }
+
+  small {
+    color: var(--stb-muted, #94a3b8);
+    font-size: 0.75rem;
+  }
+}
+
+.note {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+
+  &.muted {
+    color: var(--stb-muted, #64748b);
+  }
+}
+
+.empty {
+  color: var(--stb-muted, #64748b);
+}

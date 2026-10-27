@@ -3,6 +3,7 @@ export const REPORT_CATALOG = [
   { id: 'vehicle', label: 'Vehicle Report', icon: 'directions_bus', description: 'Fleet roster with driver, tracker, status, and mileage. Registration Expiry is not tracked in this system — only Insurance Expiry is shown.' },
   { id: 'driver', label: 'Driver Report', icon: 'badge', description: 'Per-driver trips, distance, driving/idle hours, and score.' },
   { id: 'fuel', label: 'Fuel Report', icon: 'local_gas_station', description: 'Per-fill-up fuel logs with cost and consumption between odometer readings.' },
+  { id: 'fuel-efficiency', label: 'Fuel Efficiency (Km/L)', icon: 'speed', description: 'Kilometers per liter by vehicle, driver, and route from fuel logs and trip distance.' },
   { id: 'speed', label: 'Speed Report', icon: 'speed', description: 'Overspeed events with configured speed limit where set. Per-event duration is not tracked — only the point-in-time event.' },
   { id: 'idle', label: 'Idle Report', icon: 'pause_circle', description: 'Per-vehicle idle periods from GPS telemetry.' },
   { id: 'stop', label: 'Stop Report', icon: 'local_parking', description: 'Per-vehicle stop periods (arrival/departure) from GPS telemetry.' },

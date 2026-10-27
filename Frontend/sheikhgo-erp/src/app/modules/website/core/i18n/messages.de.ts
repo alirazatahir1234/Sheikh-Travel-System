@@ -219,6 +219,30 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.gpsAlerts.perk.safer': 'Sichererer Betrieb',
   'pages.gpsAlerts.perk.control': 'Mehr Kontrolle',
 
+  'pages.fuel.kicker': 'Flottenbetrieb',
+  'pages.fuel.title': 'Kraftstoffmanagement',
+  'pages.fuel.lead':
+    'OBD-Kraftstofftelemetrie vom GPS-Gerät, Tankstellen-Stopp-Alerts, Belege und km/L-Berichte nach Fahrzeug, Fahrer und Route — ohne Demo-Werte.',
+  'pages.fuel.feature.obd.title': 'OBD-II Kraftstofftelemetrie',
+  'pages.fuel.feature.obd.text':
+    'Tankfüllstand, Verbrauchsrate, verbrauchter Kraftstoff und OBD-Kilometerstand aus Traccar/Geräte-Attributen in Nexus.',
+  'pages.fuel.feature.station.title': 'Tankstellen-Besuchs-Alerts',
+  'pages.fuel.feature.station.text':
+    'GPS-Stopp plus nahe Tankstellen-POIs (Google Places) löst fuel_station_stop Alerts aus.',
+  'pages.fuel.feature.efficiency.title': 'km/L Effizienzberichte',
+  'pages.fuel.feature.efficiency.text':
+    'Berichte nach Fahrzeug, Fahrer und Route aus Tankbelegen und Streckenkilometern.',
+  'pages.fuel.feature.logs.title': 'Tankbelege & Quittungen',
+  'pages.fuel.feature.logs.text':
+    'Fahrer reichen Belege per App ein; Disponenten erfassen Liter, Kosten und Kilometerstand im ERP.',
+  'pages.fuel.integrationKicker': 'Integration',
+  'pages.fuel.integrationTitle': 'Echte Hardware, echte Felder',
+  'pages.fuel.integrationLead':
+    'SheikhGo erfindet keine Kraftstoffwerte. Daten erscheinen, wenn Tracker und Traccar OBD-PIDs liefern; Tankstellen-Alerts benötigen Google Places auf dem Server.',
+  'pages.fuel.integration.obd': 'Traccar: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
+  'pages.fuel.integration.station': 'Alert-Typ fuel_station_stop (GPS-Stopp + POI-Nähe)',
+  'pages.fuel.integration.receipts': 'FuelLogs-API + Fahrer-Quittungen zur Plausibilisierung',
+
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'KI-Lösungen',
   'pages.aiSolutions.tagline': 'Flotten-Intelligence, der Sie vertrauen können — Tools first, Menschen in Kontrolle.',

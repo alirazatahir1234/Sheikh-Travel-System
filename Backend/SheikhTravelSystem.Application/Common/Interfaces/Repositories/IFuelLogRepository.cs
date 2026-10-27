@@ -21,4 +21,10 @@ public interface IFuelLogRepository
     Task<int> UpdateAsync(int id, int tenantId, CreateFuelLogDto dto, CancellationToken cancellationToken = default);
 
     Task<int> DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default);
+
+    Task<VehicleFuelTelemetryDto?> GetVehicleTelemetryAsync(
+        int tenantId, int vehicleId, CancellationToken cancellationToken = default);
+
+    Task<FuelEfficiencyReportDto> GetEfficiencyReportAsync(
+        int tenantId, DateTime from, DateTime toExclusive, CancellationToken cancellationToken = default);
 }

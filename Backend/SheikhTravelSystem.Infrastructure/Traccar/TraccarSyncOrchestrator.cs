@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Features.Drivers.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Infrastructure.Traccar;
@@ -110,7 +111,7 @@ public sealed class TraccarSyncOrchestrator(
             if (device.VehicleId.HasValue)
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var dto = new IngestPositionDto(
+                var dto = GpsObdTelemetryMapper.ApplyTraccarObd(new IngestPositionDto(
                     VehicleId: device.VehicleId.Value,
                     DriverId: null,
                     BookingId: null,
@@ -128,7 +129,7 @@ public sealed class TraccarSyncOrchestrator(
                     TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
                     Address: pos.Address,
                     AlarmType: pos.Attributes.Alarm,
-                    Temperature: pos.Attributes.ResolvedTemperature);
+                    Temperature: pos.Attributes.ResolvedTemperature), pos.Attributes);
 
                 try
                 {
@@ -308,7 +309,7 @@ public sealed class TraccarSyncOrchestrator(
 
                 if (linkedDevices.TryGetValue(pos.DeviceId, out var linked))
                 {
-                    var dto = new IngestPositionDto(
+                    var dto = GpsObdTelemetryMapper.ApplyTraccarObd(new IngestPositionDto(
                         VehicleId: linked.VehicleId,
                         DriverId: null,
                         BookingId: null,
@@ -326,7 +327,7 @@ public sealed class TraccarSyncOrchestrator(
                         TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
                         Address: pos.Address,
                         AlarmType: pos.Attributes.Alarm,
-                        Temperature: pos.Attributes.ResolvedTemperature);
+                        Temperature: pos.Attributes.ResolvedTemperature), pos.Attributes);
 
                     try
                     {

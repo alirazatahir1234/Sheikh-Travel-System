@@ -1,0 +1,57 @@
+.efficiency-page {
+  padding: 0 0 1.5rem;
+}
+
+.efficiency-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--stb-muted, #64748b);
+    font-size: 0.9rem;
+    max-width: 36rem;
+  }
+}
+
+.range-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tables {
+  display: grid;
+  gap: 1rem;
+}
+
+.table-block {
+  padding: 1rem;
+  border-radius: 12px;
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  table {
+    width: 100%;
+  }
+}
+
+.empty {
+  color: var(--stb-muted, #64748b);
+  margin: 0.5rem 0;
+}

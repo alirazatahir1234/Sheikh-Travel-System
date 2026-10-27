@@ -214,6 +214,30 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.gpsAlerts.perk.safer': 'عمليات أكثر أماناً',
   'pages.gpsAlerts.perk.control': 'تحكم أكبر',
 
+  'pages.fuel.kicker': 'عمليات الأسطول',
+  'pages.fuel.title': 'إدارة الوقود',
+  'pages.fuel.lead':
+    'ربط قراءات OBD للوقود من أجهزة GPS، تنبيهات التوقف عند محطات الوقود، سجلات التعبئة، وتقارير كم/لتر حسب المركبة والسائق والمسار — بدون أرقام وهمية.',
+  'pages.fuel.feature.obd.title': 'قراءات OBD-II للوقود',
+  'pages.fuel.feature.obd.text':
+    'مستوى الوقود ومعدل الاستهلاك والوقود المستخدم وعداد OBD من سمات Traccar/الجهاز إلى Nexus عند توفرها.',
+  'pages.fuel.feature.station.title': 'تنبيهات زيارة محطة الوقود',
+  'pages.fuel.feature.station.text':
+    'كشف التوقف عبر GPS مع نقاط اهتمام المحطات القريبة (Google Places) لإطلاق تنبيه fuel_station_stop.',
+  'pages.fuel.feature.efficiency.title': 'تقارير كفاءة كم/لتر',
+  'pages.fuel.feature.efficiency.text':
+    'تقارير إدارية حسب المركبة والسائق والمسار من فروق عداد التعبئة ومسافات الرحلات.',
+  'pages.fuel.feature.logs.title': 'سجلات الوقود وإيصالات السائق',
+  'pages.fuel.feature.logs.text':
+    'يرسل السائقون الإيصالات من التطبيق؛ يسجل المشغّل اللترات والتكلفة والعداد في ERP.',
+  'pages.fuel.integrationKicker': 'التكامل',
+  'pages.fuel.integrationTitle': 'أجهزة حقيقية، حقول حقيقية',
+  'pages.fuel.integrationLead':
+    'SheikhGo لا يختلق قراءات وقود. تظهر القيم عندما يرسل الجهاز وTraccar معرّفات OBD؛ تنبيهات المحطات تحتاج Google Places على الخادم.',
+  'pages.fuel.integration.obd': 'سمات Traccar: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
+  'pages.fuel.integration.station': 'نوع التنبيه fuel_station_stop (توقف GPS + قرب POI)',
+  'pages.fuel.integration.receipts': 'واجهة FuelLogs + إيصالات السائق للتحقق',
+
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'حلول الذكاء الاصطناعي',
   'pages.aiSolutions.tagline': 'ذكاء أسطول تثق به — أدوات أولاً والبشر يتحكمون.',

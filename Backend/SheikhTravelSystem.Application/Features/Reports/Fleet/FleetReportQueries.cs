@@ -69,6 +69,7 @@ public partial class GetFleetReportQueryHandler(
                 request.DepartmentId, cancellationToken),
             "fuel" => await BuildFuelReportAsync(tenantId, from, to, request.VehicleId,
                 request.BranchId, cancellationToken, scope),
+            "fuel-efficiency" => await BuildFuelEfficiencyReportAsync(from, to, cancellationToken),
             "speed" => await BuildSpeedReportAsync(tenantId, from, to, request.VehicleId,
                 request.DriverId, cancellationToken),
             "idle" => await BuildIdleReportAsync(tenantId, from, to, request.VehicleId, cancellationToken),

@@ -35,3 +35,31 @@ export interface CreateFuelLogDto {
 export interface CreateFuelLogRequest {
   fuelLog: CreateFuelLogDto;
 }
+
+export interface VehicleFuelTelemetry {
+  vehicleId: number;
+  vehicleName?: string | null;
+  lastUpdate?: string | null;
+  fuelLevelPercent?: number | null;
+  fuelConsumptionRateLph?: number | null;
+  obdFuelUsedLiters?: number | null;
+  obdOdometerKm?: number | null;
+  integrationNote?: string | null;
+}
+
+export interface FuelEfficiencyRow {
+  groupKey: string;
+  label: string;
+  distanceKm?: number | null;
+  liters: number;
+  kmPerLiter?: number | null;
+  basisNote: string;
+}
+
+export interface FuelEfficiencyReport {
+  from: string;
+  to: string;
+  byVehicle: FuelEfficiencyRow[];
+  byDriver: FuelEfficiencyRow[];
+  byRoute: FuelEfficiencyRow[];
+}

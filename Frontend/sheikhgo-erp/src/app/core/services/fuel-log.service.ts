@@ -3,7 +3,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../models/common.model';
-import { FuelLog, CreateFuelLogRequest } from '../models/fuel-log.model';
+import {
+  FuelEfficiencyReport,
+  FuelLog,
+  CreateFuelLogRequest,
+  VehicleFuelTelemetry
+} from '../models/fuel-log.model';
 
 @Injectable({ providedIn: 'root' })
 export class FuelLogService {
@@ -30,5 +35,16 @@ export class FuelLogService {
 
   delete(id: number): Observable<boolean> {
     return this.http.delete<boolean>(`${this.base}/${id}`);
+  }
+
+  getTelemetry(vehicleId: number): Observable<VehicleFuelTelemetry> {
+    return this.http.get<VehicleFuelTelemetry>(`${this.base}/telemetry/${vehicleId}`);
+  }
+
+  getEfficiency(from?: string, to?: string): Observable<FuelEfficiencyReport> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<FuelEfficiencyReport>(`${this.base}/efficiency`, { params });
   }
 }

@@ -12,3 +12,29 @@ public record CreateFuelLogDto(
     int VehicleId, int? DriverId, decimal Liters, decimal PricePerLiter,
     decimal OdometerReading, FuelType FuelType, DateTime FuelDate, string? Station,
     string? ReceiptUrl = null);
+
+/// <summary>Latest OBD/GPS fuel telemetry for a vehicle (null fields = not reported by device).</summary>
+public record VehicleFuelTelemetryDto(
+    int VehicleId,
+    string? VehicleName,
+    DateTime? LastUpdate,
+    decimal? FuelLevelPercent,
+    decimal? FuelConsumptionRateLph,
+    decimal? ObdFuelUsedLiters,
+    decimal? ObdOdometerKm,
+    string? IntegrationNote);
+
+public record FuelEfficiencyRowDto(
+    string GroupKey,
+    string Label,
+    decimal? DistanceKm,
+    decimal Liters,
+    decimal? KmPerLiter,
+    string BasisNote);
+
+public record FuelEfficiencyReportDto(
+    DateTime From,
+    DateTime To,
+    IReadOnlyList<FuelEfficiencyRowDto> ByVehicle,
+    IReadOnlyList<FuelEfficiencyRowDto> ByDriver,
+    IReadOnlyList<FuelEfficiencyRowDto> ByRoute);

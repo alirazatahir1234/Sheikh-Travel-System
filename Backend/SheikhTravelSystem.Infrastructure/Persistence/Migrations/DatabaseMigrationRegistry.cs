@@ -70,6 +70,7 @@ public static class DatabaseMigrationRegistry
             M("TripsPhase2Migration", TripsPhase2Migration.ApplyAsync),
             M("TripsPhase4Migration", TripsPhase4Migration.ApplyAsync),
             M("DriverAppSosMigration", DriverAppSosMigration.ApplyAsync),
+            M("DriverMobileSyncMigration", DriverMobileSyncMigration.ApplyAsync),
             M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
             M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),
             M("DriverDeviceRegistrationMigration", DriverDeviceRegistrationMigration.ApplyAsync),
@@ -140,6 +141,8 @@ public static class DatabaseMigrationRegistry
             M("TravelFleetOperationsMenuMigration", TravelFleetOperationsMenuMigration.ApplyAsync),
             M("ModuleRoadSpeedAlertsActiveMigration", ModuleRoadSpeedAlertsActiveMigration.ApplyAsync),
             M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
+            M("FuelObdTelemetryMigration", FuelObdTelemetryMigration.ApplyAsync),
+            M("FuelStationAlertModuleMigration", FuelStationAlertModuleMigration.ApplyAsync),
         ];
     }
 }

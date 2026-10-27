@@ -251,6 +251,12 @@ export const PRODUCT_ITEMS: readonly ProductItem[] = [
     link: '/gps-alerts',
   },
   {
+    title: 'Fuel Management',
+    text: 'OBD fuel level, station-stop alerts, receipts, and km/L reports.',
+    icon: 'local_gas_station',
+    link: '/fuel-management',
+  },
+  {
     title: 'AI Solutions',
     text: 'Assistant, digests and fleet intelligence tools.',
     icon: 'auto_awesome',

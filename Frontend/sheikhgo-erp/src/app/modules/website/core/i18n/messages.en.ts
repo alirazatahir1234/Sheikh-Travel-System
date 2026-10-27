@@ -238,6 +238,30 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.gpsAlerts.perk.safer': 'Safer operations',
   'pages.gpsAlerts.perk.control': 'Greater control',
 
+  'pages.fuel.kicker': 'Fleet Operations',
+  'pages.fuel.title': 'Fuel Management',
+  'pages.fuel.lead':
+    'Connect OBD fuel telemetry from your GPS devices, get alerts when vehicles stop at petrol stations, log receipts, and report kilometers per liter by vehicle, driver, and route — without demo numbers.',
+  'pages.fuel.feature.obd.title': 'OBD-II fuel telemetry',
+  'pages.fuel.feature.obd.text':
+    'Fuel level, consumption rate, fuel used, and OBD odometer flow from Traccar/device attributes into Nexus when your hardware reports them.',
+  'pages.fuel.feature.station.title': 'Fuel station visit alerts',
+  'pages.fuel.feature.station.text':
+    'GPS stop detection plus nearby petrol-station POIs (Google Places) raises fuel_station_stop alerts so managers can match fills to location.',
+  'pages.fuel.feature.efficiency.title': 'Km/L efficiency reports',
+  'pages.fuel.feature.efficiency.text':
+    'Admin reports break down kilometers per liter by vehicle, driver, and route using fuel log odometer deltas and trip distance.',
+  'pages.fuel.feature.logs.title': 'Fuel logs & driver receipts',
+  'pages.fuel.feature.logs.text':
+    'Drivers submit receipts from the mobile app; dispatchers reconcile liters, cost, and odometer in the ERP Fuel module.',
+  'pages.fuel.integrationKicker': 'Integration',
+  'pages.fuel.integrationTitle': 'Real hardware, real fields',
+  'pages.fuel.integrationLead':
+    'SheikhGo does not invent fuel readings. Values appear when your tracker and Traccar forward OBD PIDs; station alerts need Google Places configured on the server.',
+  'pages.fuel.integration.obd': 'Traccar attributes: fuel, fuelConsumption, fuelUsed/spentFuel, obdOdometer',
+  'pages.fuel.integration.station': 'Alert type fuel_station_stop (GPS stop + POI proximity)',
+  'pages.fuel.integration.receipts': 'FuelLogs API + driver fuel-receipts for manual fill verification',
+
   'pages.aiSolutions.kicker': 'SheikhGo AI',
   'pages.aiSolutions.title': 'AI Solutions',
   'pages.aiSolutions.tagline': 'Fleet intelligence you can trust — tools first, humans in control.',

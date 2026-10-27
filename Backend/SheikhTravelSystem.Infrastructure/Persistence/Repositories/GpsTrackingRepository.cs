@@ -40,6 +40,7 @@ public sealed partial class GpsTrackingRepository(
     IGpsAlertWriter alertWriter,
     IDriverTelematicsEnforcementService telematicsEnforcement,
     IRoadSpeedAlertEvaluator roadSpeedAlertEvaluator,
+    IFuelStationStopEvaluator fuelStationStopEvaluator,
     MediatR.IMediator mediator,
     ITraccarClient traccar,
     IReverseGeocodingService geocoder,
@@ -2116,6 +2117,14 @@ public sealed partial class GpsTrackingRepository(
         await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
         await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
+        try
+        {
+            await fuelStationStopEvaluator.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Fuel station stop evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+        }
         await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
@@ -2493,7 +2502,10 @@ public sealed partial class GpsTrackingRepository(
                 traccarGap));
         }
 
-        return ApiResponse<List<DriverScoreDto>>.SuccessResponse(results.OrderByDescending(r => r.Score).ToList());
+        var ordered = results.OrderByDescending(r => r.Score).ToList();
+        var enriched = await DriverPerformanceEnricher.EnrichAndRankAsync(
+            connection, tenantId, ordered, fromDate, toDate, cancellationToken);
+        return ApiResponse<List<DriverScoreDto>>.SuccessResponse(enriched);
         }
 
     public async Task<ApiResponse<IdleAnalyticsDto>> GetIdleAnalyticsAsync(GetIdleAnalyticsQuery request, CancellationToken cancellationToken = default)

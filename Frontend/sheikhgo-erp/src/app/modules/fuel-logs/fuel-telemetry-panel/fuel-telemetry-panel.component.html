@@ -1,0 +1,50 @@
+<div class="telemetry-page">
+  <header>
+    <h2>OBD / GPS fuel telemetry</h2>
+    <p>Live fields from the linked tracker (Traccar OBD attributes). Empty cells mean the device has not reported that PID yet.</p>
+  </header>
+
+  <div class="picker-row">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Vehicle</mat-label>
+      <mat-select [disabled]="loadingVehicles" [(value)]="selectedVehicleId" (selectionChange)="onVehicleChange($event.value)">
+        <mat-option [value]="null">Select vehicle</mat-option>
+        <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber }})</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadTelemetry()" [disabled]="!selectedVehicleId || loadingTelemetry">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  <div class="telemetry-grid stb-elevated" *ngIf="telemetry && !loadingTelemetry; else stateTpl">
+    <div class="tile">
+      <span class="lbl">Fuel level</span>
+      <strong>{{ display(telemetry.fuelLevelPercent, '%') }}</strong>
+      <small>OBD / CAN fuel level</small>
+    </div>
+    <div class="tile">
+      <span class="lbl">Consumption rate</span>
+      <strong>{{ display(telemetry.fuelConsumptionRateLph, ' L/h') }}</strong>
+      <small>fuelConsumption PID</small>
+    </div>
+    <div class="tile">
+      <span class="lbl">Fuel used</span>
+      <strong>{{ display(telemetry.obdFuelUsedLiters, ' L') }}</strong>
+      <small>fuelUsed / spentFuel</small>
+    </div>
+    <div class="tile">
+      <span class="lbl">OBD odometer</span>
+      <strong>{{ display(telemetry.obdOdometerKm, ' km') }}</strong>
+      <small>obdOdometer</small>
+    </div>
+    <p class="note" *ngIf="telemetry.integrationNote">{{ telemetry.integrationNote }}</p>
+    <p class="note muted" *ngIf="telemetry.lastUpdate">Last device update: {{ telemetry.lastUpdate | date:'medium' }}</p>
+  </div>
+
+  <ng-template #stateTpl>
+    <p class="empty" *ngIf="loadingTelemetry">Loading telemetry…</p>
+    <p class="empty" *ngIf="!loadingTelemetry && !selectedVehicleId">Choose a vehicle to view OBD fuel fields.</p>
+  </ng-template>
+</div>

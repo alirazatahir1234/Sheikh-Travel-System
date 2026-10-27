@@ -20,7 +20,10 @@ public record PositionDto(
     string? Address = null,
     string? AlarmType = null,
     string? DriverPhone = null,
-    decimal? Temperature = null);
+    decimal? Temperature = null,
+    decimal? FuelConsumptionRateLph = null,
+    decimal? ObdFuelUsedLiters = null,
+    decimal? ObdOdometerKm = null);
 
 public record IngestPositionDto(
     int VehicleId,
@@ -39,7 +42,10 @@ public record IngestPositionDto(
     decimal? TotalDistanceKm = null,
     string? Address = null,
     string? AlarmType = null,
-    decimal? Temperature = null);
+    decimal? Temperature = null,
+    decimal? FuelConsumptionRateLph = null,
+    decimal? ObdFuelUsedLiters = null,
+    decimal? ObdOdometerKm = null);
 
 public record GpsDeviceDto(
     int Id,
@@ -243,9 +249,9 @@ public static class AlertTypeCatalog
 {
     public static readonly IReadOnlyList<string> Types =
     [
-        "sos", "power_cut", "overspeed", "geofence_enter", "geofence_exit",
+        "sos", "power_cut", "overspeed", "road_speed_exceeded", "geofence_enter", "geofence_exit",
         "offline", "online", "ignition_on", "ignition_off", "low_battery",
-        "gps_lost", "low_fuel"
+        "gps_lost", "low_fuel", "fuel_station_stop"
     ];
 }
 
@@ -357,6 +363,9 @@ public record GpsLiveFleetVehicleDto(
     string? Address,
     string? AlarmType,
     decimal? Temperature,
+    decimal? FuelConsumptionRateLph,
+    decimal? ObdFuelUsedLiters,
+    decimal? ObdOdometerKm,
     int? BookingId,
     string? Imei,
     string? TrackerName,

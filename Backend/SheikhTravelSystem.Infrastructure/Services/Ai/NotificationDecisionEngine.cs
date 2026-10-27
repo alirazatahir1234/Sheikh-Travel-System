@@ -281,7 +281,9 @@ public sealed class NotificationDecisionEngine(
         "sos" => 1,
         "vehicle_offline" => 30,
         "speed_exceeded" or "road_speed_exceeded" => 15,
+        "ignition_on" or "ignition_off" => 5,
         "low_fuel" or "low_battery" => 60,
+        "fuel_station_stop" => 120,
         "compliance_reminder" => 1440,
         "trip_created" or "trip_started" or "trip_completed" or "trip_driver_arriving"
             or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_assigned" => 1,
@@ -291,7 +293,8 @@ public sealed class NotificationDecisionEngine(
     private static int InferPriority(string eventType) => eventType.ToLowerInvariant() switch
     {
         "sos" => 4,
-        "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded" or "compliance_reminder" => 3,
+        "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded"
+            or "ignition_on" or "ignition_off" or "compliance_reminder" => 3,
         _ => 2
     };
 
@@ -309,6 +312,8 @@ public sealed class NotificationDecisionEngine(
     {
         "sos" => "sos_alert",
         "speed_exceeded" or "road_speed_exceeded" => "speed_alert",
+        "ignition_on" => "ignition_on_alert",
+        "ignition_off" => "ignition_off_alert",
         "vehicle_offline" => "vehicle_offline",
         "booking_created" => "booking_created",
         "trip_created" => "trip_created",

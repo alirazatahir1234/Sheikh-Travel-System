@@ -109,6 +109,10 @@ const routes: Routes = [
         loadComponent: () => import('./modules/website/pages/gps/gps.page').then(m => m.GpsPage),
       },
       {
+        path: 'fuel-management',
+        loadComponent: () => import('./modules/website/pages/fuel/fuel.page').then(m => m.FuelPage),
+      },
+      {
         path: 'features',
         loadComponent: () => import('./modules/website/pages/features/features.page').then(m => m.FeaturesPage),
       },

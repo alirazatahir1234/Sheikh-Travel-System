@@ -58,9 +58,11 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
         await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO GpsPositions
               (TenantId, VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
-               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
+               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature,
+               FuelConsumptionRateLph, ObdFuelUsedLiters, ObdOdometerKm)
               VALUES (@TenantId, @VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
-               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature)",
+               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature,
+               @FuelConsumptionRateLph, @ObdFuelUsedLiters, @ObdOdometerKm)",
             new
             {
                 TenantId = tenantId,
@@ -81,7 +83,10 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
                 dto.TotalDistanceKm,
                 dto.Address,
                 dto.AlarmType,
-                dto.Temperature
+                dto.Temperature,
+                dto.FuelConsumptionRateLph,
+                dto.ObdFuelUsedLiters,
+                dto.ObdOdometerKm
             },
             cancellationToken: cancellationToken));
 
@@ -98,12 +103,17 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
                 TotalDistanceKm = @TotalDistanceKm,
                 Address = COALESCE(@Address, Address),
                 AlarmType = @AlarmType,
-                Temperature = @Temperature
+                Temperature = @Temperature,
+                FuelConsumptionRateLph = @FuelConsumptionRateLph,
+                ObdFuelUsedLiters = @ObdFuelUsedLiters,
+                ObdOdometerKm = @ObdOdometerKm
             WHEN NOT MATCHED THEN
               INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate,
-                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
+                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature,
+                FuelConsumptionRateLph, ObdFuelUsedLiters, ObdOdometerKm)
               VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Ignition, @LastUpdate,
-                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature);
+                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature,
+                @FuelConsumptionRateLph, @ObdFuelUsedLiters, @ObdOdometerKm);
             """,
             new
             {
@@ -123,7 +133,10 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
                 dto.TotalDistanceKm,
                 dto.Address,
                 dto.AlarmType,
-                dto.Temperature
+                dto.Temperature,
+                dto.FuelConsumptionRateLph,
+                dto.ObdFuelUsedLiters,
+                dto.ObdOdometerKm
             },
             cancellationToken: cancellationToken));
 

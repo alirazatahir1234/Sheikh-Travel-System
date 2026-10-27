@@ -54,4 +54,14 @@ public class FuelLogsController : BaseApiController
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteFuelLogCommand(id)));
+
+    /// <summary>Latest OBD/GPS fuel telemetry for a vehicle (device-reported fields only).</summary>
+    [HttpGet("telemetry/{vehicleId:int}")]
+    public async Task<IActionResult> GetTelemetry(int vehicleId)
+        => Ok(await Mediator.Send(new GetVehicleFuelTelemetryQuery(vehicleId)));
+
+    /// <summary>Km/L efficiency grouped by vehicle, driver, and route.</summary>
+    [HttpGet("efficiency")]
+    public async Task<IActionResult> GetEfficiency([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetFuelEfficiencyReportQuery(from, to)));
 }
