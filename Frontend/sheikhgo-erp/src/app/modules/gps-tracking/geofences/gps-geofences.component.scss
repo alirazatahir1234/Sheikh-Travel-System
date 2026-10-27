@@ -45,14 +45,70 @@
 }
 
 .map-panel {
+  position: relative;
   flex: 3;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   min-height: 360px;
+  /* Keep map interactive while the form drawer is open */
+  z-index: 1;
 }
-.leaflet-map { width: 100%; height: 100%; }
+.gmap-host {
+  width: 100%;
+  height: 100%;
+  &.hidden { display: none; }
+}
+.map-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: auto;
+}
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &:hover:not(:disabled) { border-color: #0f766e; color: #0f766e; }
+  &.active {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #fff;
+  }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  &--muted { color: #64748b; }
+}
+.map-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  background: #f8fafc;
+  color: #64748b;
+  z-index: 2;
+  mat-icon { font-size: 36px; width: 36px; height: 36px; color: #dc2626; }
+  p { margin: 0; font-size: 13px; max-width: 320px; }
+}
 
 .side-panel {
   flex: 2;
@@ -174,11 +230,16 @@
 .ev-who { flex: 1; color: #374151; }
 .ev-when { color: #9ca3af; white-space: nowrap; }
 
+/*
+ * Form overlay must NOT block the map. pointer-events stay off so
+ * Google DrawingManager / editable shapes remain usable while the drawer is open.
+ */
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
-  z-index: 1100;
+  background: transparent;
+  z-index: 1000;
+  pointer-events: none;
 }
 .drawer {
   position: fixed;
@@ -193,6 +254,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
   &.open { transform: translateX(0); }
   &.drawer-wide { width: min(460px, 100vw); }
 }

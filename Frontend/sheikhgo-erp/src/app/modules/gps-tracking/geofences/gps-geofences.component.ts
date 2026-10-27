@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild
+  Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, NgZone
 } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
+import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import {
   Geofence,
@@ -16,16 +17,15 @@ import {
 } from '../../../core/models/gps-tracking.model';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { Branch, Department } from '../../../core/models/platform.model';
-import { MAP_TILE_STACKS } from '../../../core/leaflet/leaflet-map-tiles';
-import { L } from '../../../core/leaflet/leaflet-cluster';
 import {
-  addGeofenceBoundary,
-  clearLayerGroup,
-  extractGeofenceGeometry,
-  fitGeofencesBounds
-} from '../../../core/leaflet/geofence-layer';
-import '@geoman-io/leaflet-geoman-free';
-import type * as LeafletTypes from 'leaflet';
+  applyGmapShapeStyle,
+  createGmapFenceOverlay,
+  extractGmapGeofenceGeometry,
+  fitGmapOverlays,
+  setGmapShapeLocked,
+  type GmapEditableShape
+} from '../../../core/google-maps/gmap-geofence-layer';
+import { triggerGmapResize } from '../../../core/google-maps/gmap-theme';
 
 const CATEGORIES = [
   'Warehouse', 'Office', 'Customer', 'Parking', 'Fuel Station',
@@ -42,6 +42,12 @@ const COLOR_PRESETS: { hex: string; label: string }[] = [
   { hex: '#ea580c', label: 'Orange' },
   { hex: '#64748b', label: 'Slate' }
 ];
+
+interface FenceOverlayEntry {
+  fence: Geofence;
+  shape: GmapEditableShape;
+  clickListener: google.maps.MapsEventListener;
+}
 
 @Component({
   standalone: false,
@@ -62,6 +68,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   editGeofence: Geofence | null = null;
   selected: Geofence | null = null;
   pendingAssignGeofenceId: number | null = null;
+  mapError: string | null = null;
+  mapReady = false;
+  drawMode: '' | 'circle' | 'polygon' | 'rectangle' = '';
 
   search = '';
   filterType = '';
@@ -81,14 +90,17 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   vehiclePickSearch = '';
   formVehicleSearch = '';
   shapeLocked = false;
-  drawHint = 'Draw a circle, polygon, or rectangle on the map — or adjust the default circle below.';
+  drawHint = 'Use Draw tools on the map, or Add Geofence for a default circle you can drag.';
 
-  private map: LeafletTypes.Map | null = null;
-  private fenceLayer: LeafletTypes.LayerGroup | null = null;
-  private draftLayer: LeafletTypes.Layer | null = null;
-  private geomanReady = false;
+  private map: google.maps.Map | null = null;
+  private drawingManager: google.maps.drawing.DrawingManager | null = null;
+  private draftShape: GmapEditableShape | null = null;
+  private draftListeners: google.maps.MapsEventListener[] = [];
+  private fenceEntries: FenceOverlayEntry[] = [];
   private formSub?: Subscription;
+  private authFailSub?: Subscription;
   private syncingFromMap = false;
+  private resizeObserver: ResizeObserver | null = null;
 
   form!: ReturnType<FormBuilder['group']>;
 
@@ -98,7 +110,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     private platform: PlatformService,
     private fb: FormBuilder,
     private toast: UiToastService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private googleMapsLoader: GoogleMapsLoaderService,
+    private ngZone: NgZone
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -135,12 +149,18 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => this.initMap(), 80);
+    setTimeout(() => void this.initMap(), 40);
   }
 
   ngOnDestroy(): void {
     this.formSub?.unsubscribe();
-    this.map?.remove();
+    this.authFailSub?.unsubscribe();
+    this.resizeObserver?.disconnect();
+    this.clearDraftListeners();
+    this.clearFenceOverlays();
+    this.clearDraft();
+    this.drawingManager?.setMap(null);
+    this.drawingManager = null;
     this.map = null;
   }
 
@@ -228,109 +248,180 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.colorPresets.find(c => c.hex.toLowerCase() === hex)?.label || 'Custom';
   }
 
-  private initMap(): void {
+  private async initMap(): Promise<void> {
     if (!this.mapEl?.nativeElement || this.map) return;
-    const tiles = MAP_TILE_STACKS['street'][0];
-    this.map = L.map(this.mapEl.nativeElement, { zoomControl: true }).setView([31.52, 74.35], 11);
-    L.tileLayer(tiles.url, {
-      attribution: tiles.attribution,
-      subdomains: (tiles.subdomains ?? 'abc') as string,
-      maxZoom: tiles.maxZoom ?? 19
-    }).addTo(this.map);
 
-    this.fenceLayer = L.layerGroup().addTo(this.map);
-    this.setupGeoman();
-    this.renderFences();
-  }
+    if (!this.googleMapsLoader.isConfigured) {
+      this.mapError = 'Google Maps API key is not configured.';
+      return;
+    }
 
-  private setupGeoman(): void {
-    if (!this.map || this.geomanReady) return;
-    const map = this.map as LeafletTypes.Map & {
-      pm: {
-        addControls: (o: object) => void;
-        setPathOptions: (o: object) => void;
-        enableGlobalEditMode: () => void;
-        disableGlobalEditMode: () => void;
-        enableGlobalDragMode: () => void;
-        disableGlobalDragMode: () => void;
-      };
-    };
-    if (!map.pm) return;
-
-    map.pm.addControls({
-      position: 'topleft',
-      drawMarker: false,
-      drawCircleMarker: false,
-      drawPolyline: false,
-      drawText: false,
-      drawCircle: true,
-      drawRectangle: true,
-      drawPolygon: true,
-      editMode: true,
-      dragMode: true,
-      removalMode: true,
-      cutPolygon: false,
-      rotateMode: false
+    this.authFailSub = this.googleMapsLoader.authFailures$.subscribe(msg => {
+      this.ngZone.run(() => { this.mapError = msg; });
     });
-    this.applyGeomanPathColor();
 
-    this.map.on('pm:create', (e: unknown) => {
-      if (this.shapeLocked) {
-        const ev = e as { layer: LeafletTypes.Layer };
-        this.map?.removeLayer(ev.layer);
-        this.toast.info('Shape is locked. Unlock to redraw.');
+    try {
+      const bootstrapped = await this.googleMapsLoader.load();
+      if (!bootstrapped) {
+        this.mapError = this.googleMapsLoader.failureMessage || 'Google Maps failed to load.';
         return;
       }
-      const ev = e as { layer: LeafletTypes.Layer };
-      if (this.draftLayer && this.map) this.map.removeLayer(this.draftLayer);
-      this.draftLayer = ev.layer;
-      this.applyDraftStyle();
-      this.patchFormFromLayer(ev.layer);
-      this.drawHint = 'Drag the shape to reposition, or adjust radius / vertices before saving.';
-      if (!this.showForm) {
-        this.editGeofence = null;
-        this.form.patchValue({
-          name: '',
-          description: '',
-          notes: '',
-          category: 'Warehouse',
-          isActive: true,
-          notifyOnEntry: true,
-          notifyOnExit: true
-        }, { emitEvent: false });
-        this.formVehicleIds = new Set();
-        this.showForm = true;
+      await this.googleMapsLoader.importLibrary('maps');
+      await this.googleMapsLoader.importLibrary('drawing');
+      if (this.googleMapsLoader.authFailed) {
+        this.mapError = this.googleMapsLoader.failureMessage || 'Google Maps authentication failed.';
+        return;
+      }
+    } catch (err) {
+      this.mapError = err instanceof Error ? err.message : 'Google Maps failed to load.';
+      return;
+    }
+
+    this.map = new google.maps.Map(this.mapEl.nativeElement, {
+      center: { lat: 31.52, lng: 74.35 },
+      zoom: 11,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+      gestureHandling: 'greedy'
+    });
+
+    this.setupDrawingManager();
+    this.observeMapResize();
+    this.mapReady = true;
+    this.renderFences();
+    setTimeout(() => triggerGmapResize(this.map), 100);
+  }
+
+  private setupDrawingManager(): void {
+    if (!this.map || this.drawingManager) return;
+
+    const color = this.form.value.color || '#0f766e';
+    this.drawingManager = new google.maps.drawing.DrawingManager({
+      drawingMode: null,
+      drawingControl: false,
+      circleOptions: {
+        fillColor: color,
+        fillOpacity: 0.18,
+        strokeColor: color,
+        strokeWeight: 2,
+        editable: true,
+        draggable: true,
+        clickable: true
+      },
+      polygonOptions: {
+        fillColor: color,
+        fillOpacity: 0.18,
+        strokeColor: color,
+        strokeWeight: 2,
+        editable: true,
+        draggable: true,
+        clickable: true
+      },
+      rectangleOptions: {
+        fillColor: color,
+        fillOpacity: 0.18,
+        strokeColor: color,
+        strokeWeight: 2,
+        editable: true,
+        draggable: true,
+        clickable: true
       }
     });
+    this.drawingManager.setMap(this.map);
 
-    this.map.on('pm:edit', (e: unknown) => {
-      if (this.shapeLocked) return;
-      const ev = e as { layer: LeafletTypes.Layer };
-      this.patchFormFromLayer(ev.layer);
-    });
-
-    this.map.on('pm:dragend', (e: unknown) => {
-      if (this.shapeLocked) return;
-      const ev = e as { layer: LeafletTypes.Layer };
-      this.patchFormFromLayer(ev.layer);
-    });
-
-    this.geomanReady = true;
-  }
-
-  private applyGeomanPathColor(): void {
-    const map = this.map as LeafletTypes.Map & { pm?: { setPathOptions: (o: object) => void } };
-    const color = this.form.value.color || '#0f766e';
-    map.pm?.setPathOptions({
-      color,
-      fillColor: color,
-      fillOpacity: 0.15,
-      weight: 2
+    this.drawingManager.addListener('overlaycomplete', (event: google.maps.drawing.OverlayCompleteEvent) => {
+      this.ngZone.run(() => this.onOverlayComplete(event));
     });
   }
 
-  private patchFormFromLayer(layer: LeafletTypes.Layer): void {
-    const geom = extractGeofenceGeometry(layer);
+  private onOverlayComplete(event: google.maps.drawing.OverlayCompleteEvent): void {
+    if (this.shapeLocked) {
+      event.overlay.setMap(null);
+      this.toast.info('Shape is locked. Unlock to redraw.');
+      this.setDrawMode('');
+      return;
+    }
+
+    this.clearDraft(false);
+    const overlay = event.overlay as GmapEditableShape;
+    this.draftShape = overlay;
+    this.attachDraftListeners(overlay);
+    this.patchFormFromShape(overlay);
+    this.drawHint = 'Drag handles to adjust the zone, then fill in the name and save.';
+    this.setDrawMode('');
+
+    if (!this.showForm) {
+      this.editGeofence = null;
+      this.form.patchValue({
+        name: '',
+        description: '',
+        notes: '',
+        category: 'Warehouse',
+        isActive: true,
+        notifyOnEntry: true,
+        notifyOnExit: true,
+        lockShape: false
+      }, { emitEvent: false });
+      this.formVehicleIds = new Set();
+      this.showForm = true;
+    }
+
+    applyGmapShapeStyle(overlay, this.form.value.color || '#0f766e');
+    setGmapShapeLocked(overlay, this.shapeLocked);
+  }
+
+  setDrawMode(mode: '' | 'circle' | 'polygon' | 'rectangle'): void {
+    this.drawMode = mode;
+    if (!this.drawingManager) return;
+    if (this.shapeLocked) {
+      this.drawingManager.setDrawingMode(null);
+      this.drawMode = '';
+      return;
+    }
+    const OverlayType = google.maps.drawing.OverlayType;
+    if (mode === 'circle') this.drawingManager.setDrawingMode(OverlayType.CIRCLE);
+    else if (mode === 'polygon') this.drawingManager.setDrawingMode(OverlayType.POLYGON);
+    else if (mode === 'rectangle') this.drawingManager.setDrawingMode(OverlayType.RECTANGLE);
+    else this.drawingManager.setDrawingMode(null);
+  }
+
+  private attachDraftListeners(shape: GmapEditableShape): void {
+    this.clearDraftListeners();
+    const bump = (): void => {
+      this.ngZone.run(() => this.patchFormFromShape(shape));
+    };
+
+    if (shape instanceof google.maps.Circle) {
+      this.draftListeners.push(
+        shape.addListener('radius_changed', bump),
+        shape.addListener('center_changed', bump),
+        shape.addListener('dragend', bump)
+      );
+    } else if (shape instanceof google.maps.Rectangle) {
+      this.draftListeners.push(
+        shape.addListener('bounds_changed', bump),
+        shape.addListener('dragend', bump)
+      );
+    } else if (shape instanceof google.maps.Polygon) {
+      const path = shape.getPath();
+      this.draftListeners.push(
+        path.addListener('set_at', bump),
+        path.addListener('insert_at', bump),
+        path.addListener('remove_at', bump),
+        shape.addListener('dragend', bump)
+      );
+    }
+  }
+
+  private clearDraftListeners(): void {
+    for (const l of this.draftListeners) l.remove();
+    this.draftListeners = [];
+  }
+
+  private patchFormFromShape(shape: GmapEditableShape): void {
+    const geom = extractGmapGeofenceGeometry(shape);
     if (!geom) return;
     this.syncingFromMap = true;
     this.form.patchValue({
@@ -344,60 +435,81 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncDraftFromForm(): void {
-    this.applyGeomanPathColor();
+    const color = this.form.value.color || '#0f766e';
     this.shapeLocked = !!this.form.value.lockShape;
-    this.applyDraftStyle();
+    if (this.draftShape) {
+      applyGmapShapeStyle(this.draftShape, color);
+      setGmapShapeLocked(this.draftShape, this.shapeLocked);
+    }
+    if (this.drawingManager) {
+      const opts = {
+        fillColor: color,
+        strokeColor: color,
+        fillOpacity: 0.18,
+        strokeWeight: 2,
+        editable: !this.shapeLocked,
+        draggable: !this.shapeLocked
+      };
+      this.drawingManager.setOptions({
+        circleOptions: opts,
+        polygonOptions: opts,
+        rectangleOptions: opts
+      });
+      if (this.shapeLocked) {
+        this.drawingManager.setDrawingMode(null);
+        this.drawMode = '';
+      }
+    }
 
     const type = (this.form.value.areaType || 'circle').toLowerCase();
-    if (type !== 'circle' || !this.draftLayer || !this.map) return;
-
-    const circle = this.draftLayer as LeafletTypes.Circle;
-    if (typeof circle.setRadius !== 'function' || typeof circle.setLatLng !== 'function') return;
+    if (type !== 'circle' || !(this.draftShape instanceof google.maps.Circle)) return;
 
     const lat = Number(this.form.value.centerLat);
     const lng = Number(this.form.value.centerLng);
     const radius = Number(this.form.value.radiusMeters);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || !(radius > 0)) return;
 
-    circle.setLatLng([lat, lng]);
-    circle.setRadius(radius);
-  }
-
-  private applyDraftStyle(): void {
-    if (!this.draftLayer) return;
-    const color = this.form.value.color || '#0f766e';
-    const layer = this.draftLayer as LeafletTypes.Path;
-    if (typeof layer.setStyle === 'function') {
-      layer.setStyle({ color, fillColor: color, fillOpacity: 0.18, weight: 2 });
+    const center = this.draftShape.getCenter();
+    if (!center || Math.abs(center.lat() - lat) > 1e-7 || Math.abs(center.lng() - lng) > 1e-7) {
+      this.draftShape.setCenter({ lat, lng });
+    }
+    if (Math.abs(this.draftShape.getRadius() - radius) > 0.5) {
+      this.draftShape.setRadius(radius);
     }
   }
 
-  /** Place / refresh a default editable circle when opening create. */
   private ensureDefaultDraftCircle(): void {
     if (!this.map) return;
     this.clearDraft();
     const center = this.map.getCenter();
+    const lat = center?.lat() ?? 31.52;
+    const lng = center?.lng() ?? 74.35;
     const radius = Number(this.form.value.radiusMeters) || 500;
     const color = this.form.value.color || '#0f766e';
-    const circle = L.circle(center, {
+    const circle = new google.maps.Circle({
+      map: this.map,
+      center: { lat, lng },
       radius,
-      color,
       fillColor: color,
       fillOpacity: 0.18,
-      weight: 2
-    }).addTo(this.map);
-    this.draftLayer = circle;
+      strokeColor: color,
+      strokeWeight: 2,
+      editable: !this.shapeLocked,
+      draggable: !this.shapeLocked
+    });
+    this.draftShape = circle;
+    this.attachDraftListeners(circle);
     this.syncingFromMap = true;
     this.form.patchValue({
       areaType: 'circle',
-      centerLat: +center.lat.toFixed(6),
-      centerLng: +center.lng.toFixed(6),
+      centerLat: +lat.toFixed(6),
+      centerLng: +lng.toFixed(6),
       radiusMeters: radius,
       geoJson: null
     });
     setTimeout(() => { this.syncingFromMap = false; }, 0);
-    this.map.fitBounds(circle.getBounds().pad(0.3));
-    this.drawHint = 'Drag the circle to reposition or change the radius below — no need to redraw.';
+    fitGmapOverlays(this.map, [circle]);
+    this.drawHint = 'Drag the circle or use radius controls — or pick Polygon / Rectangle to redraw.';
   }
 
   bumpRadius(delta: number): void {
@@ -433,17 +545,33 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderFences(): void {
-    if (!this.fenceLayer || !this.map) return;
-    clearLayerGroup(this.fenceLayer);
+    if (!this.map) return;
+    this.clearFenceOverlays();
+    const hideId = this.showForm && this.editGeofence ? this.editGeofence.id : null;
     for (const g of this.geofences) {
-      const layer = addGeofenceBoundary(this.fenceLayer, g);
-      if (!layer) continue;
-      layer.bindTooltip(g.name);
-      layer.on('click', () => this.selectFence(g));
+      if (hideId != null && g.id === hideId) continue;
+      const shape = createGmapFenceOverlay(this.map, g, {
+        editable: false,
+        draggable: false,
+        fillOpacity: 0.12
+      });
+      if (!shape) continue;
+      const clickListener = shape.addListener('click', () => {
+        this.ngZone.run(() => this.selectFence(g));
+      });
+      this.fenceEntries.push({ fence: g, shape, clickListener });
     }
     if (this.geofences.length && !this.showForm) {
-      fitGeofencesBounds(this.map, this.fenceLayer);
+      fitGmapOverlays(this.map, this.fenceEntries.map(e => e.shape));
     }
+  }
+
+  private clearFenceOverlays(): void {
+    for (const e of this.fenceEntries) {
+      e.clickListener.remove();
+      e.shape.setMap(null);
+    }
+    this.fenceEntries = [];
   }
 
   selectFence(g: Geofence): void {
@@ -484,7 +612,11 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       lockShape: false
     });
     this.showForm = true;
-    setTimeout(() => this.ensureDefaultDraftCircle(), 50);
+    this.setDrawMode('');
+    setTimeout(() => {
+      triggerGmapResize(this.map);
+      this.ensureDefaultDraftCircle();
+    }, 50);
   }
 
   openEdit(g: Geofence): void {
@@ -509,9 +641,10 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       lockShape: false
     });
     this.showForm = true;
-    this.drawHint = 'Update details below. Change radius or color to preview on the map.';
+    this.shapeLocked = false;
+    this.drawHint = 'Drag handles to reshape, or change radius / color below.';
+    this.renderFences();
     this.loadFenceDetails(g.id);
-    // Load existing Entry/Exit alert rule flags for this fence (do not force true).
     this.gps.getAlertRules().subscribe({
       next: rules => {
         const rule = rules.find(r => r.geofenceId === g.id);
@@ -525,42 +658,29 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       error: () => { /* keep defaults */ }
     });
 
-    // Mirror existing geometry as draft for live preview edits
     setTimeout(() => {
       if (!this.map) return;
+      triggerGmapResize(this.map);
       this.clearDraft();
-      if ((g.areaType || 'circle').toLowerCase() === 'circle') {
-        const color = g.color || '#0f766e';
-        this.draftLayer = L.circle([g.centerLat, g.centerLng], {
-          radius: g.radiusMeters || 500,
-          color,
-          fillColor: color,
-          fillOpacity: 0.18,
-          weight: 2
-        }).addTo(this.map);
-        this.map.fitBounds((this.draftLayer as LeafletTypes.Circle).getBounds().pad(0.25));
-      } else if (g.geoJson) {
-        try {
-          const geo = JSON.parse(g.geoJson);
-          this.draftLayer = L.geoJSON(geo, {
-            style: {
-              color: g.color || '#0f766e',
-              fillColor: g.color || '#0f766e',
-              fillOpacity: 0.18,
-              weight: 2
-            }
-          }).addTo(this.map!);
-          const bounds = (this.draftLayer as LeafletTypes.FeatureGroup).getBounds?.();
-          if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.25));
-        } catch { /* ignore */ }
-      }
+      const shape = createGmapFenceOverlay(this.map, g, {
+        editable: true,
+        draggable: true,
+        fillOpacity: 0.18
+      });
+      if (!shape) return;
+      this.draftShape = shape;
+      this.attachDraftListeners(shape);
+      this.patchFormFromShape(shape);
+      fitGmapOverlays(this.map, [shape]);
     }, 50);
   }
 
   closeForm(): void {
     this.showForm = false;
+    this.setDrawMode('');
     this.clearDraft();
     this.renderFences();
+    setTimeout(() => triggerGmapResize(this.map), 50);
   }
 
   openAssign(g: Geofence): void {
@@ -624,6 +744,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       this.form.markAllAsTouched();
       this.toast.error('Please fix the highlighted fields');
       return;
+    }
+    if (this.draftShape) {
+      this.patchFormFromShape(this.draftShape);
     }
     const v = this.form.getRawValue();
     const areaType = (v.areaType || 'circle').toLowerCase();
@@ -818,11 +941,29 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private clearDraft(): void {
-    if (this.draftLayer && this.map) {
-      this.map.removeLayer(this.draftLayer);
-      this.draftLayer = null;
+  clearDraftShape(): void {
+    if (this.shapeLocked) {
+      this.toast.info('Shape is locked. Unlock to clear.');
+      return;
     }
+    this.clearDraft();
+    this.form.patchValue({ geoJson: null, areaType: 'circle' });
+    this.drawHint = 'Cleared. Draw a new circle, polygon, or rectangle on the map.';
+  }
+
+  private clearDraft(removeFromMap = true): void {
+    this.clearDraftListeners();
+    if (removeFromMap && this.draftShape) {
+      this.draftShape.setMap(null);
+    }
+    this.draftShape = null;
+  }
+
+  private observeMapResize(): void {
+    if (!this.mapEl?.nativeElement || typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = new ResizeObserver(() => triggerGmapResize(this.map));
+    this.resizeObserver.observe(this.mapEl.nativeElement);
   }
 
   shapeLabel(g: Geofence): string {

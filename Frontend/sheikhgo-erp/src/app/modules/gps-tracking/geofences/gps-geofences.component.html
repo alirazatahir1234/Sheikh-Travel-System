@@ -3,7 +3,7 @@
   <div class="page-header">
     <div>
       <h2 class="page-title">Geofences</h2>
-      <p class="page-sub">Draw circle, polygon, or rectangle boundaries. Assign vehicles by fleet org scope.</p>
+      <p class="page-sub">Draw circle, polygon, or rectangle on Google Maps. Assign vehicles by fleet org scope.</p>
     </div>
     <button class="btn btn-primary" type="button" (click)="openCreate()">
       <mat-icon>add_location_alt</mat-icon>
@@ -23,7 +23,52 @@
   <div class="split-layout">
 
     <div class="map-panel">
-      <div #mapEl class="leaflet-map"></div>
+      <div class="map-toolbar" *ngIf="mapReady && !mapError">
+        <button
+          type="button"
+          class="tool-btn"
+          [class.active]="drawMode === 'circle'"
+          [disabled]="shapeLocked"
+          (click)="setDrawMode(drawMode === 'circle' ? '' : 'circle')"
+          matTooltip="Draw circle">
+          <mat-icon>radio_button_unchecked</mat-icon>
+          Circle
+        </button>
+        <button
+          type="button"
+          class="tool-btn"
+          [class.active]="drawMode === 'polygon'"
+          [disabled]="shapeLocked"
+          (click)="setDrawMode(drawMode === 'polygon' ? '' : 'polygon')"
+          matTooltip="Draw polygon">
+          <mat-icon>pentagon</mat-icon>
+          Polygon
+        </button>
+        <button
+          type="button"
+          class="tool-btn"
+          [class.active]="drawMode === 'rectangle'"
+          [disabled]="shapeLocked"
+          (click)="setDrawMode(drawMode === 'rectangle' ? '' : 'rectangle')"
+          matTooltip="Draw rectangle">
+          <mat-icon>crop_square</mat-icon>
+          Rectangle
+        </button>
+        <button
+          type="button"
+          class="tool-btn tool-btn--muted"
+          [disabled]="shapeLocked || !showForm"
+          (click)="clearDraftShape()"
+          matTooltip="Clear draft shape">
+          <mat-icon>layers_clear</mat-icon>
+          Clear
+        </button>
+      </div>
+      <div *ngIf="mapError" class="map-error">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ mapError }}</p>
+      </div>
+      <div #mapEl class="gmap-host" [class.hidden]="!!mapError"></div>
     </div>
 
     <div class="side-panel">
@@ -103,9 +148,9 @@
   </div>
 </div>
 
-<!-- Create / Edit drawer -->
-<div class="drawer-overlay" *ngIf="showForm" (click)="closeForm()"></div>
-<div class="drawer drawer-wide" [class.open]="showForm">
+<!-- Create / Edit drawer — overlay does not block the map pane (pointer-events) -->
+<div class="drawer-overlay drawer-overlay--form" *ngIf="showForm"></div>
+<div class="drawer drawer-wide" [class.open]="showForm" role="dialog" aria-label="Geofence form">
   <div class="drawer-header">
     <h3>{{ editGeofence ? 'Edit Geofence' : 'New Geofence' }}</h3>
     <button mat-icon-button type="button" (click)="closeForm()"><mat-icon>close</mat-icon></button>
