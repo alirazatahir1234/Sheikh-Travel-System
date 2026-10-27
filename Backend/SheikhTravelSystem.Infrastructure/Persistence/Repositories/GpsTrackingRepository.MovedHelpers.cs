@@ -558,6 +558,14 @@ public sealed partial class GpsTrackingRepository
         }
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
+        {
+            // Traccar reports can lag or fail while sync keeps local history warm.
+            bundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
+                mediator, vehicleId, fromDate, toDate, cancellationToken,
+                routeMaxPoints, playbackMaxPoints, includeRaw);
+        }
+
+        if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
             return ApiResponse<HistoryReplayBundleDto>.FailResponse("No tracking points in this period.");
 
         bundle = await TripReplayAddressEnricher.EnrichAsync(
@@ -565,30 +573,8 @@ public sealed partial class GpsTrackingRepository
             geocoder,
             cancellationToken);
 
+        // TripReplayLoader already fetched Traccar summary for the route window — do not re-query trips/summary here (60s+ on busy days).
         TripAnalyticsSummaryDto? rawStats = null;
-        if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
-        {
-            var deviceId = source.TraccarDeviceId.Value;
-            var summaryTask = traccar.GetSummaryAsync(deviceId, fromDate, toDate, cancellationToken);
-            var tripsTask = mediator.Send(
-                new GetGpsTripsQuery(vehicleId, fromDate, toDate, Unpaged: true),
-                cancellationToken);
-            await Task.WhenAll(summaryTask, tripsTask);
-
-            var tripsResponse = await tripsTask;
-            var trips = tripsResponse.Success && tripsResponse.Data is not null
-                ? tripsResponse.Data.Items
-                : [];
-
-            // Stops/events already loaded in the replay bundle — avoid a second Traccar round-trip.
-            var traccarStops = Array.Empty<TraccarStop>();
-            var traccarEvents = Array.Empty<TraccarEvent>();
-            rawStats = TripAnalyticsMapper.BuildSummary(
-                trips,
-                (await summaryTask).ToArray(),
-                traccarStops,
-                traccarEvents);
-        }
 
         var mileageKm = TripAnalyticsMapper.ComputeOdometerMileageKm(bundle.Route)
             ?? bundle.Summary?.DistanceKm;

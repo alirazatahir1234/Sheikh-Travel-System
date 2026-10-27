@@ -69,7 +69,7 @@ public record TraccarGeofence(
     string Name,
     string? Description,
     string Area,
-    string? CalendarId);
+    int? CalendarId);
 
 public record TraccarTrip(
     [property: JsonPropertyName("deviceId")] int DeviceId,

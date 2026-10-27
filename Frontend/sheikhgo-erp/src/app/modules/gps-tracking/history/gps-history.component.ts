@@ -549,6 +549,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.finishLoading();
+        const status = (err as { status?: number })?.status;
+        if (status === 0) {
+          this.error =
+            'History request was interrupted or timed out. Wait for Traccar (can take up to a minute on first load), then Retry.';
+          return;
+        }
         this.error = err?.error?.message ?? 'Failed to load history.';
       }
     });

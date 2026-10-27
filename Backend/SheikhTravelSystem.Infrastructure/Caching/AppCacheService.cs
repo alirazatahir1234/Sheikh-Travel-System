@@ -16,6 +16,7 @@ public sealed class AppCacheService(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ConcurrentDictionary<string, byte> _keys = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly bool _useDistributed = !string.IsNullOrWhiteSpace(options.Value.RedisConnectionString);
 
     public async Task<T> GetOrCreateAsync<T>(
@@ -50,28 +51,41 @@ public sealed class AppCacheService(
             }
         }
 
-        var value = await factory(cancellationToken);
-        memoryCache.Set(key, value, ttl);
-        _keys.TryAdd(key, 0);
-
-        if (_useDistributed)
+        var gate = _locks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
         {
-            try
-            {
-                var payload = JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions);
-                await distributedCache.SetAsync(
-                    key,
-                    payload,
-                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl },
-                    cancellationToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "Distributed cache SET failed for key {CacheKey}; memory cache still populated.", key);
-            }
-        }
+            if (memoryCache.TryGetValue(key, out T? afterWait) && afterWait is not null)
+                return afterWait;
 
-        return value;
+            var value = await factory(cancellationToken);
+            memoryCache.Set(key, value, ttl);
+            _keys.TryAdd(key, 0);
+
+            if (_useDistributed)
+            {
+                try
+                {
+                    var payload = JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions);
+                    await distributedCache.SetAsync(
+                        key,
+                        payload,
+                        new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl },
+                        cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Distributed cache SET failed for key {CacheKey}; memory cache still populated.", key);
+                }
+            }
+
+            return value;
+        }
+        finally
+        {
+            gate.Release();
+            _locks.TryRemove(key, out _);
+        }
     }
 
     public void Remove(string key)
