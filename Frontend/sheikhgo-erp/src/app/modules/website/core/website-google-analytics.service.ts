@@ -42,6 +42,23 @@ export class WebsiteGoogleAnalyticsService {
     window.gtag('config', this.measurementId, { page_path: path });
   }
 
+  /**
+   * GA4 custom event (no-op when analytics is not loaded / consent denied).
+   * Known website events: `mobile_promo_video_open`, `mobile_app_store_click`.
+   */
+  trackEvent(eventName: string, params?: Record<string, string | number | boolean | null | undefined>): void {
+    if (!isPlatformBrowser(this.platformId) || !this.loaded || !window.gtag) return;
+    if (!this.isValidMeasurementId(this.measurementId)) return;
+    const cleaned: Record<string, string | number | boolean> = {};
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value === null || value === undefined || value === '') continue;
+        cleaned[key] = value;
+      }
+    }
+    window.gtag('event', eventName, cleaned);
+  }
+
   private isValidMeasurementId(id: string): boolean {
     return /^G-[A-Z0-9]+$/i.test(id.trim());
   }

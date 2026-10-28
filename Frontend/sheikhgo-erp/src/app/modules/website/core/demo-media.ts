@@ -38,6 +38,9 @@ export const NEXUS_MOBILE_PROMO_CAPTIONS_VTT = '/website/demo/sheikhgo-nexus-mob
 
 export const NEXUS_MOBILE_PROMO_CAPTIONS_SRT = '/website/demo/sheikhgo-nexus-mobile-promo.srt';
 
+/** Still frame for portrait thumbnail (modal opens the MP4 — not embedded inline). */
+export const NEXUS_MOBILE_PROMO_POSTER = '/website/demo/sheikhgo-nexus-mobile-promo-poster.jpg';
+
 export const NEXUS_MOBILE_PROMO_TITLE = 'SheikhGo Nexus — Mobile app';
 
 export type NexusDemoModalMode = 'erp' | 'promo' | 'mobile';

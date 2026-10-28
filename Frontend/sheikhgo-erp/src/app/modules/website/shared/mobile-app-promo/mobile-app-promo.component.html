@@ -1,0 +1,124 @@
+@if (variant() === 'section') {
+  <section class="mobile-app-section" id="mobile-app" aria-labelledby="mobile-app-title">
+    <div class="container mobile-app-section-inner">
+      <header class="mobile-app-head">
+        <span class="section-kicker">{{ 'mobileApp.kicker' | wsTranslate }}</span>
+        <h2 id="mobile-app-title">{{ 'mobileApp.title' | wsTranslate }}</h2>
+        <p class="mobile-app-lead">{{ 'mobileApp.lead' | wsTranslate }}</p>
+      </header>
+
+      <!-- Portrait frame centered — never side-by-side landscape on desktop -->
+      <div class="mobile-app-stage">
+        <button
+          type="button"
+          class="mobile-phone-thumb"
+          (click)="openVideo()"
+          [attr.aria-label]="'mobileApp.watchAria' | wsTranslate"
+        >
+          <span class="mobile-phone-bezel" aria-hidden="true">
+            <span class="mobile-phone-notch"></span>
+            <img
+              class="mobile-phone-poster"
+              [src]="posterSrc"
+              [alt]="videoTitle"
+              width="720"
+              height="1560"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="mobile-phone-play">
+              <mat-icon aria-hidden="true">play_circle</mat-icon>
+              <span>{{ 'mobileApp.watchCta' | wsTranslate }}</span>
+            </span>
+          </span>
+        </button>
+
+        <div class="mobile-app-actions">
+          <a routerLink="/request-demo" class="btn btn-primary">{{ 'nav.bookDemo' | wsTranslate }}</a>
+          <button type="button" class="btn btn-ghost" (click)="openVideo()">
+            <mat-icon aria-hidden="true">smartphone</mat-icon>
+            {{ 'common.watchMobile' | wsTranslate }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mobile-app-meta">
+        <div class="mobile-app-identity">
+          <p class="mobile-app-name">{{ appName }}</p>
+          <p class="mobile-app-benefit">{{ appBenefit }}</p>
+        </div>
+        <div class="mobile-app-stores" role="group" [attr.aria-label]="'mobileApp.storesLabel' | wsTranslate">
+          @for (link of storeLinks; track link.id) {
+            <a
+              class="mobile-store-link"
+              [class.is-placeholder]="!link.url"
+              [href]="storeHref(link)"
+              [attr.target]="link.url ? '_blank' : null"
+              [attr.rel]="link.url ? 'noopener noreferrer' : null"
+              [attr.aria-disabled]="!link.url ? 'true' : null"
+              (click)="onStoreActivate(link, $event)"
+            >
+              <mat-icon aria-hidden="true">{{ link.id === 'ios' ? 'phone_iphone' : 'android' }}</mat-icon>
+              <span class="mobile-store-copy">
+                <strong>{{ storeLabelKey(link.id) | wsTranslate }}</strong>
+                <small>{{ storeStatusKey(link) | wsTranslate }}</small>
+              </span>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+} @else {
+  <aside class="mobile-app-banner" aria-labelledby="mobile-app-banner-title">
+    <div class="container mobile-app-banner-inner">
+      <button
+        type="button"
+        class="mobile-banner-thumb"
+        (click)="openVideo()"
+        [attr.aria-label]="'mobileApp.watchAria' | wsTranslate"
+      >
+        <img
+          [src]="posterSrc"
+          [alt]="videoTitle"
+          width="72"
+          height="156"
+          loading="lazy"
+          decoding="async"
+        />
+        <mat-icon class="mobile-banner-play" aria-hidden="true">play_circle</mat-icon>
+      </button>
+      <div class="mobile-banner-copy">
+        <p class="mobile-banner-kicker">{{ 'mobileApp.banner.kicker' | wsTranslate }}</p>
+        <h2 id="mobile-app-banner-title">{{ appName }}</h2>
+        <p>{{ appBenefit }}</p>
+      </div>
+      <div class="mobile-banner-actions">
+        <button type="button" class="btn btn-ghost btn-compact" (click)="openVideo()">
+          {{ 'mobileApp.watchCta' | wsTranslate }}
+        </button>
+        <a routerLink="/request-demo" class="btn btn-primary btn-compact">{{ 'nav.bookDemo' | wsTranslate }}</a>
+        @for (link of storeLinks; track link.id) {
+          <a
+            class="mobile-store-link mobile-store-link--compact"
+            [class.is-placeholder]="!link.url"
+            [href]="storeHref(link)"
+            [attr.target]="link.url ? '_blank' : null"
+            [attr.rel]="link.url ? 'noopener noreferrer' : null"
+            [attr.aria-disabled]="!link.url ? 'true' : null"
+            (click)="onStoreActivate(link, $event)"
+          >
+            {{ storeLabelKey(link.id) | wsTranslate }}
+            @if (!link.url) {
+              <span class="sr-only"> — {{ 'mobileApp.store.comingSoon' | wsTranslate }}</span>
+            }
+          </a>
+        }
+      </div>
+    </div>
+  </aside>
+}
+
+@if (modalOpen()) {
+  <app-nexus-demo-modal initialMode="mobile" (closed)="closeModal()" />
+}

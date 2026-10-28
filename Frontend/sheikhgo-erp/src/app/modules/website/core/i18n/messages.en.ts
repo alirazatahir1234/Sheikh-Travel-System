@@ -313,6 +313,19 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.trust.title': 'Built for operators, described honestly',
   'home.trust.body':
     'Fleet intelligence scores and digests are heuristic and rule-based on your signals. AI assistants call SheikhGo tools (GPS, trips, alerts, ERP). WhatsApp AI never auto-sends. LLM features need a provider you configure.',
+  'home.pill.mobileApp': 'Mobile app',
+  'mobileApp.kicker': 'Driver & fleet mobile',
+  'mobileApp.title': 'SheikhGo on your phone',
+  'mobileApp.lead':
+    'Watch the portrait mobile promo, then book a demo — store links sit with the same app story below.',
+  'mobileApp.watchCta': 'Watch mobile promo',
+  'mobileApp.watchAria': 'Open SheikhGo mobile app promo video',
+  'mobileApp.storesLabel': 'App store links',
+  'mobileApp.store.ios': 'App Store',
+  'mobileApp.store.android': 'Google Play',
+  'mobileApp.store.comingSoon': 'Coming soon (placeholder)',
+  'mobileApp.store.open': 'Open listing',
+  'mobileApp.banner.kicker': 'Mobile app',
   'home.ai.kicker': 'AI Solutions',
   'home.ai.title': 'Fleet AI that answers from your data',
   'home.ai.lead':

@@ -11,12 +11,21 @@ import { HOME_MODULE_JUMPS, NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
 import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
+import { MobileAppPromoComponent } from '../../shared/mobile-app-promo/mobile-app-promo.component';
 import { NexusDemoModalMode } from '../../core/demo-media';
+import { WebsiteGoogleAnalyticsService } from '../../core/website-google-analytics.service';
 
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, NgClass, MatIconModule, NexusDemoModalComponent, WebsiteTranslatePipe],
+  imports: [
+    RouterLink,
+    NgClass,
+    MatIconModule,
+    NexusDemoModalComponent,
+    MobileAppPromoComponent,
+    WebsiteTranslatePipe,
+  ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
@@ -27,6 +36,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   private readonly content = inject(WebsitePublicContentService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly analytics = inject(WebsiteGoogleAnalyticsService);
   private fragmentSub?: Subscription;
 
   nexusImageError = false;
@@ -59,6 +69,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { label: this.i18n.t('home.pill.fatigueDetection'), fragment: 'fatigue-detection', icon: 'bedtime' },
       { label: this.i18n.t('home.pill.driverOffline'), fragment: 'driver-offline-sync', icon: 'sync_disabled' },
       { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
+      { label: this.i18n.t('home.pill.mobileApp'), fragment: 'mobile-app', icon: 'smartphone' },
       { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
       { label: this.i18n.t('home.pill.pricing'), link: '/pricing', icon: 'payments' },
       { label: this.i18n.t('home.pill.nexus'), link: '/services', icon: 'hub' },
@@ -300,6 +311,10 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openMobilePromoModal(): void {
+    this.analytics.trackEvent('mobile_promo_video_open', {
+      source: 'home',
+      video: 'sheikhgo-nexus-mobile-promo',
+    });
     this.demoModalMode.set('mobile');
     this.demoModalOpen.set(true);
   }

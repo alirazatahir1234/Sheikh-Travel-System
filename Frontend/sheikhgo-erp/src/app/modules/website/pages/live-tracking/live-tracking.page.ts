@@ -2,6 +2,7 @@ import { AfterViewInit, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
+import { MobileAppPromoComponent } from '../../shared/mobile-app-promo/mobile-app-promo.component';
 import { WEBSITE_DEMO_MAP_ADDRESS_SHORT, WEBSITE_DEMO_MAP_COORDINATES } from '../../core/brand';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
@@ -27,7 +28,7 @@ interface FeatureGroup {
 @Component({
   selector: 'app-live-tracking-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
+  imports: [RouterLink, MatIconModule, CtaBandComponent, MobileAppPromoComponent, WebsiteTranslatePipe],
   template: `
     <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/product/live-map.png')">
       <div class="container hero-layout">
@@ -63,6 +64,8 @@ interface FeatureGroup {
         </aside>
       </div>
     </section>
+
+    <app-mobile-app-promo variant="banner" analyticsSource="live-tracking" />
 
     <section class="section categories">
       <div class="container">

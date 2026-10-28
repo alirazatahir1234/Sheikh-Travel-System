@@ -250,6 +250,19 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.trust.title': 'Für Betreiber gebaut, ehrlich beschrieben',
   'home.trust.body':
     'Flotten-Scores und Digests sind heuristisch und regelbasiert. KI-Assistenten rufen SheikhGo-Tools auf. WhatsApp-KI sendet nie automatisch. LLM-Funktionen brauchen Ihren konfigurierten Provider.',
+  'home.pill.mobileApp': 'Mobile App',
+  'mobileApp.kicker': 'Fahrer- & Flotten-App',
+  'mobileApp.title': 'SheikhGo auf dem Handy',
+  'mobileApp.lead':
+    'Portrait-Promo ansehen, Demo buchen — Store-Links gehören zur gleichen App-Story darunter.',
+  'mobileApp.watchCta': 'Mobile Promo ansehen',
+  'mobileApp.watchAria': 'SheikhGo Mobile-App-Promo öffnen',
+  'mobileApp.storesLabel': 'App-Store-Links',
+  'mobileApp.store.ios': 'App Store',
+  'mobileApp.store.android': 'Google Play',
+  'mobileApp.store.comingSoon': 'Demnächst (Platzhalter)',
+  'mobileApp.store.open': 'Listing öffnen',
+  'mobileApp.banner.kicker': 'Mobile App',
   'home.ai.kicker': 'KI-Lösungen',
   'home.ai.title': 'Flotten-KI aus Ihren Daten',
   'home.ai.lead':
