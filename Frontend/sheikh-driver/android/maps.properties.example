@@ -6,5 +6,6 @@
 #   - scripts/build_prod.sh / run_android_*.sh → --dart-define=GOOGLE_MAPS_KEY
 #
 # Restrict the key in Google Cloud Console to package com.sheikhgo.fleet +
-# your debug + Play App Signing SHA-1 fingerprints.
+# upload keystore SHA-1 (used by local debug when android/key.properties exists),
+# debug keystore SHA-1, and Play App Signing SHA-1.
 GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY

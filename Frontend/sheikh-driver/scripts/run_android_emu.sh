@@ -32,19 +32,12 @@ fi
 adb reverse tcp:5082 tcp:5082 >/dev/null 2>&1 || true
 
 echo "Checking host API on :5082..."
-if curl -fsS -o /dev/null --connect-timeout 2 --max-time 5 \
-  -X POST "http://127.0.0.1:5082/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Slug: default" \
-  -d '{"email":"__probe__","password":"x"}'; then
-  :
-else
-  code=$?
-  # 22 = HTTP error from -f (API up but login rejected) — that is fine.
-  if [[ $code -ne 22 ]]; then
-    echo "WARNING: nothing answered on http://127.0.0.1:5082 — start the local API first."
-    echo "  (launchSettings binds http://0.0.0.0:5082)"
-  fi
+# Prefer /health (200). Login probe used to print curl: (22) 400 false alarms.
+api_code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 5 \
+  "http://127.0.0.1:5082/health" 2>/dev/null || echo "000")"
+if [[ "$api_code" != "200" ]]; then
+  echo "WARNING: nothing healthy on http://127.0.0.1:5082/health (got HTTP $api_code) — start the local API first."
+  echo "  (launchSettings binds http://0.0.0.0:5082)"
 fi
 
 echo "Building debug APK..."

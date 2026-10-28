@@ -247,6 +247,11 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api --dart-define=G
 
 # Release builds: ./scripts/build_prod.sh auto-loads maps.properties into
 # --dart-define=GOOGLE_MAPS_KEY and exports GOOGLE_MAPS_API_KEY for Gradle.
+#
+# Blank beige map + Google logo = Maps SDK Authorization failure (wrong SHA-1).
+# With android/key.properties present, debug APKs are signed with the upload
+# keystore so the emulator matches the Android key’s allowlisted fingerprint.
+# Also keep debug + Play App Signing SHA-1s on the SheikhGo-Android key in GCP.
 ```
 
 **FCM / Crashlytics:** place `android/app/google-services.json` (see `android/app/GOOGLE_SERVICES.md`). Missing file → app still launches; push is disabled.

@@ -74,6 +74,15 @@ android {
     }
 
     buildTypes {
+        // Maps SDK Android keys are restricted by package + signing SHA-1.
+        // Prefer the upload keystore for debug when present so emulator/device
+        // builds match the SHA-1 allowlisted on SheikhGo-Android (debug-only
+        // cert often missing after Play/upload fingerprints are added).
+        debug {
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
