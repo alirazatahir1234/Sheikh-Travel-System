@@ -24,6 +24,8 @@ import { extractFollowUps } from '../shared/assistant-answer.util';
 interface ChatBubble {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  /** Local wall-clock for mock-style bubble timestamps. */
+  at?: Date;
   period?: { start: string; end: string };
   toolUsed?: string | null;
   data?: unknown;
@@ -305,6 +307,7 @@ export class AiChatComponent implements OnInit {
     this.messages.push({
       role: 'user',
       content: polishAssistantEmojis(displayText),
+      at: new Date(),
       attachments: files.map(f => ({
         name: f.name,
         kind: f.type?.startsWith('image/') ? 'image' : f.type === 'application/pdf' ? 'pdf' : 'text'
@@ -363,6 +366,7 @@ export class AiChatComponent implements OnInit {
     this.messages.push({
       role: 'assistant',
       content: polishAssistantEmojis(res?.answer ?? 'No answer returned.'),
+      at: new Date(),
       period: this.shouldShowPeriod(res) ? res.period : undefined,
       toolUsed: res?.toolUsed,
       data: res?.data,
@@ -421,7 +425,8 @@ export class AiChatComponent implements OnInit {
     }
     this.messages.push({
       role: 'assistant',
-      content: polishAssistantEmojis(res?.answer ?? 'No answer returned.')
+      content: polishAssistantEmojis(res?.answer ?? 'No answer returned.'),
+      at: new Date()
     });
     this.pendingAction = res.pendingAction ?? null;
     if (res.mode === 'confirm_executed') {
@@ -444,6 +449,7 @@ export class AiChatComponent implements OnInit {
     content: string;
     structuredPayload?: string | null;
     toolUsed?: string | null;
+    createdAt?: string | null;
   }): ChatBubble {
     let data: unknown;
     if (m.structuredPayload) {
@@ -453,9 +459,11 @@ export class AiChatComponent implements OnInit {
         data = undefined;
       }
     }
+    const at = m.createdAt ? new Date(m.createdAt) : undefined;
     return {
       role: m.role as 'user' | 'assistant',
       content: polishAssistantEmojis(m.content ?? ''),
+      at: at && !Number.isNaN(at.getTime()) ? at : undefined,
       toolUsed: m.toolUsed ?? undefined,
       data,
       warnings: []

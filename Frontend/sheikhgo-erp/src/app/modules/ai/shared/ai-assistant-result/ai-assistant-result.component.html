@@ -104,25 +104,28 @@
           <header class="chart-card__head">
             <h4>{{ a.topCustomers.length ? 'Customer Share' : 'Period Mix' }}</h4>
           </header>
-          <div class="donut-wrap">
-            <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="180px"></ui-chart>
-            <div class="donut-center" aria-hidden="true">
-              <strong>{{ statusTotal | number:'1.0-0' }}</strong>
-              <span>Revenue</span>
+          <div class="donut-layout">
+            <div class="donut-wrap">
+              <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
+              <div class="donut-center" aria-hidden="true">
+                <strong>{{ statusTotal | number:'1.0-0' }}</strong>
+                <span>Revenue</span>
+              </div>
             </div>
+            <ul class="donut-legend">
+              <li *ngFor="let s of a.statusDistribution; let i = index">
+                <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
+                <span class="name">{{ s.label }}</span>
+                <strong>{{ s.count | number:'1.0-0' }}</strong>
+              </li>
+            </ul>
           </div>
-          <ul class="donut-legend">
-            <li *ngFor="let s of a.statusDistribution; let i = index">
-              <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
-              <span class="name">{{ s.label }}</span>
-              <strong>{{ s.count | number:'1.0-0' }}</strong>
-            </li>
-          </ul>
         </article>
 
         <article class="insights-card" *ngIf="a.insights.length">
           <header class="chart-card__head">
             <h4>Key Insights</h4>
+            <span class="live-badge">Live Analysis</span>
           </header>
           <ul class="insights-list">
             <li *ngFor="let tip of a.insights; let i = index">
@@ -141,18 +144,13 @@
       <article
         class="kpi-card"
         *ngFor="let k of a.kpis"
-        [attr.data-tone]="k.tone || 'teal'"
-        [class.kpi-card--gauge]="isGaugeKpi(k)">
-        <div class="kpi-card__gauge" *ngIf="isGaugeKpi(k)" aria-hidden="true">
-          <div class="kpi-card__ring" [style.background]="completionRing(k)"></div>
-          <strong class="kpi-card__ring-value">{{ formatKpiValue(k) }}</strong>
-        </div>
-        <div class="kpi-card__icon" *ngIf="!isGaugeKpi(k)" aria-hidden="true">
+        [attr.data-tone]="k.tone || 'teal'">
+        <div class="kpi-card__icon" aria-hidden="true">
           <mat-icon>{{ kpiIcon(k) }}</mat-icon>
         </div>
         <div class="kpi-card__body">
           <span class="kpi-card__label">{{ k.label }}</span>
-          <strong class="kpi-card__value" *ngIf="!isGaugeKpi(k)">{{ formatKpiValue(k) }}</strong>
+          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
           <span
             class="kpi-card__delta"
             *ngIf="k.deltaPercent != null || k.sharePercent != null || k.deltaLabel"
@@ -161,6 +159,13 @@
             <ng-container *ngIf="k.deltaPercent == null && k.sharePercent != null">{{ k.sharePercent | number:'1.0-1' }}%</ng-container>
             <small *ngIf="k.deltaLabel">{{ k.deltaLabel }}</small>
           </span>
+        </div>
+        <div
+          class="kpi-card__bar"
+          *ngIf="kpiBarPercent(k) != null"
+          role="presentation"
+          [attr.aria-valuenow]="kpiBarPercent(k)">
+          <span [style.width.%]="kpiBarPercent(k)"></span>
         </div>
       </article>
     </div>
@@ -208,12 +213,13 @@
                   <td class="num">{{ t.distanceKm != null ? (t.distanceKm | number:'1.0-1') + ' km' : '—' }}</td>
                   <td>
                     <a
-                      class="view-icon-btn"
+                      class="view-btn-link"
                       [routerLink]="['/trips/list']"
                       [queryParams]="{ q: t.tripNumber }"
                       matTooltip="View trip"
                       aria-label="View trip">
                       <mat-icon>visibility</mat-icon>
+                      View
                     </a>
                   </td>
                 </tr>
@@ -228,25 +234,28 @@
           <header class="chart-card__head">
             <h4>Trip Status Distribution</h4>
           </header>
-          <div class="donut-wrap">
-            <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="180px"></ui-chart>
-            <div class="donut-center" aria-hidden="true">
-              <strong>{{ statusTotal }}</strong>
-              <span>Total Trips</span>
+          <div class="donut-layout">
+            <div class="donut-wrap">
+              <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
+              <div class="donut-center" aria-hidden="true">
+                <strong>{{ statusTotal }}</strong>
+                <span>Total Trips</span>
+              </div>
             </div>
+            <ul class="donut-legend">
+              <li *ngFor="let s of a.statusDistribution; let i = index">
+                <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
+                <span class="name">{{ s.label }}</span>
+                <strong>{{ s.count }}</strong>
+              </li>
+            </ul>
           </div>
-          <ul class="donut-legend">
-            <li *ngFor="let s of a.statusDistribution; let i = index">
-              <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
-              <span class="name">{{ s.label }}</span>
-              <strong>{{ s.count }}</strong>
-            </li>
-          </ul>
         </article>
 
         <article class="insights-card" *ngIf="a.insights.length">
           <header class="chart-card__head">
             <h4>Key Insights</h4>
+            <span class="live-badge">Live Analysis</span>
           </header>
           <ul class="insights-list">
             <li *ngFor="let tip of a.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
@@ -276,18 +285,6 @@
       </table>
     </div>
   </section>
-
-  <div class="follow-ups" *ngIf="followUpActions.length" role="list" aria-label="Follow-up actions">
-    <button
-      type="button"
-      class="follow-chip"
-      role="listitem"
-      *ngFor="let q of followUpActions"
-      (click)="followUp.emit(q)">
-      <mat-icon aria-hidden="true">lightbulb</mat-icon>
-      {{ q }}
-    </button>
-  </div>
 
   <ul class="warnings" *ngIf="warnings?.length" aria-label="Warnings">
     <li *ngFor="let w of warnings">

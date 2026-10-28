@@ -401,8 +401,17 @@ function buildLegacyTripKpis(root: Record<string, unknown>): TripBookingAnalytic
   const totalBookings = asNumber(bookings['totalBookings'] ?? bookings['TotalBookings']) ?? 0;
   const pending = asNumber(bookings['pending'] ?? bookings['Pending']) ?? 0;
   const share = totalBookings > 0 ? Math.round((pending * 1000) / totalBookings) / 10 : 0;
+  const completionPct = asNumber(trips['completionRatePercent']) ?? rate;
   return [
-    { key: 'totalTrips', label: 'Total Trips', value: total, unit: 'count', tone: 'teal', icon: 'route' },
+    {
+      key: 'totalTrips',
+      label: 'Total Trips',
+      value: total,
+      unit: 'count',
+      tone: 'teal',
+      icon: 'route',
+      sharePercent: total > 0 ? completionPct : undefined
+    },
     { key: 'totalBookings', label: 'Total Bookings', value: totalBookings, unit: 'count', tone: 'blue', icon: 'event' },
     {
       key: 'pendingBookings',
@@ -417,7 +426,7 @@ function buildLegacyTripKpis(root: Record<string, unknown>): TripBookingAnalytic
     {
       key: 'tripCompletionRate',
       label: 'Trip Completion Rate',
-      value: asNumber(trips['completionRatePercent']) ?? rate,
+      value: completionPct,
       unit: 'percent',
       tone: 'purple',
       icon: 'donut_large'

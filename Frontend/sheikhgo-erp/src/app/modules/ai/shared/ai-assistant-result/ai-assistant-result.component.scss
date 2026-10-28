@@ -265,8 +265,9 @@
 }
 
 .kpi-card {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
   align-items: flex-start;
   padding: 14px 14px 12px;
   border-radius: 12px;
@@ -281,38 +282,13 @@
     display: grid;
     place-items: center;
     flex-shrink: 0;
+    grid-row: 1;
 
     mat-icon {
       font-size: 22px;
       width: 22px;
       height: 22px;
     }
-  }
-
-  &__gauge {
-    position: relative;
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-  }
-
-  &__ring {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
-  }
-
-  &__ring-value {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #0f172a;
-    font-variant-numeric: tabular-nums;
   }
 
   &[data-tone='teal'] .kpi-card__icon {
@@ -337,6 +313,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    grid-row: 1;
   }
 
   &__label {
@@ -380,8 +357,30 @@
     }
   }
 
-  &--gauge {
-    align-items: center;
+  &__bar {
+    grid-column: 1 / -1;
+    height: 5px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+    margin-top: 2px;
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2dd4bf, #0d9488);
+    }
+  }
+
+  &[data-tone='blue'] .kpi-card__bar span {
+    background: linear-gradient(90deg, #60a5fa, #2563eb);
+  }
+  &[data-tone='orange'] .kpi-card__bar span {
+    background: linear-gradient(90deg, #fdba74, #ea580c);
+  }
+  &[data-tone='purple'] .kpi-card__bar span {
+    background: linear-gradient(90deg, #c4b5fd, #7c3aed);
   }
 }
 
@@ -439,10 +438,22 @@
   padding: 2px 8px;
 }
 
+.donut-layout {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+  }
+}
+
 .donut-wrap {
   position: relative;
-  max-width: 220px;
-  margin: 0 auto;
+  width: 140px;
+  flex: 0 0 140px;
+  max-width: 140px;
+  margin: 0;
 }
 
 .donut-center {
@@ -473,11 +484,13 @@
 
 .donut-legend {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-width: 0;
 
   li {
     display: grid;
@@ -498,6 +511,18 @@
     font-variant-numeric: tabular-nums;
     color: #0f172a;
   }
+}
+
+.live-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
 
 .insights-list {
@@ -582,21 +607,25 @@
   }
 }
 
-.view-icon-btn {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
+.view-btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
   border-radius: 8px;
   color: #0d9488;
   background: #f0fdfa;
   border: 1px solid #99f6e4;
   text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 
   mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 
   &:hover {
@@ -618,37 +647,4 @@
   }
 }
 
-.follow-ups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.follow-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid #99f6e4;
-  background: #f0fdfa;
-  color: #0f766e;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  line-height: 1.2;
-  transition: background 0.15s ease, border-color 0.15s ease;
-
-  mat-icon {
-    font-size: 15px;
-    width: 15px;
-    height: 15px;
-    color: #0d9488;
-  }
-
-  &:hover {
-    background: #ccfbf1;
-    border-color: #5eead4;
-  }
-}
+/* Follow-ups render in the chat composer dock (horizontal chips) to match the mock. */

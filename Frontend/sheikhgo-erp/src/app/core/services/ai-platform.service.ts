@@ -81,6 +81,7 @@ export interface AiChatMessage {
   /** JSON for rich UI widgets (trip/sales analytics) — rehydrated from history. */
   structuredPayload?: string | null;
   toolUsed?: string | null;
+  createdAt?: string | null;
 }
 
 export interface AiChatSession {

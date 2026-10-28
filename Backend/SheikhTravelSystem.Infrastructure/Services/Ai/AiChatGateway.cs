@@ -349,9 +349,9 @@ public sealed class AiChatGateway(
             """, new { Id = sessionId, TenantId = tenantId, UserId = userId }, cancellationToken: cancellationToken));
         if (owned == 0) return [];
 
-        var rows = await connection.QueryAsync<(string Role, string Content, string? StructuredPayload, string? ToolUsed)>(
+        var rows = await connection.QueryAsync<(string Role, string Content, string? StructuredPayload, string? ToolUsed, DateTime CreatedAt)>(
             new CommandDefinition("""
-            SELECT Role, Content, StructuredPayload, ToolUsed FROM AiChatMessages
+            SELECT Role, Content, StructuredPayload, ToolUsed, CreatedAt FROM AiChatMessages
             WHERE SessionId = @SessionId
             ORDER BY Id ASC
             """, new { SessionId = sessionId }, cancellationToken: cancellationToken));
@@ -359,7 +359,8 @@ public sealed class AiChatGateway(
             r.Role,
             r.Content,
             StructuredPayload: r.StructuredPayload,
-            ToolUsed: r.ToolUsed)).ToList();
+            ToolUsed: r.ToolUsed,
+            CreatedAt: r.CreatedAt)).ToList();
     }
 
     public async Task<AiProviderHealthDto> GetProviderHealthAsync(

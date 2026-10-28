@@ -21,7 +21,7 @@
   grid-template-columns: 1fr;
   gap: 0;
   min-height: 560px;
-  height: min(78vh, 900px);
+  height: min(calc(100vh - 200px), 920px);
   background: #fff;
   border: 1px solid var(--sg-border);
   border-radius: 14px;
@@ -433,11 +433,19 @@
     flex-direction: row-reverse;
 
     .bubble-body {
-      background: #0f766e;
+      background: #078b7b;
       color: #fff;
       border-radius: 14px 14px 4px 14px;
       padding: 10px 14px;
-      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.18);
+      box-shadow: 0 2px 8px rgba(7, 139, 123, 0.18);
+    }
+
+    .bubble-meta {
+      color: rgba(255, 255, 255, 0.85);
+
+      .read-checks {
+        color: #93c5fd;
+      }
     }
   }
 
@@ -455,6 +463,42 @@
       color: #0f172a;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
+  }
+
+  &.has-widgets {
+    max-width: 100%;
+
+    .bubble-body {
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      padding: 0;
+    }
+  }
+}
+
+.bubble-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  line-height: 1;
+
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .read-checks {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &--assistant {
+    justify-content: flex-start;
+    color: #94a3b8;
   }
 }
 
@@ -493,9 +537,16 @@
 
 .suggestions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
 }
 
 .suggestion-chip {
@@ -510,7 +561,7 @@
   line-height: 1.35;
   text-align: left;
   white-space: nowrap;
-  max-width: 100%;
+  flex: 0 0 auto;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 

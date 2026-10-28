@@ -22,7 +22,7 @@
         type="search"
         [(ngModel)]="sessionSearch"
         name="sessionSearch"
-        placeholder="Search conversations"
+        placeholder="Search conversations..."
         aria-label="Search conversations" />
       <mat-icon class="filter-ico" aria-hidden="true">tune</mat-icon>
     </div>
@@ -45,7 +45,7 @@
           *ngFor="let s of g.sessions"
           [class.active]="sessionId === s.id"
           (click)="openSession(s)">
-          <mat-icon class="bubble-ico" aria-hidden="true">chat_bubble_outline</mat-icon>
+          <mat-icon class="bubble-ico" aria-hidden="true">{{ sessionId === s.id ? 'chat_bubble' : 'chat_bubble_outline' }}</mat-icon>
           <span class="session-body">
             <span class="title">{{ s.title || 'Untitled chat' }}</span>
             <small>{{ sessionStamp(s) }}</small>
@@ -100,7 +100,8 @@
         *ngFor="let m of messages"
         class="bubble"
         [class.user]="m.role === 'user'"
-        [class.assistant]="m.role === 'assistant'">
+        [class.assistant]="m.role === 'assistant'"
+        [class.has-widgets]="m.role === 'assistant' && !!m.data">
         <div class="assistant-avatar" *ngIf="m.role === 'assistant'" aria-hidden="true">
           <mat-icon>smart_toy</mat-icon>
         </div>
@@ -112,6 +113,10 @@
               {{ a.name }}
             </span>
           </div>
+          <div class="bubble-meta" *ngIf="m.role === 'user'">
+            <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
+            <mat-icon class="read-checks" aria-hidden="true">done_all</mat-icon>
+          </div>
           <app-ai-assistant-result
             *ngIf="m.role === 'assistant'"
             [answer]="m.content"
@@ -121,6 +126,9 @@
             [mode]="m.mode"
             (followUp)="useSuggestion($event)">
           </app-ai-assistant-result>
+          <div class="bubble-meta bubble-meta--assistant" *ngIf="m.role === 'assistant' && m.at">
+            <time>{{ m.at | date:'shortTime' }}</time>
+          </div>
           <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
             <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
           </div>

@@ -29,7 +29,9 @@ public record AiChatMessageDto(
     /// <summary>JSON blob for UI widget rehydration (history load). Ignored by LLM providers.</summary>
     string? StructuredPayload = null,
     /// <summary>Tool that produced this assistant turn (history load).</summary>
-    string? ToolUsed = null);
+    string? ToolUsed = null,
+    /// <summary>Message timestamp for UI (history load).</summary>
+    DateTime? CreatedAt = null);
 
 public record AiProviderChatResult(
     bool Success,

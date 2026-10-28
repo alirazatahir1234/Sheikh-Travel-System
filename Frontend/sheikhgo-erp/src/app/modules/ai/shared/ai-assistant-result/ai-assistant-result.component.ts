@@ -308,16 +308,17 @@ export class AiAssistantResultComponent {
     return `${arrow} ${abs}%`;
   }
 
-  /** Circular progress for completion-rate KPI (mock gauge). */
-  completionRing(kpi: { key: string; value: number; unit: string }): string | null {
-    if (!this.isGaugeKpi(kpi)) return null;
-    const pct = Math.max(0, Math.min(100, kpi.value));
-    const deg = (pct / 100) * 360;
-    return `conic-gradient(#0d9488 0deg ${deg}deg, #e2e8f0 ${deg}deg 360deg)`;
-  }
-
-  isGaugeKpi(kpi: { key: string; unit: string }): boolean {
-    return kpi.key === 'tripCompletionRate';
+  /** Bottom progress fill for mock KPI cards (completion % or share). */
+  kpiBarPercent(kpi: { key: string; value: number; unit: string; sharePercent?: number | null }): number | null {
+    if (kpi.unit === 'percent' || kpi.key === 'tripCompletionRate') {
+      return Math.max(0, Math.min(100, kpi.value));
+    }
+    if (kpi.sharePercent != null && Number.isFinite(kpi.sharePercent)) {
+      return Math.max(0, Math.min(100, kpi.sharePercent));
+    }
+    // Total Trips / Bookings: soft bar from delta magnitude when present is skipped —
+    // show a thin accent only for completion-like KPIs above.
+    return null;
   }
 
   insightTone(tip: string, index: number): string {
