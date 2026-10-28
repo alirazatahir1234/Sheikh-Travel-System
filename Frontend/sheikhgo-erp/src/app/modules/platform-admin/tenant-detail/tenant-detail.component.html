@@ -403,30 +403,41 @@
             <span class="cc-error" *ngIf="form.get('primaryColor')?.hasError('hexColor') && form.get('primaryColor')?.touched">Use a hex color like #00B894</span>
           </section>
 
-          <section class="cc-card" id="company-features">
+          <section class="cc-card cc-features" id="company-features">
             <div class="cc-section-head">
-              <span class="cc-section-icon"><mat-icon>tune</mat-icon></span>
+              <span class="cc-section-icon"><mat-icon>checklist</mat-icon></span>
               <div>
                 <h3>Features</h3>
-                <p>Company feature enablement by category</p>
+                <p>Manage which features and modules are available for this company.</p>
               </div>
               <a class="cc-link" [routerLink]="['/platform/feature-management']" [queryParams]="{ tenantId: tenantId }">
-                Manage features <mat-icon>arrow_forward</mat-icon>
+                Manage Features <mat-icon>chevron_right</mat-icon>
               </a>
             </div>
-            <div *ngIf="featuresLoading" class="cc-activity__state">Loading features…</div>
+            <div *ngIf="featuresLoading" class="cc-activity__state" aria-busy="true">Loading features…</div>
             <div *ngIf="!featuresLoading && features.length === 0" class="cc-activity__state">No features configured.</div>
-            <div *ngIf="!featuresLoading && featureGroups.length" class="cc-feature-groups">
-              <div class="cc-feature-group" *ngFor="let group of featureGroups">
-                <h4>{{ group.category }}</h4>
-                <ul>
-                  <li *ngFor="let f of group.features">
-                    <span>{{ f.displayName || f.name }}</span>
-                    <span class="cc-pill" [class.cc-pill--on]="f.isEnabled" [class.cc-pill--off]="!f.isEnabled">
-                      {{ f.isEnabled ? 'Enabled' : 'Off' }}
-                    </span>
-                  </li>
-                </ul>
+            <!-- Reference UX: 3-col category rows (icon + name + count + Enabled pill), not nested feature lists -->
+            <div *ngIf="!featuresLoading && featureGroups.length" class="cc-feature-cats" role="list">
+              <div
+                class="cc-feature-cat"
+                role="listitem"
+                *ngFor="let group of featureGroups"
+                [class.cc-feature-cat--on]="isFeatureCategoryEnabled(group)"
+                [class.cc-feature-cat--off]="!isFeatureCategoryEnabled(group)">
+                <span class="cc-feature-cat__icon" aria-hidden="true">
+                  <mat-icon>{{ featureCategoryIcon(group.category) }}</mat-icon>
+                </span>
+                <div class="cc-feature-cat__text">
+                  <strong>{{ group.category }}</strong>
+                  <span>{{ group.features.length }} {{ group.features.length === 1 ? 'feature' : 'features' }}</span>
+                </div>
+                <span
+                  class="cc-feature-cat__badge"
+                  [class.cc-feature-cat__badge--on]="isFeatureCategoryEnabled(group)"
+                  [class.cc-feature-cat__badge--off]="!isFeatureCategoryEnabled(group)">
+                  <span class="cc-feature-cat__dot" aria-hidden="true"></span>
+                  {{ isFeatureCategoryEnabled(group) ? 'Enabled' : 'Off' }}
+                </span>
               </div>
             </div>
           </section>

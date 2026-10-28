@@ -371,6 +371,47 @@ export class TenantDetailComponent implements OnInit {
       .sort((a, b) => a.category.localeCompare(b.category));
   }
 
+  /** Category row is Enabled when at least one real feature in the group is on. */
+  isFeatureCategoryEnabled(group: { features: CompanyFeature[] }): boolean {
+    return group.features.some(f => f.isEnabled);
+  }
+
+  featureCategoryIcon(category: string): string {
+    const key = (category || '').trim().toLowerCase();
+    const map: Record<string, string> = {
+      administration: 'admin_panel_settings',
+      admin: 'admin_panel_settings',
+      bookings: 'event_note',
+      booking: 'event_note',
+      crm: 'handshake',
+      customers: 'people',
+      customer: 'people',
+      drivers: 'badge',
+      driver: 'badge',
+      financial: 'payments',
+      finance: 'payments',
+      fleet: 'local_shipping',
+      gps: 'my_location',
+      tracking: 'my_location',
+      maintenance: 'build',
+      reports: 'assessment',
+      analytics: 'insights',
+      travel: 'flight_takeoff',
+      trips: 'map',
+      trip: 'map',
+      vehicles: 'directions_car',
+      vehicle: 'directions_car',
+      fuel: 'local_gas_station',
+      ai: 'smart_toy',
+      whatsapp: 'chat',
+      website: 'language',
+      security: 'security',
+      platform: 'settings_applications',
+      general: 'extension'
+    };
+    return map[key] || 'extension';
+  }
+
   submit(): void {
     if (!this.canManage) {
       this.toast.error('You do not have permission to update companies.');
