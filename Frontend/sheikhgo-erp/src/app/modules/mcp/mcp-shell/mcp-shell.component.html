@@ -19,7 +19,20 @@
 
     <aside class="mcp-rail" aria-label="MCP status">
       <section class="rail-card">
-        <h2>MCP Console Status</h2>
+        <div class="sec-head">
+          <h2>MCP Console Status</h2>
+          <button
+            mat-button
+            type="button"
+            class="clear-btn"
+            (click)="refreshCatalog()"
+            [disabled]="mcp.loading()"
+            aria-label="Refresh MCP catalog"
+          >
+            <mat-icon>refresh</mat-icon>
+            {{ mcp.loading() ? 'Refreshing…' : 'Refresh' }}
+          </button>
+        </div>
         @if (systemStatus(); as sys) {
           <div class="status-row">
             <app-mcp-status-pill [status]="sys.status" [label]="sys.label"></app-mcp-status-pill>
@@ -38,6 +51,14 @@
             <li>
               <span>MCP groups</span>
               <strong>{{ catalog.groups.length }}</strong>
+            </li>
+            <li>
+              <span>Catalog loaded</span>
+              <strong>{{ mcp.lastLoadedAt() ? (mcp.lastLoadedAt()! | date: 'shortTime') : '—' }}</strong>
+            </li>
+            <li>
+              <span>Exported</span>
+              <strong>{{ catalog.exportedAt | date: 'short' }}</strong>
             </li>
             <li>
               <span>Execution</span>

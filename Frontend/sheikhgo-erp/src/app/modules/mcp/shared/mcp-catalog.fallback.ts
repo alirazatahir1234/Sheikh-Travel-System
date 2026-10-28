@@ -5,7 +5,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
   "version": "0.18.0",
   "protocol": "MCP (stdio)",
   "package": "sheikhgo-mcp",
-  "exportedAt": "2026-10-28T08:19:05.616Z",
+  "exportedAt": "2026-10-28T08:19:24.721Z",
   "discoveredTools": [
     "get_repository_index",
     "analyze_architecture",
@@ -131,7 +131,8 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "name": "analyze_architecture",
       "description": "Run Clean Architecture / CQRS rule analysis against the SheikhGo repository. Returns structured violations.",
       "inputProperties": [
-        "scope"
+        "scope",
+        "default"
       ]
     },
     "list_modules": {
@@ -258,6 +259,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "description": "Analyze a SheikhGo Angular frontend app (routes, features/modules, components, services, API hints).",
       "inputProperties": [
         "app",
+        "default",
         "feature"
       ]
     },
@@ -266,6 +268,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "description": "Analyze a SheikhGo Flutter app (features, screens, routes, services, repositories, packages).",
       "inputProperties": [
         "app",
+        "default",
         "feature"
       ]
     },
@@ -307,6 +310,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "description": "List SQL Server tables/views from the live database (INFORMATION_SCHEMA). Requires SHEIKHGO_DB_CONNECTION. Read-only.",
       "inputProperties": [
         "schema",
+        "default",
         "nameFilter",
         "includeViews",
         "limit"
@@ -317,20 +321,14 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "description": "Live schema inspection for one table: columns, types, nullability, primary key, TenantId hint. Requires SHEIKHGO_DB_CONNECTION.",
       "inputProperties": [
         "table",
-        "schema"
+        "schema",
+        "default"
       ]
     },
     "run_readonly_query": {
       "name": "run_readonly_query",
       "description": "Last-resort read-only SELECT / WITH…SELECT. Prefer Phase 4 tools (get_vehicle_count, get_trip_summary, …). Blocks DML/DDL/EXEC. When approvedOnly=true (recommended for AI), SQL may only touch approved business tables + TenantId filter. Requires SHEIKHGO_DB_CONNECTION.",
-      "inputProperties": [
-        "sql",
-        "parameters",
-        "tenantId",
-        "maxRows",
-        "timeoutMs",
-        "approvedOnly"
-      ]
+      "inputProperties": []
     },
     "plan_approved_query": {
       "name": "plan_approved_query",
@@ -627,7 +625,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         "tenantId",
         "vehicleId",
         "from",
+        "default",
         "to",
+        "default",
         "maxPoints",
         "preferTraccarIfEmpty"
       ]
@@ -652,7 +652,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         "vehicleId",
         "geofenceId",
         "from",
+        "default",
         "to",
+        "default",
         "unacknowledgedOnly",
         "page",
         "pageSize"
@@ -665,7 +667,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         "tenantId",
         "vehicleId",
         "from",
+        "default",
         "to",
+        "default",
         "page",
         "pageSize"
       ]
@@ -714,7 +718,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         "entityName",
         "userId",
         "dateFrom",
+        "default",
         "dateTo",
+        "default",
         "page",
         "pageSize"
       ]
@@ -737,7 +743,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
       "inputProperties": [
         "tenantId",
         "dateFrom",
-        "dateTo"
+        "default",
+        "dateTo",
+        "default"
       ]
     },
     "get_vehicle_utilization": {
@@ -1024,59 +1032,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
     "get_server_info": {
       "name": "get_server_info",
       "description": "SheikhGo MCP server info: version, read-only/write mode, repository path, database live status, and write policy.",
-      "inputProperties": [
-        "name",
-        "version",
-        "repositoryRoot",
-        "packageRoot",
-        "allowWrites",
-        "readOnly",
-        "database",
-        "liveConfigured",
-        "maxRows",
-        "queryTimeoutMs",
-        "envVar",
-        "approvedCounts",
-        "bookings",
-        "group",
-        "envVar",
-        "note",
-        "fleet",
-        "group",
-        "envVar",
-        "note",
-        "gps",
-        "group",
-        "envVar",
-        "traccarEnabled",
-        "traccarConfigured",
-        "note",
-        "analytics",
-        "group",
-        "envVar",
-        "note",
-        "logs",
-        "group",
-        "phase",
-        "envVar",
-        "note",
-        "smartops",
-        "group",
-        "envVar",
-        "note",
-        "security",
-        "group",
-        "note",
-        "devops",
-        "group",
-        "envVar",
-        "note",
-        "writePolicy",
-        "clients",
-        "cursor",
-        "claudeCode",
-        "recommendedWorkflow"
-      ]
+      "inputProperties": []
     },
     "get_write_policy": {
       "name": "get_write_policy",
@@ -1259,7 +1215,8 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "name": "analyze_architecture",
           "description": "Run Clean Architecture / CQRS rule analysis against the SheikhGo repository. Returns structured violations.",
           "inputProperties": [
-            "scope"
+            "scope",
+            "default"
           ]
         },
         {
@@ -1399,6 +1356,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "description": "Analyze a SheikhGo Angular frontend app (routes, features/modules, components, services, API hints).",
           "inputProperties": [
             "app",
+            "default",
             "feature"
           ]
         },
@@ -1407,6 +1365,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "description": "Analyze a SheikhGo Flutter app (features, screens, routes, services, repositories, packages).",
           "inputProperties": [
             "app",
+            "default",
             "feature"
           ]
         },
@@ -1481,59 +1440,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         {
           "name": "get_server_info",
           "description": "SheikhGo MCP server info: version, read-only/write mode, repository path, database live status, and write policy.",
-          "inputProperties": [
-            "name",
-            "version",
-            "repositoryRoot",
-            "packageRoot",
-            "allowWrites",
-            "readOnly",
-            "database",
-            "liveConfigured",
-            "maxRows",
-            "queryTimeoutMs",
-            "envVar",
-            "approvedCounts",
-            "bookings",
-            "group",
-            "envVar",
-            "note",
-            "fleet",
-            "group",
-            "envVar",
-            "note",
-            "gps",
-            "group",
-            "envVar",
-            "traccarEnabled",
-            "traccarConfigured",
-            "note",
-            "analytics",
-            "group",
-            "envVar",
-            "note",
-            "logs",
-            "group",
-            "phase",
-            "envVar",
-            "note",
-            "smartops",
-            "group",
-            "envVar",
-            "note",
-            "security",
-            "group",
-            "note",
-            "devops",
-            "group",
-            "envVar",
-            "note",
-            "writePolicy",
-            "clients",
-            "cursor",
-            "claudeCode",
-            "recommendedWorkflow"
-          ]
+          "inputProperties": []
         }
       ]
     },
@@ -1593,6 +1500,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "description": "List SQL Server tables/views from the live database (INFORMATION_SCHEMA). Requires SHEIKHGO_DB_CONNECTION. Read-only.",
           "inputProperties": [
             "schema",
+            "default",
             "nameFilter",
             "includeViews",
             "limit"
@@ -1603,20 +1511,14 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "description": "Live schema inspection for one table: columns, types, nullability, primary key, TenantId hint. Requires SHEIKHGO_DB_CONNECTION.",
           "inputProperties": [
             "table",
-            "schema"
+            "schema",
+            "default"
           ]
         },
         {
           "name": "run_readonly_query",
           "description": "Last-resort read-only SELECT / WITH…SELECT. Prefer Phase 4 tools (get_vehicle_count, get_trip_summary, …). Blocks DML/DDL/EXEC. When approvedOnly=true (recommended for AI), SQL may only touch approved business tables + TenantId filter. Requires SHEIKHGO_DB_CONNECTION.",
-          "inputProperties": [
-            "sql",
-            "parameters",
-            "tenantId",
-            "maxRows",
-            "timeoutMs",
-            "approvedOnly"
-          ]
+          "inputProperties": []
         },
         {
           "name": "db_connection_status",
@@ -1977,7 +1879,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
             "tenantId",
             "vehicleId",
             "from",
+            "default",
             "to",
+            "default",
             "maxPoints",
             "preferTraccarIfEmpty"
           ]
@@ -2002,7 +1906,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
             "vehicleId",
             "geofenceId",
             "from",
+            "default",
             "to",
+            "default",
             "unacknowledgedOnly",
             "page",
             "pageSize"
@@ -2015,7 +1921,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
             "tenantId",
             "vehicleId",
             "from",
+            "default",
             "to",
+            "default",
             "page",
             "pageSize"
           ]
@@ -2125,7 +2033,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
           "inputProperties": [
             "tenantId",
             "dateFrom",
-            "dateTo"
+            "default",
+            "dateTo",
+            "default"
           ]
         },
         {
@@ -2481,7 +2391,9 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
             "entityName",
             "userId",
             "dateFrom",
+            "default",
             "dateTo",
+            "default",
             "page",
             "pageSize"
           ]

@@ -2,16 +2,25 @@
   <header>
     <div>
       <h2>MCP Tools</h2>
-      <p>Browse tools by group from the exported catalog. Registered tools are available in SheikhGo-MCP over stdio.</p>
+      <p>
+        Browse tools by group from the exported catalog (names, descriptions, input properties).
+        Registered tools are available in SheikhGo-MCP over stdio.
+      </p>
     </div>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Group</mat-label>
-      <mat-select [(ngModel)]="groupId">
-        @for (g of c.groups; track g.id) {
-          <mat-option [value]="g.id">{{ g.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <div class="header-actions">
+      <button type="button" class="refresh-btn" (click)="refresh()" [disabled]="mcp.loading()">
+        <mat-icon>refresh</mat-icon>
+        {{ mcp.loading() ? 'Refreshing…' : 'Refresh' }}
+      </button>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Group</mat-label>
+        <mat-select [(ngModel)]="groupId">
+          @for (g of c.groups; track g.id) {
+            <mat-option [value]="g.id">{{ g.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
   </header>
 
   @if (selected(); as g) {
@@ -31,10 +40,23 @@
     }
 
     <ul class="tools">
-      @for (t of toolsFor(g); track t) {
+      @for (def of toolDefsFor(g); track def.name) {
         <li>
-          <code>{{ t }}</code>
-          <span>{{ g.tools?.includes(t) ? 'Registered' : 'Planned' }}</span>
+          <div class="tool-main">
+            <code>{{ def.name }}</code>
+            <span class="badge">{{ def.planned || !g.tools?.includes(def.name) ? 'Planned' : 'Registered' }}</span>
+          </div>
+          <p class="tool-desc">{{ def.description }}</p>
+          @if (def.inputProperties?.length) {
+            <p class="tool-schema">
+              Inputs:
+              @for (p of def.inputProperties; track p; let last = $last) {
+                <code>{{ p }}</code>@if (!last) {<span>, </span>}
+              }
+            </p>
+          } @else {
+            <p class="tool-schema">Inputs: <em>none</em></p>
+          }
         </li>
       } @empty {
         <li class="empty">No tools listed for this group yet.</li>

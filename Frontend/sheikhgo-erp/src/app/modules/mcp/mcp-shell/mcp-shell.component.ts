@@ -42,7 +42,12 @@ export class McpShellComponent implements OnInit {
   constructor(readonly mcp: McpCatalogService) {}
 
   ngOnInit(): void {
-    this.mcp.load().subscribe(c => (this.catalog = c));
+    // Always refetch catalog on console entry so newly exported tools appear.
+    this.refreshCatalog();
+  }
+
+  refreshCatalog(): void {
+    this.mcp.reload().subscribe(c => (this.catalog = c));
   }
 
   clearActivity(): void {

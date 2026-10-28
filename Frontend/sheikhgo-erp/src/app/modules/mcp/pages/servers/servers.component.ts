@@ -17,14 +17,21 @@ import { McpServerCardComponent } from '../../shared/server-card/server-card.com
   imports: [CommonModule, FormsModule, MatIconModule, McpServerCardComponent],
   template: `
     <div class="page" *ngIf="catalog as c">
-      <header>
+      <header class="page-head">
         <div>
           <h2>MCP Servers</h2>
           <p>
             {{ c.groups.length }} servers · {{ c.summary.runningGroups }} running ·
             {{ c.summary.plannedGroups }} planned · {{ c.summary.stoppedGroups }} stopped
+            @if (c.exportedAt) {
+              · catalog {{ c.exportedAt | date: 'short' }}
+            }
           </p>
         </div>
+        <button type="button" class="refresh-btn" (click)="refresh()" [disabled]="mcp.loading()">
+          <mat-icon>refresh</mat-icon>
+          {{ mcp.loading() ? 'Refreshing…' : 'Refresh catalog' }}
+        </button>
       </header>
 
       <div class="controls">
@@ -70,6 +77,14 @@ import { McpServerCardComponent } from '../../shared/server-card/server-card.com
         white-space: nowrap;
         border: 0;
       }
+      .page-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
       header h2 {
         margin: 0;
         font-size: 18px;
@@ -80,6 +95,28 @@ import { McpServerCardComponent } from '../../shared/server-card/server-card.com
         margin: 4px 0 16px;
         color: var(--mcp-muted);
         font-size: 13px;
+      }
+      .refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--mcp-border);
+        background: #fff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--mcp-teal);
+        cursor: pointer;
+      }
+      .refresh-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .refresh-btn mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
       }
       .controls {
         display: flex;
@@ -162,12 +199,16 @@ export class McpServersComponent implements OnInit {
   search = '';
 
   constructor(
-    private mcp: McpCatalogService,
+    readonly mcp: McpCatalogService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.mcp.load().subscribe(c => (this.catalog = c));
+  }
+
+  refresh(): void {
+    this.mcp.reload().subscribe(c => (this.catalog = c));
   }
 
   visible(): McpGroup[] {

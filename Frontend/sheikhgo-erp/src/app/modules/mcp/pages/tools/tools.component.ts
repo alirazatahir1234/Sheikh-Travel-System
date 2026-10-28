@@ -5,7 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
-import { McpCatalog, McpCatalogService, McpGroup } from '../../shared/mcp-catalog.service';
+import {
+  McpCatalog,
+  McpCatalogService,
+  McpGroup,
+  McpToolDef
+} from '../../shared/mcp-catalog.service';
 import { McpStatusPillComponent } from '../../shared/status-pill/status-pill.component';
 
 @Component({
@@ -27,7 +32,7 @@ export class McpToolsComponent implements OnInit {
   groupId = '';
 
   constructor(
-    private mcp: McpCatalogService,
+    readonly mcp: McpCatalogService,
     private route: ActivatedRoute
   ) {}
 
@@ -35,11 +40,19 @@ export class McpToolsComponent implements OnInit {
     this.mcp.load().subscribe(c => {
       this.catalog = c;
       const q = this.route.snapshot.queryParamMap.get('group');
-      this.groupId = q || c.groups[0]?.id || '';
+      this.groupId = q || this.groupId || c.groups[0]?.id || '';
     });
     this.route.queryParamMap.subscribe(p => {
       const g = p.get('group');
       if (g) this.groupId = g;
+    });
+  }
+
+  refresh(): void {
+    this.mcp.reload().subscribe(c => {
+      this.catalog = c;
+      const q = this.route.snapshot.queryParamMap.get('group');
+      this.groupId = q || this.groupId || c.groups[0]?.id || '';
     });
   }
 
@@ -51,5 +64,21 @@ export class McpToolsComponent implements OnInit {
     if (!group) return [];
     if (group.tools?.length) return group.tools;
     return group.plannedTools || [];
+  }
+
+  toolDefsFor(group: McpGroup | undefined): McpToolDef[] {
+    if (!group) return [];
+    if (group.toolDefs?.length) return group.toolDefs;
+    return this.toolsFor(group).map(name => {
+      const fromRegistry = this.mcp.toolDef(this.catalog, name);
+      return (
+        fromRegistry || {
+          name,
+          description: name,
+          inputProperties: [],
+          planned: !group.tools?.includes(name)
+        }
+      );
+    });
   }
 }

@@ -75,7 +75,13 @@
         <h2>MCP Servers</h2>
         <p class="block-sub">{{ serverSummary() }}</p>
       </div>
-      <a routerLink="/mcp/servers" class="view-all">View all</a>
+      <div class="block-actions">
+        <button type="button" class="refresh-link" (click)="refresh()" [disabled]="mcp.loading()">
+          <mat-icon>refresh</mat-icon>
+          {{ mcp.loading() ? 'Refreshing…' : 'Refresh' }}
+        </button>
+        <a routerLink="/mcp/servers" class="view-all">View all</a>
+      </div>
     </div>
 
     <div class="controls">

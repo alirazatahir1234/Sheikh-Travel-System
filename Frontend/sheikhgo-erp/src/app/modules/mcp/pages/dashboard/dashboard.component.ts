@@ -37,12 +37,17 @@ export class McpDashboardComponent implements OnInit {
   sortBy: 'name' | 'status' | 'tools' = 'name';
 
   constructor(
-    private mcp: McpCatalogService,
+    readonly mcp: McpCatalogService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
+    // Shell already force-refreshes on console entry; subscribe to shared catalog.
     this.mcp.load().subscribe(c => (this.catalog = c));
+  }
+
+  refresh(): void {
+    this.mcp.reload().subscribe(c => (this.catalog = c));
   }
 
   askMcp(): void {

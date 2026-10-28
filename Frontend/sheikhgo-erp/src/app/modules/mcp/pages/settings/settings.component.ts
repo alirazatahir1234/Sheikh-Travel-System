@@ -22,13 +22,19 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
           <li><span>Package</span><strong>{{ c.package }}</strong></li>
           <li><span>Version</span><strong>{{ c.version }}</strong></li>
           <li><span>Exported</span><strong>{{ c.exportedAt | date: 'medium' }}</strong></li>
+          <li><span>Loaded in browser</span><strong>{{ mcp.lastLoadedAt() ? (mcp.lastLoadedAt()! | date: 'medium') : '—' }}</strong></li>
           <li><span>Protocol</span><strong>{{ c.protocol }}</strong></li>
           <li><span>Asset path</span><strong>assets/mcp/mcp-catalog.json</strong></li>
         </ul>
+        <button mat-stroked-button type="button" class="refresh-catalog" (click)="refresh()" [disabled]="mcp.loading()">
+          <mat-icon>refresh</mat-icon>
+          {{ mcp.loading() ? 'Refreshing…' : 'Refresh catalog from assets' }}
+        </button>
         <p class="hint">
-          Refresh the catalog from SheikhGo-MCP with
+          Console reloads the JSON asset on page load and via Refresh (cache-busted).
+          After adding/changing tools in SheikhGo-MCP, run
           <code>npm run export:catalog</code>
-          (writes <code>public/assets/mcp/mcp-catalog.json</code>).
+          then Refresh here (or reload /mcp).
         </p>
       </section>
 
@@ -107,6 +113,12 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
         padding: 1px 6px;
         border-radius: 4px;
       }
+      .refresh-catalog {
+        margin-top: 12px;
+      }
+      .refresh-catalog mat-icon {
+        margin-right: 4px;
+      }
     `
   ]
 })
@@ -120,6 +132,13 @@ export class McpSettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.mcp.load().subscribe(c => (this.catalog = c));
+  }
+
+  refresh(): void {
+    this.mcp.reload().subscribe(c => {
+      this.catalog = c;
+      this.toast.success('MCP catalog refreshed');
+    });
   }
 
   clear(): void {
