@@ -147,6 +147,7 @@ public sealed class AiMcpToolCallingLoop(
         var successfulToolCount = 0;
         var hadToolFailures = false;
         var anyToolAttempt = false;
+        object? lastStructuredData = null;
 
         for (var round = 0; round < maxRounds; round++)
         {
@@ -196,7 +197,8 @@ public sealed class AiMcpToolCallingLoop(
                         toolsUsed.Add("mcp_tool_loop");
                         return new AiMcpToolLoopResult(
                             SafeEmptyAfterToolsMessage, "mcp+llm", lastModel, totalTokens,
-                            HadToolFailures: false, SuccessfulToolCount: successfulToolCount);
+                            HadToolFailures: false, SuccessfulToolCount: successfulToolCount,
+                            StructuredData: lastStructuredData);
                     }
 
                     return BuildSafeFailure(lastModel, totalTokens, hadToolFailures, successfulToolCount, toolsUsed);
@@ -209,7 +211,8 @@ public sealed class AiMcpToolCallingLoop(
                 toolsUsed.Add("mcp_tool_loop");
                 return new AiMcpToolLoopResult(
                     result.Content.Trim(), "mcp+llm", lastModel, totalTokens,
-                    HadToolFailures: hadToolFailures, SuccessfulToolCount: successfulToolCount);
+                    HadToolFailures: hadToolFailures, SuccessfulToolCount: successfulToolCount,
+                    StructuredData: lastStructuredData);
             }
 
             var normalizedCalls = NormalizeToolCalls(result.ToolCalls);
@@ -267,6 +270,8 @@ public sealed class AiMcpToolCallingLoop(
                 if (mcpResult.Success)
                 {
                     successfulToolCount++;
+                    if (TryExtractStructuredAnalytics(mcpResult.Content, out var structured))
+                        lastStructuredData = structured;
                     var content = AiUntrustedContentSanitizer.SanitizeForLlm(mcpResult.Content, 8000);
                     messages.Add(new AiChatMessageDto(
                         "tool",
@@ -311,7 +316,45 @@ public sealed class AiMcpToolCallingLoop(
         toolsUsed.Add("mcp_tool_loop");
         return new AiMcpToolLoopResult(
             final.Content.Trim(), "mcp+llm", final.Model, totalTokens,
-            HadToolFailures: hadToolFailures, SuccessfulToolCount: successfulToolCount);
+            HadToolFailures: hadToolFailures, SuccessfulToolCount: successfulToolCount,
+            StructuredData: lastStructuredData);
+    }
+
+    /// <summary>
+    /// Prefer last MCP payload that matches the ERP rich-widget contract
+    /// (trip_booking_analytics / sales_analytics / kpis).
+    /// </summary>
+    internal static bool TryExtractStructuredAnalytics(string? raw, out object? structured)
+    {
+        structured = null;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return false;
+
+            var hasType = root.TryGetProperty("responseType", out var rt)
+                          && rt.ValueKind == JsonValueKind.String
+                          && (string.Equals(rt.GetString(), "trip_booking_analytics", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(rt.GetString(), "sales_analytics", StringComparison.OrdinalIgnoreCase));
+            var hasKpis = root.TryGetProperty("kpis", out var kpis)
+                          && kpis.ValueKind == JsonValueKind.Array
+                          && kpis.GetArrayLength() > 0;
+
+            if (!hasType && !hasKpis)
+                return false;
+
+            structured = JsonSerializer.Deserialize<object>(raw);
+            return structured is not null;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private async Task<McpToolCallResult> ExecuteToolBoundedAsync(

@@ -29,7 +29,14 @@ interface ChatBubble {
   data?: unknown;
   warnings?: string[];
   mode?: string;
+  /** Local attach chips (not persisted as binary). */
+  attachments?: { name: string; kind: string }[];
 }
+
+const ATTACH_ACCEPT =
+  '.txt,.md,.csv,.json,.log,.tsv,.png,.jpg,.jpeg,.webp,.gif,.pdf,text/plain,text/csv,application/json,image/png,image/jpeg,image/webp,image/gif,application/pdf';
+const ATTACH_MAX_FILES = 3;
+const ATTACH_MAX_BYTES = 2 * 1024 * 1024;
 
 interface SessionGroup {
   label: string;
@@ -67,6 +74,9 @@ export class AiChatComponent implements OnInit {
 
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
   @ViewChild('composerInput') composerInput?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+
+  readonly attachAccept = ATTACH_ACCEPT;
 
   loading = true;
   sending = false;
@@ -76,6 +86,8 @@ export class AiChatComponent implements OnInit {
   pendingAction: AiPendingAction | null = null;
   messages: ChatBubble[] = [];
   sessions: AiChatSession[] = [];
+  /** Pending composer attachments (cleared after send). */
+  pendingFiles: File[] = [];
   /** Set when sessions API returns 403 (module off / no chat permission). */
   accessDeniedMessage: string | null = null;
   /** Default to Phase 2 assistant (allowlisted reports). Toggle keeps legacy chat/writes. */
@@ -224,7 +236,28 @@ export class AiChatComponent implements OnInit {
       next: rows => {
         this.messages = (rows ?? [])
           .filter(m => m.role === 'user' || m.role === 'assistant')
-          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+          .map(m => {
+            let data: unknown;
+            const raw = m.structuredPayload?.trim();
+            if (raw) {
+              try {
+                data = JSON.parse(raw) as unknown;
+              } catch {
+                data = undefined;
+              }
+            }
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              toolUsed: m.toolUsed,
+              data
+            };
+          });
+        const lastAssistant = [...this.messages].reverse().find(x => x.role === 'assistant' && x.data);
+        const followUps = lastAssistant ? extractFollowUps(lastAssistant.data) : [];
+        if (followUps.length) {
+          this.suggestions = followUps;
+        }
         this.scrollToBottom();
       },
       error: () => this.toast.error('Could not load messages')
@@ -246,20 +279,37 @@ export class AiChatComponent implements OnInit {
 
   send(confirmWrite = false): void {
     const text = confirmWrite ? 'CONFIRM' : this.draft.trim();
-    if (!text || this.sending) return;
+    const files = confirmWrite ? [] : [...this.pendingFiles];
+    if ((!text && !files.length) || this.sending) return;
     if (confirmWrite && !this.sessionId) {
       this.toast.error('No active session to confirm');
       return;
     }
 
-    this.messages.push({ role: 'user', content: polishAssistantEmojis(text) });
-    if (!confirmWrite) this.draft = '';
+    const displayText = text || (files.length ? `Analyze attached file${files.length > 1 ? 's' : ''}` : '');
+    this.messages.push({
+      role: 'user',
+      content: polishAssistantEmojis(displayText),
+      attachments: files.map(f => ({
+        name: f.name,
+        kind: f.type?.startsWith('image/') ? 'image' : f.type === 'application/pdf' ? 'pdf' : 'text'
+      }))
+    });
+    if (!confirmWrite) {
+      this.draft = '';
+      this.pendingFiles = [];
+    }
 
     this.sending = true;
     this.scrollToBottom();
 
     if (this.useAssistant && !confirmWrite) {
-      this.ai.assistantQuery(text, this.sessionId).subscribe({
+      const question = text || displayText;
+      const req$ =
+        files.length > 0
+          ? this.ai.assistantQueryWithFiles(question, files, this.sessionId)
+          : this.ai.assistantQuery(question, this.sessionId);
+      req$.subscribe({
         next: (res: AiAssistantQueryResponse) => this.onAssistantReply(res),
         error: err => {
           this.sending = false;
@@ -269,7 +319,7 @@ export class AiChatComponent implements OnInit {
       return;
     }
 
-    this.ai.chat(text, this.sessionId, confirmWrite).subscribe({
+    this.ai.chat(text || displayText, this.sessionId, confirmWrite).subscribe({
       next: (res: AiChatTurnResponse) => this.onReply(res),
       error: err => {
         this.sending = false;
@@ -364,6 +414,29 @@ export class AiChatComponent implements OnInit {
       next: p => (this.pendingAction = p),
       error: () => {}
     });
+  }
+
+  private rehydrateBubble(m: {
+    role: string;
+    content: string;
+    structuredPayload?: string | null;
+    toolUsed?: string | null;
+  }): ChatBubble {
+    let data: unknown;
+    if (m.structuredPayload) {
+      try {
+        data = JSON.parse(m.structuredPayload);
+      } catch {
+        data = undefined;
+      }
+    }
+    return {
+      role: m.role as 'user' | 'assistant',
+      content: polishAssistantEmojis(m.content ?? ''),
+      toolUsed: m.toolUsed ?? undefined,
+      data,
+      warnings: []
+    };
   }
 
   private scrollToBottom(): void {

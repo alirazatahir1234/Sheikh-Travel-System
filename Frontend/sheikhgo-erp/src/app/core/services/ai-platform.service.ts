@@ -78,6 +78,9 @@ export interface AiAssistantQueryResponse {
 export interface AiChatMessage {
   role: string;
   content: string;
+  /** JSON for rich UI widgets (trip/sales analytics) — rehydrated from history. */
+  structuredPayload?: string | null;
+  toolUsed?: string | null;
 }
 
 export interface AiChatSession {
@@ -174,6 +177,24 @@ export class AiPlatformService {
       question,
       sessionId: sessionId ?? null
     });
+  }
+
+  /**
+   * Assistant query with file attachments (text/CSV/JSON/Markdown/images/PDF).
+   * Text is inlined server-side; images/PDF are noted without storing binary in chat.
+   */
+  assistantQueryWithFiles(
+    question: string,
+    files: File[],
+    sessionId?: string | null
+  ): Observable<AiAssistantQueryResponse> {
+    const form = new FormData();
+    form.append('question', question ?? '');
+    if (sessionId) form.append('sessionId', sessionId);
+    for (const f of files) {
+      form.append('files', f, f.name);
+    }
+    return this.http.post<AiAssistantQueryResponse>(`${this.base}/assistant/query-with-files`, form);
   }
 
   assistantTools(): Observable<string[]> {

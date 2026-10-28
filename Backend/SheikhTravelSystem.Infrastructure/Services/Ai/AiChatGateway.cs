@@ -349,12 +349,17 @@ public sealed class AiChatGateway(
             """, new { Id = sessionId, TenantId = tenantId, UserId = userId }, cancellationToken: cancellationToken));
         if (owned == 0) return [];
 
-        var rows = await connection.QueryAsync<(string Role, string Content)>(new CommandDefinition("""
-            SELECT Role, Content FROM AiChatMessages
+        var rows = await connection.QueryAsync<(string Role, string Content, string? StructuredPayload, string? ToolUsed)>(
+            new CommandDefinition("""
+            SELECT Role, Content, StructuredPayload, ToolUsed FROM AiChatMessages
             WHERE SessionId = @SessionId
             ORDER BY Id ASC
             """, new { SessionId = sessionId }, cancellationToken: cancellationToken));
-        return rows.Select(r => new AiChatMessageDto(r.Role, r.Content)).ToList();
+        return rows.Select(r => new AiChatMessageDto(
+            r.Role,
+            r.Content,
+            StructuredPayload: r.StructuredPayload,
+            ToolUsed: r.ToolUsed)).ToList();
     }
 
     public async Task<AiProviderHealthDto> GetProviderHealthAsync(

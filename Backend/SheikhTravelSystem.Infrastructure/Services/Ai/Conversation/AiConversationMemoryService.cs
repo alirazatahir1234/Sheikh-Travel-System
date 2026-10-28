@@ -70,13 +70,34 @@ public sealed class AiConversationMemoryService(
     }
 
     public async Task AppendMessageAsync(
-        Guid sessionId, string role, string content, CancellationToken cancellationToken = default)
+        Guid sessionId,
+        string role,
+        string content,
+        CancellationToken cancellationToken = default,
+        string? structuredPayload = null,
+        string? toolUsed = null)
     {
+        // Cap widget JSON — never store secrets; redacted analytics only.
+        string? payload = structuredPayload;
+        if (payload is { Length: > 180_000 })
+            payload = null;
+        var tool = string.IsNullOrWhiteSpace(toolUsed) ? null : toolUsed.Trim();
+        if (tool is { Length: > 120 })
+            tool = tool[..120];
+
         using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO AiChatMessages (SessionId, Role, Content, CreatedAt)
-            VALUES (@SessionId, @Role, @Content, GETUTCDATE())
-            """, new { SessionId = sessionId, Role = role, Content = content },
+            INSERT INTO AiChatMessages (SessionId, Role, Content, CreatedAt, StructuredPayload, ToolUsed)
+            VALUES (@SessionId, @Role, @Content, GETUTCDATE(), @StructuredPayload, @ToolUsed)
+            """,
+            new
+            {
+                SessionId = sessionId,
+                Role = role,
+                Content = content,
+                StructuredPayload = payload,
+                ToolUsed = tool
+            },
             cancellationToken: cancellationToken));
     }
 

@@ -163,6 +163,7 @@ public static class DatabaseMigrationRegistry
             M("GmeetOfflineSosSmsMigration", GmeetOfflineSosSmsMigration.ApplyAsync),
             M("McpToolExecutionsMigration", McpToolExecutionsMigration.ApplyAsync),
             M("AiConversationContextPhase7Migration", AiConversationContextPhase7Migration.ApplyAsync),
+            M("AiChatMessagePayloadMigration", AiChatMessagePayloadMigration.ApplyAsync),
             M("IgnitionSmsAlertsMigration", IgnitionSmsAlertsMigration.ApplyAsync),
             M("SinotrackSt901H02ProtocolMigration", SinotrackSt901H02ProtocolMigration.ApplyAsync),
             M("DriverTripFeedbackMigration", DriverTripFeedbackMigration.ApplyAsync),

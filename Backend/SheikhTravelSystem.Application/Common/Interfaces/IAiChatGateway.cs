@@ -25,7 +25,11 @@ public record AiChatMessageDto(
     string Role,
     string Content,
     string? ToolCallId = null,
-    IReadOnlyList<AiToolCallDto>? ToolCalls = null);
+    IReadOnlyList<AiToolCallDto>? ToolCalls = null,
+    /// <summary>JSON blob for UI widget rehydration (history load). Ignored by LLM providers.</summary>
+    string? StructuredPayload = null,
+    /// <summary>Tool that produced this assistant turn (history load).</summary>
+    string? ToolUsed = null);
 
 public record AiProviderChatResult(
     bool Success,

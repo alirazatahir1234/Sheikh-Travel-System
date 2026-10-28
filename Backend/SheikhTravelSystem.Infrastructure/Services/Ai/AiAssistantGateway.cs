@@ -360,7 +360,33 @@ public sealed class AiAssistantGateway(
         };
         try
         {
-            await conversationMemory.AppendMessageAsync(sessionId, "assistant", final.Answer, cancellationToken);
+            string? payloadJson = null;
+            if (final.Data is not null)
+            {
+                try
+                {
+                    payloadJson = JsonSerializer.Serialize(
+                        final.Data,
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                    // Redact secrets without wrapping (must remain valid JSON for UI rehydrate).
+                    payloadJson = Ai.Mcp.McpToolExecutionLogger.Sanitize(payloadJson) ?? payloadJson;
+                    if (payloadJson.Length > 180_000)
+                        payloadJson = null;
+                }
+                catch (Exception serEx)
+                {
+                    logger.LogDebug(serEx, "Assistant structured payload serialize skipped");
+                    payloadJson = null;
+                }
+            }
+
+            await conversationMemory.AppendMessageAsync(
+                sessionId,
+                "assistant",
+                final.Answer,
+                cancellationToken,
+                structuredPayload: payloadJson,
+                toolUsed: final.ToolUsed);
             await conversationMemory.TouchSessionAsync(sessionId, cancellationToken);
             await conversationMemory.MaybeSummarizeAsync(tenantId, userId, sessionId, cancellationToken);
         }
@@ -439,11 +465,15 @@ public sealed class AiAssistantGateway(
             var mcpTool = toolsUsed.LastOrDefault(t => t.StartsWith("mcp:", StringComparison.OrdinalIgnoreCase))
                           ?? "mcp_tool_loop";
 
+            // Prefer rich analytics JSON from MCP tools so the UI can render widgets.
+            object data = loopResult.StructuredData
+                          ?? new { source = "mcp_tool_loop", tools = toolsUsed };
+
             return new AiAssistantQueryResponse(
                 loopResult.Answer,
                 Period: null,
                 ToolUsed: mcpTool,
-                Data: new { source = "mcp_tool_loop", tools = toolsUsed },
+                Data: data,
                 Warnings: Array.Empty<string>(),
                 UsedLlm: true,
                 Mode: loopResult.Mode,

@@ -19,11 +19,17 @@ public interface IAiConversationMemoryService
         string firstMessage,
         CancellationToken cancellationToken = default);
 
+    /// <param name="structuredPayload">
+    /// Optional JSON for rich UI widgets (trip/sales analytics). Never store secrets.
+    /// </param>
+    /// <param name="toolUsed">Optional tool name that produced the assistant turn.</param>
     Task AppendMessageAsync(
         Guid sessionId,
         string role,
         string content,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? structuredPayload = null,
+        string? toolUsed = null);
 
     /// <summary>
     /// Loads history only when session is owned by tenant+user. Empty when unauthorized.

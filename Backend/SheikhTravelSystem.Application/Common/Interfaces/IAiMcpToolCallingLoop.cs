@@ -32,10 +32,14 @@ public interface IAiMcpToolCallingLoop
 /// <param name="Tokens">Cumulative prompt + completion tokens for the turn.</param>
 /// <param name="HadToolFailures">True when at least one tool call failed / was rejected.</param>
 /// <param name="SuccessfulToolCount">Count of MCP executions that returned Success.</param>
+/// <param name="StructuredData">
+/// Last analytics-shaped MCP JSON (responseType / kpis) for rich UI widgets — not sent to the LLM again.
+/// </param>
 public record AiMcpToolLoopResult(
     string Answer,
     string Mode,
     string? Model,
     int Tokens,
     bool HadToolFailures = false,
-    int SuccessfulToolCount = 0);
+    int SuccessfulToolCount = 0,
+    object? StructuredData = null);

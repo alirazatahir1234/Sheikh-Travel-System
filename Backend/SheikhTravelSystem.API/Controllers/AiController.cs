@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.AI.Commands;
 using SheikhTravelSystem.Application.Features.AI.Queries;
+using SheikhTravelSystem.Infrastructure.Services.Ai;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -175,6 +176,58 @@ public class AiController(
                 vehicleId,
                 sessionId),
             ct);
+        return FromAiResponse(result);
+    }
+
+    /// <summary>
+    /// Assistant query with optional file attachments (text/CSV/JSON/Markdown/images/PDF).
+    /// Text is inlined into the question; images/PDF are noted for follow-up (no binary stored in chat).
+    /// </summary>
+    [RequireModule(TenantModuleCatalog.AiAssistantModuleCode)]
+    [RequirePermission(AiPermissions.Chat)]
+    [HttpPost("assistant/query-with-files")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> AssistantQueryWithFiles(
+        [FromForm] string? question,
+        [FromForm] Guid? sessionId,
+        [FromForm] int? targetTenantId,
+        [FromForm] int? vehicleId,
+        [FromForm] List<IFormFile>? files,
+        CancellationToken ct)
+    {
+        if (!TryResolveEffectiveTenantId(targetTenantId, out var tenantId, out var error))
+            return error!;
+
+        var (enriched, attachWarnings) = await AiChatAttachmentHelper.EnrichQuestionAsync(
+            question ?? string.Empty, files, ct);
+
+        if (string.IsNullOrWhiteSpace(enriched))
+            return BadRequest(new { message = "Question or supported attachment is required." });
+
+        var vid = vehicleId is int v && v > 0 ? v : (int?)null;
+        var sid = sessionId is Guid s && s != Guid.Empty ? s : (Guid?)null;
+        var result = await Mediator.Send(
+            new QueryAiAssistantCommand(
+                tenantId,
+                UserId,
+                enriched,
+                currentUser.IsPlatformSuperAdmin,
+                vid,
+                sid),
+            ct);
+
+        // Surface attach warnings without failing the turn.
+        if (result.Success && result.Data is not null && attachWarnings.Count > 0)
+        {
+            var data = result.Data;
+            var mergedWarnings = (data.Warnings ?? Array.Empty<string>())
+                .Concat(attachWarnings)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            result = ApiResponse<AiAssistantQueryResponse>
+                .SuccessResponse(data with { Warnings = mergedWarnings });
+        }
+
         return FromAiResponse(result);
     }
 
