@@ -85,12 +85,10 @@ public record UpsertDriverScoreWeightsRequest(
     decimal OnTimeWeight);
 
 /// <summary>
-/// IsPartial is true when idle/harsh-event factors couldn't be computed for this driver (no
-/// Traccar-linked vehicle in their assigned trips, or Traccar unreachable/disabled) — the score
-/// still reflects overspeed/distance/night-driving, just without those two inputs. Surfaced so the
-/// ranking table can flag it rather than presenting an artificially-clean score.
-/// Score is the canonical weighted Overall (Safety/Fuel/On-time). SecondaryBehaviorScore is the
-/// legacy idle/night penalty formula kept for coaching only.
+/// IsPartial is true when idle factors couldn't be fully computed (no Traccar-linked vehicle in
+/// assigned trips, Traccar disabled, or ranking used the SQL-only path without live idle). Harsh
+/// still comes from GpsAlertEvents when synced. Overall = weighted Safety/Fuel/On-time (SQL).
+/// SecondaryBehaviorScore is the legacy idle/night penalty kept for coaching only.
 /// </summary>
 public record DriverScoreDto(
     int DriverId,

@@ -38,7 +38,7 @@ public class GetDriverPerformanceDetailQueryValidator : AbstractValidator<GetDri
 }
 
 public class GetDriverPerformanceDetailQueryHandler(
-    IGpsTrackingRepository gpsTrackingRepository,
+    IMediator mediator,
     IDriverPerformanceScoringRepository scoringRepository,
     ITenantContext tenantContext)
     : IRequestHandler<GetDriverPerformanceDetailQuery, ApiResponse<DriverPerformanceDetailDto>>
@@ -48,8 +48,10 @@ public class GetDriverPerformanceDetailQueryHandler(
     {
         var from = request.FromDate ?? DateTime.UtcNow.AddDays(-30);
         var to = request.ToDate ?? DateTime.UtcNow;
-        var ranking = await gpsTrackingRepository.GetDriverScoreRankingAsync(
-            new GetDriverScoreRankingQuery(from, to, null, null), cancellationToken);
+        // Reuse cached SQL ranking (same as KPI strip). History / supporting events stay on-demand.
+        var ranking = await mediator.Send(
+            new GetDriverScoreRankingQuery(from, to, IncludeTraccarEnrichment: false),
+            cancellationToken);
         if (!ranking.Success || ranking.Data is null)
             return ApiResponse<DriverPerformanceDetailDto>.FailResponse(ranking.Message ?? "Failed to load scores.");
 

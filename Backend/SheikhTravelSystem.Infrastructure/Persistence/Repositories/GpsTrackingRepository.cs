@@ -2510,7 +2510,9 @@ public sealed partial class GpsTrackingRepository(
         var traccarGap = false;
 
         var opts = traccarOptions.Value;
-        if (opts.IsConfigured && opts.Enabled)
+        // KPI / list path skips live Traccar fan-out: Overall = Safety+Fuel+On-time from SQL only.
+        // Idle (SecondaryBehaviorScore) and live harsh fallback require IncludeTraccarEnrichment.
+        if (request.IncludeTraccarEnrichment && opts.IsConfigured && opts.Enabled)
         {
             var deviceMap = await traccarFleetFetcher.ResolveVehicleToDeviceMapAsync(tenantId, vehicleIds, cancellationToken);
             traccarGap = await traccarFleetFetcher.HasNonTraccarVehicleAsync(tenantId, vehicleIds, cancellationToken);
@@ -2550,6 +2552,11 @@ public sealed partial class GpsTrackingRepository(
                     }
                 }
             }
+        }
+        else if (opts.IsConfigured && opts.Enabled)
+        {
+            // SQL path: cheap device-gap flag only (no per-device stops/events).
+            traccarGap = await traccarFleetFetcher.HasNonTraccarVehicleAsync(tenantId, vehicleIds, cancellationToken);
         }
         else
         {

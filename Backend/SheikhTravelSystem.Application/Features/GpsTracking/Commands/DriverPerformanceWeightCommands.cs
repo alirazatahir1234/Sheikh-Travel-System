@@ -4,6 +4,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
@@ -32,17 +33,23 @@ public class UpsertDriverScoreWeightsCommandValidator : AbstractValidator<Upsert
 public class UpsertDriverScoreWeightsCommandHandler(
     IDriverPerformanceScoringRepository repository,
     ITenantContext tenantContext,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    IAppCache cache)
     : IRequestHandler<UpsertDriverScoreWeightsCommand, ApiResponse<DriverScoreWeightsDto>>
 {
     public async Task<ApiResponse<DriverScoreWeightsDto>> Handle(
         UpsertDriverScoreWeightsCommand request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         var weights = await repository.UpsertWeightsAsync(
-            tenantContext.GetRequiredTenantId(),
+            tenantId,
             request.Body,
             currentUser.UserId?.ToString() ?? "api",
             cancellationToken);
+
+        // Ranking cache includes weight fingerprint, but bust tenant prefix so reload is immediate.
+        cache.RemoveByPrefix($"{GetDriverScoreRankingQueryHandler.CacheKeyPrefix}{tenantId}:");
+
         return ApiResponse<DriverScoreWeightsDto>.SuccessResponse(
             DriverScoreCalculator.NormalizeWeights(weights.SafetyWeight, weights.FuelWeight, weights.OnTimeWeight),
             "Driver performance weights updated.");

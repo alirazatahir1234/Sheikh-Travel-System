@@ -22,8 +22,8 @@ type PerformanceBand = 'all' | 'excellent' | 'good' | 'fair' | 'poor' | 'trainin
 type SortKey = 'overall' | 'safety' | 'fuel' | 'onTime' | 'trips' | 'name';
 
 const DEFAULT_WEIGHTS: DriverScoreWeights = { safetyWeight: 40, fuelWeight: 30, onTimeWeight: 30 };
-/** Ranking fans out to Traccar for idle/harsh — fail closed instead of infinite "Loading…". */
-const RANKING_TIMEOUT_MS = 90_000;
+/** SQL ranking path (no live Traccar) — still fail closed so KPIs never hang. */
+const RANKING_TIMEOUT_MS = 45_000;
 
 @Component({
   standalone: false,
@@ -37,7 +37,10 @@ export class DriverPerformancePageComponent implements OnInit, OnDestroy {
   from = '';
   to = '';
   dateRangeError: string | null = null;
+  /** Full ranking/table load. KPIs keep prior values while refreshing (stale-while-revalidate). */
   loading = false;
+  /** True only when KPI cards have no rows yet (first paint / empty scope). */
+  kpiLoading = false;
   loadError: string | null = null;
   rows: DriverScore[] = [];
 
@@ -200,12 +203,15 @@ export class DriverPerformancePageComponent implements OnInit, OnDestroy {
     if (this.needsCompanySelection) {
       this.rows = [];
       this.loading = false;
+      this.kpiLoading = false;
       this.loadError = null;
       return;
     }
     if (this.dateRangeError) return;
 
     this.loading = true;
+    // Keep previous KPI numbers on reload; skeleton only when nothing to show yet.
+    this.kpiLoading = this.rows.length === 0;
     this.loadError = null;
     const filters = this.analyticsFilters();
 
@@ -216,7 +222,7 @@ export class DriverPerformancePageComponent implements OnInit, OnDestroy {
         catchError(err => {
           if (err instanceof TimeoutError) {
             this.loadError =
-              'Ranking timed out — GPS idle enrichment may be slow. Try a shorter period or retry.';
+              'Ranking timed out. Try a shorter period or retry.';
           } else {
             this.loadError = apiErrorMessage(err);
           }
@@ -224,10 +230,12 @@ export class DriverPerformancePageComponent implements OnInit, OnDestroy {
         }),
         finalize(() => {
           this.loading = false;
+          this.kpiLoading = false;
         })
       )
       .subscribe(rows => {
         this.rows = rows ?? [];
+        this.kpiLoading = false;
         if (this.selectedDriverId != null) {
           const stillThere = this.rows.some(r => r.driverId === this.selectedDriverId);
           if (stillThere) this.openDetail(this.selectedDriverId);

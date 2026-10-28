@@ -77,9 +77,9 @@
     </div>
   }
 
-  <!-- KPI cards -->
+  <!-- KPI cards — skeletons only on first empty load; reloads keep prior KPI values -->
   <div class="dp-kpi-strip" aria-label="Performance KPIs">
-    @if (loading) {
+    @if (kpiLoading) {
       @for (_ of [1, 2, 3, 4, 5]; track _) {
         <article class="dp-kpi dp-kpi--skeleton" aria-hidden="true">
           <div class="dp-skel dp-skel--sm"></div>
