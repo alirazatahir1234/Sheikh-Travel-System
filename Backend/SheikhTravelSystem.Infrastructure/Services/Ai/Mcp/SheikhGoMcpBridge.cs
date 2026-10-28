@@ -416,6 +416,18 @@ public sealed class SheikhGoMcpBridge(
             "Top customers by paid revenue for a period (responseType=sales_analytics).",
         "get_sales_trend_comparison" =>
             "Sales WoW/MoM trend comparison with daily series (responseType=sales_analytics).",
+        "get_finance_domain" =>
+            "Finance MCP catalog: revenue/invoice/payment/expense/outstanding tools (read-only).",
+        "get_finance_revenue_summary" =>
+            "Paid revenue totals (daily/weekly/monthly) — same Payments Paid source as get_revenue_summary.",
+        "get_invoice_status" =>
+            "CustomerInvoices billing rollup and status histogram.",
+        "get_payment_status" =>
+            "Payments status histogram for a period (Pending/Partial/Paid/Refunded).",
+        "get_expense_breakdown" =>
+            "FleetExpenses by category plus FuelLogs cost for a period.",
+        "get_outstanding_balances" =>
+            "CustomerInvoices with outstanding Balance > 0 (optional overdueOnly).",
         "get_analytics_domain" =>
             "Analytics KPI catalog including unavailable metrics (no fleet-health %).",
         "get_logs_domain" =>

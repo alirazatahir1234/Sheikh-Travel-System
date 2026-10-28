@@ -120,7 +120,8 @@ public sealed class AiMcpToolCallingLoop(
             "get_trip_summary, get_trip_statistics, get_booking_summary, get_booking_analytics, " +
             "get_fuel_expenses, get_fuel_cost_summary, get_maintenance_due, get_maintenance_kpi_summary, " +
             "get_revenue_summary, get_sales_summary, get_top_customers_by_revenue, get_sales_trend_comparison, " +
-            "get_revenue_breakdown, get_period_comparison, get_database_schema. " +
+            "get_revenue_breakdown, get_period_comparison, get_database_schema, " +
+            "get_finance_revenue_summary, get_invoice_status, get_payment_status, get_expense_breakdown, get_outstanding_balances. " +
             "Also: get_approved_entity_counts, list_vehicles, list_drivers, list_bookings, list_trips, " +
             "get_fleet_status, get_live_positions, get_vehicle_utilization, get_driver_performance. " +
             "Prefer Phase 4–5 / domain tools over run_readonly_query. Use plan_approved_query for broad questions. " +

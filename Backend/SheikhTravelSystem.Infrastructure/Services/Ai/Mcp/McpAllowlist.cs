@@ -8,6 +8,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Ai.Mcp;
 /// Phase 4: canonical business retrieval tools (vehicle/driver/trip/fuel/booking/revenue/schema) + approved SQL planner.
 /// Phase 5: Analytics KPI hardening (fleet inventory, GPS coverage, maintenance KPIs, revenue breakdown, WoW/MoM).
 /// Phase 6: Logs / operational diagnostics (assistant errors, auth failures, correlation, integration; redacted).
+/// Finance MCP: read-only revenue/invoice/payment/expense/outstanding — allowlisted like sales (aggregate KPIs).
 /// Analytics ≠ Logs. Sensitive tools require matching permissions on the authenticated user.
 /// </para>
 /// </summary>
@@ -48,6 +49,9 @@ public static class McpAllowlist
         "get_maintenance_kpi_summary", "get_booking_analytics",
         "get_revenue_breakdown", "get_period_comparison",
         "get_sales_summary", "get_top_customers_by_revenue", "get_sales_trend_comparison",
+        // Finance (tenant AI — aggregate KPIs like sales)
+        "get_finance_revenue_summary", "get_invoice_status", "get_payment_status",
+        "get_expense_breakdown", "get_outstanding_balances",
         // Logs Phase 6 (elevated)
         "get_ai_assistant_errors", "get_ai_usage_summary", "get_integration_diagnostics",
         "get_diagnostic_summary", "search_auth_failures", "get_events_by_correlation_id",
@@ -126,6 +130,13 @@ public static class McpAllowlist
         "get_sales_summary",
         "get_top_customers_by_revenue",
         "get_sales_trend_comparison",
+        // Finance MCP — read-only aggregates (allowlisted like sales; not Cursor-only)
+        "get_finance_domain",
+        "get_finance_revenue_summary",
+        "get_invoice_status",
+        "get_payment_status",
+        "get_expense_breakdown",
+        "get_outstanding_balances",
     };
 
     /// <summary>Logs MCP Phase 6 — operational diagnostics (not business analytics).</summary>

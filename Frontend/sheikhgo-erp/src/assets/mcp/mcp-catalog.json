@@ -1,8 +1,8 @@
 {
-  "version": "0.18.0",
+  "version": "0.19.0",
   "protocol": "MCP (stdio)",
   "package": "sheikhgo-mcp",
-  "exportedAt": "2026-10-28T08:29:19.876Z",
+  "exportedAt": "2026-10-28T08:59:50.629Z",
   "discoveredTools": [
     "get_repository_index",
     "analyze_architecture",
@@ -103,6 +103,12 @@
     "list_smart_alerts",
     "get_maintenance_reminders",
     "get_trip_delays",
+    "get_finance_domain",
+    "get_finance_revenue_summary",
+    "get_invoice_status",
+    "get_payment_status",
+    "get_expense_breakdown",
+    "get_outstanding_balances",
     "get_devops_domain",
     "get_application_health",
     "get_deployments",
@@ -991,6 +997,57 @@
         "atRiskOnly"
       ]
     },
+    "get_finance_domain": {
+      "name": "get_finance_domain",
+      "description": "Static Finance domain catalog: revenue/invoice/payment/expense/outstanding tools, sources, tenant-AI allowlist note. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "get_finance_revenue_summary": {
+      "name": "get_finance_revenue_summary",
+      "description": "Finance: paid revenue totals (daily / last 7 days / this month UTC) from Payments.Status=Paid. Same source as Analytics get_revenue_summary / sales tools. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "get_invoice_status": {
+      "name": "get_invoice_status",
+      "description": "Finance: CustomerInvoices billing rollup (billed/collected/outstanding + status histogram). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "get_payment_status": {
+      "name": "get_payment_status",
+      "description": "Finance: Payments status histogram for a period (Pending/PartiallyPaid/Paid/Refunded amounts). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "default",
+        "dateTo",
+        "default"
+      ]
+    },
+    "get_expense_breakdown": {
+      "name": "get_expense_breakdown",
+      "description": "Finance: FleetExpenses by category + FuelLogs cost for a period (same FuelLogs join as get_fuel_cost_summary). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "default",
+        "dateTo",
+        "default",
+        "limit"
+      ]
+    },
+    "get_outstanding_balances": {
+      "name": "get_outstanding_balances",
+      "description": "Finance: CustomerInvoices with outstanding Balance > 0 (optional overdueOnly). Same filters as GetOverdueInvoices. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "limit",
+        "overdueOnly"
+      ]
+    },
     "get_devops_domain": {
       "name": "get_devops_domain",
       "description": "Static DevOps domain catalog: health/deploy/pipeline tools, env vars, no destructive deploy. No DB required. Read-only.",
@@ -1081,9 +1138,9 @@
     }
   },
   "summary": {
-    "toolCount": 111,
-    "runningGroups": 11,
-    "plannedGroups": 3,
+    "toolCount": 117,
+    "runningGroups": 12,
+    "plannedGroups": 2,
     "stoppedGroups": 0
   },
   "suggestions": [
@@ -1170,6 +1227,13 @@
       "icon": "cloud",
       "prompt": "Check application health, summarize deployments/pipeline files, and show recent ops logs",
       "groupId": "devops"
+    },
+    {
+      "id": "finance",
+      "label": "Finance KPIs",
+      "icon": "payments",
+      "prompt": "Show finance revenue summary, invoice status, payment status, expense breakdown, and outstanding balances",
+      "groupId": "finance"
     },
     {
       "id": "tests",
@@ -2426,35 +2490,71 @@
     {
       "id": "finance",
       "name": "Finance MCP",
-      "description": "Invoices, payments and financial operations.",
+      "description": "Revenue, invoice/payment status, expenses, and outstanding balances (read-only).",
       "icon": "payments",
-      "status": "planned",
-      "tools": [],
+      "status": "running",
+      "tools": [
+        "get_finance_domain",
+        "get_finance_revenue_summary",
+        "get_invoice_status",
+        "get_payment_status",
+        "get_expense_breakdown",
+        "get_outstanding_balances"
+      ],
       "toolDefs": [
         {
-          "name": "get_invoices",
-          "description": "Planned tool: get_invoices",
-          "inputProperties": [],
-          "planned": true
+          "name": "get_finance_domain",
+          "description": "Static Finance domain catalog: revenue/invoice/payment/expense/outstanding tools, sources, tenant-AI allowlist note. No DB required. Read-only.",
+          "inputProperties": []
         },
         {
-          "name": "get_outstanding_invoices",
-          "description": "Planned tool: get_outstanding_invoices",
-          "inputProperties": [],
-          "planned": true
+          "name": "get_finance_revenue_summary",
+          "description": "Finance: paid revenue totals (daily / last 7 days / this month UTC) from Payments.Status=Paid. Same source as Analytics get_revenue_summary / sales tools. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId"
+          ]
         },
         {
-          "name": "get_revenue",
-          "description": "Planned tool: get_revenue",
-          "inputProperties": [],
-          "planned": true
+          "name": "get_invoice_status",
+          "description": "Finance: CustomerInvoices billing rollup (billed/collected/outstanding + status histogram). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "get_payment_status",
+          "description": "Finance: Payments status histogram for a period (Pending/PartiallyPaid/Paid/Refunded amounts). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "default",
+            "dateTo",
+            "default"
+          ]
+        },
+        {
+          "name": "get_expense_breakdown",
+          "description": "Finance: FleetExpenses by category + FuelLogs cost for a period (same FuelLogs join as get_fuel_cost_summary). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "default",
+            "dateTo",
+            "default",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_outstanding_balances",
+          "description": "Finance: CustomerInvoices with outstanding Balance > 0 (optional overdueOnly). Same filters as GetOverdueInvoices. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "limit",
+            "overdueOnly"
+          ]
         }
       ],
-      "plannedTools": [
-        "get_invoices",
-        "get_outstanding_invoices",
-        "get_revenue"
-      ]
+      "note": "Read-only. Reuses Payments (Paid) + CustomerInvoices + FleetExpenses/FuelLogs. Tenant AI allowlisted like sales tools. No payment-gateway secrets."
     },
     {
       "id": "crm",
