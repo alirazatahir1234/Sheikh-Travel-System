@@ -192,12 +192,39 @@ export interface TripBookingAnalyticsKpi {
   key: string;
   label: string;
   value: number;
-  unit: 'count' | 'percent' | string;
+  unit: 'count' | 'percent' | 'currency' | string;
   icon?: string;
   tone?: 'teal' | 'blue' | 'orange' | 'purple' | string;
   deltaPercent?: number | null;
   sharePercent?: number | null;
   deltaLabel?: string;
+}
+
+/** Sales / revenue analytics (responseType=sales_analytics) — Payments.Status=Paid. */
+export interface SalesAnalyticsCustomer {
+  customerId: number;
+  customerName: string;
+  revenue: number;
+  paymentCount: number;
+  sharePercent: number;
+}
+
+export interface SalesAnalyticsTrendPoint {
+  date: string;
+  revenue: number;
+  paymentCount: number;
+}
+
+export interface SalesAnalyticsData {
+  responseType: 'sales_analytics';
+  period?: { start: string; end: string; label?: string };
+  comparisonPeriod?: { start: string; end: string };
+  kpis: TripBookingAnalyticsKpi[];
+  statusDistribution: TripBookingStatusSlice[];
+  trends: SalesAnalyticsTrendPoint[];
+  topCustomers: SalesAnalyticsCustomer[];
+  insights: string[];
+  followUps: string[];
 }
 
 export interface TripBookingStatusSlice {
@@ -429,6 +456,121 @@ function buildLegacyStatusDistribution(root: Record<string, unknown>): TripBooki
     { key: 'cancelled', label: 'Cancelled', count: x },
     { key: 'others', label: 'Others', count: o }
   ];
+}
+
+/** Detect enriched sales analytics (responseType=sales_analytics or sales MCP tools). */
+export function asSalesAnalytics(data: unknown, toolUsed?: string | null): SalesAnalyticsData | null {
+  if (!data || typeof data !== 'object') return null;
+  const root = data as Record<string, unknown>;
+  const tool = (toolUsed ?? '').toLowerCase();
+  const typed = asString(root['responseType']) === 'sales_analytics';
+  const salesTool =
+    tool.includes('sales') ||
+    tool.includes('revenueanalytics') ||
+    tool.includes('get_sales_summary') ||
+    tool.includes('get_top_customers') ||
+    tool.includes('get_revenue_summary') ||
+    tool.includes('topcustomersbyrevenue');
+  const hasKpis = Array.isArray(root['kpis']) && (root['kpis'] as unknown[]).length > 0;
+  if (!typed && !(salesTool && hasKpis)) return null;
+  // Prefer trip_booking_analytics when that type is explicit.
+  if (asString(root['responseType']) === 'trip_booking_analytics') return null;
+
+  const kpisRaw = Array.isArray(root['kpis']) ? (root['kpis'] as Record<string, unknown>[]) : [];
+  const kpis: TripBookingAnalyticsKpi[] = [];
+  for (const k of kpisRaw) {
+    const value = asNumber(k['value']);
+    const label = asString(k['label']);
+    const key = asString(k['key']) ?? label ?? 'kpi';
+    if (value == null || !label) continue;
+    kpis.push({
+      key,
+      label,
+      value,
+      unit: (asString(k['unit']) as TripBookingAnalyticsKpi['unit']) ?? 'currency',
+      icon: asString(k['icon']) ?? undefined,
+      tone: asString(k['tone']) ?? undefined,
+      deltaPercent: asNumber(k['deltaPercent']),
+      sharePercent: asNumber(k['sharePercent']),
+      deltaLabel: asString(k['deltaLabel']) ?? undefined
+    });
+  }
+  if (!kpis.length) return null;
+
+  const trendsRaw = Array.isArray(root['trends']) ? (root['trends'] as Record<string, unknown>[]) : [];
+  const trends: SalesAnalyticsTrendPoint[] = trendsRaw
+    .map(t => {
+      const date = asString(t['date']) ?? (t['date'] != null ? String(t['date']) : null);
+      if (!date) return null;
+      return {
+        date,
+        revenue: asNumber(t['revenue']) ?? asNumber(t['trips']) ?? 0,
+        paymentCount: asNumber(t['paymentCount']) ?? asNumber(t['bookings']) ?? 0
+      };
+    })
+    .filter((x): x is SalesAnalyticsTrendPoint => !!x);
+
+  const custRaw = Array.isArray(root['topCustomers'])
+    ? (root['topCustomers'] as Record<string, unknown>[])
+    : [];
+  const topCustomers: SalesAnalyticsCustomer[] = [];
+  for (const c of custRaw) {
+    const customerId = asNumber(c['customerId']);
+    const revenue = asNumber(c['revenue']);
+    if (customerId == null || revenue == null) continue;
+    topCustomers.push({
+      customerId,
+      customerName: asString(c['customerName']) ?? `Customer #${customerId}`,
+      revenue,
+      paymentCount: asNumber(c['paymentCount']) ?? 0,
+      sharePercent: asNumber(c['sharePercent']) ?? 0
+    });
+  }
+
+  const statusRaw = Array.isArray(root['statusDistribution'])
+    ? (root['statusDistribution'] as Record<string, unknown>[])
+    : [];
+  const statusDistribution: TripBookingStatusSlice[] = statusRaw
+    .map(s => {
+      const count = asNumber(s['count']);
+      const label = asString(s['label']);
+      const key = asString(s['key']) ?? label ?? 'status';
+      if (count == null || !label) return null;
+      return { key, label, count };
+    })
+    .filter((x): x is TripBookingStatusSlice => !!x);
+
+  const insights = Array.isArray(root['insights'])
+    ? (root['insights'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+  const followUps = Array.isArray(root['followUps'])
+    ? (root['followUps'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+
+  const period = root['period'] as { start?: unknown; end?: unknown; label?: unknown } | undefined;
+  const comparisonPeriod = root['comparisonPeriod'] as { start?: unknown; end?: unknown } | undefined;
+
+  return {
+    responseType: 'sales_analytics',
+    period:
+      period?.start != null && period?.end != null
+        ? {
+            start: String(period.start),
+            end: String(period.end),
+            label: period.label != null ? String(period.label) : undefined
+          }
+        : undefined,
+    comparisonPeriod:
+      comparisonPeriod?.start != null && comparisonPeriod?.end != null
+        ? { start: String(comparisonPeriod.start), end: String(comparisonPeriod.end) }
+        : undefined,
+    kpis,
+    statusDistribution,
+    trends,
+    topCustomers,
+    insights,
+    followUps
+  };
 }
 
 /** Pull follow-up chips from any assistant `data` payload. */

@@ -410,6 +410,12 @@ public sealed class SheikhGoMcpBridge(
             "Paid revenue by date, branch, vehicle, or customer (Phase 5).",
         "get_period_comparison" =>
             "Week-over-week or month-over-month KPI comparison (Phase 5).",
+        "get_sales_summary" =>
+            "Paid sales/revenue summary for today / week / month (responseType=sales_analytics).",
+        "get_top_customers_by_revenue" =>
+            "Top customers by paid revenue for a period (responseType=sales_analytics).",
+        "get_sales_trend_comparison" =>
+            "Sales WoW/MoM trend comparison with daily series (responseType=sales_analytics).",
         "get_analytics_domain" =>
             "Analytics KPI catalog including unavailable metrics (no fleet-health %).",
         "get_logs_domain" =>

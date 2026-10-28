@@ -257,6 +257,8 @@ public static class DependencyInjection
         services.AddScoped<IAiTool, GetVehicleUtilizationSummaryTool>();
         // Batch 1 — revenue / fuel usage / driver performance
         services.AddScoped<IAiTool, GetRevenueAnalyticsTool>();
+        services.AddScoped<IAiTool, GetTopCustomersByRevenueTool>();
+        services.AddScoped<IAiTool, GetSalesTrendComparisonTool>();
         services.AddScoped<IAiTool, GetFuelUsageTopVehicleTool>();
         services.AddScoped<IAiTool, GetBestDriverPerformanceTool>();
         // Batch 2 — cost/km / overspeed+geofence (trip/util/maintenance tools extended in-place)

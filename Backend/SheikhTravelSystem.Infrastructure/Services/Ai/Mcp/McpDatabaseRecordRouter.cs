@@ -212,6 +212,34 @@ public sealed class McpDatabaseRecordRouter(
         }
 
         if (ContainsAny(q,
+                "top customer", "top customers", "best customers", "customers by revenue",
+                "highest paying customer", "who pays the most"))
+        {
+            var periodArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            if (ContainsAny(q, "today")) periodArgs["period"] = "today";
+            else if (ContainsAny(q, "this week", "last 7", "weekly")) periodArgs["period"] = "last_7_days";
+            else if (ContainsAny(q, "last 30")) periodArgs["period"] = "last_30_days";
+            else periodArgs["period"] = "this_month";
+            intents.Add(new McpIntent("get_top_customers_by_revenue", "top customers by revenue", periodArgs));
+            return intents;
+        }
+
+        if (ContainsAny(q,
+                "sales trend", "sales comparison", "compare sales", "revenue trend",
+                "sales wow", "sales mom", "sales week over week", "sales month over month"))
+        {
+            var mode = ContainsAny(q, "month", "mom") ? "mom" : "wow";
+            intents.Add(new McpIntent(
+                "get_sales_trend_comparison",
+                $"sales trend comparison ({mode})",
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["mode"] = mode
+                }));
+            return intents;
+        }
+
+        if (ContainsAny(q,
                 "week over week", "month over month", "wow comparison", "mom comparison",
                 "compare to last week", "compare to last month", "vs last week", "vs last month"))
         {
@@ -258,9 +286,28 @@ public sealed class McpDatabaseRecordRouter(
             return intents;
         }
 
+        if (ContainsAny(q,
+                "today's revenue", "todays revenue", "sales summary", "sales total",
+                "how much revenue", "daily revenue", "weekly revenue", "monthly revenue",
+                "this month revenue", "revenue today", "what is our revenue"))
+        {
+            var periodArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            if (ContainsAny(q, "today", "daily")) periodArgs["period"] = "today";
+            else if (ContainsAny(q, "this week", "last 7", "weekly", "week")) periodArgs["period"] = "last_7_days";
+            else if (ContainsAny(q, "last 30")) periodArgs["period"] = "last_30_days";
+            else if (ContainsAny(q, "this month", "monthly", "month")) periodArgs["period"] = "this_month";
+            else periodArgs["period"] = "this_month";
+            intents.Add(new McpIntent("get_sales_summary", "sales summary", periodArgs));
+            return intents;
+        }
+
         if (ContainsAny(q, "revenue", "paid payments", "earnings", "income summary"))
         {
-            intents.Add(new McpIntent("get_revenue_summary", "revenue summary", EmptyArgs()));
+            intents.Add(new McpIntent("get_sales_summary", "sales summary",
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["period"] = "this_month"
+                }));
             return intents;
         }
 

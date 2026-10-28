@@ -75,8 +75,16 @@ public sealed class AiToolEngine(
         string userMessage,
         CancellationToken cancellationToken)
     {
+        if (toolName is "GetSalesTrendComparison")
+        {
+            var q = userMessage.ToLowerInvariant();
+            var mode = q.Contains("month") || q.Contains("mom") ? "mom" : "wow";
+            return JsonSerializer.SerializeToElement(new { mode });
+        }
+
         if (toolName is "GetFuelCostSummary" or "GetTripSummary" or "GetVehicleUtilizationSummary"
-            or "GetRevenueAnalytics" or "GetFuelUsageTopVehicle" or "GetBestDriverPerformance"
+            or "GetRevenueAnalytics" or "GetTopCustomersByRevenue" or "GetFuelUsageTopVehicle"
+            or "GetBestDriverPerformance"
             or "GetCostPerKilometer" or "GetOverspeedGeofenceSummary"
             or "GetIdleTimeReport" or "GetSosEventsSummary" or "GetExpenseTracking"
             or "GetTenantComparison" or "GetPeakHoursAnalysis"

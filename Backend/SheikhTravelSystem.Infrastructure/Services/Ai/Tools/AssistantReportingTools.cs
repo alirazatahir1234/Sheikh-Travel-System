@@ -1095,17 +1095,22 @@ public sealed class GetOverspeedGeofenceSummaryTool(IDbConnectionFactory dbFacto
         int GeofenceCount);
 }
 
-/// <summary>Batch 1 — paid payment totals for today, last 7 days, and calendar month (UTC).</summary>
+/// <summary>
+/// Batch 1 — paid payment sales summary (today / week / month) with rich sales_analytics payload.
+/// Same Payments.Status=Paid source as MCP get_sales_summary / get_revenue_summary.
+/// </summary>
 public sealed class GetRevenueAnalyticsTool(IDbConnectionFactory dbFactory) : IAiTool
 {
     public string Name => "GetRevenueAnalytics";
-    public string Description => "Returns daily, weekly, and monthly paid revenue totals for the tenant.";
+    public string Description =>
+        "Returns paid sales/revenue totals for a period (today, week, month) with sales_analytics UI payload.";
     public string Kind => "read";
     public bool RequiresConfirmation => false;
     public IReadOnlyList<string> TriggerKeywords { get; } =
     [
         "revenue", "daily revenue", "weekly revenue", "monthly revenue",
-        "revenue analytics", "revenue total", "how much revenue", "sales total", "paid payments"
+        "revenue analytics", "revenue total", "how much revenue", "sales total", "paid payments",
+        "sales summary", "today's revenue", "todays revenue", "revenue today"
     ];
 
     public async Task<AiToolExecutionResult> ExecuteAsync(
@@ -1115,57 +1120,463 @@ public sealed class GetRevenueAnalyticsTool(IDbConnectionFactory dbFactory) : IA
             AssistantPeriodHelper.StandardBucketsUtc();
         using var connection = dbFactory.CreateConnection();
 
-        async Task<decimal> SumPaidAsync(DateTime from, DateTime to) =>
-            await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
-                SELECT ISNULL(SUM(Amount), 0) FROM Payments
+        async Task<(decimal Total, int Count)> SumPaidAsync(DateTime from, DateTime to)
+        {
+            var row = await connection.QuerySingleAsync<(decimal Total, int Count)>(new CommandDefinition("""
+                SELECT ISNULL(SUM(Amount), 0) AS Total, COUNT(*) AS Count
+                FROM Payments
                 WHERE TenantId = @TenantId AND Status = @Paid
                   AND PaymentDate >= @From AND PaymentDate < @To AND IsDeleted = 0
                 """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = from, To = to },
                 cancellationToken: cancellationToken));
+            return row;
+        }
 
         var daily = await SumPaidAsync(todayFrom, todayTo);
         var weekly = await SumPaidAsync(weekFrom, weekTo);
         var monthly = await SumPaidAsync(monthFrom, monthTo);
 
-        // Optional focused period when the question resolves outside the three standard buckets
-        var (focusFrom, focusTo, focusLabel) = AssistantPeriodHelper.Resolve(null, args);
-        decimal? focused = null;
-        var showFocused = focusLabel is "previous_month" or "yesterday" or "last_30_days" or "custom";
-        if (showFocused)
-            focused = await SumPaidAsync(focusFrom, focusTo);
+        // AiToolEngine injects from/to via AssistantPeriodHelper.Resolve(userMessage).
+        var (periodFrom, periodTo, periodLabel) = AssistantPeriodHelper.Resolve(null, args);
+        var focused = await SumPaidAsync(periodFrom, periodTo);
 
-        if (daily == 0 && weekly == 0 && monthly == 0 && (focused is null or 0))
+        var span = periodTo - periodFrom;
+        var prevFrom = periodFrom - span;
+        var prevTo = periodFrom;
+        var previous = await SumPaidAsync(prevFrom, prevTo);
+        var deltaPercent = previous.Total == 0
+            ? (focused.Total == 0 ? 0m : (decimal?)null)
+            : Math.Round((focused.Total - previous.Total) * 100m / previous.Total, 1);
+
+        var trends = (await connection.QueryAsync<(DateTime Date, decimal Revenue, int PaymentCount)>(
+            new CommandDefinition("""
+                SELECT CAST(PaymentDate AS date) AS Date,
+                       ISNULL(SUM(Amount), 0) AS Revenue,
+                       COUNT(*) AS PaymentCount
+                FROM Payments
+                WHERE TenantId = @TenantId AND Status = @Paid AND IsDeleted = 0
+                  AND PaymentDate >= @From AND PaymentDate < @To
+                GROUP BY CAST(PaymentDate AS date)
+                ORDER BY Date
+                """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = periodFrom, To = periodTo },
+                cancellationToken: cancellationToken))).ToList();
+
+        var avgPayment = focused.Count > 0
+            ? Math.Round(focused.Total / focused.Count, 2)
+            : 0m;
+
+        var kpis = new object[]
+        {
+            new
+            {
+                key = "totalRevenue",
+                label = "Total Revenue",
+                value = focused.Total,
+                unit = "currency",
+                icon = "payments",
+                tone = "teal",
+                deltaPercent,
+                deltaLabel = "vs prior period"
+            },
+            new
+            {
+                key = "paymentCount",
+                label = "Paid Payments",
+                value = focused.Count,
+                unit = "count",
+                icon = "receipt_long",
+                tone = "blue",
+                deltaPercent = previous.Count == 0
+                    ? (focused.Count == 0 ? 0m : (decimal?)null)
+                    : Math.Round((focused.Count - previous.Count) * 100m / previous.Count, 1),
+                deltaLabel = "vs prior period"
+            },
+            new
+            {
+                key = "avgPayment",
+                label = "Avg Payment",
+                value = avgPayment,
+                unit = "currency",
+                icon = "sell",
+                tone = "purple"
+            },
+            new
+            {
+                key = "revenueToday",
+                label = "Today",
+                value = daily.Total,
+                unit = "currency",
+                icon = "today",
+                tone = "orange"
+            }
+        };
+
+        var insights = new List<string>();
+        if (focused.Count == 0)
+        {
+            insights.Add(
+                $"No paid payments for {periodLabel} ({periodFrom:yyyy-MM-dd} → {periodTo:yyyy-MM-dd} UTC). " +
+                "Totals only include Payments with Status = Paid.");
+        }
+        else
+        {
+            insights.Add(
+                $"Paid revenue {focused.Total:N2} across {focused.Count} payment(s) in this period (UTC).");
+            if (deltaPercent is not null)
+                insights.Add($"Change vs prior equal window: {(deltaPercent > 0 ? "+" : "")}{deltaPercent:N1}%.");
+            insights.Add(
+                $"Reference buckets (UTC): today {daily.Total:N2}, last 7 days {weekly.Total:N2}, this month {monthly.Total:N2}.");
+        }
+
+        var followUps = new[]
+        {
+            "Who are our top customers by revenue?",
+            "Compare sales week over week",
+            "Show revenue by vehicle",
+            "Show trip and booking analytics"
+        };
+
+        var payload = new
+        {
+            responseType = "sales_analytics",
+            period = new { start = periodFrom, end = periodTo, label = periodLabel },
+            comparisonPeriod = new { start = prevFrom, end = prevTo },
+            kpis,
+            trends = trends.Select(t => new
+            {
+                date = t.Date.ToString("yyyy-MM-dd"),
+                revenue = t.Revenue,
+                paymentCount = t.PaymentCount,
+                trips = t.Revenue,
+                completed = t.Revenue,
+                bookings = t.PaymentCount
+            }),
+            topCustomers = Array.Empty<object>(),
+            statusDistribution = Array.Empty<object>(),
+            insights,
+            followUps,
+            // Backward-compatible nested buckets
+            daily = new { start = todayFrom, end = todayTo, total = daily.Total },
+            weekly = new { start = weekFrom, end = weekTo, total = weekly.Total },
+            monthly = new { start = monthFrom, end = monthTo, total = monthly.Total },
+            focused = new { start = periodFrom, end = periodTo, label = periodLabel, total = focused.Total }
+        };
+
+        if (daily.Total == 0 && weekly.Total == 0 && monthly.Total == 0 && focused.Total == 0)
         {
             return new AiToolExecutionResult(
                 Name, true,
                 "No paid revenue recorded for today, the last 7 days, or this month (UTC). " +
                 "Totals only include Payments with Status = Paid — incomplete payment data is not estimated.",
-                new
-                {
-                    daily = new { start = todayFrom, end = todayTo, total = daily },
-                    weekly = new { start = weekFrom, end = weekTo, total = weekly },
-                    monthly = new { start = monthFrom, end = monthTo, total = monthly },
-                    focused = focused is null ? null : new { start = focusFrom, end = focusTo, label = focusLabel, total = focused }
-                });
+                payload);
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine("Revenue analytics (paid payments, UTC):");
-        sb.AppendLine($"• Daily (today {todayFrom:yyyy-MM-dd}): {daily:N2}");
-        sb.AppendLine($"• Weekly (last 7 days {weekFrom:yyyy-MM-dd} → {weekTo:yyyy-MM-dd}): {weekly:N2}");
-        sb.AppendLine($"• Monthly ({monthFrom:yyyy-MM-dd} → {monthTo:yyyy-MM-dd}): {monthly:N2}");
-        if (focused is not null)
-            sb.AppendLine($"• Focused ({focusLabel} {focusFrom:yyyy-MM-dd} → {focusTo:yyyy-MM-dd}): {focused:N2}");
+        sb.AppendLine($"Here is the sales analytics for {periodLabel} ({periodFrom:yyyy-MM-dd} – {periodTo.AddDays(-1):yyyy-MM-dd}, UTC).");
+        sb.AppendLine($"• Period revenue: {focused.Total:N2} ({focused.Count} paid payments).");
+        sb.AppendLine($"• Today: {daily.Total:N2} · Last 7 days: {weekly.Total:N2} · This month: {monthly.Total:N2}.");
 
-        return new AiToolExecutionResult(
-            Name, true, sb.ToString().Trim(),
+        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), payload);
+    }
+}
+
+/// <summary>Top customers by paid revenue — Payments → Bookings → Customers (parity with MCP).</summary>
+public sealed class GetTopCustomersByRevenueTool(IDbConnectionFactory dbFactory) : IAiTool
+{
+    public string Name => "GetTopCustomersByRevenue";
+    public string Description =>
+        "Ranks customers by paid revenue for a period (sales_analytics payload).";
+    public string Kind => "read";
+    public bool RequiresConfirmation => false;
+    public IReadOnlyList<string> TriggerKeywords { get; } =
+    [
+        "top customers", "top customer", "best customers", "customers by revenue",
+        "highest paying customers", "who pays the most"
+    ];
+
+    public async Task<AiToolExecutionResult> ExecuteAsync(
+        AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
+    {
+        var (from, to, label) = AssistantPeriodHelper.Resolve(null, args);
+        var limit = 10;
+        if (args is { } el && el.ValueKind == JsonValueKind.Object
+            && el.TryGetProperty("limit", out var lim) && lim.TryGetInt32(out var limVal))
+            limit = Math.Clamp(limVal, 1, 50);
+
+        using var connection = dbFactory.CreateConnection();
+
+        var totalPaid = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
+            SELECT ISNULL(SUM(Amount), 0) FROM Payments
+            WHERE TenantId = @TenantId AND Status = @Paid AND IsDeleted = 0
+              AND PaymentDate >= @From AND PaymentDate < @To
+            """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = from, To = to },
+            cancellationToken: cancellationToken));
+
+        var rows = (await connection.QueryAsync<CustomerRevenueRow>(new CommandDefinition($"""
+            SELECT TOP ({limit})
+                b.CustomerId AS CustomerId,
+                ISNULL(NULLIF(c.FullName, N''), N'Customer #' + CAST(b.CustomerId AS nvarchar(20))) AS CustomerName,
+                ISNULL(SUM(p.Amount), 0) AS Revenue,
+                COUNT(*) AS PaymentCount
+            FROM Payments p
+            INNER JOIN Bookings b ON b.Id = p.BookingId AND b.TenantId = @TenantId AND b.IsDeleted = 0
+            LEFT JOIN Customers c ON c.Id = b.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+            WHERE p.TenantId = @TenantId AND p.Status = @Paid AND p.IsDeleted = 0
+              AND p.PaymentDate >= @From AND p.PaymentDate < @To
+            GROUP BY b.CustomerId, c.FullName
+            ORDER BY Revenue DESC
+            """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = from, To = to },
+            cancellationToken: cancellationToken))).ToList();
+
+        var topCustomers = rows.Select(r =>
+        {
+            var share = totalPaid > 0 ? Math.Round(r.Revenue * 100m / totalPaid, 1) : 0m;
+            return new
+            {
+                customerId = r.CustomerId,
+                customerName = r.CustomerName,
+                revenue = r.Revenue,
+                paymentCount = r.PaymentCount,
+                sharePercent = share
+            };
+        }).ToList();
+
+        var kpis = new object[]
+        {
+            new { key = "totalRevenue", label = "Total Revenue", value = totalPaid, unit = "currency", icon = "payments", tone = "teal" },
             new
             {
-                daily = new { start = todayFrom, end = todayTo, total = daily },
-                weekly = new { start = weekFrom, end = weekTo, total = weekly },
-                monthly = new { start = monthFrom, end = monthTo, total = monthly },
-                focused = focused is null ? null : new { start = focusFrom, end = focusTo, label = focusLabel, total = focused }
-            });
+                key = "topCustomerRevenue",
+                label = topCustomers.Count > 0 ? $"Top: {topCustomers[0].customerName}" : "Top Customer",
+                value = topCustomers.Count > 0 ? topCustomers[0].revenue : 0m,
+                unit = "currency",
+                icon = "emoji_events",
+                tone = "orange",
+                sharePercent = topCustomers.Count > 0 ? topCustomers[0].sharePercent : 0m,
+                deltaLabel = topCustomers.Count > 0 ? $"{topCustomers[0].sharePercent}% of period" : "no customers"
+            },
+            new { key = "customersRanked", label = "Customers Ranked", value = topCustomers.Count, unit = "count", icon = "groups", tone = "blue" },
+            new
+            {
+                key = "paymentCount",
+                label = "Paid Payments",
+                value = rows.Sum(r => r.PaymentCount),
+                unit = "count",
+                icon = "receipt_long",
+                tone = "purple"
+            }
+        };
+
+        var insights = new List<string>();
+        if (topCustomers.Count == 0)
+            insights.Add($"No customer-attributed paid revenue for {label} ({from:yyyy-MM-dd} → {to:yyyy-MM-dd} UTC).");
+        else
+            insights.Add(
+                $"{topCustomers[0].customerName} leads with {topCustomers[0].revenue:N2} ({topCustomers[0].sharePercent}% of paid revenue).");
+
+        var payload = new
+        {
+            responseType = "sales_analytics",
+            period = new { start = from, end = to, label },
+            kpis,
+            trends = Array.Empty<object>(),
+            topCustomers,
+            statusDistribution = topCustomers.Take(8).Select(c => new
+            {
+                key = $"customer_{c.customerId}",
+                label = c.customerName,
+                count = (int)Math.Round(c.revenue)
+            }),
+            insights,
+            followUps = new[]
+            {
+                "What is today's revenue?",
+                "Compare sales month over month",
+                "Show revenue by branch",
+                "Show trip and booking analytics"
+            }
+        };
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Top customers by paid revenue ({from:yyyy-MM-dd} – {to.AddDays(-1):yyyy-MM-dd}, UTC):");
+        foreach (var c in topCustomers.Take(5))
+            sb.AppendLine($"• {c.customerName}: {c.revenue:N2} ({c.sharePercent}%, {c.paymentCount} payments)");
+
+        return new AiToolExecutionResult(
+            Name, true,
+            topCustomers.Count == 0
+                ? $"No customer-attributed paid revenue for {from:yyyy-MM-dd} … {to:yyyy-MM-dd} (UTC)."
+                : sb.ToString().Trim(),
+            payload);
+    }
+
+    private sealed record CustomerRevenueRow(
+        int CustomerId,
+        string CustomerName,
+        decimal Revenue,
+        int PaymentCount);
+}
+
+/// <summary>Sales WoW/MoM comparison — parity with MCP get_sales_trend_comparison.</summary>
+public sealed class GetSalesTrendComparisonTool(IDbConnectionFactory dbFactory) : IAiTool
+{
+    public string Name => "GetSalesTrendComparison";
+    public string Description =>
+        "Compares paid sales revenue week-over-week or month-over-month (sales_analytics).";
+    public string Kind => "read";
+    public bool RequiresConfirmation => false;
+    public IReadOnlyList<string> TriggerKeywords { get; } =
+    [
+        "sales trend", "sales comparison", "compare sales", "revenue trend",
+        "sales wow", "sales mom", "sales week over week", "sales month over month"
+    ];
+
+    public async Task<AiToolExecutionResult> ExecuteAsync(
+        AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
+    {
+        var mode = "wow";
+        if (args is { } el && el.ValueKind == JsonValueKind.Object
+            && el.TryGetProperty("mode", out var modeEl)
+            && modeEl.ValueKind == JsonValueKind.String)
+        {
+            var m = modeEl.GetString()?.ToLowerInvariant();
+            if (m is "mom" or "wow") mode = m;
+        }
+
+        var utcNow = DateTime.UtcNow;
+        var todayStart = DateTime.SpecifyKind(utcNow.Date, DateTimeKind.Utc);
+        DateTime currentFrom, currentTo, previousFrom, previousTo;
+        string label;
+        if (mode == "mom")
+        {
+            currentFrom = new DateTime(utcNow.Year, utcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            currentTo = currentFrom.AddMonths(1);
+            previousFrom = currentFrom.AddMonths(-1);
+            previousTo = currentFrom;
+            label = "month_over_month";
+        }
+        else
+        {
+            currentTo = todayStart;
+            currentFrom = currentTo.AddDays(-7);
+            previousTo = currentFrom;
+            previousFrom = previousTo.AddDays(-7);
+            label = "week_over_week";
+        }
+
+        using var connection = dbFactory.CreateConnection();
+
+        async Task<decimal> SumAsync(DateTime from, DateTime to) =>
+            await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
+                SELECT ISNULL(SUM(Amount), 0) FROM Payments
+                WHERE TenantId = @TenantId AND Status = @Paid AND IsDeleted = 0
+                  AND PaymentDate >= @From AND PaymentDate < @To
+                """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = from, To = to },
+                cancellationToken: cancellationToken));
+
+        var current = await SumAsync(currentFrom, currentTo);
+        var previous = await SumAsync(previousFrom, previousTo);
+        var delta = current - previous;
+        var deltaPercent = previous == 0
+            ? (current == 0 ? 0m : (decimal?)null)
+            : Math.Round(delta * 100m / previous, 1);
+
+        var trends = (await connection.QueryAsync<(DateTime Date, decimal Revenue, int PaymentCount)>(
+            new CommandDefinition("""
+                SELECT CAST(PaymentDate AS date) AS Date,
+                       ISNULL(SUM(Amount), 0) AS Revenue,
+                       COUNT(*) AS PaymentCount
+                FROM Payments
+                WHERE TenantId = @TenantId AND Status = @Paid AND IsDeleted = 0
+                  AND PaymentDate >= @From AND PaymentDate < @To
+                GROUP BY CAST(PaymentDate AS date)
+                ORDER BY Date
+                """, new { context.TenantId, Paid = (int)PaymentStatus.Paid, From = currentFrom, To = currentTo },
+                cancellationToken: cancellationToken))).ToList();
+
+        var kpis = new object[]
+        {
+            new
+            {
+                key = "revenueCurrent",
+                label = mode == "mom" ? "This Month" : "Last 7 Days",
+                value = current,
+                unit = "currency",
+                icon = "payments",
+                tone = "teal",
+                deltaPercent,
+                deltaLabel = mode == "mom" ? "vs prior month" : "vs prior week"
+            },
+            new
+            {
+                key = "revenuePrevious",
+                label = mode == "mom" ? "Prior Month" : "Prior 7 Days",
+                value = previous,
+                unit = "currency",
+                icon = "history",
+                tone = "blue"
+            },
+            new
+            {
+                key = "revenueDelta",
+                label = "Change",
+                value = delta,
+                unit = "currency",
+                icon = "trending_up",
+                tone = delta >= 0 ? "teal" : "orange",
+                deltaPercent,
+                deltaLabel = deltaPercent is null ? "Δ% undefined" : $"{(deltaPercent > 0 ? "+" : "")}{deltaPercent:N1}%"
+            }
+        };
+
+        var insights = new List<string>();
+        if (current == 0 && previous == 0)
+            insights.Add($"No paid revenue in current or previous {(mode == "mom" ? "month" : "week")} (UTC).");
+        else
+        {
+            insights.Add(
+                $"{(mode == "mom" ? "Month-over-month" : "Week-over-week")} paid revenue: {current:N2} vs {previous:N2} (Δ {delta:N2}).");
+            if (deltaPercent is not null)
+                insights.Add($"Relative change: {(deltaPercent > 0 ? "+" : "")}{deltaPercent:N1}%.");
+        }
+
+        var payload = new
+        {
+            responseType = "sales_analytics",
+            mode,
+            label,
+            period = new { start = currentFrom, end = currentTo, label },
+            comparisonPeriod = new { start = previousFrom, end = previousTo },
+            kpis,
+            trends = trends.Select(t => new
+            {
+                date = t.Date.ToString("yyyy-MM-dd"),
+                revenue = t.Revenue,
+                paymentCount = t.PaymentCount,
+                trips = t.Revenue,
+                completed = t.Revenue,
+                bookings = t.PaymentCount
+            }),
+            topCustomers = Array.Empty<object>(),
+            statusDistribution = new[]
+            {
+                new { key = "current", label = mode == "mom" ? "Current month" : "Current week", count = (int)Math.Round(current) },
+                new { key = "previous", label = mode == "mom" ? "Prior month" : "Prior week", count = (int)Math.Round(previous) }
+            },
+            insights,
+            followUps = new[]
+            {
+                "What is today's revenue?",
+                "Who are our top customers by revenue?",
+                mode == "mom" ? "Compare sales week over week" : "Compare sales month over month",
+                "Show revenue breakdown by date"
+            }
+        };
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Sales {label.Replace('_', ' ')} (UTC): {current:N2} vs {previous:N2} (Δ {delta:N2}).");
+
+        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), payload);
     }
 }
 

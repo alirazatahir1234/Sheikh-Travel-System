@@ -47,6 +47,7 @@ public static class McpAllowlist
         "get_fleet_inventory_summary", "get_gps_coverage_summary",
         "get_maintenance_kpi_summary", "get_booking_analytics",
         "get_revenue_breakdown", "get_period_comparison",
+        "get_sales_summary", "get_top_customers_by_revenue", "get_sales_trend_comparison",
         // Logs Phase 6 (elevated)
         "get_ai_assistant_errors", "get_ai_usage_summary", "get_integration_diagnostics",
         "get_diagnostic_summary", "search_auth_failures", "get_events_by_correlation_id",
@@ -122,6 +123,9 @@ public static class McpAllowlist
         "get_booking_analytics",
         "get_revenue_breakdown",
         "get_period_comparison",
+        "get_sales_summary",
+        "get_top_customers_by_revenue",
+        "get_sales_trend_comparison",
     };
 
     /// <summary>Logs MCP Phase 6 — operational diagnostics (not business analytics).</summary>
@@ -164,6 +168,9 @@ public static class McpAllowlist
         "draft_adr", "scaffold_command", "scaffold_query", "write_architecture_note",
         // File-based Security MCP — Cursor/dev only (repo secrets / API surface). Not tenant AI.
         "scan_secrets", "audit_permissions", "audit_api_auth",
+        // DevOps MCP — Cursor/dev only (health/pipeline/ops logs). Not tenant AI.
+        "get_devops_domain", "get_application_health", "get_deployments",
+        "get_build_status", "get_pipeline_status", "get_recent_ops_logs",
     };
 
     public static IReadOnlyList<string> AllowedToolNames { get; } =

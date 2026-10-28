@@ -9,7 +9,9 @@ import {
   AssistantDataTable,
   AssistantFleetHealthData,
   AssistantMetricTile,
+  SalesAnalyticsData,
   TripBookingAnalyticsData,
+  asSalesAnalytics,
   asTripBookingAnalytics,
   extractDataTable,
   fleetHealthMetrics,
@@ -58,17 +60,54 @@ export class AiAssistantResultComponent {
     return h ? healthBand(h.healthPercent) : null;
   }
 
-  get tripAnalytics(): TripBookingAnalyticsData | null {
+  get salesAnalytics(): SalesAnalyticsData | null {
     if (this.fleetHealth) return null;
+    return asSalesAnalytics(this.data, this.toolUsed);
+  }
+
+  get tripAnalytics(): TripBookingAnalyticsData | null {
+    if (this.fleetHealth || this.salesAnalytics) return null;
     return asTripBookingAnalytics(this.data, this.toolUsed);
   }
 
   get table(): AssistantDataTable | null {
-    if (this.fleetHealth || this.tripAnalytics) return null;
+    if (this.fleetHealth || this.tripAnalytics || this.salesAnalytics) return null;
     return extractDataTable(this.data, this.toolUsed);
   }
 
   get trendChartData(): ChartData | null {
+    const sales = this.salesAnalytics;
+    if (sales?.trends?.length) {
+      const labels = sales.trends.map(t => {
+        const d = new Date(t.date);
+        return Number.isNaN(d.getTime())
+          ? t.date
+          : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      });
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'Revenue',
+            data: sales.trends.map(t => t.revenue),
+            borderColor: '#0d9488',
+            backgroundColor: 'rgba(13, 148, 136, 0.12)',
+            tension: 0.35,
+            fill: true,
+            pointRadius: 2
+          },
+          {
+            label: 'Payments',
+            data: sales.trends.map(t => t.paymentCount),
+            borderColor: '#3b82f6',
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            pointRadius: 2
+          }
+        ]
+      };
+    }
+
     const a = this.tripAnalytics;
     if (!a?.trends?.length) return null;
     const labels = a.trends.map(t => {
@@ -110,10 +149,11 @@ export class AiAssistantResultComponent {
   }
 
   get statusChartData(): ChartData | null {
-    const a = this.tripAnalytics;
-    if (!a?.statusDistribution?.length) return null;
-    const slices = a.statusDistribution.filter(s => s.count > 0);
-    const source = slices.length ? slices : a.statusDistribution;
+    const dist =
+      this.salesAnalytics?.statusDistribution ?? this.tripAnalytics?.statusDistribution;
+    if (!dist?.length) return null;
+    const slices = dist.filter(s => s.count > 0);
+    const source = slices.length ? slices : dist;
     return {
       labels: source.map(s => s.label),
       datasets: [
@@ -128,12 +168,26 @@ export class AiAssistantResultComponent {
   }
 
   get statusTotal(): number {
-    return this.tripAnalytics?.statusDistribution.reduce((sum, s) => sum + s.count, 0) ?? 0;
+    const dist =
+      this.salesAnalytics?.statusDistribution ?? this.tripAnalytics?.statusDistribution;
+    return dist?.reduce((sum, s) => sum + s.count, 0) ?? 0;
   }
 
   /** Mock-style period chip on the trends card (e.g. "This Month"). */
   get periodBadge(): string | null {
-    const period = this.tripAnalytics?.period;
+    const salesLabel = this.salesAnalytics?.period?.label;
+    if (salesLabel) {
+      const map: Record<string, string> = {
+        today: 'Today',
+        last_7_days: 'This Week',
+        this_month: 'This Month',
+        last_30_days: 'Last 30 Days',
+        week_over_week: 'WoW',
+        month_over_month: 'MoM'
+      };
+      if (map[salesLabel]) return map[salesLabel];
+    }
+    const period = this.salesAnalytics?.period ?? this.tripAnalytics?.period;
     if (!period?.start || !period?.end) return null;
     const start = new Date(period.start);
     const end = new Date(period.end);
@@ -205,6 +259,12 @@ export class AiAssistantResultComponent {
         return 'schedule';
       case 'tripCompletionRate':
         return 'donut_large';
+      case 'totalRevenue':
+      case 'revenueCurrent':
+      case 'revenueToday':
+        return 'payments';
+      case 'topCustomerRevenue':
+        return 'emoji_events';
       default:
         return 'insights';
     }
@@ -213,6 +273,12 @@ export class AiAssistantResultComponent {
   formatKpiValue(kpi: { value: number; unit: string }): string {
     if (kpi.unit === 'percent') {
       return `${kpi.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    }
+    if (kpi.unit === 'currency') {
+      return kpi.value.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      });
     }
     return kpi.value.toLocaleString(undefined, { maximumFractionDigits: 0 });
   }

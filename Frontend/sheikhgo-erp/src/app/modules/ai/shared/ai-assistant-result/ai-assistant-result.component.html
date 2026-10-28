@@ -36,6 +36,105 @@
     </ng-container>
   </div>
 
+  <!-- Sales / revenue analytics (responseType=sales_analytics) -->
+  <section class="analytics" *ngIf="salesAnalytics as a" aria-label="Sales analytics">
+    <div class="kpi-row" *ngIf="a.kpis.length">
+      <article class="kpi-card" *ngFor="let k of a.kpis" [attr.data-tone]="k.tone || 'teal'">
+        <div class="kpi-card__icon" aria-hidden="true">
+          <mat-icon>{{ kpiIcon(k) }}</mat-icon>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">{{ k.label }}</span>
+          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
+          <span
+            class="kpi-card__delta"
+            *ngIf="k.deltaPercent != null || k.sharePercent != null || k.deltaLabel"
+            [attr.data-dir]="deltaClass(k.deltaPercent)">
+            <ng-container *ngIf="k.deltaPercent != null">{{ formatDelta(k.deltaPercent) }}</ng-container>
+            <ng-container *ngIf="k.deltaPercent == null && k.sharePercent != null">{{ k.sharePercent | number:'1.0-1' }}%</ng-container>
+            <small *ngIf="k.deltaLabel">{{ k.deltaLabel }}</small>
+          </span>
+        </div>
+      </article>
+    </div>
+
+    <div
+      class="workspace-grid"
+      *ngIf="trendChartData || statusChartData || a.topCustomers.length || a.insights.length">
+      <div class="workspace-main">
+        <article class="chart-card" *ngIf="trendChartData as td">
+          <header class="chart-card__head">
+            <h4>Sales Trends</h4>
+            <span class="chart-card__badge" *ngIf="periodBadge">{{ periodBadge }}</span>
+          </header>
+          <ui-chart type="line" [data]="td" [options]="trendChartOptions" height="220px"></ui-chart>
+        </article>
+
+        <article class="table-card" *ngIf="a.topCustomers.length">
+          <header class="chart-card__head">
+            <h4>Top Customers</h4>
+          </header>
+          <div class="data-table-scroll">
+            <table class="data-table recent-trips">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Customer</th>
+                  <th class="num">Revenue</th>
+                  <th class="num">Payments</th>
+                  <th class="num">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let c of a.topCustomers; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td><strong>{{ c.customerName }}</strong></td>
+                  <td class="num">{{ c.revenue | number:'1.0-2' }}</td>
+                  <td class="num">{{ c.paymentCount }}</td>
+                  <td class="num">{{ c.sharePercent | number:'1.0-1' }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      <aside class="workspace-side" *ngIf="statusChartData || a.insights.length">
+        <article class="chart-card chart-card--donut" *ngIf="statusChartData as sd">
+          <header class="chart-card__head">
+            <h4>{{ a.topCustomers.length ? 'Customer Share' : 'Period Mix' }}</h4>
+          </header>
+          <div class="donut-wrap">
+            <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="180px"></ui-chart>
+            <div class="donut-center" aria-hidden="true">
+              <strong>{{ statusTotal | number:'1.0-0' }}</strong>
+              <span>Revenue</span>
+            </div>
+          </div>
+          <ul class="donut-legend">
+            <li *ngFor="let s of a.statusDistribution; let i = index">
+              <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
+              <span class="name">{{ s.label }}</span>
+              <strong>{{ s.count | number:'1.0-0' }}</strong>
+            </li>
+          </ul>
+        </article>
+
+        <article class="insights-card" *ngIf="a.insights.length">
+          <header class="chart-card__head">
+            <h4>Key Insights</h4>
+          </header>
+          <ul class="insights-list">
+            <li *ngFor="let tip of a.insights; let i = index">
+              <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
+              <span>{{ tip }}</span>
+            </li>
+          </ul>
+        </article>
+      </aside>
+    </div>
+  </section>
+
   <!-- Premium trip / booking analytics workspace (mock: left trends+trips | right donut+insights) -->
   <section class="analytics" *ngIf="tripAnalytics as a" aria-label="Trip and booking analytics">
     <div class="kpi-row" *ngIf="a.kpis.length">

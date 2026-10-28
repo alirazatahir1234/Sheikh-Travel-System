@@ -37,6 +37,9 @@ public class McpAllowlistTests
     [InlineData("get_booking_analytics")]
     [InlineData("get_revenue_breakdown")]
     [InlineData("get_period_comparison")]
+    [InlineData("get_sales_summary")]
+    [InlineData("get_top_customers_by_revenue")]
+    [InlineData("get_sales_trend_comparison")]
     [InlineData("get_analytics_domain")]
     [InlineData("get_logs_domain")]
     [InlineData("get_log_source_status")]
@@ -65,6 +68,12 @@ public class McpAllowlistTests
     [InlineData("scan_secrets")]
     [InlineData("audit_api_auth")]
     [InlineData("audit_permissions")]
+    [InlineData("get_devops_domain")]
+    [InlineData("get_application_health")]
+    [InlineData("get_deployments")]
+    [InlineData("get_build_status")]
+    [InlineData("get_pipeline_status")]
+    [InlineData("get_recent_ops_logs")]
     public void Architecture_write_and_file_security_tools_are_denied(string tool)
     {
         Assert.True(McpAllowlist.IsDenied(tool));

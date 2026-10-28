@@ -34,8 +34,10 @@ public sealed class AiAssistantGateway(
         // Operational GPS / fleet status (owner-facing)
         "GetOfflineVehicles",
         "GetFleetHealth",
-        // Batch 1
+        // Batch 1 (+ sales analytics parity with MCP)
         "GetRevenueAnalytics",
+        "GetTopCustomersByRevenue",
+        "GetSalesTrendComparison",
         "GetFuelUsageTopVehicle",
         "GetBestDriverPerformance",
         // Batch 2
@@ -537,7 +539,12 @@ public sealed class AiAssistantGateway(
             return Get("GetIdleTimeReport");
         if (ContainsAny(q, "expense", "expenses", "spending", "cost breakdown", "expenditure by"))
             return Get("GetExpenseTracking");
-        if (ContainsAny(q, "revenue", "sales total", "paid payment", "income total"))
+        if (ContainsAny(q, "top customer", "top customers", "best customers", "customers by revenue", "highest paying"))
+            return Get("GetTopCustomersByRevenue");
+        if (ContainsAny(q, "sales trend", "sales comparison", "compare sales", "revenue trend", "sales wow", "sales mom",
+                "sales week over week", "sales month over month"))
+            return Get("GetSalesTrendComparison");
+        if (ContainsAny(q, "revenue", "sales total", "paid payment", "income total", "sales summary", "today's revenue", "todays revenue"))
             return Get("GetRevenueAnalytics");
         if (ContainsAny(q, "cost per km", "cost per kilometer", "cost/km", "per km"))
             return Get("GetCostPerKilometer");

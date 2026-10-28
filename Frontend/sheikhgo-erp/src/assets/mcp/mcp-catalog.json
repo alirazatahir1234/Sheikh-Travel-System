@@ -1,8 +1,8 @@
 {
-  "version": "0.12.0",
+  "version": "0.18.0",
   "protocol": "MCP (stdio)",
   "package": "sheikhgo-mcp",
-  "exportedAt": "2026-10-24T11:31:48.379Z",
+  "exportedAt": "2026-10-28T08:19:05.616Z",
   "discoveredTools": [
     "get_repository_index",
     "analyze_architecture",
@@ -32,7 +32,15 @@
     "list_tables",
     "describe_table",
     "run_readonly_query",
+    "plan_approved_query",
     "db_connection_status",
+    "get_approved_entity_counts",
+    "get_vehicle_count",
+    "get_vehicle_details",
+    "get_driver_details",
+    "get_trip_summary",
+    "get_fuel_expenses",
+    "get_booking_summary",
     "get_bookings_domain",
     "list_bookings",
     "get_booking",
@@ -65,10 +73,42 @@
     "scan_secrets",
     "audit_permissions",
     "audit_api_auth",
+    "list_audit_events",
+    "get_analytics_domain",
+    "get_revenue_summary",
+    "get_trip_statistics",
+    "get_vehicle_utilization",
+    "get_fuel_cost_summary",
+    "get_driver_performance",
+    "get_fleet_inventory_summary",
+    "get_gps_coverage_summary",
+    "get_maintenance_kpi_summary",
+    "get_booking_analytics",
+    "get_revenue_breakdown",
+    "get_period_comparison",
+    "get_sales_summary",
+    "get_top_customers_by_revenue",
+    "get_sales_trend_comparison",
+    "get_logs_domain",
+    "get_log_source_status",
+    "get_diagnostic_summary",
+    "get_ai_assistant_errors",
+    "get_ai_usage_summary",
+    "get_integration_diagnostics",
+    "search_auth_failures",
+    "get_events_by_correlation_id",
+    "search_serilog_logs",
+    "search_mcp_executions",
     "get_smartops_domain",
     "list_smart_alerts",
     "get_maintenance_reminders",
     "get_trip_delays",
+    "get_devops_domain",
+    "get_application_health",
+    "get_deployments",
+    "get_build_status",
+    "get_pipeline_status",
+    "get_recent_ops_logs",
     "get_server_info",
     "get_write_policy",
     "draft_adr",
@@ -76,10 +116,1018 @@
     "scaffold_query",
     "write_architecture_note"
   ],
+  "toolRegistry": {
+    "get_repository_index": {
+      "name": "get_repository_index",
+      "description": "Scan SheikhGo and return a structured repository index (layers, modules, file map stats). Read-only.",
+      "inputProperties": [
+        "forceRefresh"
+      ]
+    },
+    "analyze_architecture": {
+      "name": "analyze_architecture",
+      "description": "Run Clean Architecture / CQRS rule analysis against the SheikhGo repository. Returns structured violations.",
+      "inputProperties": [
+        "scope"
+      ]
+    },
+    "list_modules": {
+      "name": "list_modules",
+      "description": "List SheikhGo backend modules with layer coverage, health hints, and detected pattern families.",
+      "inputProperties": []
+    },
+    "analyze_module": {
+      "name": "analyze_module",
+      "description": "Deep-analyze a SheikhGo feature module (CQRS coverage, gaps, integrations, dependency graph summary).",
+      "inputProperties": [
+        "module"
+      ]
+    },
+    "analyze_file": {
+      "name": "analyze_file",
+      "description": "Analyze one repository file for layer, type, dependencies, and rule violations.",
+      "inputProperties": [
+        "path"
+      ]
+    },
+    "check_architecture_rules": {
+      "name": "check_architecture_rules",
+      "description": "Return machine-readable SheikhGo architecture rules and layer dependency policy.",
+      "inputProperties": []
+    },
+    "find_similar_code": {
+      "name": "find_similar_code",
+      "description": "Find existing SheikhGo patterns similar to a feature (token + structural + pattern-family scoring).",
+      "inputProperties": [
+        "feature",
+        "limit"
+      ]
+    },
+    "suggest_implementation": {
+      "name": "suggest_implementation",
+      "description": "Architecture advisor: classify feature (capability vs intent), score module ownership vs consumers, list entity dependencies with shouldMoveIntoRecommendedModule=false, and produce architectureDecision + filesToCreate/Modify + risks. Ambiguous phrases like \"AI Management\" return needsClarification with subtype options before full CQRS scaffolding.",
+      "inputProperties": [
+        "feature"
+      ]
+    },
+    "search_code": {
+      "name": "search_code",
+      "description": "Search SheikhGo by path/name/content. Supports text, regex, and symbol modes with optional context. Secrets redacted.",
+      "inputProperties": [
+        "query",
+        "layer",
+        "type",
+        "module",
+        "mode",
+        "contextLines",
+        "extension",
+        "limit"
+      ]
+    },
+    "find_dependencies": {
+      "name": "find_dependencies",
+      "description": "Trace definitions and usages of a symbol (e.g. ITripRepository, StartTripCommand).",
+      "inputProperties": [
+        "symbol"
+      ]
+    },
+    "get_dependency_graph": {
+      "name": "get_dependency_graph",
+      "description": "Build (or return cached) SheikhGo dependency graph. Optionally scope to a module or symbol neighborhood with Mermaid.",
+      "inputProperties": [
+        "module",
+        "symbol",
+        "depth",
+        "forceRefresh",
+        "includeFullGraph"
+      ]
+    },
+    "analyze_impact": {
+      "name": "analyze_impact",
+      "description": "Impact analysis for changing a symbol: upstream consumers, downstream deps, affected modules/layers, risk.",
+      "inputProperties": [
+        "symbol"
+      ]
+    },
+    "get_git_status": {
+      "name": "get_git_status",
+      "description": "Read-only git status for the SheikhGo repository.",
+      "inputProperties": []
+    },
+    "get_git_diff": {
+      "name": "get_git_diff",
+      "description": "Read-only git diff for SheikhGo (optionally staged / path-scoped).",
+      "inputProperties": [
+        "staged",
+        "path"
+      ]
+    },
+    "get_recent_commits": {
+      "name": "get_recent_commits",
+      "description": "Read-only recent git commits for SheikhGo.",
+      "inputProperties": [
+        "count"
+      ]
+    },
+    "architecture_decision": {
+      "name": "architecture_decision",
+      "description": "Propose an architecture decision using the deterministic Architecture Engine (scanner, rules, ADRs). Optionally enriches with Ollama reasoning when SHEIKHGO_OLLAMA=1. Returns options, evidence, do/don't, ADR draft, and ollamaReasoning.",
+      "inputProperties": [
+        "question",
+        "featureHint"
+      ]
+    },
+    "list_architecture_decisions": {
+      "name": "list_architecture_decisions",
+      "description": "List accepted SheikhGo architecture decision records (ADRs).",
+      "inputProperties": []
+    },
+    "review_change": {
+      "name": "review_change",
+      "description": "Architecture review of current git changes: verdict, layer/CQRS/security findings, blast-radius, ADR checklist. Read-only.",
+      "inputProperties": [
+        "staged",
+        "path"
+      ]
+    },
+    "analyze_angular": {
+      "name": "analyze_angular",
+      "description": "Analyze a SheikhGo Angular frontend app (routes, features/modules, components, services, API hints).",
+      "inputProperties": [
+        "app",
+        "feature"
+      ]
+    },
+    "analyze_flutter": {
+      "name": "analyze_flutter",
+      "description": "Analyze a SheikhGo Flutter app (features, screens, routes, services, repositories, packages).",
+      "inputProperties": [
+        "app",
+        "feature"
+      ]
+    },
+    "analyze_database": {
+      "name": "analyze_database",
+      "description": "Analyze SheikhGo SQL schema files, migrations, tables/columns, and Dapper table references. No live DB connection.",
+      "inputProperties": []
+    },
+    "find_table_usage": {
+      "name": "find_table_usage",
+      "description": "Find schema definition, migrations, and code/SQL references for a database table.",
+      "inputProperties": [
+        "table"
+      ]
+    },
+    "map_feature_across_stack": {
+      "name": "map_feature_across_stack",
+      "description": "Map a feature across Backend + Angular + Flutter + Database with evidence and next-step tool hints.",
+      "inputProperties": [
+        "feature"
+      ]
+    },
+    "find_sql_usage": {
+      "name": "find_sql_usage",
+      "description": "Find SQL / Dapper-related files and references in SheikhGo.",
+      "inputProperties": [
+        "query"
+      ]
+    },
+    "get_database_schema": {
+      "name": "get_database_schema",
+      "description": "Phase 4 approved business schema for AI factual retrieval (tables, columns, joins, gaps). Prefer Phase 4 tools over ad-hoc SQL. Optional mode=full adds file-based analyze_database (Cursor/dev). Includes liveDb status when configured.",
+      "inputProperties": [
+        "mode"
+      ]
+    },
+    "list_tables": {
+      "name": "list_tables",
+      "description": "List SQL Server tables/views from the live database (INFORMATION_SCHEMA). Requires SHEIKHGO_DB_CONNECTION. Read-only.",
+      "inputProperties": [
+        "schema",
+        "nameFilter",
+        "includeViews",
+        "limit"
+      ]
+    },
+    "describe_table": {
+      "name": "describe_table",
+      "description": "Live schema inspection for one table: columns, types, nullability, primary key, TenantId hint. Requires SHEIKHGO_DB_CONNECTION.",
+      "inputProperties": [
+        "table",
+        "schema"
+      ]
+    },
+    "run_readonly_query": {
+      "name": "run_readonly_query",
+      "description": "Last-resort read-only SELECT / WITH…SELECT. Prefer Phase 4 tools (get_vehicle_count, get_trip_summary, …). Blocks DML/DDL/EXEC. When approvedOnly=true (recommended for AI), SQL may only touch approved business tables + TenantId filter. Requires SHEIKHGO_DB_CONNECTION.",
+      "inputProperties": [
+        "sql",
+        "parameters",
+        "tenantId",
+        "maxRows",
+        "timeoutMs",
+        "approvedOnly"
+      ]
+    },
+    "plan_approved_query": {
+      "name": "plan_approved_query",
+      "description": "Phase 4 controlled query planner: map a natural-language question to an approved business tool. Rejects unsafe / unsupported plans. Does not execute SQL or invent metrics.",
+      "inputProperties": [
+        "question"
+      ]
+    },
+    "db_connection_status": {
+      "name": "db_connection_status",
+      "description": "Check whether SHEIKHGO_DB_CONNECTION is set and whether a live read-only ping succeeds. Never returns the connection string.",
+      "inputProperties": []
+    },
+    "get_approved_entity_counts": {
+      "name": "get_approved_entity_counts",
+      "description": "Predefined COUNT(*) for approved tenant tables (Vehicles, Drivers, Bookings, Trips, Routes, Customers, FuelLogs, Geofences). Prefer over run_readonly_query for simple totals. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "entities"
+      ]
+    },
+    "get_vehicle_count": {
+      "name": "get_vehicle_count",
+      "description": "Phase 4: tenant vehicle COUNT with byStatus breakdown. Default excludes Draft/Retired. Zero is empty success. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "includeInactive",
+        "status"
+      ]
+    },
+    "get_vehicle_details": {
+      "name": "get_vehicle_details",
+      "description": "Phase 4: one vehicle by id (active driver + GPS lat/lng). Not found → empty success (found=false), never invent. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "get_driver_details": {
+      "name": "get_driver_details",
+      "description": "Phase 4: one driver by id with active vehicle. Not found → empty success. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "get_trip_summary": {
+      "name": "get_trip_summary",
+      "description": "Phase 4: trip status histogram for a date period (TripDate). Default period = UTC month to date. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_fuel_expenses": {
+      "name": "get_fuel_expenses",
+      "description": "Phase 4: fuel cost/liters by vehicle for a period (FuelLogs). Optional vehicleId. Units: liters + tenant currency. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "vehicleId",
+        "limit"
+      ]
+    },
+    "get_booking_summary": {
+      "name": "get_booking_summary",
+      "description": "Phase 4: booking status rollup for a period (PickupTime). Completion rate included. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_bookings_domain": {
+      "name": "get_bookings_domain",
+      "description": "Static Bookings/Trips/Routes domain catalog: tables, relationships, status enums. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "list_bookings": {
+      "name": "list_bookings",
+      "description": "List bookings (live SELECT). Filters: status, search, pickup date range. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "status",
+        "search",
+        "dateFrom",
+        "dateTo",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_booking": {
+      "name": "get_booking",
+      "description": "Get one booking by id with customer/route/driver/vehicle names. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "list_trips": {
+      "name": "list_trips",
+      "description": "List operational trips (live SELECT). Filter by status, bookingId, routeId, customerId, search. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "status",
+        "bookingId",
+        "routeId",
+        "customerId",
+        "search",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_trip": {
+      "name": "get_trip",
+      "description": "Get one trip detail (addresses, assignment, distances, linked booking/route). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "list_routes": {
+      "name": "list_routes",
+      "description": "List roads/routes (source→destination corridors). Optional search and isActive. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "search",
+        "isActive",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_route": {
+      "name": "get_route",
+      "description": "Get one route/road including WaypointsJson and OptimizeMode. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "summarize_booking_statuses": {
+      "name": "summarize_booking_statuses",
+      "description": "Live histogram of BookingStatus counts for a tenant. Requires SHEIKHGO_DB_CONNECTION.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "summarize_trip_statuses": {
+      "name": "summarize_trip_statuses",
+      "description": "Live histogram of TripStatus counts for a tenant. Requires SHEIKHGO_DB_CONNECTION.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "get_booking_links": {
+      "name": "get_booking_links",
+      "description": "Resolve Booking ↔ Route ↔ Trips links for one booking id. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "bookingId"
+      ]
+    },
+    "get_fleet_domain": {
+      "name": "get_fleet_domain",
+      "description": "Static Fleet domain catalog: tables, relationships, vehicle/driver/maintenance status enums, GPS buckets. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "list_vehicles": {
+      "name": "list_vehicles",
+      "description": "List vehicles (live SELECT). Filters: status, search. Includes active driver assignment + GPS online + service alert. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "status",
+        "search",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_vehicle": {
+      "name": "get_vehicle",
+      "description": "Get one vehicle by id with active driver, service due, and VehicleCurrentLocation lat/lng (no Maps API). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "list_drivers": {
+      "name": "list_drivers",
+      "description": "List drivers (live SELECT). Filters: status, search. Includes active assigned vehicle. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "status",
+        "search",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_driver": {
+      "name": "get_driver",
+      "description": "Get one driver by id with active vehicle assignment. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "id"
+      ]
+    },
+    "list_vehicle_assignments": {
+      "name": "list_vehicle_assignments",
+      "description": "List AssignmentHistory rows (driver↔vehicle). Filter by status (Active/Scheduled/…), vehicleId, driverId. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "status",
+        "vehicleId",
+        "driverId",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_vehicles_on_trips": {
+      "name": "get_vehicles_on_trips",
+      "description": "Which vehicle is on which operational trip (Trips.VehicleId + TripStatus DriverAssigned…Delayed). Optional vehicleId filter. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_maintenance_due": {
+      "name": "get_maintenance_due",
+      "description": "Phase 4 / Fleet: maintenance due / overdue / in-progress (Maintenance work-orders + VehicleStatus=Maintenance). Empty list is success. Optional vehicleId and daysAhead. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "daysAhead",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_fleet_status": {
+      "name": "get_fleet_status",
+      "description": "Real-time fleet GPS status buckets (moving/idle/parked/sos/offline/…) from VehicleCurrentLocation. Lat/lng only — no Maps API / Traccar tools. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "offlineStaleMinutes",
+        "movingThresholdKmh"
+      ]
+    },
+    "list_fuel_records": {
+      "name": "list_fuel_records",
+      "description": "List FuelLogs (live SELECT). Optional vehicleId filter. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_gps_domain": {
+      "name": "get_gps_domain",
+      "description": "Static GPS domain catalog: tables, geofence event types, status buckets, Traccar env vars. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "get_devices": {
+      "name": "get_devices",
+      "description": "List GPS devices / trackers (GpsDevices). Filters: vehicleId, search, activeOnly. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "search",
+        "activeOnly",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_live_positions": {
+      "name": "get_live_positions",
+      "description": "Live vehicle locations from VehicleCurrentLocation (lat/lng, speed, GPS bucket). No Maps API. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "onlineOnly",
+        "offlineStaleMinutes",
+        "movingThresholdKmh",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_vehicle_history": {
+      "name": "get_vehicle_history",
+      "description": "Track history (GpsPositions) for one vehicle in a date range. Optional Traccar fill when local empty. Requires DB + tenantId + vehicleId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "from",
+        "to",
+        "maxPoints",
+        "preferTraccarIfEmpty"
+      ]
+    },
+    "get_geofences": {
+      "name": "get_geofences",
+      "description": "List geofence definitions (Geofences). Filters: search, isActive, vehicleId assignment. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "search",
+        "isActive",
+        "vehicleId",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_geofence_events": {
+      "name": "get_geofence_events",
+      "description": "Geofence enter/exit events from GpsAlertEvents. Filters: vehicleId, geofenceId, date range, unacknowledgedOnly. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "geofenceId",
+        "from",
+        "to",
+        "unacknowledgedOnly",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_gps_trips": {
+      "name": "get_gps_trips",
+      "description": "GPS motion trips (GpsTrips table — not operational Trips). Optional vehicleId; max 30-day range. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "from",
+        "to",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_traccar_status": {
+      "name": "get_traccar_status",
+      "description": "Optional Traccar connectivity (/api/server). Uses SHEIKHGO_TRACCAR_* env only — never returns passwords. DB GPS tools work without Traccar.",
+      "inputProperties": []
+    },
+    "get_security_domain": {
+      "name": "get_security_domain",
+      "description": "Static Security domain catalog: coverage statuses, allowlists, secret finding types, tool list. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "scan_secrets": {
+      "name": "scan_secrets",
+      "description": "Scan repository files for possible secrets (passwords, connection strings, API keys, private keys). Never returns raw secret values — only file:line + type + redacted evidence. Distinct from review_change (diff-scoped). Read-only.",
+      "inputProperties": [
+        "pathPrefix",
+        "limit",
+        "flagSensitivePaths"
+      ]
+    },
+    "audit_permissions": {
+      "name": "audit_permissions",
+      "description": "Audit permission consts (*Permissions.cs) vs TenantRolePermissionTemplates. Optional live Permissions table compare (includeDb). Read-only.",
+      "inputProperties": [
+        "includeDb",
+        "tenantId"
+      ]
+    },
+    "audit_api_auth": {
+      "name": "audit_api_auth",
+      "description": "Find API endpoints missing [Authorize] / with [AllowAnonymous] (unauthenticated exposure). Classifies Protected|PartiallyProtected|Public|Internal (mirrors PermissionCoverageClassifier). statusFilter=unauthenticated|unexpected|Public|all. Read-only.",
+      "inputProperties": [
+        "statusFilter",
+        "limit"
+      ]
+    },
+    "list_audit_events": {
+      "name": "list_audit_events",
+      "description": "List tenant AuditLogs (action, entity, user, truncated old/new). Elevated on AI bridge (Platform.Audit.View). Requires DB + tenantId. Distinct from file scanners.",
+      "inputProperties": [
+        "tenantId",
+        "action",
+        "entityName",
+        "userId",
+        "dateFrom",
+        "dateTo",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_analytics_domain": {
+      "name": "get_analytics_domain",
+      "description": "Phase 5 Analytics catalog: KPI tools, periods, sources, unavailable metrics (fleet health % not inventable). Distinct from Logs MCP. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "get_revenue_summary": {
+      "name": "get_revenue_summary",
+      "description": "Phase 4 / Analytics: paid revenue totals (daily / last 7 days / this month UTC) from Payments.Status=Paid. Zero is empty success — never invent. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "get_trip_statistics": {
+      "name": "get_trip_statistics",
+      "description": "Trip status histogram + booking volume/completion for a date range. Requires DB + tenantId. Analytics KPI.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_vehicle_utilization": {
+      "name": "get_vehicle_utilization",
+      "description": "Fleet status snapshot utilization + top vehicles by GpsTrips distance in period. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit"
+      ]
+    },
+    "get_fuel_cost_summary": {
+      "name": "get_fuel_cost_summary",
+      "description": "Fuel cost and liters by vehicle for a date range (FuelLogs). Requires DB + tenantId. Analytics KPI.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit"
+      ]
+    },
+    "get_driver_performance": {
+      "name": "get_driver_performance",
+      "description": "Drivers ranked by completed operational trips in a date range. Requires DB + tenantId. Analytics KPI.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit"
+      ]
+    },
+    "get_fleet_inventory_summary": {
+      "name": "get_fleet_inventory_summary",
+      "description": "Phase 5 Analytics: total / active / inactive vehicle counts with byStatus (point-in-time UTC). Active=Available+OnTrip+Maintenance; Inactive=Retired+Draft. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "get_gps_coverage_summary": {
+      "name": "get_gps_coverage_summary",
+      "description": "Phase 5 Analytics: GPS device coverage, fresh vs stale location counts (VehicleCurrentLocation.LastUpdate). Default staleMinutes=30. Lat/lng only — no Maps keys. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "staleMinutes"
+      ]
+    },
+    "get_maintenance_kpi_summary": {
+      "name": "get_maintenance_kpi_summary",
+      "description": "Phase 5 Analytics: maintenance work-order overdue/due counts + optional schedule dues. Distinct from list get_maintenance_due. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "daysAhead"
+      ]
+    },
+    "get_booking_analytics": {
+      "name": "get_booking_analytics",
+      "description": "Phase 5 Analytics: booking totals and status breakdown for PickupTime window (structured metrics). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_revenue_breakdown": {
+      "name": "get_revenue_breakdown",
+      "description": "Phase 5 Analytics: paid revenue breakdown by date | branch | vehicle | customer. totalPaid is full SQL aggregate (not truncated rows). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "groupBy",
+        "dateFrom",
+        "dateTo",
+        "limit"
+      ]
+    },
+    "get_period_comparison": {
+      "name": "get_period_comparison",
+      "description": "Phase 5 Analytics: week-over-week or month-over-month comparison for paid revenue, trips, bookings, fuel cost (UTC). Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "mode",
+        "asOf"
+      ]
+    },
+    "get_sales_summary": {
+      "name": "get_sales_summary",
+      "description": "Sales/revenue summary with period presets (today / last_7_days / this_month / last_30_days / custom). Paid Payments only. Returns responseType=sales_analytics (kpis, trends, insights) for the AI Assistant UI. Same source as get_revenue_summary. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "period",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_top_customers_by_revenue": {
+      "name": "get_top_customers_by_revenue",
+      "description": "Top customers by paid revenue for a period. Reuses Payments→Bookings→Customers (same as get_revenue_breakdown groupBy=customer). Returns responseType=sales_analytics with topCustomers. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "period",
+        "dateFrom",
+        "dateTo",
+        "limit"
+      ]
+    },
+    "get_sales_trend_comparison": {
+      "name": "get_sales_trend_comparison",
+      "description": "Sales trend comparison across periods (wow / mom). Reuses get_period_comparison paid-revenue aggregates + daily trends. Returns responseType=sales_analytics. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "mode",
+        "asOf"
+      ]
+    },
+    "get_logs_domain": {
+      "name": "get_logs_domain",
+      "description": "Phase 6 Logs catalog: existing vs unavailable diagnostic sources, tools, filters, redaction policy. Distinct from Analytics. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "get_log_source_status": {
+      "name": "get_log_source_status",
+      "description": "Phase 6: which log sinks exist (AiChatMessages, AiUsageLedger, AuditEvents, Serilog files, McpToolExecutions, live DB/Traccar) vs unavailable (background job ledger, Seq/App Insights). No DB required.",
+      "inputProperties": []
+    },
+    "get_diagnostic_summary": {
+      "name": "get_diagnostic_summary",
+      "description": "Phase 6: structured diagnostic rollup (assistant error markers, auth failures, AI usage, live connectivity) + unavailable capabilities. Elevated. Requires DB + tenantId. Never invents root causes.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_ai_assistant_errors": {
+      "name": "get_ai_assistant_errors",
+      "description": "Phase 6: recent AI chat messages matching TOOL_ERROR / provider timeout / rate-limit markers (tenant-scoped, redacted). Filters: time, component, severity, sessionId, limit. Elevated. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit",
+        "sessionId",
+        "component",
+        "severity"
+      ]
+    },
+    "get_ai_usage_summary": {
+      "name": "get_ai_usage_summary",
+      "description": "AiUsageLedger rollup by feature/provider for a period (diagnostics, not revenue). Elevated on AI bridge. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo"
+      ]
+    },
+    "get_integration_diagnostics": {
+      "name": "get_integration_diagnostics",
+      "description": "Phase 6: Database connectivity + optional Traccar ping + GPS freshness. Historical timeout logs unavailable (Serilog files only). No passwords. Elevated. Requires tenantId.",
+      "inputProperties": [
+        "tenantId"
+      ]
+    },
+    "search_auth_failures": {
+      "name": "search_auth_failures",
+      "description": "Phase 6: tenant AuditEvents for authentication/authorization/security failures (Success=0, login failed, lockout). Time/severity/eventKey filters. CorrelationId when present. Redacted. Elevated. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit",
+        "severity",
+        "eventKey"
+      ]
+    },
+    "get_events_by_correlation_id": {
+      "name": "get_events_by_correlation_id",
+      "description": "Phase 6: AuditEvents sharing a CorrelationId (tenant-scoped). Empty when missing/no matches — never invent a trail. Elevated. Requires DB + tenantId + correlationId.",
+      "inputProperties": [
+        "tenantId",
+        "correlationId",
+        "limit"
+      ]
+    },
+    "search_serilog_logs": {
+      "name": "search_serilog_logs",
+      "description": "Phase 6: bounded read-only search of Serilog rolling files (Logs/log-.txt, Day, retain 30). Query/time/severity/limit. Secrets redacted. No shell. Elevated. available=false only if log directory missing.",
+      "inputProperties": [
+        "query",
+        "dateFrom",
+        "dateTo",
+        "limit",
+        "severity",
+        "timeoutMs"
+      ]
+    },
+    "search_mcp_executions": {
+      "name": "search_mcp_executions",
+      "description": "Phase 6: query McpToolExecutions (tool name, success, duration, correlationId, sessionGuid, sanitized args/error). Tenant-scoped. Elevated. Requires DB + tenantId. Empty when no rows — never invent history.",
+      "inputProperties": [
+        "tenantId",
+        "dateFrom",
+        "dateTo",
+        "limit",
+        "toolName",
+        "success",
+        "correlationId",
+        "sessionGuid"
+      ]
+    },
+    "get_smartops_domain": {
+      "name": "get_smartops_domain",
+      "description": "Static SmartOps domain catalog: SmartAlerts rule types/severities, maintenance thresholds, trip delay risk kinds. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "list_smart_alerts": {
+      "name": "list_smart_alerts",
+      "description": "List active SmartAlerts (New/Acknowledged by default). Filters: ruleType, severity. Requires SHEIKHGO_DB_CONNECTION + tenantId. Read-only.",
+      "inputProperties": [
+        "tenantId",
+        "ruleType",
+        "severity",
+        "activeOnly",
+        "limit"
+      ]
+    },
+    "get_maintenance_reminders": {
+      "name": "get_maintenance_reminders",
+      "description": "Maintenance due/overdue from VehicleMaintenanceSchedules (SmartOps thresholds: default 500 km / 10 days). Distinct from Fleet get_maintenance_due. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "vehicleId",
+        "daysAhead",
+        "dueKm",
+        "page",
+        "pageSize"
+      ]
+    },
+    "get_trip_delays": {
+      "name": "get_trip_delays",
+      "description": "Schedule-based trip delay risk (late start / past expected end / already Delayed). Optional GPS staleness flag. No Maps ETA. Requires DB + tenantId.",
+      "inputProperties": [
+        "tenantId",
+        "lookBackDays",
+        "lookAheadDays",
+        "limit",
+        "atRiskOnly"
+      ]
+    },
+    "get_devops_domain": {
+      "name": "get_devops_domain",
+      "description": "Static DevOps domain catalog: health/deploy/pipeline tools, env vars, no destructive deploy. No DB required. Read-only.",
+      "inputProperties": []
+    },
+    "get_application_health": {
+      "name": "get_application_health",
+      "description": "Probe optional SHEIKHGO_API_BASE_URL /health and /health/ready plus local MCP config flags (DB/Traccar/Serilog configured). Never returns secrets. Read-only.",
+      "inputProperties": []
+    },
+    "get_deployments": {
+      "name": "get_deployments",
+      "description": "Describe in-repo deployment surface: azure-pipelines.yml stages, GitHub workflows, recent commits. Does not call remote deploy APIs or trigger deploys. Read-only.",
+      "inputProperties": []
+    },
+    "get_build_status": {
+      "name": "get_build_status",
+      "description": "Local build/pipeline status from recent git commits + pipeline file presence. No remote CI credentials; does not start builds. Read-only.",
+      "inputProperties": [
+        "commitCount"
+      ]
+    },
+    "get_pipeline_status": {
+      "name": "get_pipeline_status",
+      "description": "Summarize azure-pipelines.yml / GitHub workflow definitions in the repo plus recent commits. Read-only; no pipeline trigger.",
+      "inputProperties": []
+    },
+    "get_recent_ops_logs": {
+      "name": "get_recent_ops_logs",
+      "description": "Bounded recent Serilog ops log peek (same redaction as Logs MCP). Optional contains filter. Read-only; no shell/remediation.",
+      "inputProperties": [
+        "limit",
+        "contains"
+      ]
+    },
+    "get_server_info": {
+      "name": "get_server_info",
+      "description": "SheikhGo MCP server info: version, read-only/write mode, repository path, database live status, and write policy.",
+      "inputProperties": [
+        "name",
+        "version",
+        "repositoryRoot",
+        "packageRoot",
+        "allowWrites",
+        "readOnly",
+        "database",
+        "liveConfigured",
+        "maxRows",
+        "queryTimeoutMs",
+        "envVar",
+        "approvedCounts",
+        "bookings",
+        "group",
+        "envVar",
+        "note",
+        "fleet",
+        "group",
+        "envVar",
+        "note",
+        "gps",
+        "group",
+        "envVar",
+        "traccarEnabled",
+        "traccarConfigured",
+        "note",
+        "analytics",
+        "group",
+        "envVar",
+        "note",
+        "logs",
+        "group",
+        "phase",
+        "envVar",
+        "note",
+        "smartops",
+        "group",
+        "envVar",
+        "note",
+        "security",
+        "group",
+        "note",
+        "devops",
+        "group",
+        "envVar",
+        "note",
+        "writePolicy",
+        "clients",
+        "cursor",
+        "claudeCode",
+        "recommendedWorkflow"
+      ]
+    },
+    "get_write_policy": {
+      "name": "get_write_policy",
+      "description": "Explain controlled-write allowlists, defaults, and how to enable writes.",
+      "inputProperties": []
+    },
+    "draft_adr": {
+      "name": "draft_adr",
+      "description": "Write a proposed ADR markdown into SheikhGo-MCP/docs/adrs/ (opt-in writes). Defaults to dryRun.",
+      "inputProperties": [
+        "id",
+        "title",
+        "context",
+        "decision",
+        "consequences",
+        "dryRun",
+        "confirm"
+      ]
+    },
+    "scaffold_command": {
+      "name": "scaffold_command",
+      "description": "Scaffold MediatR Command + Handler stubs under Application/Features/{Module}/Commands. Opt-in writes; dryRun by default; never overwrites.",
+      "inputProperties": [
+        "module",
+        "name",
+        "dryRun",
+        "confirm"
+      ]
+    },
+    "scaffold_query": {
+      "name": "scaffold_query",
+      "description": "Scaffold MediatR Query + Handler stubs under Application/Features/{Module}/Queries. Opt-in writes; dryRun by default; never overwrites.",
+      "inputProperties": [
+        "module",
+        "name",
+        "dryRun",
+        "confirm"
+      ]
+    },
+    "write_architecture_note": {
+      "name": "write_architecture_note",
+      "description": "Write a markdown architecture note into SheikhGo-MCP/drafts/ (opt-in writes). Dry-run by default.",
+      "inputProperties": [
+        "title",
+        "body",
+        "dryRun",
+        "confirm"
+      ]
+    }
+  },
   "summary": {
-    "toolCount": 71,
-    "runningGroups": 8,
-    "plannedGroups": 6,
+    "toolCount": 111,
+    "runningGroups": 11,
+    "plannedGroups": 3,
     "stoppedGroups": 0
   },
   "suggestions": [
@@ -140,11 +1188,32 @@
       "groupId": "smartops"
     },
     {
+      "id": "analytics",
+      "label": "Analytics KPIs",
+      "icon": "insights",
+      "prompt": "Show revenue summary, trip statistics, and fuel cost for this month",
+      "groupId": "analytics"
+    },
+    {
+      "id": "logs",
+      "label": "AI diagnostics",
+      "icon": "receipt_long",
+      "prompt": "Show recent AI assistant errors and integration diagnostics",
+      "groupId": "logs"
+    },
+    {
       "id": "security",
       "label": "Security scan",
       "icon": "security",
-      "prompt": "Scan for secrets (redacted), audit permission templates, and list unexpected unauthenticated API endpoints",
+      "prompt": "List recent audit events; for Cursor also scan secrets and unexpected public API endpoints",
       "groupId": "security"
+    },
+    {
+      "id": "devops",
+      "label": "DevOps health",
+      "icon": "cloud",
+      "prompt": "Check application health, summarize deployments/pipeline files, and show recent ops logs",
+      "groupId": "devops"
     },
     {
       "id": "tests",
@@ -174,6 +1243,92 @@
         "list_architecture_decisions",
         "review_change",
         "map_feature_across_stack"
+      ],
+      "toolDefs": [
+        {
+          "name": "get_repository_index",
+          "description": "Scan SheikhGo and return a structured repository index (layers, modules, file map stats). Read-only.",
+          "inputProperties": [
+            "forceRefresh"
+          ]
+        },
+        {
+          "name": "analyze_architecture",
+          "description": "Run Clean Architecture / CQRS rule analysis against the SheikhGo repository. Returns structured violations.",
+          "inputProperties": [
+            "scope"
+          ]
+        },
+        {
+          "name": "list_modules",
+          "description": "List SheikhGo backend modules with layer coverage, health hints, and detected pattern families.",
+          "inputProperties": []
+        },
+        {
+          "name": "analyze_module",
+          "description": "Deep-analyze a SheikhGo feature module (CQRS coverage, gaps, integrations, dependency graph summary).",
+          "inputProperties": [
+            "module"
+          ]
+        },
+        {
+          "name": "analyze_file",
+          "description": "Analyze one repository file for layer, type, dependencies, and rule violations.",
+          "inputProperties": [
+            "path"
+          ]
+        },
+        {
+          "name": "check_architecture_rules",
+          "description": "Return machine-readable SheikhGo architecture rules and layer dependency policy.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_dependency_graph",
+          "description": "Build (or return cached) SheikhGo dependency graph. Optionally scope to a module or symbol neighborhood with Mermaid.",
+          "inputProperties": [
+            "module",
+            "symbol",
+            "depth",
+            "forceRefresh",
+            "includeFullGraph"
+          ]
+        },
+        {
+          "name": "analyze_impact",
+          "description": "Impact analysis for changing a symbol: upstream consumers, downstream deps, affected modules/layers, risk.",
+          "inputProperties": [
+            "symbol"
+          ]
+        },
+        {
+          "name": "architecture_decision",
+          "description": "Propose an architecture decision using the deterministic Architecture Engine (scanner, rules, ADRs). Optionally enriches with Ollama reasoning when SHEIKHGO_OLLAMA=1. Returns options, evidence, do/don't, ADR draft, and ollamaReasoning.",
+          "inputProperties": [
+            "question",
+            "featureHint"
+          ]
+        },
+        {
+          "name": "list_architecture_decisions",
+          "description": "List accepted SheikhGo architecture decision records (ADRs).",
+          "inputProperties": []
+        },
+        {
+          "name": "review_change",
+          "description": "Architecture review of current git changes: verdict, layer/CQRS/security findings, blast-radius, ADR checklist. Read-only.",
+          "inputProperties": [
+            "staged",
+            "path"
+          ]
+        },
+        {
+          "name": "map_feature_across_stack",
+          "description": "Map a feature across Backend + Angular + Flutter + Database with evidence and next-step tool hints.",
+          "inputProperties": [
+            "feature"
+          ]
+        }
       ]
     },
     {
@@ -198,6 +1353,185 @@
         "write_architecture_note",
         "get_write_policy",
         "get_server_info"
+      ],
+      "toolDefs": [
+        {
+          "name": "search_code",
+          "description": "Search SheikhGo by path/name/content. Supports text, regex, and symbol modes with optional context. Secrets redacted.",
+          "inputProperties": [
+            "query",
+            "layer",
+            "type",
+            "module",
+            "mode",
+            "contextLines",
+            "extension",
+            "limit"
+          ]
+        },
+        {
+          "name": "find_similar_code",
+          "description": "Find existing SheikhGo patterns similar to a feature (token + structural + pattern-family scoring).",
+          "inputProperties": [
+            "feature",
+            "limit"
+          ]
+        },
+        {
+          "name": "suggest_implementation",
+          "description": "Architecture advisor: classify feature (capability vs intent), score module ownership vs consumers, list entity dependencies with shouldMoveIntoRecommendedModule=false, and produce architectureDecision + filesToCreate/Modify + risks. Ambiguous phrases like \"AI Management\" return needsClarification with subtype options before full CQRS scaffolding.",
+          "inputProperties": [
+            "feature"
+          ]
+        },
+        {
+          "name": "find_dependencies",
+          "description": "Trace definitions and usages of a symbol (e.g. ITripRepository, StartTripCommand).",
+          "inputProperties": [
+            "symbol"
+          ]
+        },
+        {
+          "name": "analyze_angular",
+          "description": "Analyze a SheikhGo Angular frontend app (routes, features/modules, components, services, API hints).",
+          "inputProperties": [
+            "app",
+            "feature"
+          ]
+        },
+        {
+          "name": "analyze_flutter",
+          "description": "Analyze a SheikhGo Flutter app (features, screens, routes, services, repositories, packages).",
+          "inputProperties": [
+            "app",
+            "feature"
+          ]
+        },
+        {
+          "name": "get_git_status",
+          "description": "Read-only git status for the SheikhGo repository.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_git_diff",
+          "description": "Read-only git diff for SheikhGo (optionally staged / path-scoped).",
+          "inputProperties": [
+            "staged",
+            "path"
+          ]
+        },
+        {
+          "name": "get_recent_commits",
+          "description": "Read-only recent git commits for SheikhGo.",
+          "inputProperties": [
+            "count"
+          ]
+        },
+        {
+          "name": "scaffold_command",
+          "description": "Scaffold MediatR Command + Handler stubs under Application/Features/{Module}/Commands. Opt-in writes; dryRun by default; never overwrites.",
+          "inputProperties": [
+            "module",
+            "name",
+            "dryRun",
+            "confirm"
+          ]
+        },
+        {
+          "name": "scaffold_query",
+          "description": "Scaffold MediatR Query + Handler stubs under Application/Features/{Module}/Queries. Opt-in writes; dryRun by default; never overwrites.",
+          "inputProperties": [
+            "module",
+            "name",
+            "dryRun",
+            "confirm"
+          ]
+        },
+        {
+          "name": "draft_adr",
+          "description": "Write a proposed ADR markdown into SheikhGo-MCP/docs/adrs/ (opt-in writes). Defaults to dryRun.",
+          "inputProperties": [
+            "id",
+            "title",
+            "context",
+            "decision",
+            "consequences",
+            "dryRun",
+            "confirm"
+          ]
+        },
+        {
+          "name": "write_architecture_note",
+          "description": "Write a markdown architecture note into SheikhGo-MCP/drafts/ (opt-in writes). Dry-run by default.",
+          "inputProperties": [
+            "title",
+            "body",
+            "dryRun",
+            "confirm"
+          ]
+        },
+        {
+          "name": "get_write_policy",
+          "description": "Explain controlled-write allowlists, defaults, and how to enable writes.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_server_info",
+          "description": "SheikhGo MCP server info: version, read-only/write mode, repository path, database live status, and write policy.",
+          "inputProperties": [
+            "name",
+            "version",
+            "repositoryRoot",
+            "packageRoot",
+            "allowWrites",
+            "readOnly",
+            "database",
+            "liveConfigured",
+            "maxRows",
+            "queryTimeoutMs",
+            "envVar",
+            "approvedCounts",
+            "bookings",
+            "group",
+            "envVar",
+            "note",
+            "fleet",
+            "group",
+            "envVar",
+            "note",
+            "gps",
+            "group",
+            "envVar",
+            "traccarEnabled",
+            "traccarConfigured",
+            "note",
+            "analytics",
+            "group",
+            "envVar",
+            "note",
+            "logs",
+            "group",
+            "phase",
+            "envVar",
+            "note",
+            "smartops",
+            "group",
+            "envVar",
+            "note",
+            "security",
+            "group",
+            "note",
+            "devops",
+            "group",
+            "envVar",
+            "note",
+            "writePolicy",
+            "clients",
+            "cursor",
+            "claudeCode",
+            "recommendedWorkflow"
+          ]
+        }
       ]
     },
     {
@@ -214,9 +1548,149 @@
         "list_tables",
         "describe_table",
         "run_readonly_query",
-        "db_connection_status"
+        "db_connection_status",
+        "get_approved_entity_counts",
+        "plan_approved_query",
+        "get_vehicle_count",
+        "get_vehicle_details",
+        "get_driver_details",
+        "get_trip_summary",
+        "get_fuel_expenses",
+        "get_booking_summary"
       ],
-      "note": "File-based schema tools plus live SELECT-only SQL (SHEIKHGO_DB_CONNECTION). Writes blocked."
+      "toolDefs": [
+        {
+          "name": "analyze_database",
+          "description": "Analyze SheikhGo SQL schema files, migrations, tables/columns, and Dapper table references. No live DB connection.",
+          "inputProperties": []
+        },
+        {
+          "name": "find_table_usage",
+          "description": "Find schema definition, migrations, and code/SQL references for a database table.",
+          "inputProperties": [
+            "table"
+          ]
+        },
+        {
+          "name": "find_sql_usage",
+          "description": "Find SQL / Dapper-related files and references in SheikhGo.",
+          "inputProperties": [
+            "query"
+          ]
+        },
+        {
+          "name": "get_database_schema",
+          "description": "Phase 4 approved business schema for AI factual retrieval (tables, columns, joins, gaps). Prefer Phase 4 tools over ad-hoc SQL. Optional mode=full adds file-based analyze_database (Cursor/dev). Includes liveDb status when configured.",
+          "inputProperties": [
+            "mode"
+          ]
+        },
+        {
+          "name": "list_tables",
+          "description": "List SQL Server tables/views from the live database (INFORMATION_SCHEMA). Requires SHEIKHGO_DB_CONNECTION. Read-only.",
+          "inputProperties": [
+            "schema",
+            "nameFilter",
+            "includeViews",
+            "limit"
+          ]
+        },
+        {
+          "name": "describe_table",
+          "description": "Live schema inspection for one table: columns, types, nullability, primary key, TenantId hint. Requires SHEIKHGO_DB_CONNECTION.",
+          "inputProperties": [
+            "table",
+            "schema"
+          ]
+        },
+        {
+          "name": "run_readonly_query",
+          "description": "Last-resort read-only SELECT / WITH…SELECT. Prefer Phase 4 tools (get_vehicle_count, get_trip_summary, …). Blocks DML/DDL/EXEC. When approvedOnly=true (recommended for AI), SQL may only touch approved business tables + TenantId filter. Requires SHEIKHGO_DB_CONNECTION.",
+          "inputProperties": [
+            "sql",
+            "parameters",
+            "tenantId",
+            "maxRows",
+            "timeoutMs",
+            "approvedOnly"
+          ]
+        },
+        {
+          "name": "db_connection_status",
+          "description": "Check whether SHEIKHGO_DB_CONNECTION is set and whether a live read-only ping succeeds. Never returns the connection string.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_approved_entity_counts",
+          "description": "Predefined COUNT(*) for approved tenant tables (Vehicles, Drivers, Bookings, Trips, Routes, Customers, FuelLogs, Geofences). Prefer over run_readonly_query for simple totals. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "entities"
+          ]
+        },
+        {
+          "name": "plan_approved_query",
+          "description": "Phase 4 controlled query planner: map a natural-language question to an approved business tool. Rejects unsafe / unsupported plans. Does not execute SQL or invent metrics.",
+          "inputProperties": [
+            "question"
+          ]
+        },
+        {
+          "name": "get_vehicle_count",
+          "description": "Phase 4: tenant vehicle COUNT with byStatus breakdown. Default excludes Draft/Retired. Zero is empty success. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "includeInactive",
+            "status"
+          ]
+        },
+        {
+          "name": "get_vehicle_details",
+          "description": "Phase 4: one vehicle by id (active driver + GPS lat/lng). Not found → empty success (found=false), never invent. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "get_driver_details",
+          "description": "Phase 4: one driver by id with active vehicle. Not found → empty success. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "get_trip_summary",
+          "description": "Phase 4: trip status histogram for a date period (TripDate). Default period = UTC month to date. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_fuel_expenses",
+          "description": "Phase 4: fuel cost/liters by vehicle for a period (FuelLogs). Optional vehicleId. Units: liters + tenant currency. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "vehicleId",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_booking_summary",
+          "description": "Phase 4: booking status rollup for a period (PickupTime). Completion rate included. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        }
+      ],
+      "note": "Phase 4 approved business tools + live SELECT (SHEIKHGO_DB_CONNECTION). Prefer Phase 4 tools over run_readonly_query. Writes blocked. No Maps keys."
     },
     {
       "id": "bookings",
@@ -235,6 +1709,97 @@
         "summarize_booking_statuses",
         "summarize_trip_statuses",
         "get_booking_links"
+      ],
+      "toolDefs": [
+        {
+          "name": "get_bookings_domain",
+          "description": "Static Bookings/Trips/Routes domain catalog: tables, relationships, status enums. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "list_bookings",
+          "description": "List bookings (live SELECT). Filters: status, search, pickup date range. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "status",
+            "search",
+            "dateFrom",
+            "dateTo",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_booking",
+          "description": "Get one booking by id with customer/route/driver/vehicle names. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "list_trips",
+          "description": "List operational trips (live SELECT). Filter by status, bookingId, routeId, customerId, search. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "status",
+            "bookingId",
+            "routeId",
+            "customerId",
+            "search",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_trip",
+          "description": "Get one trip detail (addresses, assignment, distances, linked booking/route). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "list_routes",
+          "description": "List roads/routes (source→destination corridors). Optional search and isActive. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "search",
+            "isActive",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_route",
+          "description": "Get one route/road including WaypointsJson and OptimizeMode. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "summarize_booking_statuses",
+          "description": "Live histogram of BookingStatus counts for a tenant. Requires SHEIKHGO_DB_CONNECTION.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "summarize_trip_statuses",
+          "description": "Live histogram of TripStatus counts for a tenant. Requires SHEIKHGO_DB_CONNECTION.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "get_booking_links",
+          "description": "Resolve Booking ↔ Route ↔ Trips links for one booking id. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "bookingId"
+          ]
+        }
       ],
       "note": "Live SELECT via SHEIKHGO_DB_CONNECTION (same as Database MCP). Always pass tenantId. No mutations."
     },
@@ -256,6 +1821,103 @@
         "get_fleet_status",
         "list_fuel_records"
       ],
+      "toolDefs": [
+        {
+          "name": "get_fleet_domain",
+          "description": "Static Fleet domain catalog: tables, relationships, vehicle/driver/maintenance status enums, GPS buckets. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "list_vehicles",
+          "description": "List vehicles (live SELECT). Filters: status, search. Includes active driver assignment + GPS online + service alert. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "status",
+            "search",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_vehicle",
+          "description": "Get one vehicle by id with active driver, service due, and VehicleCurrentLocation lat/lng (no Maps API). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "list_drivers",
+          "description": "List drivers (live SELECT). Filters: status, search. Includes active assigned vehicle. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "status",
+            "search",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_driver",
+          "description": "Get one driver by id with active vehicle assignment. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "id"
+          ]
+        },
+        {
+          "name": "list_vehicle_assignments",
+          "description": "List AssignmentHistory rows (driver↔vehicle). Filter by status (Active/Scheduled/…), vehicleId, driverId. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "status",
+            "vehicleId",
+            "driverId",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_vehicles_on_trips",
+          "description": "Which vehicle is on which operational trip (Trips.VehicleId + TripStatus DriverAssigned…Delayed). Optional vehicleId filter. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_maintenance_due",
+          "description": "Phase 4 / Fleet: maintenance due / overdue / in-progress (Maintenance work-orders + VehicleStatus=Maintenance). Empty list is success. Optional vehicleId and daysAhead. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "daysAhead",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_fleet_status",
+          "description": "Real-time fleet GPS status buckets (moving/idle/parked/sos/offline/…) from VehicleCurrentLocation. Lat/lng only — no Maps API / Traccar tools. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "offlineStaleMinutes",
+            "movingThresholdKmh"
+          ]
+        },
+        {
+          "name": "list_fuel_records",
+          "description": "List FuelLogs (live SELECT). Optional vehicleId filter. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "page",
+            "pageSize"
+          ]
+        }
+      ],
       "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Lat/lng from VehicleCurrentLocation only — no Maps keys."
     },
     {
@@ -274,6 +1936,93 @@
         "get_gps_trips",
         "get_traccar_status"
       ],
+      "toolDefs": [
+        {
+          "name": "get_gps_domain",
+          "description": "Static GPS domain catalog: tables, geofence event types, status buckets, Traccar env vars. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_devices",
+          "description": "List GPS devices / trackers (GpsDevices). Filters: vehicleId, search, activeOnly. Requires SHEIKHGO_DB_CONNECTION + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "search",
+            "activeOnly",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_live_positions",
+          "description": "Live vehicle locations from VehicleCurrentLocation (lat/lng, speed, GPS bucket). No Maps API. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "onlineOnly",
+            "offlineStaleMinutes",
+            "movingThresholdKmh",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_vehicle_history",
+          "description": "Track history (GpsPositions) for one vehicle in a date range. Optional Traccar fill when local empty. Requires DB + tenantId + vehicleId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "from",
+            "to",
+            "maxPoints",
+            "preferTraccarIfEmpty"
+          ]
+        },
+        {
+          "name": "get_geofences",
+          "description": "List geofence definitions (Geofences). Filters: search, isActive, vehicleId assignment. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "search",
+            "isActive",
+            "vehicleId",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_geofence_events",
+          "description": "Geofence enter/exit events from GpsAlertEvents. Filters: vehicleId, geofenceId, date range, unacknowledgedOnly. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "geofenceId",
+            "from",
+            "to",
+            "unacknowledgedOnly",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_gps_trips",
+          "description": "GPS motion trips (GpsTrips table — not operational Trips). Optional vehicleId; max 30-day range. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "from",
+            "to",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_traccar_status",
+          "description": "Optional Traccar connectivity (/api/server). Uses SHEIKHGO_TRACCAR_* env only — never returns passwords. DB GPS tools work without Traccar.",
+          "inputProperties": []
+        }
+      ],
       "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Optional Traccar via SHEIKHGO_TRACCAR_*. No Maps / Google Maps API keys."
     },
     {
@@ -288,7 +2037,325 @@
         "get_maintenance_reminders",
         "get_trip_delays"
       ],
+      "toolDefs": [
+        {
+          "name": "get_smartops_domain",
+          "description": "Static SmartOps domain catalog: SmartAlerts rule types/severities, maintenance thresholds, trip delay risk kinds. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "list_smart_alerts",
+          "description": "List active SmartAlerts (New/Acknowledged by default). Filters: ruleType, severity. Requires SHEIKHGO_DB_CONNECTION + tenantId. Read-only.",
+          "inputProperties": [
+            "tenantId",
+            "ruleType",
+            "severity",
+            "activeOnly",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_maintenance_reminders",
+          "description": "Maintenance due/overdue from VehicleMaintenanceSchedules (SmartOps thresholds: default 500 km / 10 days). Distinct from Fleet get_maintenance_due. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "vehicleId",
+            "daysAhead",
+            "dueKm",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "get_trip_delays",
+          "description": "Schedule-based trip delay risk (late start / past expected end / already Delayed). Optional GPS staleness flag. No Maps ETA. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "lookBackDays",
+            "lookAheadDays",
+            "limit",
+            "atRiskOnly"
+          ]
+        }
+      ],
       "note": "Live SELECT via SHEIKHGO_DB_CONNECTION. Always pass tenantId. Trip delay uses schedule only — no Maps ETA / Maps keys."
+    },
+    {
+      "id": "analytics",
+      "name": "Analytics MCP",
+      "description": "Business KPIs: fleet inventory, GPS coverage, revenue, trips/bookings, maintenance, fuel, WoW/MoM (read-only). Phase 5.",
+      "icon": "insights",
+      "status": "running",
+      "tools": [
+        "get_analytics_domain",
+        "get_revenue_summary",
+        "get_trip_statistics",
+        "get_vehicle_utilization",
+        "get_fuel_cost_summary",
+        "get_driver_performance",
+        "get_fleet_inventory_summary",
+        "get_gps_coverage_summary",
+        "get_maintenance_kpi_summary",
+        "get_booking_analytics",
+        "get_revenue_breakdown",
+        "get_period_comparison",
+        "get_sales_summary",
+        "get_top_customers_by_revenue",
+        "get_sales_trend_comparison"
+      ],
+      "toolDefs": [
+        {
+          "name": "get_analytics_domain",
+          "description": "Phase 5 Analytics catalog: KPI tools, periods, sources, unavailable metrics (fleet health % not inventable). Distinct from Logs MCP. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_revenue_summary",
+          "description": "Phase 4 / Analytics: paid revenue totals (daily / last 7 days / this month UTC) from Payments.Status=Paid. Zero is empty success — never invent. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "get_trip_statistics",
+          "description": "Trip status histogram + booking volume/completion for a date range. Requires DB + tenantId. Analytics KPI.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_vehicle_utilization",
+          "description": "Fleet status snapshot utilization + top vehicles by GpsTrips distance in period. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_fuel_cost_summary",
+          "description": "Fuel cost and liters by vehicle for a date range (FuelLogs). Requires DB + tenantId. Analytics KPI.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_driver_performance",
+          "description": "Drivers ranked by completed operational trips in a date range. Requires DB + tenantId. Analytics KPI.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_fleet_inventory_summary",
+          "description": "Phase 5 Analytics: total / active / inactive vehicle counts with byStatus (point-in-time UTC). Active=Available+OnTrip+Maintenance; Inactive=Retired+Draft. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "get_gps_coverage_summary",
+          "description": "Phase 5 Analytics: GPS device coverage, fresh vs stale location counts (VehicleCurrentLocation.LastUpdate). Default staleMinutes=30. Lat/lng only — no Maps keys. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "staleMinutes"
+          ]
+        },
+        {
+          "name": "get_maintenance_kpi_summary",
+          "description": "Phase 5 Analytics: maintenance work-order overdue/due counts + optional schedule dues. Distinct from list get_maintenance_due. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "daysAhead"
+          ]
+        },
+        {
+          "name": "get_booking_analytics",
+          "description": "Phase 5 Analytics: booking totals and status breakdown for PickupTime window (structured metrics). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_revenue_breakdown",
+          "description": "Phase 5 Analytics: paid revenue breakdown by date | branch | vehicle | customer. totalPaid is full SQL aggregate (not truncated rows). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "groupBy",
+            "dateFrom",
+            "dateTo",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_period_comparison",
+          "description": "Phase 5 Analytics: week-over-week or month-over-month comparison for paid revenue, trips, bookings, fuel cost (UTC). Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "mode",
+            "asOf"
+          ]
+        },
+        {
+          "name": "get_sales_summary",
+          "description": "Sales/revenue summary with period presets (today / last_7_days / this_month / last_30_days / custom). Paid Payments only. Returns responseType=sales_analytics (kpis, trends, insights) for the AI Assistant UI. Same source as get_revenue_summary. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "period",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_top_customers_by_revenue",
+          "description": "Top customers by paid revenue for a period. Reuses Payments→Bookings→Customers (same as get_revenue_breakdown groupBy=customer). Returns responseType=sales_analytics with topCustomers. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "period",
+            "dateFrom",
+            "dateTo",
+            "limit"
+          ]
+        },
+        {
+          "name": "get_sales_trend_comparison",
+          "description": "Sales trend comparison across periods (wow / mom). Reuses get_period_comparison paid-revenue aggregates + daily trends. Returns responseType=sales_analytics. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "mode",
+            "asOf"
+          ]
+        }
+      ],
+      "note": "Business analytics only — not application logs (see Logs MCP). Fleet health % not exposed. Requires SHEIKHGO_DB_CONNECTION + tenantId. No Maps keys."
+    },
+    {
+      "id": "logs",
+      "name": "Logs MCP",
+      "description": "Phase 6 operational diagnostics: assistant errors, auth failures, correlation trails, usage, integration (read-only).",
+      "icon": "receipt_long",
+      "status": "running",
+      "tools": [
+        "get_logs_domain",
+        "get_log_source_status",
+        "get_diagnostic_summary",
+        "get_ai_assistant_errors",
+        "get_ai_usage_summary",
+        "get_integration_diagnostics",
+        "search_auth_failures",
+        "get_events_by_correlation_id",
+        "search_serilog_logs",
+        "search_mcp_executions"
+      ],
+      "toolDefs": [
+        {
+          "name": "get_logs_domain",
+          "description": "Phase 6 Logs catalog: existing vs unavailable diagnostic sources, tools, filters, redaction policy. Distinct from Analytics. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_log_source_status",
+          "description": "Phase 6: which log sinks exist (AiChatMessages, AiUsageLedger, AuditEvents, Serilog files, McpToolExecutions, live DB/Traccar) vs unavailable (background job ledger, Seq/App Insights). No DB required.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_diagnostic_summary",
+          "description": "Phase 6: structured diagnostic rollup (assistant error markers, auth failures, AI usage, live connectivity) + unavailable capabilities. Elevated. Requires DB + tenantId. Never invents root causes.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_ai_assistant_errors",
+          "description": "Phase 6: recent AI chat messages matching TOOL_ERROR / provider timeout / rate-limit markers (tenant-scoped, redacted). Filters: time, component, severity, sessionId, limit. Elevated. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit",
+            "sessionId",
+            "component",
+            "severity"
+          ]
+        },
+        {
+          "name": "get_ai_usage_summary",
+          "description": "AiUsageLedger rollup by feature/provider for a period (diagnostics, not revenue). Elevated on AI bridge. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "get_integration_diagnostics",
+          "description": "Phase 6: Database connectivity + optional Traccar ping + GPS freshness. Historical timeout logs unavailable (Serilog files only). No passwords. Elevated. Requires tenantId.",
+          "inputProperties": [
+            "tenantId"
+          ]
+        },
+        {
+          "name": "search_auth_failures",
+          "description": "Phase 6: tenant AuditEvents for authentication/authorization/security failures (Success=0, login failed, lockout). Time/severity/eventKey filters. CorrelationId when present. Redacted. Elevated. Requires DB + tenantId.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit",
+            "severity",
+            "eventKey"
+          ]
+        },
+        {
+          "name": "get_events_by_correlation_id",
+          "description": "Phase 6: AuditEvents sharing a CorrelationId (tenant-scoped). Empty when missing/no matches — never invent a trail. Elevated. Requires DB + tenantId + correlationId.",
+          "inputProperties": [
+            "tenantId",
+            "correlationId",
+            "limit"
+          ]
+        },
+        {
+          "name": "search_serilog_logs",
+          "description": "Phase 6: bounded read-only search of Serilog rolling files (Logs/log-.txt, Day, retain 30). Query/time/severity/limit. Secrets redacted. No shell. Elevated. available=false only if log directory missing.",
+          "inputProperties": [
+            "query",
+            "dateFrom",
+            "dateTo",
+            "limit",
+            "severity",
+            "timeoutMs"
+          ]
+        },
+        {
+          "name": "search_mcp_executions",
+          "description": "Phase 6: query McpToolExecutions (tool name, success, duration, correlationId, sessionGuid, sanitized args/error). Tenant-scoped. Elevated. Requires DB + tenantId. Empty when no rows — never invent history.",
+          "inputProperties": [
+            "tenantId",
+            "dateFrom",
+            "dateTo",
+            "limit",
+            "toolName",
+            "success",
+            "correlationId",
+            "sessionGuid"
+          ]
+        }
+      ],
+      "note": "Phase 6 operational / AI diagnostics — not business KPIs (see Analytics MCP). Elevated on tenant AI bridge. Secrets redacted. Bounded Serilog file search + McpToolExecutions. No shell/remediation. No Maps keys."
     },
     {
       "id": "testing",
@@ -297,6 +2364,32 @@
       "icon": "science",
       "status": "planned",
       "tools": [],
+      "toolDefs": [
+        {
+          "name": "find_tests",
+          "description": "Planned tool: find_tests",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "run_unit_tests",
+          "description": "Planned tool: run_unit_tests",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "check_test_coverage",
+          "description": "Planned tool: check_test_coverage",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "find_untested_handlers",
+          "description": "Planned tool: find_untested_handlers",
+          "inputProperties": [],
+          "planned": true
+        }
+      ],
       "plannedTools": [
         "find_tests",
         "run_unit_tests",
@@ -305,57 +2398,118 @@
       ]
     },
     {
-      "id": "logs",
-      "name": "Logs MCP",
-      "description": "Search and analyze application logs.",
-      "icon": "receipt_long",
-      "status": "planned",
-      "tools": [],
-      "plannedTools": [
-        "get_errors",
-        "search_logs",
-        "get_slow_requests"
-      ]
-    },
-    {
       "id": "devops",
       "name": "DevOps MCP",
-      "description": "Deployments, builds and infrastructure status.",
+      "description": "Deployments, builds, application health, and recent ops logs (read-only).",
       "icon": "cloud",
-      "status": "planned",
-      "tools": [],
-      "plannedTools": [
+      "status": "running",
+      "tools": [
+        "get_devops_domain",
+        "get_application_health",
         "get_deployments",
         "get_build_status",
-        "get_application_health"
-      ]
+        "get_pipeline_status",
+        "get_recent_ops_logs"
+      ],
+      "toolDefs": [
+        {
+          "name": "get_devops_domain",
+          "description": "Static DevOps domain catalog: health/deploy/pipeline tools, env vars, no destructive deploy. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_application_health",
+          "description": "Probe optional SHEIKHGO_API_BASE_URL /health and /health/ready plus local MCP config flags (DB/Traccar/Serilog configured). Never returns secrets. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_deployments",
+          "description": "Describe in-repo deployment surface: azure-pipelines.yml stages, GitHub workflows, recent commits. Does not call remote deploy APIs or trigger deploys. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_build_status",
+          "description": "Local build/pipeline status from recent git commits + pipeline file presence. No remote CI credentials; does not start builds. Read-only.",
+          "inputProperties": [
+            "commitCount"
+          ]
+        },
+        {
+          "name": "get_pipeline_status",
+          "description": "Summarize azure-pipelines.yml / GitHub workflow definitions in the repo plus recent commits. Read-only; no pipeline trigger.",
+          "inputProperties": []
+        },
+        {
+          "name": "get_recent_ops_logs",
+          "description": "Bounded recent Serilog ops log peek (same redaction as Logs MCP). Optional contains filter. Read-only; no shell/remediation.",
+          "inputProperties": [
+            "limit",
+            "contains"
+          ]
+        }
+      ],
+      "note": "Read-only. Optional SHEIKHGO_API_BASE_URL for /health. Parses azure-pipelines.yml locally. No deploy/restart tools. Cursor/dev oriented."
     },
     {
       "id": "security",
       "name": "Security MCP",
-      "description": "Secrets scan (redacted), permission registry audit, and unauthenticated API endpoint exposure (read-only).",
+      "description": "Tenant audit events plus secrets/permission/API auth scanners (read-only).",
       "icon": "security",
       "status": "running",
       "tools": [
         "get_security_domain",
+        "list_audit_events",
         "scan_secrets",
         "audit_permissions",
         "audit_api_auth"
       ],
-      "note": "File-based scanners over Sheikh-Travel-System. Never prints secret values (file:line + type). Optional DB for permission compare. No Maps keys / no mutations. Distinct from architecture review_change."
-    },
-    {
-      "id": "analytics",
-      "name": "Analytics MCP",
-      "description": "Business insights and performance metrics.",
-      "icon": "insights",
-      "status": "planned",
-      "tools": [],
-      "plannedTools": [
-        "get_trip_statistics",
-        "get_vehicle_utilization",
-        "get_driver_performance"
-      ]
+      "toolDefs": [
+        {
+          "name": "get_security_domain",
+          "description": "Static Security domain catalog: coverage statuses, allowlists, secret finding types, tool list. No DB required. Read-only.",
+          "inputProperties": []
+        },
+        {
+          "name": "list_audit_events",
+          "description": "List tenant AuditLogs (action, entity, user, truncated old/new). Elevated on AI bridge (Platform.Audit.View). Requires DB + tenantId. Distinct from file scanners.",
+          "inputProperties": [
+            "tenantId",
+            "action",
+            "entityName",
+            "userId",
+            "dateFrom",
+            "dateTo",
+            "page",
+            "pageSize"
+          ]
+        },
+        {
+          "name": "scan_secrets",
+          "description": "Scan repository files for possible secrets (passwords, connection strings, API keys, private keys). Never returns raw secret values — only file:line + type + redacted evidence. Distinct from review_change (diff-scoped). Read-only.",
+          "inputProperties": [
+            "pathPrefix",
+            "limit",
+            "flagSensitivePaths"
+          ]
+        },
+        {
+          "name": "audit_permissions",
+          "description": "Audit permission consts (*Permissions.cs) vs TenantRolePermissionTemplates. Optional live Permissions table compare (includeDb). Read-only.",
+          "inputProperties": [
+            "includeDb",
+            "tenantId"
+          ]
+        },
+        {
+          "name": "audit_api_auth",
+          "description": "Find API endpoints missing [Authorize] / with [AllowAnonymous] (unauthenticated exposure). Classifies Protected|PartiallyProtected|Public|Internal (mirrors PermissionCoverageClassifier). statusFilter=unauthenticated|unexpected|Public|all. Read-only.",
+          "inputProperties": [
+            "statusFilter",
+            "limit"
+          ]
+        }
+      ],
+      "note": "list_audit_events = tenant AuditLogs (elevated on AI bridge). File scanners for Cursor/dev. Never prints secret values. No Maps keys."
     },
     {
       "id": "finance",
@@ -364,6 +2518,26 @@
       "icon": "payments",
       "status": "planned",
       "tools": [],
+      "toolDefs": [
+        {
+          "name": "get_invoices",
+          "description": "Planned tool: get_invoices",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "get_outstanding_invoices",
+          "description": "Planned tool: get_outstanding_invoices",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "get_revenue",
+          "description": "Planned tool: get_revenue",
+          "inputProperties": [],
+          "planned": true
+        }
+      ],
       "plannedTools": [
         "get_invoices",
         "get_outstanding_invoices",
@@ -377,6 +2551,20 @@
       "icon": "groups",
       "status": "planned",
       "tools": [],
+      "toolDefs": [
+        {
+          "name": "get_customers",
+          "description": "Planned tool: get_customers",
+          "inputProperties": [],
+          "planned": true
+        },
+        {
+          "name": "get_customer_activity",
+          "description": "Planned tool: get_customer_activity",
+          "inputProperties": [],
+          "planned": true
+        }
+      ],
       "plannedTools": [
         "get_customers",
         "get_customer_activity"
