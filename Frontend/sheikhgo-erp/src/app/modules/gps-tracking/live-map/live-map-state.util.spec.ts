@@ -20,10 +20,10 @@ describe('mergeVehicleLocations', () => {
     ...overrides
   } as VehicleLocation);
 
-  it('updates existing vehicles and preserves vehicles not returned in the refresh payload', () => {
+  it('updates existing vehicles and drops vehicles absent from the refresh payload', () => {
     const existing = [
       createVehicle(1, { speed: 0, status: 'offline' }),
-      createVehicle(2, { speed: 0, status: 'offline' })
+      createVehicle(2, { speed: 0, status: 'offline' }) // other company / retired
     ];
 
     const incoming = [
@@ -32,10 +32,10 @@ describe('mergeVehicleLocations', () => {
 
     const merged = mergeVehicleLocations(existing, incoming);
 
-    expect(merged).toHaveSize(2);
+    expect(merged).toHaveSize(1);
     expect(merged.find(vehicle => vehicle.vehicleId === 1)?.speed).toBe(42);
     expect(merged.find(vehicle => vehicle.vehicleId === 1)?.status).toBe('moving');
-    expect(merged.find(vehicle => vehicle.vehicleId === 2)?.vehicleId).toBe(2);
+    expect(merged.find(vehicle => vehicle.vehicleId === 2)).toBeUndefined();
   });
 
   it('keeps the fresher SignalR row when poll returns an older lastUpdated', () => {
@@ -138,7 +138,10 @@ describe('mergeVehicleLocationsPreservingIdentity', () => {
       createVehicle(1, { speed: 0 }),
       createVehicle(2, { speed: 0 })
     ];
-    const incoming = [createVehicle(1, { speed: 10, lastUpdated: '2026-07-13T08:01:00.000Z' })];
+    const incoming = [
+      createVehicle(1, { speed: 10, lastUpdated: '2026-07-13T08:01:00.000Z' }),
+      createVehicle(2, { speed: 0 })
+    ];
 
     const { locations, membershipChanged } = mergeVehicleLocationsPreservingIdentity(
       existing,
@@ -163,5 +166,20 @@ describe('mergeVehicleLocationsPreservingIdentity', () => {
     expect(membershipChanged).toBe(true);
     expect(locations).not.toBe(existing);
     expect(locations).toHaveSize(2);
+  });
+
+  it('returns a new array when a vehicle is removed (company / scope change)', () => {
+    const existing = [createVehicle(1), createVehicle(8825)];
+    const incoming = [createVehicle(1)];
+
+    const { locations, membershipChanged } = mergeVehicleLocationsPreservingIdentity(
+      existing,
+      incoming
+    );
+
+    expect(membershipChanged).toBe(true);
+    expect(locations).toHaveSize(1);
+    expect(locations[0].vehicleId).toBe(1);
+    expect(locations.find(v => v.vehicleId === 8825)).toBeUndefined();
   });
 });

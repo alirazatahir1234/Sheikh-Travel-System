@@ -17,28 +17,33 @@ export function preferRicherAddress(
   return cur;
 }
 
+/**
+ * Merge a full live-fleet roster refresh into prior rows.
+ * Incoming is the membership source of truth (drops vehicles absent from the payload)
+ * so company/tenant switches and retired vehicles do not leave stale markers.
+ * Per-vehicle fields still prefer fresher SignalR telemetry / richer addresses.
+ */
 export function mergeVehicleLocations(
   existing: VehicleLocation[],
   incoming: VehicleLocation[]
 ): VehicleLocation[] {
-  const byId = new Map(existing.map(location => [location.vehicleId, location]));
+  const existingById = new Map(existing.map(location => [location.vehicleId, location]));
 
-  incoming.forEach(location => {
-    const previous = byId.get(location.vehicleId);
+  return incoming.map(location => {
+    const previous = existingById.get(location.vehicleId);
     // Keep the fresher lastUpdated so a poll cannot overwrite a newer SignalR fix
     // with an older-looking (or timezone-misparsed) DB timestamp.
     if (previous && compareGpsTimestamps(previous.lastUpdated, location.lastUpdated) > 0) {
-      byId.set(location.vehicleId, {
+      return {
         ...location,
         ...previous,
         // Prefer newer telemetry fields from previous, but still allow incoming metadata
         // (name/plate) when previous lacked them.
         vehicleName: previous.vehicleName || location.vehicleName,
         registrationNumber: previous.registrationNumber || location.registrationNumber
-      });
-      return;
+      };
     }
-    byId.set(location.vehicleId, {
+    return {
       ...(previous ?? {}),
       ...location,
       // Don't wipe a resolved street address with a coarse poll payload.
@@ -46,10 +51,8 @@ export function mergeVehicleLocations(
       placeName: location.placeName?.trim() || previous?.placeName,
       placeType: location.placeType?.trim() || previous?.placeType,
       addressLocality: location.addressLocality?.trim() || previous?.addressLocality
-    });
+    };
   });
-
-  return Array.from(byId.values());
 }
 
 /**

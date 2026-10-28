@@ -363,6 +363,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private pendingFocusVehicleId: number | null = null;
   private isRefreshingLocations = false;
+  /** Bumps on each company/scope change so stale fleet HTTP responses are ignored. */
+  private fleetLoadGeneration = 0;
   /** When true, run another manual load after the in-flight request finishes. */
   private queuedManualRefresh = false;
   private refreshUiStartedAt = 0;
@@ -461,6 +463,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const companyId = Number(companyIdParam);
       if (Number.isFinite(companyId) && companyId > 0 && this.companyFilterId !== companyId) {
         this.companyFilterId = companyId;
+        this.fleetLoadGeneration++;
+        this.clearFleetRosterAndMarkers();
         this.loadFilterVehicles();
         this.loadLocations(true, true);
         this.loadFleetStatus();
@@ -799,6 +803,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vehicleFilterId = null;
     this.selectedVehicleId = null;
     this.selectedLocation = null;
+    // Drop prior tenant's roster/markers immediately (merge used to keep 8825 etc.).
+    this.fleetLoadGeneration++;
+    this.clearFleetRosterAndMarkers();
     this.persistFilters();
     this.markUserActive();
     this.loadFilterVehicles();
@@ -808,6 +815,17 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.syncCompanyQueryParam();
     this.syncVehicleQueryParam();
     this.cdr.markForCheck();
+  }
+
+  /** Wipe roster + map pins so a company switch cannot show another tenant's cars. */
+  private clearFleetRosterAndMarkers(): void {
+    this.locations = [];
+    this.filteredLocationsCache = [];
+    this.selectedLocation = null;
+    this.fleetCountsCache = { ...EMPTY_FLEET_COUNTS };
+    this.liveKpiTilesCache = [];
+    this.updateEmptyStateKind();
+    this.updateMarkers([], { resize: false, pruneMissing: true });
   }
 
   onVehicleFilterChange(id: number | null): void {
@@ -1534,6 +1552,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.markUserActive();
     this.syncVehicleQueryParam();
     if (companyChanged) {
+      this.fleetLoadGeneration++;
+      this.clearFleetRosterAndMarkers();
       this.syncCompanyQueryParam();
       this.loadFilterVehicles();
       this.beginRefreshUi();
@@ -2307,8 +2327,19 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.isRefreshingLocations = true;
     if (!silent) this.loading = true;
-    this.gpsService.getAllVehicleLocations(this.tenantScopeId).subscribe({
+    const requestGeneration = this.fleetLoadGeneration;
+    const requestTenantScope = this.tenantScopeId ?? null;
+    this.gpsService.getAllVehicleLocations(requestTenantScope).subscribe({
       next: locs => {
+        // Ignore stale responses after a company switch (or Clear all that changed company).
+        if (
+          requestGeneration !== this.fleetLoadGeneration ||
+          (requestTenantScope ?? null) !== (this.tenantScopeId ?? null)
+        ) {
+          this.isRefreshingLocations = false;
+          this.finishLocationLoad(manual);
+          return;
+        }
         const prevMoving = new Set(
           this.locations.filter(l => l.status === 'moving').map(l => l.vehicleId)
         );
@@ -2347,6 +2378,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.markForCheck();
       },
       error: () => {
+        if (requestGeneration !== this.fleetLoadGeneration) {
+          this.isRefreshingLocations = false;
+          this.finishLocationLoad(manual);
+          return;
+        }
         this.loading = false;
         this.isRefreshingLocations = false;
         this.syncError = 'Could not reach tracking service.';
@@ -2493,6 +2529,23 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private removeMarkerForVehicle(vehicleId: number): void {
+    const marker = this.markers.get(vehicleId);
+    if (!marker) return;
+    this.cancelMarkerAnim(vehicleId);
+    this.markerClickListeners.get(vehicleId)?.remove();
+    this.markerClickListeners.delete(vehicleId);
+    this.markerCluster?.removeMarker(marker);
+    marker.map = null;
+    this.markers.delete(vehicleId);
+    this.trailLayers.get(vehicleId)?.setMap(null);
+    this.trailLayers.delete(vehicleId);
+    this.positionTrails.delete(vehicleId);
+    this.prevPositions.delete(vehicleId);
+    this.popupHtml.delete(vehicleId);
+    this.markerVisualSig.delete(vehicleId);
+  }
+
   private updateMarkers(
     locs: VehicleLocation[],
     opts: { resize?: boolean; pruneMissing?: boolean } = {}
@@ -2512,20 +2565,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const currentIds = new Set(mappable.map(l => l.vehicleId));
 
       if (pruneMissing) {
-        this.markers.forEach((marker, vehicleId) => {
+        this.markers.forEach((_marker, vehicleId) => {
           if (!currentIds.has(vehicleId)) {
-            this.cancelMarkerAnim(vehicleId);
-            this.markerClickListeners.get(vehicleId)?.remove();
-            this.markerClickListeners.delete(vehicleId);
-            this.markerCluster?.removeMarker(marker);
-            marker.map = null;
-            this.markers.delete(vehicleId);
-            this.trailLayers.get(vehicleId)?.setMap(null);
-            this.trailLayers.delete(vehicleId);
-            this.positionTrails.delete(vehicleId);
-            this.prevPositions.delete(vehicleId);
-            this.popupHtml.delete(vehicleId);
-            this.markerVisualSig.delete(vehicleId);
+            this.removeMarkerForVehicle(vehicleId);
           }
         });
       }
@@ -3138,10 +3180,14 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedLocation = patched;
     }
 
-    // Surgical marker update — do not rebuild the whole fleet every GPS tick.
-    this.updateMarkers([patched], { resize: false, pruneMissing: false });
-    if (this.followSelected && this.selectedVehicleId === update.vehicleId) {
-      this.map?.panTo({ lat: update.latitude, lng: update.longitude });
+    // Do not re-pin vehicles excluded by vehicle/status filters (pruneMissing:false would bring them back).
+    if (this.matchesVehicleFilters(patched)) {
+      this.updateMarkers([patched], { resize: false, pruneMissing: false });
+      if (this.followSelected && this.selectedVehicleId === update.vehicleId) {
+        this.map?.panTo({ lat: update.latitude, lng: update.longitude });
+      }
+    } else {
+      this.removeMarkerForVehicle(update.vehicleId);
     }
     // Do not reverse-geocode on every SignalR tick — address comes from VCL / backfill.
 
