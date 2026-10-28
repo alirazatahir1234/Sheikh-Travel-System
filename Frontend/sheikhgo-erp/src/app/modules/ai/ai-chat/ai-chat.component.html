@@ -112,7 +112,8 @@
             [toolUsed]="m.toolUsed"
             [data]="m.data"
             [warnings]="m.warnings ?? []"
-            [mode]="m.mode">
+            [mode]="m.mode"
+            (followUp)="useSuggestion($event)">
           </app-ai-assistant-result>
           <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
             <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>

@@ -277,6 +277,18 @@
     </div>
   </section>
 
+  <div class="follow-ups" *ngIf="followUpActions.length" role="list" aria-label="Follow-up actions">
+    <button
+      type="button"
+      class="follow-chip"
+      role="listitem"
+      *ngFor="let q of followUpActions"
+      (click)="followUp.emit(q)">
+      <mat-icon aria-hidden="true">lightbulb</mat-icon>
+      {{ q }}
+    </button>
+  </div>
+
   <ul class="warnings" *ngIf="warnings?.length" aria-label="Warnings">
     <li *ngFor="let w of warnings">
       <mat-icon aria-hidden="true">warning</mat-icon>

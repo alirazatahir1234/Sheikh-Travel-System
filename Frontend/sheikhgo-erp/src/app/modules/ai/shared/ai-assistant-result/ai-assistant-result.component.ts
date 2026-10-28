@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,6 +15,7 @@ import {
   asSalesAnalytics,
   asTripBookingAnalytics,
   extractDataTable,
+  extractFollowUps,
   fleetHealthMetrics,
   formatToolLabel,
   healthBand,
@@ -38,6 +39,8 @@ export class AiAssistantResultComponent {
   @Input() data?: unknown;
   @Input() warnings: string[] = [];
   @Input() mode?: string;
+  /** Emits when user clicks a follow-up action chip under rich analytics. */
+  @Output() followUp = new EventEmitter<string>();
 
   get blocks() {
     return parseAssistantAnswer(this.answer);
@@ -69,6 +72,14 @@ export class AiAssistantResultComponent {
   get tripAnalytics(): TripBookingAnalyticsData | null {
     if (this.fleetHealth || this.salesAnalytics) return null;
     return asTripBookingAnalytics(this.data, this.toolUsed);
+  }
+
+  get followUpActions(): string[] {
+    const fromTrip = this.tripAnalytics?.followUps;
+    if (fromTrip?.length) return fromTrip;
+    const fromSales = this.salesAnalytics?.followUps;
+    if (fromSales?.length) return fromSales;
+    return extractFollowUps(this.data);
   }
 
   get table(): AssistantDataTable | null {
