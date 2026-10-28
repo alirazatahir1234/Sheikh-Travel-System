@@ -30,4 +30,22 @@ describe('normalizeNavMenuRoute', () => {
       })
     ).toBe('/bookings');
   });
+
+  it('canonicalizes GPS hub /gps-tracking to live leaf', () => {
+    expect(
+      normalizeNavMenuRoute({
+        route: '/gps-tracking',
+        label: 'Fleet Tracking',
+      })
+    ).toBe('/gps-tracking/live');
+  });
+
+  it('keeps Driver Performance leaf route intact', () => {
+    expect(
+      normalizeNavMenuRoute({
+        route: '/gps-tracking/driver-performance',
+        label: 'Driver Performance',
+      })
+    ).toBe('/gps-tracking/driver-performance');
+  });
 });

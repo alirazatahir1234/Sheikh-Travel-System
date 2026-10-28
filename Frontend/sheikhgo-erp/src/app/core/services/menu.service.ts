@@ -208,14 +208,19 @@ export class MenuService {
     }
 
     for (const item of GPS_ANALYTICS_NAV_ITEMS) {
-      const exists = analytics.items.some(i =>
+      const existing = analytics.items.find(i =>
         i.id === item.id
         || i.route === item.route
-        || i.route.startsWith(item.route + '/')
+        || (i.route?.startsWith(item.route + '/') ?? false)
       );
-      if (!exists) {
-        analytics.items.push({ ...item });
+      if (existing) {
+        // Repair stale PlatformMenus rows (empty / hub-only / typo routes).
+        if (existing.route !== item.route) {
+          existing.route = item.route;
+        }
+        continue;
       }
+      analytics.items.push({ ...item });
     }
 
     return { ...menu, groups };

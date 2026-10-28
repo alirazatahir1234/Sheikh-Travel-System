@@ -362,6 +362,32 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.closeMobileNav();
   }
 
+  /**
+   * Navigate sidebar leaves via segment commands (not `navigate([fullPath])`),
+   * so `/gps-tracking/driver-performance` resolves as two segments.
+   * Modifier/middle-clicks keep default `<a routerLink>` behaviour (new tab).
+   */
+  navigateNavItem(item: NavItem, event?: Event): void {
+    if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)) {
+      this.closeMobileNav();
+      return;
+    }
+    event?.preventDefault();
+    if (!item?.route) return;
+    void this.router.navigate(this.routeCommands(item.route), {
+      queryParams: item.queryParams
+    });
+    this.closeMobileNav();
+  }
+
+  /** `/gps-tracking/driver-performance` → `['/gps-tracking', 'driver-performance']` */
+  private routeCommands(route: string): string[] {
+    const path = (route || '').split('?')[0];
+    const segments = path.split('/').filter(Boolean);
+    if (!segments.length) return ['/'];
+    return ['/' + segments[0], ...segments.slice(1)];
+  }
+
   isGroupExpanded(groupId: string): boolean {
     return this.expandedGroupIds.has(groupId);
   }
@@ -373,7 +399,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     const navigateToPrimary = (): void => {
       const primary = group.items.find(item => !this.aliasItemIds.has(item.id)) ?? group.items[0];
       if (!primary?.route) return;
-      this.router.navigate([primary.route], { queryParams: primary.queryParams });
+      void this.router.navigate(this.routeCommands(primary.route), {
+        queryParams: primary.queryParams
+      });
       this.closeMobileNav();
     };
 
@@ -423,7 +451,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.showSearchResults = false;
     this.searchQuery = '';
     this.searchResults = [];
-    void this.router.navigate([result.route], {
+    void this.router.navigate(this.routeCommands(result.route), {
       queryParams: result.queryParams ?? undefined
     });
   }

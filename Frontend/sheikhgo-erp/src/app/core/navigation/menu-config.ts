@@ -77,7 +77,7 @@ const fleetOperationsGroup: NavGroup = {
     { id: 'fleet-anomalies', label: 'Driving anomalies', icon: 'crisis_alert', route: '/fleet/anomalies', moduleKey: 'gps-tracking' },
     { id: 'fatigue-events', label: 'Fatigue events', icon: 'bedtime', route: '/gps-tracking/fatigue-events', moduleKey: 'gps-tracking' },
     { id: 'sos-dispatch', label: 'SOS dispatch', icon: 'sos', route: '/gps-tracking/sos', moduleKey: 'gps-tracking' },
-    { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking', moduleKey: 'gps-tracking' }
+    { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking/live', moduleKey: 'gps-tracking' }
   ]
 };
 
@@ -422,13 +422,21 @@ export function defaultExpandedGroupIds(_menu: ResolvedMenu): Set<string> {
 
 export function groupContainingRoute(menu: ResolvedMenu, url: string): string | null {
   const path = url.split('?')[0];
+  // Prefer the longest matching leaf route so parent hubs like Fleet Tracking
+  // (`/gps-tracking`) do not steal Analytics pages (`/gps-tracking/driver-performance`).
+  let best: { groupId: string; routeLen: number } | null = null;
   for (const group of menu.groups) {
     for (const item of group.items) {
-      if (path === item.route || path.startsWith(item.route + '/')) {
-        return group.id;
+      if (!item.route) continue;
+      const matches = path === item.route || path.startsWith(item.route + '/');
+      if (!matches) continue;
+      if (!best || item.route.length > best.routeLen) {
+        best = { groupId: group.id, routeLen: item.route.length };
       }
     }
   }
+  if (best) return best.groupId;
+
   for (const item of menu.standaloneItems) {
     if (path === item.route || path.startsWith(item.route + '/')) {
       return null;

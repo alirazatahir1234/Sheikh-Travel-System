@@ -1,5 +1,6 @@
-import { resolveMenu } from './menu-config';
+import { groupContainingRoute, resolveMenu } from './menu-config';
 import { TenantType } from './tenant-type';
+import { NavGroup, ResolvedMenu } from './nav-models';
 
 describe('resolveMenu Fleet Operations (travel)', () => {
   it('nests Trips and Routes under Fleet Operations for travel agency', () => {
@@ -29,3 +30,42 @@ describe('resolveMenu Fleet Operations (travel)', () => {
     expect(fleetOps?.items.map(i => i.id)).toContain('ev-fleet');
   });
 });
+
+describe('groupContainingRoute', () => {
+  const menu: ResolvedMenu = {
+    isDriverLayout: false,
+    standaloneItems: [],
+    groups: [
+      {
+        id: 'fleet',
+        label: 'Fleet Management',
+        icon: 'local_shipping',
+        collapsible: true,
+        items: [
+          { id: 'gps-tracking', label: 'Fleet Tracking', icon: 'gps_fixed', route: '/gps-tracking/live' },
+          { id: 'gps-hub', label: 'GPS Hub', icon: 'gps_fixed', route: '/gps-tracking' }
+        ]
+      } as NavGroup,
+      {
+        id: 'analytics',
+        label: 'Analytics',
+        icon: 'bar_chart',
+        collapsible: true,
+        items: [
+          { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/gps-tracking/driver-performance' },
+          { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/gps-tracking/analytics' }
+        ]
+      } as NavGroup
+    ]
+  };
+
+  it('expands Analytics for Driver Performance (not Fleet hub prefix)', () => {
+    expect(groupContainingRoute(menu, '/gps-tracking/driver-performance')).toBe('analytics');
+    expect(groupContainingRoute(menu, '/gps-tracking/analytics')).toBe('analytics');
+  });
+
+  it('still maps live map to Fleet when that is the longest match', () => {
+    expect(groupContainingRoute(menu, '/gps-tracking/live')).toBe('fleet');
+  });
+});
+

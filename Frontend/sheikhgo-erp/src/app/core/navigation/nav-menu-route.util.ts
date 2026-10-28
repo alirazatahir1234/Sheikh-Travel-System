@@ -60,5 +60,12 @@ export function normalizeNavMenuRoute(source: NavMenuRouteSource): string {
     path = path ? `/${path}` : '/dashboard';
   }
 
+  // Hub-only `/gps-tracking` prefix-matches every GPS child (Driver Performance,
+  // Analytics, …). Canonicalize to the live-map leaf so sidebar active-group /
+  // longest-route logic stays correct.
+  if (path === '/gps-tracking') {
+    path = '/gps-tracking/live';
+  }
+
   return queryPart ? `${path}?${queryPart}` : path;
 }
