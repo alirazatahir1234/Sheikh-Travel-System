@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, ViewChild, AfterViewInit, ChangeDetectorR
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError, skip } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -14,6 +14,7 @@ import {
   TraccarSyncStatusDto
 } from '../../../core/models/gps-tracking.model';
 import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
+import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import {
   assignmentLabel,
   assignmentBadgeClass,
@@ -96,6 +97,8 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private clockTimer?: ReturnType<typeof setInterval>;
   private realtimeSub?: { unsubscribe(): void };
   private connectionSub?: { unsubscribe(): void };
+  private scopeSub?: Subscription;
+  private lastLoadedCompanyId: number | null | undefined = undefined;
   private paginatorReady = false;
   realtimeConnected = false;
 
@@ -104,12 +107,25 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     private realtime: GpsRealtimeService,
     private toast: UiToastService,
     private auth: AuthService,
+    private scopeFilter: GpsScopeFilterService,
     private cdr: ChangeDetectorRef,
     private router: Router,
     private route: ActivatedRoute,
     private ngZone: NgZone
   ) {
     this.canManageDevices = this.auth.hasPermission('Gps.DeviceManage');
+  }
+
+  /**
+   * Company override for Super Admin when a company is picked in the shared scope bar.
+   * Unlike Live Map, Devices still loads on JWT tenant when no company is selected.
+   */
+  private get tenantScopeId(): number | null | undefined {
+    return this.scopeFilter.tenantScopeId;
+  }
+
+  private get vehicleFilterId(): number | null {
+    return this.scopeFilter.vehicleFilterId;
   }
 
   ngOnInit(): void {
@@ -122,6 +138,20 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.connectionSub = this.realtime.connectionState$.subscribe(state => {
       this.realtimeConnected = state === 'connected';
       this.applyDevicePollInterval();
+    });
+    // Shared company/vehicle bar: reload when company changes; vehicle filter is client-side.
+    this.lastLoadedCompanyId = this.tenantScopeId ?? null;
+    this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(state => {
+      const companyId = state.companyId ?? null;
+      const companyChanged =
+        this.scopeFilter.isSuperAdmin && companyId !== (this.lastLoadedCompanyId ?? null);
+      if (companyChanged) {
+        this.lastLoadedCompanyId = companyId;
+        this.load(true);
+        return;
+      }
+      this.applyFilters();
+      this.cdr.markForCheck();
     });
     // Traccar status/sync endpoints hit GET /api/devices — poll gently (not every 5s).
     this.syncPollTimer = setInterval(() => this.loadSyncStatus(), 30_000);
@@ -137,6 +167,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.clockTimer)      clearInterval(this.clockTimer);
     this.realtimeSub?.unsubscribe();
     this.connectionSub?.unsubscribe();
+    this.scopeSub?.unsubscribe();
     void this.realtime.releaseDispatcher();
   }
 
@@ -266,8 +297,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadInitial(): void {
     this.loading = true;
     this.loadError = null;
+    this.lastLoadedCompanyId = this.tenantScopeId ?? null;
     forkJoin({
-      devices: this.gps.getDevices().pipe(
+      devices: this.gps.getDevices(this.tenantScopeId).pipe(
         catchError(err => {
           this.loadError = err?.error?.message || err?.message || 'Failed to load trackers.';
           return of([] as GpsDevice[]);
@@ -290,16 +322,19 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   load(silent = false): void {
     if (!silent) this.loading = true;
     this.loadError = null;
-    this.gps.getDevices().subscribe({
+    this.lastLoadedCompanyId = this.tenantScopeId ?? null;
+    this.gps.getDevices(this.tenantScopeId).subscribe({
       next: d => {
         this.devices = d;
         this.applyFilters();
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: err => {
         this.loading = false;
         this.loadError = err?.error?.message || err?.message || 'Failed to load trackers.';
         if (!silent) this.toast.error(this.loadError ?? 'Failed to load trackers.');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -355,6 +390,11 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyFilters(): void {
     const q = this.searchQuery.trim().toLowerCase();
     let rows = [...this.devices];
+
+    const vehicleId = this.vehicleFilterId;
+    if (vehicleId != null) {
+      rows = rows.filter(d => d.vehicleId === vehicleId);
+    }
 
     if (this.deviceFilter === 'online')        rows = rows.filter(d => !!d.isOnline);
     else if (this.deviceFilter === 'moving')   rows = rows.filter(d => isTrackerMoving(d, this.clockNow));
@@ -542,7 +582,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const label = d.name || d.uniqueId;
     if (!confirm(`Return "${label}" to inventory? This will unlink the vehicle assignment.`)) return;
-    this.gps.uninstallTracker(d.id).subscribe({
+    this.gps.uninstallTracker(d.id, undefined, this.tenantScopeId).subscribe({
       next: () => {
         this.toast.success('Tracker returned to inventory');
         this.load();
@@ -604,7 +644,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const label = d.vehicleName || d.name;
     if (!confirm(`Remove tracker for "${label}"?`)) return;
-    this.gps.deleteTracker(d.id).subscribe({
+    this.gps.deleteTracker(d.id, this.tenantScopeId).subscribe({
       next: () => { this.toast.success('Device removed'); this.load(); },
       error: err => this.toast.error(err?.error?.message ?? 'Delete failed')
     });

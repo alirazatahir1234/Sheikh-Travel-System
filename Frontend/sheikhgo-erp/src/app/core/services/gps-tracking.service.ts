@@ -1097,8 +1097,11 @@ export class GpsTrackingService {
     );
   }
 
-  getTracker(id: number): Observable<TrackerDetail> {
-    return this.http.get<TrackerDetail>(`${this.base}/trackers/${id}`);
+  getTracker(id: number, tenantScopeId?: number | null): Observable<TrackerDetail> {
+    return this.http.get<TrackerDetail>(
+      `${this.base}/trackers/${id}`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
   getTrackerAnnualPlans(): Observable<TrackerAnnualPlan[]> {
@@ -1120,31 +1123,67 @@ export class GpsTrackingService {
     return this.http.put<boolean>(`${this.base}/trackers/${id}`, body);
   }
 
-  deleteTracker(id: number): Observable<boolean> {
-    return this.http.delete<boolean>(`${this.base}/trackers/${id}`);
+  deleteTracker(id: number, tenantScopeId?: number | null): Observable<boolean> {
+    return this.http.delete<boolean>(
+      `${this.base}/trackers/${id}`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  installTracker(id: number, body: InstallTrackerPayload): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/trackers/${id}/install`, body);
+  installTracker(
+    id: number,
+    body: InstallTrackerPayload,
+    tenantScopeId?: number | null
+  ): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/trackers/${id}/install`,
+      body,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  transferTracker(id: number, body: TransferTrackerPayload): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/trackers/${id}/transfer`, body);
+  transferTracker(
+    id: number,
+    body: TransferTrackerPayload,
+    tenantScopeId?: number | null
+  ): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/trackers/${id}/transfer`,
+      body,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  uninstallTracker(id: number, body?: UninstallTrackerPayload): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/trackers/${id}/uninstall`, body ?? {});
+  uninstallTracker(
+    id: number,
+    body?: UninstallTrackerPayload,
+    tenantScopeId?: number | null
+  ): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/trackers/${id}/uninstall`,
+      body ?? {},
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  getTrackerAssignments(id: number): Observable<TrackerAssignment[]> {
-    return this.http.get<TrackerAssignment[]>(`${this.base}/trackers/${id}/assignments`);
+  getTrackerAssignments(
+    id: number,
+    tenantScopeId?: number | null
+  ): Observable<TrackerAssignment[]> {
+    return this.http.get<TrackerAssignment[]>(
+      `${this.base}/trackers/${id}/assignments`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  getTrackerInstallVehicles(trackerId?: number): Observable<TrackerInstallVehicle[]> {
+  getTrackerInstallVehicles(
+    trackerId?: number,
+    tenantScopeId?: number | null
+  ): Observable<TrackerInstallVehicle[]> {
     const url = trackerId
       ? `${this.base}/trackers/install-vehicles?trackerId=${trackerId}`
       : `${this.base}/trackers/install-vehicles`;
-    return this.http.get<TrackerInstallVehicle[]>(url);
+    return this.http.get<TrackerInstallVehicle[]>(url, this.tenantScopedHttpOptions(tenantScopeId));
   }
 
   createDevice(body: Partial<GpsDevice>): Observable<number> {

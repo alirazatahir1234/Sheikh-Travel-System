@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { TrackerAssignment, TrackerDetail } from '../../../core/models/gps-tracking.model';
+import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import { relayOutputLabel } from '../utils/relay-immobilizer.util';
 import {
   assignmentBadgeClass,
@@ -24,10 +25,15 @@ import {
 export class TrackerDetailsPageComponent implements OnInit {
   private readonly gps = inject(GpsTrackingService);
   private readonly auth = inject(AuthService);
+  private readonly scopeFilter = inject(GpsScopeFilterService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+
+  private get tenantScopeId(): number | null | undefined {
+    return this.scopeFilter.tenantScopeId;
+  }
 
   tracker: TrackerDetail | null = null;
   assignments: TrackerAssignment[] = [];
@@ -131,7 +137,11 @@ export class TrackerDetailsPageComponent implements OnInit {
     if (!confirm(`Remove "${this.tracker.name}" from ${this.tracker.vehicleName ?? 'vehicle'}?`)) return;
 
     this.removing = true;
-    this.gps.uninstallTracker(this.trackerId, { reason: reason || undefined }).pipe(
+    this.gps.uninstallTracker(
+      this.trackerId,
+      { reason: reason || undefined },
+      this.tenantScopeId
+    ).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
@@ -148,8 +158,8 @@ export class TrackerDetailsPageComponent implements OnInit {
   private load(): void {
     this.loading = true;
     forkJoin({
-      tracker: this.gps.getTracker(this.trackerId),
-      assignments: this.gps.getTrackerAssignments(this.trackerId)
+      tracker: this.gps.getTracker(this.trackerId, this.tenantScopeId),
+      assignments: this.gps.getTrackerAssignments(this.trackerId, this.tenantScopeId)
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ tracker, assignments }) => {
         if (isTrackerInInventory(tracker) && normalizeInventoryStatus(tracker.currentStatus) !== 'Maintenance') {

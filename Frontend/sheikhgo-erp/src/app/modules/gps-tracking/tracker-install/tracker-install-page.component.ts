@@ -10,6 +10,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { TrackerDetail, TrackerInstallVehicle } from '../../../core/models/gps-tracking.model';
 import { DriverListItem } from '../../../core/models/driver.model';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
+import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import {
   buildRelayOutputOptions,
   RELAY_OUTPUT_HINT,
@@ -29,11 +30,16 @@ export class TrackerInstallPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly gps = inject(GpsTrackingService);
   private readonly auth = inject(AuthService);
+  private readonly scopeFilter = inject(GpsScopeFilterService);
   private readonly driversSvc = inject(DriverService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+
+  private get tenantScopeId(): number | null | undefined {
+    return this.scopeFilter.tenantScopeId;
+  }
 
   readonly relayOutputHint = RELAY_OUTPUT_HINT;
   readonly minDate = todayIsoDate();
@@ -74,7 +80,7 @@ export class TrackerInstallPageComponent implements OnInit {
     }
 
     this.loading = true;
-    this.gps.getTracker(this.trackerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.gps.getTracker(this.trackerId, this.tenantScopeId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: tracker => {
         if (!this.isTransfer && isTrackerInstalled(tracker)) {
           this.toast.warning(
@@ -192,8 +198,12 @@ export class TrackerInstallPageComponent implements OnInit {
     };
 
     const req$ = this.isTransfer
-      ? this.gps.transferTracker(this.trackerId, { ...payload, reason: (v.reason as string).trim() })
-      : this.gps.installTracker(this.trackerId, payload);
+      ? this.gps.transferTracker(
+          this.trackerId,
+          { ...payload, reason: (v.reason as string).trim() },
+          this.tenantScopeId
+        )
+      : this.gps.installTracker(this.trackerId, payload, this.tenantScopeId);
 
     req$.pipe(
       finalize(() => { this.saving = false; })
@@ -207,22 +217,31 @@ export class TrackerInstallPageComponent implements OnInit {
   }
 
   private loadLookups(): void {
-    this.gps.getTrackerInstallVehicles(this.trackerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: vehicles => {
-        this.installVehicles = vehicles;
-      },
-      error: () => {
-        this.toast.error('Failed to load vehicles');
-      }
-    });
+    const tenantScope = this.tenantScopeId;
+    this.gps.getTrackerInstallVehicles(this.trackerId, tenantScope)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: vehicles => {
+          this.installVehicles = vehicles;
+        },
+        error: () => {
+          this.toast.error('Failed to load vehicles');
+        }
+      });
 
-    this.driversSvc.getAll(1, 500).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: res => {
-        this.drivers = res.items;
-        this.loading = false;
-      },
-      error: () => { this.loading = false; }
-    });
+    this.driversSvc.getAll({
+      page: 1,
+      pageSize: 500,
+      tenantId: tenantScope ?? undefined
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: res => {
+          this.drivers = res.items;
+          this.loading = false;
+        },
+        error: () => { this.loading = false; }
+      });
   }
 
   private installVehicleLabel(v: TrackerInstallVehicle): string {

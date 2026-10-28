@@ -6,10 +6,10 @@
         <mat-label>Company</mat-label>
         <mat-select
           [value]="scope.companyFilterId"
-          [disabled]="scope.companiesLoading"
+          [disabled]="companiesLoading"
           (selectionChange)="onCompanyChange($event.value)">
           <mat-option [value]="null">Select a company</mat-option>
-          <mat-option *ngFor="let c of scope.companies" [value]="c.id">{{ c.name }}</mat-option>
+          <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
         </mat-select>
       </mat-form-field>
     </div>
@@ -20,10 +20,10 @@
         <mat-label>Vehicle</mat-label>
         <mat-select
           [value]="scope.vehicleFilterId"
-          [disabled]="scope.vehicleFilterDisabled || scope.vehiclesLoading"
+          [disabled]="scope.vehicleFilterDisabled || vehiclesLoading"
           (selectionChange)="onVehicleChange($event.value)">
           <mat-option [value]="null">All vehicles</mat-option>
-          <mat-option *ngFor="let v of scope.vehicles" [value]="v.id">
+          <mat-option *ngFor="let v of vehicles" [value]="v.id">
             {{ v.name }} ({{ v.registrationNumber || '—' }})
           </mat-option>
         </mat-select>
@@ -32,7 +32,7 @@
   </div>
 
   <p class="gps-scope-bar__hint" *ngIf="scope.isSuperAdmin && !scope.isFleetScopeReady">
-    Select a company to view vehicles on Live Map, History, and Alerts.
+    Select a company to view vehicles on Live Map, History, and Alerts. Devices still loads your home tenant until a company is picked.
   </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
