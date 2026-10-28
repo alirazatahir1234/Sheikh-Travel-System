@@ -16,6 +16,35 @@ export const GPS_ALERT_EVENT_TYPES = [
   'fuel_fraud'
 ] as const;
 
+/** Collapse stored synonyms so filter chips / badges match API EventType. */
+export function normalizeGpsAlertEventType(raw: string | null | undefined): string {
+  const k = (raw ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  switch (k) {
+    case 'device_offline':
+    case 'gps_offline':
+    case 'vehicle_offline':
+    case 'deviceoffline':
+      return 'offline';
+    case 'device_online':
+    case 'vehicle_online':
+    case 'gps_online':
+    case 'deviceonline':
+      return 'online';
+    case 'ignitionon':
+      return 'ignition_on';
+    case 'ignitionoff':
+      return 'ignition_off';
+    case 'geofenceenter':
+      return 'geofence_enter';
+    case 'geofenceexit':
+      return 'geofence_exit';
+    case 'overspeed':
+      return 'speed_exceeded';
+    default:
+      return k;
+  }
+}
+
 export type GpsAlertLifecycleTab = 'open' | 'acknowledged' | 'resolved';
 
 export interface GpsAlertDisplayGroup {

@@ -173,6 +173,7 @@ public static class DatabaseMigrationRegistry
             M("DriverPerformanceNavMenuMigration", DriverPerformanceNavMenuMigration.ApplyAsync),
             M("DriverPerformanceScoringMigration", DriverPerformanceScoringMigration.ApplyAsync),
             M("DriverStatsPerformanceIndexesMigration", DriverStatsPerformanceIndexesMigration.ApplyAsync),
+            M("GpsAlertEventTypeNormalizeMigration", GpsAlertEventTypeNormalizeMigration.ApplyAsync),
         ];
     }
 }

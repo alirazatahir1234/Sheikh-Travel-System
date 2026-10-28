@@ -18,14 +18,16 @@ internal static class GpsAlertAccess
             [
                 "trip_started", "trip_completed", "trip_cancelled", "driver_assigned",
                 "driver_late", "route_deviation", "geofence_enter", "geofence_exit", "speed_exceeded",
-                "overspeed", "road_speed_exceeded", "idle_vehicle", "gps_offline", "vehicle_offline", "booking_cancellation",
+                "overspeed", "road_speed_exceeded", "idle_vehicle",
+                "offline", "gps_offline", "vehicle_offline", "device_offline", "booking_cancellation",
                 "eta_delay", "vehicle_arrived", "vehicle_departed"
             ],
             ["GPS_OPERATOR"] =
             [
                 "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
                 "ignition_on", "ignition_off", "power_cut", "low_battery",
-                "gps_offline", "vehicle_offline", "online", "gps_online", "tow",
+                "offline", "gps_offline", "vehicle_offline", "device_offline",
+                "online", "gps_online", "device_online", "tow",
                 "geofence_enter", "geofence_exit",
                 "sos", "idle_vehicle", "fuel_theft", "engine_fault"
             ],
@@ -33,15 +35,17 @@ internal static class GpsAlertAccess
             [
                 "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
                 "ignition_on", "ignition_off", "power_cut", "low_battery",
-                "gps_offline", "vehicle_offline", "online", "gps_online", "tow",
+                "offline", "gps_offline", "vehicle_offline", "device_offline",
+                "online", "gps_online", "device_online", "tow",
                 "geofence_enter", "geofence_exit",
                 "sos", "idle_vehicle", "fuel_theft", "engine_fault"
             ],
             ["FLEET_MANAGER"] =
             [
                 "speed_exceeded", "overspeed", "road_speed_exceeded", "harsh_braking", "harsh_acceleration",
-                "engine_fault", "fuel_theft", "low_battery", "gps_offline", "vehicle_offline",
-                "online", "gps_online",
+                "engine_fault", "fuel_theft", "low_battery",
+                "offline", "gps_offline", "vehicle_offline", "device_offline",
+                "online", "gps_online", "device_online",
                 "maintenance_due", "geofence_enter", "geofence_exit", "idle_vehicle",
                 "ignition_on", "ignition_off", "driver_assigned", "inspection_failed"
             ],

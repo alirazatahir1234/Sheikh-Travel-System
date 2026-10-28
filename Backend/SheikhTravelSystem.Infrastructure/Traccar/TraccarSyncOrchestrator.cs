@@ -448,7 +448,8 @@ public sealed class TraccarSyncOrchestrator(
             int imported = 0;
             int skipped = 0;
             var to = DateTime.UtcNow;
-            const int lookbackMinutes = 2;
+            // Cold-start lookback: short windows miss ignition/geofence/offline bursts after API restarts.
+            const int lookbackMinutes = 30;
 
             foreach (var device in linked)
             {
@@ -483,8 +484,14 @@ public sealed class TraccarSyncOrchestrator(
                         continue;
                     }
 
-                    var eventType = MapEventType(ev);
-                    var message = FormatEventMessage(eventType);
+                    var eventType = TraccarAlertEventMapper.MapEventType(ev.Type, ev.Attributes?.Alarm);
+                    if (eventType is null)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var message = TraccarAlertEventMapper.FormatMessage(eventType);
                     var timestamp = ev.EventTime.ToUniversalTime();
 
                     var alertId = await alertWriter.InsertAsync(
@@ -498,6 +505,12 @@ public sealed class TraccarSyncOrchestrator(
                         timestamp,
                         externalEventId: externalId,
                         cancellationToken: ct);
+                    if (alertId <= 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
                     imported++;
 
                     if (DriverTelematicsEnforcementPolicy.ShouldCreateViolation(eventType))
@@ -533,46 +546,6 @@ public sealed class TraccarSyncOrchestrator(
             return failed;
         }
     }
-
-    private static string MapEventType(TraccarEvent ev)
-    {
-        var harsh = TraccarHarshEventMapper.TryMapCanonical(ev.Type, ev.Attributes?.Alarm);
-        if (harsh is not null)
-            return harsh;
-
-        return ev.Type switch
-        {
-            "deviceOnline" => "device_online",
-            "deviceOffline" => "device_offline",
-            "geofenceEnter" => "geofence_enter",
-            "geofenceExit" => "geofence_exit",
-            "alarm" => MapAlarmType(ev.Attributes?.Alarm),
-            _ => ev.Type.ToLowerInvariant()
-        };
-    }
-
-    private static string MapAlarmType(string? alarm) => alarm?.ToLowerInvariant() switch
-    {
-        "sos" or "panic" => "sos",
-        "powercut" or "poweroff" or "powerdisconnect" => "power_cut",
-        "gpsantennacut" or "gpslost" or "nofix" or "gpsjamming" => "gps_lost",
-        _ => "alarm"
-    };
-
-    private static string FormatEventMessage(string eventType) => eventType switch
-    {
-        "device_online" => "Device came online",
-        "device_offline" => "Device went offline",
-        "geofence_enter" => "Entered geofence",
-        "geofence_exit" => "Exited geofence",
-        "sos" => "SOS / panic alarm triggered",
-        "power_cut" => "External power disconnected",
-        "gps_lost" => "GPS signal lost",
-        "harsh_braking" => "Harsh braking detected",
-        "harsh_acceleration" => "Harsh acceleration detected",
-        "alarm" => "Device alarm",
-        _ => $"Traccar event: {eventType}"
-    };
 
     private static TraccarSyncRunResult SingleJob(
         string job, int processed, int imported, int updated, int skipped, string? error = null) =>

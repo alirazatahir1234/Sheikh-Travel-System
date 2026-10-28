@@ -30,6 +30,7 @@ import {
   isSnoozed,
   isSosEvent,
   needsEscalation,
+  normalizeGpsAlertEventType,
   readMutedEventTypes,
   readQuietHours,
   readSnoozeMap,
@@ -345,7 +346,11 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   private applyClientFilters(events: GpsAlertEvent[]): GpsAlertEvent[] {
     let list = events.filter(e => !isSnoozed(e, this.snoozeMap));
-    list = list.filter(e => !this.mutedTypes.has((e.eventType ?? '').toLowerCase()));
+    list = list.filter(e => {
+      const raw = (e.eventType ?? '').toLowerCase();
+      const norm = normalizeGpsAlertEventType(e.eventType);
+      return !this.mutedTypes.has(raw) && !this.mutedTypes.has(norm);
+    });
     return sortAlertsBySeverity(list);
   }
 
@@ -745,21 +750,24 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   eventTypeBadge(type: string): string {
-    if (type === 'speed_exceeded' || type === 'road_speed_exceeded') return 'badge-red';
-    if (type === 'sos') return 'badge-red';
-    if (type === 'geofence_enter') return 'badge-amber';
-    if (type === 'geofence_exit') return 'badge-blue';
-    if (type === 'online' || type === 'ignition_on') return 'badge-green';
-    if (type === 'offline') return 'badge-gray';
+    const t = normalizeGpsAlertEventType(type);
+    if (t === 'speed_exceeded' || t === 'road_speed_exceeded') return 'badge-red';
+    if (t === 'sos') return 'badge-red';
+    if (t === 'geofence_enter') return 'badge-amber';
+    if (t === 'geofence_exit') return 'badge-blue';
+    if (t === 'online' || t === 'ignition_on') return 'badge-green';
+    if (t === 'offline') return 'badge-gray';
     return 'badge-gray';
   }
 
   eventTypeLabel(type: string): string {
-    if ((type ?? '').toLowerCase() === 'sos') return 'SOS';
-    return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const t = normalizeGpsAlertEventType(type);
+    if (t === 'sos') return 'SOS';
+    return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
   eventTypeIcon(type: string): string {
+    const t = normalizeGpsAlertEventType(type);
     const icons: Record<string, string> = {
       sos: 'sos',
       speed_exceeded: 'speed',
@@ -775,19 +783,20 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
       fuel_station_stop: 'local_gas_station',
       fuel_fraud: 'warning'
     };
-    return icons[type] ?? 'notifications';
+    return icons[t] ?? 'notifications';
   }
 
   eventTypeChipModifier(type: string): string {
-    if (type === 'sos') return 'type-chip--sos';
-    if (type === 'speed_exceeded' || type === 'road_speed_exceeded') return 'type-chip--speed';
-    if (type === 'geofence_enter') return 'type-chip--geofence-in';
-    if (type === 'geofence_exit') return 'type-chip--geofence-out';
-    if (type === 'online') return 'type-chip--ignition';
-    if (type === 'offline') return 'type-chip--connectivity';
-    if (type === 'ignition_on' || type === 'ignition_off') return 'type-chip--ignition';
-    if (type === 'low_battery' || type === 'power_cut') return 'type-chip--power';
-    if (type === 'fuel_station_stop' || type === 'fuel_fraud') return 'type-chip--fuel';
+    const t = normalizeGpsAlertEventType(type);
+    if (t === 'sos') return 'type-chip--sos';
+    if (t === 'speed_exceeded' || t === 'road_speed_exceeded') return 'type-chip--speed';
+    if (t === 'geofence_enter') return 'type-chip--geofence-in';
+    if (t === 'geofence_exit') return 'type-chip--geofence-out';
+    if (t === 'online') return 'type-chip--ignition';
+    if (t === 'offline') return 'type-chip--connectivity';
+    if (t === 'ignition_on' || t === 'ignition_off') return 'type-chip--ignition';
+    if (t === 'low_battery' || t === 'power_cut') return 'type-chip--power';
+    if (t === 'fuel_station_stop' || t === 'fuel_fraud') return 'type-chip--fuel';
     return 'type-chip--neutral';
   }
 

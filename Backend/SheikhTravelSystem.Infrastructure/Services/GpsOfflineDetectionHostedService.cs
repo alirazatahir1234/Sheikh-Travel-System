@@ -104,7 +104,8 @@ public class GpsOfflineDetectionHostedService(
                   AND vcl.LastUpdate < DATEADD(MINUTE, -@StaleMinutes, GETUTCDATE())
                   AND NOT EXISTS (
                     SELECT 1 FROM GpsAlertEvents e
-                    WHERE e.VehicleId = vcl.VehicleId AND e.EventType = 'vehicle_offline'
+                    WHERE e.VehicleId = vcl.VehicleId
+                      AND e.EventType IN ('vehicle_offline', 'offline', 'device_offline', 'gps_offline')
                       AND e.IsDeleted = 0
                       AND e.IsAcknowledged = 0
                   )

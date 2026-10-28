@@ -124,6 +124,8 @@ public static class GpsAlertQueryProjection
 
     public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser)
     {
+        // Surface catalog spellings so UI chips (offline / ignition_on / …) match stored synonyms.
+        row.EventType = GpsEventTypeNormalizer.Normalize(row.EventType);
         row.CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser);
         row.CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser);
         row.CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser);

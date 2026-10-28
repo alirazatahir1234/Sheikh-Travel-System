@@ -20,8 +20,12 @@ public static class GpsEventTypeNormalizer
         var families = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["overspeed"] = ["overspeed", "speed_exceeded"],
-            ["offline"] = ["offline", "vehicle_offline", "device_offline"],
-            ["online"] = ["online", "vehicle_online", "device_online"],
+            ["offline"] = ["offline", "vehicle_offline", "device_offline", "gps_offline", "deviceoffline"],
+            ["online"] = ["online", "vehicle_online", "device_online", "gps_online", "deviceonline"],
+            ["ignition_on"] = ["ignition_on", "ignitionon"],
+            ["ignition_off"] = ["ignition_off", "ignitionoff"],
+            ["geofence_enter"] = ["geofence_enter", "geofenceenter"],
+            ["geofence_exit"] = ["geofence_exit", "geofenceexit"],
         };
 
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

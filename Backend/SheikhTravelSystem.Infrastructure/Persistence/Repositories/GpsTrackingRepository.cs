@@ -1355,8 +1355,9 @@ public sealed partial class GpsTrackingRepository(
 
         if (!string.IsNullOrWhiteSpace(request.EventType))
         {
-            clauses.Add("e.EventType = @EventType");
-            parameters.Add("EventType", request.EventType);
+            var typeAliases = TraccarAlertEventMapper.ExpandFilterAliases(request.EventType);
+            clauses.Add("LOWER(e.EventType) IN @EventTypes");
+            parameters.Add("EventTypes", typeAliases.Select(t => t.ToLowerInvariant()).ToList());
         }
 
         if (request.GeofenceId.HasValue)
@@ -1569,8 +1570,9 @@ public sealed partial class GpsTrackingRepository(
 
         if (!string.IsNullOrWhiteSpace(request.EventType))
         {
-            clauses.Add("e.EventType = @EventType");
-            parameters.Add("EventType", request.EventType);
+            var typeAliases = TraccarAlertEventMapper.ExpandFilterAliases(request.EventType);
+            clauses.Add("LOWER(e.EventType) IN @EventTypes");
+            parameters.Add("EventTypes", typeAliases.Select(t => t.ToLowerInvariant()).ToList());
         }
 
         if (request.GeofenceId.HasValue)
@@ -2229,7 +2231,9 @@ public sealed partial class GpsTrackingRepository(
                   ResolvedAt = GETUTCDATE(),
                   ResolvedBy = 'system',
                   ResolutionNotes = N'Vehicle back online'
-              WHERE VehicleId = @VehicleId AND EventType = 'vehicle_offline' AND IsAcknowledged = 0 AND IsDeleted = 0",
+              WHERE VehicleId = @VehicleId
+                AND EventType IN ('vehicle_offline', 'offline', 'device_offline', 'gps_offline')
+                AND IsAcknowledged = 0 AND IsDeleted = 0",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
 
