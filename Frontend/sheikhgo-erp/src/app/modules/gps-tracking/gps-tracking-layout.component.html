@@ -1,10 +1,21 @@
-<div class="gps-module" [class.gps-module--alerts]="isAlertsRoute" [class.gps-module--driver-performance]="isDriverPerformanceRoute">
+<div class="gps-module"
+     [class.gps-module--alerts]="isAlertsRoute"
+     [class.gps-module--driver-performance]="isDriverPerformanceRoute"
+     [class.gps-module--client-links]="isClientTrackingLinksRoute">
   <header class="gps-module-header" *ngIf="!hideModuleHeader">
     <div>
       <h1>Fleet Tracking</h1>
       <p>Real-time vehicle tracking, routes, geofences and live telemetry</p>
     </div>
   </header>
+
+  <nav class="gps-ctl-breadcrumb" *ngIf="isClientTrackingLinksRoute" aria-label="Breadcrumb">
+    <a routerLink="/">Home</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a routerLink="/gps-tracking">Fleet Tracking</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <span class="gps-ctl-breadcrumb__current">Client Tracking Links</span>
+  </nav>
 
   <header class="gps-alerts-hero" *ngIf="isAlertsRoute">
     <div class="gps-alerts-hero__left">
@@ -22,6 +33,18 @@
     </button>
   </header>
 
+  <header class="gps-ctl-hero" *ngIf="isClientTrackingLinksRoute">
+    <div class="gps-ctl-hero__left">
+      <div class="gps-ctl-hero__icon" aria-hidden="true">
+        <mat-icon>link</mat-icon>
+      </div>
+      <div>
+        <h1>Client Tracking Links</h1>
+        <p>Share secure, tokenized links so customers can track shipments without logging in.</p>
+      </div>
+    </div>
+  </header>
+
   <nav class="gps-subnav" aria-label="GPS module navigation">
     <a *ngFor="let item of navItems"
        [routerLink]="item.route"
@@ -29,7 +52,8 @@
        [routerLinkActiveOptions]="{ exact: false }"
        class="gps-subnav-link"
        [class.gps-subnav-link--alerts]="item.route === 'alerts'"
-       [class.gps-subnav-link--driver-performance]="item.route === 'driver-performance'">
+       [class.gps-subnav-link--driver-performance]="item.route === 'driver-performance'"
+       [class.gps-subnav-link--client-links]="item.route === 'client-tracking-links'">
       <mat-icon>{{ item.icon }}</mat-icon>
       <span>{{ item.label }}</span>
     </a>

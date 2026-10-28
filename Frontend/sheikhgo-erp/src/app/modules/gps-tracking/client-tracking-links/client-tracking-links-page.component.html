@@ -1,58 +1,330 @@
-<div class="page-header">
-  <h1>Client Tracking Links</h1>
-  <p class="lead">Share secure, tokenized links so customers track shipments without logging in.</p>
-</div>
+<div class="ctl-shell">
 
-<section class="create-card">
-  <h2>Create link</h2>
-  <div class="create-row">
-    <label>Trip ID <input type="number" [(ngModel)]="tripIdInput" min="1" /></label>
-    <label>Valid (hours) <input type="number" [(ngModel)]="hoursValid" min="1" max="168" /></label>
-    <button mat-flat-button color="primary" type="button" (click)="createLink()">Generate</button>
-  </div>
-  @if (createError) {
-    <p class="error">{{ createError }}</p>
-  }
-  @if (created) {
-    <div class="created">
-      <p><strong>Link ready</strong> — expires {{ created.expiresAt | date:'medium' }}</p>
-      <code>{{ created.publicUrl }}</code>
-      <button mat-stroked-button type="button" (click)="copyCreated()">Copy URL</button>
+  @if (needsCompanySelection) {
+    <div class="ctl-empty-banner" role="status">
+      <mat-icon>business</mat-icon>
+      <div>
+        <strong>Select a company</strong>
+        <p>Choose a company in the scope bar above to manage client tracking links for that fleet.</p>
+      </div>
     </div>
   }
-</section>
 
-@if (loadError) {
-  <p class="error">{{ loadError }}</p>
-}
-
-@if (loading) {
-  <p>Loading links…</p>
-} @else {
-  <table class="links-table">
-    <thead>
-      <tr>
-        <th>Trip</th>
-        <th>Status</th>
-        <th>Views</th>
-        <th>Expires</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (r of rows; track r.id) {
-        <tr>
-          <td>{{ r.tripNumber || ('Trip #' + r.tripId) }}</td>
-          <td>{{ r.isActive ? 'Active' : (r.revokedAt ? 'Revoked' : 'Expired') }}</td>
-          <td>{{ r.viewCount }}</td>
-          <td>{{ r.expiresAt | date:'short' }}</td>
-          <td>
-            @if (r.isActive) {
-              <button mat-button type="button" (click)="revoke(r)">Revoke</button>
-            }
-          </td>
-        </tr>
+  <!-- KPI strip -->
+  <div class="ctl-kpi-strip" aria-label="Tracking link KPIs">
+    @if (loading && !rows.length) {
+      @for (_ of [1, 2, 3, 4]; track _) {
+        <article class="ctl-kpi ctl-kpi--skeleton" aria-hidden="true">
+          <div class="ctl-skel ctl-skel--circle"></div>
+          <div class="ctl-skel ctl-skel--lg"></div>
+          <div class="ctl-skel ctl-skel--sm"></div>
+        </article>
       }
-    </tbody>
-  </table>
-}
+    } @else {
+      <article class="ctl-kpi ctl-kpi--active">
+        <div class="ctl-kpi__icon" aria-hidden="true"><mat-icon>link</mat-icon></div>
+        <div class="ctl-kpi__body">
+          <span class="ctl-kpi__value">{{ kpiActive }}</span>
+          <span class="ctl-kpi__label">Active Links</span>
+          <span class="ctl-kpi__caption">Currently active tracking links</span>
+        </div>
+        <div class="ctl-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ctl-kpi ctl-kpi--views">
+        <div class="ctl-kpi__icon" aria-hidden="true"><mat-icon>visibility</mat-icon></div>
+        <div class="ctl-kpi__body">
+          <span class="ctl-kpi__value">{{ kpiViews }}</span>
+          <span class="ctl-kpi__label">Total Views</span>
+          <span class="ctl-kpi__caption">Link access count</span>
+        </div>
+        <div class="ctl-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ctl-kpi ctl-kpi--expired">
+        <div class="ctl-kpi__icon" aria-hidden="true"><mat-icon>schedule</mat-icon></div>
+        <div class="ctl-kpi__body">
+          <span class="ctl-kpi__value">{{ kpiExpired }}</span>
+          <span class="ctl-kpi__label">Expired Links</span>
+          <span class="ctl-kpi__caption">Links that have expired</span>
+        </div>
+        <div class="ctl-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ctl-kpi ctl-kpi--revoked">
+        <div class="ctl-kpi__icon" aria-hidden="true"><mat-icon>block</mat-icon></div>
+        <div class="ctl-kpi__body">
+          <span class="ctl-kpi__value">{{ kpiRevoked }}</span>
+          <span class="ctl-kpi__label">Revoked Links</span>
+          <span class="ctl-kpi__caption">Manually revoked links</span>
+        </div>
+        <div class="ctl-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+    }
+  </div>
+
+  <!-- Create card -->
+  <section class="ctl-create" aria-label="Create tracking link">
+    <div class="ctl-create__head">
+      <div class="ctl-create__icon" aria-hidden="true"><mat-icon>add</mat-icon></div>
+      <div>
+        <h2>Create Tracking Link</h2>
+        <p>Generate a secure link for a trip so your customer can track it in real time.</p>
+      </div>
+    </div>
+
+    <div class="ctl-create__form">
+      <label class="ctl-field">
+        <span class="ctl-field__label">Trip ID</span>
+        <div class="ctl-field__control">
+          <mat-icon aria-hidden="true">route</mat-icon>
+          <input
+            type="number"
+            min="1"
+            [(ngModel)]="tripIdInput"
+            placeholder="Enter Trip ID (e.g. 1015)"
+            [disabled]="creating || needsCompanySelection" />
+        </div>
+      </label>
+
+      <label class="ctl-field ctl-field--duration">
+        <span class="ctl-field__label">Valid Duration</span>
+        <div class="ctl-field__control">
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <input
+            type="number"
+            min="1"
+            max="168"
+            [(ngModel)]="hoursValid"
+            [disabled]="creating || needsCompanySelection" />
+          <span class="ctl-field__suffix">hours</span>
+        </div>
+      </label>
+
+      <button
+        type="button"
+        class="ctl-btn ctl-btn--primary ctl-btn--generate"
+        (click)="createLink()"
+        [disabled]="creating || needsCompanySelection">
+        <mat-icon>link</mat-icon>
+        {{ creating ? 'Generating…' : 'Generate Link' }}
+      </button>
+    </div>
+
+    @if (createError) {
+      <p class="ctl-error" role="alert">{{ createError }}</p>
+    }
+
+    @if (created) {
+      <div class="ctl-created" role="status">
+        <div class="ctl-created__text">
+          <strong>Link ready</strong>
+          <span>Expires {{ created.expiresAt | date:'medium' }}</span>
+        </div>
+        <code class="ctl-created__url" [title]="createdAbsoluteUrl()">{{ createdAbsoluteUrl() }}</code>
+        <button type="button" class="ctl-btn ctl-btn--ghost ctl-btn--sm" (click)="copyCreated()">
+          <mat-icon>content_copy</mat-icon> Copy Link
+        </button>
+      </div>
+    }
+
+    @if (copyMessage) {
+      <p class="ctl-toast" role="status">{{ copyMessage }}</p>
+    }
+  </section>
+
+  @if (loadError) {
+    <div class="ctl-error-banner" role="alert">
+      <span>{{ loadError }}</span>
+      <button type="button" class="ctl-btn ctl-btn--ghost" (click)="load()">Retry</button>
+    </div>
+  }
+
+  <!-- Links table -->
+  <section class="ctl-table-card" aria-label="Tracking links">
+    <div class="ctl-table-card__toolbar">
+      <h2>
+        <mat-icon aria-hidden="true">list_alt</mat-icon>
+        Tracking Links
+        <span class="ctl-table-card__count">({{ totalFiltered }})</span>
+      </h2>
+      <div class="ctl-table-card__controls">
+        <label class="ctl-search">
+          <mat-icon aria-hidden="true">search</mat-icon>
+          <input
+            type="search"
+            placeholder="Search links..."
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()" />
+        </label>
+        <select
+          class="ctl-select"
+          [(ngModel)]="statusFilter"
+          (ngModelChange)="onStatusFilterChange()"
+          aria-label="Status filter">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+          <option value="revoked">Revoked</option>
+        </select>
+        <button type="button" class="ctl-btn ctl-btn--ghost ctl-btn--sm" (click)="load()" [disabled]="loading || needsCompanySelection">
+          <mat-icon>refresh</mat-icon> Refresh
+        </button>
+        <button
+          type="button"
+          class="ctl-btn ctl-btn--ghost ctl-btn--sm"
+          (click)="exportCsv()"
+          [disabled]="!filteredRows.length">
+          <mat-icon>download</mat-icon> Export
+        </button>
+      </div>
+    </div>
+
+    @if (loading && !rows.length) {
+      <div class="ctl-table-skel" aria-busy="true" aria-label="Loading links">
+        @for (_ of [1, 2, 3, 4]; track _) {
+          <div class="ctl-skel-row">
+            <div class="ctl-skel ctl-skel--circle"></div>
+            <div class="ctl-skel ctl-skel--md"></div>
+            <div class="ctl-skel ctl-skel--lg"></div>
+            <div class="ctl-skel ctl-skel--sm"></div>
+          </div>
+        }
+      </div>
+    } @else if (!needsCompanySelection) {
+      <div class="ctl-table-wrap">
+        <table class="ctl-table">
+          <thead>
+            <tr>
+              <th class="num">#</th>
+              <th>Trip</th>
+              <th>Link</th>
+              <th>Status</th>
+              <th class="num">Views</th>
+              <th>Created At</th>
+              <th>Expires</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of pagedRows; track trackById($index, r); let i = $index) {
+              <tr [class.ctl-row--revoked]="linkStatus(r) === 'revoked'" [class.ctl-row--expired]="linkStatus(r) === 'expired'">
+                <td class="num">
+                  <span class="ctl-index">{{ pageStart + i }}</span>
+                </td>
+                <td>
+                  <div class="ctl-trip">
+                    <strong>{{ tripLabel(r) }}</strong>
+                    <span class="muted">Trip ID {{ r.tripId }}</span>
+                  </div>
+                </td>
+                <td>
+                  @if (displayUrl(r); as url) {
+                    <div class="ctl-link-cell">
+                      <code class="ctl-link-cell__url" [title]="url">{{ url }}</code>
+                      <button
+                        type="button"
+                        class="ctl-icon-btn"
+                        (click)="copyUrl(url)"
+                        matTooltip="Copy link"
+                        aria-label="Copy link">
+                        <mat-icon>content_copy</mat-icon>
+                      </button>
+                    </div>
+                  } @else {
+                    <span class="ctl-link-muted" title="Token is returned only when the link is generated">
+                      Available after generate
+                    </span>
+                  }
+                </td>
+                <td>
+                  <span class="ctl-badge" [attr.data-status]="linkStatus(r)">
+                    <i aria-hidden="true"></i>
+                    {{ linkStatus(r) === 'active' ? 'Active' : (linkStatus(r) === 'revoked' ? 'Revoked' : 'Expired') }}
+                  </span>
+                </td>
+                <td class="num">{{ r.viewCount }}</td>
+                <td>{{ r.createdAt | date:'short' }}</td>
+                <td>
+                  <div class="ctl-expires">
+                    <span class="ctl-expires__main">
+                      <mat-icon aria-hidden="true">schedule</mat-icon>
+                      {{ r.expiresAt | date:'short' }}
+                    </span>
+                    @if (linkStatus(r) === 'active') {
+                      <span class="muted">{{ expiresRelative(r) }}</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <div class="ctl-actions">
+                    <button
+                      type="button"
+                      class="ctl-btn ctl-btn--ghost ctl-btn--sm"
+                      (click)="openLink(r)"
+                      [disabled]="!displayUrl(r)"
+                      matTooltip="Open public tracking page">
+                      <mat-icon>visibility</mat-icon> Open
+                    </button>
+                    @if (linkStatus(r) === 'active') {
+                      <button
+                        type="button"
+                        class="ctl-btn ctl-btn--danger ctl-btn--sm"
+                        (click)="revoke(r)"
+                        [disabled]="revokingId === r.id">
+                        <mat-icon>delete_outline</mat-icon>
+                        {{ revokingId === r.id ? 'Revoking…' : 'Revoke' }}
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        @if (!pagedRows.length) {
+          <p class="ctl-table-empty muted">
+            @if (rows.length && (searchQuery || statusFilter !== 'all')) {
+              No links match the current search or filter.
+            } @else {
+              No tracking links yet — generate one for a trip above.
+            }
+          </p>
+        }
+      </div>
+
+      @if (totalFiltered > 0) {
+        <div class="ctl-pager">
+          <label class="ctl-pager__size">
+            Show
+            <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="25">25</option>
+              <option [ngValue]="50">50</option>
+            </select>
+            per page
+          </label>
+          <span class="ctl-pager__range">{{ pageStart }}–{{ pageEnd }} of {{ totalFiltered }}</span>
+          <div class="ctl-pager__nav">
+            <button type="button" class="ctl-icon-btn" (click)="prevPage()" [disabled]="pageIndex === 0" aria-label="Previous page">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <span class="ctl-pager__page">{{ pageIndex + 1 }}</span>
+            <button type="button" class="ctl-icon-btn" (click)="nextPage()" [disabled]="pageIndex >= totalPages - 1" aria-label="Next page">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+        </div>
+      }
+    }
+  </section>
+</div>
