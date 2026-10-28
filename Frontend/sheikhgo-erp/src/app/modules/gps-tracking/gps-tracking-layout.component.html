@@ -1,7 +1,8 @@
 <div class="gps-module"
      [class.gps-module--alerts]="isAlertsRoute"
      [class.gps-module--driver-performance]="isDriverPerformanceRoute"
-     [class.gps-module--client-links]="isClientTrackingLinksRoute">
+     [class.gps-module--client-links]="isClientTrackingLinksRoute"
+     [class.gps-module--accident-risk]="isAccidentRiskRoute">
   <header class="gps-module-header" *ngIf="!hideModuleHeader">
     <div>
       <h1>Fleet Tracking</h1>
@@ -15,6 +16,14 @@
     <a routerLink="/gps-tracking">Fleet Tracking</a>
     <mat-icon aria-hidden="true">chevron_right</mat-icon>
     <span class="gps-ctl-breadcrumb__current">Client Tracking Links</span>
+  </nav>
+
+  <nav class="gps-ctl-breadcrumb" *ngIf="isAccidentRiskRoute" aria-label="Breadcrumb">
+    <a routerLink="/">Home</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a routerLink="/gps-tracking">Fleet Tracking</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <span class="gps-ctl-breadcrumb__current">Accident Risk</span>
   </nav>
 
   <header class="gps-alerts-hero" *ngIf="isAlertsRoute">
@@ -45,6 +54,21 @@
     </div>
   </header>
 
+  <header class="gps-ar-hero" *ngIf="isAccidentRiskRoute">
+    <div class="gps-ar-hero__left">
+      <div class="gps-ar-hero__icon" aria-hidden="true">
+        <mat-icon>health_and_safety</mat-icon>
+      </div>
+      <div>
+        <h1>Accident Risk</h1>
+        <p>
+          Predictive risk from past accidents, speed violations, fatigue events, and route difficulty.
+          High-risk drivers and routes raise proactive Smart Alerts for admins.
+        </p>
+      </div>
+    </div>
+  </header>
+
   <nav class="gps-subnav" aria-label="GPS module navigation">
     <a *ngFor="let item of navItems"
        [routerLink]="item.route"
@@ -53,7 +77,8 @@
        class="gps-subnav-link"
        [class.gps-subnav-link--alerts]="item.route === 'alerts'"
        [class.gps-subnav-link--driver-performance]="item.route === 'driver-performance'"
-       [class.gps-subnav-link--client-links]="item.route === 'client-tracking-links'">
+       [class.gps-subnav-link--client-links]="item.route === 'client-tracking-links'"
+       [class.gps-subnav-link--accident-risk]="item.route === 'accident-risk'">
       <mat-icon>{{ item.icon }}</mat-icon>
       <span>{{ item.label }}</span>
     </a>

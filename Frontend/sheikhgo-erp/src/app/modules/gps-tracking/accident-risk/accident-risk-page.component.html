@@ -1,121 +1,445 @@
-<div class="page-header">
-  <div>
-    <h1>Accident risk scores</h1>
-    <p class="lead">
-      Predictive risk from past accidents, speed violations, fatigue events, and route difficulty.
-      High-risk drivers and routes raise proactive Smart Alerts for admins.
-    </p>
-  </div>
-</div>
+<div class="ar-shell">
 
-@if (dashboard) {
-  <div class="kpi-strip">
-    <div class="kpi"><span class="kpi-val">{{ dashboard.highRiskDriverCount }}</span><span class="kpi-label">High-risk drivers</span></div>
-    <div class="kpi"><span class="kpi-val">{{ dashboard.highRiskRouteCount }}</span><span class="kpi-label">High-risk routes</span></div>
-  </div>
-}
+  <!-- Period / actions — company & vehicle come from global GpsScopeFilterBar -->
+  <section class="ar-filter-card" aria-label="Accident risk filters">
+    <div class="ar-filter-card__row">
+      <label class="ar-field">
+        <span class="ar-field__label">Time Period</span>
+        <div class="ar-field__control">
+          <mat-icon aria-hidden="true">calendar_today</mat-icon>
+          <select
+            [(ngModel)]="datePreset"
+            (ngModelChange)="applyPreset($event); load()"
+            [disabled]="loading || needsCompanySelection">
+            @for (p of datePresets; track p.id) {
+              <option [ngValue]="p.id">{{ p.label }}</option>
+            }
+          </select>
+        </div>
+      </label>
 
-<div class="toolbar">
-  <label>
-    Period
-    <select [(ngModel)]="datePreset" (ngModelChange)="applyPreset($event); load()">
-      @for (p of datePresets; track p.id) {
-        <option [ngValue]="p.id">{{ p.label }}</option>
+      @if (datePreset === 'custom') {
+        <label class="ar-field ar-field--date">
+          <span class="ar-field__label">From</span>
+          <input type="date" [(ngModel)]="from" (ngModelChange)="onCustomDatesChange()" />
+        </label>
+        <label class="ar-field ar-field--date">
+          <span class="ar-field__label">To</span>
+          <input type="date" [(ngModel)]="to" (ngModelChange)="onCustomDatesChange()" />
+        </label>
       }
-    </select>
-  </label>
-  <div class="tabs">
-    <button type="button" [class.active]="tab === 'drivers'" (click)="tab = 'drivers'">Drivers</button>
-    <button type="button" [class.active]="tab === 'routes'" (click)="tab = 'routes'">Routes</button>
-  </div>
-  <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
-</div>
 
-@if (dateRangeError) {
-  <p class="error">{{ dateRangeError }}</p>
-}
-@if (loadError) {
-  <p class="error">{{ loadError }} <button mat-button (click)="load()">Retry</button></p>
-}
+      <div class="ar-filter-card__actions">
+        <button
+          type="button"
+          class="ar-btn ar-btn--ghost"
+          (click)="load()"
+          [disabled]="loading || needsCompanySelection || !!dateRangeError">
+          <mat-icon>refresh</mat-icon>
+          Refresh
+        </button>
+      </div>
+    </div>
+    @if (dateRangeError) {
+      <p class="ar-error">{{ dateRangeError }}</p>
+    }
+  </section>
 
-@if (loading) {
-  <p>Loading risk scores…</p>
-} @else if (tab === 'drivers') {
-  <table class="rank-table">
-    <thead>
-      <tr>
-        <th>Driver</th>
-        <th class="num">Risk</th>
-        <th>Band</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (r of drivers; track r.driverId) {
-        <tr [class.high]="r.isHighRisk">
-          <td>{{ r.driverName }}</td>
-          <td class="num"><strong>{{ r.riskScore }}</strong>/100</td>
-          <td><span class="band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span></td>
-          <td><button mat-button type="button" (click)="toggleDriver(r.driverId)">Factors</button></td>
-        </tr>
-        @if (expandedDriverId === r.driverId) {
-          <tr class="factors-row">
-            <td colspan="4">
-              <ul class="factors">
-                @for (f of r.factors; track f.key) {
-                  <li>
-                    <strong>{{ f.label }}</strong> (+{{ f.points }} pts) — {{ f.detail }}
-                  </li>
-                }
-              </ul>
-            </td>
-          </tr>
-        }
-      }
-    </tbody>
-  </table>
-  @if (!drivers.length) {
-    <p class="muted">No active drivers to score in this tenant.</p>
+  @if (needsCompanySelection) {
+    <div class="ar-empty-banner" role="status">
+      <mat-icon>business</mat-icon>
+      <div>
+        <strong>Select a company</strong>
+        <p>Choose a company in the scope bar above to load accident risk for that fleet.</p>
+      </div>
+    </div>
   }
-} @else {
-  <table class="rank-table">
-    <thead>
-      <tr>
-        <th>Route</th>
-        <th class="num">Km</th>
-        <th class="num">Trips</th>
-        <th class="num">Risk</th>
-        <th>Band</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (r of routes; track r.routeId) {
-        <tr [class.high]="r.isHighRisk">
-          <td>{{ r.routeLabel }}</td>
-          <td class="num">{{ r.distanceKm | number:'1.0-0' }}</td>
-          <td class="num">{{ r.tripCountInPeriod }}</td>
-          <td class="num"><strong>{{ r.riskScore }}</strong>/100</td>
-          <td><span class="band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span></td>
-          <td><button mat-button type="button" (click)="toggleRoute(r.routeId)">Factors</button></td>
-        </tr>
-        @if (expandedRouteId === r.routeId) {
-          <tr class="factors-row">
-            <td colspan="6">
-              <ul class="factors">
-                @for (f of r.factors; track f.key) {
-                  <li>
-                    <strong>{{ f.label }}</strong> (+{{ f.points }} pts) — {{ f.detail }}
-                  </li>
-                }
-              </ul>
-            </td>
-          </tr>
-        }
+
+  <!-- KPI cards -->
+  <div class="ar-kpi-strip" aria-label="Accident risk KPIs">
+    @if (kpiLoading) {
+      @for (_ of [1, 2, 3, 4]; track _) {
+        <article class="ar-kpi ar-kpi--skeleton" aria-hidden="true">
+          <div class="ar-skel ar-skel--circle"></div>
+          <div class="ar-skel ar-skel--lg"></div>
+          <div class="ar-skel ar-skel--sm"></div>
+        </article>
       }
-    </tbody>
-  </table>
-  @if (!routes.length) {
-    <p class="muted">No active routes configured.</p>
+    } @else {
+      <article class="ar-kpi ar-kpi--drivers">
+        <div class="ar-kpi__icon" aria-hidden="true"><mat-icon>warning</mat-icon></div>
+        <div class="ar-kpi__body">
+          <span class="ar-kpi__value">{{ highRiskDrivers != null ? highRiskDrivers : '—' }}</span>
+          <span class="ar-kpi__label">High-risk drivers</span>
+          <span class="ar-kpi__caption">Drivers with elevated risk scores</span>
+        </div>
+        <div class="ar-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ar-kpi ar-kpi--routes">
+        <div class="ar-kpi__icon" aria-hidden="true"><mat-icon>alt_route</mat-icon></div>
+        <div class="ar-kpi__body">
+          <span class="ar-kpi__value">{{ highRiskRoutes != null ? highRiskRoutes : '—' }}</span>
+          <span class="ar-kpi__label">High-risk routes</span>
+          <span class="ar-kpi__caption">Routes with elevated risk scores</span>
+        </div>
+        <div class="ar-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ar-kpi ar-kpi--predicted">
+        <div class="ar-kpi__icon" aria-hidden="true"><mat-icon>groups</mat-icon></div>
+        <div class="ar-kpi__body">
+          <span class="ar-kpi__value">—</span>
+          <span class="ar-kpi__label">Predicted incidents</span>
+          <span class="ar-kpi__caption">Not provided by risk engine</span>
+        </div>
+        <div class="ar-kpi__spark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="ar-kpi ar-kpi--fleet">
+        <div class="ar-kpi__icon" aria-hidden="true"><mat-icon>speed</mat-icon></div>
+        <div class="ar-kpi__body">
+          <span class="ar-kpi__value">
+            @if (fleetRiskScore != null) {
+              {{ fleetRiskScore }} <span class="ar-kpi__denom">/ 100</span>
+            } @else {
+              —
+            }
+          </span>
+          <span class="ar-kpi__label">Fleet risk score</span>
+          <span class="ar-kpi__caption">Overall accident risk index</span>
+        </div>
+        @if (fleetRiskScore != null) {
+          <div class="ar-kpi__bar" aria-hidden="true"><i [style.width]="barWidth(fleetRiskScore)"></i></div>
+        }
+      </article>
+    }
+  </div>
+
+  @if (loadError) {
+    <div class="ar-error-banner" role="alert">
+      <span>{{ loadError }}</span>
+      <button type="button" class="ar-btn ar-btn--ghost" (click)="load()">Retry</button>
+    </div>
   }
-}
+
+  <!-- Charts row -->
+  <div class="ar-charts">
+    <section class="ar-card ar-card--trends" aria-label="Risk trends">
+      <div class="ar-card__head">
+        <div>
+          <h2>Risk Trends</h2>
+          <p>Driver and route risk levels over time</p>
+        </div>
+        <div class="ar-legend" aria-hidden="true">
+          <span class="ar-legend__item"><i class="dot dot--driver"></i> Driver Risk</span>
+          <span class="ar-legend__item"><i class="dot dot--route"></i> Route Risk</span>
+          <span class="ar-legend__item"><i class="dot dot--pred"></i> Predicted Incidents</span>
+        </div>
+      </div>
+      @if (loading && !dashboard) {
+        <div class="ar-chart-skel" aria-busy="true"></div>
+      } @else if (!hasTrendSeries) {
+        <div class="ar-chart-empty" role="status">
+          <mat-icon>show_chart</mat-icon>
+          <strong>No historical risk series</strong>
+          <p>The accident-risk API returns period scores only — not daily driver/route trend points. Charts stay empty until a time-series endpoint exists.</p>
+        </div>
+      } @else {
+        <ui-chart type="line" [data]="trendsChartData" [options]="trendsChartOptions" height="260px"></ui-chart>
+      }
+    </section>
+
+    <section class="ar-card ar-card--factors" aria-label="Risk factors distribution">
+      <div class="ar-card__head">
+        <div>
+          <h2>Risk Factors Distribution</h2>
+          <p>Key factors contributing to accident risk</p>
+        </div>
+      </div>
+      @if (loading && !dashboard) {
+        <div class="ar-chart-skel ar-chart-skel--donut" aria-busy="true"></div>
+      } @else if (!factorsTotal) {
+        <div class="ar-factors-empty">
+          <div class="ar-donut-placeholder" aria-hidden="true">
+            <span>0</span>
+            <small>Total Factors</small>
+          </div>
+          <ul class="ar-factor-legend">
+            @for (b of factorBuckets; track b.key) {
+              <li>
+                <span class="ar-factor-legend__swatch" [style.background]="b.color"></span>
+                <span class="ar-factor-legend__label">{{ b.label }}</span>
+                <strong>0</strong>
+              </li>
+            }
+          </ul>
+        </div>
+      } @else {
+        <div class="ar-factors-body">
+          <div class="ar-donut-wrap">
+            <ui-chart type="doughnut" [data]="factorsChartData" [options]="factorsChartOptions" height="200px"></ui-chart>
+            <div class="ar-donut-center" aria-hidden="true">
+              <strong>{{ factorsTotal }}</strong>
+              <span>Total Factors</span>
+            </div>
+          </div>
+          <ul class="ar-factor-legend">
+            @for (b of factorBuckets; track b.key) {
+              <li>
+                <span class="ar-factor-legend__swatch" [style.background]="b.color"></span>
+                <span class="ar-factor-legend__label">{{ b.label }}</span>
+                <strong>{{ b.count }}</strong>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+  </div>
+
+  <!-- Drivers / Routes table -->
+  <section class="ar-table-card" aria-label="Drivers by accident risk">
+    <div class="ar-table-card__toolbar">
+      <div class="ar-table-card__title">
+        <div class="ar-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="tab === 'drivers'"
+            [class.active]="tab === 'drivers'"
+            (click)="setTab('drivers')">
+            Drivers by Accident Risk
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="tab === 'routes'"
+            [class.active]="tab === 'routes'"
+            (click)="setTab('routes')">
+            Routes by Accident Risk
+          </button>
+        </div>
+        <span class="ar-table-card__count">
+          ({{ tableCount }} {{ tab === 'drivers' ? 'drivers' : 'routes' }})
+        </span>
+      </div>
+
+      <div class="ar-table-card__controls">
+        <label class="ar-search">
+          <mat-icon aria-hidden="true">search</mat-icon>
+          <input
+            type="search"
+            [placeholder]="tab === 'drivers' ? 'Search drivers...' : 'Search routes...'"
+            [(ngModel)]="searchQuery" />
+        </label>
+        <select class="ar-select" [(ngModel)]="riskFilter" aria-label="Risk level filter">
+          <option value="all">All Risk Levels</option>
+          <option value="high">High</option>
+          <option value="moderate">Moderate</option>
+          <option value="low">Low</option>
+        </select>
+        <button
+          type="button"
+          class="ar-btn ar-btn--ghost ar-btn--sm"
+          (click)="exportCsv()"
+          [disabled]="!tableCount">
+          <mat-icon>download</mat-icon>
+          Export
+        </button>
+        @if (tab === 'drivers') {
+          <button
+            type="button"
+            class="ar-btn ar-btn--primary ar-btn--sm"
+            (click)="viewSelectedDetails()"
+            [disabled]="!filteredDrivers.length">
+            <mat-icon>visibility</mat-icon>
+            View Details
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (loading && !dashboard) {
+      <div class="ar-table-skel" aria-busy="true" aria-label="Loading risk scores">
+        @for (_ of [1, 2, 3, 4]; track _) {
+          <div class="ar-skel-row">
+            <div class="ar-skel ar-skel--circle"></div>
+            <div class="ar-skel ar-skel--md"></div>
+            <div class="ar-skel ar-skel--lg"></div>
+            <div class="ar-skel ar-skel--sm"></div>
+          </div>
+        }
+      </div>
+    } @else if (needsCompanySelection) {
+      <p class="ar-muted ar-empty-msg">Select a company to view accident risk scores.</p>
+    } @else if (tab === 'drivers') {
+      @if (!filteredDrivers.length) {
+        <p class="ar-muted ar-empty-msg">No accident risk data found for the selected period.</p>
+      } @else {
+        <div class="ar-table-wrap">
+          <table class="ar-table">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th>Driver</th>
+                <th>Risk Score</th>
+                <th>Risk Band</th>
+                <th>Key Factors</th>
+                <th>Trend</th>
+                <th class="num">Trips</th>
+                <th>Last Incident</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of filteredDrivers; track r.driverId; let i = $index) {
+                <tr [class.high]="r.isHighRisk" [class.selected]="r.driverId === selectedDriverId">
+                  <td class="num"><span class="ar-index">{{ i + 1 }}</span></td>
+                  <td>
+                    <div class="ar-driver">
+                      <span class="ar-avatar" aria-hidden="true">{{ initials(r.driverName) }}</span>
+                      <span class="ar-driver__meta">
+                        <strong>{{ r.driverName }}</strong>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="ar-score">
+                      <strong>{{ r.riskScore }}</strong><span class="ar-score__denom">/100</span>
+                      <div class="ar-mini-bar" [attr.data-band]="(r.riskBand || '').toLowerCase()">
+                        <i [style.width]="barWidth(r.riskScore)"></i>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="ar-band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span>
+                  </td>
+                  <td>
+                    <button type="button" class="ar-factors-btn" (click)="toggleDriver(r.driverId)">
+                      <mat-icon>tune</mat-icon>
+                      Factors
+                    </button>
+                  </td>
+                  <td><span class="ar-muted">—</span></td>
+                  <td class="num"><span class="ar-muted" title="Trip counts are not returned on driver risk rows">—</span></td>
+                  <td><span class="ar-muted" title="Last incident timestamp is not returned by the API">—</span></td>
+                  <td>
+                    <button type="button" class="ar-btn ar-btn--ghost ar-btn--sm" (click)="toggleDriver(r.driverId)">
+                      <mat-icon>visibility</mat-icon>
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+                @if (expandedDriverId === r.driverId) {
+                  <tr class="ar-detail-row">
+                    <td colspan="9">
+                      <div class="ar-detail">
+                        <h3>Risk factors — {{ r.driverName }}</h3>
+                        @if (r.factors?.length) {
+                          <ul>
+                            @for (f of r.factors; track f.key) {
+                              <li>
+                                <strong>{{ f.label }}</strong>
+                                <span class="ar-detail__pts">+{{ f.points }} pts</span>
+                                <span class="ar-muted">{{ f.detail }}</span>
+                              </li>
+                            }
+                          </ul>
+                        } @else {
+                          <p class="ar-muted">No contributing factors for this driver.</p>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    } @else {
+      @if (!filteredRoutes.length) {
+        <p class="ar-muted ar-empty-msg">No accident risk data found for the selected period.</p>
+      } @else {
+        <div class="ar-table-wrap">
+          <table class="ar-table">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th>Route</th>
+                <th class="num">Km</th>
+                <th class="num">Trips</th>
+                <th>Risk Score</th>
+                <th>Risk Band</th>
+                <th>Key Factors</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of filteredRoutes; track r.routeId; let i = $index) {
+                <tr [class.high]="r.isHighRisk">
+                  <td class="num"><span class="ar-index">{{ i + 1 }}</span></td>
+                  <td><strong>{{ r.routeLabel }}</strong></td>
+                  <td class="num">{{ r.distanceKm | number:'1.0-0' }}</td>
+                  <td class="num">{{ r.tripCountInPeriod }}</td>
+                  <td>
+                    <div class="ar-score">
+                      <strong>{{ r.riskScore }}</strong><span class="ar-score__denom">/100</span>
+                      <div class="ar-mini-bar" [attr.data-band]="(r.riskBand || '').toLowerCase()">
+                        <i [style.width]="barWidth(r.riskScore)"></i>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="ar-band" [ngClass]="bandClass(r.riskBand)">{{ r.riskBand }}</span>
+                  </td>
+                  <td>
+                    <button type="button" class="ar-factors-btn" (click)="toggleRoute(r.routeId)">
+                      <mat-icon>tune</mat-icon>
+                      Factors
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" class="ar-btn ar-btn--ghost ar-btn--sm" (click)="toggleRoute(r.routeId)">
+                      <mat-icon>visibility</mat-icon>
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+                @if (expandedRouteId === r.routeId) {
+                  <tr class="ar-detail-row">
+                    <td colspan="8">
+                      <div class="ar-detail">
+                        <h3>Risk factors — {{ r.routeLabel }}</h3>
+                        @if (r.factors?.length) {
+                          <ul>
+                            @for (f of r.factors; track f.key) {
+                              <li>
+                                <strong>{{ f.label }}</strong>
+                                <span class="ar-detail__pts">+{{ f.points }} pts</span>
+                                <span class="ar-muted">{{ f.detail }}</span>
+                              </li>
+                            }
+                          </ul>
+                        } @else {
+                          <p class="ar-muted">No contributing factors for this route.</p>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+</div>
