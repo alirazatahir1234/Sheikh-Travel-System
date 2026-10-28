@@ -53,3 +53,4 @@ src/environments/environment.secrets.local.ts
 .env
 .env.*
 !.env.example
+.vercel

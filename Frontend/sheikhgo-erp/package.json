@@ -2,12 +2,13 @@
   "name": "sheikhgo-erp",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
-    "prestart": "node scripts/inject-maps-env.mjs --dev && sh -c 'kill -9 $(lsof -ti :4200) 2>/dev/null || true'",
+    "ng": "node scripts/run-ng.mjs",
+    "prepare": "node scripts/ensure-maps-secrets.mjs",
+    "prestart": "node scripts/ensure-maps-secrets.mjs && node scripts/inject-maps-env.mjs --dev && sh -c 'kill -9 $(lsof -ti :4200) 2>/dev/null || true'",
     "start": "ng serve --port 4200 --host 127.0.0.1 --proxy-config proxy.conf.json",
-    "maps:inject": "node scripts/inject-maps-env.mjs --dev",
+    "maps:inject": "node scripts/ensure-maps-secrets.mjs && node scripts/inject-maps-env.mjs --dev",
     "maps:restore": "node scripts/inject-maps-env.mjs --restore",
-    "build": "ng build",
+    "build": "node scripts/run-ng-build.mjs",
     "build:prod": "node scripts/inject-maps-env.mjs && ng build --configuration=production && node scripts/strip-protected-demo-from-static.mjs && node scripts/inject-maps-env.mjs --restore",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
