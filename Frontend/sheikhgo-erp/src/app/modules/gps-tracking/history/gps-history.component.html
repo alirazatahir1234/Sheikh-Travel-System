@@ -211,7 +211,8 @@
           (click)="selectVehicle(v.id)">
           <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
         </button>
-        <p class="panel-empty" *ngIf="!filteredVehicles.length">No vehicles match your search.</p>
+        <p class="panel-empty" *ngIf="needsCompanySelection">Select a company to view vehicles.</p>
+        <p class="panel-empty" *ngIf="!needsCompanySelection && !filteredVehicles.length">No vehicles match your search.</p>
       </div>
     </aside>
 

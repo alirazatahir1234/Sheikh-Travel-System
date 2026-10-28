@@ -17,6 +17,9 @@ const STORAGE_KEY = 'stb-gps-scope-filters';
 /**
  * Shared Company (Super Admin) + Vehicle filters for the GPS module.
  * Survives tab switches (live / history / alerts) via root singleton + localStorage.
+ *
+ * Super Admin must select a company before any fleet data loads (empty map until then).
+ * Tenant users are always scoped by JWT — no company picker required.
  */
 @Injectable({ providedIn: 'root' })
 export class GpsScopeFilterService {
@@ -88,8 +91,23 @@ export class GpsScopeFilterService {
   }
 
   /**
+   * True when fleet APIs may run.
+   * Super Admin: only after a company is selected.
+   * Tenant users: always (JWT tenant is implicit).
+   */
+  get isFleetScopeReady(): boolean {
+    return !this.isSuperAdmin || this.companyFilterId != null;
+  }
+
+  /** Vehicle dropdown is empty/disabled until Super Admin picks a company. */
+  get vehicleFilterDisabled(): boolean {
+    return this.isSuperAdmin && this.companyFilterId == null;
+  }
+
+  /**
    * X-Tenant-Id override for Super Admin when a company is selected.
    * Undefined for tenant users (JWT tenant applies).
+   * Null for Super Admin with no company — callers must not fetch fleet.
    */
   get tenantScopeId(): number | null | undefined {
     return this.isSuperAdmin ? this.companyFilterId : undefined;
@@ -113,6 +131,7 @@ export class GpsScopeFilterService {
   }
 
   setVehicle(vehicleId: number | null): void {
+    if (this.vehicleFilterDisabled && vehicleId != null) return;
     if (this.vehicleFilterId === vehicleId) return;
     this.vehicleIdSubject.next(vehicleId);
     this.persist();
@@ -125,13 +144,13 @@ export class GpsScopeFilterService {
       this.companyIdSubject.next(null);
     }
     this.persist();
-    if (hadCompany) {
+    if (hadCompany || this.isSuperAdmin) {
       this.loadVehicles();
     }
   }
 
   companyLabel(): string {
-    if (this.companyFilterId == null) return 'All companies';
+    if (this.companyFilterId == null) return 'Select a company';
     return (
       this.companies.find(c => c.id === this.companyFilterId)?.name ??
       `Company #${this.companyFilterId}`
@@ -159,6 +178,16 @@ export class GpsScopeFilterService {
   }
 
   private loadVehicles(): void {
+    if (!this.isFleetScopeReady) {
+      this.vehiclesSubject.next([]);
+      this.vehiclesLoadingSubject.next(false);
+      if (this.vehicleFilterId != null) {
+        this.vehicleIdSubject.next(null);
+        this.persist();
+      }
+      return;
+    }
+
     const tenantScope = this.isSuperAdmin ? this.companyFilterId : undefined;
     this.vehiclesLoadingSubject.next(true);
     this.vehiclesApi.getAll(1, 500, false, tenantScope ?? undefined).subscribe({
@@ -205,14 +234,16 @@ export class GpsScopeFilterService {
       };
       if (
         this.isSuperAdmin &&
-        (parsed.companyFilterId == null ||
-          (typeof parsed.companyFilterId === 'number' && parsed.companyFilterId > 0))
+        typeof parsed.companyFilterId === 'number' &&
+        parsed.companyFilterId > 0
       ) {
-        this.companyIdSubject.next(parsed.companyFilterId ?? null);
+        this.companyIdSubject.next(parsed.companyFilterId);
       }
+      // Only restore vehicle when company scope is ready (or non-SA).
       if (
-        parsed.vehicleFilterId == null ||
-        (typeof parsed.vehicleFilterId === 'number' && parsed.vehicleFilterId > 0)
+        this.isFleetScopeReady &&
+        (parsed.vehicleFilterId == null ||
+          (typeof parsed.vehicleFilterId === 'number' && parsed.vehicleFilterId > 0))
       ) {
         this.vehicleIdSubject.next(parsed.vehicleFilterId ?? null);
       }

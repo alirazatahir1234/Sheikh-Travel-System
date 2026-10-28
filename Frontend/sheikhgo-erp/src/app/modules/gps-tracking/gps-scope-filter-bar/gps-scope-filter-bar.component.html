@@ -8,7 +8,7 @@
           [value]="scope.companyFilterId"
           [disabled]="scope.companiesLoading"
           (selectionChange)="onCompanyChange($event.value)">
-          <mat-option [value]="null">All companies</mat-option>
+          <mat-option [value]="null">Select a company</mat-option>
           <mat-option *ngFor="let c of scope.companies" [value]="c.id">{{ c.name }}</mat-option>
         </mat-select>
       </mat-form-field>
@@ -20,7 +20,7 @@
         <mat-label>Vehicle</mat-label>
         <mat-select
           [value]="scope.vehicleFilterId"
-          [disabled]="scope.vehiclesLoading"
+          [disabled]="scope.vehicleFilterDisabled || scope.vehiclesLoading"
           (selectionChange)="onVehicleChange($event.value)">
           <mat-option [value]="null">All vehicles</mat-option>
           <mat-option *ngFor="let v of scope.vehicles" [value]="v.id">
@@ -30,6 +30,10 @@
       </mat-form-field>
     </div>
   </div>
+
+  <p class="gps-scope-bar__hint" *ngIf="scope.isSuperAdmin && !scope.isFleetScopeReady">
+    Select a company to view vehicles on Live Map, History, and Alerts.
+  </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
     <span class="applied-label">Scope</span>

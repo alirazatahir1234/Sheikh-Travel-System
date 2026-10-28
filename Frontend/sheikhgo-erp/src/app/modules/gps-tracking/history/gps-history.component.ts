@@ -163,6 +163,11 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return this.scopeFilter.tenantScopeId;
   }
 
+  /** Super Admin with no company — empty fleet until a company is picked. */
+  get needsCompanySelection(): boolean {
+    return !this.scopeFilter.isFleetScopeReady;
+  }
+
   ngOnInit(): void {
     const prefs = readHistoryPagePrefs();
     this.filterStationaryOverOneHour = prefs.stationaryOverOneHour;
@@ -186,6 +191,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     });
 
     this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(state => {
+      if (!this.scopeFilter.isFleetScopeReady) {
+        this.devices = [];
+        this.liveLocations = new Map();
+        this.clearHistorySelection();
+        return;
+      }
       this.gps.getDevices(this.tenantScopeId).subscribe({
         next: d => { this.devices = d; },
         error: () => {}
@@ -234,10 +245,14 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.vehicles = this.scopeFilter.vehicles;
     this.readQueryParams();
 
-    this.gps.getDevices(this.tenantScopeId).subscribe({
-      next: d => { this.devices = d; },
-      error: () => {}
-    });
+    if (this.scopeFilter.isFleetScopeReady) {
+      this.gps.getDevices(this.tenantScopeId).subscribe({
+        next: d => { this.devices = d; },
+        error: () => {}
+      });
+    } else {
+      this.devices = [];
+    }
   }
 
   ngOnDestroy(): void {
@@ -340,6 +355,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   get loadHint(): string {
+    if (this.needsCompanySelection) return 'Select a company to view vehicles.';
     if (!this.vehicleId) return 'Select a vehicle from the list to begin.';
     if (!this.from || !this.to) return 'Choose a date range, then load history.';
     if (this.loading) return 'Loading route from Traccar…';
@@ -1159,6 +1175,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   private refreshLiveLocations(): void {
     this.liveLocSub?.unsubscribe();
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.liveLocations = new Map();
+      return;
+    }
     this.liveLocSub = this.gps.getAllVehicleLocations(this.tenantScopeId).subscribe({
       next: rows => {
         this.liveLocations = new Map(rows.map(r => [r.vehicleId, r]));

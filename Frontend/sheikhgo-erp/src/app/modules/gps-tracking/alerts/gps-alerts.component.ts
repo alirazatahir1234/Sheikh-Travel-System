@@ -174,8 +174,14 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     return this.scopeFilter.vehicleFilterId;
   }
 
+  /** Super Admin with no company — do not fetch cross-tenant alerts. */
+  get needsCompanySelection(): boolean {
+    return !this.scopeFilter.isFleetScopeReady;
+  }
+
+  /** Company column only when multi-tenant rows could appear (never without company pick). */
   get showCompanyColumn(): boolean {
-    return this.isSuperAdmin && this.companyFilterId == null;
+    return false;
   }
 
   get kpiCritical(): number {
@@ -263,6 +269,25 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   loadEvents(silent = false): void {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.rawEvents = [];
+      this.displayGroups = [];
+      this.escalatedAlerts = [];
+      this.stats = {
+        total: 0,
+        today: 0,
+        unread: 0,
+        active: 0,
+        critical: 0,
+        resolved: 0,
+        archived: 0
+      };
+      this.loading = false;
+      this.refreshInFlight = false;
+      this.loadError = null;
+      return;
+    }
+
     if (!silent) this.loading = true;
     this.refreshInFlight = true;
     this.loadError = null;

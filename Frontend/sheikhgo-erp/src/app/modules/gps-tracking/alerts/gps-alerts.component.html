@@ -208,7 +208,7 @@
       <button class="btn btn-secondary btn-sm" type="button" (click)="bulkResolve()">Bulk resolve</button>
     </div>
 
-    <div class="events-list-toolbar desktop-only" *ngIf="!loading && !loadError && displayGroups.length > 0">
+    <div class="events-list-toolbar desktop-only" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0">
       <span class="record-count">
         {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ displayGroups.length }} group(s)
         <span class="muted"> · {{ flatEvents().length }} alert(s)</span>
@@ -225,20 +225,26 @@
 
     <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
-    <div *ngIf="!loading && loadError" class="empty-state empty-state--error">
+    <div *ngIf="!loading && needsCompanySelection" class="empty-state empty-state--ok">
+      <mat-icon>business</mat-icon>
+      <p>Select a company to view alerts</p>
+      <p class="sub">Choose a company in the scope bar above to load that fleet’s alerts.</p>
+    </div>
+
+    <div *ngIf="!loading && !needsCompanySelection && loadError" class="empty-state empty-state--error">
       <mat-icon>error_outline</mat-icon>
       <p>Could not load alerts</p>
       <p class="sub">{{ loadError }}</p>
       <button class="btn btn-primary" type="button" (click)="loadEvents()">Retry</button>
     </div>
 
-    <div *ngIf="!loading && !loadError && displayGroups.length === 0" class="empty-state empty-state--ok">
+    <div *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length === 0" class="empty-state empty-state--ok">
       <mat-icon>check_circle</mat-icon>
       <p>No alerts match these filters</p>
       <p class="sub">Try widening the date range or switching lifecycle tab.</p>
     </div>
 
-    <div class="table-card desktop-table" *ngIf="!loading && !loadError && displayGroups.length > 0 && eventsViewMode === 'list'">
+    <div class="table-card desktop-table" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'list'">
       <table class="data-table">
         <thead>
           <tr>
@@ -295,7 +301,7 @@
       </div>
     </div>
 
-    <div class="alerts-grid desktop-only" *ngIf="!loading && !loadError && displayGroups.length > 0 && eventsViewMode === 'grid'">
+    <div class="alerts-grid desktop-only" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'grid'">
       <article class="alert-card alert-card--grid" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
         <div class="alert-card__head">
           <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
@@ -330,7 +336,7 @@
       </div>
     </div>
 
-    <div class="mobile-cards" *ngIf="!loading && !loadError && displayGroups.length > 0">
+    <div class="mobile-cards" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0">
       <article class="alert-card" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
         <div class="alert-card__head">
           <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>

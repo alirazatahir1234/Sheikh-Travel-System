@@ -217,7 +217,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   liveKpiTilesCache: LiveKpiTile[] = [];
   /** Selected row snapshot for the detail panel (updated only for that vehicle). */
   selectedLocation: VehicleLocation | null = null;
-  emptyStateKind: 'loading' | 'no-data' | 'no-match' | null = 'loading';
+  emptyStateKind: 'loading' | 'no-data' | 'no-match' | 'need-company' | null = 'loading';
   loading = true;
   /** Manual refresh UI — not set by silent auto-poll. */
   refreshing = false;
@@ -386,6 +386,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private get vehicleFilterId(): number | null {
     return this.scopeFilter.vehicleFilterId;
+  }
+
+  /** Super Admin with no company — do not fetch or show any fleet. */
+  get needsCompanySelection(): boolean {
+    return !this.scopeFilter.isFleetScopeReady;
   }
 
   ngOnInit(): void {
@@ -770,9 +775,19 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (companyChanged) {
       this.fleetLoadGeneration++;
       this.clearFleetRosterAndMarkers();
+      if (!this.scopeFilter.isFleetScopeReady) {
+        this.loading = false;
+        this.updateEmptyStateKind();
+        this.endRefreshUi();
+        this.cdr.markForCheck();
+        return;
+      }
       this.beginRefreshUi();
       this.loadLocations(false, true);
       this.loadFleetStatus();
+    } else if (!this.scopeFilter.isFleetScopeReady) {
+      this.clearFleetRosterAndMarkers();
+      this.updateEmptyStateKind();
     } else {
       this.applyVisibleMarkers();
       const id = this.vehicleFilterId;
@@ -825,7 +840,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateEmptyStateKind(): void {
-    if (this.loading && this.locations.length === 0) {
+    if (this.needsCompanySelection) {
+      this.emptyStateKind = 'need-company';
+    } else if (this.loading && this.locations.length === 0) {
       this.emptyStateKind = 'loading';
     } else if (this.locations.length === 0) {
       this.emptyStateKind = 'no-data';
@@ -1590,6 +1607,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadFleetStatus(): void {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.fleetStatusLocal = null;
+      this.fleetStatusHistory = [];
+      this.applyFleetHealthSummary(null);
+      this.rebuildLiveKpiTiles();
+      return;
+    }
     const scope = this.tenantScopeId;
     this.gpsService.getFleetStatusLocal(scope).subscribe({
       next: s => {
@@ -1607,6 +1631,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   fleetHealthLoading = false;
 
   private loadFleetHealth(): void {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.fleetHealthLoading = false;
+      this.applyFleetHealthSummary(null);
+      return;
+    }
     this.fleetHealthLoading = true;
     this.gpsService.getFleetHealth(this.tenantScopeId).subscribe({
       next: summary => {
@@ -1636,6 +1665,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadFleetStatusHistory(): void {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.fleetStatusHistory = [];
+      this.recomputeKpiTiles();
+      this.recomputeFleetOverviewChart();
+      return;
+    }
     const to = new Date();
     let from: Date;
     if (this.fleetOverviewRangeDays === -1) {
@@ -2218,6 +2253,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadLocations(silent = false, manual = false): void {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      this.clearFleetRosterAndMarkers();
+      this.loading = false;
+      this.isRefreshingLocations = false;
+      this.updateEmptyStateKind();
+      if (manual || this.refreshing) this.endRefreshUi();
+      this.cdr.markForCheck();
+      return;
+    }
     if (this.isRefreshingLocations) {
       if (manual) this.queuedManualRefresh = true;
       return;
@@ -3015,6 +3059,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
    * Runs outside Angular; caller marks CD only on real changes.
    */
   private applyRealtimeUpdate(update: PositionDto): boolean {
+    if (!this.scopeFilter.isFleetScopeReady) {
+      return false;
+    }
     const idx = this.locations.findIndex(l => l.vehicleId === update.vehicleId);
     if (idx < 0) {
       return false;

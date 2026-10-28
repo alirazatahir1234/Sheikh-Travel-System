@@ -72,6 +72,14 @@
   }
 }
 
+.gps-scope-bar__hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6d28d9;
+}
+
 .gps-scope-bar__applied {
   display: flex;
   flex-wrap: wrap;

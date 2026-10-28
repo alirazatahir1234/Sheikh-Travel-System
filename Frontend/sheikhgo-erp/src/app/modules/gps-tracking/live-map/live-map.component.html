@@ -194,6 +194,12 @@
           <span>Refreshing fleet…</span>
         </div>
 
+        <div *ngIf="emptyStateKind === 'need-company'" class="panel-empty">
+          <div class="panel-empty-art"><mat-icon>business</mat-icon></div>
+          <h3>Select a company</h3>
+          <p>Choose a company in the scope bar above to view that fleet on the live map.</p>
+        </div>
+
         <div *ngIf="emptyStateKind === 'no-data'" class="panel-empty">
           <div class="panel-empty-art"><mat-icon>gps_off</mat-icon></div>
           <h3>No vehicles to track</h3>
