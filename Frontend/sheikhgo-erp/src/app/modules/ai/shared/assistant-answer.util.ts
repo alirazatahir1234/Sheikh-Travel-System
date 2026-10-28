@@ -853,11 +853,12 @@ export function asFleetStatusAnalytics(data: unknown, toolUsed?: string | null):
   let statusDistribution = parseStatusSlices(root['statusDistribution']);
   if (!statusDistribution.length) {
     statusDistribution = [
+      { key: 'online', label: 'Online', count: online },
+      { key: 'offline', label: 'Offline', count: offline },
+      { key: 'parked', label: 'Parked', count: parked },
       { key: 'moving', label: 'Moving', count: moving },
       { key: 'idle', label: 'Idle', count: idle },
-      { key: 'parked', label: 'Parked', count: parked },
       { key: 'sos', label: 'SOS', count: sos },
-      { key: 'offline', label: 'Offline', count: offline },
       { key: 'neverSeen', label: 'Never seen', count: neverSeen },
       { key: 'unknown', label: 'Unknown', count: unknown }
     ];

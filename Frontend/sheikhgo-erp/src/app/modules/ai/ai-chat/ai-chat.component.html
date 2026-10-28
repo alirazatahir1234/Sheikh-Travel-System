@@ -1,7 +1,9 @@
 <div
   class="chat-shell"
   [class.has-sessions]="showSessionsPanel"
-  [class.is-compact]="compact">
+  [class.is-compact]="compact"
+  [class.is-dashboard]="workspace"
+  [class.is-workspace]="workspace">
   <div class="access-denied" *ngIf="accessDeniedMessage" role="status">
     <mat-icon>lock</mat-icon>
     <p>{{ accessDeniedMessage }}</p>
@@ -68,8 +70,175 @@
     </div>
   </aside>
 
-  <section class="chat-main" *ngIf="!accessDeniedMessage">
-    <div class="connection-strip" [attr.data-state]="connectionState" role="status" *ngIf="compact">
+  <!-- Left AI rail — mock sections 1–3 -->
+  <aside class="ai-rail" *ngIf="workspace && !accessDeniedMessage" aria-label="SheikhGo AI Assistant">
+    <header class="ai-rail__header">
+      <div class="ai-rail__brand">
+        <span class="ai-rail__avatar" aria-hidden="true">
+          <img src="/assets/images/gofleet-ai-robot.png" width="36" height="36" alt="" />
+        </span>
+        <div class="ai-rail__titles">
+          <strong>SheikhGo AI Assistant</strong>
+          <span class="ai-rail__online" [attr.data-state]="connectionState" role="status">
+            <i aria-hidden="true"></i>
+            {{ connectionState === 'connected' ? 'Online' : 'Connecting…' }}
+          </span>
+        </div>
+      </div>
+      <div class="ai-rail__actions">
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Expand"
+          (click)="onExpand()"
+          aria-label="Expand assistant">
+          <mat-icon>open_in_full</mat-icon>
+        </button>
+        <button
+          *ngIf="compact"
+          mat-icon-button
+          type="button"
+          matTooltip="Close"
+          (click)="onClose()"
+          aria-label="Close assistant">
+          <mat-icon>close</mat-icon>
+        </button>
+        <button
+          *ngIf="!compact"
+          mat-icon-button
+          type="button"
+          matTooltip="New chat"
+          (click)="newChat()"
+          aria-label="New chat">
+          <mat-icon>add</mat-icon>
+        </button>
+      </div>
+    </header>
+
+    <div class="ai-rail__live" role="status">
+      <mat-icon aria-hidden="true">radar</mat-icon>
+      <div>
+        <strong>Connected to Live Fleet Data</strong>
+        <div style="font-weight:500;opacity:.85;font-size:.78rem;margin-top:2px">
+          Real-time insights from your SheikhGo tools.
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-rail__scroll">
+      <div class="ai-rail__hero" *ngIf="!messages.length && !sending">
+        <div class="ai-rail__robot-ring" aria-hidden="true">
+          <img
+            class="ai-rail__robot"
+            src="/assets/images/gofleet-ai-robot.png"
+            width="138"
+            height="138"
+            alt=""
+            decoding="async"
+            draggable="false" />
+        </div>
+        <h2>SheikhGo AI Assistant</h2>
+        <p>Your Fleet Intelligence Co-Pilot</p>
+        <p style="margin-top:8px;font-size:.8rem;line-height:1.4">
+          Ask about fleet health, trips, bookings, fuel, maintenance, and utilization — answers use live SheikhGo tools.
+        </p>
+      </div>
+
+      <div class="ai-rail__hero" *ngIf="messages.length || sending" style="padding-bottom:12px;text-align:left">
+        <h2 style="font-size:.95rem;margin:0">Ready for your next question</h2>
+        <p>{{ sending ? 'Analyzing live fleet data…' : 'Pick a suggestion or type below.' }}</p>
+      </div>
+
+      <div class="ai-rail__prompts" *ngIf="visibleSuggestionCards.length" role="list" aria-label="Suggested questions">
+        <button
+          type="button"
+          class="prompt-card"
+          role="listitem"
+          *ngFor="let s of visibleSuggestionCards"
+          [attr.data-tone]="s.tone"
+          (click)="useSuggestion(s.text)">
+          <span class="prompt-card__icon" aria-hidden="true">
+            <mat-icon>{{ s.icon }}</mat-icon>
+          </span>
+          <span class="prompt-card__text">{{ s.text }}</span>
+          <mat-icon aria-hidden="true" style="margin-left:auto;color:#94a3b8;font-size:20px;width:20px;height:20px">chevron_right</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="ai-rail__composer">
+      <div class="confirm-bar" *ngIf="pendingAction && !sending">
+        <div>
+          <strong>Confirm this action</strong>
+          <p>{{ pendingAction.summary }}</p>
+          <small>Expires {{ pendingAction.expiresAt | date:'short' }} · or type CONFIRM</small>
+        </div>
+        <div class="confirm-actions">
+          <button mat-stroked-button type="button" (click)="dismissConfirm()">Cancel</button>
+          <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm</button>
+        </div>
+      </div>
+
+      <div class="pending-files" *ngIf="pendingFiles.length" aria-label="Attached files">
+        <span class="attach-chip" *ngFor="let f of pendingFiles; let i = index">
+          <mat-icon aria-hidden="true">attach_file</mat-icon>
+          {{ f.name }}
+          <button type="button" class="chip-remove" (click)="removePendingFile(i)" aria-label="Remove attachment">
+            <mat-icon>close</mat-icon>
+          </button>
+        </span>
+      </div>
+
+      <form class="composer composer--rail" (ngSubmit)="send()">
+        <input
+          #fileInput
+          type="file"
+          class="sr-only"
+          [attr.accept]="attachAccept"
+          multiple
+          (change)="onFilesSelected($event)"
+          tabindex="-1"
+          aria-hidden="true" />
+        <button
+          type="button"
+          class="attach-btn"
+          mat-icon-button
+          matTooltip="Attach text, CSV, image, or PDF (max 2 MB)"
+          [disabled]="sending || !!accessDeniedMessage"
+          (click)="openAttachPicker()"
+          aria-label="Attach file">
+          <mat-icon>attach_file</mat-icon>
+        </button>
+        <textarea
+          #composerInput
+          class="composer-input"
+          [(ngModel)]="draft"
+          name="draft"
+          rows="1"
+          [disabled]="sending || !!accessDeniedMessage"
+          (keydown)="onComposerKeydown($event)"
+          placeholder="Ask SheikhGo AI Assistant..."
+          aria-label="Message SheikhGo AI Assistant"></textarea>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="send-btn send-fab"
+          [disabled]="sending || (!draft.trim() && !pendingFiles.length) || !!accessDeniedMessage"
+          aria-label="Send">
+          <mat-icon>send</mat-icon>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- Right response workspace -->
+  <section
+    class="chat-main"
+    *ngIf="!accessDeniedMessage"
+    [class.ai-workspace]="workspace"
+    [class.chat-main--workspace]="workspace">
+    <div class="connection-strip" [attr.data-state]="connectionState" role="status" *ngIf="compact && !workspace">
       <mat-icon>{{ connectionState === 'connected' ? 'check_circle' : 'hourglass_empty' }}</mat-icon>
       <span>{{ connectionState === 'connected' ? ('Connected ' + aiUi.smile) : ('Connecting… ' + aiUi.wave) }}</span>
       <button
@@ -83,12 +252,12 @@
       </button>
     </div>
 
-    <div class="chat-loading" *ngIf="loading && !showSessionsPanel">
+    <div class="chat-loading" *ngIf="loading && !showSessionsPanel && !workspace">
       <mat-spinner diameter="32"></mat-spinner>
     </div>
 
-    <div class="messages" *ngIf="!loading || showSessionsPanel">
-      <div class="empty" *ngIf="!messages.length && !sending">
+    <div class="messages" *ngIf="!loading || showSessionsPanel || workspace" [class.messages--workspace]="workspace">
+      <div class="empty" *ngIf="!workspace && !messages.length && !sending">
         <div class="empty-avatar" aria-hidden="true">
           <mat-icon>smart_toy</mat-icon>
         </div>
@@ -96,13 +265,20 @@
         <p>Ask about fleet health, trips, bookings, fuel, maintenance, and utilization — answers use live SheikhGo tools.</p>
       </div>
 
+      <div class="ai-workspace__empty" *ngIf="workspace && !messages.length && !sending" role="status">
+        <mat-icon aria-hidden="true">insights</mat-icon>
+        <h3>Response workspace</h3>
+        <p>Ask a question on the left to see live fleet KPIs, charts, and recommended actions here.</p>
+      </div>
+
       <article
         *ngFor="let m of messages"
         class="bubble"
         [class.user]="m.role === 'user'"
         [class.assistant]="m.role === 'assistant'"
-        [class.has-widgets]="m.role === 'assistant' && !!m.data">
-        <div class="assistant-avatar" *ngIf="m.role === 'assistant'" aria-hidden="true">
+        [class.has-widgets]="m.role === 'assistant' && !!m.data"
+        [class.bubble--workspace]="workspace">
+        <div class="assistant-avatar" *ngIf="m.role === 'assistant' && !workspace" aria-hidden="true">
           <mat-icon>smart_toy</mat-icon>
         </div>
         <div class="bubble-body">
@@ -117,6 +293,30 @@
             <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
             <mat-icon class="read-checks" aria-hidden="true">done_all</mat-icon>
           </div>
+
+          <header class="assistant-identity" *ngIf="workspace && m.role === 'assistant'">
+            <img
+              class="assistant-identity__img"
+              src="/assets/images/gofleet-ai-robot.png"
+              width="28"
+              height="28"
+              alt=""
+              aria-hidden="true" />
+            <div class="assistant-identity__meta">
+              <strong>SheikhGo AI</strong>
+              <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
+            </div>
+            <span class="live-chip" *ngIf="m.data">Live Fleet Data</span>
+            <button
+              type="button"
+              mat-icon-button
+              matTooltip="Copy answer"
+              aria-label="Copy answer"
+              (click)="copyAnswer(m)">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </header>
+
           <app-ai-assistant-result
             *ngIf="m.role === 'assistant'"
             [answer]="m.content"
@@ -124,9 +324,10 @@
             [data]="m.data"
             [warnings]="m.warnings ?? []"
             [mode]="m.mode"
+            [workspace]="workspace"
             (followUp)="useSuggestion($event)">
           </app-ai-assistant-result>
-          <div class="bubble-meta bubble-meta--assistant" *ngIf="m.role === 'assistant' && m.at">
+          <div class="bubble-meta bubble-meta--assistant" *ngIf="!workspace && m.role === 'assistant' && m.at">
             <time>{{ m.at | date:'shortTime' }}</time>
           </div>
           <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
@@ -143,7 +344,7 @@
       <div #scrollAnchor></div>
     </div>
 
-    <div class="composer-dock">
+    <div class="composer-dock" *ngIf="!workspace">
       <div class="suggestions" *ngIf="visibleSuggestions.length" role="list" aria-label="Suggested questions">
         <button
           type="button"
@@ -179,7 +380,6 @@
 
       <form class="composer" (ngSubmit)="send()">
         <input
-          #fileInput
           type="file"
           class="sr-only"
           [attr.accept]="attachAccept"
@@ -198,10 +398,9 @@
           <mat-icon>attach_file</mat-icon>
         </button>
         <textarea
-          #composerInput
           class="composer-input"
           [(ngModel)]="draft"
-          name="draft"
+          name="draftClassic"
           rows="1"
           [disabled]="sending || !!accessDeniedMessage"
           (keydown)="onComposerKeydown($event)"

@@ -308,6 +308,17 @@
   padding-top: 4px;
   padding-bottom: 8px;
   min-height: calc(100vh - 220px);
+
+  &--workspace {
+    padding: 0;
+    min-height: calc(100vh - 200px);
+    height: calc(100vh - 200px);
+
+    > app-ai-chat {
+      display: block;
+      height: 100%;
+    }
+  }
 }
 
 .form-grid {

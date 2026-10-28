@@ -301,30 +301,18 @@
 
   <div class="stb-ai-chat-backdrop" *ngIf="aiChatOpen" (click)="closeAiChat()" aria-hidden="true"></div>
   <aside
-    class="stb-ai-chat-panel"
+    class="stb-ai-chat-panel stb-ai-chat-panel--workspace"
     *ngIf="aiChatOpen"
     role="dialog"
     aria-label="SheikhGo AI Assistant"
     (click)="$event.stopPropagation()">
-    <div class="stb-ai-chat-panel-header">
-      <div class="stb-ai-chat-panel-title">
-        <mat-icon>smart_toy</mat-icon>
-        <div>
-          <strong>SheikhGo AI Assistant {{ aiUi.smile }}</strong>
-          <span>{{ aiUi.wave }} Fleet intelligence for your business</span>
-        </div>
-      </div>
-      <div class="stb-ai-chat-panel-actions">
-        <button mat-icon-button type="button" matTooltip="Open full page" (click)="openAiChatFullPage()" aria-label="Open full page chat">
-          <mat-icon>open_in_full</mat-icon>
-        </button>
-        <button mat-icon-button type="button" (click)="closeAiChat()" aria-label="Close assistant">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-    </div>
-    <div class="stb-ai-chat-panel-body">
-      <app-ai-chat [compact]="true"></app-ai-chat>
+    <div class="stb-ai-chat-panel-body stb-ai-chat-panel-body--workspace">
+      <app-ai-chat
+        [compact]="true"
+        [workspace]="true"
+        (closeWorkspace)="closeAiChat()"
+        (expandWorkspace)="openAiChatFullPage()">
+      </app-ai-chat>
     </div>
   </aside>
 

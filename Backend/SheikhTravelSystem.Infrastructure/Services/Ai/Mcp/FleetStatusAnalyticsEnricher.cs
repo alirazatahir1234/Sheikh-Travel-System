@@ -129,22 +129,22 @@ public static class FleetStatusAnalyticsEnricher
                 nextAction = actions.FirstOrDefault() ?? "Open Live Map to verify positions.",
                 kpis = new object[]
                 {
-                    Kpi("totalVehicles", "Total Vehicles", total, "count", "directions_car", "teal"),
-                    Kpi("online", "Online", online, "count", "wifi", "blue", onlinePct),
-                    Kpi("offline", "Offline", offline, "count", "wifi_off", "orange", offlinePct),
-                    Kpi("moving", "Moving", moving, "count", "near_me", "purple"),
-                    Kpi("parked", "Parked", parked, "count", "local_parking", "teal"),
-                    Kpi("idle", "Idle", idle, "count", "pause_circle", "blue"),
-                    Kpi("sos", "SOS", sos, "count", "sos", "orange")
+                    Kpi("online", "Online", online, "count", "wifi", "green", onlinePct),
+                    Kpi("offline", "Offline", offline, "count", "wifi_off", "red", offlinePct),
+                    Kpi("parked", "Parked", parked, "count", "local_parking", "purple",
+                        total > 0 ? Math.Round(parked * 1000.0 / total) / 10.0 : 0),
+                    Kpi("idle", "Idle", idle, "count", "pause_circle", "amber",
+                        total > 0 ? Math.Round(idle * 1000.0 / total) / 10.0 : 0)
                 },
                 statusDistribution = new object[]
                 {
+                    Slice("online", "Online", online),
+                    Slice("offline", "Offline", offline),
+                    Slice("parked", "Parked", parked),
                     Slice("moving", "Moving", moving),
                     Slice("idle", "Idle", idle),
-                    Slice("parked", "Parked", parked),
                     Slice("sos", "SOS", sos),
-                    Slice("offline", "Offline", offline),
-                    Slice("neverSeen", "Never seen", neverSeen),
+                    Slice("neverSeen", "Never Seen", neverSeen),
                     Slice("unknown", "Unknown", unknown)
                 },
                 vehicles = vehicleDtos,
@@ -270,43 +270,38 @@ public static class FleetStatusAnalyticsEnricher
             return tips.ToArray();
         }
 
-        tips.Add($"{s.Online} online / {s.Offline} offline ({onlinePct}% online).");
-        if (s.Moving > 0)
-            tips.Add($"{s.Moving} vehicle(s) currently moving.");
-        if (s.Parked > 0 || s.Idle > 0)
-            tips.Add($"{s.Parked} parked and {s.Idle} idle (ignition on, not moving).");
+        var offlinePct = s.Total > 0 ? Math.Round(s.Offline * 1000.0 / s.Total) / 10.0 : 0;
+        if (offlinePct > 0)
+            tips.Add($"{offlinePct}% of vehicles are offline");
+        if (s.Parked > 0)
+            tips.Add($"{s.Parked} vehicle{(s.Parked == 1 ? " is" : "s are")} parked");
+        if (s.Sos == 0 && offlinePct < 40)
+            tips.Add("No critical issues");
         if (s.Sos > 0)
-            tips.Add($"{s.Sos} SOS alarm(s) need immediate attention.");
+            tips.Add($"{s.Sos} SOS alarm(s) need immediate attention");
         if (s.NeverSeen > 0)
-            tips.Add($"{s.NeverSeen} vehicle(s) never seen on GPS.");
-        if (s.Total > 0 && s.Offline * 100.0 / s.Total >= 40)
-            tips.Add("Offline share is elevated — verify device power and SIM/network.");
+            tips.Add($"{s.NeverSeen} vehicle(s) never seen on GPS");
+        if (tips.Count == 0)
+            tips.Add($"{s.Online} online / {s.Offline} offline ({onlinePct}% online).");
 
-        var offlineSample = vehicles
-            .Where(v => v.GpsBucket.Equals("offline", StringComparison.OrdinalIgnoreCase))
-            .Take(3)
-            .Select(v => v.VehicleName)
-            .ToList();
-        if (offlineSample.Count > 0)
-            tips.Add("Offline sample: " + string.Join(", ", offlineSample) + ".");
+        // vehicles kept for future offline-sample insights (real sample only)
+        _ = vehicles;
 
-        return tips.Take(6).ToArray();
+        return tips.Take(4).ToArray();
     }
 
     private static string[] BuildActions(Summary s)
     {
         var actions = new List<string>();
-        if (s.Sos > 0)
-            actions.Add("Open SOS / panic alerts and contact the driver immediately.");
         if (s.Offline > 0)
-            actions.Add("Investigate offline vehicles on Live Map and check GpsDevices last-seen.");
-        if (s.NeverSeen > 0)
-            actions.Add("Confirm GPS hardware assignment for never-seen vehicles.");
-        if (s.Moving > 0)
-            actions.Add("Review moving vehicles against active trips.");
-        if (actions.Count == 0)
-            actions.Add("Open Live Map to verify current positions.");
-        actions.Add("Drill into a vehicle for last update, speed, and ignition.");
+            actions.Add("View Offline Vehicles");
+        else
+            actions.Add("View Online Vehicles");
+        actions.Add("Show on Live Map");
+        actions.Add("Generate Status Report");
+        actions.Add("Refresh Data");
+        if (s.Sos > 0)
+            actions.Insert(0, "Open SOS Alerts");
         return actions.Distinct(StringComparer.OrdinalIgnoreCase).Take(5).ToArray();
     }
 
@@ -314,16 +309,14 @@ public static class FleetStatusAnalyticsEnricher
     {
         var list = new List<string>
         {
-            "Show offline vehicles",
-            "Open live map",
-            "How healthy is my fleet today?",
-            "Which vehicles have maintenance due?"
+            "Show all offline vehicles",
+            "When did each vehicle last report?",
+            "Which vehicles are parked right now?",
+            "How healthy is my fleet today?"
         };
         if (s.Sos > 0)
             list.Insert(0, "Any SOS events this month?");
-        if (s.Moving > 0)
-            list.Add("Show vehicles on trips");
-        return list.Distinct(StringComparer.OrdinalIgnoreCase).Take(6).ToArray();
+        return list.Distinct(StringComparer.OrdinalIgnoreCase).Take(5).ToArray();
     }
 
     private static object[] BuildEvidence(

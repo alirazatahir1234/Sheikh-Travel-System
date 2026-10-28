@@ -1,5 +1,5 @@
 <div class="result">
-  <header class="result-head" *ngIf="toolLabel || mode">
+  <header class="result-head" *ngIf="!fleetStatus && (toolLabel || mode)">
     <span class="result-source" *ngIf="toolLabel">
       <mat-icon aria-hidden="true">insights</mat-icon>
       {{ toolLabel }}
@@ -24,24 +24,26 @@
   </div>
 
   <!-- ACEIN narrative frame (Answer / Context / Evidence / Interpretation / Next) -->
-  <section class="acein" *ngIf="acein as frame" aria-label="Analysis narrative">
-    <article class="acein-block" *ngIf="frame.answer">
-      <h4>Answer</h4>
-      <p>{{ frame.answer }}</p>
-    </article>
-    <article class="acein-block" *ngIf="frame.context">
-      <h4>Context</h4>
-      <p>{{ frame.context }}</p>
-    </article>
-    <article class="acein-block" *ngIf="frame.interpretation">
-      <h4>Interpretation</h4>
-      <p>{{ frame.interpretation }}</p>
-    </article>
-    <article class="acein-block" *ngIf="frame.nextAction">
-      <h4>Next action</h4>
-      <p>{{ frame.nextAction }}</p>
-    </article>
-  </section>
+  <ng-container *ngIf="!fleetStatus">
+    <section class="acein" *ngIf="acein as frame" aria-label="Analysis narrative">
+      <article class="acein-block" *ngIf="frame.answer">
+        <h4>Answer</h4>
+        <p>{{ frame.answer }}</p>
+      </article>
+      <article class="acein-block" *ngIf="frame.context">
+        <h4>Context</h4>
+        <p>{{ frame.context }}</p>
+      </article>
+      <article class="acein-block" *ngIf="frame.interpretation">
+        <h4>Interpretation</h4>
+        <p>{{ frame.interpretation }}</p>
+      </article>
+      <article class="acein-block" *ngIf="frame.nextAction">
+        <h4>Next action</h4>
+        <p>{{ frame.nextAction }}</p>
+      </article>
+    </section>
+  </ng-container>
 
   <section class="fleet-health-panel" *ngIf="fleetHealth as fh" aria-label="Fleet health metrics">
     <div class="fleet-health-hero" [attr.data-band]="fleetBand">
@@ -63,7 +65,7 @@
     </div>
   </section>
 
-  <div class="prose" *ngIf="blocks.length">
+  <div class="prose" *ngIf="!fleetStatus && blocks.length">
     <ng-container *ngFor="let block of blocks">
       <h3 class="prose-h" *ngIf="block.kind === 'heading' && block.level === 2">{{ block.text }}</h3>
       <h4 class="prose-h prose-h--sm" *ngIf="block.kind === 'heading' && block.level === 3">{{ block.text }}</h4>
@@ -74,132 +76,143 @@
     </ng-container>
   </div>
 
-  <!-- Fleet status analytics (responseType=fleet_status_analytics / raw get_fleet_status) -->
-  <section class="analytics" *ngIf="fleetStatus as fs" aria-label="Fleet status analysis">
-    <div class="kpi-row kpi-row--fleet" *ngIf="fs.kpis.length">
-      <article class="kpi-card" *ngFor="let k of fs.kpis" [attr.data-tone]="k.tone || 'teal'">
-        <div class="kpi-card__icon" aria-hidden="true">
-          <mat-icon>{{ kpiIcon(k) }}</mat-icon>
+  <!-- Fleet status analytics — mock-matching Fleet Status Summary -->
+  <section
+    class="analytics analytics--fleet"
+    [class.analytics--workspace]="workspace"
+    *ngIf="fleetStatus as fs"
+    aria-label="Fleet status analysis">
+    <article class="fleet-summary-card" aria-labelledby="fleet-status-summary-title">
+      <header class="fleet-summary-card__head">
+        <div>
+          <h3 id="fleet-status-summary-title">Fleet Status Summary</h3>
+          <p class="fleet-summary-card__asof">{{ fleetAsOfLabel }}</p>
         </div>
-        <div class="kpi-card__body">
-          <span class="kpi-card__label">{{ k.label }}</span>
-          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
-          <span
-            class="kpi-card__delta"
-            *ngIf="k.sharePercent != null || k.deltaLabel"
-            [attr.data-dir]="'flat'">
-            <ng-container *ngIf="k.sharePercent != null">{{ k.sharePercent | number:'1.0-1' }}%</ng-container>
-            <small *ngIf="k.deltaLabel">{{ k.deltaLabel }}</small>
-          </span>
-        </div>
-        <div
-          class="kpi-card__bar"
-          *ngIf="kpiBarPercent(k) != null"
-          role="presentation"
-          [attr.aria-valuenow]="kpiBarPercent(k)">
-          <span [style.width.%]="kpiBarPercent(k)"></span>
-        </div>
-      </article>
-    </div>
+        <span class="live-badge">Live Fleet Data</span>
+      </header>
+      <p class="fleet-summary-card__text">{{ fleetSummaryText }}</p>
 
-    <div class="workspace-grid" *ngIf="statusChartData || fs.vehicles.length || fs.insights.length">
-      <div class="workspace-main">
-        <article class="table-card" *ngIf="fs.vehicles.length">
-          <header class="chart-card__head">
-            <h4>Vehicles</h4>
-            <span class="chart-card__badge">Live sample</span>
-          </header>
-          <div class="data-table-scroll">
-            <table class="data-table recent-trips">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Vehicle</th>
-                  <th>Plate</th>
-                  <th>GPS status</th>
-                  <th>Ops status</th>
-                  <th class="num">Speed</th>
-                  <th>Last update</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let v of fs.vehicles; let i = index">
-                  <td>{{ i + 1 }}</td>
-                  <td><strong>{{ v.vehicleName }}</strong></td>
-                  <td>{{ v.registrationNumber }}</td>
-                  <td>
-                    <span class="status-pill" [attr.data-tone]="v.statusTone">{{ v.statusLabel }}</span>
-                  </td>
-                  <td>{{ v.vehicleStatusName || '—' }}</td>
-                  <td class="num">{{ v.speed != null ? (v.speed | number:'1.0-0') + ' km/h' : '—' }}</td>
-                  <td>{{ v.lastUpdate ? (v.lastUpdate | date:'short') : '—' }}</td>
-                  <td>
-                    <a
-                      class="view-btn-link"
-                      [routerLink]="['/gps/live-map']"
-                      [queryParams]="{ q: v.registrationNumber }"
-                      matTooltip="View on live map"
-                      aria-label="View on live map">
-                      <mat-icon>map</mat-icon>
-                      Map
-                    </a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+      <div class="kpi-row kpi-row--hero" *ngIf="fleetHeroKpis.length">
+        <article class="kpi-card kpi-card--hero" *ngFor="let k of fleetHeroKpis" [attr.data-tone]="k.tone">
+          <div class="kpi-card__icon" aria-hidden="true">
+            <mat-icon>{{ k.icon }}</mat-icon>
+          </div>
+          <div class="kpi-card__body">
+            <span class="kpi-card__label">{{ k.label }}</span>
+            <strong class="kpi-card__value">{{ k.value }} {{ k.value === 1 ? 'vehicle' : 'vehicles' }}</strong>
+            <span class="kpi-card__delta" data-dir="flat">{{ k.sharePercent | number:'1.0-1' }}%</span>
+            <small class="kpi-card__hint">{{ k.hint }}</small>
+          </div>
+          <div class="kpi-card__bar" role="presentation" [attr.aria-valuenow]="k.sharePercent">
+            <span [style.width.%]="k.sharePercent"></span>
           </div>
         </article>
       </div>
-
-      <aside class="workspace-side" *ngIf="statusChartData || fs.insights.length">
-        <article class="chart-card chart-card--donut" *ngIf="statusChartData as sd">
-          <header class="chart-card__head">
-            <h4>Status Distribution</h4>
-          </header>
-          <div class="donut-layout">
-            <div class="donut-wrap">
-              <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
-              <div class="donut-center" aria-hidden="true">
-                <strong>{{ fs.summary.total }}</strong>
-                <span>Vehicles</span>
-              </div>
-            </div>
-            <ul class="donut-legend">
-              <li *ngFor="let s of statusLegend">
-                <span class="swatch" [style.background]="s.color"></span>
-                <span class="name">{{ s.label }}</span>
-                <strong>{{ s.count }}</strong>
-              </li>
-            </ul>
-          </div>
-        </article>
-
-        <article class="insights-card" *ngIf="fs.insights.length">
-          <header class="chart-card__head">
-            <h4>Key Insights</h4>
-            <span class="live-badge">Live Analysis</span>
-          </header>
-          <ul class="insights-list">
-            <li *ngFor="let tip of fs.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
-              <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
-              <span>{{ tip }}</span>
-            </li>
-          </ul>
-        </article>
-      </aside>
-    </div>
-
-    <article class="actions-card" *ngIf="fs.recommendedActions.length" aria-label="Recommended actions">
-      <header class="chart-card__head">
-        <h4>Recommended actions</h4>
-      </header>
-      <ol class="actions-list">
-        <li *ngFor="let a of fs.recommendedActions">{{ a }}</li>
-      </ol>
     </article>
 
-    <article class="evidence-card" *ngIf="acein?.evidence?.length" aria-label="Evidence">
+    <div class="fleet-mid-grid" *ngIf="statusChartData || fs.insights.length">
+      <article class="chart-card chart-card--donut" *ngIf="statusChartData as sd">
+        <header class="chart-card__head">
+          <h4>Status Distribution</h4>
+        </header>
+        <div class="donut-layout">
+          <div class="donut-wrap">
+            <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
+            <div class="donut-center" aria-hidden="true">
+              <strong>{{ fs.summary.total }}</strong>
+              <span>Vehicles</span>
+            </div>
+          </div>
+          <ul class="donut-legend">
+            <li *ngFor="let s of statusLegend">
+              <span class="swatch" [style.background]="s.color"></span>
+              <span class="name">{{ s.label }}</span>
+              <strong>{{ s.count }}</strong>
+            </li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="insights-card" *ngIf="fs.insights.length">
+        <header class="chart-card__head">
+          <h4>Key Insights</h4>
+          <span class="live-badge">Live Analysis</span>
+        </header>
+        <ul class="insights-list">
+          <li *ngFor="let tip of fs.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
+            <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
+            <span>{{ tip }}</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+
+    <article class="table-card" *ngIf="fs.vehicles.length">
+      <header class="chart-card__head">
+        <h4>Vehicle Details by Status ({{ fs.summary.total }} vehicles)</h4>
+        <a class="chart-card__badge" [routerLink]="['/fleet/vehicles']">View All</a>
+      </header>
+      <div class="data-table-scroll">
+        <table class="data-table recent-trips">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vehicle</th>
+              <th>Status</th>
+              <th>Last Update</th>
+              <th>Location</th>
+              <th class="num">Speed</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of fs.vehicles; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>
+                <strong>{{ v.registrationNumber !== '—' ? v.registrationNumber : v.vehicleName }}</strong>
+                <small class="vehicle-sub" *ngIf="v.registrationNumber !== '—'">{{ v.vehicleName }}</small>
+              </td>
+              <td>
+                <span class="status-pill" [attr.data-tone]="v.statusTone">{{ v.statusLabel }}</span>
+              </td>
+              <td>{{ relativeTime(v.lastUpdate) }}</td>
+              <td>{{ locationLabel(v) }}</td>
+              <td class="num">{{ v.speed != null ? (v.speed | number:'1.0-0') + ' km/h' : '—' }}</td>
+              <td>
+                <a
+                  class="view-btn-link"
+                  [routerLink]="['/gps/live-map']"
+                  [queryParams]="{ q: v.registrationNumber }"
+                  matTooltip="View on live map"
+                  aria-label="View on live map">
+                  <mat-icon>location_on</mat-icon>
+                  View
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="actions-card actions-card--pills" *ngIf="fleetActionButtons.length" aria-label="Recommended actions">
+      <header class="chart-card__head">
+        <h4>Recommended Actions</h4>
+      </header>
+      <div class="action-pills">
+        <button
+          type="button"
+          class="action-pill"
+          *ngFor="let a of fleetActionButtons"
+          [attr.data-tone]="a.tone"
+          (click)="emitFollowUp(a.prompt)">
+          <mat-icon aria-hidden="true">{{ a.icon }}</mat-icon>
+          {{ a.label }}
+        </button>
+      </div>
+    </article>
+
+    <article class="evidence-card" *ngIf="!workspace && acein?.evidence?.length" aria-label="Evidence">
       <header class="chart-card__head">
         <h4>Evidence</h4>
       </header>

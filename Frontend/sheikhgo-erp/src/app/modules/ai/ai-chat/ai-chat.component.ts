@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostBinding, Input, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostBinding, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -45,6 +45,12 @@ interface SessionGroup {
   sessions: AiChatSession[];
 }
 
+interface AiSuggestionCard {
+  text: string;
+  icon: string;
+  tone: 'danger' | 'success' | 'teal' | 'purple' | 'info';
+}
+
 @Component({
   selector: 'app-ai-chat',
   standalone: true,
@@ -66,12 +72,19 @@ interface SessionGroup {
 export class AiChatComponent implements OnInit {
   readonly aiUi = AI_ASSISTANT_UI;
 
-  /** Narrow slide-over / FAB embed — tighter layout, fewer chips. */
+  /** FAB slide-over embed — tighter host sizing. */
   @Input() compact = false;
+  /** Two-panel mock layout (left AI rail + right response workspace). */
+  @Input() workspace = false;
+
+  /** Close the FAB panel (dashboard header). */
+  @Output() closeWorkspace = new EventEmitter<void>();
+  /** Expand to full /ai page. */
+  @Output() expandWorkspace = new EventEmitter<void>();
 
   @HostBinding('class.is-host-compact')
   get hostCompact(): boolean {
-    return this.compact;
+    return this.compact || this.workspace;
   }
 
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
@@ -97,16 +110,24 @@ export class AiChatComponent implements OnInit {
   /** User-facing connection strip only — no provider/model/diagnostics. */
   connectionState: 'connecting' | 'connected' = 'connecting';
 
+  /** Mock-matching suggested question cards (left rail). */
+  readonly dashboardSuggestionCards: AiSuggestionCard[] = [
+    { text: 'How many vehicles are offline?', icon: 'wifi_off', tone: 'danger' },
+    { text: "Show today's trips", icon: 'bar_chart', tone: 'success' },
+    { text: 'Check vehicle health', icon: 'monitor_heart', tone: 'teal' },
+    { text: 'Pending bookings', icon: 'calendar_month', tone: 'purple' },
+    { text: 'Fuel consumption report', icon: 'local_gas_station', tone: 'info' }
+  ];
+
   private readonly defaultSuggestions: string[] = [
     'How many vehicles are offline?',
+    "Show today's trips",
+    'Check vehicle health',
+    'Pending bookings',
+    'Fuel consumption report',
     'How healthy is my fleet today?',
-    'What is our daily, weekly, and monthly revenue?',
     'Which vehicles have maintenance due?',
-    'Who is the best performing driver today?',
-    'Show trip and booking analytics this month.',
-    'What is our cost per kilometer this month?',
-    'Any SOS events this month?',
-    'What are our peak booking hours this month?'
+    'Who is the best performing driver today?'
   ];
 
   suggestions: string[] = [...this.defaultSuggestions];
@@ -122,11 +143,25 @@ export class AiChatComponent implements OnInit {
     this.refresh();
   }
 
-  /** Suggestion chips — always visible when idle; compact drawer shows fewer. */
+  /** Suggestion chips — full-page chat only. */
   get visibleSuggestions(): string[] {
     if (this.sending || !!this.accessDeniedMessage || !this.suggestions.length) return [];
-    const limit = this.compact ? 4 : 5;
-    return this.suggestions.slice(0, limit);
+    return this.suggestions.slice(0, 5);
+  }
+
+  /** Left-rail prompt cards — prefer contextual follow-ups after a reply. */
+  get visibleSuggestionCards(): AiSuggestionCard[] {
+    if (this.sending || this.accessDeniedMessage) return [];
+    const followUps = this.suggestions.filter(
+      s => !this.dashboardSuggestionCards.some(c => c.text === s)
+    );
+    if (!followUps.length || this.messages.length === 0) {
+      return this.dashboardSuggestionCards;
+    }
+    return followUps.slice(0, 5).map((text, i) => {
+      const fallback = this.dashboardSuggestionCards[i % this.dashboardSuggestionCards.length];
+      return { text, icon: fallback.icon, tone: fallback.tone };
+    });
   }
 
   get hasSessions(): boolean {
@@ -175,7 +210,33 @@ export class AiChatComponent implements OnInit {
   }
 
   get showSessionsPanel(): boolean {
+    // Workspace mock is a dedicated two-panel surface; history stays available via New Chat / full page later.
+    if (this.workspace) return false;
     return !this.compact && !this.accessDeniedMessage;
+  }
+
+  onClose(): void {
+    this.closeWorkspace.emit();
+  }
+
+  onExpand(): void {
+    if (this.compact) {
+      this.expandWorkspace.emit();
+      return;
+    }
+    this.newChat();
+  }
+
+  copyAnswer(m: ChatBubble): void {
+    const text = (m.content || '').trim();
+    if (!text || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      this.toast.error('Copy is unavailable in this browser.');
+      return;
+    }
+    void navigator.clipboard.writeText(text).then(
+      () => this.toast.success('Answer copied'),
+      () => this.toast.error('Could not copy answer')
+    );
   }
 
   refresh(): void {

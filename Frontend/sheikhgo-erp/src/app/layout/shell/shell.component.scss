@@ -1322,6 +1322,16 @@
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
   overflow: hidden;
   animation: stb-ai-panel-in 0.2s ease-out;
+
+  &--workspace {
+    width: min(1180px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    border-radius: 18px;
+    background: #f3f7fb;
+  }
 }
 
 @keyframes stb-ai-panel-in {
@@ -1403,6 +1413,11 @@
   ::ng-deep .chat-shell.is-compact {
     flex: 1 1 auto;
     min-height: 0;
+  }
+
+  &--workspace {
+    padding: 0;
+    background: #fff;
   }
 }
 

@@ -32,7 +32,7 @@ import {
 } from '../assistant-answer.util';
 import { polishAssistantEmojis } from '../ai-assistant-ui.constants';
 
-const STATUS_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8', '#8b5cf6', '#64748b'];
+const STATUS_COLORS = ['#10b981', '#ef4444', '#8b5cf6', '#3b82f6', '#f59e0b', '#ec4899', '#94a3b8', '#cbd5e1'];
 
 @Component({
   selector: 'app-ai-assistant-result',
@@ -47,8 +47,22 @@ export class AiAssistantResultComponent {
   @Input() data?: unknown;
   @Input() warnings: string[] = [];
   @Input() mode?: string;
+  /** Two-panel dashboard / mock response workspace styling. */
+  @Input() workspace = false;
   /** Emits when user clicks a follow-up action chip under rich analytics. */
   @Output() followUp = new EventEmitter<string>();
+
+  private readonly statusColorByKey: Record<string, string> = {
+    online: '#10b981',
+    moving: '#3b82f6',
+    idle: '#f59e0b',
+    parked: '#8b5cf6',
+    sos: '#ec4899',
+    offline: '#ef4444',
+    neverseen: '#94a3b8',
+    never_seen: '#94a3b8',
+    unknown: '#cbd5e1'
+  };
 
   get blocks() {
     return parseAssistantAnswer(this.answer);
@@ -79,6 +93,134 @@ export class AiAssistantResultComponent {
 
   get fleetStatus(): FleetStatusAnalyticsData | null {
     return asFleetStatusAnalytics(this.data, this.toolUsed);
+  }
+
+  /** Mock hero KPIs: Online / Offline / Parked / Idle from live summary (real counts only). */
+  get fleetHeroKpis(): {
+    key: string;
+    label: string;
+    value: number;
+    sharePercent: number;
+    tone: string;
+    icon: string;
+    hint: string;
+  }[] {
+    const fs = this.fleetStatus;
+    if (!fs) return [];
+    const total = Math.max(0, fs.summary.total);
+    const pct = (n: number) => (total > 0 ? Math.round((n * 1000) / total) / 10 : 0);
+    const vehicleWord = (n: number) => (n === 1 ? 'vehicle' : 'vehicles');
+    return [
+      {
+        key: 'online',
+        label: 'Online',
+        value: fs.summary.online,
+        sharePercent: pct(fs.summary.online),
+        tone: 'green',
+        icon: 'wifi',
+        hint: fs.summary.online === 1
+          ? 'Vehicle is sending live location.'
+          : `${fs.summary.online} ${vehicleWord(fs.summary.online)} sending live location.`
+      },
+      {
+        key: 'offline',
+        label: 'Offline',
+        value: fs.summary.offline,
+        sharePercent: pct(fs.summary.offline),
+        tone: 'red',
+        icon: 'wifi_off',
+        hint: fs.summary.offline === 0
+          ? 'No vehicles are offline.'
+          : `${fs.summary.offline} ${vehicleWord(fs.summary.offline)} are not sending location.`
+      },
+      {
+        key: 'parked',
+        label: 'Parked',
+        value: fs.summary.parked,
+        sharePercent: pct(fs.summary.parked),
+        tone: 'purple',
+        icon: 'local_parking',
+        hint: fs.summary.parked === 0
+          ? 'No vehicles are parked.'
+          : `${fs.summary.parked} ${vehicleWord(fs.summary.parked)} parked at a location.`
+      },
+      {
+        key: 'idle',
+        label: 'Idle',
+        value: fs.summary.idle,
+        sharePercent: pct(fs.summary.idle),
+        tone: 'amber',
+        icon: 'pause_circle',
+        hint: fs.summary.idle === 0
+          ? 'No vehicles are currently idle.'
+          : `${fs.summary.idle} ${vehicleWord(fs.summary.idle)} idle (ignition on).`
+      }
+    ];
+  }
+
+  get fleetSummaryText(): string {
+    const fs = this.fleetStatus;
+    if (!fs) return '';
+    if (fs.acein?.answer) return fs.acein.answer;
+    const offline = fs.summary.offline;
+    const total = fs.summary.total;
+    const pct = total > 0 ? Math.round((offline * 1000) / total) / 10 : 0;
+    if (total === 0) return 'No vehicles were returned for this tenant’s live fleet status.';
+    if (offline > 0) {
+      return `${offline} vehicle${offline === 1 ? ' is' : 's are'} offline, which is ${pct}% of your total fleet (${total}).`;
+    }
+    return `Fleet status: ${fs.summary.online} of ${total} vehicles online.`;
+  }
+
+  get fleetAsOfLabel(): string {
+    const now = new Date();
+    return `Data as of ${now.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })}`;
+  }
+
+  get fleetActionButtons(): { label: string; icon: string; tone: string; prompt: string }[] {
+    const fs = this.fleetStatus;
+    if (!fs) return [];
+    const buttons = [
+      {
+        label: 'View Offline Vehicles',
+        icon: 'wifi_off',
+        tone: 'red',
+        prompt: 'Show all offline vehicles'
+      },
+      {
+        label: 'Show on Live Map',
+        icon: 'map',
+        tone: 'teal',
+        prompt: 'Open live map'
+      },
+      {
+        label: 'Generate Status Report',
+        icon: 'description',
+        tone: 'blue',
+        prompt: 'Generate a fleet status report'
+      },
+      {
+        label: 'Refresh Data',
+        icon: 'refresh',
+        tone: 'dark',
+        prompt: 'How many vehicles are offline in my fleet?'
+      }
+    ];
+    if (fs.summary.offline === 0) {
+      buttons[0] = {
+        label: 'View Online Vehicles',
+        icon: 'wifi',
+        tone: 'green',
+        prompt: 'Show online vehicles'
+      };
+    }
+    return buttons;
   }
 
   get salesAnalytics(): SalesAnalyticsData | null {
@@ -226,7 +368,7 @@ export class AiAssistantResultComponent {
       datasets: [
         {
           data: source.map(s => s.count),
-          backgroundColor: source.map((_, i) => STATUS_COLORS[i % STATUS_COLORS.length]),
+          backgroundColor: source.map((s, i) => this.colorForStatus(s.key, i)),
           borderWidth: 0,
           hoverOffset: 4
         }
@@ -253,8 +395,13 @@ export class AiAssistantResultComponent {
     return dist.map((s, i) => ({
       label: s.label,
       count: s.count,
-      color: STATUS_COLORS[i % STATUS_COLORS.length]
+      color: this.colorForStatus(s.key, i)
     }));
+  }
+
+  private colorForStatus(key: string | undefined, index: number): string {
+    const k = (key ?? '').toLowerCase().replace(/\s+/g, '');
+    return this.statusColorByKey[k] ?? STATUS_COLORS[index % STATUS_COLORS.length];
   }
 
   /** Mock-style period chip on the trends card (e.g. "This Month"). */
@@ -294,8 +441,12 @@ export class AiAssistantResultComponent {
   }
 
   insightIcon(index: number): string {
-    const icons = ['bar_chart', 'lightbulb', 'trending_up', 'insights', 'show_chart'];
+    const icons = ['warning', 'local_parking', 'check_circle', 'lightbulb', 'insights'];
     return icons[index % icons.length];
+  }
+
+  vehicleCountLabel(n: number): string {
+    return `${n} vehicle${n === 1 ? '' : 's'}`;
   }
 
   readonly trendChartOptions: UiChartOptions = {
@@ -417,5 +568,26 @@ export class AiAssistantResultComponent {
 
   emitFollowUp(text: string): void {
     this.followUp.emit(text);
+  }
+
+  /** Relative “2 min ago” style for vehicle last-update column. */
+  relativeTime(iso?: string | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 0) return 'just now';
+    const mins = Math.floor(diffMs / 60_000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 48) return `${hours} hr ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  }
+
+  /** Location is not always present on get_fleet_status sample — never invent. */
+  locationLabel(_v: unknown): string {
+    return 'Location unavailable';
   }
 }
