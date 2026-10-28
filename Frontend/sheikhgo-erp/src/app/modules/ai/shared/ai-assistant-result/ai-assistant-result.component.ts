@@ -131,6 +131,35 @@ export class AiAssistantResultComponent {
     return this.tripAnalytics?.statusDistribution.reduce((sum, s) => sum + s.count, 0) ?? 0;
   }
 
+  /** Mock-style period chip on the trends card (e.g. "This Month"). */
+  get periodBadge(): string | null {
+    const period = this.tripAnalytics?.period;
+    if (!period?.start || !period?.end) return null;
+    const start = new Date(period.start);
+    const end = new Date(period.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Period';
+
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    if (start.getTime() <= monthStart.getTime() + 86_400_000 && end.getTime() >= nextMonth.getTime() - 86_400_000) {
+      return 'This Month';
+    }
+
+    const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000));
+    if (spanDays <= 1) return 'Today';
+    if (spanDays <= 8) return 'This Week';
+    if (spanDays <= 35) return 'This Month';
+    return start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      + ' – '
+      + end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  insightIcon(index: number): string {
+    const icons = ['bar_chart', 'lightbulb', 'trending_up', 'insights', 'show_chart'];
+    return icons[index % icons.length];
+  }
+
   readonly trendChartOptions: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,

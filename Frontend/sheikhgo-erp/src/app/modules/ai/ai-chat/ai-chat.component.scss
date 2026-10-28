@@ -16,11 +16,12 @@
   grid-template-columns: 1fr;
   gap: 0;
   min-height: 560px;
-  height: min(72vh, 820px);
+  height: min(78vh, 900px);
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
   &.has-sessions {
     grid-template-columns: 280px minmax(0, 1fr);
@@ -119,12 +120,15 @@
     font-size: 0.8rem;
     font-weight: 600;
     border-radius: 8px;
+    background: #0d9488 !important;
+    color: #fff !important;
 
     mat-icon {
       font-size: 18px;
       width: 18px;
       height: 18px;
       margin-right: 2px;
+      color: #fff;
     }
   }
 }
