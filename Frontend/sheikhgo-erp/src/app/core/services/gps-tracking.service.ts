@@ -55,6 +55,9 @@ import {
   IdleAnalytics,
   StopAnalytics,
   DriverScore,
+  DriverScoreWeights,
+  DriverScoreHistory,
+  DriverPerformanceDetail,
   AccidentRiskDashboard,
   ClientTrackingLink,
   ClientTrackingLinkCreated,
@@ -1295,6 +1298,30 @@ export class GpsTrackingService {
 
   getDriverScoreRanking(filters?: AnalyticsFilters): Observable<DriverScore[]> {
     return this.http.get<DriverScore[]>(`${this.base}/analytics/drivers/ranking`, { params: this.analyticsParams(filters) });
+  }
+
+  getDriverScoreWeights(): Observable<DriverScoreWeights> {
+    return this.http.get<DriverScoreWeights>(`${this.base}/analytics/drivers/performance/weights`);
+  }
+
+  upsertDriverScoreWeights(body: DriverScoreWeights): Observable<DriverScoreWeights> {
+    return this.http.put<DriverScoreWeights>(`${this.base}/analytics/drivers/performance/weights`, body);
+  }
+
+  getDriverPerformanceDetail(driverId: number, filters?: AnalyticsFilters): Observable<DriverPerformanceDetail> {
+    return this.http.get<DriverPerformanceDetail>(
+      `${this.base}/analytics/drivers/${driverId}/performance`,
+      { params: this.analyticsParams(filters) }
+    );
+  }
+
+  getDriverScoreHistory(driverId: number, filters?: AnalyticsFilters & { limit?: number }): Observable<DriverScoreHistory[]> {
+    let params = this.analyticsParams(filters);
+    if (filters?.limit != null) params = params.set('limit', String(filters.limit));
+    return this.http.get<DriverScoreHistory[]>(
+      `${this.base}/analytics/drivers/${driverId}/performance/history`,
+      { params }
+    );
   }
 
   getAccidentRiskDashboard(from?: string, to?: string): Observable<AccidentRiskDashboard> {

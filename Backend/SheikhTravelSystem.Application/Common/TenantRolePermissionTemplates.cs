@@ -17,7 +17,7 @@ public static class TenantRolePermissionTemplates
         "Booking.View", "Booking.Create", "Booking.Update", "Booking.Delete",
         "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
         "Route.View", "Route.Create", "Route.Update", "Route.Delete",
-        "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
+        "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "Driver.ManagePerformanceWeights",
         "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update", "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive", "Gps.AlertDelete",
         "Gps.DeviceManage",
@@ -47,7 +47,7 @@ public static class TenantRolePermissionTemplates
         "Platform.Dashboard.View", "Platform.Branches.View",
         "Vehicle.View",
         "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete",
-        "Driver.Assign", "Driver.ManageStatus", "Driver.ViewPerformance",
+        "Driver.Assign", "Driver.ManageStatus", "Driver.ViewPerformance", "Driver.ManagePerformanceWeights",
         "Trip.View", "Route.View", "GPS.View", "Report.View",
         "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
@@ -66,7 +66,7 @@ public static class TenantRolePermissionTemplates
     [
         "Platform.Dashboard.View", "Platform.Branches.View", "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
-        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update",
+        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "Driver.ManagePerformanceWeights", "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
         "Gps.DeviceManage",
         "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve", "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View", "Report.View",
@@ -83,7 +83,7 @@ public static class TenantRolePermissionTemplates
     public static readonly string[] DriverManager =
     [
         "Platform.Dashboard.View", "Platform.Branches.View",
-        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
+        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "Driver.ManagePerformanceWeights",
         "Vehicle.View",
         "GPS.View",
         "Gps.AlertView",

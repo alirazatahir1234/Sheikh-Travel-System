@@ -10,6 +10,7 @@ public static class DriverPermissions
     public const string DriverManage = "Driver.Manage";
     public const string DriverManageStatus = "Driver.ManageStatus";
     public const string DriverViewPerformance = "Driver.ViewPerformance";
+    public const string DriverManagePerformanceWeights = "Driver.ManagePerformanceWeights";
 
     public static readonly string[] All =
     [
@@ -20,6 +21,7 @@ public static class DriverPermissions
         DriverAssign,
         DriverManage,
         DriverManageStatus,
-        DriverViewPerformance
+        DriverViewPerformance,
+        DriverManagePerformanceWeights
     ];
 }

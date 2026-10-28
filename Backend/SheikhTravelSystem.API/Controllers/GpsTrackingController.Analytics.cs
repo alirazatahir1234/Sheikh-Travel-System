@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
@@ -64,6 +66,33 @@ public partial class GpsTrackingController
         [FromQuery] int? branchId,
         [FromQuery] int? departmentId)
         => Ok(await Mediator.Send(new GetDriverScoreRankingQuery(from, to, branchId, departmentId)));
+
+    [HttpGet("analytics/drivers/performance/weights")]
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    public async Task<IActionResult> GetDriverScoreWeights()
+        => Ok(await Mediator.Send(new GetDriverScoreWeightsQuery()));
+
+    [HttpPut("analytics/drivers/performance/weights")]
+    [RequirePermission(DriverPermissions.DriverManagePerformanceWeights)]
+    public async Task<IActionResult> UpsertDriverScoreWeights([FromBody] UpsertDriverScoreWeightsRequest body)
+        => Ok(await Mediator.Send(new UpsertDriverScoreWeightsCommand(body)));
+
+    [HttpGet("analytics/drivers/{driverId:int}/performance")]
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    public async Task<IActionResult> GetDriverPerformanceDetail(
+        int driverId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetDriverPerformanceDetailQuery(driverId, from, to)));
+
+    [HttpGet("analytics/drivers/{driverId:int}/performance/history")]
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    public async Task<IActionResult> GetDriverScoreHistory(
+        int driverId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int limit = 40)
+        => Ok(await Mediator.Send(new GetDriverScoreHistoryQuery(driverId, from, to, limit)));
 
     [HttpGet("analytics/utilization")]
     public async Task<IActionResult> GetFleetUtilization(

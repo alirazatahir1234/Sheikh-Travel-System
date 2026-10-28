@@ -1,7 +1,9 @@
 <div class="page-header">
   <div>
     <h1>Driver Performance</h1>
-    <p class="lead">Safety, fuel efficiency, and on-time delivery — ranked from live trips, alerts, and fuel logs.</p>
+    <p class="lead">
+      Overall = weighted Safety + Fuel + On-time (defaults 40/30/30). Secondary behavior score (idle/night) is coaching-only.
+    </p>
   </div>
 </div>
 
@@ -17,6 +19,31 @@
   <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
 </div>
 
+@if (canManageWeights) {
+  <section class="weights-panel" aria-label="Score weights">
+    <h2>Score weights</h2>
+    <p class="muted">Relative weights — need not sum to 100. Changes are audited.</p>
+    <div class="weights-row">
+      <label>Safety <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.safetyWeight" /></label>
+      <label>Fuel <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.fuelWeight" /></label>
+      <label>On-time <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.onTimeWeight" /></label>
+      <button mat-flat-button color="primary" type="button" (click)="saveWeights()" [disabled]="weightsSaving">
+        Save weights
+      </button>
+    </div>
+    @if (weightsError) {
+      <p class="error">{{ weightsError }}</p>
+    }
+    @if (weightsMessage) {
+      <p class="ok">{{ weightsMessage }}</p>
+    }
+  </section>
+} @else if (weights) {
+  <p class="muted weights-readonly">
+    Current weights — Safety {{ weights.safetyWeight }}, Fuel {{ weights.fuelWeight }}, On-time {{ weights.onTimeWeight }}
+  </p>
+}
+
 @if (dateRangeError) {
   <p class="error">{{ dateRangeError }}</p>
 }
@@ -24,33 +51,130 @@
   <p class="error">{{ loadError }} <button mat-button (click)="load()">Retry</button></p>
 }
 
-@if (loading) {
-  <p>Loading rankings…</p>
-} @else {
-  <table class="rank-table">
-    <thead>
-      <tr>
-        @for (c of columns; track c.key) {
-          <th [class.num]="c.align === 'right'">{{ c.label }}</th>
-        }
-      </tr>
-    </thead>
-    <tbody>
-      @for (r of rows; track r.driverId) {
-        <tr [class.reward]="r.rewardEligible" [class.training]="r.needsTraining">
-          <td class="num">{{ r.rank ?? '—' }}</td>
-          <td>{{ r.driverName }}</td>
-          <td class="num"><strong>{{ r.score }}</strong></td>
-          <td class="num">{{ r.safetyScore ?? '—' }}</td>
-          <td class="num">{{ r.fuelEfficiencyScore ?? '—' }}</td>
-          <td class="num">{{ r.onTimeScore ?? '—' }}</td>
-          <td>{{ r.rating }}</td>
-          <td>{{ flags(r) }}</td>
-        </tr>
+<div class="layout">
+  <div class="rank-pane">
+    @if (loading) {
+      <p>Loading rankings…</p>
+    } @else {
+      <table class="rank-table">
+        <thead>
+          <tr>
+            @for (c of columns; track c.key) {
+              <th [class.num]="c.align === 'right'">{{ c.label }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows; track r.driverId) {
+            <tr
+              [class.reward]="r.rewardEligible"
+              [class.training]="r.needsTraining"
+              [class.selected]="r.driverId === selectedDriverId"
+              (click)="openDetail(r.driverId)"
+              (keyup.enter)="openDetail(r.driverId)"
+              tabindex="0"
+              role="button">
+              <td class="num">{{ r.rank ?? '—' }}</td>
+              <td>{{ r.driverName }}</td>
+              <td class="num"><strong>{{ r.score }}</strong></td>
+              <td class="num">{{ r.safetyScore ?? '—' }}</td>
+              <td class="num">{{ r.fuelEfficiencyScore ?? '—' }}</td>
+              <td class="num">{{ r.onTimeScore ?? '—' }}</td>
+              <td>{{ r.rating }}</td>
+              <td>{{ flags(r) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      @if (!rows.length) {
+        <p class="muted">No scored drivers in this period — assign drivers to GPS trips first.</p>
       }
-    </tbody>
-  </table>
-  @if (!rows.length) {
-    <p class="muted">No scored drivers in this period — assign drivers to GPS trips first.</p>
-  }
-}
+    }
+  </div>
+
+  <aside class="detail-pane" aria-label="Driver score detail">
+    @if (!selectedDriverId) {
+      <p class="muted">Select a driver for breakdown, trends, and supporting events.</p>
+    } @else if (detailLoading) {
+      <p>Loading detail…</p>
+    } @else if (detailError) {
+      <p class="error">{{ detailError }}</p>
+    } @else if (detail; as d) {
+      <div class="detail-header">
+        <h2>{{ d.score.driverName }}</h2>
+        <button mat-button type="button" (click)="clearDetail()">Close</button>
+      </div>
+      <p class="overall">Overall <strong>{{ d.score.score }}</strong> · {{ d.score.rating }}</p>
+      @if (d.score.scoreExplanation) {
+        <p class="explain">{{ d.score.scoreExplanation }}</p>
+      }
+      @if (d.score.isPartial) {
+        <p class="warn">Partial data — GPS idle/harsh factors may be incomplete; no unfair penalty applied for missing attribution.</p>
+      }
+
+      <h3>Breakdown</h3>
+      <div class="bars">
+        <div class="bar-row">
+          <span>Safety</span>
+          <div class="bar"><i [style.width]="barWidth(d.score.safetyScore)"></i></div>
+          <span class="num">{{ d.score.safetyScore }}</span>
+        </div>
+        <div class="bar-row">
+          <span>Fuel</span>
+          <div class="bar"><i [style.width]="barWidth(d.score.fuelEfficiencyScore)"></i></div>
+          <span class="num">{{ d.score.fuelEfficiencyScore }}</span>
+        </div>
+        <div class="bar-row">
+          <span>On-time</span>
+          <div class="bar"><i [style.width]="barWidth(d.score.onTimeScore)"></i></div>
+          <span class="num">{{ d.score.onTimeScore }}</span>
+        </div>
+      </div>
+      <dl class="meta">
+        <div><dt>Trips</dt><dd>{{ d.score.factors.tripCount }}</dd></div>
+        <div><dt>Distance</dt><dd>{{ d.score.factors.distanceKm }} km</dd></div>
+        <div><dt>Overspeed</dt><dd>{{ d.score.factors.overspeedCount }}</dd></div>
+        <div><dt>Harsh</dt><dd>{{ d.score.factors.harshEventCount }}</dd></div>
+        <div><dt>Category</dt><dd>{{ d.score.primaryVehicleCategory || '—' }}</dd></div>
+        <div><dt>km/L</dt><dd>{{ d.score.kmPerLiter ?? '—' }}{{ d.score.fuelUsedPeerBand ? ' (peer)' : '' }}</dd></div>
+        <div><dt>Peer median</dt><dd>{{ d.score.peerMedianKmPerLiter ?? '—' }}</dd></div>
+        <div><dt>Behavior (secondary)</dt><dd>{{ d.score.secondaryBehaviorScore ?? '—' }}</dd></div>
+      </dl>
+
+      <h3>Trends</h3>
+      @if (!d.history.length) {
+        <p class="muted">No score history yet for this period.</p>
+      } @else {
+        <ul class="history">
+          @for (h of d.history; track h.id) {
+            <li>
+              <strong>{{ h.overallScore }}</strong>
+              <span [class.up]="h.delta > 0" [class.down]="h.delta < 0">
+                {{ h.delta > 0 ? '+' : '' }}{{ h.delta }}
+              </span>
+              <span class="muted">{{ h.computedAt | date:'medium' }}</span>
+              <div class="explain">{{ h.explanation }}</div>
+            </li>
+          }
+        </ul>
+      }
+
+      <h3>Supporting events</h3>
+      @if (!d.supportingEvents.length) {
+        <p class="muted">No attributed overspeed/harsh events in range.</p>
+      } @else {
+        <ul class="events">
+          @for (e of d.supportingEvents; track e.id ?? e.timestamp) {
+            <li>
+              <strong>{{ e.eventType }}</strong>
+              <span class="muted">{{ e.timestamp | date:'medium' }}</span>
+              @if (e.description) {
+                <div>{{ e.description }}</div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    }
+  </aside>
+</div>

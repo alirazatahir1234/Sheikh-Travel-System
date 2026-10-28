@@ -895,6 +895,12 @@ export interface DriverScoreFactors {
   fuelLiters?: number;
 }
 
+export interface DriverScoreWeights {
+  safetyWeight: number;
+  fuelWeight: number;
+  onTimeWeight: number;
+}
+
 export interface DriverScore {
   driverId: number;
   driverName: string;
@@ -909,6 +915,43 @@ export interface DriverScore {
   onTimeScore?: number;
   needsTraining?: boolean;
   rewardEligible?: boolean;
+  secondaryBehaviorScore?: number;
+  scoreExplanation?: string | null;
+  primaryVehicleCategory?: string | null;
+  kmPerLiter?: number | null;
+  peerMedianKmPerLiter?: number | null;
+  fuelUsedPeerBand?: boolean;
+  weights?: DriverScoreWeights | null;
+}
+
+export interface DriverScoreHistory {
+  id: number;
+  driverId: number;
+  periodFrom: string;
+  periodTo: string;
+  overallScore: number;
+  safetyScore: number;
+  fuelScore: number;
+  onTimeScore: number;
+  previousOverallScore?: number | null;
+  delta: number;
+  explanation: string;
+  isPartial: boolean;
+  computedAt: string;
+}
+
+export interface DriverScoreSupportingEvent {
+  id?: number | null;
+  eventType: string;
+  timestamp: string;
+  description?: string | null;
+  vehicleId?: number | null;
+}
+
+export interface DriverPerformanceDetail {
+  score: DriverScore;
+  history: DriverScoreHistory[];
+  supportingEvents: DriverScoreSupportingEvent[];
 }
 
 export interface ClientTrackingLink {

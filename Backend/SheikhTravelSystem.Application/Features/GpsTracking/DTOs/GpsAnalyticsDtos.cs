@@ -73,11 +73,24 @@ public record DriverScoreFactorsDto(
     decimal NightDrivingPercent,
     decimal? FuelLiters);
 
+/// <summary>Relative weights for Overall = Safety/Fuel/On-time blend (need not sum to 100).</summary>
+public record DriverScoreWeightsDto(
+    decimal SafetyWeight,
+    decimal FuelWeight,
+    decimal OnTimeWeight);
+
+public record UpsertDriverScoreWeightsRequest(
+    decimal SafetyWeight,
+    decimal FuelWeight,
+    decimal OnTimeWeight);
+
 /// <summary>
 /// IsPartial is true when idle/harsh-event factors couldn't be computed for this driver (no
 /// Traccar-linked vehicle in their assigned trips, or Traccar unreachable/disabled) — the score
 /// still reflects overspeed/distance/night-driving, just without those two inputs. Surfaced so the
 /// ranking table can flag it rather than presenting an artificially-clean score.
+/// Score is the canonical weighted Overall (Safety/Fuel/On-time). SecondaryBehaviorScore is the
+/// legacy idle/night penalty formula kept for coaching only.
 /// </summary>
 public record DriverScoreDto(
     int DriverId,
@@ -92,7 +105,41 @@ public record DriverScoreDto(
     int FuelEfficiencyScore = 0,
     int OnTimeScore = 0,
     bool NeedsTraining = false,
-    bool RewardEligible = false);
+    bool RewardEligible = false,
+    int SecondaryBehaviorScore = 0,
+    string? ScoreExplanation = null,
+    string? PrimaryVehicleCategory = null,
+    decimal? KmPerLiter = null,
+    decimal? PeerMedianKmPerLiter = null,
+    bool FuelUsedPeerBand = false,
+    DriverScoreWeightsDto? Weights = null);
+
+public record DriverScoreHistoryDto(
+    int Id,
+    int DriverId,
+    DateTime PeriodFrom,
+    DateTime PeriodTo,
+    int OverallScore,
+    int SafetyScore,
+    int FuelScore,
+    int OnTimeScore,
+    int? PreviousOverallScore,
+    int Delta,
+    string Explanation,
+    bool IsPartial,
+    DateTime ComputedAt);
+
+public record DriverScoreSupportingEventDto(
+    int? Id,
+    string EventType,
+    DateTime Timestamp,
+    string? Description,
+    int? VehicleId);
+
+public record DriverPerformanceDetailDto(
+    DriverScoreDto Score,
+    IReadOnlyList<DriverScoreHistoryDto> History,
+    IReadOnlyList<DriverScoreSupportingEventDto> SupportingEvents);
 
 public record DailyUtilizationDto(DateTime Date, decimal UtilizationPercent);
 

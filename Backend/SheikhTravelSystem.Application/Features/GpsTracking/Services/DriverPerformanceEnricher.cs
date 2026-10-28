@@ -1,76 +1,102 @@
-using Dapper;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
-using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
+/// <summary>
+/// Pure ranking enricher — no SQL. Callers supply on-time counts and peer medians.
+/// </summary>
 public static class DriverPerformanceEnricher
 {
-    private const int OnTimeGraceMinutes = 15;
-
-    public static async Task<List<DriverScoreDto>> EnrichAndRankAsync(
-        System.Data.IDbConnection connection,
-        int tenantId,
+    public static List<DriverScoreDto> EnrichAndRank(
         IReadOnlyList<DriverScoreDto> ranked,
-        DateTime fromDate,
-        DateTime toDate,
-        CancellationToken cancellationToken = default)
+        IReadOnlyDictionary<int, (int Completed, int OnTime)> onTimeByDriver,
+        DriverScoreWeightsDto weights,
+        IReadOnlyDictionary<int, string?> primaryCategoryByDriver,
+        IReadOnlyDictionary<string, decimal> peerMedianKmPerLiterByCategory)
     {
         if (ranked.Count == 0)
             return [];
 
-        var driverIds = ranked.Select(r => r.DriverId).Distinct().ToList();
-        var onTimeRows = await connection.QueryAsync<(int DriverId, int Completed, int OnTime)>(
-            new CommandDefinition(
-                """
-                SELECT t.DriverId,
-                       COUNT(*) AS Completed,
-                       SUM(CASE
-                             WHEN t.ActualEnd IS NOT NULL AND t.PlannedEnd IS NOT NULL
-                              AND t.ActualEnd <= DATEADD(MINUTE, @Grace, t.PlannedEnd)
-                             THEN 1 ELSE 0 END) AS OnTime
-                FROM Trips t
-                WHERE t.TenantId = @TenantId AND t.IsDeleted = 0
-                  AND t.DriverId IN @DriverIds
-                  AND t.Status = @Completed
-                  AND t.ActualEnd BETWEEN @FromDate AND @ToDate
-                GROUP BY t.DriverId
-                """,
-                new
-                {
-                    TenantId = tenantId,
-                    DriverIds = driverIds,
-                    Completed = (int)TripStatus.Completed,
-                    FromDate = fromDate,
-                    ToDate = toDate,
-                    Grace = OnTimeGraceMinutes
-                },
-                cancellationToken: cancellationToken));
+        var w = DriverScoreCalculator.NormalizeWeights(
+            weights.SafetyWeight, weights.FuelWeight, weights.OnTimeWeight);
 
-        var onTimeMap = onTimeRows.ToDictionary(r => r.DriverId, r => (r.Completed, r.OnTime));
-        var total = ranked.Count;
+        var draft = new List<(DriverScoreDto Row, int Safety, int Fuel, int OnTime, int Behavior, decimal? KmPerL, decimal? PeerMedian, bool UsedPeer, string? Category)>(ranked.Count);
+
+        foreach (var row in ranked)
+        {
+            var (completed, onTime) = onTimeByDriver.GetValueOrDefault(row.DriverId);
+            var safety = DriverScoreCalculator.ComputeSafetyScore(row.Factors);
+            var category = primaryCategoryByDriver.GetValueOrDefault(row.DriverId);
+            decimal? peerMedian = null;
+            var usedPeer = false;
+            if (!string.IsNullOrWhiteSpace(category)
+                && peerMedianKmPerLiterByCategory.TryGetValue(category, out var median))
+            {
+                peerMedian = median;
+                usedPeer = true;
+            }
+
+            var fuel = DriverScoreCalculator.ComputeFuelEfficiencyScore(
+                row.Factors.DistanceKm, row.Factors.FuelLiters, peerMedian);
+
+            var onTimeScore = DriverScoreCalculator.ComputeOnTimeScore(completed, onTime);
+            var behavior = row.SecondaryBehaviorScore;
+
+            decimal? kmPerL = null;
+            if (row.Factors.FuelLiters is > 0 && row.Factors.DistanceKm > 0)
+                kmPerL = Math.Round(row.Factors.DistanceKm / row.Factors.FuelLiters.Value, 2);
+
+            draft.Add((row, safety, fuel, onTimeScore, behavior, kmPerL, peerMedian, usedPeer, category));
+        }
+
+        var withOverall = draft
+            .Select(d =>
+            {
+                var overall = DriverScoreCalculator.ComputeOverallScore(d.Safety, d.Fuel, d.OnTime, w);
+                return (d.Row, d.Safety, d.Fuel, d.OnTime, d.Behavior, d.KmPerL, d.PeerMedian, d.UsedPeer, d.Category, Overall: overall);
+            })
+            .OrderByDescending(x => x.Overall)
+            .ThenBy(x => x.Row.DriverName)
+            .ToList();
+
+        var total = withOverall.Count;
         var enriched = new List<DriverScoreDto>(total);
 
-        for (var i = 0; i < ranked.Count; i++)
+        for (var i = 0; i < withOverall.Count; i++)
         {
-            var row = ranked[i];
+            var item = withOverall[i];
             var rank = i + 1;
-            var (completed, onTime) = onTimeMap.GetValueOrDefault(row.DriverId);
-            var safety = DriverScoreCalculator.ComputeSafetyScore(row.Factors);
-            var fuel = DriverScoreCalculator.ComputeFuelEfficiencyScore(row.Factors.DistanceKm, row.Factors.FuelLiters);
-            var onTimeScore = DriverScoreCalculator.ComputeOnTimeScore(completed, onTime);
-            var needsTraining = DriverScoreCalculator.NeedsTrainingFlag(row.Score, safety, onTimeScore);
-            var reward = DriverScoreCalculator.RewardEligibleFlag(row.Score, rank, total);
+            var needsTraining = DriverScoreCalculator.NeedsTrainingFlag(item.Overall, item.Safety, item.OnTime);
+            var reward = DriverScoreCalculator.RewardEligibleFlag(item.Overall, rank, total);
+            var explanation = DriverScoreCalculator.BuildChangeExplanation(
+                previousOverall: null,
+                overall: item.Overall,
+                safety: item.Safety,
+                fuel: item.Fuel,
+                onTime: item.OnTime,
+                factors: item.Row.Factors,
+                fuelUsedPeerBand: item.UsedPeer,
+                kmPerLiter: item.KmPerL,
+                weights: w);
 
-            enriched.Add(row with
+            enriched.Add(item.Row with
             {
+                Score = item.Overall,
+                Rating = DriverScoreCalculator.RatingFor(item.Overall),
                 Rank = rank,
                 TotalDrivers = total,
-                SafetyScore = safety,
-                FuelEfficiencyScore = fuel,
-                OnTimeScore = onTimeScore,
+                SafetyScore = item.Safety,
+                FuelEfficiencyScore = item.Fuel,
+                OnTimeScore = item.OnTime,
                 NeedsTraining = needsTraining,
-                RewardEligible = reward
+                RewardEligible = reward,
+                SecondaryBehaviorScore = item.Behavior,
+                ScoreExplanation = explanation,
+                PrimaryVehicleCategory = item.Category,
+                KmPerLiter = item.KmPerL,
+                PeerMedianKmPerLiter = item.PeerMedian,
+                FuelUsedPeerBand = item.UsedPeer,
+                Weights = w
             });
         }
 

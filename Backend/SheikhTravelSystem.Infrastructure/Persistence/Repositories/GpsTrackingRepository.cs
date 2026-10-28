@@ -50,6 +50,7 @@ public sealed partial class GpsTrackingRepository(
     INotificationDecisionEngine decisionEngine,
     IEscalationService escalation,
     ILocationBroadcastService broadcaster,
+    IDriverPerformanceScoringRepository driverPerformanceScoring,
     ILogger<GpsTrackingRepository> logger) : IGpsTrackingRepository
 {
     private readonly IGpsAlertWriter _alertWriter = alertWriter;
@@ -2459,6 +2460,15 @@ public sealed partial class GpsTrackingRepository(
             new { TenantId = tenantId },
             cancellationToken: cancellationToken))).ToDictionary(d => d.Id, d => d.FullName);
 
+        var vehicleTypes = (await connection.QueryAsync<(int Id, string? VehicleType)>(new CommandDefinition(
+            """
+            SELECT Id, NULLIF(LTRIM(RTRIM(VehicleType)), '') AS VehicleType
+            FROM Vehicles
+            WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id IN @VehicleIds
+            """,
+            new { TenantId = tenantId, VehicleIds = vehicleIds },
+            cancellationToken: cancellationToken))).ToDictionary(v => v.Id, v => v.VehicleType);
+
         var overspeedByDriver = (await connection.QueryAsync<(int DriverId, int Count)>(new CommandDefinition(
             """
             SELECT e.DriverId, COUNT(*) AS Count
@@ -2554,6 +2564,9 @@ public sealed partial class GpsTrackingRepository(
         }
 
         var results = new List<DriverScoreDto>();
+        var primaryCategoryByDriver = new Dictionary<int, string?>();
+        var kmPerLiterCandidates = new List<(int DriverId, string Category, decimal KmPerLiter)>();
+
         foreach (var group in attributedTrips.GroupBy(x => x.DriverId!.Value))
         {
             var driverId = group.Key;
@@ -2576,20 +2589,63 @@ public sealed partial class GpsTrackingRepository(
                 nightPercent,
                 fuelByDriver.TryGetValue(driverId, out var liters) ? liters : null);
 
-            var score = DriverScoreCalculator.ComputeScore(factors, idlePercent);
+            var behavior = DriverScoreCalculator.ComputeBehaviorScore(factors, idlePercent);
 
+            var categoryCounts = driverTrips
+                .Select(t => vehicleTypes.GetValueOrDefault(t.VehicleId))
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .GroupBy(c => c!, StringComparer.OrdinalIgnoreCase)
+                .Select(g => (Category: g.Key, Count: g.Count()))
+                .OrderByDescending(x => x.Count)
+                .ThenBy(x => x.Category)
+                .ToList();
+            var primaryCategory = categoryCounts.FirstOrDefault().Category;
+            primaryCategoryByDriver[driverId] = primaryCategory;
+
+            if (!string.IsNullOrWhiteSpace(primaryCategory)
+                && factors.FuelLiters is > 0
+                && factors.DistanceKm > 0)
+            {
+                kmPerLiterCandidates.Add((driverId, primaryCategory!, factors.DistanceKm / factors.FuelLiters.Value));
+            }
+
+            // Score placeholder — EnrichAndRank replaces with weighted Overall.
             results.Add(new DriverScoreDto(
                 driverId,
                 driverNames.GetValueOrDefault(driverId, $"Driver #{driverId}"),
-                score,
-                DriverScoreCalculator.RatingFor(score),
+                behavior,
+                DriverScoreCalculator.RatingFor(behavior),
                 factors,
-                traccarGap));
+                traccarGap,
+                SecondaryBehaviorScore: behavior));
         }
 
-        var ordered = results.OrderByDescending(r => r.Score).ToList();
-        var enriched = await DriverPerformanceEnricher.EnrichAndRankAsync(
-            connection, tenantId, ordered, fromDate, toDate, cancellationToken);
+        var peerMedianByCategory = kmPerLiterCandidates
+            .GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() >= 2)
+            .ToDictionary(
+                g => g.Key,
+                g => DriverScoreCalculator.Median(g.Select(x => x.KmPerLiter).ToList())!.Value,
+                StringComparer.OrdinalIgnoreCase);
+
+        var weights = await driverPerformanceScoring.GetOrCreateWeightsAsync(tenantId, cancellationToken);
+        var ordered = results.OrderByDescending(r => r.SecondaryBehaviorScore).ToList();
+        var onTimeByDriver = await driverPerformanceScoring.GetOnTimeCountsAsync(
+            tenantId,
+            ordered.Select(r => r.DriverId).ToList(),
+            fromDate,
+            toDate,
+            cancellationToken);
+        var enriched = DriverPerformanceEnricher.EnrichAndRank(
+            ordered,
+            onTimeByDriver,
+            weights,
+            primaryCategoryByDriver,
+            peerMedianByCategory);
+
+        await driverPerformanceScoring.RecordScoreHistoryAsync(
+            tenantId, enriched, fromDate, toDate, cancellationToken);
+
         return ApiResponse<List<DriverScoreDto>>.SuccessResponse(enriched);
         }
 
