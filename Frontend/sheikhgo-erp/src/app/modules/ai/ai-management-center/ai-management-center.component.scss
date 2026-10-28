@@ -1,8 +1,25 @@
+/* Design tokens — Nexus AI Assistant workspace (match Ali's mock) */
+:host {
+  --ai-teal: #078b7b;
+  --ai-teal-deep: #066e65;
+  --sg-primary: #078b7b;
+  --ai-navy: #061b2b;
+  --ai-surface: #ffffff;
+  --ai-muted: #f1f6fb;
+  --ai-border: #e2eaf3;
+  --ai-text: #14243b;
+  --ai-text-muted: #64748b;
+  --ai-radius: 12px;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .ai-page {
-  padding: 4px 0 20px;
+  padding: 0 0 12px;
   max-width: none;
   width: 100%;
-  min-height: 480px;
+  min-height: calc(100vh - 140px);
 }
 
 .ai-banner {
@@ -44,26 +61,32 @@
   background: transparent;
 
   ::ng-deep .mat-mdc-tab-body-wrapper {
-    min-height: 420px;
+    min-height: min(78vh, 900px);
   }
 
   ::ng-deep .mat-mdc-tab-header {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border-bottom: none !important;
   }
 
+  ::ng-deep .mat-mdc-tab-header-pagination {
+    display: flex !important;
+  }
+
   ::ng-deep .mat-mdc-tab-labels {
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 4px;
     padding: 4px;
-    background: #f1f5f9;
+    background: #eef3f8;
     border-radius: 12px;
+    overflow-x: auto;
   }
 
   ::ng-deep .mat-mdc-tab {
     min-width: 0;
     height: auto;
     opacity: 1;
+    flex-shrink: 0;
   }
 
   ::ng-deep .mdc-tab {
@@ -73,7 +96,7 @@
   }
 
   ::ng-deep .mdc-tab--active {
-    background: #0d9488 !important;
+    background: var(--sg-primary, #078b7b) !important;
 
     .mdc-tab__text-label {
       color: #fff !important;
@@ -92,10 +115,11 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #64748b;
+    color: #475569;
     font-weight: 600;
     font-size: 0.84rem;
     letter-spacing: 0;
+    white-space: nowrap;
   }
 
   .tab-ico {
@@ -282,6 +306,7 @@
 .chat-panel {
   padding-top: 4px;
   padding-bottom: 8px;
+  min-height: calc(100vh - 220px);
 }
 
 .form-grid {

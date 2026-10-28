@@ -518,7 +518,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   openAiChatFullPage(): void {
     this.aiChatOpen = false;
-    void this.router.navigate(['/ai/chat']);
+    void this.router.navigate(['/ai']);
   }
 
   private refreshAiAssistantGate(enabledModules: string[]): void {

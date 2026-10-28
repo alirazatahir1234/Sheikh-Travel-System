@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { ChartData, ChartOptions } from 'chart.js';
+import { ChartData } from 'chart.js';
 import { Subscription } from 'rxjs';
 import { skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
@@ -59,6 +59,7 @@ export class AccidentRiskPageComponent implements OnInit, OnDestroy {
 
   factorBuckets: FactorBucket[] = [];
   factorsChartData: ChartData<'doughnut'> = { labels: [], datasets: [] };
+  // Cast to UiChartOptions (union of chart types) — ChartOptions<'doughnut'> is not assignable to the union.
   readonly factorsChartOptions: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -66,7 +67,7 @@ export class AccidentRiskPageComponent implements OnInit, OnDestroy {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: ctx => {
+          label: (ctx: { label?: string; parsed: unknown }) => {
             const label = ctx.label ?? '';
             const value = typeof ctx.parsed === 'number' ? ctx.parsed : 0;
             return `${label}: ${value}`;
@@ -75,7 +76,7 @@ export class AccidentRiskPageComponent implements OnInit, OnDestroy {
       }
     },
     cutout: '68%'
-  } as ChartOptions<'doughnut'>;
+  } as UiChartOptions;
 
   /** No time-series endpoint — keep empty chart shell for layout only. */
   trendsChartData: ChartData<'line'> = { labels: [], datasets: [] };

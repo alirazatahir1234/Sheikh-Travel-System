@@ -138,13 +138,21 @@
   <!-- Premium trip / booking analytics workspace (mock: left trends+trips | right donut+insights) -->
   <section class="analytics" *ngIf="tripAnalytics as a" aria-label="Trip and booking analytics">
     <div class="kpi-row" *ngIf="a.kpis.length">
-      <article class="kpi-card" *ngFor="let k of a.kpis" [attr.data-tone]="k.tone || 'teal'">
-        <div class="kpi-card__icon" aria-hidden="true">
+      <article
+        class="kpi-card"
+        *ngFor="let k of a.kpis"
+        [attr.data-tone]="k.tone || 'teal'"
+        [class.kpi-card--gauge]="isGaugeKpi(k)">
+        <div class="kpi-card__gauge" *ngIf="isGaugeKpi(k)" aria-hidden="true">
+          <div class="kpi-card__ring" [style.background]="completionRing(k)"></div>
+          <strong class="kpi-card__ring-value">{{ formatKpiValue(k) }}</strong>
+        </div>
+        <div class="kpi-card__icon" *ngIf="!isGaugeKpi(k)" aria-hidden="true">
           <mat-icon>{{ kpiIcon(k) }}</mat-icon>
         </div>
         <div class="kpi-card__body">
           <span class="kpi-card__label">{{ k.label }}</span>
-          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
+          <strong class="kpi-card__value" *ngIf="!isGaugeKpi(k)">{{ formatKpiValue(k) }}</strong>
           <span
             class="kpi-card__delta"
             *ngIf="k.deltaPercent != null || k.sharePercent != null || k.deltaLabel"
@@ -199,7 +207,14 @@
                   <td>{{ t.endTime ? (t.endTime | date:'short') : '—' }}</td>
                   <td class="num">{{ t.distanceKm != null ? (t.distanceKm | number:'1.0-1') + ' km' : '—' }}</td>
                   <td>
-                    <a mat-stroked-button class="view-btn" [routerLink]="['/trips/list']" [queryParams]="{ q: t.tripNumber }">View</a>
+                    <a
+                      class="view-icon-btn"
+                      [routerLink]="['/trips/list']"
+                      [queryParams]="{ q: t.tripNumber }"
+                      matTooltip="View trip"
+                      aria-label="View trip">
+                      <mat-icon>visibility</mat-icon>
+                    </a>
                   </td>
                 </tr>
               </tbody>
@@ -234,7 +249,7 @@
             <h4>Key Insights</h4>
           </header>
           <ul class="insights-list">
-            <li *ngFor="let tip of a.insights; let i = index">
+            <li *ngFor="let tip of a.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
               <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
               <span>{{ tip }}</span>
             </li>

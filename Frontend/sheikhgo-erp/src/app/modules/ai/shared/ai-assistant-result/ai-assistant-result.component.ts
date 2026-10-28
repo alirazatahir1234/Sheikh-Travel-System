@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ChartData } from 'chart.js';
 import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui/chart/ui-chart.component';
 import {
@@ -27,7 +28,7 @@ const STATUS_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8'];
 @Component({
   selector: 'app-ai-assistant-result',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, UiChartComponent],
+  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, MatTooltipModule, UiChartComponent],
   templateUrl: './ai-assistant-result.component.html',
   styleUrls: ['./ai-assistant-result.component.scss']
 })
@@ -131,7 +132,7 @@ export class AiAssistantResultComponent {
         {
           label: 'Completed',
           data: a.trends.map(t => t.completed),
-          borderColor: '#8b5cf6',
+          borderColor: '#3b82f6',
           backgroundColor: 'transparent',
           tension: 0.35,
           pointRadius: 2
@@ -139,7 +140,7 @@ export class AiAssistantResultComponent {
         {
           label: 'Bookings',
           data: a.trends.map(t => t.bookings),
-          borderColor: '#3b82f6',
+          borderColor: '#f59e0b',
           backgroundColor: 'transparent',
           tension: 0.35,
           pointRadius: 2
@@ -289,8 +290,31 @@ export class AiAssistantResultComponent {
   }
 
   formatDelta(delta?: number | null): string {
-    if (delta == null) return '';
-    const sign = delta > 0 ? '+' : '';
-    return `${sign}${delta.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    if (delta == null) return '→ 0%';
+    if (delta === 0) return '→ 0%';
+    const arrow = delta > 0 ? '↑' : '↓';
+    const abs = Math.abs(delta).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    return `${arrow} ${abs}%`;
+  }
+
+  /** Circular progress for completion-rate KPI (mock gauge). */
+  completionRing(kpi: { key: string; value: number; unit: string }): string | null {
+    if (!this.isGaugeKpi(kpi)) return null;
+    const pct = Math.max(0, Math.min(100, kpi.value));
+    const deg = (pct / 100) * 360;
+    return `conic-gradient(#0d9488 0deg ${deg}deg, #e2e8f0 ${deg}deg 360deg)`;
+  }
+
+  isGaugeKpi(kpi: { key: string; unit: string }): boolean {
+    return kpi.key === 'tripCompletionRate';
+  }
+
+  insightTone(tip: string, index: number): string {
+    const t = tip.toLowerCase();
+    if (t.includes('pending') || t.includes('still') || t.includes('attention') || t.includes('risk')) {
+      return 'warn';
+    }
+    if (index === 0) return 'ok';
+    return 'neutral';
   }
 }

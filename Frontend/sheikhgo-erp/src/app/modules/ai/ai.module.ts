@@ -5,7 +5,8 @@ import { AiChatComponent } from './ai-chat/ai-chat.component';
 
 const routes: Routes = [
   { path: '', component: AiManagementCenterComponent },
-  { path: 'chat', component: AiChatComponent }
+  // Legacy /ai/chat → same premium workspace (tabs + conversations + composer)
+  { path: 'chat', redirectTo: '', pathMatch: 'full' }
 ];
 
 @NgModule({
