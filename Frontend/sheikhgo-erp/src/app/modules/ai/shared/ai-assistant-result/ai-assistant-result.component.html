@@ -7,6 +7,42 @@
     <span class="result-mode" *ngIf="mode">{{ mode }}</span>
   </header>
 
+  <div class="state-card state-card--error" *ngIf="structuredError" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <div>
+      <strong>Couldn’t load live data</strong>
+      <p>{{ structuredError }}</p>
+    </div>
+  </div>
+
+  <div class="state-card state-card--empty" *ngIf="!structuredError && showEmptyState" role="status">
+    <mat-icon aria-hidden="true">inbox</mat-icon>
+    <div>
+      <strong>No matching records</strong>
+      <p>The live tools returned an empty result for this question. Try a different period or filter.</p>
+    </div>
+  </div>
+
+  <!-- ACEIN narrative frame (Answer / Context / Evidence / Interpretation / Next) -->
+  <section class="acein" *ngIf="acein as frame" aria-label="Analysis narrative">
+    <article class="acein-block" *ngIf="frame.answer">
+      <h4>Answer</h4>
+      <p>{{ frame.answer }}</p>
+    </article>
+    <article class="acein-block" *ngIf="frame.context">
+      <h4>Context</h4>
+      <p>{{ frame.context }}</p>
+    </article>
+    <article class="acein-block" *ngIf="frame.interpretation">
+      <h4>Interpretation</h4>
+      <p>{{ frame.interpretation }}</p>
+    </article>
+    <article class="acein-block" *ngIf="frame.nextAction">
+      <h4>Next action</h4>
+      <p>{{ frame.nextAction }}</p>
+    </article>
+  </section>
+
   <section class="fleet-health-panel" *ngIf="fleetHealth as fh" aria-label="Fleet health metrics">
     <div class="fleet-health-hero" [attr.data-band]="fleetBand">
       <span class="fleet-health-hero__value">{{ fh.healthPercent | number:'1.0-1' }}%</span>
@@ -29,12 +65,152 @@
 
   <div class="prose" *ngIf="blocks.length">
     <ng-container *ngFor="let block of blocks">
+      <h3 class="prose-h" *ngIf="block.kind === 'heading' && block.level === 2">{{ block.text }}</h3>
+      <h4 class="prose-h prose-h--sm" *ngIf="block.kind === 'heading' && block.level === 3">{{ block.text }}</h4>
       <p *ngIf="block.kind === 'paragraph'">{{ block.text }}</p>
       <ul *ngIf="block.kind === 'list'">
         <li *ngFor="let item of block.items">{{ item }}</li>
       </ul>
     </ng-container>
   </div>
+
+  <!-- Fleet status analytics (responseType=fleet_status_analytics / raw get_fleet_status) -->
+  <section class="analytics" *ngIf="fleetStatus as fs" aria-label="Fleet status analysis">
+    <div class="kpi-row kpi-row--fleet" *ngIf="fs.kpis.length">
+      <article class="kpi-card" *ngFor="let k of fs.kpis" [attr.data-tone]="k.tone || 'teal'">
+        <div class="kpi-card__icon" aria-hidden="true">
+          <mat-icon>{{ kpiIcon(k) }}</mat-icon>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">{{ k.label }}</span>
+          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
+          <span
+            class="kpi-card__delta"
+            *ngIf="k.sharePercent != null || k.deltaLabel"
+            [attr.data-dir]="'flat'">
+            <ng-container *ngIf="k.sharePercent != null">{{ k.sharePercent | number:'1.0-1' }}%</ng-container>
+            <small *ngIf="k.deltaLabel">{{ k.deltaLabel }}</small>
+          </span>
+        </div>
+        <div
+          class="kpi-card__bar"
+          *ngIf="kpiBarPercent(k) != null"
+          role="presentation"
+          [attr.aria-valuenow]="kpiBarPercent(k)">
+          <span [style.width.%]="kpiBarPercent(k)"></span>
+        </div>
+      </article>
+    </div>
+
+    <div class="workspace-grid" *ngIf="statusChartData || fs.vehicles.length || fs.insights.length">
+      <div class="workspace-main">
+        <article class="table-card" *ngIf="fs.vehicles.length">
+          <header class="chart-card__head">
+            <h4>Vehicles</h4>
+            <span class="chart-card__badge">Live sample</span>
+          </header>
+          <div class="data-table-scroll">
+            <table class="data-table recent-trips">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Vehicle</th>
+                  <th>Plate</th>
+                  <th>GPS status</th>
+                  <th>Ops status</th>
+                  <th class="num">Speed</th>
+                  <th>Last update</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let v of fs.vehicles; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td><strong>{{ v.vehicleName }}</strong></td>
+                  <td>{{ v.registrationNumber }}</td>
+                  <td>
+                    <span class="status-pill" [attr.data-tone]="v.statusTone">{{ v.statusLabel }}</span>
+                  </td>
+                  <td>{{ v.vehicleStatusName || '—' }}</td>
+                  <td class="num">{{ v.speed != null ? (v.speed | number:'1.0-0') + ' km/h' : '—' }}</td>
+                  <td>{{ v.lastUpdate ? (v.lastUpdate | date:'short') : '—' }}</td>
+                  <td>
+                    <a
+                      class="view-btn-link"
+                      [routerLink]="['/gps/live-map']"
+                      [queryParams]="{ q: v.registrationNumber }"
+                      matTooltip="View on live map"
+                      aria-label="View on live map">
+                      <mat-icon>map</mat-icon>
+                      Map
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      <aside class="workspace-side" *ngIf="statusChartData || fs.insights.length">
+        <article class="chart-card chart-card--donut" *ngIf="statusChartData as sd">
+          <header class="chart-card__head">
+            <h4>Status Distribution</h4>
+          </header>
+          <div class="donut-layout">
+            <div class="donut-wrap">
+              <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
+              <div class="donut-center" aria-hidden="true">
+                <strong>{{ fs.summary.total }}</strong>
+                <span>Vehicles</span>
+              </div>
+            </div>
+            <ul class="donut-legend">
+              <li *ngFor="let s of statusLegend">
+                <span class="swatch" [style.background]="s.color"></span>
+                <span class="name">{{ s.label }}</span>
+                <strong>{{ s.count }}</strong>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="insights-card" *ngIf="fs.insights.length">
+          <header class="chart-card__head">
+            <h4>Key Insights</h4>
+            <span class="live-badge">Live Analysis</span>
+          </header>
+          <ul class="insights-list">
+            <li *ngFor="let tip of fs.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
+              <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
+              <span>{{ tip }}</span>
+            </li>
+          </ul>
+        </article>
+      </aside>
+    </div>
+
+    <article class="actions-card" *ngIf="fs.recommendedActions.length" aria-label="Recommended actions">
+      <header class="chart-card__head">
+        <h4>Recommended actions</h4>
+      </header>
+      <ol class="actions-list">
+        <li *ngFor="let a of fs.recommendedActions">{{ a }}</li>
+      </ol>
+    </article>
+
+    <article class="evidence-card" *ngIf="acein?.evidence?.length" aria-label="Evidence">
+      <header class="chart-card__head">
+        <h4>Evidence</h4>
+      </header>
+      <ul class="evidence-list">
+        <li *ngFor="let e of acein!.evidence">
+          <span class="evidence-label">{{ e.label }}</span>
+          <span class="evidence-detail">{{ e.detail }}</span>
+        </li>
+      </ul>
+    </article>
+  </section>
 
   <!-- Sales / revenue analytics (responseType=sales_analytics) -->
   <section class="analytics" *ngIf="salesAnalytics as a" aria-label="Sales analytics">
@@ -113,8 +289,8 @@
               </div>
             </div>
             <ul class="donut-legend">
-              <li *ngFor="let s of a.statusDistribution; let i = index">
-                <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
+              <li *ngFor="let s of statusLegend">
+                <span class="swatch" [style.background]="s.color"></span>
                 <span class="name">{{ s.label }}</span>
                 <strong>{{ s.count | number:'1.0-0' }}</strong>
               </li>
@@ -138,7 +314,7 @@
     </div>
   </section>
 
-  <!-- Premium trip / booking analytics workspace (mock: left trends+trips | right donut+insights) -->
+  <!-- Premium trip / booking analytics workspace -->
   <section class="analytics" *ngIf="tripAnalytics as a" aria-label="Trip and booking analytics">
     <div class="kpi-row" *ngIf="a.kpis.length">
       <article
@@ -243,8 +419,8 @@
               </div>
             </div>
             <ul class="donut-legend">
-              <li *ngFor="let s of a.statusDistribution; let i = index">
-                <span class="swatch" [style.background]="['#0d9488','#3b82f6','#f59e0b','#ef4444','#94a3b8'][i % 5]"></span>
+              <li *ngFor="let s of statusLegend">
+                <span class="swatch" [style.background]="s.color"></span>
                 <span class="name">{{ s.label }}</span>
                 <strong>{{ s.count }}</strong>
               </li>
@@ -268,6 +444,67 @@
     </div>
   </section>
 
+  <!-- Generic analytics (driver / fuel / maintenance / alerts with kpis) -->
+  <section class="analytics" *ngIf="genericAnalytics as g" aria-label="Analytics">
+    <div class="kpi-row" *ngIf="g.kpis.length">
+      <article class="kpi-card" *ngFor="let k of g.kpis" [attr.data-tone]="k.tone || 'teal'">
+        <div class="kpi-card__icon" aria-hidden="true">
+          <mat-icon>{{ kpiIcon(k) }}</mat-icon>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">{{ k.label }}</span>
+          <strong class="kpi-card__value">{{ formatKpiValue(k) }}</strong>
+        </div>
+      </article>
+    </div>
+
+    <div class="workspace-grid" *ngIf="statusChartData || g.insights.length">
+      <aside class="workspace-side" *ngIf="statusChartData || g.insights.length">
+        <article class="chart-card chart-card--donut" *ngIf="statusChartData as sd">
+          <header class="chart-card__head">
+            <h4>Distribution</h4>
+          </header>
+          <div class="donut-layout">
+            <div class="donut-wrap">
+              <ui-chart type="doughnut" [data]="sd" [options]="statusChartOptions" height="160px"></ui-chart>
+              <div class="donut-center" aria-hidden="true">
+                <strong>{{ statusTotal }}</strong>
+                <span>Total</span>
+              </div>
+            </div>
+            <ul class="donut-legend">
+              <li *ngFor="let s of statusLegend">
+                <span class="swatch" [style.background]="s.color"></span>
+                <span class="name">{{ s.label }}</span>
+                <strong>{{ s.count }}</strong>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="insights-card" *ngIf="g.insights.length">
+          <header class="chart-card__head">
+            <h4>Key Insights</h4>
+            <span class="live-badge">Live Analysis</span>
+          </header>
+          <ul class="insights-list">
+            <li *ngFor="let tip of g.insights; let i = index" [attr.data-tone]="insightTone(tip, i)">
+              <mat-icon aria-hidden="true">{{ insightIcon(i) }}</mat-icon>
+              <span>{{ tip }}</span>
+            </li>
+          </ul>
+        </article>
+      </aside>
+    </div>
+
+    <article class="actions-card" *ngIf="g.recommendedActions.length">
+      <header class="chart-card__head"><h4>Recommended actions</h4></header>
+      <ol class="actions-list">
+        <li *ngFor="let a of g.recommendedActions">{{ a }}</li>
+      </ol>
+    </article>
+  </section>
+
   <section class="data-table-wrap" *ngIf="table as t">
     <h4 class="data-table-title">{{ t.title }}</h4>
     <div class="data-table-scroll">
@@ -285,6 +522,18 @@
       </table>
     </div>
   </section>
+
+  <div class="follow-ups" *ngIf="followUpActions.length" role="list" aria-label="Suggested follow-ups">
+    <span class="follow-ups__label">Continue</span>
+    <button
+      type="button"
+      class="follow-chip"
+      role="listitem"
+      *ngFor="let f of followUpActions"
+      (click)="emitFollowUp(f)">
+      {{ f }}
+    </button>
+  </div>
 
   <ul class="warnings" *ngIf="warnings?.length" aria-label="Warnings">
     <li *ngFor="let w of warnings">

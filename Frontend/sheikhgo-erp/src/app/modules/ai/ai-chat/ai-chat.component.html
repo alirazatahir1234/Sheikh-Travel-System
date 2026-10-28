@@ -135,10 +135,10 @@
         </div>
       </article>
 
-      <div class="typing" *ngIf="sending">
+      <div class="typing" *ngIf="sending" role="status" aria-live="polite">
         <div class="assistant-avatar" aria-hidden="true"><mat-icon>smart_toy</mat-icon></div>
         <mat-spinner diameter="20"></mat-spinner>
-        <span>Thinking…</span>
+        <span>Analyzing live fleet data…</span>
       </div>
       <div #scrollAnchor></div>
     </div>

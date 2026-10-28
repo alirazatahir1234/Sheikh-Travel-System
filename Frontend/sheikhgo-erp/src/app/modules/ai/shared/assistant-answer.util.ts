@@ -3,7 +3,8 @@ import { polishAssistantEmojis } from './ai-assistant-ui.constants';
 /** Parsed assistant prose — safe for template binding (no HTML). */
 export type AssistantAnswerBlock =
   | { kind: 'paragraph'; text: string }
-  | { kind: 'list'; items: string[] };
+  | { kind: 'list'; items: string[] }
+  | { kind: 'heading'; text: string; level: 2 | 3 };
 
 export interface AssistantFleetHealthData {
   healthPercent: number;
@@ -29,6 +30,16 @@ export interface AssistantDataTable {
 }
 
 const BULLET = /^[\s]*[•\-*]\s+/;
+const HEADING = /^(#{2,3})\s+(.+)$/;
+
+/** Strip simple markdown markers for safe text display (no HTML). */
+export function stripInlineMarkdown(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .trim();
+}
 
 export function parseAssistantAnswer(text: string): AssistantAnswerBlock[] {
   const raw = polishAssistantEmojis(text).trim();
@@ -49,12 +60,22 @@ export function parseAssistantAnswer(text: string): AssistantAnswerBlock[] {
       flushList();
       continue;
     }
+    const heading = HEADING.exec(trimmed);
+    if (heading) {
+      flushList();
+      blocks.push({
+        kind: 'heading',
+        level: heading[1].length === 2 ? 2 : 3,
+        text: stripInlineMarkdown(heading[2])
+      });
+      continue;
+    }
     if (BULLET.test(line)) {
-      list.push(trimmed.replace(BULLET, '').trim());
+      list.push(stripInlineMarkdown(trimmed.replace(BULLET, '').trim()));
       continue;
     }
     flushList();
-    blocks.push({ kind: 'paragraph', text: trimmed });
+    blocks.push({ kind: 'paragraph', text: stripInlineMarkdown(trimmed) });
   }
   flushList();
   return blocks;
@@ -182,9 +203,58 @@ export function extractDataTable(data: unknown, toolUsed?: string | null): Assis
   };
 }
 
+/** Friendly labels for MCP / legacy tool ids — never show raw MCP:GET_* in the UI. */
+const FRIENDLY_TOOL_LABELS: Record<string, string> = {
+  get_fleet_status: 'Fleet Status Analysis',
+  getfleethealth: 'Fleet Health Analysis',
+  get_fleet_health: 'Fleet Health Analysis',
+  gettripsummary: 'Trip & Booking Analytics',
+  get_trip_summary: 'Trip & Booking Analytics',
+  get_trip_statistics: 'Trip Statistics',
+  get_sales_summary: 'Sales Analytics',
+  get_top_customers: 'Top Customers',
+  get_revenue_summary: 'Revenue Summary',
+  get_revenue_breakdown: 'Revenue Breakdown',
+  get_period_comparison: 'Period Comparison',
+  get_driver_performance: 'Driver Performance',
+  get_fuel_expenses: 'Fuel Expenses',
+  get_fuel_cost_summary: 'Fuel Cost Summary',
+  list_fuel_records: 'Fuel Records',
+  get_maintenance_due: 'Maintenance Due',
+  get_maintenance_kpi_summary: 'Maintenance KPIs',
+  list_smart_alerts: 'Smart Alerts',
+  get_vehicle_utilization: 'Vehicle Utilization',
+  get_gps_coverage_summary: 'GPS Coverage',
+  get_live_positions: 'Live Positions',
+  get_booking_summary: 'Booking Summary',
+  get_booking_analytics: 'Booking Analytics',
+  list_vehicles: 'Vehicle List',
+  list_drivers: 'Driver List',
+  list_trips: 'Trip List',
+  list_bookings: 'Booking List',
+  mcp_tool_loop: 'Live Data Analysis',
+  mcp_database: 'Database Lookup',
+  get_finance_revenue_summary: 'Finance Revenue',
+  get_invoice_status: 'Invoice Status',
+  get_payment_status: 'Payment Status'
+};
+
 export function formatToolLabel(tool?: string | null): string | null {
   if (!tool?.trim()) return null;
-  return tool.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+  let key = tool.trim();
+  // Strip mcp: / MCP: prefixes and normalize
+  key = key.replace(/^mcp:/i, '');
+  const compact = key.toLowerCase().replace(/[\s-]+/g, '_');
+  const noUnderscore = compact.replace(/_/g, '');
+  if (FRIENDLY_TOOL_LABELS[compact]) return FRIENDLY_TOOL_LABELS[compact];
+  if (FRIENDLY_TOOL_LABELS[noUnderscore]) return FRIENDLY_TOOL_LABELS[noUnderscore];
+  // get_fleet_status → Fleet Status; GetFleetHealth → Get Fleet Health
+  const spaced = key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .replace(/\s+/g, ' ');
+  return spaced.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /** Structured trip + booking analytics payload from GetTripSummary (and compatible MCP). */
@@ -593,4 +663,344 @@ export function extractFollowUps(data: unknown): string[] {
   const root = data as Record<string, unknown>;
   if (!Array.isArray(root['followUps'])) return [];
   return (root['followUps'] as unknown[]).map(x => String(x)).filter(Boolean);
+}
+
+/** Answer / Context / Evidence / Interpretation / Next action — required narrative frame. */
+export interface AssistantAcein {
+  answer?: string;
+  context?: string;
+  interpretation?: string;
+  nextAction?: string;
+  evidence: { label: string; detail: string }[];
+}
+
+export function extractAcein(data: unknown): AssistantAcein | null {
+  if (!data || typeof data !== 'object') return null;
+  const root = data as Record<string, unknown>;
+  const answer = asString(root['answer']);
+  const context = asString(root['context']);
+  const interpretation = asString(root['interpretation']);
+  const nextAction = asString(root['nextAction']) ?? asString(root['next_action']);
+  const evidenceRaw = Array.isArray(root['evidence']) ? (root['evidence'] as Record<string, unknown>[]) : [];
+  const evidence = evidenceRaw
+    .map(e => {
+      const label = asString(e['label']);
+      const detail = asString(e['detail']);
+      if (!label || !detail) return null;
+      return { label, detail };
+    })
+    .filter((x): x is { label: string; detail: string } => !!x);
+
+  if (!answer && !context && !interpretation && !nextAction && !evidence.length) return null;
+  return { answer: answer ?? undefined, context: context ?? undefined, interpretation: interpretation ?? undefined, nextAction: nextAction ?? undefined, evidence };
+}
+
+export interface FleetStatusVehicleRow {
+  vehicleId: number;
+  vehicleName: string;
+  registrationNumber: string;
+  gpsBucket: string;
+  statusLabel: string;
+  statusTone: string;
+  vehicleStatusName?: string | null;
+  speed?: number | null;
+  lastUpdate?: string | null;
+  ignition?: boolean | null;
+}
+
+export interface FleetStatusAnalyticsData {
+  responseType: 'fleet_status_analytics';
+  summary: {
+    total: number;
+    online: number;
+    offline: number;
+    moving: number;
+    idle: number;
+    parked: number;
+    sos: number;
+    neverSeen: number;
+    unknown: number;
+    onlinePercent?: number;
+    offlinePercent?: number;
+  };
+  kpis: TripBookingAnalyticsKpi[];
+  statusDistribution: TripBookingStatusSlice[];
+  vehicles: FleetStatusVehicleRow[];
+  insights: string[];
+  recommendedActions: string[];
+  followUps: string[];
+  acein: AssistantAcein | null;
+  empty: boolean;
+}
+
+function parseKpiList(raw: unknown): TripBookingAnalyticsKpi[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TripBookingAnalyticsKpi[] = [];
+  for (const k of raw as Record<string, unknown>[]) {
+    const value = asNumber(k['value']);
+    const label = asString(k['label']);
+    const key = asString(k['key']) ?? label ?? 'kpi';
+    if (value == null || !label) continue;
+    out.push({
+      key,
+      label,
+      value,
+      unit: (asString(k['unit']) as TripBookingAnalyticsKpi['unit']) ?? 'count',
+      icon: asString(k['icon']) ?? undefined,
+      tone: asString(k['tone']) ?? undefined,
+      deltaPercent: asNumber(k['deltaPercent']),
+      sharePercent: asNumber(k['sharePercent']),
+      deltaLabel: asString(k['deltaLabel']) ?? undefined
+    });
+  }
+  return out;
+}
+
+function parseStatusSlices(raw: unknown): TripBookingStatusSlice[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[])
+    .map(s => {
+      const count = asNumber(s['count']);
+      const label = asString(s['label']);
+      const key = asString(s['key']) ?? label ?? 'status';
+      if (count == null || !label) return null;
+      return { key, label, count };
+    })
+    .filter((x): x is TripBookingStatusSlice => !!x);
+}
+
+function bucketLabel(bucket: string): string {
+  switch (bucket.toLowerCase()) {
+    case 'moving':
+      return 'Moving';
+    case 'idle':
+      return 'Idle';
+    case 'parked':
+      return 'Parked';
+    case 'sos':
+      return 'SOS';
+    case 'offline':
+      return 'Offline';
+    case 'never_seen':
+      return 'Never seen';
+    default:
+      return 'Unknown';
+  }
+}
+
+function bucketTone(bucket: string): string {
+  switch (bucket.toLowerCase()) {
+    case 'moving':
+      return 'ok';
+    case 'idle':
+      return 'info';
+    case 'parked':
+      return 'neutral';
+    case 'sos':
+      return 'danger';
+    case 'offline':
+    case 'never_seen':
+      return 'warn';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Detect enriched or raw get_fleet_status MCP payload. */
+export function asFleetStatusAnalytics(data: unknown, toolUsed?: string | null): FleetStatusAnalyticsData | null {
+  if (!data || typeof data !== 'object') return null;
+  const root = data as Record<string, unknown>;
+  const tool = (toolUsed ?? '').toLowerCase();
+  const typed = asString(root['responseType']) === 'fleet_status_analytics';
+  const fleetTool = tool.includes('get_fleet_status') || tool.includes('getfleetstatus');
+  const summaryObj = (root['summary'] ?? null) as Record<string, unknown> | null;
+  const looksRaw =
+    !!summaryObj
+    && asNumber(summaryObj['total']) != null
+    && (asNumber(summaryObj['online']) != null || asNumber(summaryObj['offline']) != null || asNumber(summaryObj['moving']) != null);
+
+  if (!typed && !looksRaw && !(fleetTool && looksRaw)) return null;
+  if (!typed && !looksRaw) return null;
+
+  const summarySrc = summaryObj ?? {};
+  const total = asNumber(summarySrc['total']) ?? 0;
+  const online = asNumber(summarySrc['online']) ?? 0;
+  const offline = asNumber(summarySrc['offline']) ?? 0;
+  const moving = asNumber(summarySrc['moving']) ?? 0;
+  const idle = asNumber(summarySrc['idle']) ?? 0;
+  const parked = asNumber(summarySrc['parked']) ?? 0;
+  const sos = asNumber(summarySrc['sos']) ?? 0;
+  const neverSeen = asNumber(summarySrc['neverSeen']) ?? 0;
+  const unknown = asNumber(summarySrc['unknown']) ?? 0;
+  const onlinePercent =
+    asNumber(summarySrc['onlinePercent']) ?? (total > 0 ? Math.round((online * 1000) / total) / 10 : 0);
+  const offlinePercent =
+    asNumber(summarySrc['offlinePercent']) ?? (total > 0 ? Math.round((offline * 1000) / total) / 10 : 0);
+
+  let kpis = parseKpiList(root['kpis']);
+  if (!kpis.length) {
+    kpis = [
+      { key: 'totalVehicles', label: 'Total Vehicles', value: total, unit: 'count', tone: 'teal', icon: 'directions_car' },
+      { key: 'online', label: 'Online', value: online, unit: 'count', tone: 'blue', icon: 'wifi', sharePercent: onlinePercent },
+      { key: 'offline', label: 'Offline', value: offline, unit: 'count', tone: 'orange', icon: 'wifi_off', sharePercent: offlinePercent },
+      { key: 'moving', label: 'Moving', value: moving, unit: 'count', tone: 'purple', icon: 'near_me' },
+      { key: 'parked', label: 'Parked', value: parked, unit: 'count', tone: 'teal', icon: 'local_parking' },
+      { key: 'idle', label: 'Idle', value: idle, unit: 'count', tone: 'blue', icon: 'pause_circle' },
+      { key: 'sos', label: 'SOS', value: sos, unit: 'count', tone: 'orange', icon: 'sos' }
+    ];
+  }
+
+  let statusDistribution = parseStatusSlices(root['statusDistribution']);
+  if (!statusDistribution.length) {
+    statusDistribution = [
+      { key: 'moving', label: 'Moving', count: moving },
+      { key: 'idle', label: 'Idle', count: idle },
+      { key: 'parked', label: 'Parked', count: parked },
+      { key: 'sos', label: 'SOS', count: sos },
+      { key: 'offline', label: 'Offline', count: offline },
+      { key: 'neverSeen', label: 'Never seen', count: neverSeen },
+      { key: 'unknown', label: 'Unknown', count: unknown }
+    ];
+  }
+
+  const vehicleSrc = Array.isArray(root['vehicles'])
+    ? (root['vehicles'] as Record<string, unknown>[])
+    : Array.isArray(root['sample'])
+      ? (root['sample'] as Record<string, unknown>[])
+      : [];
+  const vehicles: FleetStatusVehicleRow[] = [];
+  for (const r of vehicleSrc) {
+    const vehicleId = asNumber(r['vehicleId'] ?? r['VehicleId']);
+    if (vehicleId == null) continue;
+    const gpsBucket = asString(r['gpsBucket'] ?? r['GpsBucket']) ?? 'unknown';
+    vehicles.push({
+      vehicleId,
+      vehicleName: asString(r['vehicleName'] ?? r['VehicleName']) ?? `Vehicle #${vehicleId}`,
+      registrationNumber: asString(r['registrationNumber'] ?? r['RegistrationNumber']) ?? '—',
+      gpsBucket,
+      statusLabel: asString(r['statusLabel']) ?? bucketLabel(gpsBucket),
+      statusTone: asString(r['statusTone']) ?? bucketTone(gpsBucket),
+      vehicleStatusName: asString(r['vehicleStatusName'] ?? r['VehicleStatusName']),
+      speed: asNumber(r['speed'] ?? r['Speed']),
+      lastUpdate: asString(r['lastUpdate'] ?? r['LastUpdate']) ?? (r['LastUpdate'] != null ? String(r['LastUpdate']) : null),
+      ignition: typeof r['ignition'] === 'boolean' ? r['ignition'] : typeof r['Ignition'] === 'boolean' ? r['Ignition'] : null
+    });
+  }
+
+  const insights = Array.isArray(root['insights'])
+    ? (root['insights'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+  const recommendedActions = Array.isArray(root['recommendedActions'])
+    ? (root['recommendedActions'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+  const followUps = Array.isArray(root['followUps'])
+    ? (root['followUps'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+
+  let acein = extractAcein(root);
+  if (!acein && looksRaw) {
+    acein = {
+      answer:
+        total === 0
+          ? 'No vehicles were returned for live fleet status.'
+          : `Fleet status: ${online} of ${total} vehicles online (${onlinePercent}%), ${offline} offline.`,
+      context: 'Live GPS buckets from VehicleCurrentLocation + GpsDevices (tenant-scoped).',
+      interpretation:
+        offlinePercent >= 50
+          ? 'Offline share is high — verify GPS devices and last-update freshness.'
+          : onlinePercent >= 80
+            ? 'Fleet connectivity looks healthy in this sample.'
+            : 'Connectivity is mixed — review offline and never-seen units.',
+      nextAction: offline > 0 ? 'Investigate offline vehicles on Live Map.' : 'Open Live Map to verify positions.',
+      evidence: [
+        { label: 'Tool', detail: 'get_fleet_status' },
+        { label: 'Sample', detail: `${vehicles.length} vehicle row(s)` }
+      ]
+    };
+  }
+
+  return {
+    responseType: 'fleet_status_analytics',
+    summary: {
+      total,
+      online,
+      offline,
+      moving,
+      idle,
+      parked,
+      sos,
+      neverSeen,
+      unknown,
+      onlinePercent,
+      offlinePercent
+    },
+    kpis,
+    statusDistribution,
+    vehicles,
+    insights,
+    recommendedActions,
+    followUps,
+    acein,
+    empty: total === 0
+  };
+}
+
+/** Generic KPI analytics for driver / fuel / maintenance / alerts when backend sends kpis. */
+export interface GenericAnalyticsData {
+  responseType: string;
+  kpis: TripBookingAnalyticsKpi[];
+  statusDistribution: TripBookingStatusSlice[];
+  insights: string[];
+  recommendedActions: string[];
+  followUps: string[];
+  acein: AssistantAcein | null;
+  title: string;
+}
+
+export function asGenericAnalytics(data: unknown, toolUsed?: string | null): GenericAnalyticsData | null {
+  if (!data || typeof data !== 'object') return null;
+  const root = data as Record<string, unknown>;
+  const type = asString(root['responseType']);
+  if (type === 'trip_booking_analytics' || type === 'sales_analytics' || type === 'fleet_status_analytics') {
+    return null;
+  }
+  const kpis = parseKpiList(root['kpis']);
+  if (!kpis.length) return null;
+
+  const insights = Array.isArray(root['insights'])
+    ? (root['insights'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+  const recommendedActions = Array.isArray(root['recommendedActions'])
+    ? (root['recommendedActions'] as unknown[]).map(x => String(x)).filter(Boolean)
+    : [];
+  const followUps = extractFollowUps(root);
+  const title = formatToolLabel(toolUsed) ?? (type ? humanizeKey(type.replace(/_analytics$/, '')) : 'Analysis');
+
+  return {
+    responseType: type ?? 'generic_analytics',
+    kpis,
+    statusDistribution: parseStatusSlices(root['statusDistribution']),
+    insights,
+    recommendedActions,
+    followUps,
+    acein: extractAcein(root),
+    title
+  };
+}
+
+export function extractRecommendedActions(data: unknown): string[] {
+  if (!data || typeof data !== 'object') return [];
+  const root = data as Record<string, unknown>;
+  if (!Array.isArray(root['recommendedActions'])) return [];
+  return (root['recommendedActions'] as unknown[]).map(x => String(x)).filter(Boolean);
+}
+
+export function hasStructuredError(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const root = data as Record<string, unknown>;
+  if (root['error'] === true || asString(root['status']) === 'error') {
+    return asString(root['message']) ?? asString(root['errorMessage']) ?? 'The data tool returned an error.';
+  }
+  if (typeof root['error'] === 'string' && root['error'].trim()) return String(root['error']);
+  return null;
 }

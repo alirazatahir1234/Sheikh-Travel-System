@@ -323,7 +323,8 @@ public sealed class AiMcpToolCallingLoop(
 
     /// <summary>
     /// Prefer last MCP payload that matches the ERP rich-widget contract
-    /// (trip_booking_analytics / sales_analytics / kpis).
+    /// (trip_booking_analytics / sales_analytics / fleet_status_analytics / kpis).
+    /// Raw <c>get_fleet_status</c> payloads are enriched before capture.
     /// </summary>
     internal static bool TryExtractStructuredAnalytics(string? raw, out object? structured)
     {
@@ -333,15 +334,22 @@ public sealed class AiMcpToolCallingLoop(
 
         try
         {
-            using var doc = JsonDocument.Parse(raw);
+            var fleetEnriched = FleetStatusAnalyticsEnricher.TryEnrich(raw);
+            var payload = fleetEnriched ?? raw;
+
+            using var doc = JsonDocument.Parse(payload);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 return false;
 
-            var hasType = root.TryGetProperty("responseType", out var rt)
-                          && rt.ValueKind == JsonValueKind.String
-                          && (string.Equals(rt.GetString(), "trip_booking_analytics", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(rt.GetString(), "sales_analytics", StringComparison.OrdinalIgnoreCase));
+            var typeName = root.TryGetProperty("responseType", out var rt) && rt.ValueKind == JsonValueKind.String
+                ? rt.GetString()
+                : null;
+            var hasType = !string.IsNullOrWhiteSpace(typeName)
+                          && (string.Equals(typeName, "trip_booking_analytics", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(typeName, "sales_analytics", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(typeName, FleetStatusAnalyticsEnricher.ResponseType, StringComparison.OrdinalIgnoreCase)
+                              || typeName!.EndsWith("_analytics", StringComparison.OrdinalIgnoreCase));
             var hasKpis = root.TryGetProperty("kpis", out var kpis)
                           && kpis.ValueKind == JsonValueKind.Array
                           && kpis.GetArrayLength() > 0;
@@ -349,7 +357,7 @@ public sealed class AiMcpToolCallingLoop(
             if (!hasType && !hasKpis)
                 return false;
 
-            structured = JsonSerializer.Deserialize<object>(raw);
+            structured = JsonSerializer.Deserialize<object>(payload);
             return structured is not null;
         }
         catch (JsonException)

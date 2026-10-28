@@ -7,24 +7,32 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ChartData } from 'chart.js';
 import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui/chart/ui-chart.component';
 import {
+  AssistantAcein,
   AssistantDataTable,
   AssistantFleetHealthData,
   AssistantMetricTile,
+  FleetStatusAnalyticsData,
+  GenericAnalyticsData,
   SalesAnalyticsData,
   TripBookingAnalyticsData,
+  asFleetStatusAnalytics,
+  asGenericAnalytics,
   asSalesAnalytics,
   asTripBookingAnalytics,
+  extractAcein,
   extractDataTable,
   extractFollowUps,
+  extractRecommendedActions,
   fleetHealthMetrics,
   formatToolLabel,
+  hasStructuredError,
   healthBand,
   parseAssistantAnswer,
   asFleetHealthData
 } from '../assistant-answer.util';
 import { polishAssistantEmojis } from '../ai-assistant-ui.constants';
 
-const STATUS_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8'];
+const STATUS_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8', '#8b5cf6', '#64748b'];
 
 @Component({
   selector: 'app-ai-assistant-result',
@@ -50,7 +58,12 @@ export class AiAssistantResultComponent {
     return formatToolLabel(this.toolUsed);
   }
 
+  get structuredError(): string | null {
+    return hasStructuredError(this.data);
+  }
+
   get fleetHealth(): AssistantFleetHealthData | null {
+    if (this.fleetStatus) return null;
     return asFleetHealthData(this.data);
   }
 
@@ -64,27 +77,66 @@ export class AiAssistantResultComponent {
     return h ? healthBand(h.healthPercent) : null;
   }
 
+  get fleetStatus(): FleetStatusAnalyticsData | null {
+    return asFleetStatusAnalytics(this.data, this.toolUsed);
+  }
+
   get salesAnalytics(): SalesAnalyticsData | null {
-    if (this.fleetHealth) return null;
+    if (this.fleetHealth || this.fleetStatus) return null;
     return asSalesAnalytics(this.data, this.toolUsed);
   }
 
   get tripAnalytics(): TripBookingAnalyticsData | null {
-    if (this.fleetHealth || this.salesAnalytics) return null;
+    if (this.fleetHealth || this.fleetStatus || this.salesAnalytics) return null;
     return asTripBookingAnalytics(this.data, this.toolUsed);
   }
 
+  get genericAnalytics(): GenericAnalyticsData | null {
+    if (this.fleetHealth || this.fleetStatus || this.salesAnalytics || this.tripAnalytics) return null;
+    return asGenericAnalytics(this.data, this.toolUsed);
+  }
+
+  get acein(): AssistantAcein | null {
+    return this.fleetStatus?.acein
+      ?? this.genericAnalytics?.acein
+      ?? extractAcein(this.data);
+  }
+
   get followUpActions(): string[] {
+    const fromFleet = this.fleetStatus?.followUps;
+    if (fromFleet?.length) return fromFleet;
     const fromTrip = this.tripAnalytics?.followUps;
     if (fromTrip?.length) return fromTrip;
     const fromSales = this.salesAnalytics?.followUps;
     if (fromSales?.length) return fromSales;
+    const fromGeneric = this.genericAnalytics?.followUps;
+    if (fromGeneric?.length) return fromGeneric;
     return extractFollowUps(this.data);
   }
 
+  get recommendedActions(): string[] {
+    const fromFleet = this.fleetStatus?.recommendedActions;
+    if (fromFleet?.length) return fromFleet;
+    const fromGeneric = this.genericAnalytics?.recommendedActions;
+    if (fromGeneric?.length) return fromGeneric;
+    return extractRecommendedActions(this.data);
+  }
+
   get table(): AssistantDataTable | null {
-    if (this.fleetHealth || this.tripAnalytics || this.salesAnalytics) return null;
+    if (this.fleetHealth || this.fleetStatus || this.tripAnalytics || this.salesAnalytics || this.genericAnalytics) {
+      return null;
+    }
     return extractDataTable(this.data, this.toolUsed);
+  }
+
+  get showEmptyState(): boolean {
+    if (this.structuredError) return false;
+    if (this.fleetStatus?.empty) return true;
+    if (!this.answer?.trim() && !this.fleetStatus && !this.tripAnalytics && !this.salesAnalytics
+      && !this.fleetHealth && !this.genericAnalytics && !this.table) {
+      return true;
+    }
+    return false;
   }
 
   get trendChartData(): ChartData | null {
@@ -162,7 +214,10 @@ export class AiAssistantResultComponent {
 
   get statusChartData(): ChartData | null {
     const dist =
-      this.salesAnalytics?.statusDistribution ?? this.tripAnalytics?.statusDistribution;
+      this.fleetStatus?.statusDistribution
+      ?? this.salesAnalytics?.statusDistribution
+      ?? this.tripAnalytics?.statusDistribution
+      ?? this.genericAnalytics?.statusDistribution;
     if (!dist?.length) return null;
     const slices = dist.filter(s => s.count > 0);
     const source = slices.length ? slices : dist;
@@ -181,8 +236,25 @@ export class AiAssistantResultComponent {
 
   get statusTotal(): number {
     const dist =
-      this.salesAnalytics?.statusDistribution ?? this.tripAnalytics?.statusDistribution;
+      this.fleetStatus?.statusDistribution
+      ?? this.salesAnalytics?.statusDistribution
+      ?? this.tripAnalytics?.statusDistribution
+      ?? this.genericAnalytics?.statusDistribution;
     return dist?.reduce((sum, s) => sum + s.count, 0) ?? 0;
+  }
+
+  get statusLegend(): { label: string; count: number; color: string }[] {
+    const dist =
+      this.fleetStatus?.statusDistribution
+      ?? this.salesAnalytics?.statusDistribution
+      ?? this.tripAnalytics?.statusDistribution
+      ?? this.genericAnalytics?.statusDistribution
+      ?? [];
+    return dist.map((s, i) => ({
+      label: s.label,
+      count: s.count,
+      color: STATUS_COLORS[i % STATUS_COLORS.length]
+    }));
   }
 
   /** Mock-style period chip on the trends card (e.g. "This Month"). */
@@ -277,6 +349,20 @@ export class AiAssistantResultComponent {
         return 'payments';
       case 'topCustomerRevenue':
         return 'emoji_events';
+      case 'totalVehicles':
+        return 'directions_car';
+      case 'online':
+        return 'wifi';
+      case 'offline':
+        return 'wifi_off';
+      case 'moving':
+        return 'near_me';
+      case 'parked':
+        return 'local_parking';
+      case 'idle':
+        return 'pause_circle';
+      case 'sos':
+        return 'sos';
       default:
         return 'insights';
     }
@@ -316,17 +402,20 @@ export class AiAssistantResultComponent {
     if (kpi.sharePercent != null && Number.isFinite(kpi.sharePercent)) {
       return Math.max(0, Math.min(100, kpi.sharePercent));
     }
-    // Total Trips / Bookings: soft bar from delta magnitude when present is skipped —
-    // show a thin accent only for completion-like KPIs above.
     return null;
   }
 
   insightTone(tip: string, index: number): string {
     const t = tip.toLowerCase();
-    if (t.includes('pending') || t.includes('still') || t.includes('attention') || t.includes('risk')) {
+    if (t.includes('pending') || t.includes('still') || t.includes('attention') || t.includes('risk')
+      || t.includes('offline') || t.includes('sos')) {
       return 'warn';
     }
     if (index === 0) return 'ok';
     return 'neutral';
+  }
+
+  emitFollowUp(text: string): void {
+    this.followUp.emit(text);
   }
 }
