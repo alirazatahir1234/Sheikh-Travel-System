@@ -5,10 +5,14 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
-  background: #f8f9fb;
+  background: #f3f6f9;
   margin: -4px -4px 0;
   padding: 4px 4px 0;
   border-radius: 12px;
+
+  &--alerts {
+    background: #f3f6f9;
+  }
 }
 
 .gps-module-header {
@@ -27,13 +31,95 @@
   }
 }
 
+/* Fleet Alerts hero — matches mock above the GPS tabs */
+.gps-alerts-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 4px 2px 2px;
+}
+
+.gps-alerts-hero__left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  flex: 1 1 320px;
+
+  h1 {
+    margin: 0;
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 6px 0 0;
+    max-width: 42rem;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+}
+
+.gps-alerts-hero__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #ef4444;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.12);
+
+  mat-icon {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+  }
+}
+
+.gps-alerts-hero__manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #64748b;
+  }
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+}
+
 .gps-subnav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
-  padding: 4px;
+  gap: 4px;
+  padding: 6px;
   background: #fff;
-  border: 1px solid var(--stb-border, #e2e8f0);
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -53,7 +139,7 @@
   min-height: 40px;
   border-radius: 999px;
   text-decoration: none;
-  color: var(--stb-text-muted, #64748b);
+  color: #64748b;
   font-size: 0.8125rem;
   font-weight: 600;
   border: 1px solid transparent;
@@ -67,14 +153,21 @@
   }
 
   &:hover {
-    background: var(--stb-surface-alt, #f8fafc);
-    color: var(--stb-text, #0f172a);
+    background: #f8fafc;
+    color: #0f172a;
   }
 
   &.active {
     background: var(--stb-primary, #0f766e);
     color: #fff;
     font-weight: 700;
+  }
+
+  /* Alerts active pill — solid red per mock */
+  &--alerts.active {
+    background: #ef4444;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.28);
   }
 }
 
@@ -91,13 +184,18 @@
     padding: 0;
   }
 
-  .gps-module-header p {
+  .gps-module-header p,
+  .gps-alerts-hero__left p {
     display: none;
+  }
+
+  .gps-alerts-hero__manage span,
+  .gps-alerts-hero__manage {
+    font-size: 0.8125rem;
   }
 }
 
 @media (max-width: 640px) {
-  /* Keep short labels — icon-only tabs were hard to identify on phones. */
   .gps-subnav-link {
     padding: 8px 10px;
     font-size: 0.75rem;

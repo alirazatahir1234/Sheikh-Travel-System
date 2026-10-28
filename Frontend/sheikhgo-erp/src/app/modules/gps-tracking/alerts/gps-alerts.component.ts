@@ -77,10 +77,13 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   pageIndex = 0;
   pageSize = 25;
   readonly pageSizeOptions = [10, 25, 50];
+  tableSearch = '';
+  private searchQuery = '';
 
   isSuperAdmin = false;
   platformCrossTenantLimited = false;
   drivers: DriverListItem[] = [];
+  private allDisplayGroups: GpsAlertDisplayGroup[] = [];
 
   lastRefreshedAt: Date | null = null;
   refreshInFlight = false;
@@ -144,6 +147,9 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     this.routeSub = this.route.queryParamMap.subscribe(params => {
       const vehicleId = params.get('vehicleId');
       const alertId = params.get('alertId');
+      const tab = params.get('tab');
+      if (tab === 'rules') this.activeTab = 'rules';
+      else if (tab === 'events') this.activeTab = 'events';
       if (vehicleId) {
         const id = Number(vehicleId);
         if (Number.isFinite(id) && id > 0) this.scopeFilter.setVehicle(id);
@@ -344,7 +350,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   private rebuildDisplay(): void {
-    this.displayGroups = this.groupSimilar
+    this.allDisplayGroups = this.groupSimilar
       ? groupSimilarAlerts(this.rawEvents)
       : this.rawEvents.map(e => ({
         key: alertRowKey(e),
@@ -352,7 +358,92 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
         events: [e],
         count: 1
       }));
+    this.applySearchFilter();
+  }
+
+  private applySearchFilter(): void {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) {
+      this.displayGroups = this.allDisplayGroups;
+    } else {
+      this.displayGroups = this.allDisplayGroups.filter(g => {
+        const e = g.representative;
+        const hay = [
+          e.message,
+          e.eventType,
+          e.severity,
+          e.vehicleName,
+          e.registrationNumber,
+          e.driverName,
+          e.status
+        ].map(x => (x ?? '').toString().toLowerCase()).join(' ');
+        return hay.includes(q);
+      });
+    }
     this.syncPaginationBounds();
+  }
+
+  onTableSearch(): void {
+    this.searchQuery = this.tableSearch;
+    this.resetPagination();
+    this.applySearchFilter();
+  }
+
+  onEventTypeSelect(value: string | null): void {
+    this.eventTypeFilter = value || null;
+    this.resetPagination();
+    this.loadEvents();
+  }
+
+  onSeveritySelect(value: string | null): void {
+    this.severityFilter = value || null;
+    this.resetPagination();
+    this.loadEvents();
+  }
+
+  resetFilters(): void {
+    this.lifecycleTab = 'open';
+    this.severityFilter = null;
+    this.eventTypeFilter = null;
+    this.datePreset = 'last24';
+    this.driverFilterId = null;
+    this.tableSearch = '';
+    this.searchQuery = '';
+    this.resetPagination();
+    this.loadEvents();
+  }
+
+  applyFilters(): void {
+    this.resetPagination();
+    this.loadEvents();
+  }
+
+  saveFilterPreset(): void {
+    try {
+      localStorage.setItem('sheikhgo.gps-alert-filter-preset.v1', JSON.stringify({
+        lifecycleTab: this.lifecycleTab,
+        severityFilter: this.severityFilter,
+        eventTypeFilter: this.eventTypeFilter,
+        datePreset: this.datePreset,
+        driverFilterId: this.driverFilterId,
+        groupSimilar: this.groupSimilar
+      }));
+      this.toast.success('Filter saved on this device');
+    } catch {
+      this.toast.error('Could not save filter');
+    }
+  }
+
+  plateMeta(event: GpsAlertEvent): string {
+    const plate = event.registrationNumber ? `Plate ${event.registrationNumber}` : null;
+    const speed = `${event.speed ?? 0} km/h`;
+    return [plate, speed].filter(Boolean).join(' · ');
+  }
+
+  driverPhoneFor(event: GpsAlertEvent): string {
+    if (!event.driverId) return '—';
+    const match = this.drivers.find(d => d.id === event.driverId);
+    return match?.phone?.trim() || '—';
   }
 
   private resetPagination(): void {
@@ -658,10 +749,13 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     if (type === 'sos') return 'badge-red';
     if (type === 'geofence_enter') return 'badge-amber';
     if (type === 'geofence_exit') return 'badge-blue';
+    if (type === 'online' || type === 'ignition_on') return 'badge-green';
+    if (type === 'offline') return 'badge-gray';
     return 'badge-gray';
   }
 
   eventTypeLabel(type: string): string {
+    if ((type ?? '').toLowerCase() === 'sos') return 'SOS';
     return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
@@ -685,15 +779,16 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   eventTypeChipModifier(type: string): string {
-    if (type === 'sos') return 'filter-chip--sos';
-    if (type === 'speed_exceeded' || type === 'road_speed_exceeded') return 'filter-chip--speed';
-    if (type === 'geofence_enter') return 'filter-chip--geofence-in';
-    if (type === 'geofence_exit') return 'filter-chip--geofence-out';
-    if (type === 'offline' || type === 'online') return 'filter-chip--connectivity';
-    if (type === 'ignition_on' || type === 'ignition_off') return 'filter-chip--ignition';
-    if (type === 'low_battery' || type === 'power_cut') return 'filter-chip--power';
-    if (type === 'fuel_station_stop' || type === 'fuel_fraud') return 'filter-chip--fuel';
-    return 'filter-chip--neutral';
+    if (type === 'sos') return 'type-chip--sos';
+    if (type === 'speed_exceeded' || type === 'road_speed_exceeded') return 'type-chip--speed';
+    if (type === 'geofence_enter') return 'type-chip--geofence-in';
+    if (type === 'geofence_exit') return 'type-chip--geofence-out';
+    if (type === 'online') return 'type-chip--ignition';
+    if (type === 'offline') return 'type-chip--connectivity';
+    if (type === 'ignition_on' || type === 'ignition_off') return 'type-chip--ignition';
+    if (type === 'low_battery' || type === 'power_cut') return 'type-chip--power';
+    if (type === 'fuel_station_stop' || type === 'fuel_fraud') return 'type-chip--fuel';
+    return 'type-chip--neutral';
   }
 
   severityIcon(severity: string): string {
@@ -707,7 +802,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   severityChipModifier(severity: string): string {
-    return `filter-chip--sev-${severity}`;
+    return `type-chip--sev-${severity}`;
   }
 
   datePresetIcon(preset: string): string {

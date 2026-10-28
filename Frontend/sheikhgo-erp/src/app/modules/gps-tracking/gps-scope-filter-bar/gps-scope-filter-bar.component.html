@@ -15,7 +15,7 @@
     </div>
 
     <div class="filter-entity filter-entity--vehicle">
-      <mat-icon class="filter-entity__icon" aria-hidden="true">directions_car</mat-icon>
+      <mat-icon class="filter-entity__icon" aria-hidden="true">local_shipping</mat-icon>
       <mat-form-field appearance="outline" class="filter-entity__field">
         <mat-label>Vehicle</mat-label>
         <mat-select
@@ -36,13 +36,16 @@
   </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
-    <span class="applied-label">Scope</span>
+    <span class="applied-label">Scope:</span>
     <span class="filter-tag" *ngIf="scope.isSuperAdmin && scope.companyFilterId != null">
       Company: {{ scope.companyLabel() }}
     </span>
     <span class="filter-tag" *ngIf="scope.vehicleFilterId != null">
       Vehicle: {{ scope.vehicleLabel() }}
     </span>
-    <button type="button" class="clear-scope" (click)="clearScope()">Clear scope</button>
+    <button type="button" class="clear-scope" (click)="clearScope()">
+      <mat-icon aria-hidden="true">close</mat-icon>
+      Clear Scope
+    </button>
   </div>
 </section>

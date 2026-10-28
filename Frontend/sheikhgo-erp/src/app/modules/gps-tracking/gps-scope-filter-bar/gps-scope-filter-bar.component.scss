@@ -1,11 +1,12 @@
+/* Scope bar — Company/Vehicle cards matching Fleet Alerts mock */
 .gps-scope-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
-  padding: 10px 12px;
+  gap: 12px 16px;
+  padding: 12px 14px;
   background: #fff;
-  border: 1px solid var(--stb-border, #e2e8f0);
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -14,7 +15,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: 1 1 auto;
 }
 
@@ -22,13 +23,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 220px;
-  min-width: min(100%, 220px);
-  max-width: 340px;
-  min-height: 52px;
+  flex: 1 1 240px;
+  min-width: min(100%, 240px);
+  max-width: 360px;
+  min-height: 56px;
   padding: 8px 12px 8px 14px;
   border-radius: 10px;
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
   background: #fff;
   transition: box-shadow 0.12s ease;
 
@@ -37,22 +38,22 @@
   }
 
   &--company {
-    border-color: #c4b5fd;
+    border-color: #ddd6fe;
     background: #f5f3ff;
-    .filter-entity__icon { color: #6d28d9; }
+    .filter-entity__icon { color: #7c3aed; }
   }
 
   &--vehicle {
-    border-color: #5eead4;
+    border-color: #99f6e4;
     background: #f0fdfa;
     .filter-entity__icon { color: #0f766e; }
   }
 }
 
 .filter-entity__icon {
-  font-size: 24px;
-  width: 24px;
-  height: 24px;
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
 }
 
@@ -68,7 +69,8 @@
     .mdc-notched-outline__notch,
     .mdc-notched-outline__trailing { border-color: transparent !important; }
     .mat-mdc-form-field-infix { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
-    .mat-mdc-floating-label { font-weight: 600; }
+    .mat-mdc-floating-label { font-weight: 600; font-size: 12px; color: #64748b; }
+    .mat-mdc-select-value-text { font-weight: 700; color: #0f172a; }
   }
 }
 
@@ -84,15 +86,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .applied-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #94a3b8;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
 }
 
 .filter-tag {
@@ -102,20 +103,30 @@
   background: #ecfdf5;
   border: 1px solid #99f6e4;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 12px;
 }
 
 .clear-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: #475569;
   font-weight: 700;
   font-size: 0.75rem;
   cursor: pointer;
   min-height: 36px;
-  padding: 0 6px;
+  padding: 0 4px;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
 
   &:hover {
+    color: #0f766e;
     text-decoration: underline;
   }
 }
@@ -124,5 +135,10 @@
   .filter-entity {
     max-width: none;
     flex-basis: 100%;
+  }
+
+  .gps-scope-bar__applied {
+    margin-left: 0;
+    width: 100%;
   }
 }

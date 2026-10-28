@@ -1,224 +1,222 @@
 <div class="alerts-shell">
 <div class="alerts-page">
 
-  <div class="page-header">
-    <div>
-      <h2 class="page-title">GPS Alerts</h2>
-      <p class="live-indicator" [class.live-indicator--pulse]="refreshInFlight">
-        <mat-icon>sync</mat-icon>
-        Updated {{ lastUpdatedLabel() }}
-        <span class="dot">·</span> auto-refresh 30s
-      </p>
-    </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" type="button" (click)="showPrefsPanel = true">
-        <mat-icon>tune</mat-icon> Prefs
-      </button>
-      <button class="btn btn-secondary" type="button" (click)="exportCsv()">
-        <mat-icon>download</mat-icon> CSV
-      </button>
-      <button class="btn btn-secondary" type="button" (click)="exportPdf()">
-        <mat-icon>picture_as_pdf</mat-icon> PDF
-      </button>
-      <button class="btn btn-primary" (click)="showRuleForm = true">
-        <mat-icon>add_alert</mat-icon> New Rule
-      </button>
-    </div>
-  </div>
-
+  <!-- KPI strip (events view) -->
   <div class="kpi-strip" *ngIf="activeTab === 'events'">
-    <div class="kpi-tile kpi-tile--critical">
-      <mat-icon>report</mat-icon>
-      <div>
-        <span class="kpi-value">{{ kpiCritical }}</span>
-        <span class="kpi-label">Critical open</span>
+    <article class="kpi-card kpi-card--critical">
+      <div class="kpi-card__icon"><mat-icon>priority_high</mat-icon></div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value">{{ kpiCritical }}</span>
+        <span class="kpi-card__label">Critical Open</span>
       </div>
-    </div>
-    <div class="kpi-tile kpi-tile--sos">
-      <mat-icon>sos</mat-icon>
-      <div>
-        <span class="kpi-value">{{ kpiSos }}</span>
-        <span class="kpi-label">SOS open</span>
+      <div class="kpi-card__spark" aria-hidden="true">
+        <svg viewBox="0 0 64 28" preserveAspectRatio="none">
+          <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            points="2,22 12,18 20,20 28,12 36,14 44,8 52,10 62,4" />
+        </svg>
       </div>
-    </div>
-    <div class="kpi-tile">
-      <span class="kpi-value">{{ stats.unread }}</span>
-      <span class="kpi-label">Unread</span>
-    </div>
-    <div class="kpi-tile">
-      <span class="kpi-value">{{ stats.today }}</span>
-      <span class="kpi-label">Today</span>
-    </div>
+    </article>
+    <article class="kpi-card kpi-card--sos">
+      <div class="kpi-card__icon"><mat-icon>crisis_alert</mat-icon></div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value">{{ kpiSos }}</span>
+        <span class="kpi-card__label">SOS Open</span>
+      </div>
+      <div class="kpi-card__spark" aria-hidden="true">
+        <svg viewBox="0 0 64 28" preserveAspectRatio="none">
+          <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            points="2,20 10,16 18,18 26,10 34,14 42,8 50,12 62,6" />
+        </svg>
+      </div>
+    </article>
+    <article class="kpi-card kpi-card--unread">
+      <div class="kpi-card__icon"><mat-icon>mark_chat_unread</mat-icon></div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value">{{ stats.unread }}</span>
+        <span class="kpi-card__label">Unread</span>
+      </div>
+      <div class="kpi-card__spark" aria-hidden="true">
+        <svg viewBox="0 0 64 28" preserveAspectRatio="none">
+          <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            points="2,14 12,16 20,12 28,18 36,10 44,14 52,12 62,16" />
+        </svg>
+      </div>
+    </article>
+    <article class="kpi-card kpi-card--today">
+      <div class="kpi-card__icon"><mat-icon>calendar_today</mat-icon></div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value">{{ stats.today }}</span>
+        <span class="kpi-card__label">Today</span>
+      </div>
+      <div class="kpi-card__spark kpi-card__spark--bars" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </article>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
-      <mat-icon>notifications</mat-icon> Alert Events
-      <span *ngIf="displayGroups.length" class="tab-badge">{{ flatEvents().length }}</span>
-    </button>
-    <button class="tab" [class.active]="activeTab === 'rules'" (click)="activeTab = 'rules'">
-      <mat-icon>rule</mat-icon> Alert Rules
-      <span *ngIf="rules.length" class="tab-badge tab-badge-gray">{{ rules.length }}</span>
-    </button>
-  </div>
-
-  <div *ngIf="activeTab === 'events'">
-    <div class="platform-fallback-banner" *ngIf="isSuperAdmin && platformCrossTenantLimited">
-      <mat-icon>info</mat-icon>
-      <span>Cross-company alerts need an updated API. Showing current company until platform endpoint is deployed.</span>
+  <!-- Filter Alerts card -->
+  <section class="filter-card" *ngIf="activeTab === 'events'" aria-label="Filter alerts">
+    <div class="filter-card__head">
+      <h2>Filter Alerts</h2>
+      <div class="filter-card__actions">
+        <button type="button" class="btn btn-ghost" (click)="saveFilterPreset()">
+          <mat-icon>bookmark_border</mat-icon> Save Filter
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="showPrefsPanel = true">
+          <mat-icon>tune</mat-icon> Prefs
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="exportCsv()">
+          <mat-icon>download</mat-icon> Export
+        </button>
+        <button type="button" class="btn btn-primary" (click)="showRuleForm = true">
+          <mat-icon>add</mat-icon> New Rule
+        </button>
+      </div>
     </div>
 
-    <div class="escalation-banner" *ngIf="escalatedAlerts.length">
-      <mat-icon>priority_high</mat-icon>
-      <span>{{ escalatedAlerts.length }} critical alert(s) unacknowledged over 15 min — review now.</span>
-    </div>
-
-    <div class="quiet-banner" *ngIf="quietHoursActive()">
-      <mat-icon>bedtime</mat-icon>
-      <span>Quiet hours active ({{ quietHours.start }}–{{ quietHours.end }}) — push may be suppressed per your prefs.</span>
-    </div>
-
-    <section class="filters-panel" aria-label="Alert driver filter">
-      <div class="filter-block filter-block--last">
-        <div class="filter-block__head">
+    <div class="filter-selects">
+      <label class="filter-select">
+        <span class="filter-select__label">Driver</span>
+        <div class="filter-select__control">
           <mat-icon aria-hidden="true">person</mat-icon>
-          <span class="filter-block__title">Driver</span>
+          <select [ngModel]="driverFilterId" (ngModelChange)="onDriverFilterChange($event === '' || $event === null ? null : +$event)">
+            <option [ngValue]="null" [value]="''">Select Driver</option>
+            <option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</option>
+          </select>
         </div>
-        <div class="filter-entity-row">
-          <div class="filter-entity filter-entity--driver">
-            <mat-icon class="filter-entity__icon" aria-hidden="true">person</mat-icon>
-            <mat-form-field appearance="outline" class="filter-entity__field">
-              <mat-label>Driver</mat-label>
-              <mat-select [value]="driverFilterId" (selectionChange)="onDriverFilterChange($event.value)">
-                <mat-option [value]="null">All drivers</mat-option>
-                <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
+      </label>
+      <label class="filter-select">
+        <span class="filter-select__label">Alert Type</span>
+        <div class="filter-select__control">
+          <select [ngModel]="eventTypeFilter" (ngModelChange)="onEventTypeSelect($event)">
+            <option [ngValue]="null" [value]="''">All Types</option>
+            <option *ngFor="let t of eventTypes" [value]="t">{{ eventTypeLabel(t) }}</option>
+          </select>
         </div>
-      </div>
-    </section>
-
-    <div class="lifecycle-tabs">
-      <div class="lifecycle-tab-row" role="tablist" aria-label="Alert status">
-        <button
-          type="button"
-          role="tab"
-          class="lifecycle-tab lifecycle-tab--open"
-          [class.active]="lifecycleTab === 'open'"
-          [attr.aria-selected]="lifecycleTab === 'open'"
-          (click)="setLifecycleTab('open')">
-          <mat-icon aria-hidden="true">notifications_active</mat-icon>
-          <span class="lifecycle-tab__label">Open</span>
-          <span class="lifecycle-tab__count" *ngIf="stats.active > 0">{{ stats.active }}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="lifecycle-tab lifecycle-tab--acknowledged"
-          [class.active]="lifecycleTab === 'acknowledged'"
-          [attr.aria-selected]="lifecycleTab === 'acknowledged'"
-          (click)="setLifecycleTab('acknowledged')">
-          <mat-icon aria-hidden="true">task_alt</mat-icon>
-          <span class="lifecycle-tab__label">Acknowledged</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="lifecycle-tab lifecycle-tab--resolved"
-          [class.active]="lifecycleTab === 'resolved'"
-          [attr.aria-selected]="lifecycleTab === 'resolved'"
-          (click)="setLifecycleTab('resolved')">
-          <mat-icon aria-hidden="true">check_circle</mat-icon>
-          <span class="lifecycle-tab__label">Resolved</span>
-          <span class="lifecycle-tab__count" *ngIf="stats.resolved > 0">{{ stats.resolved }}</span>
-        </button>
-      </div>
-      <button class="filter-chip filter-chip--group group-similar-chip" [class.active]="groupSimilar" type="button" (click)="toggleGroupSimilar()">
-        <mat-icon aria-hidden="true">filter_list</mat-icon>
-        <span class="filter-chip__label">Group similar</span>
-      </button>
+      </label>
+      <label class="filter-select">
+        <span class="filter-select__label">Severity</span>
+        <div class="filter-select__control">
+          <select [ngModel]="severityFilter" (ngModelChange)="onSeveritySelect($event)">
+            <option [ngValue]="null" [value]="''">All Severities</option>
+            <option *ngFor="let s of severityLevels" [value]="s">{{ eventTypeLabel(s) }}</option>
+          </select>
+        </div>
+      </label>
+      <label class="filter-select">
+        <span class="filter-select__label">Status</span>
+        <div class="filter-select__control">
+          <select [ngModel]="lifecycleTab" (ngModelChange)="setLifecycleTab($event)">
+            <option value="open">Open</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+      </label>
     </div>
 
-    <section class="filters-panel" aria-label="Alert type and time filters">
-      <div class="filter-block">
-        <div class="filter-block__head">
-          <mat-icon aria-hidden="true">category</mat-icon>
-          <span class="filter-block__title">Alert type</span>
-          <span class="filter-block__hint" *ngIf="eventTypeFilter">One selected — tap again to clear</span>
-        </div>
-        <div class="filter-chip-row" role="group" aria-label="Alert type">
-          <button
-            type="button"
-            class="filter-chip"
-            *ngFor="let t of eventTypes"
-            [ngClass]="eventTypeChipModifier(t)"
-            [class.active]="eventTypeFilter === t"
-            [attr.aria-pressed]="eventTypeFilter === t"
-            (click)="toggleEventType(t)">
-            <mat-icon aria-hidden="true">{{ eventTypeIcon(t) }}</mat-icon>
-            <span class="filter-chip__label">{{ eventTypeLabel(t) }}</span>
-          </button>
-        </div>
+    <div class="filter-dates">
+      <div class="filter-chip-row" role="group" aria-label="Date range">
+        <button
+          type="button"
+          class="date-chip"
+          *ngFor="let p of datePresets"
+          [class.active]="datePreset === p"
+          [attr.aria-pressed]="datePreset === p"
+          (click)="setDatePreset(p)">
+          <mat-icon aria-hidden="true">{{ datePresetIcon(p) }}</mat-icon>
+          {{ datePresetLabel(p) }}
+        </button>
+        <button type="button" class="date-chip" [class.active]="datePreset === 'custom'" (click)="setDatePreset('custom')">
+          <mat-icon aria-hidden="true">date_range</mat-icon>
+          Custom Range
+        </button>
       </div>
-
-      <div class="filter-block">
-        <div class="filter-block__head">
-          <mat-icon aria-hidden="true">signal_cellular_alt</mat-icon>
-          <span class="filter-block__title">Severity</span>
-        </div>
-        <div class="filter-chip-row" role="group" aria-label="Severity">
-          <button
-            type="button"
-            class="filter-chip"
-            *ngFor="let s of severityLevels"
-            [ngClass]="severityChipModifier(s)"
-            [class.active]="severityFilter === s"
-            [attr.aria-pressed]="severityFilter === s"
-            (click)="toggleSeverity(s)">
-            <mat-icon aria-hidden="true">{{ severityIcon(s) }}</mat-icon>
-            <span class="filter-chip__label">{{ eventTypeLabel(s) }}</span>
-          </button>
-        </div>
+      <div class="filter-dates__actions">
+        <button type="button" class="btn btn-ghost" (click)="resetFilters()">
+          <mat-icon>restart_alt</mat-icon> Reset
+        </button>
+        <button type="button" class="btn btn-primary" (click)="applyFilters()">
+          <mat-icon>filter_alt</mat-icon> Apply Filters
+        </button>
       </div>
-
-      <div class="filter-block filter-block--last">
-        <div class="filter-block__head">
-          <mat-icon aria-hidden="true">event</mat-icon>
-          <span class="filter-block__title">Date range</span>
-        </div>
-        <div class="filter-chip-row" role="group" aria-label="Date range">
-          <button
-            type="button"
-            class="filter-chip filter-chip--date"
-            *ngFor="let p of datePresets"
-            [class.active]="datePreset === p"
-            [attr.aria-pressed]="datePreset === p"
-            (click)="setDatePreset(p)">
-            <mat-icon aria-hidden="true">{{ datePresetIcon(p) }}</mat-icon>
-            <span class="filter-chip__label">{{ datePresetLabel(p) }}</span>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <div class="bulk-bar" *ngIf="selectedCount > 0">
-      <span>{{ selectedCount }} selected</span>
-      <button class="btn btn-secondary btn-sm" type="button" (click)="bulkAcknowledge()">Bulk acknowledge</button>
-      <button class="btn btn-secondary btn-sm" type="button" (click)="bulkResolve()">Bulk resolve</button>
     </div>
 
-    <div class="events-list-toolbar desktop-only" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0">
-      <span class="record-count">
-        {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ displayGroups.length }} group(s)
-        <span class="muted"> · {{ flatEvents().length }} alert(s)</span>
-      </span>
-      <div class="view-toggle" role="group" aria-label="Alerts layout">
-        <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'list'" (click)="setEventsViewMode('list')" title="List view" aria-label="List view">
-          <mat-icon>view_list</mat-icon>
+    <div class="filter-block">
+      <div class="filter-block__title">Alert Types</div>
+      <div class="filter-chip-row" role="group" aria-label="Alert type">
+        <button
+          type="button"
+          class="type-chip"
+          *ngFor="let t of eventTypes"
+          [ngClass]="eventTypeChipModifier(t)"
+          [class.active]="eventTypeFilter === t"
+          [attr.aria-pressed]="eventTypeFilter === t"
+          (click)="toggleEventType(t)">
+          <mat-icon aria-hidden="true">{{ eventTypeIcon(t) }}</mat-icon>
+          {{ eventTypeLabel(t) }}
         </button>
-        <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'grid'" (click)="setEventsViewMode('grid')" title="Grid view" aria-label="Grid view">
-          <mat-icon>grid_view</mat-icon>
+      </div>
+    </div>
+
+    <div class="filter-block filter-block--last">
+      <div class="filter-block__title">Severity</div>
+      <div class="filter-chip-row" role="group" aria-label="Severity">
+        <button
+          type="button"
+          class="type-chip"
+          *ngFor="let s of severityLevels"
+          [ngClass]="severityChipModifier(s)"
+          [class.active]="severityFilter === s"
+          [attr.aria-pressed]="severityFilter === s"
+          (click)="toggleSeverity(s)">
+          <mat-icon aria-hidden="true">{{ severityIcon(s) }}</mat-icon>
+          {{ eventTypeLabel(s) }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="platform-fallback-banner" *ngIf="activeTab === 'events' && isSuperAdmin && platformCrossTenantLimited">
+    <mat-icon>info</mat-icon>
+    <span>Cross-company alerts need an updated API. Showing current company until platform endpoint is deployed.</span>
+  </div>
+
+  <div class="escalation-banner" *ngIf="activeTab === 'events' && escalatedAlerts.length">
+    <mat-icon>priority_high</mat-icon>
+    <span>{{ escalatedAlerts.length }} critical alert(s) unacknowledged over 15 min — review now.</span>
+  </div>
+
+  <div class="quiet-banner" *ngIf="activeTab === 'events' && quietHoursActive()">
+    <mat-icon>bedtime</mat-icon>
+    <span>Quiet hours active ({{ quietHours.start }}–{{ quietHours.end }}) — push may be suppressed per your prefs.</span>
+  </div>
+
+  <div class="bulk-bar" *ngIf="activeTab === 'events' && selectedCount > 0">
+    <span>{{ selectedCount }} selected</span>
+    <button class="btn btn-ghost btn-sm" type="button" (click)="bulkAcknowledge()">Bulk acknowledge</button>
+    <button class="btn btn-ghost btn-sm" type="button" (click)="bulkResolve()">Bulk resolve</button>
+  </div>
+
+  <!-- Alerts results -->
+  <section class="results-card" *ngIf="activeTab === 'events'" aria-label="Alert results">
+    <div class="results-card__head">
+      <h2>Alerts <span *ngIf="!loading && !needsCompanySelection && !loadError">({{ pageRangeStart }}–{{ pageRangeEnd }} of {{ displayGroups.length }})</span></h2>
+      <div class="results-card__tools">
+        <div class="view-toggle" role="group" aria-label="Alerts layout">
+          <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'list'" (click)="setEventsViewMode('list')">
+            <mat-icon>table_rows</mat-icon> Table
+          </button>
+          <button type="button" class="view-toggle-btn" [class.active]="eventsViewMode === 'grid'" (click)="setEventsViewMode('grid')">
+            <mat-icon>view_timeline</mat-icon> Timeline
+          </button>
+        </div>
+        <div class="results-search">
+          <mat-icon aria-hidden="true">search</mat-icon>
+          <input type="search" [(ngModel)]="tableSearch" (ngModelChange)="onTableSearch()" placeholder="Search alerts..." aria-label="Search alerts" />
+        </div>
+        <button type="button" class="btn-icon results-filter-btn" title="Toggle group similar" [class.active]="groupSimilar" (click)="toggleGroupSimilar()">
+          <mat-icon>tune</mat-icon>
         </button>
       </div>
     </div>
@@ -241,19 +239,20 @@
     <div *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length === 0" class="empty-state empty-state--ok">
       <mat-icon>check_circle</mat-icon>
       <p>No alerts match these filters</p>
-      <p class="sub">Try widening the date range or switching lifecycle tab.</p>
+      <p class="sub">Try widening the date range or switching status.</p>
     </div>
 
-    <div class="table-card desktop-table" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'list'">
+    <div class="table-wrap desktop-table" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'list'">
       <table class="data-table">
         <thead>
           <tr>
             <th class="col-check">
               <mat-checkbox [checked]="allSelected" (change)="toggleSelectAll($event.checked)"></mat-checkbox>
             </th>
-            <th *ngIf="showCompanyColumn">Company</th>
             <th>Alert</th>
-            <th>When</th>
+            <th>Vehicle</th>
+            <th>Driver</th>
+            <th class="col-when">When</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -267,23 +266,55 @@
                 [checked]="isSelected(g.representative)"
                 (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
             </td>
-            <td *ngIf="showCompanyColumn" class="fw-med">{{ g.representative.tenantName || ('#' + g.representative.tenantId) }}</td>
             <td>
-              <div class="alert-primary">
-                <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
-                <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
-                <span *ngIf="g.count > 1" class="group-badge">×{{ g.count }}</span>
+              <div class="alert-cell">
+                <div class="alert-cell__icon" [ngClass]="eventTypeChipModifier(g.representative.eventType)">
+                  <mat-icon>{{ eventTypeIcon(g.representative.eventType) }}</mat-icon>
+                </div>
+                <div class="alert-cell__body">
+                  <div class="alert-primary">
+                    <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
+                    <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
+                    <span *ngIf="g.count > 1" class="group-badge">×{{ g.count }}</span>
+                  </div>
+                  <div class="alert-msg">{{ g.representative.message }}</div>
+                  <div class="alert-meta">{{ plateMeta(g.representative) }}</div>
+                </div>
               </div>
-              <div class="alert-meta">{{ inlineMeta(g.representative) }}</div>
-              <div class="alert-msg muted">{{ g.representative.message }}</div>
             </td>
-            <td class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</td>
-            <td><span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span></td>
+            <td>
+              <div class="entity-cell">
+                <mat-icon class="entity-cell__icon entity-cell__icon--vehicle" aria-hidden="true">local_shipping</mat-icon>
+                <div>
+                  <div class="entity-cell__primary">{{ g.representative.registrationNumber || ('#' + g.representative.vehicleId) }}</div>
+                  <div class="entity-cell__secondary">{{ g.representative.vehicleName || '—' }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="entity-cell">
+                <mat-icon class="entity-cell__icon entity-cell__icon--driver" aria-hidden="true">person</mat-icon>
+                <div>
+                  <div class="entity-cell__primary">{{ g.representative.driverName || '—' }}</div>
+                  <div class="entity-cell__secondary">{{ driverPhoneFor(g.representative) }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="when-cell">
+              <div class="when-cell__date">{{ g.representative.timestamp | date:'dd MMM yyyy' }}</div>
+              <div class="when-cell__time">{{ g.representative.timestamp | date:'HH:mm' }}</div>
+            </td>
+            <td>
+              <span class="status-pill" [ngClass]="statusClass(g.representative)">
+                <span class="status-pill__dot"></span>
+                {{ statusLabel(g.representative) }}
+              </span>
+            </td>
             <td class="action-cell" (click)="$event.stopPropagation()">
               <button class="btn-icon" type="button" title="Live map" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
               <button class="btn-icon" type="button" title="History" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
-              <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
-              <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
+              <button class="btn btn-ghost btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
+              <button class="btn btn-ghost btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
             </td>
           </tr>
         </tbody>
@@ -301,29 +332,29 @@
       </div>
     </div>
 
-    <div class="alerts-grid desktop-only" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'grid'">
-      <article class="alert-card alert-card--grid" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
-        <div class="alert-card__head">
-          <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
-          <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
-          <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
-          <span *ngIf="g.count > 1" class="group-badge">×{{ g.count }}</span>
-          <span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span>
-        </div>
-        <p *ngIf="showCompanyColumn && g.representative.tenantName" class="alert-meta fw-med">{{ g.representative.tenantName }}</p>
-        <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
-        <p class="alert-msg">{{ g.representative.message }}</p>
-        <div class="alert-card__foot">
-          <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</span>
-          <div class="alert-card__actions" (click)="$event.stopPropagation()">
-            <button class="btn-icon" type="button" title="Live map" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
-            <button class="btn-icon" type="button" title="History" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
-            <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
-            <button class="btn btn-secondary btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
+    <div class="timeline desktop-only" *ngIf="!loading && !needsCompanySelection && !loadError && displayGroups.length > 0 && eventsViewMode === 'grid'">
+      <article class="timeline-item" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
+        <div class="timeline-item__rail" aria-hidden="true"></div>
+        <div class="timeline-item__card">
+          <div class="timeline-item__when">{{ g.representative.timestamp | date:'dd MMM yyyy, HH:mm' }}</div>
+          <div class="alert-primary">
+            <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
+            <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
+            <span class="status-pill" [ngClass]="statusClass(g.representative)">
+              <span class="status-pill__dot"></span>{{ statusLabel(g.representative) }}
+            </span>
+          </div>
+          <p class="alert-msg">{{ g.representative.message }}</p>
+          <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
+          <div class="timeline-item__actions" (click)="$event.stopPropagation()">
+            <button class="btn-icon" type="button" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
+            <button class="btn-icon" type="button" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
+            <button class="btn btn-ghost btn-sm" *ngIf="g.representative.canAcknowledge" (click)="acknowledge(g.representative, $event)">Ack</button>
+            <button class="btn btn-ghost btn-sm" *ngIf="g.representative.canResolve" (click)="resolve(g.representative, $event)">Resolve</button>
           </div>
         </div>
       </article>
-      <div class="table-footer alerts-grid__footer">
+      <div class="table-footer">
         <mat-paginator
           [length]="displayGroups.length"
           [pageIndex]="pageIndex"
@@ -341,10 +372,12 @@
         <div class="alert-card__head">
           <mat-checkbox [checked]="isSelected(g.representative)" (click)="$event.stopPropagation()" (change)="toggleSelect(g.representative, $event.checked)"></mat-checkbox>
           <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
-          <span class="badge" [ngClass]="statusClass(g.representative)">{{ statusLabel(g.representative) }}</span>
+          <span class="status-pill" [ngClass]="statusClass(g.representative)">
+            <span class="status-pill__dot"></span>{{ statusLabel(g.representative) }}
+          </span>
         </div>
-        <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
         <p class="alert-msg">{{ g.representative.message }}</p>
+        <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
         <div class="alert-card__foot">
           <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</span>
           <div class="alert-card__actions">
@@ -365,15 +398,30 @@
         </mat-paginator>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div *ngIf="activeTab === 'rules'">
+  <!-- Rules tab (via Manage Alert Rules) -->
+  <section class="rules-panel" *ngIf="activeTab === 'rules'">
+    <div class="rules-panel__head">
+      <div>
+        <h2>Alert Rules</h2>
+        <p class="muted">Speed and geofence rules for the current fleet scope.</p>
+      </div>
+      <div class="filter-card__actions">
+        <button type="button" class="btn btn-ghost" (click)="activeTab = 'events'">
+          <mat-icon>arrow_back</mat-icon> Back to Alerts
+        </button>
+        <button type="button" class="btn btn-primary" (click)="showRuleForm = true">
+          <mat-icon>add</mat-icon> New Rule
+        </button>
+      </div>
+    </div>
     <div *ngIf="rules.length === 0" class="empty-state empty-state--ok">
       <mat-icon>rule</mat-icon>
       <p>No alert rules configured.</p>
       <p class="sub">Click <strong>New Rule</strong> to create a speed or geofence alert.</p>
     </div>
-    <div class="table-card" *ngIf="rules.length > 0">
+    <div class="table-wrap" *ngIf="rules.length > 0">
       <table class="data-table">
         <thead>
           <tr>
@@ -392,7 +440,7 @@
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
 </div>
 
 <div class="drawer-overlay" *ngIf="selectedEvent" (click)="closeDetail()"></div>
@@ -406,7 +454,9 @@
       <div class="detail-badges">
         <span class="badge" [ngClass]="eventTypeBadge(event.eventType)">{{ eventTypeLabel(event.eventType) }}</span>
         <span class="badge" [ngClass]="severityBadge(event.severity)">{{ eventTypeLabel(event.severity || 'medium') }}</span>
-        <span class="badge" [ngClass]="statusClass(event)">{{ statusLabel(event) }}</span>
+        <span class="status-pill" [ngClass]="statusClass(event)">
+          <span class="status-pill__dot"></span>{{ statusLabel(event) }}
+        </span>
       </div>
       <p class="detail-message">{{ event.message }}</p>
       <p class="alert-meta">{{ inlineMeta(event) }}</p>
@@ -421,16 +471,16 @@
         <div><span class="label">Geofence</span><span>{{ event.geofenceName || '—' }}</span></div>
       </div>
       <div class="form-actions wrap">
-        <button class="btn btn-secondary" type="button" (click)="jumpToLive(event, $event)"><mat-icon>map</mat-icon> Live map</button>
-        <button class="btn btn-secondary" type="button" (click)="jumpToHistory(event, $event)"><mat-icon>history</mat-icon> History</button>
-        <button class="btn btn-secondary" *ngIf="!event.readAt && event.status !== 'archived'" (click)="markRead(event)">Mark read</button>
-        <button class="btn btn-secondary" *ngIf="event.canAcknowledge" (click)="acknowledge(event)">Acknowledge</button>
-        <button class="btn btn-secondary" *ngIf="event.canResolve" (click)="resolve(event)">Resolve</button>
-        <button class="btn btn-secondary" (click)="markFalsePositive(event)">False positive</button>
-        <button class="btn btn-secondary" (click)="snooze(event, 1)">Snooze 1h</button>
-        <button class="btn btn-secondary" (click)="snooze(event, 24)">Snooze 24h</button>
-        <button class="btn btn-secondary" (click)="muteEventType(event.eventType)">Mute type</button>
-        <button class="btn btn-secondary" *ngIf="event.canArchive" (click)="archive(event)">Archive</button>
+        <button class="btn btn-ghost" type="button" (click)="jumpToLive(event, $event)"><mat-icon>map</mat-icon> Live map</button>
+        <button class="btn btn-ghost" type="button" (click)="jumpToHistory(event, $event)"><mat-icon>history</mat-icon> History</button>
+        <button class="btn btn-ghost" *ngIf="!event.readAt && event.status !== 'archived'" (click)="markRead(event)">Mark read</button>
+        <button class="btn btn-ghost" *ngIf="event.canAcknowledge" (click)="acknowledge(event)">Acknowledge</button>
+        <button class="btn btn-ghost" *ngIf="event.canResolve" (click)="resolve(event)">Resolve</button>
+        <button class="btn btn-ghost" (click)="markFalsePositive(event)">False positive</button>
+        <button class="btn btn-ghost" (click)="snooze(event, 1)">Snooze 1h</button>
+        <button class="btn btn-ghost" (click)="snooze(event, 24)">Snooze 24h</button>
+        <button class="btn btn-ghost" (click)="muteEventType(event.eventType)">Mute type</button>
+        <button class="btn btn-ghost" *ngIf="event.canArchive" (click)="archive(event)">Archive</button>
       </div>
     </div>
   </div>
@@ -464,7 +514,7 @@
       <p class="muted">Loading defaults from API…</p>
     </ng-template>
     <div class="form-actions">
-      <button class="btn btn-secondary" type="button" (click)="showPrefsPanel = false">Cancel</button>
+      <button class="btn btn-ghost" type="button" (click)="showPrefsPanel = false">Cancel</button>
       <button class="btn btn-primary" type="button" [disabled]="prefsSaving" (click)="saveNotificationSettings()">Save</button>
     </div>
   </div>
@@ -494,7 +544,7 @@
         <mat-checkbox formControlName="alertOnExit">Alert on geofence exit</mat-checkbox>
       </div>
       <div class="form-actions">
-        <button type="button" class="btn btn-secondary" (click)="showRuleForm = false">Cancel</button>
+        <button type="button" class="btn btn-ghost" (click)="showRuleForm = false">Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="ruleForm.invalid">Create Rule</button>
       </div>
     </form>

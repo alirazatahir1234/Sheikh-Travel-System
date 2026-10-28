@@ -1,16 +1,34 @@
-<div class="gps-module">
-  <header class="gps-module-header">
+<div class="gps-module" [class.gps-module--alerts]="isAlertsRoute">
+  <header class="gps-module-header" *ngIf="!isAlertsRoute">
     <div>
       <h1>Fleet Tracking</h1>
       <p>Real-time vehicle tracking, routes, geofences and live telemetry</p>
     </div>
   </header>
 
+  <header class="gps-alerts-hero" *ngIf="isAlertsRoute">
+    <div class="gps-alerts-hero__left">
+      <div class="gps-alerts-hero__icon" aria-hidden="true">
+        <mat-icon>notifications_active</mat-icon>
+      </div>
+      <div>
+        <h1>Fleet Alerts</h1>
+        <p>Monitor real-time alerts, events and incidents from your fleet. Stay informed and take action quickly.</p>
+      </div>
+    </div>
+    <button type="button" class="gps-alerts-hero__manage" (click)="openManageAlertRules()">
+      <mat-icon>settings</mat-icon>
+      Manage Alert Rules
+    </button>
+  </header>
+
   <nav class="gps-subnav" aria-label="GPS module navigation">
     <a *ngFor="let item of navItems"
        [routerLink]="item.route"
        routerLinkActive="active"
-       class="gps-subnav-link">
+       [routerLinkActiveOptions]="{ exact: false }"
+       class="gps-subnav-link"
+       [class.gps-subnav-link--alerts]="item.route === 'alerts'">
       <mat-icon>{{ item.icon }}</mat-icon>
       <span>{{ item.label }}</span>
     </a>
