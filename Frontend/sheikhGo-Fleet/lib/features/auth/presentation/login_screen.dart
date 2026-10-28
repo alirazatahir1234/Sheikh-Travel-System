@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/app_brand.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/auth_repository.dart';
@@ -110,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               boxShadow: AppShadows.card,
                             ),
                             child: Image.asset(
-                              'assets/icon/app_icon.png',
+                              AppBrand.logoAsset,
                               fit: BoxFit.contain,
                             ),
                           ),

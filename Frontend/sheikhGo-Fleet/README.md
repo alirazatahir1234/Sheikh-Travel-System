@@ -103,7 +103,9 @@ flutter run -d 00008120-001E6C1E0EA3601E \
 
 ## App icon / branding
 
-Launcher + login logo use the ERP brand asset (`public/brand/sheikhgo-logo.png`), copied to `assets/icon/app_icon.png`. Regenerate icons with:
+Launcher icons use the SheikhGo Nexus logo (`assets/branding/sheikhgo_nexus_logo.png`).
+`assets/icon/app_icon.png` is the navy legacy/iOS source; `assets/icon/app_icon_adaptive_fg.png`
+is a safe-zone-padded adaptive foreground (full logo, not cropped to “SG”). Regenerate with:
 
 ```bash
 dart run flutter_launcher_icons

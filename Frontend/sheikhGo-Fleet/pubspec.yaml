@@ -88,8 +88,10 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/icon/app_icon.png
-  adaptive_icon_background: "#0F4D3A"
-  adaptive_icon_foreground: assets/icon/app_icon.png
+  # Brand navy (matches splash). Full Nexus logo on padded adaptive foreground
+  # so circular/squircle masks keep globe/satellite/car — not only "SG".
+  adaptive_icon_background: "#0A1628"
+  adaptive_icon_foreground: assets/icon/app_icon_adaptive_fg.png
   remove_alpha_ios: true
   macos:
     generate: true
