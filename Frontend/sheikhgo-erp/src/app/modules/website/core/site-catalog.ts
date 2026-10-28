@@ -80,6 +80,17 @@ export const NEXUS_PORTFOLIO_ITEMS: readonly NexusPortfolioItem[] = [
     exploreLabel: 'Fleet management',
   },
   {
+    slug: 'vehicle-rental',
+    title: 'Vehicle rental',
+    text: 'Fleet GPS today; rental rates & bookings upcoming.',
+    icon: 'key',
+    detail:
+      'Rental operators can use Nexus fleet GPS, vehicles, customers, and trips now. A dedicated rental rates and bookings module is in active development — see the Vehicle Rental page for honest availability vs roadmap.',
+    highlights: ['GPS for assets on rent', 'Customers & trips today', 'Rates & bookings upcoming', 'No fake “live rental SaaS” claims'],
+    exploreLink: '/vehicle-rental',
+    exploreLabel: 'Vehicle rental',
+  },
+  {
     slug: 'sheikhgo-ai',
     title: 'SheikhGo AI',
     text: 'Tool-first assistants, digests, and copilots.',
@@ -87,8 +98,8 @@ export const NEXUS_PORTFOLIO_ITEMS: readonly NexusPortfolioItem[] = [
     detail:
       'SheikhGo AI sits on Nexus and GPS data — assistants that call operational tools, heuristic fleet health, morning digests, and mobile copilots. Described transparently on the dedicated AI Solutions page; no black-box marketing claims.',
     highlights: ['Tool-first AI assistant', 'Fleet health & digests', 'WhatsApp assist (human-approved)', 'Optional LLM you configure'],
-    exploreLink: '/ai-solutions',
-    exploreLabel: 'AI Solutions',
+    exploreLink: '/ai-fleet-insights',
+    exploreLabel: 'AI Fleet Insights',
   },
   {
     slug: 'platform-modules',
@@ -329,16 +340,34 @@ export interface ProductItem {
 
 export const PRODUCT_ITEMS: readonly ProductItem[] = [
   {
-    title: 'SheikhGo Fleet',
-    text: 'Fleet management, drivers, trips and operational dashboards.',
+    title: 'Fleet Management Software',
+    text: 'Vehicles, drivers, trips, fuel, maintenance and dashboards.',
     icon: 'local_shipping',
     link: '/fleet-management',
   },
   {
-    title: 'GPS Tracking',
+    title: 'GPS Vehicle Tracking',
     text: 'Live maps, geofences, trip history and device management.',
     icon: 'gps_fixed',
     link: '/gps-tracking',
+  },
+  {
+    title: 'Vehicle Rental Management',
+    text: 'Fleet GPS for rental ops today; dedicated rental module upcoming.',
+    icon: 'key',
+    link: '/vehicle-rental',
+  },
+  {
+    title: 'Transportation Operations',
+    text: 'Bookings, trips, drivers and live GPS for ground transport.',
+    icon: 'airport_shuttle',
+    link: '/transportation-operations',
+  },
+  {
+    title: 'AI Fleet Insights',
+    text: 'Tool-first assistants, digests and fleet health signals.',
+    icon: 'insights',
+    link: '/ai-fleet-insights',
   },
   {
     title: 'Live Tracking',
@@ -360,7 +389,7 @@ export const PRODUCT_ITEMS: readonly ProductItem[] = [
   },
   {
     title: 'AI Solutions',
-    text: 'Assistant, digests and fleet intelligence tools.',
+    text: 'Full AI capability inventory on Nexus.',
     icon: 'auto_awesome',
     link: '/ai-solutions',
   },

@@ -4,11 +4,38 @@ Marketing pages live in this module and are registered in `app-routing.module.ts
 
 | Audience | URL |
 |----------|-----|
-| Guests | `/` Home, `/fleet-management`, `/gps-tracking`, `/features`, `/about`, `/contact`, `/request-demo` |
-| Everyone | `/live-tracking`, `/gps-alerts`, `/privacy-policy`, `/delete-account`, `/terms-and-conditions`, `/cookie-policy` |
+| Guests | `/`, `/fleet-management`, `/gps-tracking`, `/vehicle-rental`, `/transportation-operations`, `/ai-fleet-insights`, `/features`, `/about`, `/contact`, `/request-demo`, `/fleet-assessment` |
+| Everyone | `/live-tracking`, `/gps-alerts`, `/ai-solutions`, `/privacy-policy`, `/delete-account`, `/terms-and-conditions`, `/cookie-policy` |
 | Auth | `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` |
 
 Signed-in users hitting `/` are redirected to `/dashboard`. Signed-in users get the ERP `/gps-tracking` module; guests get the marketing GPS page.
+
+## Channel C — solution pages
+
+Buyer-facing pages (target customer → problem → features → next step). Primary CTA **Book a Demo** (`/request-demo`); secondary **Request a Fleet Assessment** (`/fleet-assessment`).
+
+| Page | Path |
+|------|------|
+| Fleet Management Software | `/fleet-management` |
+| GPS Vehicle Tracking | `/gps-tracking` |
+| Vehicle Rental Management | `/vehicle-rental` |
+| Transportation Operations | `/transportation-operations` |
+| AI Fleet Insights | `/ai-fleet-insights` |
+| Book a Demo | `/request-demo` |
+| Fleet Assessment | `/fleet-assessment` |
+
+Copy source: `core/channel-c-solutions.ts`. Shared layout: `shared/solution-landing/`.
+
+Rental page messaging is honest: fleet/GPS/customers/trips available now; dedicated rental rates/bookings module is upcoming (backend in progress).
+
+## SEO
+
+| Asset | Location |
+|-------|----------|
+| `robots.txt` | `public/robots.txt` → `https://www.sheikhgo.com/robots.txt` |
+| `sitemap.xml` | `public/sitemap.xml` → `https://www.sheikhgo.com/sitemap.xml` |
+| Default meta / OG | `src/index.html` |
+| Per-route title, description, OG, canonical | `core/seo.service.ts` |
 
 ## Languages (EN · AR · DE)
 
@@ -23,24 +50,37 @@ Marketing chrome and primary page heroes use lightweight i18n (no Angular `$loca
 
 Arabic sets `document.documentElement.dir = 'rtl'` and `lang="ar"`. English remains the fallback for missing keys.
 
-**Coverage:** Full header/footer/mega-menu, home hero + major sections, and heroes/CTAs on `/live-tracking`, `/gps-alerts`, `/ai-solutions`, `/services`, `/contact`, `/request-demo`. Deeper body copy (capability grids, legal pages, demo chat bubbles) is still English until keys are added.
+## Analytics (GA4 + optional Plausible)
 
-## Google Analytics (GA4)
+Scripts load only when:
 
-Marketing pages load **gtag.js** only when:
-
-1. A valid GA4 measurement ID is configured (`G-XXXXXXXXXX`), and  
+1. A valid ID/domain is configured, and  
 2. The visitor accepts **analytics** cookies.
 
-**Configure the measurement ID (pick one):**
+### Configure IDs (Ali)
 
-| Method | Where |
-|--------|--------|
-| Vercel / CI env | `GOOGLE_MAPS_API_KEY`, optional `GOOGLE_MAPS_MAP_ID`, `GOOGLE_ANALYTICS_MEASUREMENT_ID` (patched at build by `scripts/inject-maps-env.mjs`; placeholders restored after build) |
-| Local Maps | Copy `.env.example` → `.env.local` or `environment.secrets.local.ts.example` → `environment.secrets.local.ts` (gitignored). `npm start` runs `inject-maps-env --dev`. |
-| Angular env | Keep `googleMapsApiKey: ''` in committed `environment*.ts` — never commit live keys. Browser keys remain in the SPA bundle after deploy; restrict by HTTP referrer. |
-| CMS | Website Admin → Settings → **Analytics ID** (overrides env when set) |
+| Variable | Example | Where |
+|----------|---------|--------|
+| `GOOGLE_ANALYTICS_MEASUREMENT_ID` | `G-XXXXXXXXXX` | Vercel / CI env, or `.env.local`, or Website CMS → Analytics ID |
+| `PLAUSIBLE_DOMAIN` | `www.sheikhgo.com` | Vercel / CI / `.env.local` (hostname only) |
+| `PLAUSIBLE_SCRIPT_SRC` | optional | Self-hosted Plausible script URL |
 
-**Create a property:** [Google Analytics](https://analytics.google.com/) → Admin → Create property for `www.sheikhgo.com` → Data stream (Web) → copy the **Measurement ID** (`G-…`).
+Build inject: `scripts/inject-maps-env.mjs` patches `environment*.ts` then restores empty placeholders after build — **never commit live measurement IDs**.
 
-Default homepage SEO tags live in `src/index.html`; per-route titles/descriptions/Open Graph are updated by `core/seo.service.ts` when marketing pages load.
+Local: copy `.env.example` → `.env.local` or `environment.secrets.local.ts.example` → `environment.secrets.local.ts` (gitignored).
+
+**GA4:** [Google Analytics](https://analytics.google.com/) → Admin → property for `www.sheikhgo.com` → Web data stream → Measurement ID (`G-…`).
+
+**Plausible:** add site `www.sheikhgo.com`, set `PLAUSIBLE_DOMAIN=www.sheikhgo.com` on Vercel Production.
+
+### Conversion events (before paid traffic)
+
+| Event | When |
+|-------|------|
+| `cta_book_demo_click` | Book a Demo CTA on solution pages |
+| `cta_fleet_assessment_click` | Fleet Assessment CTA on solution pages |
+| `demo_request_submit` | Successful `/request-demo` form |
+| `fleet_assessment_submit` | Successful `/fleet-assessment` form |
+| `mobile_promo_video_open` / `mobile_app_store_click` | Existing mobile promo |
+
+Events fire to GA4 (`gtag`) and Plausible when each provider is enabled.

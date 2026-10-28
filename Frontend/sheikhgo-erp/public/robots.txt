@@ -1,0 +1,13 @@
+# SheikhGo public marketing site — https://www.sheikhgo.com
+User-agent: *
+Allow: /
+
+# Prefer indexing public marketing URLs; ERP app routes are auth-gated.
+Disallow: /auth/
+Disallow: /dashboard
+Disallow: /fleet/
+Disallow: /gps-tracking/live
+Disallow: /api/
+Disallow: /website/
+
+Sitemap: https://www.sheikhgo.com/sitemap.xml

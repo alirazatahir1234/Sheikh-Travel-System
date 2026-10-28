@@ -1,0 +1,99 @@
+<div class="rental-detail" *ngIf="!loading && booking as b">
+  <div class="page-header">
+    <div>
+      <button mat-button type="button" routerLink="/rental">← Back</button>
+      <h2>{{ b.rentalNumber }}</h2>
+      <p class="page-lead">{{ b.customerName }} · {{ b.vehicleName }} ({{ b.registrationNumber }})</p>
+    </div>
+    <span class="status-chip">{{ b.status }}</span>
+  </div>
+
+  <div class="grid">
+    <mat-card>
+      <mat-card-header><mat-card-title>Commercial snapshot</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <p><strong>Rate:</strong> {{ b.rateType }} @ {{ b.rateAmount | number:'1.2-2' }}</p>
+        <p><strong>Window:</strong> {{ b.startAt | date:'medium' }} → {{ b.endAt | date:'medium' }}</p>
+        <p><strong>Locations:</strong> {{ b.pickupLocation || '—' }} / {{ b.returnLocation || '—' }}</p>
+        <p><strong>Discount:</strong> {{ b.discountAmount | number:'1.2-2' }}</p>
+        <p><strong>Total:</strong> {{ b.totalAmount | number:'1.2-2' }}</p>
+        <p><strong>Deposit:</strong> {{ b.depositAmount | number:'1.2-2' }} ({{ b.depositStatus }}; held {{ b.depositHeld | number:'1.2-2' }}; refunded {{ b.depositRefunded | number:'1.2-2' }})</p>
+        <p><strong>Damage:</strong> {{ b.damageCharges | number:'1.2-2' }} <span *ngIf="b.damageNotes">— {{ b.damageNotes }}</span></p>
+        <p><strong>Payment:</strong> {{ b.paymentStatus }} · paid {{ b.paidAmount | number:'1.2-2' }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="canManage">
+      <mat-card-header><mat-card-title>Lifecycle</mat-card-title></mat-card-header>
+      <mat-card-content class="actions">
+        <button mat-raised-button color="primary" *ngIf="b.status === 'Draft'" (click)="confirm()">Confirm</button>
+        <button mat-stroked-button color="warn" *ngIf="b.status === 'Draft' || b.status === 'Confirmed'" (click)="cancel()">Cancel</button>
+        <button mat-raised-button color="primary" *ngIf="b.status === 'Returned'" (click)="close()">Close</button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <mat-card class="block" *ngIf="canManage && b.status === 'Confirmed'">
+    <mat-card-header><mat-card-title>Pickup</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="pickupForm" class="filter-grid" (ngSubmit)="pickup()">
+        <div class="stb-field"><label>Odometer</label><input class="stb-input" type="number" formControlName="odometer" /></div>
+        <div class="stb-field"><label>Fuel</label><input class="stb-input" formControlName="fuelLevel" placeholder="e.g. 3/4" /></div>
+        <div class="stb-field"><label>Notes</label><input class="stb-input" formControlName="notes" /></div>
+        <label class="check"><input type="checkbox" formControlName="holdDeposit" /> Hold deposit</label>
+        <button mat-raised-button color="primary" type="submit">Mark picked up</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="block" *ngIf="canManage && b.status === 'PickedUp'">
+    <mat-card-header><mat-card-title>Return</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="returnForm" class="filter-grid" (ngSubmit)="returnVehicle()">
+        <div class="stb-field"><label>Odometer</label><input class="stb-input" type="number" formControlName="odometer" /></div>
+        <div class="stb-field"><label>Fuel</label><input class="stb-input" formControlName="fuelLevel" /></div>
+        <div class="stb-field"><label>Damage charges</label><input class="stb-input" type="number" formControlName="damageCharges" step="0.01" /></div>
+        <div class="stb-field"><label>Damage notes</label><input class="stb-input" formControlName="damageNotes" /></div>
+        <div class="stb-field"><label>Deposit refund</label><input class="stb-input" type="number" formControlName="depositRefund" step="0.01" placeholder="auto" /></div>
+        <div class="stb-field"><label>Notes</label><input class="stb-input" formControlName="notes" /></div>
+        <button mat-raised-button color="primary" type="submit">Mark returned</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="block">
+    <mat-card-header><mat-card-title>Agreement</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <pre class="agreement">{{ b.agreementText || 'No agreement text.' }}</pre>
+      <p *ngIf="b.agreementSignedAt">Signed by {{ b.agreementSignedBy }} at {{ b.agreementSignedAt | date:'medium' }}</p>
+      <form *ngIf="canManage && !b.agreementSignedAt && b.status !== 'Cancelled'" [formGroup]="signForm" class="filter-grid" (ngSubmit)="sign()">
+        <div class="stb-field"><label>Signed by</label><input class="stb-input" formControlName="signedBy" /></div>
+        <button mat-raised-button color="primary" type="submit" [disabled]="signForm.invalid">Sign agreement</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="block">
+    <mat-card-header><mat-card-title>Payments</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form *ngIf="canManage && b.status !== 'Cancelled'" [formGroup]="paymentForm" class="filter-grid" (ngSubmit)="recordPayment()">
+        <div class="stb-field"><label>Amount</label><input class="stb-input" type="number" formControlName="amount" step="0.01" /></div>
+        <div class="stb-field">
+          <label>Method</label>
+          <select class="stb-select" formControlName="paymentMethod">
+            <option>Cash</option><option>Card</option><option>BankTransfer</option><option>Online</option>
+          </select>
+        </div>
+        <div class="stb-field"><label>Reference</label><input class="stb-input" formControlName="transactionReference" /></div>
+        <button mat-raised-button color="primary" type="submit" [disabled]="paymentForm.invalid">Record payment</button>
+      </form>
+      <ul class="payments" *ngIf="payments.length">
+        <li *ngFor="let p of payments">{{ p.paymentDate | date:'short' }} — {{ p.amount | number:'1.2-2' }} via {{ p.paymentMethod }} ({{ p.status }}) <span *ngIf="p.transactionReference">· {{ p.transactionReference }}</span></li>
+      </ul>
+      <p *ngIf="!payments.length" class="empty">No payments recorded.</p>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<app-brand-loader *ngIf="loading" />
+<div *ngIf="error" class="error-message">{{ error }}</div>

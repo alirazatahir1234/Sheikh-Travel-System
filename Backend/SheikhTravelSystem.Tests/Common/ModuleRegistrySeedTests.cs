@@ -13,7 +13,7 @@ public class ModuleRegistrySeedTests
         {
             "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
             "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
-            "PAYMENTS", "INVOICES", "SETTINGS", "AI",
+            "PAYMENTS", "INVOICES", "SETTINGS", "AI", "RENTAL",
         }
         .Concat(AlertModuleCatalog.AllModuleCodes)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -103,11 +103,15 @@ public class ModuleRegistrySeedTests
     }
 
     [Fact]
-    public void RentalAndHr_AreComingSoon_WithNullRoute()
+    public void Rental_IsActiveEnableable_WithRoute_HrRemainsComingSoon()
     {
         var rental = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "RENTAL").Subject;
-        rental.Status.Should().Be("ComingSoon");
-        rental.Route.Should().BeNull();
+        rental.Status.Should().Be("Active");
+        rental.Route.Should().Be("/rental");
+        rental.LegacyKeys.Should().BeEquivalentTo(["rental"]);
+        ModuleRegistrySeed.IsEnableable("RENTAL").Should().BeTrue();
+        ModuleRegistrySeed.IsToggleable(rental).Should().BeTrue();
+        TenantModuleCatalog.DefaultModuleCodes.Should().NotContain("RENTAL");
 
         var hr = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "HR").Subject;
         hr.Status.Should().Be("ComingSoon");

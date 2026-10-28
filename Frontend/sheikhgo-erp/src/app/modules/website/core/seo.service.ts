@@ -38,6 +38,17 @@ export class WebsiteSeoService {
     this.upsertMeta({ name: 'twitter:description' }, { name: 'twitter:description', content: description });
     const ogImage = `${WEBSITE_PUBLIC_ORIGIN}/brand/sheikhgo-logo.png`;
     this.upsertMeta({ property: 'og:image' }, { property: 'og:image', content: ogImage });
+    this.setCanonical(pageUrl);
+  }
+
+  private setCanonical(pageUrl: string): void {
+    let link = this.document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = this.document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      this.document.head.appendChild(link);
+    }
+    link.setAttribute('href', pageUrl);
   }
 
   private upsertMeta(

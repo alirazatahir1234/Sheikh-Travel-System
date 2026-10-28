@@ -1,8 +1,25 @@
 <section class="page-hero">
   <div class="container">
-    <span class="section-kicker" style="color:#99f6e4">{{ 'pages.requestDemo.kicker' | wsTranslate }}</span>
-    <h1>{{ 'pages.requestDemo.title' | wsTranslate }}</h1>
-    <p>{{ 'pages.requestDemo.lead' | wsTranslate }}</p>
+    <span class="section-kicker" style="color:#99f6e4">
+      {{ isAssessment() ? 'Fleet assessment' : ('pages.requestDemo.kicker' | wsTranslate) }}
+    </span>
+    <h1>
+      {{ isAssessment() ? 'Request a Fleet Assessment' : ('nav.bookDemo' | wsTranslate) }}
+    </h1>
+    <p>
+      @if (isAssessment()) {
+        Tell us about your fleet size and workflows — we’ll map fit against SheikhGo Nexus before a full demo or paid campaigns.
+      } @else {
+        {{ 'pages.requestDemo.lead' | wsTranslate }}
+      }
+    </p>
+    <div class="hero-actions" style="margin-top:1.25rem">
+      @if (isAssessment()) {
+        <a [routerLink]="ctas.primary.url" class="btn btn-ghost">{{ ctas.primary.text }}</a>
+      } @else {
+        <a [routerLink]="ctas.secondary.url" class="btn btn-ghost">{{ ctas.secondary.text }}</a>
+      }
+    </div>
   </div>
 </section>
 
@@ -73,7 +90,13 @@
         <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
       </div>
       <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-        {{ submitting() ? ('common.submittingQuote' | wsTranslate) : ('common.requestQuote' | wsTranslate) }}
+        @if (submitting()) {
+          {{ 'common.submittingQuote' | wsTranslate }}
+        } @else if (isAssessment()) {
+          Request a Fleet Assessment
+        } @else {
+          {{ 'nav.bookDemo' | wsTranslate }}
+        }
       </button>
       @if (status(); as s) {
         <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">{{ s.text }}</div>
@@ -83,7 +106,7 @@
     <aside class="aside">
       <h2>What happens next?</h2>
       <ol>
-        @for (step of steps; track step; let i = $index) {
+        @for (step of isAssessment() ? assessmentSteps : demoSteps; track step; let i = $index) {
           <li><span>{{ i + 1 }}</span>{{ step }}</li>
         }
       </ol>

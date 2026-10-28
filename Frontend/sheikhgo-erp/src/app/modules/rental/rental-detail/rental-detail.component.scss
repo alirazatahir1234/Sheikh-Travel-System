@@ -1,0 +1,41 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  h2 { margin: 4px 0 0; }
+}
+.page-lead { margin: 4px 0 0; color: #666; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.block { margin-bottom: 16px; }
+.filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-chip {
+  background: #1565c0;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  align-self: center;
+}
+.agreement {
+  white-space: pre-wrap;
+  background: #f7f7f7;
+  padding: 12px;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+.payments { padding-left: 18px; }
+.check { display: flex; align-items: center; gap: 6px; }
+.empty { color: #666; }
+.error-message { color: #c62828; padding: 12px; }

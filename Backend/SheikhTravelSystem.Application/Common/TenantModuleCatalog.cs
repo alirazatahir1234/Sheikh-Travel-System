@@ -19,6 +19,9 @@ public static class TenantModuleCatalog
     /// <summary>Roads / routes catalog — independent of bookings/trips.</summary>
     public const string TravelRoutesModuleCode = "TRAVEL";
 
+    /// <summary>Vehicle hire rental — opt-in; depends on fleet vehicles + customers.</summary>
+    public const string RentalModuleCode = "RENTAL";
+
     /// <summary>Major Fleet Alerts module — parent of per-type alert capabilities.</summary>
     public const string AlertsModuleCode = AlertModuleCatalog.AlertsModuleCode;
 

@@ -176,6 +176,23 @@ const routes: Routes = [
         loadComponent: () => import('./modules/website/pages/gps/gps.page').then(m => m.GpsPage),
       },
       {
+        path: 'vehicle-rental',
+        loadComponent: () =>
+          import('./modules/website/pages/vehicle-rental/vehicle-rental.page').then(m => m.VehicleRentalPage),
+      },
+      {
+        path: 'transportation-operations',
+        loadComponent: () =>
+          import('./modules/website/pages/transportation-operations/transportation-operations.page').then(
+            m => m.TransportationOperationsPage,
+          ),
+      },
+      {
+        path: 'ai-fleet-insights',
+        loadComponent: () =>
+          import('./modules/website/pages/ai-fleet-insights/ai-fleet-insights.page').then(m => m.AiFleetInsightsPage),
+      },
+      {
         path: 'fuel-management',
         loadComponent: () => import('./modules/website/pages/fuel/fuel.page').then(m => m.FuelPage),
       },
@@ -210,8 +227,16 @@ const routes: Routes = [
         path: 'request-demo',
         loadComponent: () =>
           import('./modules/website/pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
+        data: { intent: 'demo' },
+      },
+      {
+        path: 'fleet-assessment',
+        loadComponent: () =>
+          import('./modules/website/pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
+        data: { intent: 'assessment' },
       },
       { path: 'request-a-quote', redirectTo: 'request-demo', pathMatch: 'full' },
+      { path: 'book-a-demo', redirectTo: 'request-demo', pathMatch: 'full' },
     ],
   },
 
@@ -260,6 +285,12 @@ const routes: Routes = [
         canActivate: [permissionGuard],
         data: { permissions: ['Route.View'], modules: ['routes'] },
         loadChildren: () => import('./modules/routes/routes.module').then(m => m.RoutesModule)
+      },
+      {
+        path: 'rental',
+        canActivate: [permissionGuard],
+        data: { permissions: ['Rental.View'], modules: ['rental'] },
+        loadChildren: () => import('./modules/rental/rental.module').then(m => m.RentalModule)
       },
       {
         path: 'bookings',

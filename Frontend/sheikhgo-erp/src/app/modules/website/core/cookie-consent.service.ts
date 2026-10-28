@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { WebsiteGoogleAnalyticsService } from './website-google-analytics.service';
+import { WebsitePlausibleAnalyticsService } from './website-plausible-analytics.service';
 
 export type CookieCategory = 'necessary' | 'analytics' | 'functional' | 'marketing';
 
@@ -24,6 +25,7 @@ const DEFAULT_STATE: CookieConsentState = {
 @Injectable({ providedIn: 'root' })
 export class CookieConsentService {
   private readonly googleAnalytics = inject(WebsiteGoogleAnalyticsService);
+  private readonly plausibleAnalytics = inject(WebsitePlausibleAnalyticsService);
 
   readonly consent = signal<CookieConsentState>(this.read());
   readonly bannerVisible = signal(!this.consent().decidedAt);
@@ -95,6 +97,7 @@ export class CookieConsentService {
     // Do not load non-essential scripts until the matching flag is true.
     if (c.analytics) {
       this.googleAnalytics.enableIfConfigured();
+      this.plausibleAnalytics.enableIfConfigured();
     }
     if (c.marketing) {
       // e.g. loadMarketingPixels();

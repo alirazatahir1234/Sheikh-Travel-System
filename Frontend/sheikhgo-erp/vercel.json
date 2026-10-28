@@ -16,7 +16,7 @@
       "destination": "/api/website-demo/erp-walkthrough"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!robots\\.txt|sitemap\\.xml).*)",
       "destination": "/index.html"
     }
   ],

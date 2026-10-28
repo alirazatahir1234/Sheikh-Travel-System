@@ -17,4 +17,8 @@ export const environment = {
   googleMapsMapId: '',
   /** Injected at build via GOOGLE_ANALYTICS_MEASUREMENT_ID (see scripts/inject-maps-env.mjs). */
   googleAnalyticsMeasurementId: '',
+  /** Injected at build via PLAUSIBLE_DOMAIN — leave empty until configured. */
+  plausibleDomain: '',
+  /** Injected at build via PLAUSIBLE_SCRIPT_SRC (optional self-hosted script). */
+  plausibleScriptSrc: '',
 };

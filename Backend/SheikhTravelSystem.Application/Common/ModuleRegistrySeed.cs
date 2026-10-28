@@ -86,8 +86,8 @@ public static class ModuleRegistrySeed
             ["DASHBOARD"], true, true, true, false, "Active", ["ai"]),
 
         // Coming soon / roadmap catalog-only product modules
-        E("RENTAL", "Vehicle Rental", "Rental", "Vehicle hire and rental workflows", "Fleet", "car_rental", null, 40,
-            ["FLEET"], true, false, false, false, "ComingSoon", ["rental"]),
+        E("RENTAL", "Vehicle Rental", "Rental", "Vehicle hire and rental workflows", "Fleet", "car_rental", "/rental", 40,
+            ["FLEET"], true, false, false, false, "Active", ["rental"]),
         E("HR", "HR", "HR", "Human resources module", "HR", "badge", null, 80,
             [], true, false, false, false, "ComingSoon", ["hr"]),
         E("INVOICES", "Invoices", "Invoices", "Invoicing and billing documents", "Finance", "receipt_long", "/invoices", 72,

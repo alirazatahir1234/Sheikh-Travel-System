@@ -71,8 +71,12 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'footer.legal': 'Legal',
   'footer.aboutUs': 'About Us',
   'footer.news': 'News & updates',
-  'footer.fleetManagement': 'Fleet Management',
-  'footer.gpsTracking': 'GPS Tracking',
+  'footer.fleetManagement': 'Fleet Management Software',
+  'footer.gpsTracking': 'GPS Vehicle Tracking',
+  'footer.vehicleRental': 'Vehicle Rental Management',
+  'footer.transportOps': 'Transportation Operations',
+  'footer.aiFleetInsights': 'AI Fleet Insights',
+  'footer.fleetAssessment': 'Request a Fleet Assessment',
   'footer.liveTracking': 'Live Tracking',
   'footer.gpsAlerts': 'GPS Alerts',
   'footer.aiSolutions': 'AI Solutions',
@@ -347,9 +351,9 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.contact.lead': 'Talk to SheikhGo about fleet management, GPS tracking and enterprise rollout.',
 
   'pages.requestDemo.kicker': 'Demo',
-  'pages.requestDemo.title': 'Request a Quote',
+  'pages.requestDemo.title': 'Book a Demo',
   'pages.requestDemo.lead':
-    "Tell us about your software, AI, cloud, or SheikhGo Fleet needs — we'll follow up with a tailored proposal.",
+    'Book a SheikhGo Nexus walkthrough — fleet management, GPS tracking, transportation operations, and AI insights for your team.',
 
   'pages.services.kicker': 'Flagship product',
   'pages.services.title': 'SheikhGo Nexus',

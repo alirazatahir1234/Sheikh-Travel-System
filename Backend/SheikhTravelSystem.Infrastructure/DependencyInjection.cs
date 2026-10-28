@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<SheikhTravelSystem.Application.Features.TripFeedback.ITripFeedbackAutomation,
             SheikhTravelSystem.Application.Features.TripFeedback.TripFeedbackAutomation>();
         services.AddScoped<IDriverSettlementRepository, DriverSettlementRepository>();
+        services.AddScoped<IRentalRepository, RentalRepository>();
         services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
         services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();
         services.AddScoped<IPricingRepository, PricingRepository>();

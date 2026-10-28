@@ -5,6 +5,7 @@ import { filter, Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { CookieConsentService } from './core/cookie-consent.service';
 import { WebsiteGoogleAnalyticsService } from './core/website-google-analytics.service';
+import { WebsitePlausibleAnalyticsService } from './core/website-plausible-analytics.service';
 import { WebsitePublicContentService } from './core/website-public-content.service';
 import { SiteHeaderComponent } from './layout/site-header/site-header.component';
 import { SiteFooterComponent } from './layout/site-footer/site-footer.component';
@@ -41,6 +42,7 @@ export class WebsiteShellComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly cookies = inject(CookieConsentService);
   private readonly analytics = inject(WebsiteGoogleAnalyticsService);
+  private readonly plausible = inject(WebsitePlausibleAnalyticsService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly doc = inject(DOCUMENT);
   private navSub?: Subscription;
@@ -52,13 +54,15 @@ export class WebsiteShellComponent implements OnInit, OnDestroy {
     this.doc.body.classList.add(WEBSITE_SCROLL_CLASS);
 
     this.analytics.configure(environment.googleAnalyticsMeasurementId);
+    this.plausible.configure(environment.plausibleDomain, environment.plausibleScriptSrc);
     this.cookies.applyConsentScripts();
 
     this.content.getSettings().subscribe(settings => {
       if (settings?.analyticsId?.trim()) {
         this.analytics.configure(settings.analyticsId);
-        this.cookies.applyConsentScripts();
       }
+      this.plausible.configure(environment.plausibleDomain, environment.plausibleScriptSrc);
+      this.cookies.applyConsentScripts();
     });
 
     this.navSub = this.router.events

@@ -44,7 +44,10 @@ export class WebsiteGoogleAnalyticsService {
 
   /**
    * GA4 custom event (no-op when analytics is not loaded / consent denied).
-   * Known website events: `mobile_promo_video_open`, `mobile_app_store_click`.
+   * Known website events:
+   * `mobile_promo_video_open`, `mobile_app_store_click`,
+   * `cta_book_demo_click`, `cta_fleet_assessment_click`,
+   * `demo_request_submit`, `fleet_assessment_submit`.
    */
   trackEvent(eventName: string, params?: Record<string, string | number | boolean | null | undefined>): void {
     if (!isPlatformBrowser(this.platformId) || !this.loaded || !window.gtag) return;

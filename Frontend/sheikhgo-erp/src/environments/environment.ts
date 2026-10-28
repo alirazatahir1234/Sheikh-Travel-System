@@ -19,4 +19,11 @@ export const environment = {
    * Production builds: set GOOGLE_ANALYTICS_MEASUREMENT_ID or Website CMS → Analytics ID.
    */
   googleAnalyticsMeasurementId: mapsSecrets.googleAnalyticsMeasurementId || '',
+  /**
+   * Plausible site domain (e.g. www.sheikhgo.com). Leave empty until configured.
+   * Production: PLAUSIBLE_DOMAIN via inject-maps-env / Vercel env — never commit a live requirement.
+   */
+  plausibleDomain: mapsSecrets.plausibleDomain || '',
+  /** Optional custom Plausible script URL (self-hosted). Default: https://plausible.io/js/script.js */
+  plausibleScriptSrc: mapsSecrets.plausibleScriptSrc || '',
 };

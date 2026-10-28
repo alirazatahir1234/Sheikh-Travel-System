@@ -52,7 +52,22 @@ const fleetGroup: NavGroup = {
       route: '/drivers/client-ratings',
       moduleKey: 'drivers',
     },
-    { id: 'assignments', label: 'Assignments', icon: 'event_available', route: '/fleet/assignments', moduleKey: 'vehicles' }
+    { id: 'assignments', label: 'Assignments', icon: 'event_available', route: '/fleet/assignments', moduleKey: 'vehicles' },
+    { id: 'vehicle-rentals', label: 'Vehicle Rentals', icon: 'car_rental', route: '/rental', moduleKey: 'rental' },
+    { id: 'rental-rates', label: 'Rental Rates', icon: 'payments', route: '/rental/rates', moduleKey: 'rental' },
+    { id: 'rental-availability', label: 'Rental Availability', icon: 'event_available', route: '/rental/availability', moduleKey: 'rental' }
+  ]
+};
+
+const rentalGroup: NavGroup = {
+  id: 'rental',
+  label: 'Vehicle Rental',
+  icon: 'car_rental',
+  collapsible: true,
+  items: [
+    { id: 'rentals', label: 'Rentals', icon: 'car_rental', route: '/rental', moduleKey: 'rental' },
+    { id: 'rental-rates-nav', label: 'Rates', icon: 'payments', route: '/rental/rates', moduleKey: 'rental' },
+    { id: 'rental-availability-nav', label: 'Availability', icon: 'event_available', route: '/rental/availability', moduleKey: 'rental' }
   ]
 };
 
@@ -265,6 +280,7 @@ const allGroups: NavGroup[] = [
   operationsGroup,
   travelFleetOperationsGroup,
   fleetGroup,
+  rentalGroup,
   fleetOperationsGroup,
   fleetResourcesGroup,
   fleetAdminGroup,
@@ -290,8 +306,8 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'rental', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'rental', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.CorporateCustomer]: ['dashboard', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
@@ -323,6 +339,12 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'drivers',
     'driver-client-ratings',
     'assignments',
+    'vehicle-rentals',
+    'rental-rates',
+    'rental-availability',
+    'rentals',
+    'rental-rates-nav',
+    'rental-availability-nav',
     'live-tracking',
     'gps-trips',
     'gps-tracking',

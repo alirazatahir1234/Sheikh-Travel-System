@@ -19,6 +19,23 @@ export const WEBSITE_ROUTES: Routes = [
         loadComponent: () => import('./pages/gps/gps.page').then(m => m.GpsPage),
       },
       {
+        path: 'vehicle-rental',
+        loadComponent: () =>
+          import('./pages/vehicle-rental/vehicle-rental.page').then(m => m.VehicleRentalPage),
+      },
+      {
+        path: 'transportation-operations',
+        loadComponent: () =>
+          import('./pages/transportation-operations/transportation-operations.page').then(
+            m => m.TransportationOperationsPage,
+          ),
+      },
+      {
+        path: 'ai-fleet-insights',
+        loadComponent: () =>
+          import('./pages/ai-fleet-insights/ai-fleet-insights.page').then(m => m.AiFleetInsightsPage),
+      },
+      {
         path: 'gps-alerts',
         loadComponent: () => import('./pages/gps-alerts/gps-alerts.page').then(m => m.GpsAlertsPage),
       },
@@ -92,7 +109,15 @@ export const WEBSITE_ROUTES: Routes = [
         path: 'request-demo',
         loadComponent: () =>
           import('./pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
+        data: { intent: 'demo' },
       },
+      {
+        path: 'fleet-assessment',
+        loadComponent: () =>
+          import('./pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
+        data: { intent: 'assessment' },
+      },
+      { path: 'book-a-demo', redirectTo: 'request-demo', pathMatch: 'full' },
       {
         path: 'privacy-policy',
         loadComponent: () => import('./pages/legal/privacy.page').then(m => m.PrivacyPage),
