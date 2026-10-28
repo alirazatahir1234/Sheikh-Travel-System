@@ -1,29 +1,8 @@
 .ai-page {
-  padding: 8px 4px 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 4px 0 20px;
+  max-width: none;
+  width: 100%;
   min-height: 480px;
-}
-
-.ai-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-
-  h1 {
-    margin: 0 0 4px;
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #0f766e;
-  }
-
-  p {
-    margin: 0;
-    color: #64748b;
-    font-size: 0.95rem;
-  }
 }
 
 .ai-banner {
@@ -46,22 +25,84 @@
     border: 1px solid #fcd34d;
     color: #92400e;
   }
+
+  .banner-refresh {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
 .ai-tabs {
   background: transparent;
 
-  /* Keep tab panels from collapsing / overlapping under Material defaults */
   ::ng-deep .mat-mdc-tab-body-wrapper {
-    min-height: 360px;
+    min-height: 420px;
   }
 
   ::ng-deep .mat-mdc-tab-header {
-    margin-bottom: 4px;
+    margin-bottom: 8px;
+    border-bottom: none !important;
   }
 
   ::ng-deep .mat-mdc-tab-labels {
     flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 12px;
+  }
+
+  ::ng-deep .mat-mdc-tab {
+    min-width: 0;
+    height: auto;
+    opacity: 1;
+  }
+
+  ::ng-deep .mdc-tab {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+  }
+
+  ::ng-deep .mdc-tab--active {
+    background: #0d9488 !important;
+
+    .mdc-tab__text-label {
+      color: #fff !important;
+    }
+
+    .tab-ico {
+      color: #fff !important;
+    }
+  }
+
+  ::ng-deep .mdc-tab-indicator {
+    display: none;
+  }
+
+  ::ng-deep .mdc-tab__text-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.84rem;
+    letter-spacing: 0;
+  }
+
+  .tab-ico {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #94a3b8;
   }
 }
 
@@ -235,7 +276,12 @@
 }
 
 .panel {
-  padding: 20px 4px 32px;
+  padding: 12px 2px 24px;
+}
+
+.chat-panel {
+  padding-top: 4px;
+  padding-bottom: 8px;
 }
 
 .form-grid {
@@ -475,6 +521,3 @@
   }
 }
 
-.chat-panel {
-  padding-top: 8px;
-}

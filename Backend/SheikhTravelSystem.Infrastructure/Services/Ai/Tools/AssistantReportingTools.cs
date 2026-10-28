@@ -428,7 +428,7 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
 {
     public string Name => "GetTripSummary";
     public string Description =>
-        "Trip and booking analytics: trip counts by status plus booking volume, completion, and cancellation rates.";
+        "Trip and booking analytics: KPIs, status mix, daily trends, recent trips, and period comparison.";
     public string Kind => "read";
     public bool RequiresConfirmation => false;
     public IReadOnlyList<string> TriggerKeywords { get; } =
@@ -437,10 +437,31 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
         "booking analytics", "booking summary", "how many bookings", "completion rate", "trip and booking"
     ];
 
+    private static readonly int[] InProgressStatuses =
+    [
+        (int)TripStatus.Started,
+        (int)TripStatus.AtPickup,
+        (int)TripStatus.Enroute,
+        (int)TripStatus.Delayed
+    ];
+
+    private static readonly int[] PendingStatuses =
+    [
+        (int)TripStatus.Draft,
+        (int)TripStatus.Scheduled,
+        (int)TripStatus.DriverAssigned,
+        (int)TripStatus.VehicleAssigned
+    ];
+
     public async Task<AiToolExecutionResult> ExecuteAsync(
         AiToolExecutionContext context, JsonElement? args, CancellationToken cancellationToken = default)
     {
         var (from, to, _) = AssistantPeriodHelper.Resolve(null, args);
+        var span = to - from;
+        if (span <= TimeSpan.Zero) span = TimeSpan.FromDays(1);
+        var prevFrom = from - span;
+        var prevTo = from;
+
         using var connection = dbFactory.CreateConnection();
 
         var rows = (await connection.QueryAsync<TripStatusCount>(new CommandDefinition("""
@@ -454,11 +475,245 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
             ORDER BY Cnt DESC
             """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
 
-        var total = rows.Sum(r => r.Cnt);
-        var completed = rows.Where(r => r.Status == (int)TripStatus.Completed).Sum(r => r.Cnt);
-        var cancelled = rows.Where(r => r.Status == (int)TripStatus.Cancelled).Sum(r => r.Cnt);
+        var prevRows = (await connection.QueryAsync<TripStatusCount>(new CommandDefinition("""
+            SELECT t.Status, COUNT(*) AS Cnt
+            FROM Trips t
+            WHERE t.IsDeleted = 0
+              AND t.TenantId = @TenantId
+              AND t.TripDate >= @From
+              AND t.TripDate < @To
+            GROUP BY t.Status
+            """, new { context.TenantId, From = prevFrom, To = prevTo }, cancellationToken: cancellationToken))).ToList();
 
-        var bookings = await connection.QuerySingleAsync<BookingKpiRow>(new CommandDefinition("""
+        var total = rows.Sum(r => r.Cnt);
+        var completed = CountStatus(rows, (int)TripStatus.Completed);
+        var cancelled = CountStatus(rows, (int)TripStatus.Cancelled);
+        var inProgress = rows.Where(r => InProgressStatuses.Contains(r.Status)).Sum(r => r.Cnt);
+        var pendingTrips = rows.Where(r => PendingStatuses.Contains(r.Status)).Sum(r => r.Cnt);
+        var others = Math.Max(0, total - completed - cancelled - inProgress - pendingTrips);
+        var completionRate = total > 0 ? Math.Round(completed * 100m / total, 1) : 0m;
+
+        var prevTotal = prevRows.Sum(r => r.Cnt);
+        var prevCompleted = CountStatus(prevRows, (int)TripStatus.Completed);
+        var prevCompletionRate = prevTotal > 0 ? Math.Round(prevCompleted * 100m / prevTotal, 1) : 0m;
+
+        var bookings = await LoadBookingsAsync(connection, context.TenantId, from, to, cancellationToken);
+        var prevBookings = await LoadBookingsAsync(connection, context.TenantId, prevFrom, prevTo, cancellationToken);
+
+        var bookingCompletionPct = bookings.TotalBookings > 0
+            ? Math.Round(bookings.Completed * 100m / bookings.TotalBookings, 1)
+            : 0m;
+
+        var trends = (await connection.QueryAsync<TrendDayRow>(new CommandDefinition("""
+            SELECT d.DayUtc AS [Date],
+                   ISNULL(tr.Trips, 0) AS Trips,
+                   ISNULL(tr.Completed, 0) AS Completed,
+                   ISNULL(bk.Bookings, 0) AS Bookings
+            FROM (
+                SELECT DATEADD(DAY, n.n, CAST(@From AS date)) AS DayUtc
+                FROM (SELECT TOP (93) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+                      FROM sys.all_objects) n
+                WHERE DATEADD(DAY, n.n, CAST(@From AS date)) < CAST(@To AS date)
+            ) d
+            LEFT JOIN (
+                SELECT CAST(t.TripDate AS date) AS DayUtc,
+                       COUNT(*) AS Trips,
+                       SUM(CASE WHEN t.Status = @CompletedStatus THEN 1 ELSE 0 END) AS Completed
+                FROM Trips t
+                WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId
+                  AND t.TripDate >= @From AND t.TripDate < @To
+                GROUP BY CAST(t.TripDate AS date)
+            ) tr ON tr.DayUtc = d.DayUtc
+            LEFT JOIN (
+                SELECT CAST(b.CreatedAt AS date) AS DayUtc, COUNT(*) AS Bookings
+                FROM Bookings b
+                WHERE b.IsDeleted = 0 AND b.TenantId = @TenantId
+                  AND b.CreatedAt >= @From AND b.CreatedAt < @To
+                GROUP BY CAST(b.CreatedAt AS date)
+            ) bk ON bk.DayUtc = d.DayUtc
+            ORDER BY d.DayUtc
+            """, new
+        {
+            context.TenantId,
+            From = from,
+            To = to,
+            CompletedStatus = (int)TripStatus.Completed
+        }, cancellationToken: cancellationToken))).ToList();
+
+        var recentTrips = (await connection.QueryAsync<RecentTripRow>(new CommandDefinition("""
+            SELECT TOP 8
+                t.Id AS TripId,
+                t.TripNumber,
+                COALESCE(NULLIF(v.Name, ''), v.RegistrationNumber, 'Unassigned') AS VehicleName,
+                t.Status,
+                COALESCE(t.ActualStart, t.PlannedStart) AS StartTime,
+                COALESCE(t.ActualEnd, t.PlannedEnd) AS EndTime,
+                COALESCE(t.ActualDistanceKm, t.PlannedDistanceKm) AS DistanceKm
+            FROM Trips t
+            LEFT JOIN Vehicles v ON v.Id = t.VehicleId AND v.IsDeleted = 0
+            WHERE t.IsDeleted = 0
+              AND t.TenantId = @TenantId
+              AND t.TripDate >= @From
+              AND t.TripDate < @To
+            ORDER BY COALESCE(t.ActualStart, t.PlannedStart, CAST(t.TripDate AS datetime2)) DESC
+            """, new { context.TenantId, From = from, To = to }, cancellationToken: cancellationToken))).ToList();
+
+        var statusDistribution = new[]
+        {
+            new { key = "completed", label = "Completed", count = completed },
+            new { key = "inProgress", label = "In Progress", count = inProgress },
+            new { key = "pending", label = "Pending", count = pendingTrips },
+            new { key = "cancelled", label = "Cancelled", count = cancelled },
+            new { key = "others", label = "Others", count = others }
+        };
+
+        var tripDelta = PctDelta(total, prevTotal);
+        var bookingDelta = PctDelta(bookings.TotalBookings, prevBookings.TotalBookings);
+        var completionDelta = completionRate - prevCompletionRate;
+        var pendingShare = bookings.TotalBookings > 0
+            ? Math.Round(bookings.Pending * 100m / bookings.TotalBookings, 1)
+            : 0m;
+
+        var kpis = new object[]
+        {
+            new
+            {
+                key = "totalTrips",
+                label = "Total Trips",
+                value = total,
+                unit = "count",
+                icon = "route",
+                tone = "teal",
+                deltaPercent = tripDelta,
+                deltaLabel = "vs prior period"
+            },
+            new
+            {
+                key = "totalBookings",
+                label = "Total Bookings",
+                value = bookings.TotalBookings,
+                unit = "count",
+                icon = "event",
+                tone = "blue",
+                deltaPercent = bookingDelta,
+                deltaLabel = "vs prior period"
+            },
+            new
+            {
+                key = "pendingBookings",
+                label = "Pending Bookings",
+                value = bookings.Pending,
+                unit = "count",
+                icon = "schedule",
+                tone = "orange",
+                sharePercent = pendingShare,
+                deltaLabel = bookings.TotalBookings > 0 ? $"{pendingShare}% of total" : "no bookings"
+            },
+            new
+            {
+                key = "tripCompletionRate",
+                label = "Trip Completion Rate",
+                value = completionRate,
+                unit = "percent",
+                icon = "donut_large",
+                tone = "purple",
+                deltaPercent = Math.Round(completionDelta, 1),
+                deltaLabel = "vs prior period"
+            }
+        };
+
+        var insights = BuildInsights(
+            total, completed, completionRate, completionDelta,
+            bookings, pendingShare, tripDelta, bookingDelta);
+
+        var followUps = new[]
+        {
+            "View booking details",
+            "Show revenue for this month",
+            "Compare with last month",
+            "Top performing vehicles",
+            "Show on live map"
+        };
+
+        var recentTripDtos = recentTrips.Select(r => new
+        {
+            tripId = r.TripId,
+            tripNumber = string.IsNullOrWhiteSpace(r.TripNumber) ? $"TR-{r.TripId}" : r.TripNumber,
+            vehicleName = r.VehicleName,
+            status = r.Status,
+            statusLabel = TripStatusLabel(r.Status),
+            statusTone = TripStatusTone(r.Status),
+            startTime = r.StartTime,
+            endTime = r.EndTime,
+            distanceKm = r.DistanceKm
+        }).ToList();
+
+        var payload = new
+        {
+            responseType = "trip_booking_analytics",
+            period = new { start = from, end = to },
+            comparisonPeriod = new { start = prevFrom, end = prevTo },
+            kpis,
+            statusDistribution,
+            trends = trends.Select(t => new
+            {
+                date = t.Date,
+                trips = t.Trips,
+                completed = t.Completed,
+                bookings = t.Bookings
+            }),
+            recentTrips = recentTripDtos,
+            insights,
+            followUps,
+            // Backward-compatible nested summary (older UI / MCP polish)
+            trips = new
+            {
+                byStatus = rows,
+                total,
+                completed,
+                cancelled,
+                inProgress,
+                pending = pendingTrips,
+                others,
+                completionRatePercent = completionRate
+            },
+            bookings = new
+            {
+                bookings.TotalBookings,
+                bookings.Completed,
+                bookings.Cancelled,
+                bookings.Pending,
+                bookings.Active,
+                completionRatePercent = bookingCompletionPct
+            }
+        };
+
+        if (total == 0 && bookings.TotalBookings == 0)
+        {
+            return new AiToolExecutionResult(
+                Name, true,
+                $"No trips or bookings found for {from:yyyy-MM-dd} … {to:yyyy-MM-dd} (UTC).",
+                payload);
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine(
+            $"Here is the trip and booking analytics for this period ({from:yyyy-MM-dd} – {to.AddDays(-1):yyyy-MM-dd}).");
+        sb.AppendLine($"• Trips: {total} total, {completed} completed ({completionRate}%), {inProgress} in progress, {pendingTrips} pending.");
+        sb.AppendLine(
+            $"• Bookings: {bookings.TotalBookings} total, {bookings.Completed} completed ({bookingCompletionPct}%), " +
+            $"{bookings.Cancelled} cancelled, {bookings.Pending} pending, {bookings.Active} active.");
+
+        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), payload);
+    }
+
+    private static async Task<BookingKpiRow> LoadBookingsAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken)
+        => await connection.QuerySingleAsync<BookingKpiRow>(new CommandDefinition("""
             SELECT
                 COUNT(*) AS TotalBookings,
                 ISNULL(SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END), 0) AS Completed,
@@ -469,7 +724,7 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
             WHERE CreatedAt >= @From AND CreatedAt < @To AND IsDeleted = 0 AND TenantId = @TenantId
             """, new
         {
-            context.TenantId,
+            TenantId = tenantId,
             From = from,
             To = to,
             Completed = (int)BookingStatus.Completed,
@@ -479,41 +734,65 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
             Started = (int)BookingStatus.Started
         }, cancellationToken: cancellationToken));
 
-        var bookingCompletionPct = bookings.TotalBookings > 0
-            ? Math.Round(bookings.Completed * 100m / bookings.TotalBookings, 1)
-            : 0m;
+    private static int CountStatus(IEnumerable<TripStatusCount> rows, int status)
+        => rows.Where(r => r.Status == status).Sum(r => r.Cnt);
 
-        if (total == 0 && bookings.TotalBookings == 0)
-        {
-            return new AiToolExecutionResult(
-                Name, true,
-                $"No trips or bookings found for {from:yyyy-MM-dd} … {to:yyyy-MM-dd} (UTC).",
-                new { period = new { start = from, end = to }, trips = new { byStatus = rows, total, completed, cancelled }, bookings });
-        }
+    private static decimal? PctDelta(int current, int previous)
+    {
+        if (previous <= 0) return current > 0 ? 100m : null;
+        return Math.Round((current - previous) * 100m / previous, 1);
+    }
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"Trip & booking analytics {from:yyyy-MM-dd} → {to:yyyy-MM-dd} (UTC):");
-        sb.AppendLine($"• Trips: {total} total, {completed} completed, {cancelled} cancelled.");
-        sb.AppendLine(
-            $"• Bookings: {bookings.TotalBookings} total, {bookings.Completed} completed ({bookingCompletionPct}%), " +
-            $"{bookings.Cancelled} cancelled, {bookings.Pending} pending, {bookings.Active} active.");
+    private static string TripStatusLabel(int status) => status switch
+    {
+        (int)TripStatus.Completed => "Completed",
+        (int)TripStatus.Cancelled => "Cancelled",
+        (int)TripStatus.Failed => "Failed",
+        (int)TripStatus.Started or (int)TripStatus.AtPickup or (int)TripStatus.Enroute or (int)TripStatus.Delayed
+            => "In Progress",
+        (int)TripStatus.Draft or (int)TripStatus.Scheduled or (int)TripStatus.DriverAssigned or (int)TripStatus.VehicleAssigned
+            => "Pending",
+        _ => "Other"
+    };
 
-        return new AiToolExecutionResult(
-            Name, true, sb.ToString().Trim(),
-            new
-            {
-                period = new { start = from, end = to },
-                trips = new { byStatus = rows, total, completed, cancelled },
-                bookings = new
-                {
-                    bookings.TotalBookings,
-                    bookings.Completed,
-                    bookings.Cancelled,
-                    bookings.Pending,
-                    bookings.Active,
-                    completionRatePercent = bookingCompletionPct
-                }
-            });
+    private static string TripStatusTone(int status) => status switch
+    {
+        (int)TripStatus.Completed => "success",
+        (int)TripStatus.Cancelled or (int)TripStatus.Failed => "danger",
+        (int)TripStatus.Started or (int)TripStatus.AtPickup or (int)TripStatus.Enroute or (int)TripStatus.Delayed
+            => "info",
+        _ => "warning"
+    };
+
+    private static List<string> BuildInsights(
+        int total,
+        int completed,
+        decimal completionRate,
+        decimal completionDelta,
+        BookingKpiRow bookings,
+        decimal pendingShare,
+        decimal? tripDelta,
+        decimal? bookingDelta)
+    {
+        var list = new List<string>();
+        if (completionDelta != 0)
+            list.Add($"Trip completion {(completionDelta >= 0 ? "increased" : "decreased")} by {Math.Abs(completionDelta):0.#}% vs the prior period.");
+        else if (total > 0)
+            list.Add($"Trip completion rate is {completionRate:0.#}% ({completed}/{total}).");
+
+        if (bookings.Pending > 0)
+            list.Add($"{bookings.Pending} booking{(bookings.Pending == 1 ? " is" : "s are")} still pending ({pendingShare:0.#}% of bookings).");
+
+        if (tripDelta is decimal td && td != 0)
+            list.Add($"Trip volume {(td >= 0 ? "up" : "down")} {Math.Abs(td):0.#}% vs the prior period.");
+
+        if (bookingDelta is decimal bd && bd != 0)
+            list.Add($"Booking volume {(bd >= 0 ? "up" : "down")} {Math.Abs(bd):0.#}% vs the prior period.");
+
+        if (list.Count == 0)
+            list.Add("No material changes vs the prior period for trips and bookings.");
+
+        return list;
     }
 
     private sealed record TripStatusCount(int Status, int Cnt);
@@ -524,6 +803,17 @@ public sealed class GetTripSummaryTool(IDbConnectionFactory dbFactory) : IAiTool
         int Cancelled,
         int Pending,
         int Active);
+
+    private sealed record TrendDayRow(DateTime Date, int Trips, int Completed, int Bookings);
+
+    private sealed record RecentTripRow(
+        int TripId,
+        string? TripNumber,
+        string VehicleName,
+        int Status,
+        DateTime? StartTime,
+        DateTime? EndTime,
+        decimal? DistanceKm);
 }
 
 public sealed class GetVehicleUtilizationSummaryTool(IDbConnectionFactory dbFactory) : IAiTool

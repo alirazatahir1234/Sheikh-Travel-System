@@ -71,6 +71,8 @@ export interface AiAssistantQueryResponse {
   warnings: string[];
   usedLlm: boolean;
   mode: string;
+  /** Phase 7 — persisted conversation id for follow-ups. */
+  sessionId?: string | null;
 }
 
 export interface AiChatMessage {
@@ -167,8 +169,11 @@ export class AiPlatformService {
   }
 
   /** Phase 2 AI Assistant — allowlisted read-only reporting tools. */
-  assistantQuery(question: string): Observable<AiAssistantQueryResponse> {
-    return this.http.post<AiAssistantQueryResponse>(`${this.base}/assistant/query`, { question });
+  assistantQuery(question: string, sessionId?: string | null): Observable<AiAssistantQueryResponse> {
+    return this.http.post<AiAssistantQueryResponse>(`${this.base}/assistant/query`, {
+      question,
+      sessionId: sessionId ?? null
+    });
   }
 
   assistantTools(): Observable<string[]> {

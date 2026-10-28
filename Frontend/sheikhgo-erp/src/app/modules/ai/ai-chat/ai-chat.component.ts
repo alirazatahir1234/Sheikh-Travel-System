@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   AiAssistantQueryResponse,
   AiChatSession,
@@ -17,6 +19,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { AiAssistantResultComponent } from '../shared/ai-assistant-result/ai-assistant-result.component';
 import { AiAssistantOpenSoundService } from '../services/ai-assistant-open-sound.service';
 import { AI_ASSISTANT_UI, polishAssistantEmojis } from '../shared/ai-assistant-ui.constants';
+import { extractFollowUps } from '../shared/assistant-answer.util';
 
 interface ChatBubble {
   role: 'user' | 'assistant' | 'system';
@@ -26,6 +29,11 @@ interface ChatBubble {
   data?: unknown;
   warnings?: string[];
   mode?: string;
+}
+
+interface SessionGroup {
+  label: string;
+  sessions: AiChatSession[];
 }
 
 @Component({
@@ -39,6 +47,8 @@ interface ChatBubble {
     MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatMenuModule,
+    MatTooltipModule,
     AiAssistantResultComponent
   ],
   templateUrl: './ai-chat.component.html',
@@ -56,10 +66,12 @@ export class AiChatComponent implements OnInit {
   }
 
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
+  @ViewChild('composerInput') composerInput?: ElementRef<HTMLTextAreaElement>;
 
   loading = true;
   sending = false;
   draft = '';
+  sessionSearch = '';
   sessionId: string | null = null;
   pendingAction: AiPendingAction | null = null;
   messages: ChatBubble[] = [];
@@ -99,12 +111,57 @@ export class AiChatComponent implements OnInit {
   /** Suggestion chips — always visible when idle; compact drawer shows fewer. */
   get visibleSuggestions(): string[] {
     if (this.sending || !!this.accessDeniedMessage || !this.suggestions.length) return [];
-    const limit = this.compact ? 5 : 8;
+    const limit = this.compact ? 4 : 5;
     return this.suggestions.slice(0, limit);
   }
 
   get hasSessions(): boolean {
     return !this.accessDeniedMessage && this.sessions.length > 0;
+  }
+
+  get filteredSessions(): AiChatSession[] {
+    const q = this.sessionSearch.trim().toLowerCase();
+    if (!q) return this.sessions;
+    return this.sessions.filter(s => (s.title || '').toLowerCase().includes(q));
+  }
+
+  get sessionGroups(): SessionGroup[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const buckets: Record<string, AiChatSession[]> = {
+      Today: [],
+      Yesterday: [],
+      'Last 7 days': [],
+      Older: []
+    };
+
+    for (const s of this.filteredSessions) {
+      const raw = s.updatedAt || s.createdAt;
+      const d = raw ? new Date(raw) : null;
+      if (!d || Number.isNaN(d.getTime())) {
+        buckets['Older'].push(s);
+        continue;
+      }
+      const day = new Date(d);
+      day.setHours(0, 0, 0, 0);
+      if (day.getTime() >= today.getTime()) buckets['Today'].push(s);
+      else if (day.getTime() >= yesterday.getTime()) buckets['Yesterday'].push(s);
+      else if (day.getTime() >= weekAgo.getTime()) buckets['Last 7 days'].push(s);
+      else buckets['Older'].push(s);
+    }
+
+    return Object.entries(buckets)
+      .filter(([, list]) => list.length > 0)
+      .map(([label, sessions]) => ({ label, sessions }));
+  }
+
+  get showSessionsPanel(): boolean {
+    return !this.compact && !this.accessDeniedMessage;
   }
 
   refresh(): void {
@@ -141,7 +198,6 @@ export class AiChatComponent implements OnInit {
           this.toast.error(this.accessDeniedMessage);
           return;
         }
-        // Sessions failed but chat may still work — keep a connected UI, toast only.
         this.connectionState = 'connected';
         if (showLoading) {
           this.toast.error('Could not load chat sessions');
@@ -156,12 +212,14 @@ export class AiChatComponent implements OnInit {
     this.draft = '';
     this.pendingAction = null;
     this.suggestions = [...this.defaultSuggestions];
+    queueMicrotask(() => this.composerInput?.nativeElement?.focus());
   }
 
   openSession(session: AiChatSession): void {
     this.sessionId = session.id;
     this.messages = [];
     this.pendingAction = null;
+    this.suggestions = [...this.defaultSuggestions];
     this.ai.getChatMessages(session.id).subscribe({
       next: rows => {
         this.messages = (rows ?? [])
@@ -179,6 +237,13 @@ export class AiChatComponent implements OnInit {
     this.send();
   }
 
+  onComposerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.send();
+    }
+  }
+
   send(confirmWrite = false): void {
     const text = confirmWrite ? 'CONFIRM' : this.draft.trim();
     if (!text || this.sending) return;
@@ -194,7 +259,7 @@ export class AiChatComponent implements OnInit {
     this.scrollToBottom();
 
     if (this.useAssistant && !confirmWrite) {
-      this.ai.assistantQuery(text).subscribe({
+      this.ai.assistantQuery(text, this.sessionId).subscribe({
         next: (res: AiAssistantQueryResponse) => this.onAssistantReply(res),
         error: err => {
           this.sending = false;
@@ -223,6 +288,13 @@ export class AiChatComponent implements OnInit {
 
   private onAssistantReply(res: AiAssistantQueryResponse): void {
     this.sending = false;
+    if (res?.sessionId) {
+      this.sessionId = res.sessionId;
+    }
+    const followUps = extractFollowUps(res?.data);
+    if (followUps.length) {
+      this.suggestions = followUps;
+    }
     this.messages.push({
       role: 'assistant',
       content: polishAssistantEmojis(res?.answer ?? 'No answer returned.'),
@@ -232,6 +304,7 @@ export class AiChatComponent implements OnInit {
       warnings: res?.warnings ?? [],
       mode: res?.mode
     });
+    this.reloadSessionsQuietly();
     this.scrollToBottom();
   }
 
@@ -239,6 +312,8 @@ export class AiChatComponent implements OnInit {
     const tool = (res.toolUsed ?? '').toLowerCase();
     if (!tool) return false;
     if (tool === 'getofflinevehicles' || tool === 'getfleethealth') return false;
+    // Rich analytics already shows period context in widgets
+    if (tool === 'gettripsummary') return false;
     return !!res.period?.start && !!res.period?.end;
   }
 
@@ -248,6 +323,21 @@ export class AiChatComponent implements OnInit {
 
   dismissConfirm(): void {
     this.pendingAction = null;
+  }
+
+  sessionStamp(session: AiChatSession): string {
+    const raw = session.updatedAt || session.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    if (day.getTime() === today.getTime()) {
+      return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
   private onReply(res: AiChatTurnResponse): void {

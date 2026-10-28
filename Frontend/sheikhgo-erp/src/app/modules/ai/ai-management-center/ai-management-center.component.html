@@ -1,28 +1,38 @@
 <div class="ai-page">
-  <header class="ai-header">
-    <div>
-      <h1>Fleet Intelligence {{ aiUi.smile }}</h1>
-      <p>{{ aiUi.wave }} Live fleet health, recommendations, and predictions — plus AI provider settings and escalations.</p>
-    </div>
-    <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading">
-      <mat-icon>refresh</mat-icon> Refresh
-    </button>
-  </header>
-
   <div class="ai-banner ai-banner--error" *ngIf="loadError" role="status">
     <mat-icon>info</mat-icon>
     <span>{{ loadError }}</span>
+    <button mat-stroked-button type="button" class="banner-refresh" (click)="reload()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
   </div>
 
-  <mat-tab-group animationDuration="0ms" class="ai-tabs">
-    <mat-tab label="Chat">
+  <mat-tab-group animationDuration="0ms" class="ai-tabs" [selectedIndex]="0">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">smart_toy</mat-icon>
+        AI Assistant
+      </ng-template>
       <div class="panel chat-panel">
         <app-ai-chat [compact]="false"></app-ai-chat>
       </div>
     </mat-tab>
 
-    <mat-tab label="Fleet dashboard">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">dashboard</mat-icon>
+        Fleet Dashboard
+      </ng-template>
       <div class="panel">
+        <div class="panel-toolbar">
+          <div>
+            <h2 class="section-title">Fleet Dashboard</h2>
+            <p class="section-lead">Composite scores from GPS, maintenance, compliance, and critical alerts.</p>
+          </div>
+          <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="36"></mat-spinner>
           <p>Loading fleet intelligence…</p>
@@ -115,7 +125,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="Copilot (legacy)">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">history</mat-icon>
+        Copilot (Legacy)
+      </ng-template>
       <div class="panel">
         <h3>Fleet assistant</h3>
         <p class="hint">Ask about offline vehicles, critical alerts, maintenance, fleet health, or driver risk. Answers come from SheikhGo engines — LLM only formats when enabled.</p>
@@ -133,7 +147,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="Recommendations">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">recommend</mat-icon>
+        Recommendations
+      </ng-template>
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="32"></mat-spinner>
@@ -169,7 +187,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="Predictions">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">timeline</mat-icon>
+        Predictions
+      </ng-template>
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="32"></mat-spinner>
@@ -226,7 +248,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="Escalation">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-ico">notification_important</mat-icon>
+        Escalation
+      </ng-template>
       <div class="panel">
         <div class="ai-loading" *ngIf="loading">
           <mat-spinner diameter="32"></mat-spinner>

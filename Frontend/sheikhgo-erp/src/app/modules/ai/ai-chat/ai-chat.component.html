@@ -1,36 +1,78 @@
 <div
   class="chat-shell"
-  [class.has-sessions]="hasSessions"
+  [class.has-sessions]="showSessionsPanel"
   [class.is-compact]="compact">
   <div class="access-denied" *ngIf="accessDeniedMessage" role="status">
     <mat-icon>lock</mat-icon>
     <p>{{ accessDeniedMessage }}</p>
   </div>
 
-  <aside class="sessions" *ngIf="hasSessions">
-    <div class="sessions-head">
-      <strong>Recent</strong>
-      <button mat-icon-button type="button" (click)="newChat()" title="New chat" aria-label="New chat">
+  <aside class="conversations" *ngIf="showSessionsPanel" aria-label="Conversations">
+    <div class="conversations-head">
+      <h2>Conversations</h2>
+      <button mat-flat-button color="primary" type="button" class="new-chat" (click)="newChat()">
         <mat-icon>add</mat-icon>
+        New Chat
       </button>
     </div>
-    <button
-      type="button"
-      class="session-item"
-      *ngFor="let s of sessions"
-      [class.active]="sessionId === s.id"
-      (click)="openSession(s)">
-      <span class="title">{{ s.title }}</span>
-      <small>{{ s.messageCount }} msgs</small>
-    </button>
+
+    <div class="conversations-search">
+      <mat-icon aria-hidden="true">search</mat-icon>
+      <input
+        type="search"
+        [(ngModel)]="sessionSearch"
+        name="sessionSearch"
+        placeholder="Search conversations"
+        aria-label="Search conversations" />
+      <mat-icon class="filter-ico" aria-hidden="true">tune</mat-icon>
+    </div>
+
+    <div class="conversations-loading" *ngIf="loading">
+      <mat-spinner diameter="28"></mat-spinner>
+    </div>
+
+    <div class="conversations-empty" *ngIf="!loading && !filteredSessions.length">
+      <mat-icon>forum</mat-icon>
+      <p>{{ sessionSearch.trim() ? 'No matching conversations.' : 'Start a new chat to see history here.' }}</p>
+    </div>
+
+    <div class="conversation-groups" *ngIf="!loading && sessionGroups.length">
+      <section class="group" *ngFor="let g of sessionGroups">
+        <h3>{{ g.label }}</h3>
+        <button
+          type="button"
+          class="session-item"
+          *ngFor="let s of g.sessions"
+          [class.active]="sessionId === s.id"
+          (click)="openSession(s)">
+          <mat-icon class="bubble-ico" aria-hidden="true">chat_bubble_outline</mat-icon>
+          <span class="session-body">
+            <span class="title">{{ s.title || 'Untitled chat' }}</span>
+            <small>{{ sessionStamp(s) }}</small>
+          </span>
+          <button
+            type="button"
+            mat-icon-button
+            class="more-btn"
+            [matMenuTriggerFor]="sessionMenu"
+            (click)="$event.stopPropagation()"
+            aria-label="Conversation options">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #sessionMenu="matMenu">
+            <button mat-menu-item type="button" (click)="openSession(s)">Open</button>
+            <button mat-menu-item type="button" (click)="newChat()">New chat instead</button>
+          </mat-menu>
+        </button>
+      </section>
+    </div>
   </aside>
 
   <section class="chat-main" *ngIf="!accessDeniedMessage">
-    <div class="connection-strip" [attr.data-state]="connectionState" role="status">
+    <div class="connection-strip" [attr.data-state]="connectionState" role="status" *ngIf="compact">
       <mat-icon>{{ connectionState === 'connected' ? 'check_circle' : 'hourglass_empty' }}</mat-icon>
       <span>{{ connectionState === 'connected' ? ('Connected ' + aiUi.smile) : ('Connecting… ' + aiUi.wave) }}</span>
       <button
-        *ngIf="!hasSessions"
         mat-icon-button
         type="button"
         class="new-chat-btn"
@@ -41,15 +83,17 @@
       </button>
     </div>
 
-    <div class="chat-loading" *ngIf="loading">
+    <div class="chat-loading" *ngIf="loading && !showSessionsPanel">
       <mat-spinner diameter="32"></mat-spinner>
     </div>
 
-    <div class="messages" *ngIf="!loading">
-      <div class="empty" *ngIf="!messages.length">
-        <span class="empty-emoji" aria-hidden="true">{{ aiUi.wave }}</span>
-        <h3>Fleet intelligence {{ aiUi.smile }}</h3>
-        <p>{{ aiUi.chat }} Ask about fleet health, offline vehicles, fuel, maintenance, trips, and utilization — answers use live SheikhGo tools, not guesswork.</p>
+    <div class="messages" *ngIf="!loading || showSessionsPanel">
+      <div class="empty" *ngIf="!messages.length && !sending">
+        <div class="empty-avatar" aria-hidden="true">
+          <mat-icon>smart_toy</mat-icon>
+        </div>
+        <h3>SheikhGo AI Assistant</h3>
+        <p>Ask about fleet health, trips, bookings, fuel, maintenance, and utilization — answers use live SheikhGo tools.</p>
         <label class="mode-toggle" *ngIf="!compact">
           <input type="checkbox" [(ngModel)]="useAssistant" />
           Use read-only Assistant (recommended)
@@ -61,71 +105,87 @@
         class="bubble"
         [class.user]="m.role === 'user'"
         [class.assistant]="m.role === 'assistant'">
-        <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
-        <app-ai-assistant-result
-          *ngIf="m.role === 'assistant'"
-          [answer]="m.content"
-          [toolUsed]="m.toolUsed"
-          [data]="m.data"
-          [warnings]="m.warnings ?? []"
-          [mode]="m.mode">
-        </app-ai-assistant-result>
-        <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
-          <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+        <div class="assistant-avatar" *ngIf="m.role === 'assistant'" aria-hidden="true">
+          <mat-icon>smart_toy</mat-icon>
+        </div>
+        <div class="bubble-body">
+          <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
+          <app-ai-assistant-result
+            *ngIf="m.role === 'assistant'"
+            [answer]="m.content"
+            [toolUsed]="m.toolUsed"
+            [data]="m.data"
+            [warnings]="m.warnings ?? []"
+            [mode]="m.mode">
+          </app-ai-assistant-result>
+          <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
+            <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+          </div>
         </div>
       </article>
 
       <div class="typing" *ngIf="sending">
+        <div class="assistant-avatar" aria-hidden="true"><mat-icon>smart_toy</mat-icon></div>
         <mat-spinner diameter="20"></mat-spinner>
-        <span>Thinking… {{ aiUi.smile }}</span>
+        <span>Thinking…</span>
       </div>
       <div #scrollAnchor></div>
     </div>
 
-    <div class="suggestions" *ngIf="visibleSuggestions.length" role="list" aria-label="Suggested questions">
-      <button
-        type="button"
-        class="suggestion-chip"
-        role="listitem"
-        *ngFor="let s of visibleSuggestions"
-        (click)="useSuggestion(s)">
-        {{ aiUi.idea }} {{ s }}
-      </button>
-    </div>
-
-    <div class="confirm-bar" *ngIf="pendingAction && !sending">
-      <div>
-        <strong>Confirm this action</strong>
-        <p>{{ pendingAction.summary }}</p>
-        <small>Expires {{ pendingAction.expiresAt | date:'short' }} · or type CONFIRM</small>
+    <div class="composer-dock">
+      <div class="suggestions" *ngIf="visibleSuggestions.length" role="list" aria-label="Suggested questions">
+        <button
+          type="button"
+          class="suggestion-chip"
+          role="listitem"
+          *ngFor="let s of visibleSuggestions"
+          (click)="useSuggestion(s)">
+          {{ s }}
+        </button>
       </div>
-      <div class="confirm-actions">
-        <button mat-stroked-button type="button" (click)="dismissConfirm()">Cancel</button>
-        <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm {{ aiUi.thumbsUp }}</button>
-      </div>
-    </div>
 
-    <form class="composer" (ngSubmit)="send()">
-      <mat-form-field appearance="outline" class="composer-field" subscriptSizing="dynamic">
-        <!-- Compact FAB: short label fits ~360px panel; full page keeps branded label. -->
-        <mat-label>{{ compact ? 'Message…' : 'Message SheikhGo AI Assistant' }}</mat-label>
-        <input
-          matInput
+      <div class="confirm-bar" *ngIf="pendingAction && !sending">
+        <div>
+          <strong>Confirm this action</strong>
+          <p>{{ pendingAction.summary }}</p>
+          <small>Expires {{ pendingAction.expiresAt | date:'short' }} · or type CONFIRM</small>
+        </div>
+        <div class="confirm-actions">
+          <button mat-stroked-button type="button" (click)="dismissConfirm()">Cancel</button>
+          <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm</button>
+        </div>
+      </div>
+
+      <form class="composer" (ngSubmit)="send()">
+        <button
+          type="button"
+          class="attach-btn"
+          mat-icon-button
+          matTooltip="Attachments coming soon"
+          disabled
+          aria-label="Attach file (coming soon)">
+          <mat-icon>attach_file</mat-icon>
+        </button>
+        <textarea
+          #composerInput
+          class="composer-input"
           [(ngModel)]="draft"
           name="draft"
+          rows="1"
           [disabled]="sending || !!accessDeniedMessage"
-          (keydown.enter)="$event.preventDefault(); send()"
-          [attr.aria-label]="compact ? 'Message SheikhGo AI Assistant' : null"
-          placeholder="How healthy is my fleet today?" />
-      </mat-form-field>
-      <button
-        mat-flat-button
-        color="primary"
-        type="submit"
-        [disabled]="sending || !draft.trim() || !!accessDeniedMessage"
-        aria-label="Send">
-        <mat-icon>send</mat-icon>
-      </button>
-    </form>
+          (keydown)="onComposerKeydown($event)"
+          placeholder="Ask SheikhGo AI Assistant anything about your fleet..."
+          aria-label="Message SheikhGo AI Assistant"></textarea>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="send-btn"
+          [disabled]="sending || !draft.trim() || !!accessDeniedMessage"
+          aria-label="Send">
+          <mat-icon>send</mat-icon>
+        </button>
+      </form>
+    </div>
   </section>
 </div>

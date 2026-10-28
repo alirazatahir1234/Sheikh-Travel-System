@@ -241,3 +241,293 @@
     }
   }
 }
+
+/* —— Trip / booking analytics workspace —— */
+.analytics {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &[data-tone='teal'] .kpi-card__icon {
+    background: #f0fdfa;
+    color: #0d9488;
+  }
+  &[data-tone='blue'] .kpi-card__icon {
+    background: #eff6ff;
+    color: #2563eb;
+  }
+  &[data-tone='orange'] .kpi-card__icon {
+    background: #fff7ed;
+    color: #ea580c;
+  }
+  &[data-tone='purple'] .kpi-card__icon {
+    background: #f5f3ff;
+    color: #7c3aed;
+  }
+
+  &__body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+
+  &__value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  &__delta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+
+    small {
+      font-weight: 500;
+      color: #94a3b8;
+    }
+
+    &[data-dir='up'] {
+      color: #059669;
+    }
+    &[data-dir='down'] {
+      color: #dc2626;
+    }
+  }
+}
+
+.charts-row,
+.bottom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.85fr);
+  gap: 12px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card,
+.table-card,
+.insights-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.chart-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  h4 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+}
+
+.chart-card__badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.donut-wrap {
+  position: relative;
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  strong {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+  }
+
+  span {
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+}
+
+.donut-legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #475569;
+  }
+
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+  }
+
+  strong {
+    font-variant-numeric: tabular-nums;
+    color: #0f172a;
+  }
+}
+
+.insights-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #334155;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+
+    mat-icon {
+      color: #f59e0b;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+  }
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+
+  &[data-tone='success'] {
+    background: #ecfdf5;
+    color: #047857;
+  }
+  &[data-tone='info'] {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  &[data-tone='warning'] {
+    background: #fffbeb;
+    color: #b45309;
+  }
+  &[data-tone='danger'] {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+}
+
+.view-btn {
+  min-height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 0.75rem !important;
+}
+
+.recent-trips {
+  th:first-child,
+  td:first-child {
+    width: 2.5rem;
+  }
+}
