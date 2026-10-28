@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/common.model';
 import {
+  ConfirmTripSmartAssignmentRequest,
   OverrideTripSmartAssignmentRequest,
   TripSmartAssignmentApplyResult,
   TripSmartAssignmentDecision,
@@ -22,6 +23,14 @@ export class TripSmartAssignmentService {
       .pipe(map(r => unwrap(r)));
   }
 
+  /** Staff confirms a ranked suggestion (SuggestOnly default). */
+  confirm(tripId: number, body: ConfirmTripSmartAssignmentRequest): Observable<TripSmartAssignmentApplyResult> {
+    return this.http
+      .post<ApiResponse<TripSmartAssignmentApplyResult>>(`${this.base}/${tripId}/smart-assignment/confirm`, body)
+      .pipe(map(r => unwrap(r)));
+  }
+
+  /** Blocked while SuggestOnly — kept for future AutoApply tenants. */
   autoAssign(tripId: number): Observable<TripSmartAssignmentApplyResult> {
     return this.http
       .post<ApiResponse<TripSmartAssignmentApplyResult>>(`${this.base}/${tripId}/smart-assignment/auto`, {})

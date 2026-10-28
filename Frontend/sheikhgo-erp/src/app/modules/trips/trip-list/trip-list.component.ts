@@ -17,7 +17,6 @@ import {
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
-import { TripSmartAssignmentService } from '../../../core/services/trip-smart-assignment.service';
 import {
   TRIP_SAVED_FILTERS_KEY,
   TripSavedFilter
@@ -37,7 +36,6 @@ export class TripListComponent implements OnInit, OnDestroy {
 
   savedFilters: TripSavedFilter[] = [];
   importBusy = false;
-  smartAssignBusyId: number | null = null;
 
   items: TripListItem[] = [];
   activeTrip: TripListItem | null = null;
@@ -72,8 +70,7 @@ export class TripListComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService,
-    private exportApi: ExportService,
-    private smartAssign: TripSmartAssignmentService
+    private exportApi: ExportService
   ) {}
 
   get showingLabel(): string {
@@ -444,17 +441,9 @@ export class TripListComponent implements OnInit, OnDestroy {
 
   smartAssignTrip(row: TripListItem, event: Event): void {
     event.stopPropagation();
-    this.smartAssignBusyId = row.id;
-    this.smartAssign.autoAssign(row.id).subscribe({
-      next: () => {
-        this.smartAssignBusyId = null;
-        this.toast.success('Smart assignment applied.');
-        this.load();
-      },
-      error: err => {
-        this.smartAssignBusyId = null;
-        this.toast.error(apiErrorMessage(err, 'Smart assign failed.'));
-      }
+    // Suggest-only: open the Smart Assignment board so staff confirm a ranked driver.
+    void this.router.navigate(['/trips/smart-assignment'], {
+      queryParams: { tripId: row.id }
     });
   }
 

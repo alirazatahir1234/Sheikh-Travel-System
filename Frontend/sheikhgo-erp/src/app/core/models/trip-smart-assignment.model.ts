@@ -20,11 +20,23 @@ export interface TripAssignmentCandidate {
   factors: TripAssignmentScoreFactor[];
 }
 
+export interface TripAssignmentExclusion {
+  driverId: number;
+  driverName: string;
+  vehicleId?: number | null;
+  vehicleName?: string | null;
+  reason: string;
+  detail: string;
+}
+
 export interface TripSmartAssignmentSuggestions {
   tripId: number;
   tripNumber: string;
   candidates: TripAssignmentCandidate[];
   routingNote?: string | null;
+  mode?: string;
+  excluded?: TripAssignmentExclusion[] | null;
+  exclusionCounts?: Record<string, number> | null;
 }
 
 export interface TripSmartAssignmentApplyResult {
@@ -62,4 +74,9 @@ export interface OverrideTripSmartAssignmentRequest {
   driverId: number;
   vehicleId?: number | null;
   reason?: string | null;
+}
+
+export interface ConfirmTripSmartAssignmentRequest {
+  driverId: number;
+  vehicleId?: number | null;
 }

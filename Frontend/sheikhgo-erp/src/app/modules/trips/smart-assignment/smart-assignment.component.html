@@ -2,8 +2,13 @@
   <header class="smart-assign-head">
     <div>
       <h2>Smart Trip Assignment</h2>
-      <p>Rank drivers by rating, location, fatigue, fuel, distance, and traffic-aware route ETA (Google Routes in Dubai/UAE, Pakistan, and Saudi Arabia when configured). Drivers can accept or reject from the mobile app.</p>
+      <p>
+        Constraint-based ranking with transparent weights (rating, proximity, fatigue, fuel, on-time, traffic,
+        performance/safety, cost, utilization). Hard filters remove noncompliant candidates before scoring.
+        Staff must confirm a recommendation — create-time auto-assign is off.
+      </p>
     </div>
+    <span class="mode-badge" [attr.data-mode]="mode">{{ mode === 'SuggestOnly' ? 'Suggest only' : mode }}</span>
   </header>
 
   <div class="smart-assign-grid">
@@ -38,18 +43,43 @@
           <p class="routing-note">{{ routingNote }}</p>
         }
         <div class="actions">
-          <button type="button" class="ops-btn ops-btn--primary" [disabled]="busy || loadingSuggestions" (click)="autoAssign()">
-            <mat-icon>auto_awesome</mat-icon>
-            Assign best driver
-          </button>
           <button type="button" class="ops-btn ops-btn--ghost" [disabled]="loadingSuggestions" (click)="loadSuggestions()">
             Refresh rankings
           </button>
+          @if (excluded.length > 0) {
+            <button type="button" class="ops-btn ops-btn--outline" (click)="showExcluded = !showExcluded">
+              {{ showExcluded ? 'Hide' : 'Show' }} excluded ({{ excluded.length }})
+            </button>
+          }
         </div>
+
+        @if (excluded.length > 0 && exclusionSummary) {
+          <p class="exclusion-summary">Filtered out — {{ exclusionSummary }}</p>
+        }
+
+        @if (showExcluded && excluded.length > 0) {
+          <div class="excluded-panel" aria-label="Excluded candidates">
+            <h4>Excluded (hard constraints)</h4>
+            <ul>
+              @for (e of excluded; track e.driverId + e.reason) {
+                <li>
+                  <strong>{{ e.driverName }}</strong>
+                  <span class="reason-chip">{{ reasonLabel(e.reason) }}</span>
+                  <span class="muted">{{ e.detail }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
         @if (loadingSuggestions) {
           <p class="muted">Scoring candidates…</p>
         } @else if (candidates.length === 0) {
-          <ui-empty-state icon="person_off" title="No eligible drivers" description="Check driver availability, license, and GPS linkage."></ui-empty-state>
+          <ui-empty-state
+            icon="person_off"
+            title="No eligible drivers"
+            description="All candidates failed hard filters (capacity, maintenance, vehicle link, shift, EV range, or eligibility).">
+          </ui-empty-state>
         } @else {
           <div class="candidate-cards">
             @for (c of candidates; track c.driverId) {
@@ -76,7 +106,16 @@
                   <span>{{ c.etaMinutes != null ? c.etaMinutes + ' min ETA' : '—' }}</span>
                   <span>{{ trafficLabel(c.trafficSource) }}</span>
                 </footer>
-                <button type="button" class="link-btn" (click)="overrideDriverId = c.driverId">Use as override</button>
+                <div class="candidate-actions">
+                  <button
+                    type="button"
+                    class="ops-btn ops-btn--primary"
+                    [disabled]="busy"
+                    (click)="confirmCandidate(c)">
+                    Confirm recommendation
+                  </button>
+                  <button type="button" class="link-btn" (click)="overrideDriverId = c.driverId">Use as override</button>
+                </div>
               </article>
             }
           </div>
@@ -95,7 +134,7 @@
               </select>
             </label>
             <label class="override-field">
-              <span>Reason (optional)</span>
+              <span>Reason (recommended)</span>
               <input type="text" [(ngModel)]="overrideReason" placeholder="Why override the ranking?" />
             </label>
             <button type="button" class="ops-btn ops-btn--outline" [disabled]="busy || !overrideDriverId" (click)="applyOverride()">

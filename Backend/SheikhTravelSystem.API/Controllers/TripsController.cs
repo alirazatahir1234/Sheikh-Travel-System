@@ -157,7 +157,7 @@ public class TripsController : BaseApiController
     public async Task<IActionResult> DeleteDocument(int id, int documentId)
         => Ok(await Mediator.Send(new DeleteTripDocumentCommand(id, documentId)));
 
-    // ── Smart assignment (AI-weighted driver + route matching) ───────────────
+    // ── Smart Trip Assignment (constraint + weighted scoring; suggest → staff confirm) ──
 
     [HttpGet("smart-assignment/recent")]
     public async Task<IActionResult> RecentSmartAssignments([FromQuery] int limit = 50)
@@ -171,6 +171,13 @@ public class TripsController : BaseApiController
     public async Task<IActionResult> SmartAssignmentDecisions(int id)
         => Ok(await Mediator.Send(new GetTripSmartAssignmentDecisionsQuery(id)));
 
+    /// <summary>Staff confirms a ranked suggestion (default SuggestOnly path).</summary>
+    [RequirePermission(OperationsPermissions.TripAssign)]
+    [HttpPost("{id:int}/smart-assignment/confirm")]
+    public async Task<IActionResult> SmartAssignmentConfirm(int id, [FromBody] ConfirmTripSmartAssignmentRequest body)
+        => Ok(await Mediator.Send(new ConfirmTripSmartAssignmentCommand(id, body)));
+
+    /// <summary>Auto-apply best candidate — blocked while SuggestOnly (tenant AutoApply later).</summary>
     [RequirePermission(OperationsPermissions.TripAssign)]
     [HttpPost("{id:int}/smart-assignment/auto")]
     public async Task<IActionResult> SmartAssignmentAuto(int id)

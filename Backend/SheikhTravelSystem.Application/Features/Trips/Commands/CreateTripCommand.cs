@@ -6,7 +6,6 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
-using SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Trips.Commands;
@@ -34,7 +33,6 @@ public class CreateTripCommandValidator : AbstractValidator<CreateTripCommand>
 public class CreateTripCommandHandler(
     ITripRepository tripRepository,
     INotificationDecisionEngine decisionEngine,
-    ITripSmartAssignmentService smartAssignment,
     ILogger<CreateTripCommandHandler> logger)
     : IRequestHandler<CreateTripCommand, ApiResponse<int>>
 {
@@ -47,17 +45,8 @@ public class CreateTripCommandHandler(
         await TripCreationNotifications.DispatchAsync(
             decisionEngine, id, tripNumber, request.Trip.DriverId, cancellationToken);
 
-        if (request.Trip.DriverId is null or <= 0)
-        {
-            try
-            {
-                await smartAssignment.AutoAssignAsync(id, fromTripCreation: true, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Smart assignment skipped after trip {TripId} create", id);
-            }
-        }
+        // Smart Trip Assignment is suggest-only: staff confirm on /trips/smart-assignment.
+        // Create-time auto-assign is intentionally disabled (SmartAssignmentPolicy).
 
         return ApiResponse<int>.SuccessResponse(id, "Trip created successfully.");
     }

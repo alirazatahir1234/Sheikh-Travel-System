@@ -168,8 +168,7 @@
               class="ops-chip-btn"
               *ngIf="row.status === 'Scheduled' || row.status === 'DriverAssigned'"
               (click)="smartAssignTrip(row, $event)"
-              [disabled]="smartAssignBusyId === row.id"
-              matTooltip="One-click smart assign">
+              matTooltip="Open Smart Assignment to confirm">
               <mat-icon>auto_fix_high</mat-icon>
             </button>
           </td>

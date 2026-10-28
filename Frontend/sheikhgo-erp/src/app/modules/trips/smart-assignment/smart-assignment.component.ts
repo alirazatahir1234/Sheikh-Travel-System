@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { TripService } from '../../../core/services/trip.service';
 import { TripSmartAssignmentService } from '../../../core/services/trip-smart-assignment.service';
 import { TripListItem } from '../../../core/models/trip.model';
 import {
   TripAssignmentCandidate,
+  TripAssignmentExclusion,
   TripSmartAssignmentDecision
 } from '../../../core/models/trip-smart-assignment.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -23,7 +25,10 @@ export class TripSmartAssignmentComponent implements OnInit {
 
   loadingSuggestions = false;
   candidates: TripAssignmentCandidate[] = [];
+  excluded: TripAssignmentExclusion[] = [];
+  exclusionCounts: Record<string, number> = {};
   routingNote: string | null = null;
+  mode = 'SuggestOnly';
 
   loadingRecent = false;
   recentDecisions: TripSmartAssignmentDecision[] = [];
@@ -32,16 +37,30 @@ export class TripSmartAssignmentComponent implements OnInit {
   overrideReason = '';
   busy = false;
   error: string | null = null;
+  showExcluded = false;
 
   constructor(
     private trips: TripService,
     private smart: TripSmartAssignmentService,
-    private toast: UiToastService
+    private toast: UiToastService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     this.loadUnassigned();
     this.loadRecent();
+    const tripIdParam = Number(this.route.snapshot.queryParamMap.get('tripId'));
+    if (Number.isFinite(tripIdParam) && tripIdParam > 0) {
+      this.selectedTripId = tripIdParam;
+      this.selectedTripLabel = `Trip #${tripIdParam}`;
+      this.loadSuggestions();
+    }
+  }
+
+  get exclusionSummary(): string {
+    const entries = Object.entries(this.exclusionCounts);
+    if (!entries.length) return '';
+    return entries.map(([reason, n]) => `${reason}: ${n}`).join(' · ');
   }
 
   loadUnassigned(): void {
@@ -82,10 +101,15 @@ export class TripSmartAssignmentComponent implements OnInit {
     if (!this.selectedTripId) return;
     this.loadingSuggestions = true;
     this.candidates = [];
+    this.excluded = [];
+    this.exclusionCounts = {};
     this.smart.getSuggestions(this.selectedTripId).subscribe({
       next: res => {
         this.candidates = res.candidates ?? [];
+        this.excluded = res.excluded ?? [];
+        this.exclusionCounts = res.exclusionCounts ?? {};
         this.routingNote = res.routingNote ?? null;
+        this.mode = res.mode || 'SuggestOnly';
         this.loadingSuggestions = false;
       },
       error: err => {
@@ -95,22 +119,27 @@ export class TripSmartAssignmentComponent implements OnInit {
     });
   }
 
-  autoAssign(): void {
+  confirmCandidate(c: TripAssignmentCandidate): void {
     if (!this.selectedTripId) return;
     this.busy = true;
-    this.smart.autoAssign(this.selectedTripId).subscribe({
-      next: res => {
-        this.toast.success(`Assigned ${res.driverName} (score ${res.totalScore.toFixed(0)})`);
-        this.busy = false;
-        this.loadUnassigned();
-        this.loadRecent();
-        this.loadSuggestions();
-      },
-      error: err => {
-        this.toast.error(apiErrorMessage(err));
-        this.busy = false;
-      }
-    });
+    this.smart
+      .confirm(this.selectedTripId, {
+        driverId: c.driverId,
+        vehicleId: c.vehicleId ?? null
+      })
+      .subscribe({
+        next: res => {
+          this.toast.success(`Confirmed ${res.driverName} (score ${res.totalScore.toFixed(0)})`);
+          this.busy = false;
+          this.loadUnassigned();
+          this.loadRecent();
+          this.loadSuggestions();
+        },
+        error: err => {
+          this.toast.error(apiErrorMessage(err));
+          this.busy = false;
+        }
+      });
   }
 
   applyOverride(): void {
@@ -140,5 +169,20 @@ export class TripSmartAssignmentComponent implements OnInit {
 
   trafficLabel(source: string): string {
     return source === 'GoogleRoutes' ? 'Google Routes (traffic-aware)' : 'Estimated (no live traffic API)';
+  }
+
+  reasonLabel(reason: string): string {
+    const map: Record<string, string> = {
+      eligibility: 'Eligibility / docs',
+      on_trip: 'Already on trip',
+      no_vehicle: 'No linked vehicle',
+      capacity: 'Capacity',
+      vehicle_type: 'Vehicle type',
+      maintenance: 'Maintenance',
+      shift_limit: 'Shift limit',
+      schedule_conflict: 'Schedule conflict',
+      ev_range: 'EV range'
+    };
+    return map[reason] || reason;
   }
 }

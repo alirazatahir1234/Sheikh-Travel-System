@@ -16,9 +16,11 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<TripSmartAssignmentTripContext>(new CommandDefinition(
             """
-            SELECT t.Id AS TripId, t.TripNumber, t.Status, t.PlannedStart,
+            SELECT t.Id AS TripId, t.TripNumber, t.Status, t.PlannedStart, t.PlannedEnd,
                    t.PickupLatitude, t.PickupLongitude, t.DestinationLatitude, t.DestinationLongitude,
-                   t.RouteId, t.DriverId AS CurrentDriverId, t.VehicleId AS CurrentVehicleId
+                   t.RouteId, t.DriverId AS CurrentDriverId, t.VehicleId AS CurrentVehicleId,
+                   t.PassengerCount, t.TripType,
+                   CAST(NULL AS NVARCHAR(60)) AS RequiredVehicleType
             FROM Trips t
             WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
             """,
@@ -29,9 +31,14 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
     public async Task<IReadOnlyList<TripAssignmentCandidateRow>> GetCandidatesAsync(
         int tenantId,
         IReadOnlyCollection<int> excludedDriverIds,
+        int? forTripId = null,
+        DateTime? plannedStartUtc = null,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var planned = plannedStartUtc ?? DateTime.UtcNow;
+        var tripId = forTripId ?? 0;
+
         var rows = await connection.QueryAsync<TripAssignmentCandidateRow>(new CommandDefinition(
             """
             SELECT
@@ -39,7 +46,7 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
                 d.FullName AS DriverName,
                 d.UserId,
                 v.Id AS VehicleId,
-                v.VehicleName,
+                v.Name AS VehicleName,
                 vcl.Latitude,
                 vcl.Longitude,
                 vcl.FuelLevel AS FuelLevelPercent,
@@ -50,7 +57,16 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
                 d.VerificationStatus,
                 d.LicenseExpiryDate,
                 v.FuelType AS VehicleFuelType,
-                v.ElectricRangeKm
+                v.ElectricRangeKm,
+                v.SeatingCapacity,
+                v.VehicleType,
+                v.Status AS VehicleStatus,
+                CAST(CASE WHEN crit.CriticalOpen = 1 THEN 1 ELSE 0 END AS BIT) AS HasCriticalMaintenance,
+                CAST(CASE WHEN conflict.HasConflict = 1 THEN 1 ELSE 0 END AS BIT) AS HasScheduleConflict,
+                perf.OverallScore AS PerformanceScore,
+                perf.SafetyScore,
+                v.FuelAverage AS FuelAverageKmPerLiter,
+                util.RecentKm7d
             FROM Drivers d
             OUTER APPLY (
                 SELECT TOP 1 ah.VehicleId
@@ -68,6 +84,36 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
                 WHERE da.DriverId = d.Id AND da.TenantId = @TenantId AND da.IsDeleted = 0
                   AND da.AttendanceDate = CAST(SYSUTCDATETIME() AS DATE)
             ) hours
+            OUTER APPLY (
+                SELECT TOP 1 1 AS CriticalOpen
+                FROM WorkOrders wo
+                WHERE wo.VehicleId = v.Id AND wo.TenantId = @TenantId AND wo.IsDeleted = 0
+                  AND wo.Priority = N'Critical'
+                  AND wo.Status IN (N'Draft', N'Open', N'Assigned', N'InProgress', N'WaitingParts')
+            ) crit
+            OUTER APPLY (
+                SELECT TOP 1 1 AS HasConflict
+                FROM Trips t2
+                WHERE t2.DriverId = d.Id AND t2.TenantId = @TenantId AND t2.IsDeleted = 0
+                  AND (@TripId = 0 OR t2.Id <> @TripId)
+                  AND t2.Status IN (@Scheduled, @DriverAssigned, @VehicleAssigned, @Started, @AtPickup, @Enroute, @Delayed)
+                  AND t2.PlannedStart < DATEADD(HOUR, 4, @PlannedStart)
+                  AND DATEADD(HOUR, 4, t2.PlannedStart) > @PlannedStart
+            ) conflict
+            OUTER APPLY (
+                SELECT TOP 1 h.OverallScore, h.SafetyScore
+                FROM DriverPerformanceScoreHistory h
+                WHERE h.DriverId = d.Id AND h.TenantId = @TenantId
+                ORDER BY h.ComputedAt DESC
+            ) perf
+            OUTER APPLY (
+                SELECT CAST(MAX(f.OdometerReading) - MIN(f.OdometerReading) AS DECIMAL(12,2)) AS RecentKm7d
+                FROM FuelLogs f
+                WHERE f.VehicleId = v.Id AND f.TenantId = @TenantId AND f.IsDeleted = 0
+                  AND f.FuelDate >= DATEADD(DAY, -7, SYSUTCDATETIME())
+                  AND f.OdometerReading IS NOT NULL
+                HAVING COUNT(*) >= 2 AND MAX(f.OdometerReading) > MIN(f.OdometerReading)
+            ) util
             WHERE d.TenantId = @TenantId AND d.IsDeleted = 0 AND d.IsActive = 1
               AND d.Status IN (@Available, @OnTrip)
               AND (@ExcludedCount = 0 OR d.Id NOT IN @ExcludedDriverIds)
@@ -78,7 +124,16 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
                 ExcludedDriverIds = excludedDriverIds.Count > 0 ? excludedDriverIds : [-1],
                 ExcludedCount = excludedDriverIds.Count,
                 Available = (int)DriverStatus.Available,
-                OnTrip = (int)DriverStatus.OnTrip
+                OnTrip = (int)DriverStatus.OnTrip,
+                TripId = tripId,
+                PlannedStart = planned,
+                Scheduled = (int)TripStatus.Scheduled,
+                DriverAssigned = (int)TripStatus.DriverAssigned,
+                VehicleAssigned = (int)TripStatus.VehicleAssigned,
+                Started = (int)TripStatus.Started,
+                AtPickup = (int)TripStatus.AtPickup,
+                Enroute = (int)TripStatus.Enroute,
+                Delayed = (int)TripStatus.Delayed
             },
             cancellationToken: cancellationToken));
 
@@ -128,7 +183,7 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
             """
             UPDATE TripSmartAssignmentDecisions
             SET Outcome = N'Superseded'
-            WHERE TenantId = @TenantId AND TripId = @TripId AND Outcome = N'Proposed'
+            WHERE TenantId = @TenantId AND TripId = @TripId AND Outcome IN (N'Proposed', N'Confirmed', N'Shadow')
             """,
             new { TenantId = tenantId, TripId = tripId },
             cancellationToken: cancellationToken));
@@ -157,7 +212,7 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
         => await QueryDecisionsAsync(
             """
             SELECT d.Id, d.TripId, t.TripNumber, d.DriverId, dr.FullName AS DriverName,
-                   d.VehicleId, v.VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
+                   d.VehicleId, v.Name AS VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
                    d.DistanceKm, d.EtaMinutes, d.TrafficSource, d.Outcome, d.RejectionReason,
                    d.CreatedBy, d.CreatedAtUtc
             FROM TripSmartAssignmentDecisions d
@@ -175,7 +230,7 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
         => await QueryDecisionsAsync(
             """
             SELECT TOP (@Limit) d.Id, d.TripId, t.TripNumber, d.DriverId, dr.FullName AS DriverName,
-                   d.VehicleId, v.VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
+                   d.VehicleId, v.Name AS VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
                    d.DistanceKm, d.EtaMinutes, d.TrafficSource, d.Outcome, d.RejectionReason,
                    d.CreatedBy, d.CreatedAtUtc
             FROM TripSmartAssignmentDecisions d
@@ -208,7 +263,7 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
         var list = await QueryDecisionsAsync(
             """
             SELECT TOP 1 d.Id, d.TripId, t.TripNumber, d.DriverId, dr.FullName AS DriverName,
-                   d.VehicleId, v.VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
+                   d.VehicleId, v.Name AS VehicleName, d.Rank, d.TotalScore, d.ScoreBreakdownJson,
                    d.DistanceKm, d.EtaMinutes, d.TrafficSource, d.Outcome, d.RejectionReason,
                    d.CreatedBy, d.CreatedAtUtc
             FROM TripSmartAssignmentDecisions d
@@ -216,12 +271,27 @@ public sealed class TripSmartAssignmentRepository(IDbConnectionFactory dbFactory
             LEFT JOIN Drivers dr ON dr.Id = d.DriverId
             LEFT JOIN Vehicles v ON v.Id = d.VehicleId
             WHERE d.TenantId = @TenantId AND d.TripId = @TripId AND d.DriverId = @DriverId
-              AND d.Outcome IN (N'Proposed', N'Accepted', N'Overridden')
+              AND d.Outcome IN (N'Proposed', N'Accepted', N'Overridden', N'Confirmed')
             ORDER BY d.CreatedAtUtc DESC
             """,
             new { TenantId = tenantId, TripId = tripId, DriverId = driverId },
             cancellationToken);
         return list.FirstOrDefault();
+    }
+
+    public async Task<bool> HasShadowDecisionTodayAsync(
+        int tenantId, int tripId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            """
+            SELECT COUNT(1) FROM TripSmartAssignmentDecisions
+            WHERE TenantId = @TenantId AND TripId = @TripId AND Outcome = N'Shadow'
+              AND CreatedAtUtc >= CAST(SYSUTCDATETIME() AS DATE)
+            """,
+            new { TenantId = tenantId, TripId = tripId },
+            cancellationToken: cancellationToken));
+        return count > 0;
     }
 
     private async Task<IReadOnlyList<TripSmartAssignmentDecisionDto>> QueryDecisionsAsync(

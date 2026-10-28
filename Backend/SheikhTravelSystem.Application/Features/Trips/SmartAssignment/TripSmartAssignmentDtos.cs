@@ -22,11 +22,22 @@ public record TripAssignmentCandidateDto(
     string TrafficSource,
     IReadOnlyList<TripAssignmentScoreFactorDto> Factors);
 
+public record TripAssignmentExclusionDto(
+    int DriverId,
+    string DriverName,
+    int? VehicleId,
+    string? VehicleName,
+    string Reason,
+    string Detail);
+
 public record TripSmartAssignmentSuggestionsDto(
     int TripId,
     string TripNumber,
     IReadOnlyList<TripAssignmentCandidateDto> Candidates,
-    string? RoutingNote);
+    string? RoutingNote,
+    string Mode = SmartAssignmentPolicy.ModeSuggestOnly,
+    IReadOnlyList<TripAssignmentExclusionDto>? Excluded = null,
+    IReadOnlyDictionary<string, int>? ExclusionCounts = null);
 
 public record TripSmartAssignmentApplyResultDto(
     int TripId,
@@ -59,6 +70,8 @@ public record TripSmartAssignmentDecisionDto(
 
 public record OverrideTripSmartAssignmentRequest(int DriverId, int? VehicleId, string? Reason);
 
+public record ConfirmTripSmartAssignmentRequest(int DriverId, int? VehicleId = null);
+
 public record TripSmartAssignmentTripContext(
     int TripId,
     string TripNumber,
@@ -70,4 +83,8 @@ public record TripSmartAssignmentTripContext(
     double? DestinationLongitude,
     int? RouteId,
     int? CurrentDriverId,
-    int? CurrentVehicleId);
+    int? CurrentVehicleId,
+    int PassengerCount = 1,
+    TripType TripType = TripType.Transfer,
+    DateTime? PlannedEnd = null,
+    string? RequiredVehicleType = null);

@@ -21,7 +21,18 @@ public class AutoAssignTripSmartCommandHandler(ITripSmartAssignmentService servi
 {
     public Task<ApiResponse<TripSmartAssignmentApplyResultDto>> Handle(
         AutoAssignTripSmartCommand request, CancellationToken cancellationToken)
-        => service.AutoAssignAsync(request.TripId, fromTripCreation: false, cancellationToken);
+        => service.AutoAssignAsync(request.TripId, fromTripCreation: false, allowWhenSuggestOnly: false, cancellationToken);
+}
+
+public record ConfirmTripSmartAssignmentCommand(int TripId, ConfirmTripSmartAssignmentRequest Body)
+    : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>;
+
+public class ConfirmTripSmartAssignmentCommandHandler(ITripSmartAssignmentService service)
+    : IRequestHandler<ConfirmTripSmartAssignmentCommand, ApiResponse<TripSmartAssignmentApplyResultDto>>
+{
+    public Task<ApiResponse<TripSmartAssignmentApplyResultDto>> Handle(
+        ConfirmTripSmartAssignmentCommand request, CancellationToken cancellationToken)
+        => service.ConfirmAsync(request.TripId, request.Body, cancellationToken);
 }
 
 public record OverrideTripSmartAssignmentCommand(int TripId, OverrideTripSmartAssignmentRequest Body)

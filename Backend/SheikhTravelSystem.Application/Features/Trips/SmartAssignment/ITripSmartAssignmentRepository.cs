@@ -7,6 +7,8 @@ public interface ITripSmartAssignmentRepository
     Task<IReadOnlyList<TripAssignmentCandidateRow>> GetCandidatesAsync(
         int tenantId,
         IReadOnlyCollection<int> excludedDriverIds,
+        int? forTripId = null,
+        DateTime? plannedStartUtc = null,
         CancellationToken cancellationToken = default);
 
     Task<long> InsertDecisionAsync(
@@ -43,6 +45,12 @@ public interface ITripSmartAssignmentRepository
         int tripId,
         int driverId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>True when a Shadow outcome was already logged today for this trip's top suggestion.</summary>
+    Task<bool> HasShadowDecisionTodayAsync(
+        int tenantId,
+        int tripId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record TripAssignmentCandidateRow(
@@ -61,7 +69,16 @@ public sealed record TripAssignmentCandidateRow(
     string? VerificationStatus,
     DateTime LicenseExpiryDate,
     int? VehicleFuelType,
-    decimal? ElectricRangeKm);
+    decimal? ElectricRangeKm,
+    int? SeatingCapacity = null,
+    string? VehicleType = null,
+    int? VehicleStatus = null,
+    bool HasCriticalMaintenance = false,
+    bool HasScheduleConflict = false,
+    int? PerformanceScore = null,
+    int? SafetyScore = null,
+    decimal? FuelAverageKmPerLiter = null,
+    decimal? RecentKm7d = null);
 
 public sealed record TripSmartAssignmentDecisionWrite(
     int TripId,

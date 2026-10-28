@@ -8,9 +8,20 @@ public interface ITripSmartAssignmentService
         int tripId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Auto-apply best candidate. Blocked while policy is SuggestOnly unless <paramref name="allowWhenSuggestOnly"/>
+    /// (used for driver-reject re-offer continuity).
+    /// </summary>
     Task<ApiResponse<TripSmartAssignmentApplyResultDto>> AutoAssignAsync(
         int tripId,
         bool fromTripCreation = false,
+        bool allowWhenSuggestOnly = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Staff confirms a ranked (or chosen) candidate — required path in SuggestOnly mode.</summary>
+    Task<ApiResponse<TripSmartAssignmentApplyResultDto>> ConfirmAsync(
+        int tripId,
+        ConfirmTripSmartAssignmentRequest request,
         CancellationToken cancellationToken = default);
 
     Task<ApiResponse<TripSmartAssignmentApplyResultDto>> ApplyOverrideAsync(

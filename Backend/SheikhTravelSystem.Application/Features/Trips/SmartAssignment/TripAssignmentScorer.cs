@@ -5,25 +5,30 @@ namespace SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 /// <summary>
 /// Weighted heuristic scorer for trip–driver matching. Traffic uses Google Routes when available;
 /// otherwise straight-line distance and an average-speed estimate (documented in <see cref="TrafficSource"/>).
+/// Weights always sum to 1.0. Mandatory failures are handled by <see cref="TripAssignmentConstraints"/> before scoring.
 /// </summary>
 public static class TripAssignmentScorer
 {
     public const string TrafficGoogleRoutes = "GoogleRoutes";
     public const string TrafficHaversineEstimate = "HaversineEstimate";
 
-    private const decimal WeightRating = 0.22m;
-    private const decimal WeightProximity = 0.18m;
-    private const decimal WeightFatigue = 0.15m;
-    private const decimal WeightFuel = 0.15m;
-    private const decimal WeightDelivery = 0.15m;
-    private const decimal WeightTraffic = 0.15m;
+    // Soft preferences — sum = 1.00
+    private const decimal WeightRating = 0.18m;
+    private const decimal WeightProximity = 0.15m;
+    private const decimal WeightFatigue = 0.12m;
+    private const decimal WeightFuel = 0.12m;
+    private const decimal WeightDelivery = 0.12m;
+    private const decimal WeightTraffic = 0.12m;
+    private const decimal WeightPerformance = 0.10m;
+    private const decimal WeightCost = 0.05m;
+    private const decimal WeightUtilization = 0.04m;
 
     public static (decimal Total, IReadOnlyList<TripAssignmentScoreFactorDto> Factors) Score(
         TripAssignmentCandidateInput candidate,
         TripAssignmentTripInput trip,
         RouteMetrics? route)
     {
-        var factors = new List<TripAssignmentScoreFactorDto>(6);
+        var factors = new List<TripAssignmentScoreFactorDto>(9);
 
         var ratingRaw = RatingScore(candidate.Rating);
         factors.Add(Factor("rating", "Driver rating", WeightRating, ratingRaw,
@@ -61,6 +66,20 @@ public static class TripAssignmentScorer
                 ? "Google Routes (traffic-aware)"
                 : "Estimated from distance (Routes API unavailable)"));
 
+        var performanceRaw = PerformanceScore(candidate.PerformanceScore, candidate.SafetyScore);
+        factors.Add(Factor("performance", "Performance / safety", WeightPerformance, performanceRaw,
+            FormatPerformanceDetail(candidate.PerformanceScore, candidate.SafetyScore)));
+
+        var costRaw = CostScore(candidate.FuelAverageKmPerLiter, candidate.IsElectric);
+        factors.Add(Factor("cost", "Cost / efficiency", WeightCost, costRaw,
+            FormatCostDetail(candidate.FuelAverageKmPerLiter, candidate.IsElectric)));
+
+        var utilRaw = UtilizationScore(candidate.RecentKm7d);
+        factors.Add(Factor("utilization", "Utilization balance", WeightUtilization, utilRaw,
+            candidate.RecentKm7d.HasValue
+                ? $"{candidate.RecentKm7d.Value:F0} km in last 7 days"
+                : "Recent km unknown — neutral score"));
+
         var total = factors.Sum(f => f.WeightedScore);
         return (Math.Round(total, 2), factors);
     }
@@ -73,7 +92,11 @@ public static class TripAssignmentScorer
         decimal? FuelLevelPercent,
         decimal HoursWorkedToday,
         bool IsElectric = false,
-        decimal? ElectricRangeKm = null);
+        decimal? ElectricRangeKm = null,
+        int? PerformanceScore = null,
+        int? SafetyScore = null,
+        decimal? FuelAverageKmPerLiter = null,
+        decimal? RecentKm7d = null);
 
     public sealed record TripAssignmentTripInput(
         DateTime PlannedStartUtc,
@@ -158,6 +181,57 @@ public static class TripAssignmentScorer
         }
 
         return distanceKm.HasValue ? 65m : 50m;
+    }
+
+    /// <summary>Blend overall performance with safety; missing history → neutral.</summary>
+    private static decimal PerformanceScore(int? overall, int? safety)
+    {
+        if (!overall.HasValue && !safety.HasValue) return 65m;
+        if (overall.HasValue && safety.HasValue)
+            return Math.Clamp(Math.Round((overall.Value * 0.55m) + (safety.Value * 0.45m), 1), 0m, 100m);
+        return Math.Clamp(overall ?? safety!.Value, 0, 100);
+    }
+
+    private static string FormatPerformanceDetail(int? overall, int? safety)
+    {
+        if (!overall.HasValue && !safety.HasValue)
+            return "No performance history — neutral score";
+        if (overall.HasValue && safety.HasValue)
+            return $"Overall {overall}, safety {safety}";
+        return overall.HasValue ? $"Overall {overall}" : $"Safety {safety}";
+    }
+
+    /// <summary>Higher km/L (or EV) → lower operating cost → higher score.</summary>
+    private static decimal CostScore(decimal? fuelAverage, bool isElectric)
+    {
+        if (isElectric) return 90m;
+        if (!fuelAverage.HasValue || fuelAverage <= 0) return 60m;
+        var avg = fuelAverage.Value;
+        if (avg >= 14) return 100m;
+        if (avg >= 11) return 85m;
+        if (avg >= 8) return 70m;
+        if (avg >= 6) return 50m;
+        return 30m;
+    }
+
+    private static string FormatCostDetail(decimal? fuelAverage, bool isElectric)
+    {
+        if (isElectric) return "EV — low energy cost proxy";
+        if (!fuelAverage.HasValue || fuelAverage <= 0) return "Fuel average unknown — neutral score";
+        return $"{fuelAverage.Value:F1} km/L efficiency";
+    }
+
+    /// <summary>Prefer under-utilized assets for fairness (lower recent km → higher score).</summary>
+    private static decimal UtilizationScore(decimal? recentKm7d)
+    {
+        if (!recentKm7d.HasValue) return 60m;
+        var km = recentKm7d.Value;
+        if (km <= 100) return 100m;
+        if (km <= 250) return 85m;
+        if (km <= 500) return 70m;
+        if (km <= 800) return 50m;
+        if (km <= 1200) return 30m;
+        return 15m;
     }
 
     private static (double? DistKm, int? EtaMin, string Source) ResolveRouteMetrics(
