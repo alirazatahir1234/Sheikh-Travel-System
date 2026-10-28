@@ -5,7 +5,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
   "version": "0.18.0",
   "protocol": "MCP (stdio)",
   "package": "sheikhgo-mcp",
-  "exportedAt": "2026-10-28T08:19:24.721Z",
+  "exportedAt": "2026-10-28T08:29:19.876Z",
   "discoveredTools": [
     "get_repository_index",
     "analyze_architecture",
@@ -739,7 +739,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
     },
     "get_trip_statistics": {
       "name": "get_trip_statistics",
-      "description": "Trip status histogram + booking volume/completion for a date range. Requires DB + tenantId. Analytics KPI.",
+      "description": "Trip and booking analytics for a date range (KPIs, status mix, daily trends, recent trips, insights). Returns responseType=trip_booking_analytics for the AI Assistant UI — parity with GetTripSummary. Requires DB + tenantId.",
       "inputProperties": [
         "tenantId",
         "dateFrom",
@@ -2029,7 +2029,7 @@ export const MCP_CATALOG_FALLBACK: McpCatalog = {
         },
         {
           "name": "get_trip_statistics",
-          "description": "Trip status histogram + booking volume/completion for a date range. Requires DB + tenantId. Analytics KPI.",
+          "description": "Trip and booking analytics for a date range (KPIs, status mix, daily trends, recent trips, insights). Returns responseType=trip_booking_analytics for the AI Assistant UI — parity with GetTripSummary. Requires DB + tenantId.",
           "inputProperties": [
             "tenantId",
             "dateFrom",

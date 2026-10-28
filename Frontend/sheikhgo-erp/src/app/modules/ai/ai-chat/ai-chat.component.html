@@ -106,6 +106,12 @@
         </div>
         <div class="bubble-body">
           <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
+          <div class="attach-chips" *ngIf="m.role === 'user' && m.attachments?.length">
+            <span class="attach-chip" *ngFor="let a of m.attachments">
+              <mat-icon aria-hidden="true">{{ a.kind === 'image' ? 'image' : a.kind === 'pdf' ? 'picture_as_pdf' : 'description' }}</mat-icon>
+              {{ a.name }}
+            </span>
+          </div>
           <app-ai-assistant-result
             *ngIf="m.role === 'assistant'"
             [answer]="m.content"
@@ -153,14 +159,34 @@
         </div>
       </div>
 
+      <div class="pending-files" *ngIf="pendingFiles.length" aria-label="Attached files">
+        <span class="attach-chip" *ngFor="let f of pendingFiles; let i = index">
+          <mat-icon aria-hidden="true">attach_file</mat-icon>
+          {{ f.name }}
+          <button type="button" class="chip-remove" (click)="removePendingFile(i)" aria-label="Remove attachment">
+            <mat-icon>close</mat-icon>
+          </button>
+        </span>
+      </div>
+
       <form class="composer" (ngSubmit)="send()">
+        <input
+          #fileInput
+          type="file"
+          class="sr-only"
+          [attr.accept]="attachAccept"
+          multiple
+          (change)="onFilesSelected($event)"
+          tabindex="-1"
+          aria-hidden="true" />
         <button
           type="button"
           class="attach-btn"
           mat-icon-button
-          matTooltip="Attachments coming soon"
-          disabled
-          aria-label="Attach file (coming soon)">
+          matTooltip="Attach text, CSV, image, or PDF (max 2 MB)"
+          [disabled]="sending || !!accessDeniedMessage"
+          (click)="openAttachPicker()"
+          aria-label="Attach file">
           <mat-icon>attach_file</mat-icon>
         </button>
         <textarea
@@ -178,7 +204,7 @@
           color="primary"
           type="submit"
           class="send-btn"
-          [disabled]="sending || !draft.trim() || !!accessDeniedMessage"
+          [disabled]="sending || (!draft.trim() && !pendingFiles.length) || !!accessDeniedMessage"
           aria-label="Send">
           <mat-icon>send</mat-icon>
         </button>

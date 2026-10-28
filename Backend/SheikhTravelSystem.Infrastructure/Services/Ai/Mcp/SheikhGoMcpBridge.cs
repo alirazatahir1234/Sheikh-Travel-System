@@ -391,7 +391,7 @@ public sealed class SheikhGoMcpBridge(
         "get_revenue_summary" =>
             "Paid revenue totals (daily / weekly / monthly). Analytics KPI — not Logs.",
         "get_trip_statistics" =>
-            "Trip and booking volume / completion KPIs for a date range.",
+            "Trip and booking analytics (responseType=trip_booking_analytics: KPIs, trends, recent trips).",
         "get_vehicle_utilization" =>
             "Fleet utilization snapshot and top vehicles by GPS trip distance.",
         "get_fuel_cost_summary" =>

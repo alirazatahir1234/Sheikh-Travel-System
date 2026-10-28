@@ -551,6 +551,70 @@
   }
 }
 
+.pending-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.attach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .chip-remove {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-left: 2px;
+    cursor: pointer;
+    color: #64748b;
+    display: inline-flex;
+    line-height: 1;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .composer {
   display: flex;
   gap: 6px;
@@ -570,8 +634,12 @@
   }
 
   .attach-btn {
-    color: #94a3b8;
+    color: #64748b;
     flex: 0 0 auto;
+
+    &:disabled {
+      color: #cbd5e1;
+    }
   }
 
   .composer-input {

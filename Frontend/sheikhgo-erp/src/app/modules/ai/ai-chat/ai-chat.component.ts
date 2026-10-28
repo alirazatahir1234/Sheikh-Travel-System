@@ -222,6 +222,7 @@ export class AiChatComponent implements OnInit {
     this.sessionId = null;
     this.messages = [];
     this.draft = '';
+    this.pendingFiles = [];
     this.pendingAction = null;
     this.suggestions = [...this.defaultSuggestions];
     queueMicrotask(() => this.composerInput?.nativeElement?.focus());
@@ -230,29 +231,14 @@ export class AiChatComponent implements OnInit {
   openSession(session: AiChatSession): void {
     this.sessionId = session.id;
     this.messages = [];
+    this.pendingFiles = [];
     this.pendingAction = null;
     this.suggestions = [...this.defaultSuggestions];
     this.ai.getChatMessages(session.id).subscribe({
       next: rows => {
         this.messages = (rows ?? [])
           .filter(m => m.role === 'user' || m.role === 'assistant')
-          .map(m => {
-            let data: unknown;
-            const raw = m.structuredPayload?.trim();
-            if (raw) {
-              try {
-                data = JSON.parse(raw) as unknown;
-              } catch {
-                data = undefined;
-              }
-            }
-            return {
-              role: m.role as 'user' | 'assistant',
-              content: m.content,
-              toolUsed: m.toolUsed,
-              data
-            };
-          });
+          .map(m => this.rehydrateBubble(m));
         const lastAssistant = [...this.messages].reverse().find(x => x.role === 'assistant' && x.data);
         const followUps = lastAssistant ? extractFollowUps(lastAssistant.data) : [];
         if (followUps.length) {
@@ -263,6 +249,35 @@ export class AiChatComponent implements OnInit {
       error: () => this.toast.error('Could not load messages')
     });
     this.loadPendingAction(session.id);
+  }
+
+  openAttachPicker(): void {
+    if (this.sending || this.accessDeniedMessage) return;
+    this.fileInput?.nativeElement?.click();
+  }
+
+  onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const list = Array.from(input.files ?? []);
+    input.value = '';
+    if (!list.length) return;
+
+    for (const file of list) {
+      if (this.pendingFiles.length >= ATTACH_MAX_FILES) {
+        this.toast.error(`You can attach up to ${ATTACH_MAX_FILES} files.`);
+        break;
+      }
+      if (file.size > ATTACH_MAX_BYTES) {
+        this.toast.error(`${file.name} is larger than 2 MB.`);
+        continue;
+      }
+      if (this.pendingFiles.some(f => f.name === file.name && f.size === file.size)) continue;
+      this.pendingFiles = [...this.pendingFiles, file];
+    }
+  }
+
+  removePendingFile(index: number): void {
+    this.pendingFiles = this.pendingFiles.filter((_, i) => i !== index);
   }
 
   useSuggestion(text: string): void {
@@ -363,7 +378,15 @@ export class AiChatComponent implements OnInit {
     if (!tool) return false;
     if (tool === 'getofflinevehicles' || tool === 'getfleethealth') return false;
     // Rich analytics already shows period context in widgets
-    if (tool === 'gettripsummary') return false;
+    if (
+      tool === 'gettripsummary' ||
+      tool.includes('get_trip_statistics') ||
+      tool.includes('trip_booking') ||
+      tool.includes('sales') ||
+      tool.includes('getrevenueanalytics')
+    ) {
+      return false;
+    }
     return !!res.period?.start && !!res.period?.end;
   }
 

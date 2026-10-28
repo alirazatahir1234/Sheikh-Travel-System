@@ -281,7 +281,12 @@ export function asTripBookingAnalytics(data: unknown, toolUsed?: string | null):
   const tool = (toolUsed ?? '').toLowerCase();
   const typed = asString(root['responseType']) === 'trip_booking_analytics';
   const hasKpis = Array.isArray(root['kpis']) && (root['kpis'] as unknown[]).length > 0;
-  const legacyTripTool = tool === 'gettripsummary' && !!root['trips'] && !!root['bookings'];
+  const tripMcpTool =
+    tool.includes('get_trip_statistics') ||
+    tool.includes('gettripstatistics') ||
+    tool.includes('get_trip_summary') ||
+    tool === 'gettripsummary';
+  const legacyTripTool = tripMcpTool && !!root['trips'] && !!root['bookings'];
 
   if (!typed && !hasKpis && !legacyTripTool) return null;
 
