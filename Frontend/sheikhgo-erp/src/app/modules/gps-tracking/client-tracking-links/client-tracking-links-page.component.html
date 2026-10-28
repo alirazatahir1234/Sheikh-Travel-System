@@ -82,30 +82,23 @@
     </div>
 
     <div class="ctl-create__form">
-      <label class="ctl-field ctl-field--search">
+      <div class="ctl-field ctl-field--search">
         <span class="ctl-field__label">Trip / Vehicle</span>
-        <div class="ctl-field__control ctl-field__control--stack">
-          <div class="ctl-search-inline">
-            <mat-icon aria-hidden="true">search</mat-icon>
-            <input
-              type="search"
-              [ngModel]="tripSearch"
-              (ngModelChange)="onTripSearchInput($event)"
-              placeholder="Search trip number, client, or vehicle…"
-              [disabled]="creating || needsCompanySelection" />
-          </div>
-          <select
-            [(ngModel)]="selectedTripId"
-            [disabled]="creating || needsCompanySelection || tripsLoading">
-            <option [ngValue]="null">
-              {{ tripsLoading ? 'Loading trips…' : 'Select a trip' }}
-            </option>
-            @for (t of tripOptions; track t.id) {
-              <option [ngValue]="t.id">{{ tripOptionLabel(t) }}</option>
-            }
-          </select>
-        </div>
-      </label>
+        <ui-select
+          class="ctl-trip-select"
+          [class.ctl-trip-select--locked]="creating || needsCompanySelection || tripsLoading"
+          [options]="tripSelectOptions"
+          [searchable]="true"
+          [required]="true"
+          [placeholder]="tripSelectPlaceholder"
+          searchPlaceholder="Type to filter trip #, destination, or vehicle…"
+          [ngModel]="selectedTripKey"
+          (ngModelChange)="onTripSelected($event)">
+        </ui-select>
+        @if (needsCompanySelection) {
+          <p class="ctl-field__hint muted">Select a company in the scope bar to load trips.</p>
+        }
+      </div>
 
       <label class="ctl-field">
         <span class="ctl-field__label">Client</span>

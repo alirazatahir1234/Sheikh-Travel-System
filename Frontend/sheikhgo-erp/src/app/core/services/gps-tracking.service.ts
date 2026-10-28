@@ -1460,22 +1460,48 @@ export class GpsTrackingService {
     return this.http.get<TraccarSyncStatusDto>(`${this.base}/traccar/sync-status`);
   }
 
-  listClientTrackingLinks(take = 50, tripId?: number, activeOnly = false): Observable<ClientTrackingLink[]> {
+  listClientTrackingLinks(
+    take = 50,
+    tripId?: number,
+    activeOnly = false,
+    tenantScopeId?: number | null
+  ): Observable<ClientTrackingLink[]> {
     let params = new HttpParams().set('take', take).set('activeOnly', activeOnly);
     if (tripId != null) params = params.set('tripId', tripId);
-    return this.http.get<ClientTrackingLink[]>(`${this.base}/client-tracking-links`, { params });
+    return this.http.get<ClientTrackingLink[]>(`${this.base}/client-tracking-links`, {
+      params,
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    });
   }
 
-  createClientTrackingLink(tripId: number, hoursValid?: number): Observable<ClientTrackingLinkCreated> {
-    return this.http.post<ClientTrackingLinkCreated>(`${this.base}/client-tracking-links`, { tripId, hoursValid });
+  createClientTrackingLink(
+    tripId: number,
+    hoursValid?: number,
+    tenantScopeId?: number | null
+  ): Observable<ClientTrackingLinkCreated> {
+    return this.http.post<ClientTrackingLinkCreated>(
+      `${this.base}/client-tracking-links`,
+      { tripId, hoursValid },
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  revealClientTrackingLinkUrl(linkId: number): Observable<ClientTrackingLinkUrl> {
-    return this.http.get<ClientTrackingLinkUrl>(`${this.base}/client-tracking-links/${linkId}/public-url`);
+  revealClientTrackingLinkUrl(
+    linkId: number,
+    tenantScopeId?: number | null
+  ): Observable<ClientTrackingLinkUrl> {
+    return this.http.get<ClientTrackingLinkUrl>(
+      `${this.base}/client-tracking-links/${linkId}/public-url`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  revokeClientTrackingLink(linkId: number): Observable<unknown> {
-    return this.http.post(`${this.base}/client-tracking-links/${linkId}/revoke`, {});
+  revokeClientTrackingLink(linkId: number, tenantScopeId?: number | null): Observable<unknown> {
+    return this.http.post(
+      `${this.base}/client-tracking-links/${linkId}/revoke`,
+      {},
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
   private routeHint(status: FleetTrackStatus, speed: number): string {

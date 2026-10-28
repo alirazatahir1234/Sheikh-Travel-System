@@ -1,11 +1,12 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject, Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged, skip } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
+import { skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TripService } from '../../../core/services/trip.service';
 import { ClientTrackingLink, ClientTrackingLinkCreated } from '../../../core/models/gps-tracking.model';
 import { TripListItem } from '../../../core/models/trip.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import { GpsScopeFilterService } from '../gps-scope-filter.service';
 
 type LinkStatusFilter = 'all' | 'active' | 'expired' | 'revoked';
@@ -25,9 +26,11 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
   loadError: string | null = null;
   rows: ClientTrackingLink[] = [];
 
+  /** Company-scoped trips for the searchable combobox (value = trip id string). */
   tripOptions: TripListItem[] = [];
-  tripSearch = '';
-  selectedTripId: number | null = null;
+  tripSelectOptions: UiSelectOption[] = [];
+  /** ui-select value — must match an option; never free-typed trip ids. */
+  selectedTripKey = '';
   hoursValid = 48;
   created: ClientTrackingLinkCreated | null = null;
   createError: string | null = null;
@@ -40,12 +43,10 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
 
   /** Session cache of revealed / created absolute URLs (never invent tokens). */
   private readonly knownUrls = new Map<number, string>();
-  private readonly tripSearch$ = new Subject<string>();
   private scopeSub: Subscription | null = null;
   private loadSub: Subscription | null = null;
   private openSub: Subscription | null = null;
   private tripSub: Subscription | null = null;
-  private tripSearchSub: Subscription | null = null;
   private copyTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -56,14 +57,12 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
-    this.loadTripOptions('');
+    this.loadTripOptions();
     this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(() => {
+      this.clearTripSelection();
       this.load();
-      this.loadTripOptions(this.tripSearch);
+      this.loadTripOptions();
     });
-    this.tripSearchSub = this.tripSearch$
-      .pipe(debounceTime(280), distinctUntilChanged())
-      .subscribe(q => this.loadTripOptions(q));
   }
 
   ngOnDestroy(): void {
@@ -71,7 +70,6 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.openSub?.unsubscribe();
     this.tripSub?.unsubscribe();
-    this.tripSearchSub?.unsubscribe();
     if (this.copyTimer) clearTimeout(this.copyTimer);
   }
 
@@ -79,9 +77,28 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return !this.scopeFilter.isFleetScopeReady;
   }
 
+  /** Super Admin company override; undefined for tenant JWT scope. */
+  get tenantScopeId(): number | null | undefined {
+    return this.scopeFilter.tenantScopeId;
+  }
+
+  get selectedTripId(): number | null {
+    if (!this.selectedTripKey) return null;
+    const id = Number(this.selectedTripKey);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+
   get selectedTrip(): TripListItem | null {
-    if (this.selectedTripId == null) return null;
-    return this.tripOptions.find(t => t.id === this.selectedTripId) ?? null;
+    const id = this.selectedTripId;
+    if (id == null) return null;
+    return this.tripOptions.find(t => t.id === id) ?? null;
+  }
+
+  get tripSelectPlaceholder(): string {
+    if (this.needsCompanySelection) return 'Select a company first';
+    if (this.tripsLoading) return 'Loading trips…';
+    if (!this.tripSelectOptions.length) return 'No trips for this company';
+    return 'Select a trip';
   }
 
   get selectedClientName(): string {
@@ -153,50 +170,62 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return Math.min(this.totalFiltered, (this.pageIndex + 1) * this.pageSize);
   }
 
-  onTripSearchInput(value: string): void {
-    this.tripSearch = value;
-    this.tripSearch$.next(value.trim());
-  }
-
-  loadTripOptions(search: string): void {
-    if (this.needsCompanySelection) {
-      this.tripOptions = [];
+  onTripSelected(value: string | string[] | null): void {
+    const key = Array.isArray(value) ? value[0] ?? '' : value ?? '';
+    // Only accept ids present in the company-scoped option list (no free-typed ids).
+    if (key && !this.tripSelectOptions.some(o => o.value === key)) {
+      this.selectedTripKey = '';
       return;
     }
+    this.selectedTripKey = key;
+    this.createError = null;
+  }
+
+  loadTripOptions(): void {
+    if (this.needsCompanySelection) {
+      this.tripOptions = [];
+      this.tripSelectOptions = [];
+      this.tripsLoading = false;
+      this.clearTripSelection();
+      return;
+    }
+
     this.tripSub?.unsubscribe();
     this.tripsLoading = true;
-    this.tripSub = this.tripsApi
-      .getAll(1, 50, { search: search || undefined, upcomingOnly: true })
-      .subscribe({
-        next: page => {
-          this.tripOptions = page?.items ?? [];
-          this.tripsLoading = false;
-          // Keep selected trip visible even if not in current search page
-          if (
-            this.selectedTripId != null &&
-            !this.tripOptions.some(t => t.id === this.selectedTripId)
-          ) {
-            this.tripsApi.getById(this.selectedTripId).subscribe({
-              next: detail => {
-                this.tripOptions = [detail, ...this.tripOptions];
-              },
-              error: () => undefined
-            });
-          }
-        },
-        error: () => {
-          this.tripOptions = [];
-          this.tripsLoading = false;
+    const scope = this.tenantScopeId;
+    this.tripSub = this.tripsApi.getAll(1, 100, undefined, scope).subscribe({
+      next: page => {
+        this.tripOptions = page?.items ?? [];
+        this.tripSelectOptions = this.tripOptions.map(t => ({
+          value: String(t.id),
+          label: this.tripOptionLabel(t)
+        }));
+        this.tripsLoading = false;
+        // Drop selection if it is no longer in this company list
+        if (
+          this.selectedTripKey &&
+          !this.tripSelectOptions.some(o => o.value === this.selectedTripKey)
+        ) {
+          this.clearTripSelection();
         }
-      });
+      },
+      error: () => {
+        this.tripOptions = [];
+        this.tripSelectOptions = [];
+        this.tripsLoading = false;
+        this.clearTripSelection();
+      }
+    });
   }
 
   tripOptionLabel(t: TripListItem): string {
     const num = t.tripNumber?.trim() || `Trip #${t.id}`;
-    const client = t.customerName?.trim();
+    const idBit = t.tripNumber?.trim() ? `#${t.id}` : null;
+    const dest = t.destinationAddress?.trim() || t.routeName?.trim();
     const vehicle = t.vehicleName?.trim();
     const bits = [num];
-    if (client) bits.push(client);
+    if (idBit) bits.push(idBit);
+    if (dest) bits.push(dest);
     if (vehicle) bits.push(vehicle);
     return bits.join(' · ');
   }
@@ -212,7 +241,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.loading = true;
     this.loadError = null;
-    this.loadSub = this.gps.listClientTrackingLinks(100).subscribe({
+    this.loadSub = this.gps.listClientTrackingLinks(100, undefined, false, this.tenantScopeId).subscribe({
       next: rows => {
         this.rows = rows ?? [];
         for (const r of this.rows) {
@@ -252,8 +281,17 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
 
   createLink(): void {
     if (this.creating) return;
-    if (!this.selectedTripId || this.selectedTripId < 1) {
-      this.createError = 'Select a trip.';
+    if (this.needsCompanySelection) {
+      this.createError = 'Select a company first.';
+      return;
+    }
+    const tripId = this.selectedTripId;
+    if (
+      tripId == null ||
+      tripId < 1 ||
+      !this.tripSelectOptions.some(o => o.value === String(tripId))
+    ) {
+      this.createError = 'Select a trip from the list.';
       return;
     }
     const hours = Math.round(Number(this.hoursValid));
@@ -265,7 +303,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.createError = null;
     this.created = null;
     this.creating = true;
-    this.gps.createClientTrackingLink(this.selectedTripId, hours).subscribe({
+    this.gps.createClientTrackingLink(tripId, hours, this.tenantScopeId).subscribe({
       next: res => {
         this.created = res;
         this.creating = false;
@@ -287,7 +325,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.revokingId = row.id;
-    this.gps.revokeClientTrackingLink(row.id).subscribe({
+    this.gps.revokeClientTrackingLink(row.id, this.tenantScopeId).subscribe({
       next: () => {
         this.revokingId = null;
         this.knownUrls.delete(row.id);
@@ -380,7 +418,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     }
     this.openingId = row.id;
     this.openSub?.unsubscribe();
-    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id).subscribe({
+    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id, this.tenantScopeId).subscribe({
       next: res => {
         this.openingId = null;
         const path = res?.publicUrl?.trim();
@@ -416,7 +454,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
 
     this.openingId = row.id;
     this.openSub?.unsubscribe();
-    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id).subscribe({
+    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id, this.tenantScopeId).subscribe({
       next: res => {
         this.openingId = null;
         const path = res?.publicUrl?.trim();
@@ -520,6 +558,10 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
       this.copyMessage = null;
       this.copyTimer = null;
     }, 4200);
+  }
+
+  private clearTripSelection(): void {
+    this.selectedTripKey = '';
   }
 
   private clampPage(): void {

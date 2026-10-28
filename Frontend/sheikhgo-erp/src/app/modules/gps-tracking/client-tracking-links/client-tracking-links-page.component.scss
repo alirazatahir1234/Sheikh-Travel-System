@@ -215,8 +215,13 @@
   flex: 1 1 160px;
 
   &--search {
-    flex: 1 1 280px;
-    min-width: 240px;
+    flex: 1 1 320px;
+    min-width: 260px;
+  }
+
+  &__hint {
+    margin: 2px 0 0;
+    font-size: 0.75rem;
   }
 
   &--duration {
@@ -282,27 +287,30 @@
   }
 }
 
-.ctl-search-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ctl-trip-select {
   width: 100%;
 
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: var(--ctl-muted);
+  /* Match create-form control height/feel; keep searchable input usable (English typing). */
+  :host ::ng-deep &,
+  & {
+    display: block;
+  }
+}
+
+:host ::ng-deep .ctl-trip-select {
+  button {
+    min-height: 44px;
+    border-radius: 10px;
+    font-weight: 600;
   }
 
-  input {
-    flex: 1;
-    border: 0;
-    background: transparent;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    outline: none;
-    min-width: 0;
+  input[type='search'] {
+    min-height: 36px;
+  }
+
+  &.ctl-trip-select--locked {
+    pointer-events: none;
+    opacity: 0.72;
   }
 }
 

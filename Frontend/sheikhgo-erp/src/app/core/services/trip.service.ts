@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, PagedResult } from '../models/common.model';
@@ -31,6 +31,12 @@ export class TripService {
 
   constructor(private http: HttpClient) {}
 
+  /** Super Admin company override via X-Tenant-Id (same as GPS scope). */
+  private tenantScopedHttpOptions(tenantScopeId?: number | null): { headers?: HttpHeaders } {
+    if (tenantScopeId == null) return {};
+    return { headers: new HttpHeaders({ 'X-Tenant-Id': String(tenantScopeId) }) };
+  }
+
   getDashboard(): Observable<TripDashboard> {
     return this.http.get<TripDashboard>(`${this.base}/dashboard`);
   }
@@ -60,7 +66,12 @@ export class TripService {
     return this.http.post<TripRouteSummary>(`${this.base}/${id}/optimize-route`, {});
   }
 
-  getAll(page = 1, pageSize = 20, filter?: TripFilter): Observable<PagedResult<TripListItem>> {
+  getAll(
+    page = 1,
+    pageSize = 20,
+    filter?: TripFilter,
+    tenantScopeId?: number | null
+  ): Observable<PagedResult<TripListItem>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (filter?.statuses?.length) {
       for (const s of filter.statuses) {
@@ -79,11 +90,14 @@ export class TripService {
     if (filter?.todayOnly) params = params.set('todayOnly', true);
     if (filter?.tomorrowOnly) params = params.set('tomorrowOnly', true);
     if (filter?.upcomingOnly) params = params.set('upcomingOnly', true);
-    return this.http.get<PagedResult<TripListItem>>(this.base, { params });
+    return this.http.get<PagedResult<TripListItem>>(this.base, {
+      params,
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    });
   }
 
-  getById(id: number): Observable<TripDetail> {
-    return this.http.get<TripDetail>(`${this.base}/${id}`);
+  getById(id: number, tenantScopeId?: number | null): Observable<TripDetail> {
+    return this.http.get<TripDetail>(`${this.base}/${id}`, this.tenantScopedHttpOptions(tenantScopeId));
   }
 
   create(trip: CreateTripDto): Observable<number> {
