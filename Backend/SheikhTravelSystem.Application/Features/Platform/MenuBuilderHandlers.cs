@@ -110,20 +110,24 @@ public static class MenuBuilderQueries
         IReadOnlySet<string> permissionSet,
         IReadOnlyList<string> enabledModules,
         IReadOnlyDictionary<string, bool> featureFlags,
-        IReadOnlyList<string>? workspaceModuleKeys = null)
+        IReadOnlyList<string>? workspaceModuleKeys = null,
+        bool grantFullCatalog = false)
     {
         var focusKeys = workspaceModuleKeys?
             .Where(k => !string.IsNullOrWhiteSpace(k))
             .Select(k => k.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var softFocus = focusKeys is { Count: > 0 };
+        // SuperAdmin full catalog ignores workspace soft-focus.
+        var softFocus = !grantFullCatalog && focusKeys is { Count: > 0 };
 
         var result = new List<MenuModuleDto>();
         foreach (var module in modules)
         {
             if (!module.Visible) continue;
-            if (enabledModules.Count > 0 && !IsNavModuleEnabled(module.ModuleKey, enabledModules))
+            if (!grantFullCatalog
+                && enabledModules.Count > 0
+                && !IsNavModuleEnabled(module.ModuleKey, enabledModules))
                 continue;
             // Soft workspace focus: hide modules outside the workspace ModuleKeys when list is non-empty.
             if (softFocus && !focusKeys!.Contains(module.ModuleKey, StringComparer.OrdinalIgnoreCase)
@@ -132,9 +136,12 @@ public static class MenuBuilderQueries
 
             var items = menus
                 .Where(m => m.ModuleId == module.Id && m.IsActive && m.Visible)
-                .Where(m => string.IsNullOrEmpty(m.PermissionCode) || permissionSet.Contains(m.PermissionCode))
-                .Where(m => IsMenuItemEnabledByModule(m.PermissionCode, enabledModules, m.ModuleKey))
-                .Where(m => PassesFeatureGate(m.FeatureKey, featureFlags))
+                .Where(m => grantFullCatalog
+                    || string.IsNullOrEmpty(m.PermissionCode)
+                    || permissionSet.Contains(m.PermissionCode))
+                .Where(m => grantFullCatalog
+                    || IsMenuItemEnabledByModule(m.PermissionCode, enabledModules, m.ModuleKey))
+                .Where(m => grantFullCatalog || PassesFeatureGate(m.FeatureKey, featureFlags))
                 .Select(m =>
                 {
                     var label = string.IsNullOrWhiteSpace(m.DisplayName) ? m.Name : m.DisplayName!;

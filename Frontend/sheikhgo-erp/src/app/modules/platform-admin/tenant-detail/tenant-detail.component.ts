@@ -67,6 +67,7 @@ export class TenantDetailComponent implements OnInit {
   saving = false;
   resettingPassword = false;
   featuresLoading = false;
+  activityError = false;
   tenantId?: number;
   tenant?: TenantDetail;
   modules: TenantModuleDefinition[] = [];
@@ -81,6 +82,10 @@ export class TenantDetailComponent implements OnInit {
   menuTopLabels: string[] = [];
   recentActivity: AuditEventListItem[] = [];
   adminInfo?: TenantAdminInfo | null;
+  /** Configuration | Domains | Limits — Domains empty until a real domains API exists. */
+  activeTab: 'configuration' | 'domains' | 'limits' = 'configuration';
+  /** Invoice/subscription rows when overview loads; else license presence drives KPI. */
+  subscriptionCount = 0;
 
   readonly planTiers = TENANT_PLAN_TIERS;
   readonly planDefinitions = PLAN_DEFINITIONS;
@@ -131,6 +136,84 @@ export class TenantDetailComponent implements OnInit {
     return this.auth.hasPermission('Platform.Tenants.Manage');
   }
 
+  get enabledFeatureCount(): number {
+    return this.features.filter(f => f.isEnabled).length;
+  }
+
+  get kpiEmployees(): number | null {
+    if (!this.userSummary && !this.tenant) return null;
+    return this.userSummary?.totalUsers ?? this.tenant?.activeUserCount ?? 0;
+  }
+
+  get kpiDepartments(): number | null {
+    if (!this.tenant && !this.userSummary) return null;
+    return this.tenant?.departmentCount ?? this.userSummary?.departmentCount ?? 0;
+  }
+
+  get kpiUsers(): number | null {
+    if (!this.userSummary && !this.tenant) return null;
+    return this.userSummary?.totalUsers ?? this.tenant?.activeUserCount ?? 0;
+  }
+
+  get kpiDrivers(): number | null {
+    if (!this.tenant && !this.userSummary) return null;
+    return this.tenant?.activeDriverCount ?? this.userSummary?.drivers ?? 0;
+  }
+
+  get kpiVehicles(): number | null {
+    if (!this.tenant) return null;
+    return this.tenant.activeVehicleCount ?? 0;
+  }
+
+  get kpiModules(): number | null {
+    if (!this.tenant) return null;
+    return (this.form.controls.moduleCodes.value ?? this.tenant.moduleCodes ?? []).length;
+  }
+
+  get kpiFeatures(): number | null {
+    if (this.loading) return null;
+    return this.enabledFeatureCount;
+  }
+
+  get kpiSubscriptions(): number | null {
+    if (this.loading) return null;
+    if (this.subscriptionCount > 0) return this.subscriptionCount;
+    return this.license ? 1 : 0;
+  }
+
+  /** No dedicated integrations API — show 0 until one exists (never invent). */
+  get kpiIntegrations(): number | null {
+    if (this.loading) return null;
+    return 0;
+  }
+
+  /** UI label: Starter plan shown as Basic to match configuration mock. */
+  planUiLabel(planName: string): string {
+    return planName === 'Starter' ? 'Basic' : planName;
+  }
+
+  setTab(tab: 'configuration' | 'domains' | 'limits'): void {
+    this.activeTab = tab;
+  }
+
+  isActivityFailed(e: AuditEventListItem): boolean {
+    return e.success === false
+      || /fail|error|denied/i.test(e.eventKey || '')
+      || /fail|error/i.test(e.severity || '');
+  }
+
+  copyLicenseKey(): void {
+    const key = this.license?.subscriptionCode?.trim();
+    if (!key) {
+      this.toast.warning('No license key available for this company.');
+      return;
+    }
+    void navigator.clipboard.writeText(key).then(
+      () => this.toast.success('License key copied.'),
+      () => this.toast.error('Could not copy license key.')
+    );
+  }
+
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');
     if (!idParam) {
@@ -169,13 +252,19 @@ export class TenantDetailComponent implements OnInit {
         catchError(() => of(null as MenuCatalog | null))
       ),
       recentActivity: this.platform.getRecentAuditEvents(this.tenantId, null, 20).pipe(
-        catchError(() => of([] as AuditEventListItem[]))
+        catchError(() => {
+          this.activityError = true;
+          return of([] as AuditEventListItem[]);
+        })
+      ),
+      subscriptionOverview: this.platform.getSubscriptionOverview(this.tenantId).pipe(
+        catchError(() => of(null))
       ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, recentActivity, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, recentActivity, subscriptionOverview, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
@@ -184,6 +273,8 @@ export class TenantDetailComponent implements OnInit {
         this.userSummary = userSummary;
         this.companyRoles = roles ?? [];
         this.recentActivity = recentActivity ?? [];
+        const invoices = subscriptionOverview?.invoices?.length ?? 0;
+        this.subscriptionCount = invoices > 0 ? invoices : (subscriptionOverview?.subscription ? 1 : 0);
         this.permissionCatalogCount = permissions?.length ?? 0;
         this.permissionCategories = [...new Set(
           (permissions ?? [])

@@ -261,15 +261,20 @@ public sealed partial class PlatformRepository
         int userId, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        // Prefer the home Users row for this userId. Do not require u.TenantId = scoped
+        // tenant — platform SuperAdmin company deep-links (X-Tenant-Id) would otherwise
+        // miss yesterday/home workspace profiles and lose elevated RoleCode hints.
+        // When multiple rows exist, prefer the matching tenant then lowest Id.
         return await connection.QuerySingleOrDefaultAsync<(string? DefaultWorkspaceKey, string? HomeRoute, string? RoleCode)>(
             new CommandDefinition("""
-                SELECT u.DefaultWorkspaceKey, u.HomeRoute,
+                SELECT TOP 1 u.DefaultWorkspaceKey, u.HomeRoute,
                        (SELECT TOP 1 r.Code
                         FROM UserRoles ur INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
                         WHERE ur.UserId = u.Id
                         ORDER BY COALESCE(r.SortOrder, 9999), r.Code) AS RoleCode
                 FROM Users u
-                WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
+                WHERE u.Id = @UserId AND u.IsDeleted = 0
+                ORDER BY CASE WHEN u.TenantId = @TenantId THEN 0 ELSE 1 END, u.Id
                 """,
                 new { UserId = userId, TenantId = tenantId },
                 cancellationToken: cancellationToken));

@@ -43,6 +43,24 @@ public class PermissionEngine(IDbConnectionFactory dbFactory) : IPermissionEngin
             EnsureLegacyBridge(codes, (UserRole)legacyRole.Value);
         }
 
+        // Platform SUPER_ADMIN is global. When a SuperAdmin deep-links into another
+        // company (X-Tenant-Id), UserRoles for that tenant are empty and legacy
+        // Users.Role=Admin would otherwise demote them to TENANT_ADMIN — which
+        // strips Platform.Tenants.* and hides Companies / tenant detail.
+        var holdsPlatformSuperAdmin = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+            SELECT TOP 1 1
+            FROM UserRoles ur
+            INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+            WHERE ur.UserId = @UserId AND UPPER(r.Code) = N'SUPER_ADMIN'
+            """, new { UserId = userId }, cancellationToken: cancellationToken)) == 1;
+
+        if (holdsPlatformSuperAdmin
+            && !codes.Contains(PlatformRoles.SuperAdmin, StringComparer.OrdinalIgnoreCase))
+        {
+            codes.Insert(0, PlatformRoles.SuperAdmin);
+            codes = RoleCodePriority.OrderByPrivilege(codes).ToList();
+        }
+
         var isSuperAdmin = codes.Contains(PlatformRoles.SuperAdmin, StringComparer.OrdinalIgnoreCase);
         var isTenantAdmin = codes.Contains(PlatformRoles.TenantAdmin, StringComparer.OrdinalIgnoreCase);
 

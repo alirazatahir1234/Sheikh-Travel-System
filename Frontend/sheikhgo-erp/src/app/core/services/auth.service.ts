@@ -141,7 +141,9 @@ export class AuthService {
 
   hasRole(role: string): boolean {
     const user = this.getCurrentUser();
-    return user?.roles?.includes(role) ?? false;
+    if (!user?.roles?.length || !role) return false;
+    const needle = role.toUpperCase();
+    return user.roles.some(r => (r || '').toUpperCase() === needle);
   }
 
   getHomeRoute(): string {
@@ -160,13 +162,17 @@ export class AuthService {
   hasPermission(permission: string): boolean {
     const user = this.getCurrentUser();
     if (!user) return false;
-    if (user.roles?.some(r => r.toUpperCase() === 'SUPER_ADMIN')) return true;
+    // SUPER_ADMIN / SuperAdmin / SUPERADMIN — platform operator bypass.
+    if (user.roles?.some(r => {
+      const code = (r || '').toUpperCase().replace(/[\s-]/g, '_');
+      return code === 'SUPER_ADMIN' || code === 'SUPERADMIN';
+    })) return true;
     return user.permissions?.includes(permission) ?? false;
   }
 
   hasAnyPermission(permissions: string[]): boolean {
     if (!permissions.length) return true;
-    if (this.hasRole('SUPER_ADMIN')) return true;
+    if (this.hasRole('SUPER_ADMIN') || this.hasRole('SuperAdmin') || this.hasRole('SUPERADMIN')) return true;
     return permissions.some(p => this.hasPermission(p));
   }
 

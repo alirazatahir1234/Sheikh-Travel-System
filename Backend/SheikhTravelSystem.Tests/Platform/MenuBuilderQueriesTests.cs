@@ -32,4 +32,29 @@ public class MenuBuilderQueriesTests
         MenuBuilderQueries.IsMenuItemEnabledByModule("Trip.View", ["trips"], null).Should().BeTrue();
         MenuBuilderQueries.IsMenuItemEnabledByModule("Booking.View", ["trips"], null).Should().BeTrue();
     }
+
+    [Fact]
+    public void BuildUserMenu_grantFullCatalog_includes_Platform_Tenants_without_permission_set()
+    {
+        var modules = new List<MenuBuilderQueries.ModuleRow>
+        {
+            new(1, "Organization", "organization", "corporate_fare", 10, true, "Organization", null, true)
+        };
+        var menus = new List<MenuBuilderQueries.MenuRow>
+        {
+            new(1, 1, null, "Companies", "/platform/tenants", "business", "Platform.Tenants.View",
+                10, true, "Companies", null, null, true, null, null, false)
+        };
+
+        var denied = MenuBuilderQueries.BuildUserMenu(
+            modules, menus, new HashSet<string>(), ["organization", "platform"],
+            new Dictionary<string, bool>(), grantFullCatalog: false);
+        denied.Should().BeEmpty();
+
+        var allowed = MenuBuilderQueries.BuildUserMenu(
+            modules, menus, new HashSet<string>(), ["organization", "platform"],
+            new Dictionary<string, bool>(), grantFullCatalog: true);
+        allowed.Should().ContainSingle()
+            .Which.Items.Should().ContainSingle(i => i.Route == "/platform/tenants");
+    }
 }

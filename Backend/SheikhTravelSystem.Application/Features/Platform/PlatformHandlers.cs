@@ -469,8 +469,11 @@ public class GetUserMenuQueryHandler(
         var (modules, menus) = await platformRepository.LoadNavTablesAsync(activeMenusOnly: true, cancellationToken: cancellationToken);
 
         IReadOnlyList<string>? workspaceModuleKeys = null;
-        var isSuperAdmin = access.RoleCodes.Any(c =>
-            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
+        // Prefer JWT / platform-operator claim so company deep-links (X-Tenant-Id)
+        // do not lose SuperAdmin when tenant-scoped RolePermissions omit SUPER_ADMIN.
+        var isSuperAdmin = currentUser.IsPlatformSuperAdmin
+            || access.RoleCodes.Any(c =>
+                string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
         var isTenantAdmin = access.RoleCodes.Any(c =>
             string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase));
         // SuperAdmin + TenantAdmin skip workspace soft-focus (operational roles only).
@@ -496,7 +499,13 @@ public class GetUserMenuQueryHandler(
         }
 
         var result = MenuBuilderQueries.BuildUserMenu(
-            modules, menus, permissionSet, enabledModules, featureFlags, workspaceModuleKeys);
+            modules,
+            menus,
+            permissionSet,
+            enabledModules,
+            featureFlags,
+            workspaceModuleKeys,
+            grantFullCatalog: isSuperAdmin);
         return ApiResponse<IReadOnlyList<MenuModuleDto>>.SuccessResponse(result);
     }
 }
