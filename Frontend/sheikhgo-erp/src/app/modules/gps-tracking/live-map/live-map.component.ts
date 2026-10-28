@@ -38,9 +38,12 @@ import { buildStreetViewStaticUrl } from '../../../core/google-maps/gmap-static-
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { GpsRealtimeService, GpsConnectionState } from '../../../core/services/gps-realtime.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { PlatformService } from '../../../core/services/platform.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { TripService } from '../../../core/services/trip.service';
+import { Tenant } from '../../../core/models/platform.model';
 import {
   VehicleLocation,
   PositionDto,
@@ -54,7 +57,7 @@ import {
   FleetVehicleHealth,
   FleetHealthSummary
 } from '../../../core/models/gps-tracking.model';
-import { VehicleListItem } from '../../../core/models/vehicle.model';
+import { VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.model';
 import {
   MOVING_THRESHOLD_KMH,
   resolveFleetStatus,
@@ -226,6 +229,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   statusFilter: StatusFilter = 'all';
   ignitionFilter: IgnitionFilter = 'all';
   batteryLowOnly = false;
+  /** Super Admin company scope — same pattern as GPS Alerts. */
+  isSuperAdmin = false;
+  companyFilterId: number | null = null;
+  companies: Tenant[] = [];
+  companiesLoading = false;
+  /** Explicit vehicle dropdown filter (in addition to search / status chips). */
+  vehicleFilterId: number | null = null;
   panelCollapsed = false;
   filterApplying = false;
   /** Vehicle id currently waiting on reverse-geocode for the detail panel. */
@@ -364,6 +374,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private gpsService: GpsTrackingService,
     private realtime: GpsRealtimeService,
+    private auth: AuthService,
+    private platform: PlatformService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
     private tripService: TripService,
@@ -374,15 +386,21 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
+  /** Active company override for Super Admin API calls (X-Tenant-Id). */
+  private get tenantScopeId(): number | null | undefined {
+    return this.isSuperAdmin ? this.companyFilterId : undefined;
+  }
+
   ngOnInit(): void {
+    this.isSuperAdmin = this.auth.hasRole('SUPER_ADMIN');
     this.restoreFilters();
     this.applyDeepLinkParams(this.route.snapshot.queryParamMap);
     this.route.queryParamMap.subscribe(params => this.applyDeepLinkParams(params));
 
-    this.vehicleService.getAll(1, 500).subscribe({
-      next: r => { this.vehicles = r.items; },
-      error: () => {}
-    });
+    if (this.isSuperAdmin) {
+      this.loadCompanies();
+    }
+    this.loadFilterVehicles();
     this.gpsService.getGeofenceBreachCount().subscribe({
       next: c => { this.geofenceBreachCount = c; },
       error: () => {}
@@ -438,10 +456,22 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private applyDeepLinkParams(params: import('@angular/router').ParamMap): void {
+    const companyIdParam = params.get('companyId') ?? params.get('tenantId');
+    if (companyIdParam && this.isSuperAdmin) {
+      const companyId = Number(companyIdParam);
+      if (Number.isFinite(companyId) && companyId > 0 && this.companyFilterId !== companyId) {
+        this.companyFilterId = companyId;
+        this.loadFilterVehicles();
+        this.loadLocations(true, true);
+        this.loadFleetStatus();
+      }
+    }
+
     const vehicleIdParam = params.get('vehicleId');
     if (vehicleIdParam) {
       const id = Number(vehicleIdParam);
       if (Number.isFinite(id) && id > 0) {
+        this.vehicleFilterId = id;
         this.pendingFocusVehicleId = id;
         this.selectedVehicleId = id;
         const already = this.locations.find(l => l.vehicleId === id);
@@ -449,6 +479,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.focusVehicle(already);
           this.pendingFocusVehicleId = null;
         }
+        this.rebuildFilteredLocations();
       }
     }
 
@@ -706,11 +737,14 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.searchQuery.trim().length > 0 ||
       this.statusFilter !== 'all' ||
       this.ignitionFilter !== 'all' ||
-      this.batteryLowOnly
+      this.batteryLowOnly ||
+      this.vehicleFilterId != null ||
+      (this.isSuperAdmin && this.companyFilterId != null)
     );
   }
 
   private matchesVehicleFilters(loc: VehicleLocation): boolean {
+    if (this.vehicleFilterId != null && loc.vehicleId !== this.vehicleFilterId) return false;
     const q = this.searchQuery.trim().toLowerCase();
     if (!this.matchesStatusFilter(loc.status)) return false;
     if (this.ignitionFilter === 'on' && loc.ignition !== true) return false;
@@ -726,6 +760,99 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       (loc.imei?.toLowerCase().includes(q) ?? false) ||
       (loc.trackerName?.toLowerCase().includes(q) ?? false)
     );
+  }
+
+  private loadCompanies(): void {
+    this.companiesLoading = true;
+    this.platform.getTenants().subscribe({
+      next: list => {
+        this.companies = (list ?? []).filter(t => t.isActive !== false);
+        this.companiesLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.companiesLoading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private loadFilterVehicles(): void {
+    const tenantScope = this.isSuperAdmin ? this.companyFilterId : undefined;
+    this.vehicleService.getAll(1, 500, false, tenantScope ?? undefined).subscribe({
+      next: r => {
+        this.vehicles = r.items.filter(v => v.status !== VehicleStatus.Retired);
+        if (this.vehicleFilterId != null && !this.vehicles.some(v => v.id === this.vehicleFilterId)) {
+          this.vehicleFilterId = null;
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.vehicles = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  onCompanyFilterChange(tenantId: number | null): void {
+    this.companyFilterId = tenantId;
+    this.vehicleFilterId = null;
+    this.selectedVehicleId = null;
+    this.selectedLocation = null;
+    this.persistFilters();
+    this.markUserActive();
+    this.loadFilterVehicles();
+    this.beginRefreshUi();
+    this.loadLocations(false, true);
+    this.loadFleetStatus();
+    this.syncCompanyQueryParam();
+    this.syncVehicleQueryParam();
+    this.cdr.markForCheck();
+  }
+
+  onVehicleFilterChange(id: number | null): void {
+    this.vehicleFilterId = id;
+    this.persistFilters();
+    this.markUserActive();
+    this.applyVisibleMarkers();
+    this.syncVehicleQueryParam();
+    if (id != null) {
+      const match = this.locations.find(l => l.vehicleId === id);
+      if (match) this.selectVehicle(match);
+    }
+    this.cdr.markForCheck();
+  }
+
+  private syncVehicleQueryParam(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { vehicleId: this.vehicleFilterId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  private syncCompanyQueryParam(): void {
+    if (!this.isSuperAdmin) return;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { companyId: this.companyFilterId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  companyFilterLabel(): string {
+    if (this.companyFilterId == null) return 'All companies';
+    return this.companies.find(c => c.id === this.companyFilterId)?.name ?? `Company #${this.companyFilterId}`;
+  }
+
+  vehicleFilterLabel(): string {
+    if (this.vehicleFilterId == null) return 'All vehicles';
+    const v = this.vehicles.find(x => x.id === this.vehicleFilterId);
+    if (v) return `${v.name} (${v.registrationNumber || '—'})`;
+    const loc = this.locations.find(l => l.vehicleId === this.vehicleFilterId);
+    return loc?.vehicleName ?? `Vehicle #${this.vehicleFilterId}`;
   }
 
   private rebuildFilteredLocations(): void {
@@ -1396,13 +1523,25 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearFilters(): void {
+    const companyChanged = this.isSuperAdmin && this.companyFilterId != null;
     this.searchQuery = '';
     this.statusFilter = 'all';
     this.ignitionFilter = 'all';
     this.batteryLowOnly = false;
+    this.vehicleFilterId = null;
+    if (this.isSuperAdmin) this.companyFilterId = null;
     this.persistFilters();
     this.markUserActive();
-    this.applyVisibleMarkers();
+    this.syncVehicleQueryParam();
+    if (companyChanged) {
+      this.syncCompanyQueryParam();
+      this.loadFilterVehicles();
+      this.beginRefreshUi();
+      this.loadLocations(false, true);
+      this.loadFleetStatus();
+    } else {
+      this.applyVisibleMarkers();
+    }
     this.cdr.markForCheck();
   }
 
@@ -1431,7 +1570,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           searchQuery: this.searchQuery,
           statusFilter: this.statusFilter,
           ignitionFilter: this.ignitionFilter,
-          batteryLowOnly: this.batteryLowOnly
+          batteryLowOnly: this.batteryLowOnly,
+          vehicleFilterId: this.vehicleFilterId,
+          companyFilterId: this.isSuperAdmin ? this.companyFilterId : null
         })
       );
     } catch {
@@ -1448,6 +1589,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         statusFilter?: StatusFilter;
         ignitionFilter?: IgnitionFilter;
         batteryLowOnly?: boolean;
+        vehicleFilterId?: number | null;
+        companyFilterId?: number | null;
       };
       if (typeof parsed.searchQuery === 'string') this.searchQuery = parsed.searchQuery;
       if (parsed.statusFilter && VALID_STATUS_FILTERS.has(parsed.statusFilter)) {
@@ -1457,6 +1600,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.ignitionFilter = parsed.ignitionFilter;
       }
       if (typeof parsed.batteryLowOnly === 'boolean') this.batteryLowOnly = parsed.batteryLowOnly;
+      if (parsed.vehicleFilterId == null || (typeof parsed.vehicleFilterId === 'number' && parsed.vehicleFilterId > 0)) {
+        this.vehicleFilterId = parsed.vehicleFilterId ?? null;
+      }
+      if (
+        this.isSuperAdmin &&
+        (parsed.companyFilterId == null ||
+          (typeof parsed.companyFilterId === 'number' && parsed.companyFilterId > 0))
+      ) {
+        this.companyFilterId = parsed.companyFilterId ?? null;
+      }
     } catch {
       /* ignore */
     }
@@ -1520,7 +1673,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadFleetStatus(): void {
-    this.gpsService.getFleetStatusLocal().subscribe({
+    const scope = this.tenantScopeId;
+    this.gpsService.getFleetStatusLocal(scope).subscribe({
       next: s => {
         this.fleetStatusLocal = s;
         this.rebuildLiveKpiTiles();
@@ -1537,7 +1691,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadFleetHealth(): void {
     this.fleetHealthLoading = true;
-    this.gpsService.getFleetHealth().subscribe({
+    this.gpsService.getFleetHealth(this.tenantScopeId).subscribe({
       next: summary => {
         this.fleetHealthLoading = false;
         this.applyFleetHealthSummary(summary);
@@ -1572,7 +1726,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       from = new Date(to.getTime() - this.fleetOverviewRangeDays * 24 * 60 * 60 * 1000);
     }
-    this.gpsService.getFleetStatusHistory(from, to).subscribe({
+    this.gpsService.getFleetStatusHistory(from, to, this.tenantScopeId).subscribe({
       next: rows => {
         this.fleetStatusHistory = rows;
         this.recomputeKpiTiles();
@@ -2153,7 +2307,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.isRefreshingLocations = true;
     if (!silent) this.loading = true;
-    this.gpsService.getAllVehicleLocations().subscribe({
+    this.gpsService.getAllVehicleLocations(this.tenantScopeId).subscribe({
       next: locs => {
         const prevMoving = new Set(
           this.locations.filter(l => l.status === 'moving').map(l => l.vehicleId)

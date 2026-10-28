@@ -204,15 +204,18 @@ export class GpsTrackingService {
    * Live-map roster. Prefer GET /gps/live/fleet (GPS.View only) so FLEET_MANAGER / GPS operators
    * are not blocked by Vehicle.View 403s or empty scoped /vehicles responses. Falls back to the
    * legacy vehicles+live+devices join only if the dedicated roster endpoint is unavailable.
+   * @param tenantScopeId Super Admin company override via X-Tenant-Id (same as alerts fallback).
    */
-  getAllVehicleLocations(): Observable<VehicleLocation[]> {
-    return this.http.get<GpsLiveFleetVehicleDto[]>(`${this.base}/live/fleet`).pipe(
+  getAllVehicleLocations(tenantScopeId?: number | null): Observable<VehicleLocation[]> {
+    return this.http.get<GpsLiveFleetVehicleDto[]>(`${this.base}/live/fleet`, {
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    }).pipe(
       map(rows => (rows ?? []).map(row => this.mapLiveFleetRow(row))),
       catchError(err => {
         // Older APIs without /live/fleet — keep previous join path. Other failures must surface
         // so the live map does not silently show "0 of 0".
         if (err?.status === 404) {
-          return this.getAllVehicleLocationsLegacy();
+          return this.getAllVehicleLocationsLegacy(tenantScopeId);
         }
         return throwError(() => err);
       })
@@ -293,14 +296,19 @@ export class GpsTrackingService {
   }
 
   /** Legacy join used only when /gps/live/fleet is missing (older API) or fails transiently. */
-  private getAllVehicleLocationsLegacy(): Observable<VehicleLocation[]> {
+  private getAllVehicleLocationsLegacy(tenantScopeId?: number | null): Observable<VehicleLocation[]> {
+    const scoped = this.tenantScopedHttpOptions(tenantScopeId);
     return forkJoin({
       tracking: this.http
-        .get<PagedResult<PositionDto>>(`${this.base}/live`, { params: { pageSize: LIVE_FLEET_PAGE_SIZE } })
+        .get<PagedResult<PositionDto>>(`${this.base}/live`, {
+          params: { pageSize: LIVE_FLEET_PAGE_SIZE },
+          ...scoped
+        })
         .pipe(map(r => r.items), catchError(() => of([] as PositionDto[]))),
-      vehicles: this.vehicleService.getAll(1, LIVE_FLEET_PAGE_SIZE).pipe(catchError(() => of({ items: [] }))),
+      vehicles: this.vehicleService.getAll(1, LIVE_FLEET_PAGE_SIZE, false, tenantScopeId ?? undefined)
+        .pipe(catchError(() => of({ items: [] }))),
       drivers: this.driverService.getAll(1, LIVE_FLEET_PAGE_SIZE).pipe(catchError(() => of({ items: [] }))),
-      devices: this.getDevices().pipe(catchError(() => of([])))
+      devices: this.getDevices(tenantScopeId).pipe(catchError(() => of([])))
     }).pipe(
       map(({ tracking, vehicles, drivers, devices }) => {
         const driverMap = new Map(drivers.items.map(d => [d.id, d.fullName]));
@@ -746,20 +754,29 @@ export class GpsTrackingService {
     return this.http.get<GpsFleetStatus>(`${this.base}/dashboard/fleet-status`);
   }
 
-  getFleetStatusLocal(): Observable<GpsFleetStatusLocal> {
-    return this.http.get<GpsFleetStatusLocal>(`${this.base}/dashboard/fleet-status-local`);
+  getFleetStatusLocal(tenantScopeId?: number | null): Observable<GpsFleetStatusLocal> {
+    return this.http.get<GpsFleetStatusLocal>(
+      `${this.base}/dashboard/fleet-status-local`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
   /** Explainable fleet health (Optimal/Healthy/Attention/Critical/Unknown) — real factors only. */
-  getFleetHealth(): Observable<FleetHealthSummary> {
-    return this.http.get<FleetHealthSummary>(`${this.base}/fleet-health`);
+  getFleetHealth(tenantScopeId?: number | null): Observable<FleetHealthSummary> {
+    return this.http.get<FleetHealthSummary>(
+      `${this.base}/fleet-health`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
   }
 
-  getFleetStatusHistory(from?: Date, to?: Date): Observable<GpsFleetStatusSnapshot[]> {
+  getFleetStatusHistory(from?: Date, to?: Date, tenantScopeId?: number | null): Observable<GpsFleetStatusSnapshot[]> {
     const params: Record<string, string> = {};
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
-    return this.http.get<GpsFleetStatusSnapshot[]>(`${this.base}/dashboard/fleet-status-history`, { params });
+    return this.http.get<GpsFleetStatusSnapshot[]>(`${this.base}/dashboard/fleet-status-history`, {
+      params,
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    });
   }
 
   getTripContext(vehicleId: number): Observable<TripDeviceContext> {
@@ -1057,8 +1074,10 @@ export class GpsTrackingService {
     return this.http.get<number>(`${this.base}/alerts/geofence-breaches/count`);
   }
 
-  getDevices(): Observable<GpsDevice[]> {
-    return this.http.get<TrackerDetail[]>(`${this.base}/trackers`).pipe(
+  getDevices(tenantId?: number | null): Observable<GpsDevice[]> {
+    let params = new HttpParams();
+    if (tenantId != null) params = params.set('tenantId', tenantId);
+    return this.http.get<TrackerDetail[]>(`${this.base}/trackers`, { params }).pipe(
       map(list => list as GpsDevice[])
     );
   }
