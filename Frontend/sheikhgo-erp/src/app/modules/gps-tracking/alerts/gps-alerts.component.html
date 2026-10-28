@@ -78,33 +78,13 @@
       <span>Quiet hours active ({{ quietHours.start }}–{{ quietHours.end }}) — push may be suppressed per your prefs.</span>
     </div>
 
-    <section class="filters-panel" aria-label="Alert scope filters">
+    <section class="filters-panel" aria-label="Alert driver filter">
       <div class="filter-block filter-block--last">
         <div class="filter-block__head">
-          <mat-icon aria-hidden="true">travel_explore</mat-icon>
-          <span class="filter-block__title">Scope</span>
+          <mat-icon aria-hidden="true">person</mat-icon>
+          <span class="filter-block__title">Driver</span>
         </div>
         <div class="filter-entity-row">
-          <div class="filter-entity filter-entity--company" *ngIf="isSuperAdmin">
-            <mat-icon class="filter-entity__icon" aria-hidden="true">business</mat-icon>
-            <mat-form-field appearance="outline" class="filter-entity__field">
-              <mat-label>Company</mat-label>
-              <mat-select [value]="companyFilterId" [disabled]="companiesLoading" (selectionChange)="onCompanyFilterChange($event.value)">
-                <mat-option [value]="null">All companies</mat-option>
-                <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-          <div class="filter-entity filter-entity--vehicle">
-            <mat-icon class="filter-entity__icon" aria-hidden="true">directions_car</mat-icon>
-            <mat-form-field appearance="outline" class="filter-entity__field">
-              <mat-label>Vehicle</mat-label>
-              <mat-select [value]="vehicleFilterId" (selectionChange)="onVehicleFilterChange($event.value)">
-                <mat-option [value]="null">All vehicles</mat-option>
-                <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber || '—' }})</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
           <div class="filter-entity filter-entity--driver">
             <mat-icon class="filter-entity__icon" aria-hidden="true">person</mat-icon>
             <mat-form-field appearance="outline" class="filter-entity__field">

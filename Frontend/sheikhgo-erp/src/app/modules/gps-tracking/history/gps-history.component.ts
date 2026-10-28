@@ -1,11 +1,12 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, timer, Subject, mergeMap, catchError, of, tap, forkJoin, interval } from 'rxjs';
+import { skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
-import { VehicleService } from '../../../core/services/vehicle.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.model';
+import { VehicleListItem } from '../../../core/models/vehicle.model';
+import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import {
   GpsDevice,
   HistoryReplayBundle,
@@ -146,15 +147,21 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private liveLocSub?: Subscription;
   private clockSub?: Subscription;
   private compareLoadSub?: Subscription;
+  private scopeSub?: Subscription;
+  private vehiclesSub?: Subscription;
 
   constructor(
     private gps: GpsTrackingService,
-    private vehicleService: VehicleService,
+    private scopeFilter: GpsScopeFilterService,
     private exportService: ExportService,
     private toast: UiToastService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
+
+  private get tenantScopeId(): number | null | undefined {
+    return this.scopeFilter.tenantScopeId;
+  }
 
   ngOnInit(): void {
     const prefs = readHistoryPagePrefs();
@@ -168,6 +175,30 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.clockSub = interval(30_000).subscribe(tick => {
       this.clockNow = Date.now();
       if (tick > 0 && tick % 4 === 0) this.refreshLiveLocations();
+    });
+
+    this.vehiclesSub = this.scopeFilter.vehicles$.subscribe(list => {
+      this.vehicles = list;
+      if (this.vehicleId != null && !list.some(v => v.id === this.vehicleId)) {
+        this.clearHistorySelection();
+      }
+      if (!this.vehicleId) this.readQueryParams();
+    });
+
+    this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(state => {
+      this.gps.getDevices(this.tenantScopeId).subscribe({
+        next: d => { this.devices = d; },
+        error: () => {}
+      });
+      this.refreshLiveLocations();
+      if (state.vehicleId != null) {
+        if (this.vehicleId !== state.vehicleId) {
+          this.applyVehicleSelection(state.vehicleId, false);
+        }
+      } else {
+        // Company cleared/changed with no vehicle — drop stale route for other tenant.
+        this.clearHistorySelection();
+      }
     });
 
     this.geocodeSub = this.geocodeRequests$.pipe(
@@ -200,14 +231,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       }, 2)
     ).subscribe();
 
-    this.vehicleService.getAll(1, 500).subscribe({
-      next: r => {
-        this.vehicles = r.items.filter(v => v.status !== VehicleStatus.Retired);
-        this.readQueryParams();
-      }
-    });
+    this.vehicles = this.scopeFilter.vehicles;
+    this.readQueryParams();
 
-    this.gps.getDevices().subscribe({
+    this.gps.getDevices(this.tenantScopeId).subscribe({
       next: d => { this.devices = d; },
       error: () => {}
     });
@@ -221,7 +248,20 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.liveLocSub?.unsubscribe();
     this.clockSub?.unsubscribe();
     this.compareLoadSub?.unsubscribe();
+    this.scopeSub?.unsubscribe();
+    this.vehiclesSub?.unsubscribe();
     this.geocodeRequests$.complete();
+  }
+
+  private clearHistorySelection(): void {
+    this.vehicleId = null;
+    this.bundle = null;
+    this.selectedPosition = null;
+    this.detailPanelOpen = false;
+    this.rawPositions = [];
+    this.noData = false;
+    this.error = '';
+    this.compareOverlays = [];
   }
 
   get filteredVehicles(): VehicleListItem[] {
@@ -444,10 +484,16 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   selectVehicle(id: number): void {
+    this.applyVehicleSelection(id, true);
+  }
+
+  /** @param syncGlobal when true, push selection into the shared GPS scope bar. */
+  private applyVehicleSelection(id: number, syncGlobal: boolean): void {
     this.vehicleId = id;
     this.compareSelectedIds.add(id);
     this.compareSelectedIds = new Set(this.compareSelectedIds);
     this.pushRecentVehicle(id);
+    if (syncGlobal) this.scopeFilter.setVehicle(id);
     this.updateUrl();
     this.load();
   }
@@ -525,7 +571,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       this.vehicleId,
       fromDate,
       toDate,
-      this.replayOptionsForWindow(fromDate, toDate)
+      {
+        ...this.replayOptionsForWindow(fromDate, toDate),
+        tenantScopeId: this.tenantScopeId
+      }
     ).subscribe({
       next: bundle => {
         this.finishLoading();
@@ -1044,7 +1093,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (!this.vehicleId) return;
     const fromDate = new Date(this.from);
     const toDate = new Date(this.to);
-    this.gps.exportHistory(this.vehicleId, fromDate, toDate, format).subscribe({
+    this.gps.exportHistory(this.vehicleId, fromDate, toDate, format, this.tenantScopeId).subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1110,7 +1159,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   private refreshLiveLocations(): void {
     this.liveLocSub?.unsubscribe();
-    this.liveLocSub = this.gps.getAllVehicleLocations().subscribe({
+    this.liveLocSub = this.gps.getAllVehicleLocations(this.tenantScopeId).subscribe({
       next: rows => {
         this.liveLocations = new Map(rows.map(r => [r.vehicleId, r]));
         this.clockNow = Date.now();
@@ -1167,7 +1216,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.compareLoading = true;
     this.compareLoadSub = forkJoin(
       ids.map(id =>
-        this.gps.getHistoryReplay(id, fromDate, toDate, this.replayOptionsForWindow(fromDate, toDate)).pipe(
+        this.gps.getHistoryReplay(id, fromDate, toDate, {
+          ...this.replayOptionsForWindow(fromDate, toDate),
+          tenantScopeId: this.tenantScopeId
+        }).pipe(
           catchError(() => of(null))
         )
       )
@@ -1239,7 +1291,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
     this.rawLoadSub?.unsubscribe();
     return new Promise(resolve => {
-      this.rawLoadSub = this.gps.getHistory(this.vehicleId!, from, to).subscribe({
+      this.rawLoadSub = this.gps.getHistory(this.vehicleId!, from, to, this.tenantScopeId).subscribe({
         next: rows => {
           const mapped = this.mapRawPositions(rows);
           this.rawHistoryCache.set(key, mapped);

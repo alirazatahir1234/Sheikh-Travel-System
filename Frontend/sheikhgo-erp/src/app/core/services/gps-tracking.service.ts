@@ -674,11 +674,19 @@ export class GpsTrackingService {
       );
   }
 
-  getHistory(vehicleId: number, from?: Date, to?: Date): Observable<PositionDto[]> {
+  getHistory(
+    vehicleId: number,
+    from?: Date,
+    to?: Date,
+    tenantScopeId?: number | null
+  ): Observable<PositionDto[]> {
     const params: Record<string, string> = {};
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
-    return this.http.get<PositionDto[]>(`${this.base}/history/${vehicleId}`, { params });
+    return this.http.get<PositionDto[]>(`${this.base}/history/${vehicleId}`, {
+      params,
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    });
   }
 
   getHistoryReplay(
@@ -690,6 +698,8 @@ export class GpsTrackingService {
       routeMaxPoints?: number;
       playbackMaxPoints?: number;
       includeRaw?: boolean;
+      /** Super Admin company override via X-Tenant-Id. */
+      tenantScopeId?: number | null;
     }
   ): Observable<HistoryReplayBundle> {
     const params: Record<string, string> = {};
@@ -700,14 +710,18 @@ export class GpsTrackingService {
     if (options?.routeMaxPoints != null) params['routeMaxPoints'] = String(options.routeMaxPoints);
     if (options?.playbackMaxPoints != null) params['playbackMaxPoints'] = String(options.playbackMaxPoints);
     if (options?.includeRaw != null) params['includeRaw'] = String(options.includeRaw);
-    return this.http.get<HistoryReplayBundle>(`${this.base}/history/replay`, { params });
+    return this.http.get<HistoryReplayBundle>(`${this.base}/history/replay`, {
+      params,
+      ...this.tenantScopedHttpOptions(options?.tenantScopeId)
+    });
   }
 
   exportHistory(
     vehicleId: number,
     from: Date,
     to: Date,
-    format: 'csv' | 'gpx' | 'geojson' | 'kml'
+    format: 'csv' | 'gpx' | 'geojson' | 'kml',
+    tenantScopeId?: number | null
   ): Observable<Blob> {
     const params: Record<string, string> = {
       from: from.toISOString(),
@@ -716,7 +730,8 @@ export class GpsTrackingService {
     };
     return this.http.get(`${this.base}/history/${vehicleId}/export`, {
       params,
-      responseType: 'blob'
+      responseType: 'blob',
+      ...this.tenantScopedHttpOptions(tenantScopeId)
     });
   }
 

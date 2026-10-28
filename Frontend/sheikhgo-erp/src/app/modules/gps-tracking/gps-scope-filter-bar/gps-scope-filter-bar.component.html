@@ -1,0 +1,44 @@
+<section class="gps-scope-bar" aria-label="Company and vehicle scope">
+  <div class="gps-scope-bar__entities">
+    <div class="filter-entity filter-entity--company" *ngIf="scope.isSuperAdmin">
+      <mat-icon class="filter-entity__icon" aria-hidden="true">business</mat-icon>
+      <mat-form-field appearance="outline" class="filter-entity__field">
+        <mat-label>Company</mat-label>
+        <mat-select
+          [value]="scope.companyFilterId"
+          [disabled]="scope.companiesLoading"
+          (selectionChange)="onCompanyChange($event.value)">
+          <mat-option [value]="null">All companies</mat-option>
+          <mat-option *ngFor="let c of scope.companies" [value]="c.id">{{ c.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="filter-entity filter-entity--vehicle">
+      <mat-icon class="filter-entity__icon" aria-hidden="true">directions_car</mat-icon>
+      <mat-form-field appearance="outline" class="filter-entity__field">
+        <mat-label>Vehicle</mat-label>
+        <mat-select
+          [value]="scope.vehicleFilterId"
+          [disabled]="scope.vehiclesLoading"
+          (selectionChange)="onVehicleChange($event.value)">
+          <mat-option [value]="null">All vehicles</mat-option>
+          <mat-option *ngFor="let v of scope.vehicles" [value]="v.id">
+            {{ v.name }} ({{ v.registrationNumber || '—' }})
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
+    <span class="applied-label">Scope</span>
+    <span class="filter-tag" *ngIf="scope.isSuperAdmin && scope.companyFilterId != null">
+      Company: {{ scope.companyLabel() }}
+    </span>
+    <span class="filter-tag" *ngIf="scope.vehicleFilterId != null">
+      Vehicle: {{ scope.vehicleLabel() }}
+    </span>
+    <button type="button" class="clear-scope" (click)="clearScope()">Clear scope</button>
+  </div>
+</section>

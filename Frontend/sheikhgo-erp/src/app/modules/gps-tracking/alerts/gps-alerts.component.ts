@@ -3,11 +3,9 @@ import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { FormBuilder, Validators } from '@angular/forms';
-import { catchError, finalize } from 'rxjs/operators';
+import { catchError, finalize, skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PlatformService } from '../../../core/services/platform.service';
-import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import {
@@ -17,9 +15,8 @@ import {
   GpsAlertStats,
   GpsAlertNotificationSetting
 } from '../../../core/models/gps-tracking.model';
-import { Tenant } from '../../../core/models/platform.model';
-import { VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.model';
 import { DriverListItem } from '../../../core/models/driver.model';
+import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import {
   GPS_ALERT_EVENT_TYPES,
   GpsAlertDisplayGroup,
@@ -73,7 +70,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   severityFilter: string | null = null;
   eventTypeFilter: string | null = null;
   datePreset = 'last24';
-  vehicleFilterId: number | null = null;
   driverFilterId: number | null = null;
   groupSimilar = true;
 
@@ -84,10 +80,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   isSuperAdmin = false;
   platformCrossTenantLimited = false;
-  companyFilterId: number | null = null;
-  companies: Tenant[] = [];
-  companiesLoading = false;
-  vehicles: VehicleListItem[] = [];
   drivers: DriverListItem[] = [];
 
   lastRefreshedAt: Date | null = null;
@@ -107,12 +99,12 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private platformAlertsSub: Subscription | null = null;
   private routeSub: Subscription | null = null;
+  private scopeSub: Subscription | null = null;
 
   constructor(
     private gps: GpsTrackingService,
     private auth: AuthService,
-    private platform: PlatformService,
-    private vehiclesApi: VehicleService,
+    private scopeFilter: GpsScopeFilterService,
     private driversApi: DriverService,
     private fb: FormBuilder,
     private toast: UiToastService,
@@ -136,7 +128,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     this.applyLifecycleTab(false);
 
     if (this.isSuperAdmin) {
-      this.loadCompanies();
       this.platformAlertsSub = this.gps.platformAlertsApiMissing$.subscribe(missing => {
         this.platformCrossTenantLimited = missing;
       });
@@ -145,10 +136,18 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     this.loadFilterOptions();
     this.loadNotificationSettings();
 
+    this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(() => {
+      this.resetPagination();
+      this.loadEvents();
+    });
+
     this.routeSub = this.route.queryParamMap.subscribe(params => {
       const vehicleId = params.get('vehicleId');
       const alertId = params.get('alertId');
-      if (vehicleId) this.vehicleFilterId = Number(vehicleId);
+      if (vehicleId) {
+        const id = Number(vehicleId);
+        if (Number.isFinite(id) && id > 0) this.scopeFilter.setVehicle(id);
+      }
       if (alertId) this.pendingAlertId = Number(alertId);
       this.loadEvents();
     });
@@ -164,6 +163,15 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
     this.platformAlertsSub?.unsubscribe();
     this.routeSub?.unsubscribe();
+    this.scopeSub?.unsubscribe();
+  }
+
+  get companyFilterId(): number | null {
+    return this.scopeFilter.companyFilterId;
+  }
+
+  get vehicleFilterId(): number | null {
+    return this.scopeFilter.vehicleFilterId;
   }
 
   get showCompanyColumn(): boolean {
@@ -223,22 +231,9 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   }
 
   loadFilterOptions(): void {
-    const tenantScope = this.isSuperAdmin ? this.companyFilterId : undefined;
-    this.vehiclesApi.getAll(1, 500, false, tenantScope ?? undefined).subscribe({
-      next: r => {
-        this.vehicles = r.items.filter(v => v.status !== VehicleStatus.Retired);
-      }
-    });
     this.driversApi.getAll({ page: 1, pageSize: 500 }).subscribe({
       next: r => { this.drivers = r.items; }
     });
-  }
-
-  onCompanyFilterChange(tenantId: number | null): void {
-    this.companyFilterId = tenantId;
-    this.resetPagination();
-    this.loadFilterOptions();
-    this.loadEvents();
   }
 
   setLifecycleTab(tab: GpsAlertLifecycleTab): void {
@@ -376,12 +371,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     this.loadEvents();
   }
 
-  onVehicleFilterChange(id: number | null): void {
-    this.vehicleFilterId = id;
-    this.resetPagination();
-    this.loadEvents();
-  }
-
   onDriverFilterChange(id: number | null): void {
     this.driverFilterId = id;
     this.resetPagination();
@@ -465,17 +454,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     this.mutedTypes.delete(type.toLowerCase());
     writeMutedEventTypes(this.mutedTypes);
     this.loadEvents();
-  }
-
-  private loadCompanies(): void {
-    this.companiesLoading = true;
-    this.platform.getTenants().subscribe({
-      next: list => {
-        this.companies = (list ?? []).filter(t => t.isActive !== false);
-        this.companiesLoading = false;
-      },
-      error: () => { this.companiesLoading = false; }
-    });
   }
 
   loadNotificationSettings(): void {

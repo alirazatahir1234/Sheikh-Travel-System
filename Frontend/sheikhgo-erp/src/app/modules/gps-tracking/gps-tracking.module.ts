@@ -10,6 +10,7 @@ import { UiTableCellDirective } from '../../shared/components/ui/data-table/ui-t
 import { CriticalAlertsCardComponent } from '../fleet-management/fleet-dashboard/widgets/critical-alerts-card.component';
 import { RecentActivitiesCardComponent } from '../fleet-management/fleet-dashboard/widgets/recent-activities-card.component';
 import { GpsTrackingLayoutComponent } from './gps-tracking-layout.component';
+import { GpsScopeFilterBarComponent } from './gps-scope-filter-bar/gps-scope-filter-bar.component';
 import { LiveMapComponent } from './live-map/live-map.component';
 import { FleetKpiStripComponent } from './live-map/fleet-kpi-strip/fleet-kpi-strip.component';
 import { NearbyPlacesPanelComponent } from './live-map/nearby-places-panel/nearby-places-panel.component';
@@ -68,6 +69,7 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     GpsTrackingLayoutComponent,
+    GpsScopeFilterBarComponent,
     LiveMapComponent,
     FleetKpiStripComponent,
     NearbyPlacesPanelComponent,
