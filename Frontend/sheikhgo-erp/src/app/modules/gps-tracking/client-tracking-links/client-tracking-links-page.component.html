@@ -266,14 +266,25 @@
                 </td>
                 <td>
                   <div class="ctl-actions">
-                    <button
-                      type="button"
-                      class="ctl-btn ctl-btn--ghost ctl-btn--sm"
-                      (click)="openLink(r)"
-                      [disabled]="!displayUrl(r)"
-                      matTooltip="Open public tracking page">
-                      <mat-icon>visibility</mat-icon> Open
-                    </button>
+                    @if (displayUrl(r); as openUrl) {
+                      <a
+                        class="ctl-btn ctl-btn--ghost ctl-btn--sm"
+                        [href]="openUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        matTooltip="Open public tracking page"
+                        (click)="openLink(r, $event)">
+                        <mat-icon>visibility</mat-icon> Open
+                      </a>
+                    } @else {
+                      <button
+                        type="button"
+                        class="ctl-btn ctl-btn--ghost ctl-btn--sm"
+                        disabled
+                        matTooltip="Tracking URL unavailable for this link">
+                        <mat-icon>visibility</mat-icon> Open
+                      </button>
+                    }
                     @if (linkStatus(r) === 'active') {
                       <button
                         type="button"

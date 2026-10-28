@@ -599,6 +599,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+
+  a.ctl-btn {
+    text-decoration: none;
+    box-sizing: border-box;
+  }
 }
 
 .ctl-icon-btn {

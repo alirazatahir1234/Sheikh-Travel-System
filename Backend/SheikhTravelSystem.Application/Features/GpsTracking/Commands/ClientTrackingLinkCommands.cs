@@ -23,7 +23,8 @@ public record ListClientTrackingLinksQuery(int Take = 50, int? TripId = null, bo
 
 public class ListClientTrackingLinksQueryHandler(
     IWhatsAppAutomationRepository repository,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    ITrackingTokenProtector tokenProtector)
     : IRequestHandler<ListClientTrackingLinksQuery, ApiResponse<IReadOnlyList<ClientTrackingLinkDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<ClientTrackingLinkDto>>> Handle(
@@ -38,13 +39,32 @@ public class ListClientTrackingLinksQueryHandler(
             r.TripId,
             r.TripNumber,
             r.BookingId,
-            $"/t/{{token}}",
+            // Authenticated tenant operators may open/copy the same URL Create returns.
+            // Never invent tokens — only Unprotect stored TokenProtected (WhatsApp pattern).
+            ResolvePublicPath(r.TokenProtected),
             r.ExpiresAt,
             r.RevokedAt,
             r.ViewCount,
             r.CreatedAt,
             r.RevokedAt is null && r.ExpiresAt > now)).ToList();
         return ApiResponse<IReadOnlyList<ClientTrackingLinkDto>>.SuccessResponse(mapped);
+    }
+
+    private string ResolvePublicPath(string? tokenProtected)
+    {
+        if (string.IsNullOrWhiteSpace(tokenProtected))
+            return "/t/{token}";
+        try
+        {
+            var token = tokenProtector.Unprotect(tokenProtected);
+            if (string.IsNullOrWhiteSpace(token))
+                return "/t/{token}";
+            return $"/t/{token.Trim()}";
+        }
+        catch
+        {
+            return "/t/{token}";
+        }
     }
 }
 

@@ -127,7 +127,9 @@ public sealed record TripTrackingLinkListRow(
     DateTime ExpiresAt,
     DateTime? RevokedAt,
     int ViewCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>Data-Protection ciphertext; list handlers may Unprotect for tenant admins only.</summary>
+    string? TokenProtected);
 
 public sealed record AutomationBookingSnapshot(
     int Id,

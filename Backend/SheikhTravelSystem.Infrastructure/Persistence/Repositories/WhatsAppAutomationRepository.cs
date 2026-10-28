@@ -397,7 +397,8 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<TripTrackingLinkListRow>(new CommandDefinition("""
             SELECT TOP (@Take)
-                l.Id, l.TripId, t.TripNumber, l.BookingId, l.ExpiresAt, l.RevokedAt, l.ViewCount, l.CreatedAt
+                l.Id, l.TripId, t.TripNumber, l.BookingId, l.ExpiresAt, l.RevokedAt, l.ViewCount, l.CreatedAt,
+                l.TokenProtected
             FROM TripTrackingLinks l
             LEFT JOIN Trips t ON t.Id = l.TripId AND t.TenantId = l.TenantId
             WHERE l.TenantId = @TenantId

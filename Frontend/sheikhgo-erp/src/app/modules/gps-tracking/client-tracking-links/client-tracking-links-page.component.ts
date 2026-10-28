@@ -126,6 +126,11 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.loadSub = this.gps.listClientTrackingLinks(100).subscribe({
       next: rows => {
         this.rows = rows ?? [];
+        for (const r of this.rows) {
+          if (this.isOpenablePublicPath(r.publicPath)) {
+            this.knownUrls.set(r.id, this.absoluteUrl(r.publicPath));
+          }
+        }
         this.loading = false;
         this.clampPage();
       },
@@ -227,14 +232,30 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return row.tripNumber?.trim() || `Trip #${row.tripId}`;
   }
 
-  /** Absolute URL when known (create response only). Never invent tokens. */
+  /**
+   * Absolute public tracking URL.
+   * Prefer create-session map, then list API publicPath when it contains a real token
+   * (not the `/t/{token}` placeholder). Never invent tokens.
+   */
   displayUrl(row: ClientTrackingLink): string | null {
     const known = this.knownUrls.get(row.id);
     if (known) return known;
     if (this.created?.linkId === row.id && this.created.publicUrl) {
       return this.absoluteUrl(this.created.publicUrl);
     }
+    const path = row.publicPath?.trim();
+    if (path && this.isOpenablePublicPath(path)) {
+      return this.absoluteUrl(path);
+    }
     return null;
+  }
+
+  /** True when path is a real `/t/...` link, not the secure placeholder. */
+  isOpenablePublicPath(path: string | null | undefined): boolean {
+    if (!path) return false;
+    const p = path.trim();
+    if (p.includes('{token}')) return false;
+    return /^\/t\/[^/\s?#]+$/i.test(p) || /^https?:\/\/.+/i.test(p);
   }
 
   createdAbsoluteUrl(): string | null {
@@ -257,13 +278,19 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.copyUrl(this.createdAbsoluteUrl());
   }
 
-  openLink(row: ClientTrackingLink): void {
+  openLink(row: ClientTrackingLink, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
     const url = this.displayUrl(row);
     if (!url || typeof window === 'undefined') {
-      this.flashCopy('URL is only available right after Generate Link (token is not re-listed).');
+      this.flashCopy('No openable tracking URL for this link.');
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      // Popup blocked — fall back to same-tab navigation of the public path
+      window.location.assign(url);
+    }
   }
 
   expiresRelative(row: ClientTrackingLink): string {
