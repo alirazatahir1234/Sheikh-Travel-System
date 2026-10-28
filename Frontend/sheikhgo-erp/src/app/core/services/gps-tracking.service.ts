@@ -1273,7 +1273,18 @@ export class GpsTrackingService {
     if (filters?.branchId) params['branchId'] = String(filters.branchId);
     if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
     if (filters?.driverId) params['driverId'] = String(filters.driverId);
+    if (filters?.vehicleId) params['vehicleId'] = String(filters.vehicleId);
     return params;
+  }
+
+  private analyticsHttpOptions(
+    filters?: AnalyticsFilters,
+    tenantScopeId?: number | null
+  ): { params: Record<string, string>; headers?: HttpHeaders } {
+    return {
+      params: this.analyticsParams(filters),
+      ...this.tenantScopedHttpOptions(tenantScopeId)
+    };
   }
 
   getAnalyticsOverview(filters?: AnalyticsFilters): Observable<AnalyticsOverview> {
@@ -1296,31 +1307,57 @@ export class GpsTrackingService {
     return this.http.get<StopAnalytics>(`${this.base}/analytics/stops`, { params: this.analyticsParams(filters) });
   }
 
-  getDriverScoreRanking(filters?: AnalyticsFilters): Observable<DriverScore[]> {
-    return this.http.get<DriverScore[]>(`${this.base}/analytics/drivers/ranking`, { params: this.analyticsParams(filters) });
-  }
-
-  getDriverScoreWeights(): Observable<DriverScoreWeights> {
-    return this.http.get<DriverScoreWeights>(`${this.base}/analytics/drivers/performance/weights`);
-  }
-
-  upsertDriverScoreWeights(body: DriverScoreWeights): Observable<DriverScoreWeights> {
-    return this.http.put<DriverScoreWeights>(`${this.base}/analytics/drivers/performance/weights`, body);
-  }
-
-  getDriverPerformanceDetail(driverId: number, filters?: AnalyticsFilters): Observable<DriverPerformanceDetail> {
-    return this.http.get<DriverPerformanceDetail>(
-      `${this.base}/analytics/drivers/${driverId}/performance`,
-      { params: this.analyticsParams(filters) }
+  getDriverScoreRanking(
+    filters?: AnalyticsFilters,
+    tenantScopeId?: number | null
+  ): Observable<DriverScore[]> {
+    return this.http.get<DriverScore[]>(
+      `${this.base}/analytics/drivers/ranking`,
+      this.analyticsHttpOptions(filters, tenantScopeId)
     );
   }
 
-  getDriverScoreHistory(driverId: number, filters?: AnalyticsFilters & { limit?: number }): Observable<DriverScoreHistory[]> {
-    let params = this.analyticsParams(filters);
-    if (filters?.limit != null) params = params.set('limit', String(filters.limit));
+  getDriverScoreWeights(tenantScopeId?: number | null): Observable<DriverScoreWeights> {
+    return this.http.get<DriverScoreWeights>(
+      `${this.base}/analytics/drivers/performance/weights`,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
+  }
+
+  upsertDriverScoreWeights(
+    body: DriverScoreWeights,
+    tenantScopeId?: number | null
+  ): Observable<DriverScoreWeights> {
+    return this.http.put<DriverScoreWeights>(
+      `${this.base}/analytics/drivers/performance/weights`,
+      body,
+      this.tenantScopedHttpOptions(tenantScopeId)
+    );
+  }
+
+  getDriverPerformanceDetail(
+    driverId: number,
+    filters?: AnalyticsFilters,
+    tenantScopeId?: number | null
+  ): Observable<DriverPerformanceDetail> {
+    return this.http.get<DriverPerformanceDetail>(
+      `${this.base}/analytics/drivers/${driverId}/performance`,
+      this.analyticsHttpOptions(filters, tenantScopeId)
+    );
+  }
+
+  getDriverScoreHistory(
+    driverId: number,
+    filters?: AnalyticsFilters & { limit?: number },
+    tenantScopeId?: number | null
+  ): Observable<DriverScoreHistory[]> {
+    const params = this.analyticsParams(filters);
+    if (filters?.limit != null) {
+      params['limit'] = String(filters.limit);
+    }
     return this.http.get<DriverScoreHistory[]>(
       `${this.base}/analytics/drivers/${driverId}/performance/history`,
-      { params }
+      { params, ...this.tenantScopedHttpOptions(tenantScopeId) }
     );
   }
 

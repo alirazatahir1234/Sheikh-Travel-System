@@ -50,6 +50,15 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     return this.activeChild === 'alerts';
   }
 
+  get isDriverPerformanceRoute(): boolean {
+    return this.activeChild === 'driver-performance';
+  }
+
+  /** Hide the generic Fleet Tracking header when a page supplies its own hero. */
+  get hideModuleHeader(): boolean {
+    return this.isAlertsRoute || this.isDriverPerformanceRoute;
+  }
+
   ngOnInit(): void {
     this.syncChild(this.router.url);
     this.sub = this.router.events.pipe(

@@ -1,180 +1,464 @@
-<div class="page-header">
-  <div>
-    <h1>Driver Performance</h1>
-    <p class="lead">
-      Overall = weighted Safety + Fuel + On-time (defaults 40/30/30). Secondary behavior score (idle/night) is coaching-only.
-    </p>
-  </div>
-</div>
+<div class="dp-shell">
+  <nav class="dp-breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/">Home</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a routerLink="/gps-tracking">Fleet Tracking</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <span class="dp-breadcrumb__current">Driver Performance</span>
+  </nav>
 
-<div class="toolbar">
-  <label>
-    Period
-    <select [(ngModel)]="datePreset" (ngModelChange)="applyPreset($event); load()">
-      @for (p of datePresets; track p.id) {
-        <option [ngValue]="p.id">{{ p.label }}</option>
-      }
-    </select>
-  </label>
-  <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">Refresh</button>
-</div>
-
-@if (canManageWeights) {
-  <section class="weights-panel" aria-label="Score weights">
-    <h2>Score weights</h2>
-    <p class="muted">Relative weights — need not sum to 100. Changes are audited.</p>
-    <div class="weights-row">
-      <label>Safety <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.safetyWeight" /></label>
-      <label>Fuel <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.fuelWeight" /></label>
-      <label>On-time <input type="number" min="0" max="1000" [(ngModel)]="weightsDraft.onTimeWeight" /></label>
-      <button mat-flat-button color="primary" type="button" (click)="saveWeights()" [disabled]="weightsSaving">
-        Save weights
-      </button>
+  <header class="dp-hero">
+    <div class="dp-hero__text">
+      <h1>Driver Performance</h1>
+      <p>Measure driver safety, fuel efficiency and punctuality across your fleet.</p>
     </div>
-    @if (weightsError) {
-      <p class="error">{{ weightsError }}</p>
-    }
-    @if (weightsMessage) {
-      <p class="ok">{{ weightsMessage }}</p>
+  </header>
+
+  <!-- Period / actions — company & vehicle come from global GpsScopeFilterBar -->
+  <section class="dp-filter-card" aria-label="Performance filters">
+    <div class="dp-filter-card__row">
+      <label class="dp-field">
+        <span class="dp-field__label">Timeframe</span>
+        <div class="dp-field__control">
+          <mat-icon aria-hidden="true">calendar_today</mat-icon>
+          <select
+            [(ngModel)]="datePreset"
+            (ngModelChange)="applyPreset($event); load()"
+            [disabled]="loading || needsCompanySelection">
+            @for (p of datePresets; track p.id) {
+              <option [ngValue]="p.id">{{ p.label }}</option>
+            }
+          </select>
+        </div>
+      </label>
+
+      @if (datePreset === 'custom') {
+        <label class="dp-field dp-field--date">
+          <span class="dp-field__label">From</span>
+          <input type="date" [(ngModel)]="from" (ngModelChange)="onCustomDatesChange()" />
+        </label>
+        <label class="dp-field dp-field--date">
+          <span class="dp-field__label">To</span>
+          <input type="date" [(ngModel)]="to" (ngModelChange)="onCustomDatesChange()" />
+        </label>
+      }
+
+      <div class="dp-filter-card__actions">
+        <button
+          type="button"
+          class="dp-btn dp-btn--ghost"
+          (click)="load()"
+          [disabled]="loading || needsCompanySelection || !!dateRangeError">
+          <mat-icon>refresh</mat-icon>
+          Refresh
+        </button>
+        <button
+          type="button"
+          class="dp-btn dp-btn--ghost"
+          (click)="exportRankings()"
+          [disabled]="loading || !filteredRows.length">
+          <mat-icon>download</mat-icon>
+          Export
+        </button>
+      </div>
+    </div>
+    @if (dateRangeError) {
+      <p class="dp-error">{{ dateRangeError }}</p>
     }
   </section>
-} @else if (weights) {
-  <p class="muted weights-readonly">
-    Current weights — Safety {{ weights.safetyWeight }}, Fuel {{ weights.fuelWeight }}, On-time {{ weights.onTimeWeight }}
-  </p>
-}
 
-@if (dateRangeError) {
-  <p class="error">{{ dateRangeError }}</p>
-}
-@if (loadError) {
-  <p class="error">{{ loadError }} <button mat-button (click)="load()">Retry</button></p>
-}
+  @if (needsCompanySelection) {
+    <div class="dp-empty-banner" role="status">
+      <mat-icon>business</mat-icon>
+      <div>
+        <strong>Select a company</strong>
+        <p>Choose a company in the scope bar above to load driver performance for that fleet.</p>
+      </div>
+    </div>
+  }
 
-<div class="layout">
-  <div class="rank-pane">
+  <!-- KPI cards -->
+  <div class="dp-kpi-strip" aria-label="Performance KPIs">
     @if (loading) {
-      <p>Loading rankings…</p>
-    } @else {
-      <table class="rank-table">
-        <thead>
-          <tr>
-            @for (c of columns; track c.key) {
-              <th [class.num]="c.align === 'right'">{{ c.label }}</th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (r of rows; track r.driverId) {
-            <tr
-              [class.reward]="r.rewardEligible"
-              [class.training]="r.needsTraining"
-              [class.selected]="r.driverId === selectedDriverId"
-              (click)="openDetail(r.driverId)"
-              (keyup.enter)="openDetail(r.driverId)"
-              tabindex="0"
-              role="button">
-              <td class="num">{{ r.rank ?? '—' }}</td>
-              <td>{{ r.driverName }}</td>
-              <td class="num"><strong>{{ r.score }}</strong></td>
-              <td class="num">{{ r.safetyScore ?? '—' }}</td>
-              <td class="num">{{ r.fuelEfficiencyScore ?? '—' }}</td>
-              <td class="num">{{ r.onTimeScore ?? '—' }}</td>
-              <td>{{ r.rating }}</td>
-              <td>{{ flags(r) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-      @if (!rows.length) {
-        <p class="muted">No scored drivers in this period — assign drivers to GPS trips first.</p>
+      @for (_ of [1, 2, 3, 4, 5]; track _) {
+        <article class="dp-kpi dp-kpi--skeleton" aria-hidden="true">
+          <div class="dp-skel dp-skel--sm"></div>
+          <div class="dp-skel dp-skel--lg"></div>
+          <div class="dp-skel dp-skel--bar"></div>
+        </article>
       }
+    } @else {
+      <article class="dp-kpi dp-kpi--avg">
+        <div class="dp-kpi__head">
+          <span class="dp-kpi__label">Average Driver Score</span>
+          <span class="dp-kpi__chip" *ngIf="kpiAvgScore != null">/100</span>
+        </div>
+        <div class="dp-kpi__value">{{ kpiAvgScore != null ? kpiAvgScore : '—' }}<span *ngIf="kpiAvgScore != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiAvgScore)"></i></div>
+        <p class="dp-kpi__caption">{{ avgScoreCaption }}</p>
+      </article>
+
+      <article class="dp-kpi dp-kpi--count">
+        <div class="dp-kpi__head">
+          <span class="dp-kpi__label">Drivers Evaluated</span>
+          <mat-icon class="dp-kpi__icon" aria-hidden="true">bar_chart</mat-icon>
+        </div>
+        <div class="dp-kpi__value">{{ kpiDrivers }}</div>
+        <div class="dp-kpi__bar dp-kpi__bar--ghost"><i [style.width]="kpiDrivers ? '100%' : '0%'"></i></div>
+        <p class="dp-kpi__caption">Total active drivers in period</p>
+      </article>
+
+      <article class="dp-kpi dp-kpi--safety">
+        <div class="dp-kpi__head">
+          <span class="dp-kpi__label">Safety Score</span>
+        </div>
+        <div class="dp-kpi__value">{{ kpiSafety != null ? kpiSafety : '—' }}<span *ngIf="kpiSafety != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiSafety)"></i></div>
+        <p class="dp-kpi__caption">Fewer safety violations</p>
+      </article>
+
+      <article class="dp-kpi dp-kpi--fuel">
+        <div class="dp-kpi__head">
+          <span class="dp-kpi__label">Fuel Efficiency</span>
+        </div>
+        <div class="dp-kpi__value">{{ kpiFuel != null ? kpiFuel : '—' }}<span *ngIf="kpiFuel != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiFuel)"></i></div>
+        <p class="dp-kpi__caption">Lower fuel consumption</p>
+      </article>
+
+      <article class="dp-kpi dp-kpi--ontime">
+        <div class="dp-kpi__head">
+          <span class="dp-kpi__label">On-Time Performance</span>
+        </div>
+        <div class="dp-kpi__value">{{ kpiOnTime != null ? kpiOnTime : '—' }}<span *ngIf="kpiOnTime != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiOnTime)"></i></div>
+        <p class="dp-kpi__caption">Better punctuality</p>
+      </article>
     }
   </div>
 
-  <aside class="detail-pane" aria-label="Driver score detail">
-    @if (!selectedDriverId) {
-      <p class="muted">Select a driver for breakdown, trends, and supporting events.</p>
-    } @else if (detailLoading) {
-      <p>Loading detail…</p>
-    } @else if (detailError) {
-      <p class="error">{{ detailError }}</p>
-    } @else if (detail; as d) {
-      <div class="detail-header">
-        <h2>{{ d.score.driverName }}</h2>
-        <button mat-button type="button" (click)="clearDetail()">Close</button>
+  <!-- Score weights -->
+  <section class="dp-weights" aria-label="Score weights">
+    <div class="dp-weights__head">
+      <h2>
+        Score Weights
+        <mat-icon class="dp-weights__info" matTooltip="Overall = weighted Safety + Fuel + On-time. Relative weights need not sum to 100.">info</mat-icon>
+      </h2>
+      <p>Configure the relative contribution of safety, fuel efficiency and punctuality to the overall driver score.</p>
+    </div>
+
+    @if (canManageWeights) {
+      <div class="dp-weights__body">
+        <div class="dp-weight-field dp-weight-field--safety">
+          <label for="dp-w-safety">Safety</label>
+          <div class="dp-weight-field__input">
+            <input id="dp-w-safety" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.safetyWeight" />
+            <span>%</span>
+          </div>
+          <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.safetyWeight)"></i></div>
+        </div>
+        <div class="dp-weight-field dp-weight-field--fuel">
+          <label for="dp-w-fuel">Fuel</label>
+          <div class="dp-weight-field__input">
+            <input id="dp-w-fuel" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.fuelWeight" />
+            <span>%</span>
+          </div>
+          <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.fuelWeight)"></i></div>
+        </div>
+        <div class="dp-weight-field dp-weight-field--ontime">
+          <label for="dp-w-ontime">On-time</label>
+          <div class="dp-weight-field__input">
+            <input id="dp-w-ontime" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.onTimeWeight" />
+            <span>%</span>
+          </div>
+          <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.onTimeWeight)"></i></div>
+        </div>
+        <div class="dp-weights__actions">
+          <button type="button" class="dp-link" (click)="resetWeights()" [disabled]="weightsSaving">Reset to Defaults</button>
+          <button
+            type="button"
+            class="dp-btn dp-btn--primary"
+            (click)="saveWeights()"
+            [disabled]="weightsSaving || needsCompanySelection">
+            {{ weightsSaving ? 'Saving…' : 'Save Weights' }}
+          </button>
+        </div>
       </div>
-      <p class="overall">Overall <strong>{{ d.score.score }}</strong> · {{ d.score.rating }}</p>
-      @if (d.score.scoreExplanation) {
-        <p class="explain">{{ d.score.scoreExplanation }}</p>
+      <p class="dp-weights__note">Changes are audited.</p>
+      @if (weightsError) {
+        <p class="dp-error">{{ weightsError }}</p>
       }
-      @if (d.score.isPartial) {
-        <p class="warn">Partial data — GPS idle/harsh factors may be incomplete; no unfair penalty applied for missing attribution.</p>
+      @if (weightsMessage) {
+        <p class="dp-ok">{{ weightsMessage }}</p>
       }
-
-      <h3>Breakdown</h3>
-      <div class="bars">
-        <div class="bar-row">
-          <span>Safety</span>
-          <div class="bar"><i [style.width]="barWidth(d.score.safetyScore)"></i></div>
-          <span class="num">{{ d.score.safetyScore }}</span>
-        </div>
-        <div class="bar-row">
-          <span>Fuel</span>
-          <div class="bar"><i [style.width]="barWidth(d.score.fuelEfficiencyScore)"></i></div>
-          <span class="num">{{ d.score.fuelEfficiencyScore }}</span>
-        </div>
-        <div class="bar-row">
-          <span>On-time</span>
-          <div class="bar"><i [style.width]="barWidth(d.score.onTimeScore)"></i></div>
-          <span class="num">{{ d.score.onTimeScore }}</span>
-        </div>
-      </div>
-      <dl class="meta">
-        <div><dt>Trips</dt><dd>{{ d.score.factors.tripCount }}</dd></div>
-        <div><dt>Distance</dt><dd>{{ d.score.factors.distanceKm }} km</dd></div>
-        <div><dt>Overspeed</dt><dd>{{ d.score.factors.overspeedCount }}</dd></div>
-        <div><dt>Harsh</dt><dd>{{ d.score.factors.harshEventCount }}</dd></div>
-        <div><dt>Category</dt><dd>{{ d.score.primaryVehicleCategory || '—' }}</dd></div>
-        <div><dt>km/L</dt><dd>{{ d.score.kmPerLiter ?? '—' }}{{ d.score.fuelUsedPeerBand ? ' (peer)' : '' }}</dd></div>
-        <div><dt>Peer median</dt><dd>{{ d.score.peerMedianKmPerLiter ?? '—' }}</dd></div>
-        <div><dt>Behavior (secondary)</dt><dd>{{ d.score.secondaryBehaviorScore ?? '—' }}</dd></div>
-      </dl>
-
-      <h3>Trends</h3>
-      @if (!d.history.length) {
-        <p class="muted">No score history yet for this period.</p>
-      } @else {
-        <ul class="history">
-          @for (h of d.history; track h.id) {
-            <li>
-              <strong>{{ h.overallScore }}</strong>
-              <span [class.up]="h.delta > 0" [class.down]="h.delta < 0">
-                {{ h.delta > 0 ? '+' : '' }}{{ h.delta }}
-              </span>
-              <span class="muted">{{ h.computedAt | date:'medium' }}</span>
-              <div class="explain">{{ h.explanation }}</div>
-            </li>
-          }
-        </ul>
-      }
-
-      <h3>Supporting events</h3>
-      @if (!d.supportingEvents.length) {
-        <p class="muted">No attributed overspeed/harsh events in range.</p>
-      } @else {
-        <ul class="events">
-          @for (e of d.supportingEvents; track e.id ?? e.timestamp) {
-            <li>
-              <strong>{{ e.eventType }}</strong>
-              <span class="muted">{{ e.timestamp | date:'medium' }}</span>
-              @if (e.description) {
-                <div>{{ e.description }}</div>
-              }
-            </li>
-          }
-        </ul>
-      }
+    } @else {
+      <p class="dp-weights__readonly">
+        Current weights — Safety {{ weights.safetyWeight }}%, Fuel {{ weights.fuelWeight }}%, On-time {{ weights.onTimeWeight }}%
+      </p>
     }
-  </aside>
+  </section>
+
+  @if (loadError) {
+    <div class="dp-error-banner" role="alert">
+      <span>{{ loadError }}</span>
+      <button type="button" class="dp-btn dp-btn--ghost" (click)="load()">Retry</button>
+    </div>
+  }
+
+  <!-- Rankings + detail -->
+  <div class="dp-split">
+    <section class="dp-rankings" aria-label="Driver rankings">
+      <div class="dp-rankings__toolbar">
+        <h2>Driver Rankings</h2>
+        <div class="dp-rankings__controls">
+          <label class="dp-search">
+            <mat-icon aria-hidden="true">search</mat-icon>
+            <input type="search" placeholder="Search driver..." [(ngModel)]="searchQuery" />
+          </label>
+          <select class="dp-select" [(ngModel)]="performanceFilter">
+            <option value="all">All Performance</option>
+            <option value="excellent">Excellent (≥90)</option>
+            <option value="good">Good (75–89)</option>
+            <option value="fair">Fair (60–74)</option>
+            <option value="poor">Poor (&lt;60)</option>
+            <option value="reward">Reward eligible</option>
+            <option value="training">Needs training</option>
+          </select>
+          <select class="dp-select" [(ngModel)]="sortKey">
+            <option value="overall">Overall Score</option>
+            <option value="safety">Safety</option>
+            <option value="fuel">Fuel</option>
+            <option value="onTime">On-time</option>
+            <option value="trips">Trips</option>
+            <option value="name">Name</option>
+          </select>
+          <button type="button" class="dp-btn dp-btn--ghost dp-btn--sm" (click)="exportRankings()" [disabled]="!filteredRows.length">
+            <mat-icon>download</mat-icon> Export
+          </button>
+        </div>
+      </div>
+
+      @if (loading) {
+        <div class="dp-table-skel" aria-busy="true" aria-label="Loading rankings">
+          @for (_ of [1, 2, 3, 4, 5]; track _) {
+            <div class="dp-skel-row">
+              <div class="dp-skel dp-skel--circle"></div>
+              <div class="dp-skel dp-skel--md"></div>
+              <div class="dp-skel dp-skel--bar"></div>
+            </div>
+          }
+        </div>
+      } @else if (!needsCompanySelection) {
+        <div class="dp-table-wrap">
+          <table class="dp-table">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th>Driver</th>
+                <th>Overall Score</th>
+                <th class="num">Safety</th>
+                <th class="num">Fuel</th>
+                <th class="num">On-time</th>
+                <th class="num">Trips</th>
+                <th>Trend</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of filteredRows; track r.driverId) {
+                <tr
+                  [class.selected]="r.driverId === selectedDriverId"
+                  [class.reward]="r.rewardEligible"
+                  [class.training]="r.needsTraining"
+                  (click)="openDetail(r.driverId)"
+                  (keyup.enter)="openDetail(r.driverId)"
+                  tabindex="0"
+                  role="button">
+                  <td class="num">
+                    @if (rankMedal(r.rank); as medal) {
+                      <span class="dp-medal" [class]="'dp-medal--' + medal">{{ r.rank }}</span>
+                    } @else {
+                      {{ r.rank ?? '—' }}
+                    }
+                  </td>
+                  <td>
+                    <div class="dp-driver">
+                      <span class="dp-avatar" aria-hidden="true">{{ initials(r.driverName) }}</span>
+                      <span class="dp-driver__meta">
+                        <strong>{{ r.driverName }}</strong>
+                        <span class="muted">{{ driverCode(r.driverId) }}</span>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="dp-overall">
+                      <strong>{{ r.score }}</strong>
+                      <div class="dp-mini-bar"><i [style.width]="barWidth(r.score)"></i></div>
+                    </div>
+                  </td>
+                  <td class="num">
+                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.safetyScore)"></span>
+                    {{ r.safetyScore ?? '—' }}
+                  </td>
+                  <td class="num">
+                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.fuelEfficiencyScore)"></span>
+                    {{ r.fuelEfficiencyScore ?? '—' }}
+                  </td>
+                  <td class="num">
+                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.onTimeScore)"></span>
+                    {{ r.onTimeScore ?? '—' }}
+                  </td>
+                  <td class="num">{{ r.factors?.tripCount ?? '—' }}</td>
+                  <td>
+                    @if (rowTrend(r); as t) {
+                      <span class="dp-trend" [class.up]="t > 0" [class.down]="t < 0">
+                        <mat-icon>{{ t > 0 ? 'arrow_upward' : t < 0 ? 'arrow_downward' : 'remove' }}</mat-icon>
+                        {{ t > 0 ? '+' : '' }}{{ t }}
+                      </span>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                  <td>
+                    <button type="button" class="dp-btn dp-btn--ghost dp-btn--sm" (click)="openDetail(r.driverId); $event.stopPropagation()">
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!filteredRows.length) {
+            <p class="dp-table-empty muted">
+              @if (rows.length && (searchQuery || performanceFilter !== 'all')) {
+                No drivers match the current search or filter.
+              } @else {
+                No scored drivers in this period — assign drivers to GPS trips first.
+              }
+            </p>
+          }
+        </div>
+      }
+    </section>
+
+    <aside class="dp-detail" aria-label="Driver score detail">
+      @if (!selectedDriverId) {
+        <div class="dp-detail-empty">
+          <div class="dp-detail-empty__icon" aria-hidden="true">
+            <mat-icon>person</mat-icon>
+          </div>
+          <h3>Select a driver to view details</h3>
+          <p>Choose a driver from the rankings table to see performance breakdown, trends and supporting events.</p>
+          <ul class="dp-checklist">
+            <li><mat-icon>check_circle</mat-icon> Score breakdown</li>
+            <li><mat-icon>check_circle</mat-icon> Performance trends</li>
+            <li><mat-icon>check_circle</mat-icon> Supporting events and violations</li>
+            <li><mat-icon>check_circle</mat-icon> Coaching insights</li>
+          </ul>
+        </div>
+      } @else if (detailLoading) {
+        <div class="dp-detail-loading" aria-busy="true">
+          <div class="dp-skel dp-skel--lg"></div>
+          <div class="dp-skel dp-skel--bar"></div>
+          <div class="dp-skel dp-skel--md"></div>
+          <div class="dp-skel dp-skel--md"></div>
+        </div>
+      } @else if (detailError) {
+        <p class="dp-error">{{ detailError }}</p>
+        <button type="button" class="dp-btn dp-btn--ghost" (click)="openDetail(selectedDriverId)">Retry</button>
+      } @else if (detail; as d) {
+        <div class="dp-detail-header">
+          <div class="dp-driver">
+            <span class="dp-avatar dp-avatar--lg" aria-hidden="true">{{ initials(d.score.driverName) }}</span>
+            <div>
+              <h2>{{ d.score.driverName }}</h2>
+              <span class="muted">{{ driverCode(d.score.driverId) }} · {{ d.score.rating }}</span>
+            </div>
+          </div>
+          <button type="button" class="dp-btn dp-btn--ghost dp-btn--sm" (click)="clearDetail()" aria-label="Close detail">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <p class="dp-detail-overall">
+          Overall <strong>{{ d.score.score }}</strong>
+          <span class="muted">/ 100</span>
+        </p>
+        @if (d.score.scoreExplanation) {
+          <p class="dp-explain">{{ d.score.scoreExplanation }}</p>
+        }
+        @if (d.score.isPartial) {
+          <p class="dp-warn">Partial data — GPS idle/harsh factors may be incomplete; no unfair penalty applied for missing attribution.</p>
+        }
+        @if (flags(d.score) !== '—') {
+          <p class="dp-flags">{{ flags(d.score) }}</p>
+        }
+
+        <h3>Breakdown</h3>
+        <div class="dp-bars">
+          <div class="dp-bar-row dp-bar-row--safety">
+            <span>Safety</span>
+            <div class="bar"><i [style.width]="barWidth(d.score.safetyScore)"></i></div>
+            <span class="num">{{ d.score.safetyScore }}</span>
+          </div>
+          <div class="dp-bar-row dp-bar-row--fuel">
+            <span>Fuel</span>
+            <div class="bar"><i [style.width]="barWidth(d.score.fuelEfficiencyScore)"></i></div>
+            <span class="num">{{ d.score.fuelEfficiencyScore }}</span>
+          </div>
+          <div class="dp-bar-row dp-bar-row--ontime">
+            <span>On-time</span>
+            <div class="bar"><i [style.width]="barWidth(d.score.onTimeScore)"></i></div>
+            <span class="num">{{ d.score.onTimeScore }}</span>
+          </div>
+        </div>
+
+        <dl class="dp-meta">
+          <div><dt>Trips</dt><dd>{{ d.score.factors.tripCount }}</dd></div>
+          <div><dt>Distance</dt><dd>{{ d.score.factors.distanceKm }} km</dd></div>
+          <div><dt>Overspeed</dt><dd>{{ d.score.factors.overspeedCount }}</dd></div>
+          <div><dt>Harsh</dt><dd>{{ d.score.factors.harshEventCount }}</dd></div>
+          <div><dt>Category</dt><dd>{{ d.score.primaryVehicleCategory || '—' }}</dd></div>
+          <div><dt>km/L</dt><dd>{{ d.score.kmPerLiter ?? '—' }}{{ d.score.fuelUsedPeerBand ? ' (peer)' : '' }}</dd></div>
+          <div><dt>Peer median</dt><dd>{{ d.score.peerMedianKmPerLiter ?? '—' }}</dd></div>
+          <div><dt>Behavior (secondary)</dt><dd>{{ d.score.secondaryBehaviorScore ?? '—' }}</dd></div>
+        </dl>
+
+        <h3>Trends</h3>
+        @if (!d.history.length) {
+          <p class="muted">No score history yet for this period.</p>
+        } @else {
+          <ul class="dp-history">
+            @for (h of d.history; track h.id) {
+              <li>
+                <strong>{{ h.overallScore }}</strong>
+                <span [class.up]="h.delta > 0" [class.down]="h.delta < 0">
+                  {{ h.delta > 0 ? '+' : '' }}{{ h.delta }}
+                </span>
+                <span class="muted">{{ h.computedAt | date:'medium' }}</span>
+                <div class="dp-explain">{{ h.explanation }}</div>
+              </li>
+            }
+          </ul>
+        }
+
+        <h3>Supporting events</h3>
+        @if (!d.supportingEvents.length) {
+          <p class="muted">No attributed overspeed/harsh events in range.</p>
+        } @else {
+          <ul class="dp-events">
+            @for (e of d.supportingEvents; track e.id ?? e.timestamp) {
+              <li>
+                <strong>{{ e.eventType }}</strong>
+                <span class="muted">{{ e.timestamp | date:'medium' }}</span>
+                @if (e.description) {
+                  <div>{{ e.description }}</div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      }
+    </aside>
+  </div>
 </div>

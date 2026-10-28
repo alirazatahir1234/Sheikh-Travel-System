@@ -13,7 +13,8 @@ public record GetDriverScoreRankingQuery(
     DateTime? FromDate,
     DateTime? ToDate,
     int? BranchId = null,
-    int? DepartmentId = null)
+    int? DepartmentId = null,
+    int? VehicleId = null)
     : IRequest<ApiResponse<List<DriverScoreDto>>>;
 
 /// <summary>

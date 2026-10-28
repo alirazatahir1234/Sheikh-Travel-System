@@ -817,6 +817,8 @@ export interface AnalyticsFilters {
   branchId?: number;
   departmentId?: number;
   driverId?: number;
+  /** Optional vehicle scope (driver ranking / trip-backed analytics). */
+  vehicleId?: number;
 }
 
 export interface AnalyticsOverview {

@@ -2416,7 +2416,7 @@ public sealed partial class GpsTrackingRepository(
         var toDate = request.ToDate ?? DateTime.UtcNow;
 
         var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, null, Unpaged: true),
+            new GetGpsTripsQuery(request.VehicleId, fromDate, toDate, request.BranchId, request.DepartmentId, null, Unpaged: true),
             cancellationToken);
 
         if (!tripsResponse.Success || tripsResponse.Data is null)

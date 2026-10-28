@@ -64,8 +64,9 @@ public partial class GpsTrackingController
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] int? branchId,
-        [FromQuery] int? departmentId)
-        => Ok(await Mediator.Send(new GetDriverScoreRankingQuery(from, to, branchId, departmentId)));
+        [FromQuery] int? departmentId,
+        [FromQuery] int? vehicleId)
+        => Ok(await Mediator.Send(new GetDriverScoreRankingQuery(from, to, branchId, departmentId, vehicleId)));
 
     [HttpGet("analytics/drivers/performance/weights")]
     [RequirePermission(DriverPermissions.DriverViewPerformance)]
