@@ -12,7 +12,7 @@ import { WebsiteSeoService } from '../../core/seo.service';
       [page]="page"
       [relatedLinks]="relatedLinks"
       ctaTitle="Rental ops on SheikhGo Nexus"
-      ctaLead="Book a demo of fleet + GPS for rental today, and discuss the upcoming rental rates & bookings module."
+      ctaLead="Book a demo of Vehicle Rental rates, bookings, and fleet GPS in SheikhGo Nexus."
     />
   `,
 })

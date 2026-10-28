@@ -26,7 +26,7 @@ Buyer-facing pages (target customer → problem → features → next step). Pri
 
 Copy source: `core/channel-c-solutions.ts`. Shared layout: `shared/solution-landing/`.
 
-Rental page messaging is honest: fleet/GPS/customers/trips available now; dedicated rental rates/bookings module is upcoming (backend in progress).
+Rental page messaging is honest: ERP Vehicle Rental (rates/bookings/availability) plus fleet GPS — operator workspace, not a consumer marketplace.
 
 ## SEO
 

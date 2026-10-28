@@ -82,11 +82,11 @@ export const NEXUS_PORTFOLIO_ITEMS: readonly NexusPortfolioItem[] = [
   {
     slug: 'vehicle-rental',
     title: 'Vehicle rental',
-    text: 'Fleet GPS today; rental rates & bookings upcoming.',
+    text: 'Rates, bookings, availability, and fleet GPS.',
     icon: 'key',
     detail:
-      'Rental operators can use Nexus fleet GPS, vehicles, customers, and trips now. A dedicated rental rates and bookings module is in active development — see the Vehicle Rental page for honest availability vs roadmap.',
-    highlights: ['GPS for assets on rent', 'Customers & trips today', 'Rates & bookings upcoming', 'No fake “live rental SaaS” claims'],
+      'Rental operators use Nexus Vehicle Rental (rates, bookings, availability) plus fleet GPS, vehicles, customers, and trips — an operator ERP, not a consumer marketplace. See the Vehicle Rental marketing page for scope.',
+    highlights: ['Rental rates & bookings', 'Availability checks', 'GPS for assets on rent', 'Operator ERP — not a public booking site'],
     exploreLink: '/vehicle-rental',
     exploreLabel: 'Vehicle rental',
   },
@@ -353,7 +353,7 @@ export const PRODUCT_ITEMS: readonly ProductItem[] = [
   },
   {
     title: 'Vehicle Rental Management',
-    text: 'Fleet GPS for rental ops today; dedicated rental module upcoming.',
+    text: 'Rental rates, bookings, availability, plus fleet GPS in Nexus.',
     icon: 'key',
     link: '/vehicle-rental',
   },

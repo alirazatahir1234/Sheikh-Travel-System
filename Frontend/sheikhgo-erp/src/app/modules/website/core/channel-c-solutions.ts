@@ -190,13 +190,13 @@ export const VEHICLE_RENTAL_SOLUTION: ChannelCSolutionPage = {
   path: '/vehicle-rental',
   seoTitle: 'Vehicle Rental Management',
   seoDescription:
-    'Vehicle rental management with SheikhGo Nexus — fleet GPS, vehicles, customers, and trips today; dedicated rental rates and bookings module on the product roadmap.',
+    'Vehicle rental management with SheikhGo Nexus — rental rates, bookings, availability, fleet GPS, and ops for rental fleets (operator ERP, not a consumer marketplace).',
   kicker: 'Vehicle rental',
   title: 'Vehicle Rental Management',
-  lead: 'Give rental operators fleet visibility and customer/trip control today — with a dedicated rental rates & bookings module on the SheikhGo Nexus roadmap.',
+  lead: 'Run rental rates, bookings, and availability inside SheikhGo Nexus — alongside fleet GPS, vehicles, customers, and maintenance for every asset on rent.',
   heroImage: '/website/product/vehicles.png',
   honestyNote:
-    'Honest status: SheikhGo Nexus already supports fleet GPS, vehicles, drivers, customers, and trip operations used by rental businesses. A dedicated rental module (rates, rental bookings, deposits, availability) is in active backend development and will surface in the ERP UI as it ships — this page does not claim a finished storefront rental product.',
+    'Honest status: Nexus includes an ERP Vehicle Rental module (rates, bookings, availability, payments) plus fleet GPS and ops. This is an operator workspace for rental fleets — not a consumer car-rental marketplace or white-label public booking site.',
   targetCustomer: {
     title: 'Who it’s for',
     lead: 'Car rental and fleet rental companies that need asset control before and after every handover.',
@@ -217,19 +217,19 @@ export const VEHICLE_RENTAL_SOLUTION: ChannelCSolutionPage = {
       'Ops teams juggling rental paperwork separately from live tracking',
     ],
   },
-  featuresTitle: 'What you can use now — and what’s next',
-  featuresLead: 'Ship with product truth: live capabilities first, rental-specific workflows as they land.',
+  featuresTitle: 'What you can demo in Nexus',
+  featuresLead: 'Product truth: rental ERP workflows plus the fleet/GPS stack rental operators already need.',
   features: [
-    { title: 'Available now — fleet & GPS', text: 'Vehicle registry, live tracking, geofences, and alerts for assets on rent or idle.', icon: 'gps_fixed' },
-    { title: 'Available now — customers & trips', text: 'Customer records and trip operations for movement tied to jobs or transfers.', icon: 'groups' },
-    { title: 'Available now — fuel & maintenance', text: 'Keep rental units serviceable with fuel logs and maintenance schedules.', icon: 'local_gas_station' },
-    { title: 'Upcoming — rental rates', text: 'Per-vehicle rate cards (daily/weekly/etc.), deposits, and currency — backend foundation in progress.', icon: 'payments' },
-    { title: 'Upcoming — rental bookings', text: 'Rental numbers, availability checks, handover lifecycle, and payment recording — shipping with the rental module UI.', icon: 'event_available' },
-    { title: 'Upcoming — rental reports', text: 'Utilisation and revenue views tied to rental bookings once the module is live in Nexus.', icon: 'insights' },
+    { title: 'Rental rates', text: 'Per-vehicle rate cards, deposits, and currency for how you price rentals.', icon: 'payments' },
+    { title: 'Rental bookings', text: 'Rental numbers, customer linkage, lifecycle status, and payment recording.', icon: 'event_available' },
+    { title: 'Availability checks', text: 'See whether a vehicle is free for a requested rental window.', icon: 'event' },
+    { title: 'Fleet & GPS', text: 'Vehicle registry, live tracking, geofences, and alerts for assets on rent or idle.', icon: 'gps_fixed' },
+    { title: 'Customers & trips', text: 'Customer records and trip operations for transfers and related jobs.', icon: 'groups' },
+    { title: 'Fuel & maintenance', text: 'Keep rental units serviceable with fuel logs and maintenance schedules.', icon: 'local_gas_station' },
   ],
   nextStep: {
     title: 'Next step',
-    lead: 'Book a demo to see fleet + GPS for rental ops today, and discuss the upcoming rental module for your rate and booking workflows. Prefer a structured review? Request a fleet assessment.',
+    lead: 'Book a demo of Vehicle Rental + fleet GPS in SheikhGo Nexus. Prefer a structured review first? Request a fleet assessment.',
   },
 };
 
