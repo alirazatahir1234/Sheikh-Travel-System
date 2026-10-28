@@ -1,24 +1,9 @@
 <div class="dp-shell">
-  <nav class="dp-breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/">Home</a>
-    <mat-icon aria-hidden="true">chevron_right</mat-icon>
-    <a routerLink="/gps-tracking">Fleet Tracking</a>
-    <mat-icon aria-hidden="true">chevron_right</mat-icon>
-    <span class="dp-breadcrumb__current">Driver Performance</span>
-  </nav>
-
-  <header class="dp-hero">
-    <div class="dp-hero__text">
-      <h1>Driver Performance</h1>
-      <p>Measure driver safety, fuel efficiency and punctuality across your fleet.</p>
-    </div>
-  </header>
-
   <!-- Period / actions — company & vehicle come from global GpsScopeFilterBar -->
   <section class="dp-filter-card" aria-label="Performance filters">
     <div class="dp-filter-card__row">
       <label class="dp-field">
-        <span class="dp-field__label">Timeframe</span>
+        <span class="dp-field__label">Time Period</span>
         <div class="dp-field__control">
           <mat-icon aria-hidden="true">calendar_today</mat-icon>
           <select
@@ -82,7 +67,7 @@
     @if (kpiLoading) {
       @for (_ of [1, 2, 3, 4, 5]; track _) {
         <article class="dp-kpi dp-kpi--skeleton" aria-hidden="true">
-          <div class="dp-skel dp-skel--sm"></div>
+          <div class="dp-skel dp-skel--circle"></div>
           <div class="dp-skel dp-skel--lg"></div>
           <div class="dp-skel dp-skel--bar"></div>
         </article>
@@ -90,47 +75,73 @@
     } @else {
       <article class="dp-kpi dp-kpi--avg">
         <div class="dp-kpi__head">
+          <span class="dp-kpi__icon" aria-hidden="true"><mat-icon>emoji_events</mat-icon></span>
           <span class="dp-kpi__label">Average Driver Score</span>
-          <span class="dp-kpi__chip" *ngIf="kpiAvgScore != null">/100</span>
         </div>
-        <div class="dp-kpi__value">{{ kpiAvgScore != null ? kpiAvgScore : '—' }}<span *ngIf="kpiAvgScore != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__value-row">
+          <div class="dp-kpi__value">
+            {{ kpiAvgScore != null ? kpiAvgScore : '—' }}
+            <span *ngIf="kpiAvgScore != null" class="dp-kpi__denom">/100</span>
+          </div>
+        </div>
         <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiAvgScore)"></i></div>
         <p class="dp-kpi__caption">{{ avgScoreCaption }}</p>
       </article>
 
       <article class="dp-kpi dp-kpi--count">
         <div class="dp-kpi__head">
+          <span class="dp-kpi__icon" aria-hidden="true"><mat-icon>groups</mat-icon></span>
           <span class="dp-kpi__label">Drivers Evaluated</span>
-          <mat-icon class="dp-kpi__icon" aria-hidden="true">bar_chart</mat-icon>
         </div>
-        <div class="dp-kpi__value">{{ kpiDrivers }}</div>
+        <div class="dp-kpi__value-row">
+          <div class="dp-kpi__value">{{ kpiDrivers }}</div>
+          <mat-icon class="dp-kpi__chart" aria-hidden="true">bar_chart</mat-icon>
+        </div>
         <div class="dp-kpi__bar dp-kpi__bar--ghost"><i [style.width]="kpiDrivers ? '100%' : '0%'"></i></div>
-        <p class="dp-kpi__caption">Total active drivers in period</p>
+        <p class="dp-kpi__caption">Total active drivers</p>
       </article>
 
       <article class="dp-kpi dp-kpi--safety">
         <div class="dp-kpi__head">
+          <span class="dp-kpi__icon" aria-hidden="true"><mat-icon>shield</mat-icon></span>
           <span class="dp-kpi__label">Safety Score</span>
         </div>
-        <div class="dp-kpi__value">{{ kpiSafety != null ? kpiSafety : '—' }}<span *ngIf="kpiSafety != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__value-row">
+          <div class="dp-kpi__value">
+            {{ kpiSafety != null ? kpiSafety : '—' }}
+            <span *ngIf="kpiSafety != null" class="dp-kpi__denom">/100</span>
+          </div>
+        </div>
         <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiSafety)"></i></div>
         <p class="dp-kpi__caption">Fewer safety violations</p>
       </article>
 
       <article class="dp-kpi dp-kpi--fuel">
         <div class="dp-kpi__head">
+          <span class="dp-kpi__icon" aria-hidden="true"><mat-icon>local_gas_station</mat-icon></span>
           <span class="dp-kpi__label">Fuel Efficiency</span>
         </div>
-        <div class="dp-kpi__value">{{ kpiFuel != null ? kpiFuel : '—' }}<span *ngIf="kpiFuel != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__value-row">
+          <div class="dp-kpi__value">
+            {{ kpiFuel != null ? kpiFuel : '—' }}
+            <span *ngIf="kpiFuel != null" class="dp-kpi__denom">/100</span>
+          </div>
+        </div>
         <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiFuel)"></i></div>
         <p class="dp-kpi__caption">Lower fuel consumption</p>
       </article>
 
       <article class="dp-kpi dp-kpi--ontime">
         <div class="dp-kpi__head">
+          <span class="dp-kpi__icon" aria-hidden="true"><mat-icon>schedule</mat-icon></span>
           <span class="dp-kpi__label">On-Time Performance</span>
         </div>
-        <div class="dp-kpi__value">{{ kpiOnTime != null ? kpiOnTime : '—' }}<span *ngIf="kpiOnTime != null" class="dp-kpi__denom">/100</span></div>
+        <div class="dp-kpi__value-row">
+          <div class="dp-kpi__value">
+            {{ kpiOnTime != null ? kpiOnTime : '—' }}
+            <span *ngIf="kpiOnTime != null" class="dp-kpi__denom">/100</span>
+          </div>
+        </div>
         <div class="dp-kpi__bar"><i [style.width]="barWidth(kpiOnTime)"></i></div>
         <p class="dp-kpi__caption">Better punctuality</p>
       </article>
@@ -140,41 +151,66 @@
   <!-- Score weights -->
   <section class="dp-weights" aria-label="Score weights">
     <div class="dp-weights__head">
-      <h2>
-        Score Weights
-        <mat-icon class="dp-weights__info" matTooltip="Overall = weighted Safety + Fuel + On-time. Relative weights need not sum to 100.">info</mat-icon>
-      </h2>
-      <p>Configure the relative contribution of safety, fuel efficiency and punctuality to the overall driver score.</p>
+      <div class="dp-weights__title">
+        <h2>
+          Score Weights
+          <mat-icon
+            class="dp-weights__info"
+            matTooltip="Overall = weighted Safety + Fuel + On-time. Relative weights need not sum to 100."
+            >info</mat-icon
+          >
+        </h2>
+        <p>Configure the relative contribution of safety, fuel efficiency and punctuality to the overall driver score.</p>
+      </div>
+      @if (canManageWeights) {
+        <button type="button" class="dp-link" (click)="resetWeights()" [disabled]="weightsSaving">
+          Reset to Defaults
+        </button>
+      }
     </div>
 
     @if (canManageWeights) {
       <div class="dp-weights__body">
         <div class="dp-weight-field dp-weight-field--safety">
-          <label for="dp-w-safety">Safety</label>
+          <div class="dp-weight-field__label">
+            <span class="dp-weight-field__icon" aria-hidden="true"><mat-icon>shield</mat-icon></span>
+            <label for="dp-w-safety">Safety</label>
+          </div>
           <div class="dp-weight-field__input">
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('safetyWeight', -1)" [disabled]="weightsSaving" aria-label="Decrease safety weight">−</button>
             <input id="dp-w-safety" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.safetyWeight" />
             <span>%</span>
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('safetyWeight', 1)" [disabled]="weightsSaving" aria-label="Increase safety weight">+</button>
           </div>
           <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.safetyWeight)"></i></div>
         </div>
         <div class="dp-weight-field dp-weight-field--fuel">
-          <label for="dp-w-fuel">Fuel</label>
+          <div class="dp-weight-field__label">
+            <span class="dp-weight-field__icon" aria-hidden="true"><mat-icon>local_gas_station</mat-icon></span>
+            <label for="dp-w-fuel">Fuel</label>
+          </div>
           <div class="dp-weight-field__input">
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('fuelWeight', -1)" [disabled]="weightsSaving" aria-label="Decrease fuel weight">−</button>
             <input id="dp-w-fuel" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.fuelWeight" />
             <span>%</span>
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('fuelWeight', 1)" [disabled]="weightsSaving" aria-label="Increase fuel weight">+</button>
           </div>
           <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.fuelWeight)"></i></div>
         </div>
         <div class="dp-weight-field dp-weight-field--ontime">
-          <label for="dp-w-ontime">On-time</label>
+          <div class="dp-weight-field__label">
+            <span class="dp-weight-field__icon" aria-hidden="true"><mat-icon>schedule</mat-icon></span>
+            <label for="dp-w-ontime">On-time</label>
+          </div>
           <div class="dp-weight-field__input">
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('onTimeWeight', -1)" [disabled]="weightsSaving" aria-label="Decrease on-time weight">−</button>
             <input id="dp-w-ontime" type="number" min="0" max="1000" [(ngModel)]="weightsDraft.onTimeWeight" />
             <span>%</span>
+            <button type="button" class="dp-stepper" (click)="nudgeWeight('onTimeWeight', 1)" [disabled]="weightsSaving" aria-label="Increase on-time weight">+</button>
           </div>
           <div class="dp-weight-field__bar"><i [style.width]="barWidth(weightsDraft.onTimeWeight)"></i></div>
         </div>
         <div class="dp-weights__actions">
-          <button type="button" class="dp-link" (click)="resetWeights()" [disabled]="weightsSaving">Reset to Defaults</button>
           <button
             type="button"
             class="dp-btn dp-btn--primary"
@@ -182,9 +218,9 @@
             [disabled]="weightsSaving || needsCompanySelection">
             {{ weightsSaving ? 'Saving…' : 'Save Weights' }}
           </button>
+          <p class="dp-weights__note">Changes are audited.</p>
         </div>
       </div>
-      <p class="dp-weights__note">Changes are audited.</p>
       @if (weightsError) {
         <p class="dp-error">{{ weightsError }}</p>
       }
@@ -209,13 +245,18 @@
   <div class="dp-split">
     <section class="dp-rankings" aria-label="Driver rankings">
       <div class="dp-rankings__toolbar">
-        <h2>Driver Rankings</h2>
+        <h2>
+          Driver Rankings
+          @if (!loading && rows.length) {
+            <span class="dp-rankings__count">{{ filteredRows.length }}</span>
+          }
+        </h2>
         <div class="dp-rankings__controls">
           <label class="dp-search">
             <mat-icon aria-hidden="true">search</mat-icon>
             <input type="search" placeholder="Search driver..." [(ngModel)]="searchQuery" />
           </label>
-          <select class="dp-select" [(ngModel)]="performanceFilter">
+          <select class="dp-select" [(ngModel)]="performanceFilter" aria-label="Performance filter">
             <option value="all">All Performance</option>
             <option value="excellent">Excellent (≥90)</option>
             <option value="good">Good (75–89)</option>
@@ -224,14 +265,17 @@
             <option value="reward">Reward eligible</option>
             <option value="training">Needs training</option>
           </select>
-          <select class="dp-select" [(ngModel)]="sortKey">
-            <option value="overall">Overall Score</option>
-            <option value="safety">Safety</option>
-            <option value="fuel">Fuel</option>
-            <option value="onTime">On-time</option>
-            <option value="trips">Trips</option>
-            <option value="name">Name</option>
-          </select>
+          <label class="dp-sort">
+            <span class="dp-sort__label">Sort by:</span>
+            <select class="dp-select" [(ngModel)]="sortKey" aria-label="Sort rankings">
+              <option value="overall">Overall Score</option>
+              <option value="safety">Safety</option>
+              <option value="fuel">Fuel</option>
+              <option value="onTime">On-time</option>
+              <option value="trips">Trips</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
           <button type="button" class="dp-btn dp-btn--ghost dp-btn--sm" (click)="exportRankings()" [disabled]="!filteredRows.length">
             <mat-icon>download</mat-icon> Export
           </button>
@@ -291,22 +335,28 @@
                     </div>
                   </td>
                   <td>
-                    <div class="dp-overall">
+                    <div class="dp-overall" [attr.data-tone]="scoreTone(r.score)">
                       <strong>{{ r.score }}</strong>
                       <div class="dp-mini-bar"><i [style.width]="barWidth(r.score)"></i></div>
                     </div>
                   </td>
                   <td class="num">
-                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.safetyScore)"></span>
-                    {{ r.safetyScore ?? '—' }}
+                    <span class="dp-metric-score dp-metric-score--safety">
+                      <span class="dp-metric-score__ring" aria-hidden="true"></span>
+                      {{ r.safetyScore ?? '—' }}
+                    </span>
                   </td>
                   <td class="num">
-                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.fuelEfficiencyScore)"></span>
-                    {{ r.fuelEfficiencyScore ?? '—' }}
+                    <span class="dp-metric-score dp-metric-score--fuel">
+                      <span class="dp-metric-score__ring" aria-hidden="true"></span>
+                      {{ r.fuelEfficiencyScore ?? '—' }}
+                    </span>
                   </td>
                   <td class="num">
-                    <span class="dp-score-dot" [attr.data-tone]="scoreTone(r.onTimeScore)"></span>
-                    {{ r.onTimeScore ?? '—' }}
+                    <span class="dp-metric-score dp-metric-score--ontime">
+                      <span class="dp-metric-score__ring" aria-hidden="true"></span>
+                      {{ r.onTimeScore ?? '—' }}
+                    </span>
                   </td>
                   <td class="num">{{ r.factors?.tripCount ?? '—' }}</td>
                   <td>
@@ -333,7 +383,7 @@
               @if (rows.length && (searchQuery || performanceFilter !== 'all')) {
                 No drivers match the current search or filter.
               } @else {
-                No scored drivers in this period — assign drivers to GPS trips first.
+                No driver performance data found for this period.
               }
             </p>
           }
@@ -342,6 +392,11 @@
     </section>
 
     <aside class="dp-detail" aria-label="Driver score detail">
+      <div class="dp-detail__title">
+        <mat-icon aria-hidden="true">person</mat-icon>
+        <h2>Driver Details</h2>
+      </div>
+
       @if (!selectedDriverId) {
         <div class="dp-detail-empty">
           <div class="dp-detail-empty__icon" aria-hidden="true">
@@ -350,7 +405,7 @@
           <h3>Select a driver to view details</h3>
           <p>Choose a driver from the rankings table to see performance breakdown, trends and supporting events.</p>
           <ul class="dp-checklist">
-            <li><mat-icon>check_circle</mat-icon> Score breakdown</li>
+            <li><mat-icon>check_circle</mat-icon> Score breakdown (Safety, Fuel, On-time)</li>
             <li><mat-icon>check_circle</mat-icon> Performance trends</li>
             <li><mat-icon>check_circle</mat-icon> Supporting events and violations</li>
             <li><mat-icon>check_circle</mat-icon> Coaching insights</li>
@@ -371,7 +426,7 @@
           <div class="dp-driver">
             <span class="dp-avatar dp-avatar--lg" aria-hidden="true">{{ initials(d.score.driverName) }}</span>
             <div>
-              <h2>{{ d.score.driverName }}</h2>
+              <h3 class="dp-detail-name">{{ d.score.driverName }}</h3>
               <span class="muted">{{ driverCode(d.score.driverId) }} · {{ d.score.rating }}</span>
             </div>
           </div>

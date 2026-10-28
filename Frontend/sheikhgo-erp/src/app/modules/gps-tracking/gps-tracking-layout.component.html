@@ -26,6 +26,14 @@
     <span class="gps-ctl-breadcrumb__current">Accident Risk</span>
   </nav>
 
+  <nav class="gps-ctl-breadcrumb" *ngIf="isDriverPerformanceRoute" aria-label="Breadcrumb">
+    <a routerLink="/">Home</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a routerLink="/gps-tracking">Fleet Tracking</a>
+    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <span class="gps-ctl-breadcrumb__current">Driver Performance</span>
+  </nav>
+
   <header class="gps-alerts-hero" *ngIf="isAlertsRoute">
     <div class="gps-alerts-hero__left">
       <div class="gps-alerts-hero__icon" aria-hidden="true">
@@ -65,6 +73,18 @@
           Predictive risk from past accidents, speed violations, fatigue events, and route difficulty.
           High-risk drivers and routes raise proactive Smart Alerts for admins.
         </p>
+      </div>
+    </div>
+  </header>
+
+  <header class="gps-dp-hero" *ngIf="isDriverPerformanceRoute">
+    <div class="gps-dp-hero__left">
+      <div class="gps-dp-hero__icon" aria-hidden="true">
+        <mat-icon>person</mat-icon>
+      </div>
+      <div>
+        <h1>Driver Performance</h1>
+        <p>Measure driver safety, fuel efficiency and punctuality across your fleet.</p>
       </div>
     </div>
   </header>

@@ -264,6 +264,14 @@ export class DriverPerformancePageComponent implements OnInit, OnDestroy {
     this.weightsError = null;
   }
 
+  nudgeWeight(key: 'safetyWeight' | 'fuelWeight' | 'onTimeWeight', delta: number): void {
+    if (!this.canManageWeights) return;
+    const next = Math.max(0, Math.min(1000, (this.weightsDraft[key] ?? 0) + delta));
+    this.weightsDraft = { ...this.weightsDraft, [key]: next };
+    this.weightsMessage = null;
+    this.weightsError = null;
+  }
+
   saveWeights(): void {
     if (!this.canManageWeights || this.needsCompanySelection) return;
     this.weightsSaving = true;

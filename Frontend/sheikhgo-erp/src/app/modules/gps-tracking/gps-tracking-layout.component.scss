@@ -181,11 +181,11 @@
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.28);
   }
 
-  /* Driver Performance — teal accent matches page KPI language */
+  /* Driver Performance — solid teal pill per mock */
   &--driver-performance.active {
-    background: #0f766e;
+    background: #078b7b;
     color: #fff;
-    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.28);
+    box-shadow: 0 2px 8px rgba(7, 139, 123, 0.28);
   }
 
   /* Client Tracking Links — teal link accent */
@@ -283,6 +283,57 @@
   }
 }
 
+.gps-dp-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 2px 2px 2px;
+}
+
+.gps-dp-hero__left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+
+  h1 {
+    margin: 0;
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #14243b;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 6px 0 0;
+    max-width: 42rem;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+}
+
+.gps-dp-hero__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #ef4444;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.12);
+
+  mat-icon {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+  }
+}
+
 .gps-ctl-hero {
   display: flex;
   align-items: flex-start;
@@ -350,7 +401,8 @@
   .gps-module-header p,
   .gps-alerts-hero__left p,
   .gps-ctl-hero__left p,
-  .gps-ar-hero__left p {
+  .gps-ar-hero__left p,
+  .gps-dp-hero__left p {
     display: none;
   }
 
