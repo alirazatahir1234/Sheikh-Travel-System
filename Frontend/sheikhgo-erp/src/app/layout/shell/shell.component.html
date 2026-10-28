@@ -272,16 +272,31 @@
     </main>
   </section>
 
-  <!-- SheikhGo AI Assistant floating bubble (WhatsApp-style) -->
+  <!-- GoFleet Premium AI Assistant launcher (opens existing slide-over chat) -->
   <button
     *ngIf="showAiAssistantFab"
     type="button"
     class="stb-ai-fab"
-    matTooltip="SheikhGo AI Assistant"
-    matTooltipPosition="left"
-    aria-label="Open SheikhGo AI Assistant chat"
+    aria-label="Ask GoFleet AI"
+    aria-haspopup="dialog"
     (click)="openAiChat($event)">
-    <mat-icon>smart_toy</mat-icon>
+    <span class="stb-ai-fab__glow" aria-hidden="true"></span>
+    <span class="stb-ai-fab__ring" aria-hidden="true"></span>
+    <img
+      class="stb-ai-fab__robot"
+      src="/assets/images/gofleet-ai-robot.png"
+      width="76"
+      height="76"
+      alt=""
+      decoding="async"
+      draggable="false" />
+    <span class="stb-ai-fab__tooltip" aria-hidden="true">
+      <span class="stb-ai-fab__sparkles" aria-hidden="true">
+        <span class="stb-ai-fab__sparkle stb-ai-fab__sparkle--lg"></span>
+        <span class="stb-ai-fab__sparkle stb-ai-fab__sparkle--sm"></span>
+      </span>
+      <span class="stb-ai-fab__tooltip-text">Ask GoFleet AI</span>
+    </span>
   </button>
 
   <div class="stb-ai-chat-backdrop" *ngIf="aiChatOpen" (click)="closeAiChat()" aria-hidden="true"></div>
