@@ -2,7 +2,26 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.Sql;
 
 internal static class DriverSql
 {
+    /// <summary>
+    /// Dispatch bucket using the joined active-assignment alias <c>av</c> (VehicleId set = Busy).
+    /// Avoids a correlated EXISTS when AssignmentHistory is already joined / OUTER APPLYed.
+    /// </summary>
     internal const string BucketSqlExpression = """
+        CASE
+            WHEN d.IsActive = 0 OR d.Status IN (@Suspended, @OnLeave) OR d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
+                THEN N'Unavailable'
+            WHEN d.Status = @OnTrip THEN N'OnTrip'
+            WHEN av.VehicleId IS NOT NULL THEN N'Busy'
+            WHEN d.Status IN (@Available, @OffDuty) THEN N'Available'
+            ELSE N'Unavailable'
+        END
+        """;
+
+    /// <summary>
+    /// Same rules as <see cref="BucketSqlExpression"/> but with a correlated EXISTS —
+    /// only for queries that do not join active assignments (e.g. single-driver detail helpers).
+    /// </summary>
+    internal const string BucketSqlExpressionExists = """
         CASE
             WHEN d.IsActive = 0 OR d.Status IN (@Suspended, @OnLeave) OR d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
                 THEN N'Unavailable'
@@ -28,18 +47,32 @@ internal static class DriverSql
              THEN 1 ELSE 0 END AS BIT) AS GpsOnline
         """;
 
-    internal const string AvailabilityBucketColumn = """
-        CASE
-            WHEN d.IsActive = 0 OR d.Status IN (@Suspended, @OnLeave) OR d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
-                THEN N'Unavailable'
-            WHEN d.Status = @OnTrip THEN N'OnTrip'
-            WHEN EXISTS (
-                SELECT 1 FROM AssignmentHistory ah
-                WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-            ) THEN N'Busy'
-            WHEN d.Status IN (@Available, @OffDuty) THEN N'Available'
-            ELSE N'Unavailable'
-        END AS AvailabilityBucket
+    internal const string AvailabilityBucketColumn = $"""
+        {BucketSqlExpression} AS AvailabilityBucket
+        """;
+
+    /// <summary>
+    /// Latest active assignment per driver (set-based). Prefer over correlated OUTER APPLY for aggregates.
+    /// Requires @TenantId. Alias columns as VehicleId / GpsDeviceId for BucketSqlExpression + GpsOnlineFlag.
+    /// </summary>
+    internal const string ActiveAssignmentJoin = """
+        LEFT JOIN (
+            SELECT ah.DriverId,
+                   v.Id AS VehicleId,
+                   v.GpsDeviceId,
+                   v.VehicleCode,
+                   v.RegistrationNumber,
+                   v.Name AS VehicleName,
+                   v.Make AS VehicleMake,
+                   v.Model AS VehicleModel,
+                   v.Color AS VehicleColor,
+                   ROW_NUMBER() OVER (PARTITION BY ah.DriverId ORDER BY ah.StartAt DESC) AS rn
+            FROM AssignmentHistory ah
+            INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
+            WHERE ah.IsDeleted = 0 AND ah.Status = N'Active'
+              AND ah.DriverId IS NOT NULL
+              AND (ah.TenantId IS NULL OR ah.TenantId = @TenantId)
+        ) av ON av.DriverId = d.Id AND av.rn = 1
         """;
 
     internal const string ListSelect = $"""
@@ -61,19 +94,17 @@ internal static class DriverSql
         d.CreatedAt
         """;
 
-    internal const string ListFrom = """
+    internal const string ListFrom = $"""
         FROM Drivers d
         LEFT JOIN Branches b ON b.Id = d.BranchId AND b.IsActive = 1
         LEFT JOIN Departments dep ON dep.Id = d.DepartmentId AND dep.IsActive = 1
-        OUTER APPLY (
-            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId,
-                   v.Name AS VehicleName, v.Make AS VehicleMake, v.Model AS VehicleModel, v.Color AS VehicleColor
-            FROM AssignmentHistory ah
-            INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
-            WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-            ORDER BY ah.StartAt DESC
-        ) av
+        {ActiveAssignmentJoin}
         LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
+        """;
+
+    /// <summary>Drivers-only FROM for COUNT(*) when availability bucket filter is not applied.</summary>
+    internal const string ListCountFrom = """
+        FROM Drivers d
         """;
 
     internal const string DetailColumns = $"""
@@ -93,18 +124,11 @@ internal static class DriverSql
         d.CreatedAt, d.UpdatedAt
         """;
 
-    internal const string DetailFrom = """
+    internal const string DetailFrom = $"""
         FROM Drivers d
         LEFT JOIN Branches b ON b.Id = d.BranchId AND b.IsActive = 1
         LEFT JOIN Departments dep ON dep.Id = d.DepartmentId AND dep.IsActive = 1
-        OUTER APPLY (
-            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId,
-                   v.Name AS VehicleName, v.Make AS VehicleMake, v.Model AS VehicleModel, v.Color AS VehicleColor
-            FROM AssignmentHistory ah
-            INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
-            WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-            ORDER BY ah.StartAt DESC
-        ) av
+        {ActiveAssignmentJoin}
         LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
         """;
 }

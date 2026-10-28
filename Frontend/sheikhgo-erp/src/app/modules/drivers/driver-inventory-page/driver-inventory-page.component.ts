@@ -77,6 +77,8 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
+  /** Cancels in-flight Top Drivers / compliance fetches when the page reloads. */
+  private readonly deferredReload$ = new Subject<void>();
   private readonly searchInput$ = new Subject<string>();
   private exporting = false;
 
@@ -220,16 +222,30 @@ export class DriverInventoryPageComponent implements OnInit {
     })
   );
 
+  /**
+   * Exclusive dispatch buckets for chart + Availability panel.
+   * Prefer dedicated summary when loaded; otherwise reuse /stats (same bucket rules) so KPIs aren't blocked.
+   */
+  readonly dispatchAvailability = computed((): DriversAvailabilitySummary | null => {
+    const a = this.availabilitySummary();
+    if (a) return a;
+    const s = this.stats();
+    if (!s) return null;
+    return {
+      available: s.available ?? 0,
+      busy: s.busy ?? 0,
+      onTrip: s.onTrip ?? 0,
+      unavailable: s.unavailable ?? 0
+    };
+  });
+
   /** Bars use exclusive dispatch-availability buckets (same as Availability panel). */
   readonly chartData = computed<ChartData>(() => {
-    const a = this.availabilitySummary();
-    const s = this.stats();
+    const a = this.dispatchAvailability();
     const labels = ['Available', 'Busy', 'On Trip', 'Unavailable'];
     const values = a
       ? [a.available, a.busy, a.onTrip, a.unavailable]
-      : s
-        ? [s.available ?? 0, s.busy ?? 0, s.onTrip ?? 0, s.unavailable ?? 0]
-        : [0, 0, 0, 0];
+      : [0, 0, 0, 0];
     return {
       labels,
       datasets: [{
@@ -322,16 +338,33 @@ export class DriverInventoryPageComponent implements OnInit {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(result => {
       if (!result) return;
-      const { list, stats, statsFailed, compliance, availability, rankPool, gpsRanking, page } = result;
+      const { list, stats, statsFailed, page } = result;
       this.rows.set(list.items);
-      this.rankPool.set(rankPool.items);
-      this.gpsRanking.set(gpsRanking);
       this.pagination.set({ ...page, total: list.totalCount });
       this.stats.set(stats);
       this.statsError.set(statsFailed ? 'Could not load driver stats for this scope.' : null);
-      this.availabilitySummary.set(availability);
-      this.complianceDrivers.set(compliance.items);
+      // Derive dispatch panel from stats immediately (same exclusive buckets).
+      if (stats) {
+        this.availabilitySummary.set({
+          available: stats.available ?? 0,
+          busy: stats.busy ?? 0,
+          onTrip: stats.onTrip ?? 0,
+          unavailable: stats.unavailable ?? 0
+        });
+      }
       this.loading.set(false);
+      // Top Drivers / GPS ranking / compliance lists are non-critical — load after KPIs paint.
+      this.deferredReload$.next();
+    });
+
+    this.deferredReload$.pipe(
+      switchMap(() => this.fetchDeferredWidgets()),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(deferred => {
+      if (!deferred) return;
+      this.rankPool.set(deferred.rankPool.items);
+      this.gpsRanking.set(deferred.gpsRanking);
+      this.complianceDrivers.set(deferred.compliance.items);
     });
 
     this.load();
@@ -361,18 +394,38 @@ export class DriverInventoryPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     const p = this.pagination();
+    const branchId = this.listParams().branchId;
+
+    // Critical path only: table page + Operational/Risk stats. Do not wait on GPS ranking or 500-row rank pool.
+    return forkJoin({
+      list: this.driverService.getAll(this.listParams()),
+      statsResult: this.driverService.getStats(branchId).pipe(
+        map(stats => ({ stats, failed: false as const })),
+        catchError(() => of({ stats: null as DriverStats | null, failed: true as const }))
+      )
+    }).pipe(
+      map(({ list, statsResult }) => ({
+        list,
+        stats: statsResult.stats,
+        statsFailed: statsResult.failed,
+        page: p
+      })),
+      catchError(err => {
+        this.loading.set(false);
+        this.error.set(apiErrorMessage(err, 'Failed to load drivers.'));
+        return EMPTY;
+      })
+    );
+  }
+
+  /** Secondary widgets: Top Drivers blend + compliance attention list. Failures are non-blocking. */
+  private fetchDeferredWidgets() {
     const emptyPaged: PagedResult<DriverListItem> = { items: [], totalCount: 0, page: 1, pageSize: 5, totalPages: 0 };
     const branchId = this.listParams().branchId;
 
     return forkJoin({
-      list: this.driverService.getAll(this.listParams()),
       rankPool: this.driverService.getAll({ page: 1, pageSize: 500, branchId }).pipe(catchError(() => of(emptyPaged))),
       gpsRanking: this.gpsTracking.getDriverScoreRanking({ branchId }).pipe(catchError(() => of([] as DriverScore[]))),
-      statsResult: this.driverService.getStats(branchId).pipe(
-        map(stats => ({ stats, failed: false as const })),
-        catchError(() => of({ stats: null as DriverStats | null, failed: true as const }))
-      ),
-      availability: this.driverService.getAvailabilitySummary(branchId).pipe(catchError(() => of(null))),
       compliance: forkJoin({
         expiring: this.driverService.getAll({ licenseExpiry: 'EXPIRING', pageSize: 5, branchId }).pipe(catchError(() => of(emptyPaged))),
         expired: this.driverService.getAll({ licenseExpiry: 'EXPIRED', pageSize: 5, branchId }).pipe(catchError(() => of(emptyPaged)))
@@ -386,21 +439,7 @@ export class DriverInventoryPageComponent implements OnInit {
         catchError(() => of(emptyPaged))
       )
     }).pipe(
-      map(({ list, rankPool, gpsRanking, statsResult, availability, compliance }) => ({
-        list,
-        rankPool,
-        gpsRanking,
-        stats: statsResult.stats,
-        statsFailed: statsResult.failed,
-        availability,
-        compliance,
-        page: p
-      })),
-      catchError(err => {
-        this.loading.set(false);
-        this.error.set(apiErrorMessage(err, 'Failed to load drivers.'));
-        return EMPTY;
-      })
+      catchError(() => EMPTY)
     );
   }
 

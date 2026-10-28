@@ -77,7 +77,8 @@ public class GetDriverStatsQueryHandler(
     IDriverRepository driverRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser,
-    IDataScopeEngine dataScopeEngine)
+    IDataScopeEngine dataScopeEngine,
+    IAppCache cache)
     : IRequestHandler<GetDriverStatsQuery, ApiResponse<DriverStatsDto>>
 {
     public async Task<ApiResponse<DriverStatsDto>> Handle(GetDriverStatsQuery request, CancellationToken cancellationToken)
@@ -93,7 +94,19 @@ public class GetDriverStatsQueryHandler(
             !DataScopeSql.TryIntersectOptional(scope, request.BranchId, null, out _, out _, out var scopeError))
             return ApiResponse<DriverStatsDto>.FailResponse(scopeError ?? "Outside data scope.");
 
-        var stats = await driverRepository.GetStatsAsync(tenantId, request.BranchId, scope, cancellationToken);
-        return ApiResponse<DriverStatsDto>.SuccessResponse(stats);
+        var scopeKey = scope is null
+            ? "noscope"
+            : $"{scope.Mode}:{(scope.IsCompanyWide ? "co" : string.Join(',', scope.BranchIds))}:u{scope.UserId}";
+        var cacheKey = $"drivers:stats:{tenantId}:b{request.BranchId?.ToString() ?? "all"}:{scopeKey}";
+
+        return await cache.GetOrCreateAsync(
+            cacheKey,
+            AppCacheTtl.DriverStats,
+            async ct =>
+            {
+                var stats = await driverRepository.GetStatsAsync(tenantId, request.BranchId, scope, ct);
+                return ApiResponse<DriverStatsDto>.SuccessResponse(stats);
+            },
+            cancellationToken);
     }
 }

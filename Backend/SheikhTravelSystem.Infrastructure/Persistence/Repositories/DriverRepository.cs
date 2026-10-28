@@ -331,6 +331,7 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
         }
 
         var whereClause = string.Join(" AND ", where);
+        var needsAssignmentJoin = !string.IsNullOrWhiteSpace(availability);
 
         var drivers = (await connection.QueryAsync<DriverListItemDto>(
             new CommandDefinition(
@@ -342,9 +343,13 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                 parameters,
                 cancellationToken: cancellationToken))).ToList();
 
+        // COUNT does not need Branches/Departments/GpsDevices; only join assignments when filtering by bucket.
+        var countFrom = needsAssignmentJoin
+            ? $"FROM Drivers d {DriverSql.ActiveAssignmentJoin}"
+            : DriverSql.ListCountFrom;
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                $@"SELECT COUNT(*) {DriverSql.ListFrom} WHERE {whereClause}",
+                $@"SELECT COUNT(*) {countFrom} WHERE {whereClause}",
                 parameters,
                 cancellationToken: cancellationToken));
 
@@ -381,36 +386,37 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
 
         var whereClause = string.Join(" AND ", where);
 
-        // Available / Busy / OnTrip / Unavailable are exclusive dispatch-availability buckets
-        // (same rules as GetAvailabilitySummary). OffDuty / OnLeave / Suspended remain duty status.
+        // Set-based active-assignment join (no per-row OUTER APPLY + EXISTS).
+        // OpenViolations is a single scalar subquery over the same scoped driver set.
+        var openViolationsWhere = whereClause.Replace("d.", "vd.", StringComparison.Ordinal);
         return await connection.QuerySingleAsync<DriverStatsDto>(
             new CommandDefinition(
                 $@"SELECT
                     COUNT(*) AS TotalDrivers,
-                    SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS Active,
-                    SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
+                    SUM(CASE WHEN d.IsActive = 1 THEN 1 ELSE 0 END) AS Active,
+                    SUM(CASE WHEN d.IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
                     SUM(CASE WHEN bucket = N'OnTrip' THEN 1 ELSE 0 END) AS OnTrip,
-                    SUM(CASE WHEN Status = @OffDuty THEN 1 ELSE 0 END) AS OffDuty,
+                    SUM(CASE WHEN d.Status = @OffDuty THEN 1 ELSE 0 END) AS OffDuty,
                     SUM(CASE WHEN bucket = N'Available' THEN 1 ELSE 0 END) AS Available,
                     SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END) AS Busy,
-                    SUM(CASE WHEN Status = @OnLeave THEN 1 ELSE 0 END) AS OnLeave,
-                    SUM(CASE WHEN Status = @Suspended THEN 1 ELSE 0 END) AS Suspended,
+                    SUM(CASE WHEN d.Status = @OnLeave THEN 1 ELSE 0 END) AS OnLeave,
+                    SUM(CASE WHEN d.Status = @Suspended THEN 1 ELSE 0 END) AS Suspended,
                     SUM(CASE WHEN gpsOnline = 1 THEN 1 ELSE 0 END) AS GpsOnline,
-                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
-                              AND LicenseExpiryDate <= DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))
+                    SUM(CASE WHEN d.LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
+                              AND d.LicenseExpiryDate <= DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))
                          THEN 1 ELSE 0 END) AS LicensesExpiringSoon,
-                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
-                              AND LicenseExpiryDate <= DATEADD(day, 7, CAST(GETUTCDATE() AS DATE))
+                    SUM(CASE WHEN d.LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
+                              AND d.LicenseExpiryDate <= DATEADD(day, 7, CAST(GETUTCDATE() AS DATE))
                          THEN 1 ELSE 0 END) AS LicensesExpiringIn7Days,
-                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
-                              AND LicenseExpiryDate <= DATEADD(day, 60, CAST(GETUTCDATE() AS DATE))
+                    SUM(CASE WHEN d.LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
+                              AND d.LicenseExpiryDate <= DATEADD(day, 60, CAST(GETUTCDATE() AS DATE))
                          THEN 1 ELSE 0 END) AS LicensesExpiringIn60Days,
-                    SUM(CASE WHEN LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
+                    SUM(CASE WHEN d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
                          THEN 1 ELSE 0 END) AS LicensesExpired,
-                    SUM(CASE WHEN VerificationStatus = N'Verified' THEN 1 ELSE 0 END) AS VerifiedDrivers,
-                    SUM(CASE WHEN VerificationStatus = N'Pending'  THEN 1 ELSE 0 END) AS PendingVerification,
-                    SUM(CASE WHEN VerificationStatus = N'Rejected' THEN 1 ELSE 0 END) AS RejectedDrivers,
-                    SUM(CASE WHEN VerificationStatus = N'UnderReview' THEN 1 ELSE 0 END) AS UnderReviewDrivers,
+                    SUM(CASE WHEN d.VerificationStatus = N'Verified' THEN 1 ELSE 0 END) AS VerifiedDrivers,
+                    SUM(CASE WHEN d.VerificationStatus = N'Pending'  THEN 1 ELSE 0 END) AS PendingVerification,
+                    SUM(CASE WHEN d.VerificationStatus = N'Rejected' THEN 1 ELSE 0 END) AS RejectedDrivers,
+                    SUM(CASE WHEN d.VerificationStatus = N'UnderReview' THEN 1 ELSE 0 END) AS UnderReviewDrivers,
                     SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers,
                     COUNT(DISTINCT assignedVehicleId) AS AssignedVehicles,
                     ISNULL((
@@ -420,24 +426,21 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                         WHERE dv.TenantId = @TenantId
                           AND dv.IsDeleted = 0
                           AND (dv.Status IS NULL OR dv.Status NOT IN (N'Closed', N'Resolved', N'Dismissed'))
-                          AND vd.Id IN (SELECT d.Id FROM Drivers d WHERE {whereClause})
+                          AND ({openViolationsWhere})
                     ), 0) AS OpenViolations,
                     SUM(CASE WHEN bucket = N'Unavailable' THEN 1 ELSE 0 END) AS Unavailable
                   FROM (
-                    SELECT d.*,
+                    SELECT d.IsActive,
+                           d.Status,
+                           d.LicenseExpiryDate,
+                           d.VerificationStatus,
                            CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())
                                 THEN 1 ELSE 0 END AS gpsOnline,
                            CASE WHEN av.VehicleId IS NOT NULL THEN 1 ELSE 0 END AS isAssigned,
                            av.VehicleId AS assignedVehicleId,
                            {bucketSql} AS bucket
                     FROM Drivers d
-                    OUTER APPLY (
-                        SELECT TOP 1 v.Id AS VehicleId, v.GpsDeviceId
-                        FROM AssignmentHistory ah
-                        INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
-                        WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-                        ORDER BY ah.StartAt DESC
-                    ) av
+                    {DriverSql.ActiveAssignmentJoin}
                     LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
                     WHERE {whereClause}
                   ) d",
@@ -1034,6 +1037,7 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                   FROM (
                     SELECT {bucketSql} AS bucket
                     FROM Drivers d
+                    {DriverSql.ActiveAssignmentJoin}
                     WHERE {whereClause}
                   ) x",
                 parameters,
