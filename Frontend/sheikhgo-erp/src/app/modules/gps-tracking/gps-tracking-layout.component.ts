@@ -33,6 +33,7 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     { label: 'Trip Mode', icon: 'settings', route: 'trip-mode', permission: 'Gps.DeviceManage' },
     { label: 'History', icon: 'history', route: 'history' },
     { label: 'Commands', icon: 'power_settings_new', route: 'commands', permission: 'Gps.CommandView' },
+    // Keep scoring next to Analytics so it is not buried at the far end of the scrollable tab strip.
     { label: 'Analytics', icon: 'insights', route: 'analytics' },
     { label: 'Driver Performance', icon: 'speed', route: 'driver-performance' },
     { label: 'Accident Risk', icon: 'health_and_safety', route: 'accident-risk', permission: 'Gps.AlertView' },

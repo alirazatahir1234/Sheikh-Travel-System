@@ -53,6 +53,31 @@ const AI_NAV_ITEM: NavItem = {
   moduleKey: 'ai'
 };
 
+/** Analytics GPS pages — must appear even when PlatformMenus seed lagged behind the UI. */
+const GPS_ANALYTICS_NAV_ITEMS: NavItem[] = [
+  {
+    id: 'fleet-analytics',
+    label: 'Fleet Analytics',
+    icon: 'analytics',
+    route: '/gps-tracking/analytics',
+    moduleKey: 'gps-tracking'
+  },
+  {
+    id: 'driver-performance',
+    label: 'Driver Performance',
+    icon: 'speed',
+    route: '/gps-tracking/driver-performance',
+    moduleKey: 'gps-tracking'
+  },
+  {
+    id: 'client-tracking-links',
+    label: 'Client Tracking Links',
+    icon: 'link',
+    route: '/gps-tracking/client-tracking-links',
+    moduleKey: 'gps-tracking'
+  }
+];
+
 @Injectable({ providedIn: 'root' })
 export class MenuService {
   constructor(
@@ -64,8 +89,14 @@ export class MenuService {
     return this.http
       .get<MenuModuleDto[]>(`${environment.apiUrl}/platform/menus/me`)
       .pipe(
-        map(modules => this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules)),
-        catchError(() => of(this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules)))
+        map(modules => this.ensureGpsAnalyticsNav(
+          this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules),
+          enabledModules
+        )),
+        catchError(() => of(this.ensureGpsAnalyticsNav(
+          this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules),
+          enabledModules
+        )))
       );
   }
 
@@ -148,6 +179,62 @@ export class MenuService {
 
   private canSeeMcp(enabledModules: string[]): boolean {
     return this.canAccessAiAssistant(enabledModules);
+  }
+
+  /**
+   * Inject Driver Performance / Fleet Analytics under Analytics when GPS is entitled
+   * and the API catalog omitted them (historical PlatformMenus gap).
+   */
+  private ensureGpsAnalyticsNav(menu: ResolvedMenu, enabledModules: string[] = []): ResolvedMenu {
+    if (menu.isDriverLayout) return menu;
+    // Soft: empty entitlement list → do not hide (matches backend PassesFeatureGate).
+    if (enabledModules.length > 0 && !this.isGpsTrackingEnabled(enabledModules)) return menu;
+    if (!this.canSeeGpsTracking()) return menu;
+
+    const groups = menu.groups.map(g => ({ ...g, items: [...g.items] }));
+    let analytics = groups.find(g =>
+      g.id === 'analytics' || g.label.toLowerCase() === 'analytics'
+    );
+
+    if (!analytics) {
+      analytics = {
+        id: 'analytics',
+        label: 'Analytics',
+        icon: 'bar_chart',
+        collapsible: true,
+        items: []
+      };
+      groups.push(analytics);
+    }
+
+    for (const item of GPS_ANALYTICS_NAV_ITEMS) {
+      const exists = analytics.items.some(i =>
+        i.id === item.id
+        || i.route === item.route
+        || i.route.startsWith(item.route + '/')
+      );
+      if (!exists) {
+        analytics.items.push({ ...item });
+      }
+    }
+
+    return { ...menu, groups };
+  }
+
+  private isGpsTrackingEnabled(enabledModules: string[]): boolean {
+    return (enabledModules ?? []).some(e => e.toLowerCase() === 'gps-tracking');
+  }
+
+  private canSeeGpsTracking(): boolean {
+    if (this.auth.hasPermission('GPS.View')) return true;
+    const roles = this.auth.getCurrentUser()?.roles ?? [];
+    return roles.some(r => {
+      const code = r.toUpperCase();
+      return code === 'ADMIN'
+        || code === 'SUPER_ADMIN'
+        || code === 'TENANT_ADMIN'
+        || code === 'SUPERADMIN';
+    });
   }
 
   /**

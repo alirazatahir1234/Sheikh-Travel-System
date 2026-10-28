@@ -170,6 +170,7 @@ public static class DatabaseMigrationRegistry
             M("ElectricFleetNavMenuMigration", ElectricFleetNavMenuMigration.ApplyAsync),
             M("ElectricFleetDemoSeedMigration", ElectricFleetDemoSeedMigration.ApplyAsync),
             M("GpsAutoTripModeMigration", GpsAutoTripModeMigration.ApplyAsync),
+            M("DriverPerformanceNavMenuMigration", DriverPerformanceNavMenuMigration.ApplyAsync),
         ];
     }
 }

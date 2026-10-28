@@ -93,7 +93,8 @@ public static class MenuBuilderQueries
             "fleet" => enabled.Any(k => k is "vehicles" or "drivers" or "gps-tracking" or "fuel-logs" or "maintenance"),
             "customers" => enabled.Contains("customers", StringComparer.OrdinalIgnoreCase),
             "finance" => enabled.Contains("payments", StringComparer.OrdinalIgnoreCase),
-            "analytics" => enabled.Any(k => k is "reports" or "audit-logs"),
+            // GPS analytics pages (Driver Performance, Fleet Analytics) live under Analytics.
+            "analytics" => enabled.Any(k => k is "reports" or "audit-logs" or "gps-tracking"),
             "administration" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "dashboard"),
             "organization" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "organization" or "platform"),
             "access_control" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "access_control"),

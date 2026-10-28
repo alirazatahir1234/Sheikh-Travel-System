@@ -15,6 +15,40 @@ public class MenuBuilderQueriesTests
     }
 
     [Fact]
+    public void IsNavModuleEnabled_analytics_when_reports_audit_or_gps_tracking()
+    {
+        MenuBuilderQueries.IsNavModuleEnabled("analytics", ["reports"]).Should().BeTrue();
+        MenuBuilderQueries.IsNavModuleEnabled("analytics", ["audit-logs"]).Should().BeTrue();
+        MenuBuilderQueries.IsNavModuleEnabled("analytics", ["gps-tracking"]).Should().BeTrue();
+        MenuBuilderQueries.IsNavModuleEnabled("analytics", ["vehicles"]).Should().BeFalse();
+    }
+
+    [Fact]
+    public void BuildUserMenu_includes_driver_performance_under_analytics_for_gps_entitlement()
+    {
+        var modules = new List<MenuBuilderQueries.ModuleRow>
+        {
+            new(1, "Analytics", "analytics", "bar_chart", 40, true, "Analytics", null, true)
+        };
+        var menus = new List<MenuBuilderQueries.MenuRow>
+        {
+            new(1, 1, null, "Driver Performance", "/gps-tracking/driver-performance", "speed", "GPS.View",
+                6, true, "Driver Performance", null, "Analytics", true, "gps-tracking", "GPS", false)
+        };
+
+        var allowed = MenuBuilderQueries.BuildUserMenu(
+            modules,
+            menus,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GPS.View" },
+            ["gps-tracking"],
+            new Dictionary<string, bool>(),
+            grantFullCatalog: false);
+
+        allowed.Should().ContainSingle()
+            .Which.Items.Should().ContainSingle(i => i.Route == "/gps-tracking/driver-performance");
+    }
+
+    [Fact]
     public void IsMenuItemEnabledByModule_vehicle_view_requires_fleet_entitlement()
     {
         MenuBuilderQueries.IsMenuItemEnabledByModule("Vehicle.View", ["vehicles"], "FLEET").Should().BeTrue();
