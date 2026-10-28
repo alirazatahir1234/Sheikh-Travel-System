@@ -18,6 +18,8 @@ Thumbs.db
 **/appsettings.Local.json
 .env
 .env.*
+# ASP.NET Data Protection key ring (tracking-token Unprotect / cookies)
+**/dp-keys/
 # Vercel CLI prebuilt output — must not be committed (see deploy/vercel/deploy-frontends.sh).
 .vercel/
 secrets/

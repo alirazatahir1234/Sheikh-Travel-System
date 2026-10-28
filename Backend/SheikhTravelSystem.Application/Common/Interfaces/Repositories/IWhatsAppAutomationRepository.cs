@@ -69,6 +69,8 @@ public interface IWhatsAppAutomationRepository
 
     Task RevokeTrackingLinkAsync(int tenantId, long linkId, CancellationToken ct = default);
 
+    Task<TripTrackingLinkRow?> GetTrackingLinkByIdAsync(int tenantId, long linkId, CancellationToken ct = default);
+
     // Ratings
     Task<bool> TryInsertTripRatingAsync(
         int tenantId, int tripId, int? driverId, int score, int? messageId, CancellationToken ct = default);
@@ -119,17 +121,24 @@ public sealed record TripTrackingLinkRow(
     DateTime? RevokedAt,
     int ViewCount);
 
-public sealed record TripTrackingLinkListRow(
-    long Id,
-    int TripId,
-    string? TripNumber,
-    int? BookingId,
-    DateTime ExpiresAt,
-    DateTime? RevokedAt,
-    int ViewCount,
-    DateTime CreatedAt,
-    /// <summary>Data-Protection ciphertext; list handlers may Unprotect for tenant admins only.</summary>
-    string? TokenProtected);
+/// <summary>List projection — mutable properties so Dapper maps TokenProtected reliably.</summary>
+public sealed class TripTrackingLinkListRow
+{
+    public long Id { get; init; }
+    public int TripId { get; init; }
+    public string? TripNumber { get; init; }
+    public int? BookingId { get; init; }
+    public DateTime ExpiresAt { get; init; }
+    public DateTime? RevokedAt { get; init; }
+    public int ViewCount { get; init; }
+    public DateTime CreatedAt { get; init; }
+    /// <summary>Data-Protection ciphertext; list/reveal handlers Unprotect for tenant admins only.</summary>
+    public string? TokenProtected { get; init; }
+    public string? CustomerName { get; init; }
+    public int? VehicleId { get; init; }
+    public string? PlateNumber { get; init; }
+    public string? VehicleDescription { get; init; }
+}
 
 public sealed record AutomationBookingSnapshot(
     int Id,

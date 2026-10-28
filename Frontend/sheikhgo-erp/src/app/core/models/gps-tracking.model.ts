@@ -961,12 +961,19 @@ export interface ClientTrackingLink {
   tripId: number;
   tripNumber?: string | null;
   bookingId?: number | null;
-  publicPath: string;
+  /** Real `/t/{token}` when reveal succeeds; null/placeholder when Unprotect fails. */
+  publicPath?: string | null;
   expiresAt: string;
   revokedAt?: string | null;
   viewCount: number;
   createdAt: string;
   isActive: boolean;
+  /** False when admin cannot reveal URL — regenerate via Generate Link. */
+  canOpen?: boolean;
+  customerName?: string | null;
+  vehicleId?: number | null;
+  plateNumber?: string | null;
+  vehicleDescription?: string | null;
 }
 
 export interface ClientTrackingLinkCreated {
@@ -974,6 +981,11 @@ export interface ClientTrackingLinkCreated {
   token: string;
   publicUrl: string;
   expiresAt: string;
+}
+
+export interface ClientTrackingLinkUrl {
+  linkId: number;
+  publicUrl: string;
 }
 
 export interface DailyUtilization {

@@ -20,6 +20,11 @@ public partial class GpsTrackingController
     public async Task<IActionResult> CreateClientTrackingLink([FromBody] CreateClientTrackingLinkRequest body)
         => Ok(await Mediator.Send(new CreateClientTrackingLinkCommand(body.TripId, body.HoursValid)));
 
+    [RequirePermission(OperationsPermissions.TripView)]
+    [HttpGet("client-tracking-links/{linkId:long}/public-url")]
+    public async Task<IActionResult> RevealClientTrackingLinkUrl(long linkId)
+        => Ok(await Mediator.Send(new RevealClientTrackingLinkUrlQuery(linkId)));
+
     [RequirePermission(OperationsPermissions.TripAssign)]
     [HttpPost("client-tracking-links/{linkId:long}/revoke")]
     public async Task<IActionResult> RevokeClientTrackingLink(long linkId)

@@ -82,16 +82,44 @@
     </div>
 
     <div class="ctl-create__form">
+      <label class="ctl-field ctl-field--search">
+        <span class="ctl-field__label">Trip / Vehicle</span>
+        <div class="ctl-field__control ctl-field__control--stack">
+          <div class="ctl-search-inline">
+            <mat-icon aria-hidden="true">search</mat-icon>
+            <input
+              type="search"
+              [ngModel]="tripSearch"
+              (ngModelChange)="onTripSearchInput($event)"
+              placeholder="Search trip number, client, or vehicle…"
+              [disabled]="creating || needsCompanySelection" />
+          </div>
+          <select
+            [(ngModel)]="selectedTripId"
+            [disabled]="creating || needsCompanySelection || tripsLoading">
+            <option [ngValue]="null">
+              {{ tripsLoading ? 'Loading trips…' : 'Select a trip' }}
+            </option>
+            @for (t of tripOptions; track t.id) {
+              <option [ngValue]="t.id">{{ tripOptionLabel(t) }}</option>
+            }
+          </select>
+        </div>
+      </label>
+
       <label class="ctl-field">
-        <span class="ctl-field__label">Trip ID</span>
-        <div class="ctl-field__control">
-          <mat-icon aria-hidden="true">route</mat-icon>
-          <input
-            type="number"
-            min="1"
-            [(ngModel)]="tripIdInput"
-            placeholder="Enter Trip ID (e.g. 1015)"
-            [disabled]="creating || needsCompanySelection" />
+        <span class="ctl-field__label">Client</span>
+        <div class="ctl-field__control ctl-field__control--readonly">
+          <mat-icon aria-hidden="true">person</mat-icon>
+          <span class="ctl-readonly">{{ selectedClientName }}</span>
+        </div>
+      </label>
+
+      <label class="ctl-field">
+        <span class="ctl-field__label">Vehicle</span>
+        <div class="ctl-field__control ctl-field__control--readonly">
+          <mat-icon aria-hidden="true">local_shipping</mat-icon>
+          <span class="ctl-readonly">{{ selectedVehicleLabel }}</span>
         </div>
       </label>
 
@@ -113,7 +141,7 @@
         type="button"
         class="ctl-btn ctl-btn--primary ctl-btn--generate"
         (click)="createLink()"
-        [disabled]="creating || needsCompanySelection">
+        [disabled]="creating || needsCompanySelection || !selectedTripId">
         <mat-icon>link</mat-icon>
         {{ creating ? 'Generating…' : 'Generate Link' }}
       </button>
@@ -205,12 +233,11 @@
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>Trip</th>
-              <th>Link</th>
-              <th>Status</th>
-              <th class="num">Views</th>
-              <th>Created At</th>
+              <th>Client</th>
+              <th>Vehicle / Trip</th>
+              <th>Created</th>
               <th>Expires</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -222,36 +249,16 @@
                 </td>
                 <td>
                   <div class="ctl-trip">
-                    <strong>{{ tripLabel(r) }}</strong>
-                    <span class="muted">Trip ID {{ r.tripId }}</span>
+                    <strong>{{ clientLabel(r) }}</strong>
+                    <span class="muted">{{ tripLabel(r) }}</span>
                   </div>
                 </td>
                 <td>
-                  @if (displayUrl(r); as url) {
-                    <div class="ctl-link-cell">
-                      <code class="ctl-link-cell__url" [title]="url">{{ url }}</code>
-                      <button
-                        type="button"
-                        class="ctl-icon-btn"
-                        (click)="copyUrl(url)"
-                        matTooltip="Copy link"
-                        aria-label="Copy link">
-                        <mat-icon>content_copy</mat-icon>
-                      </button>
-                    </div>
-                  } @else {
-                    <span class="ctl-link-muted" title="Token is returned only when the link is generated">
-                      Available after generate
-                    </span>
-                  }
+                  <div class="ctl-trip">
+                    <strong>{{ vehicleLabel(r) }}</strong>
+                    <span class="muted">Trip ID {{ r.tripId }}</span>
+                  </div>
                 </td>
-                <td>
-                  <span class="ctl-badge" [attr.data-status]="linkStatus(r)">
-                    <i aria-hidden="true"></i>
-                    {{ linkStatus(r) === 'active' ? 'Active' : (linkStatus(r) === 'revoked' ? 'Revoked' : 'Expired') }}
-                  </span>
-                </td>
-                <td class="num">{{ r.viewCount }}</td>
                 <td>{{ r.createdAt | date:'short' }}</td>
                 <td>
                   <div class="ctl-expires">
@@ -265,7 +272,21 @@
                   </div>
                 </td>
                 <td>
+                  <span class="ctl-badge" [attr.data-status]="linkStatus(r)">
+                    <i aria-hidden="true"></i>
+                    {{ linkStatus(r) === 'active' ? 'Active' : (linkStatus(r) === 'revoked' ? 'Revoked' : 'Expired') }}
+                  </span>
+                </td>
+                <td>
                   <div class="ctl-actions">
+                    <button
+                      type="button"
+                      class="ctl-btn ctl-btn--ghost ctl-btn--sm"
+                      (click)="copyRow(r)"
+                      [disabled]="openingId === r.id"
+                      matTooltip="Copy public tracking URL">
+                      <mat-icon>content_copy</mat-icon> Copy
+                    </button>
                     @if (displayUrl(r); as openUrl) {
                       <a
                         class="ctl-btn ctl-btn--ghost ctl-btn--sm"
@@ -280,9 +301,11 @@
                       <button
                         type="button"
                         class="ctl-btn ctl-btn--ghost ctl-btn--sm"
-                        disabled
-                        matTooltip="Tracking URL unavailable for this link">
-                        <mat-icon>visibility</mat-icon> Open
+                        (click)="openLink(r, $event)"
+                        [disabled]="openingId === r.id"
+                        matTooltip="Reveal and open — or generate a new link if keys rotated">
+                        <mat-icon>visibility</mat-icon>
+                        {{ openingId === r.id ? 'Opening…' : 'Open' }}
                       </button>
                     }
                     @if (linkStatus(r) === 'active') {
@@ -307,7 +330,7 @@
             @if (rows.length && (searchQuery || statusFilter !== 'all')) {
               No links match the current search or filter.
             } @else {
-              No tracking links yet — generate one for a trip above.
+              No tracking links yet — select a trip and generate one above.
             }
           </p>
         }

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -39,6 +40,16 @@ builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(conte
 // Application & Infrastructure DI
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Persist Data Protection keys so TrackingTokenProtector (and cookies) survive API restarts.
+// Without this, Unprotect fails after recycle → admin cannot reveal /t/{token} for existing links.
+var dpKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dpKeysPath))
+    dpKeysPath = Path.Combine(builder.Environment.ContentRootPath, "dp-keys");
+Directory.CreateDirectory(dpKeysPath);
+builder.Services.AddDataProtection()
+    .SetApplicationName("SheikhGo")
+    .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath));
 
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")

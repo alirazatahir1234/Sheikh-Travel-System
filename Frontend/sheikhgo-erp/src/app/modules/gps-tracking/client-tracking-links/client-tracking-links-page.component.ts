@@ -1,8 +1,10 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { skip } from 'rxjs/operators';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged, skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { TripService } from '../../../core/services/trip.service';
 import { ClientTrackingLink, ClientTrackingLinkCreated } from '../../../core/models/gps-tracking.model';
+import { TripListItem } from '../../../core/models/trip.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { GpsScopeFilterService } from '../gps-scope-filter.service';
 
@@ -18,10 +20,14 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
   loading = false;
   creating = false;
   revokingId: number | null = null;
+  openingId: number | null = null;
+  tripsLoading = false;
   loadError: string | null = null;
   rows: ClientTrackingLink[] = [];
 
-  tripIdInput: number | null = null;
+  tripOptions: TripListItem[] = [];
+  tripSearch = '';
+  selectedTripId: number | null = null;
   hoursValid = 48;
   created: ClientTrackingLinkCreated | null = null;
   createError: string | null = null;
@@ -32,30 +38,61 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
   pageSize = 25;
   pageIndex = 0;
 
-  /** Session-only: list API never returns raw tokens (security). Map after create. */
+  /** Session cache of revealed / created absolute URLs (never invent tokens). */
   private readonly knownUrls = new Map<number, string>();
+  private readonly tripSearch$ = new Subject<string>();
   private scopeSub: Subscription | null = null;
   private loadSub: Subscription | null = null;
+  private openSub: Subscription | null = null;
+  private tripSub: Subscription | null = null;
+  private tripSearchSub: Subscription | null = null;
   private copyTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private gps: GpsTrackingService,
+    private tripsApi: TripService,
     private scopeFilter: GpsScopeFilterService
   ) {}
 
   ngOnInit(): void {
     this.load();
-    this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(() => this.load());
+    this.loadTripOptions('');
+    this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(() => {
+      this.load();
+      this.loadTripOptions(this.tripSearch);
+    });
+    this.tripSearchSub = this.tripSearch$
+      .pipe(debounceTime(280), distinctUntilChanged())
+      .subscribe(q => this.loadTripOptions(q));
   }
 
   ngOnDestroy(): void {
     this.scopeSub?.unsubscribe();
     this.loadSub?.unsubscribe();
+    this.openSub?.unsubscribe();
+    this.tripSub?.unsubscribe();
+    this.tripSearchSub?.unsubscribe();
     if (this.copyTimer) clearTimeout(this.copyTimer);
   }
 
   get needsCompanySelection(): boolean {
     return !this.scopeFilter.isFleetScopeReady;
+  }
+
+  get selectedTrip(): TripListItem | null {
+    if (this.selectedTripId == null) return null;
+    return this.tripOptions.find(t => t.id === this.selectedTripId) ?? null;
+  }
+
+  get selectedClientName(): string {
+    return this.selectedTrip?.customerName?.trim() || '—';
+  }
+
+  get selectedVehicleLabel(): string {
+    const t = this.selectedTrip;
+    if (!t) return '—';
+    const plate = t.vehicleName?.trim();
+    return plate || (t.vehicleId != null ? `Vehicle #${t.vehicleId}` : '—');
   }
 
   get kpiActive(): number {
@@ -80,9 +117,13 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
       if (this.statusFilter !== 'all' && this.linkStatus(r) !== this.statusFilter) return false;
       if (!q) return true;
       const trip = (r.tripNumber ?? `trip #${r.tripId}`).toLowerCase();
+      const client = (r.customerName ?? '').toLowerCase();
+      const vehicle = this.vehicleLabel(r).toLowerCase();
       const url = (this.displayUrl(r) ?? '').toLowerCase();
       return (
         trip.includes(q) ||
+        client.includes(q) ||
+        vehicle.includes(q) ||
         url.includes(q) ||
         String(r.tripId).includes(q) ||
         String(r.id).includes(q)
@@ -112,6 +153,54 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return Math.min(this.totalFiltered, (this.pageIndex + 1) * this.pageSize);
   }
 
+  onTripSearchInput(value: string): void {
+    this.tripSearch = value;
+    this.tripSearch$.next(value.trim());
+  }
+
+  loadTripOptions(search: string): void {
+    if (this.needsCompanySelection) {
+      this.tripOptions = [];
+      return;
+    }
+    this.tripSub?.unsubscribe();
+    this.tripsLoading = true;
+    this.tripSub = this.tripsApi
+      .getAll(1, 50, { search: search || undefined, upcomingOnly: true })
+      .subscribe({
+        next: page => {
+          this.tripOptions = page?.items ?? [];
+          this.tripsLoading = false;
+          // Keep selected trip visible even if not in current search page
+          if (
+            this.selectedTripId != null &&
+            !this.tripOptions.some(t => t.id === this.selectedTripId)
+          ) {
+            this.tripsApi.getById(this.selectedTripId).subscribe({
+              next: detail => {
+                this.tripOptions = [detail, ...this.tripOptions];
+              },
+              error: () => undefined
+            });
+          }
+        },
+        error: () => {
+          this.tripOptions = [];
+          this.tripsLoading = false;
+        }
+      });
+  }
+
+  tripOptionLabel(t: TripListItem): string {
+    const num = t.tripNumber?.trim() || `Trip #${t.id}`;
+    const client = t.customerName?.trim();
+    const vehicle = t.vehicleName?.trim();
+    const bits = [num];
+    if (client) bits.push(client);
+    if (vehicle) bits.push(vehicle);
+    return bits.join(' · ');
+  }
+
   load(): void {
     if (this.needsCompanySelection) {
       this.rows = [];
@@ -128,7 +217,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
         this.rows = rows ?? [];
         for (const r of this.rows) {
           if (this.isOpenablePublicPath(r.publicPath)) {
-            this.knownUrls.set(r.id, this.absoluteUrl(r.publicPath));
+            this.knownUrls.set(r.id, this.absoluteUrl(r.publicPath!));
           }
         }
         this.loading = false;
@@ -163,8 +252,8 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
 
   createLink(): void {
     if (this.creating) return;
-    if (!this.tripIdInput || this.tripIdInput < 1) {
-      this.createError = 'Enter a valid trip ID.';
+    if (!this.selectedTripId || this.selectedTripId < 1) {
+      this.createError = 'Select a trip.';
       return;
     }
     const hours = Math.round(Number(this.hoursValid));
@@ -176,7 +265,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.createError = null;
     this.created = null;
     this.creating = true;
-    this.gps.createClientTrackingLink(this.tripIdInput, hours).subscribe({
+    this.gps.createClientTrackingLink(this.selectedTripId, hours).subscribe({
       next: res => {
         this.created = res;
         this.creating = false;
@@ -203,13 +292,14 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
         this.revokingId = null;
         this.knownUrls.delete(row.id);
         if (this.created?.linkId === row.id) this.created = null;
-        // Optimistic UI: mark revoked immediately, then refresh from API
         const idx = this.rows.findIndex(r => r.id === row.id);
         if (idx >= 0) {
           this.rows[idx] = {
             ...this.rows[idx],
             isActive: false,
-            revokedAt: new Date().toISOString()
+            revokedAt: new Date().toISOString(),
+            canOpen: false,
+            publicPath: null
           };
           this.rows = [...this.rows];
         }
@@ -232,11 +322,20 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return row.tripNumber?.trim() || `Trip #${row.tripId}`;
   }
 
-  /**
-   * Absolute public tracking URL.
-   * Prefer create-session map, then list API publicPath when it contains a real token
-   * (not the `/t/{token}` placeholder). Never invent tokens.
-   */
+  clientLabel(row: ClientTrackingLink): string {
+    return row.customerName?.trim() || '—';
+  }
+
+  vehicleLabel(row: ClientTrackingLink): string {
+    const plate = row.plateNumber?.trim();
+    const desc = row.vehicleDescription?.trim();
+    if (plate && desc) return `${desc} (${plate})`;
+    if (plate) return plate;
+    if (desc) return desc;
+    if (row.vehicleId != null) return `Vehicle #${row.vehicleId}`;
+    return '—';
+  }
+
   displayUrl(row: ClientTrackingLink): string | null {
     const known = this.knownUrls.get(row.id);
     if (known) return known;
@@ -250,11 +349,10 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  /** True when path is a real `/t/...` link, not the secure placeholder. */
   isOpenablePublicPath(path: string | null | undefined): boolean {
     if (!path) return false;
     const p = path.trim();
-    if (p.includes('{token}')) return false;
+    if (!p || p.includes('{token}')) return false;
     return /^\/t\/[^/\s?#]+$/i.test(p) || /^https?:\/\/.+/i.test(p);
   }
 
@@ -274,6 +372,33 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     );
   }
 
+  copyRow(row: ClientTrackingLink): void {
+    const url = this.displayUrl(row);
+    if (url) {
+      this.copyUrl(url);
+      return;
+    }
+    this.openingId = row.id;
+    this.openSub?.unsubscribe();
+    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id).subscribe({
+      next: res => {
+        this.openingId = null;
+        const path = res?.publicUrl?.trim();
+        if (!path || !this.isOpenablePublicPath(path)) {
+          this.flashCopy('Cannot copy — generate a new tracking link for this trip.');
+          return;
+        }
+        const absolute = this.absoluteUrl(path);
+        this.knownUrls.set(row.id, absolute);
+        this.copyUrl(absolute);
+      },
+      error: err => {
+        this.openingId = null;
+        this.flashCopy(apiErrorMessage(err) || 'Cannot copy — generate a new link for this trip.');
+      }
+    });
+  }
+
   copyCreated(): void {
     this.copyUrl(this.createdAbsoluteUrl());
   }
@@ -281,16 +406,38 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
   openLink(row: ClientTrackingLink, event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
-    const url = this.displayUrl(row);
-    if (!url || typeof window === 'undefined') {
-      this.flashCopy('No openable tracking URL for this link.');
+    if (typeof window === 'undefined') return;
+
+    const cached = this.displayUrl(row);
+    if (cached) {
+      this.navigatePublic(cached);
       return;
     }
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) {
-      // Popup blocked — fall back to same-tab navigation of the public path
-      window.location.assign(url);
-    }
+
+    this.openingId = row.id;
+    this.openSub?.unsubscribe();
+    this.openSub = this.gps.revealClientTrackingLinkUrl(row.id).subscribe({
+      next: res => {
+        this.openingId = null;
+        const path = res?.publicUrl?.trim();
+        if (!path || !this.isOpenablePublicPath(path)) {
+          this.flashCopy(
+            'Cannot open — generate a new tracking link for the trip (token cannot be recovered after server key rotation).'
+          );
+          return;
+        }
+        const absolute = this.absoluteUrl(path);
+        this.knownUrls.set(row.id, absolute);
+        this.navigatePublic(absolute);
+      },
+      error: err => {
+        this.openingId = null;
+        this.flashCopy(
+          apiErrorMessage(err) ||
+            'Cannot open — generate a new tracking link for the trip, then Open.'
+        );
+      }
+    });
   }
 
   expiresRelative(row: ClientTrackingLink): string {
@@ -308,7 +455,19 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
   exportCsv(): void {
     const rows = this.filteredRows;
     if (!rows.length) return;
-    const header = ['Id', 'TripId', 'TripNumber', 'Status', 'Views', 'CreatedAt', 'ExpiresAt', 'RevokedAt', 'PublicUrl'];
+    const header = [
+      'Id',
+      'TripId',
+      'TripNumber',
+      'Client',
+      'Vehicle',
+      'Status',
+      'Views',
+      'CreatedAt',
+      'ExpiresAt',
+      'RevokedAt',
+      'PublicUrl'
+    ];
     const lines = [
       header.join(','),
       ...rows.map(r =>
@@ -316,6 +475,8 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
           r.id,
           r.tripId,
           csvEscape(r.tripNumber ?? ''),
+          csvEscape(r.customerName ?? ''),
+          csvEscape(this.vehicleLabel(r)),
           this.linkStatus(r),
           r.viewCount ?? 0,
           csvEscape(r.createdAt),
@@ -338,6 +499,13 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     return row.id;
   }
 
+  private navigatePublic(url: string): void {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      window.location.assign(url);
+    }
+  }
+
   private absoluteUrl(publicPath: string): string {
     if (/^https?:\/\//i.test(publicPath)) return publicPath;
     if (typeof window === 'undefined') return publicPath;
@@ -351,7 +519,7 @@ export class ClientTrackingLinksPageComponent implements OnInit, OnDestroy {
     this.copyTimer = setTimeout(() => {
       this.copyMessage = null;
       this.copyTimer = null;
-    }, 3200);
+    }, 4200);
   }
 
   private clampPage(): void {

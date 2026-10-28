@@ -398,9 +398,16 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
         var rows = await connection.QueryAsync<TripTrackingLinkListRow>(new CommandDefinition("""
             SELECT TOP (@Take)
                 l.Id, l.TripId, t.TripNumber, l.BookingId, l.ExpiresAt, l.RevokedAt, l.ViewCount, l.CreatedAt,
-                l.TokenProtected
+                l.TokenProtected,
+                c.FullName AS CustomerName,
+                t.VehicleId,
+                v.RegistrationNumber AS PlateNumber,
+                COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(v.Make, N'') + N' ' + COALESCE(v.Model, N''))), N''), v.Name) AS VehicleDescription
             FROM TripTrackingLinks l
-            LEFT JOIN Trips t ON t.Id = l.TripId AND t.TenantId = l.TenantId
+            LEFT JOIN Trips t ON t.Id = l.TripId AND t.TenantId = l.TenantId AND t.IsDeleted = 0
+            LEFT JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = l.TenantId
+            LEFT JOIN Bookings b ON b.Id = COALESCE(l.BookingId, t.BookingId) AND b.TenantId = l.TenantId AND b.IsDeleted = 0
+            LEFT JOIN Customers c ON c.Id = b.CustomerId AND c.TenantId = l.TenantId AND c.IsDeleted = 0
             WHERE l.TenantId = @TenantId
               AND (@TripId IS NULL OR l.TripId = @TripId)
               AND (@ActiveOnly = 0 OR (l.RevokedAt IS NULL AND l.ExpiresAt > SYSUTCDATETIME()))
@@ -417,6 +424,16 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
             UPDATE TripTrackingLinks
             SET RevokedAt = SYSUTCDATETIME()
             WHERE Id = @Id AND TenantId = @TenantId AND RevokedAt IS NULL
+            """, new { Id = linkId, TenantId = tenantId }, cancellationToken: ct));
+    }
+
+    public async Task<TripTrackingLinkRow?> GetTrackingLinkByIdAsync(int tenantId, long linkId, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<TripTrackingLinkRow>(new CommandDefinition("""
+            SELECT Id, TenantId, TripId, BookingId, TokenHash, TokenProtected, ExpiresAt, RevokedAt, ViewCount
+            FROM TripTrackingLinks
+            WHERE Id = @Id AND TenantId = @TenantId
             """, new { Id = linkId, TenantId = tenantId }, cancellationToken: ct));
     }
 

@@ -51,6 +51,8 @@ public class GetPublicTrackingQueryHandler(
         if (link is null || link.RevokedAt is not null || link.ExpiresAt < DateTime.UtcNow)
             return ApiResponse<TrackingViewDto>.FailResponse("Not found.");
 
+        // Hash already authenticates the bearer of the URL. Unprotect is a secondary integrity check;
+        // if Data Protection keys were rotated, still allow hash-matched access so customer links survive.
         try
         {
             var plain = tokenProtector.Unprotect(link.TokenProtected);
@@ -59,7 +61,7 @@ public class GetPublicTrackingQueryHandler(
         }
         catch
         {
-            return ApiResponse<TrackingViewDto>.FailResponse("Not found.");
+            // Ignore — TokenHash match is sufficient when ciphertext cannot be decrypted.
         }
 
         await repository.IncrementTrackingViewAsync(link.Id, cancellationToken);

@@ -61,6 +61,7 @@ import {
   AccidentRiskDashboard,
   ClientTrackingLink,
   ClientTrackingLinkCreated,
+  ClientTrackingLinkUrl,
   FleetUtilization,
   FuelAnalytics,
   GeofenceAnalytics,
@@ -1467,6 +1468,10 @@ export class GpsTrackingService {
 
   createClientTrackingLink(tripId: number, hoursValid?: number): Observable<ClientTrackingLinkCreated> {
     return this.http.post<ClientTrackingLinkCreated>(`${this.base}/client-tracking-links`, { tripId, hoursValid });
+  }
+
+  revealClientTrackingLinkUrl(linkId: number): Observable<ClientTrackingLinkUrl> {
+    return this.http.get<ClientTrackingLinkUrl>(`${this.base}/client-tracking-links/${linkId}/public-url`);
   }
 
   revokeClientTrackingLink(linkId: number): Observable<unknown> {
