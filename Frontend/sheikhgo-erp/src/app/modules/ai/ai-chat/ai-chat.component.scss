@@ -388,7 +388,6 @@
   padding: 18px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
   background: transparent;
   border: none;
 }
@@ -764,9 +763,16 @@
   padding: 20px 20px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
   min-height: 280px;
   background: linear-gradient(180deg, #f8fafc 0%, #fff 48%);
+}
+
+.messages-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  flex: 1 0 auto;
 }
 
 .empty {

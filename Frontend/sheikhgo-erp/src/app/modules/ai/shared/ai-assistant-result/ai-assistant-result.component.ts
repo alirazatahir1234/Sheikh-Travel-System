@@ -68,6 +68,24 @@ export class AiAssistantResultComponent {
     return parseAssistantAnswer(this.answer);
   }
 
+  /**
+   * Markdown bubble from `answer`. Hidden when a structured ACEIN Answer,
+   * fleet-health summary, or rich analytics insights already tell the same story
+   * (avoids duplicate “responsive” paragraphs under widgets).
+   */
+  get showProse(): boolean {
+    if (this.fleetStatus) return false;
+    if (!this.blocks.length) return false;
+    if (this.acein?.answer?.trim()) return false;
+    if (this.fleetHealth?.summary?.trim()) return false;
+    const richInsights =
+      (this.salesAnalytics?.insights?.length ?? 0) +
+      (this.tripAnalytics?.insights?.length ?? 0) +
+      (this.genericAnalytics?.insights?.length ?? 0);
+    if (richInsights > 0) return false;
+    return true;
+  }
+
   get toolLabel(): string | null {
     return formatToolLabel(this.toolUsed);
   }

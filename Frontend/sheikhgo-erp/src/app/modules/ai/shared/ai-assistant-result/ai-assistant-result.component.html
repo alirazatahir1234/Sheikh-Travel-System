@@ -65,7 +65,7 @@
     </div>
   </section>
 
-  <div class="prose" *ngIf="!fleetStatus && blocks.length">
+  <div class="prose" *ngIf="showProse">
     <ng-container *ngFor="let block of blocks">
       <h3 class="prose-h" *ngIf="block.kind === 'heading' && block.level === 2">{{ block.text }}</h3>
       <h4 class="prose-h prose-h--sm" *ngIf="block.kind === 'heading' && block.level === 3">{{ block.text }}</h4>

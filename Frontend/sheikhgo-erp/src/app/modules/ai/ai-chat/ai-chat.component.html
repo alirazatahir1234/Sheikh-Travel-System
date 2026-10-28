@@ -256,92 +256,99 @@
       <mat-spinner diameter="32"></mat-spinner>
     </div>
 
-    <div class="messages" *ngIf="!loading || showSessionsPanel || workspace" [class.messages--workspace]="workspace">
-      <div class="empty" *ngIf="!workspace && !messages.length && !sending">
-        <div class="empty-avatar" aria-hidden="true">
-          <mat-icon>smart_toy</mat-icon>
-        </div>
-        <h3>SheikhGo AI Assistant</h3>
-        <p>Ask about fleet health, trips, bookings, fuel, maintenance, and utilization — answers use live SheikhGo tools.</p>
-      </div>
-
-      <div class="ai-workspace__empty" *ngIf="workspace && !messages.length && !sending" role="status">
-        <mat-icon aria-hidden="true">insights</mat-icon>
-        <h3>Response workspace</h3>
-        <p>Ask a question on the left to see live fleet KPIs, charts, and recommended actions here.</p>
-      </div>
-
-      <article
-        *ngFor="let m of messages"
-        class="bubble"
-        [class.user]="m.role === 'user'"
-        [class.assistant]="m.role === 'assistant'"
-        [class.has-widgets]="m.role === 'assistant' && !!m.data"
-        [class.bubble--workspace]="workspace">
-        <div class="assistant-avatar" *ngIf="m.role === 'assistant' && !workspace" aria-hidden="true">
-          <mat-icon>smart_toy</mat-icon>
-        </div>
-        <div class="bubble-body">
-          <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
-          <div class="attach-chips" *ngIf="m.role === 'user' && m.attachments?.length">
-            <span class="attach-chip" *ngFor="let a of m.attachments">
-              <mat-icon aria-hidden="true">{{ a.kind === 'image' ? 'image' : a.kind === 'pdf' ? 'picture_as_pdf' : 'description' }}</mat-icon>
-              {{ a.name }}
-            </span>
+    <div
+      class="messages"
+      #messagesPane
+      *ngIf="!loading || showSessionsPanel || workspace"
+      [class.messages--workspace]="workspace"
+      (scroll)="onMessagesScroll()">
+      <div class="messages-inner" #messagesContent>
+        <div class="empty" *ngIf="!workspace && !messages.length && !sending">
+          <div class="empty-avatar" aria-hidden="true">
+            <mat-icon>smart_toy</mat-icon>
           </div>
-          <div class="bubble-meta" *ngIf="m.role === 'user'">
-            <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
-            <mat-icon class="read-checks" aria-hidden="true">done_all</mat-icon>
-          </div>
+          <h3>SheikhGo AI Assistant</h3>
+          <p>Ask about fleet health, trips, bookings, fuel, maintenance, and utilization — answers use live SheikhGo tools.</p>
+        </div>
 
-          <header class="assistant-identity" *ngIf="workspace && m.role === 'assistant'">
-            <img
-              class="assistant-identity__img"
-              src="/assets/images/gofleet-ai-robot.png"
-              width="28"
-              height="28"
-              alt=""
-              aria-hidden="true" />
-            <div class="assistant-identity__meta">
-              <strong>SheikhGo AI</strong>
-              <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
+        <div class="ai-workspace__empty" *ngIf="workspace && !messages.length && !sending" role="status">
+          <mat-icon aria-hidden="true">insights</mat-icon>
+          <h3>Response workspace</h3>
+          <p>Ask a question on the left to see live fleet KPIs, charts, and recommended actions here.</p>
+        </div>
+
+        <article
+          *ngFor="let m of messages"
+          class="bubble"
+          [class.user]="m.role === 'user'"
+          [class.assistant]="m.role === 'assistant'"
+          [class.has-widgets]="m.role === 'assistant' && !!m.data"
+          [class.bubble--workspace]="workspace">
+          <div class="assistant-avatar" *ngIf="m.role === 'assistant' && !workspace" aria-hidden="true">
+            <mat-icon>smart_toy</mat-icon>
+          </div>
+          <div class="bubble-body">
+            <pre *ngIf="m.role === 'user'">{{ m.content }}</pre>
+            <div class="attach-chips" *ngIf="m.role === 'user' && m.attachments?.length">
+              <span class="attach-chip" *ngFor="let a of m.attachments">
+                <mat-icon aria-hidden="true">{{ a.kind === 'image' ? 'image' : a.kind === 'pdf' ? 'picture_as_pdf' : 'description' }}</mat-icon>
+                {{ a.name }}
+              </span>
             </div>
-            <span class="live-chip" *ngIf="m.data">Live Fleet Data</span>
-            <button
-              type="button"
-              mat-icon-button
-              matTooltip="Copy answer"
-              aria-label="Copy answer"
-              (click)="copyAnswer(m)">
-              <mat-icon>content_copy</mat-icon>
-            </button>
-          </header>
+            <div class="bubble-meta" *ngIf="m.role === 'user'">
+              <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
+              <mat-icon class="read-checks" aria-hidden="true">done_all</mat-icon>
+            </div>
 
-          <app-ai-assistant-result
-            *ngIf="m.role === 'assistant'"
-            [answer]="m.content"
-            [toolUsed]="m.toolUsed"
-            [data]="m.data"
-            [warnings]="m.warnings ?? []"
-            [mode]="m.mode"
-            [workspace]="workspace"
-            (followUp)="useSuggestion($event)">
-          </app-ai-assistant-result>
-          <div class="bubble-meta bubble-meta--assistant" *ngIf="!workspace && m.role === 'assistant' && m.at">
-            <time>{{ m.at | date:'shortTime' }}</time>
+            <header class="assistant-identity" *ngIf="workspace && m.role === 'assistant'">
+              <img
+                class="assistant-identity__img"
+                src="/assets/images/gofleet-ai-robot.png"
+                width="28"
+                height="28"
+                alt=""
+                aria-hidden="true" />
+              <div class="assistant-identity__meta">
+                <strong>SheikhGo AI</strong>
+                <time *ngIf="m.at">{{ m.at | date:'shortTime' }}</time>
+              </div>
+              <span class="live-chip" *ngIf="m.data">Live Fleet Data</span>
+              <button
+                type="button"
+                mat-icon-button
+                matTooltip="Copy answer"
+                aria-label="Copy answer"
+                (click)="copyAnswer(m)">
+                <mat-icon>content_copy</mat-icon>
+              </button>
+            </header>
+
+            <app-ai-assistant-result
+              *ngIf="m.role === 'assistant'"
+              [answer]="m.content"
+              [toolUsed]="m.toolUsed"
+              [data]="m.data"
+              [warnings]="m.warnings ?? []"
+              [mode]="m.mode"
+              [workspace]="workspace"
+              (followUp)="useSuggestion($event)">
+            </app-ai-assistant-result>
+            <div class="bubble-meta bubble-meta--assistant" *ngIf="!workspace && m.role === 'assistant' && m.at">
+              <time>{{ m.at | date:'shortTime' }}</time>
+            </div>
+            <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
+              <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
+            </div>
           </div>
-          <div class="meta-block" *ngIf="m.role === 'assistant' && m.period">
-            <small>Reporting period · {{ m.period.start | date:'mediumDate' }} – {{ m.period.end | date:'mediumDate' }}</small>
-          </div>
+        </article>
+
+        <div class="typing" *ngIf="sending" role="status" aria-live="polite">
+          <div class="assistant-avatar" aria-hidden="true"><mat-icon>smart_toy</mat-icon></div>
+          <mat-spinner diameter="20"></mat-spinner>
+          <span>Analyzing live fleet data…</span>
         </div>
-      </article>
-
-      <div class="typing" *ngIf="sending" role="status" aria-live="polite">
-        <div class="assistant-avatar" aria-hidden="true"><mat-icon>smart_toy</mat-icon></div>
-        <mat-spinner diameter="20"></mat-spinner>
-        <span>Analyzing live fleet data…</span>
+        <div #scrollAnchor></div>
       </div>
-      <div #scrollAnchor></div>
     </div>
 
     <div class="composer-dock" *ngIf="!workspace">

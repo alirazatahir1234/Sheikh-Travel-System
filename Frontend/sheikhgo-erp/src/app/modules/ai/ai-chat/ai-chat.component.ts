@@ -1,4 +1,15 @@
-import { Component, ElementRef, EventEmitter, HostBinding, Input, OnInit, Output, ViewChild } from '@angular/core';
+import {
+  AfterViewChecked,
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostBinding,
+  Input,
+  OnDestroy,
+  OnInit,
+  Output,
+  ViewChild
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -69,7 +80,7 @@ interface AiSuggestionCard {
   templateUrl: './ai-chat.component.html',
   styleUrls: ['./ai-chat.component.scss']
 })
-export class AiChatComponent implements OnInit {
+export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   readonly aiUi = AI_ASSISTANT_UI;
 
   /** FAB slide-over embed — tighter host sizing. */
@@ -87,9 +98,16 @@ export class AiChatComponent implements OnInit {
     return this.compact || this.workspace;
   }
 
+  @ViewChild('messagesPane') messagesPane?: ElementRef<HTMLDivElement>;
+  @ViewChild('messagesContent') messagesContent?: ElementRef<HTMLDivElement>;
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
   @ViewChild('composerInput') composerInput?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+
+  /** Keep pinned to latest reply unless the user scrolls up to read history. */
+  private stickToBottom = true;
+  private contentObserver?: ResizeObserver;
+  private observedContent: HTMLElement | null = null;
 
   readonly attachAccept = ATTACH_ACCEPT;
 
@@ -141,6 +159,24 @@ export class AiChatComponent implements OnInit {
   ngOnInit(): void {
     this.aiAssistantOpenSound.notifyAssistantOpened();
     this.refresh();
+  }
+
+  ngAfterViewChecked(): void {
+    this.ensureContentObserver();
+  }
+
+  ngOnDestroy(): void {
+    this.contentObserver?.disconnect();
+    this.contentObserver = undefined;
+    this.observedContent = null;
+  }
+
+  /** Track whether the user is near the bottom so widget growth can re-pin. */
+  onMessagesScroll(): void {
+    const el = this.messagesPane?.nativeElement;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.stickToBottom = distanceFromBottom < 96;
   }
 
   /** Suggestion chips — full-page chat only. */
@@ -531,9 +567,38 @@ export class AiChatComponent implements OnInit {
     };
   }
 
-  private scrollToBottom(): void {
+  private ensureContentObserver(): void {
+    const content = this.messagesContent?.nativeElement ?? null;
+    if (!content || content === this.observedContent) return;
+    this.contentObserver?.disconnect();
+    this.observedContent = content;
+    if (typeof ResizeObserver === 'undefined') return;
+    this.contentObserver = new ResizeObserver(() => {
+      if (this.stickToBottom) {
+        this.scrollToBottom(false);
+      }
+    });
+    this.contentObserver.observe(content);
+  }
+
+  /**
+   * Scroll the `.messages` overflow pane (not the page). `force` re-pins after
+   * send/reply; ResizeObserver uses `force=false` so reading history stays put.
+   */
+  private scrollToBottom(force = true): void {
+    if (force) {
+      this.stickToBottom = true;
+    } else if (!this.stickToBottom) {
+      return;
+    }
+
     requestAnimationFrame(() => {
-      this.scrollAnchor?.nativeElement?.scrollIntoView({ behavior: 'smooth' });
+      const pane = this.messagesPane?.nativeElement;
+      if (pane) {
+        pane.scrollTop = pane.scrollHeight;
+        return;
+      }
+      this.scrollAnchor?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     });
   }
 }
