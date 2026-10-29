@@ -36,13 +36,13 @@ Aaj order / demo chahiye? Abhi WhatsApp:
 PK → https://wa.me/923016169209
 UAE/GCC → https://wa.me/971557700119
 
-#Sheko #SheikhGo #GPSTracker #FleetTracking #Pakistan #BookADemo
+#SheikhGo #GPSTracker #FleetTracking #Pakistan #BookADemo
 ```
 
 ## LinkedIn caption
 
 ```
-SheikhGo / Sheko Technologies — GPS & fleet (Pakistan → GCC)
+SheikhGo Technologies — GPS & fleet (Pakistan → GCC)
 
 • Single vehicle tracker: Rs 20,000
 • Yearly plan: Rs 40,000
@@ -54,7 +54,7 @@ WhatsApp UAE: https://wa.me/971557700119
 
 ## Creative
 
-- Primary: `sheko-tracker-pricing-20k-40k.jpg`
+- Primary: `sheikhgo-tracker-pricing-20k-40k.jpg`
 - Also: `sheikhgo-fb-product-ad-square.jpg`, `sheikhgo-fb-product-photo-vertical.jpg`
 
 ## Publish steps (agent blocked — Ali do this)
@@ -62,7 +62,7 @@ WhatsApp UAE: https://wa.me/971557700119
 ### Facebook (Brave — recommended)
 1. Open https://www.facebook.com/profile.php?id=61593609047248 while **logged in** as a Page admin.
 2. Switch identity to **SheikhGo Technologies** Page (not personal profile).
-3. Create post → upload `docs/marketing/facebook/sheko-tracker-pricing-20k-40k.jpg` → paste Roman Urdu caption above → **Publish**.
+3. Create post → upload `docs/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg` → paste Roman Urdu caption above → **Publish**.
 4. Optional 2nd/3rd posts: `sheikhgo-fb-product-ad-square.jpg`, `sheikhgo-fb-product-photo-vertical.jpg` with same pricing lines.
 5. Copy each post URL (click post timestamp → copy link) and save.
 

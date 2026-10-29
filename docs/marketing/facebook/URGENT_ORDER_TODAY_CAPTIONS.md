@@ -28,7 +28,7 @@ Gaari live track · Multan · Sialkot · Lahore (phir GCC)
 PK WhatsApp → https://wa.me/923016169209
 UAE/GCC → https://wa.me/971557700119
 
-#SheikhGo #Sheko #GPSTracker #FleetManagement #Pakistan #BookADemo
+#SheikhGo #GPSTracker #FleetManagement #Pakistan #BookADemo
 ```
 
 ## LinkedIn caption
@@ -44,11 +44,11 @@ Message today:
 WhatsApp PK: https://wa.me/923016169209
 WhatsApp UAE: https://wa.me/971557700119
 
-SheikhGo / Sheko Technologies — live GPS + fleet operations.
+SheikhGo Technologies — live GPS + fleet operations.
 ```
 
 ## Assets
 
-1. `sheko-tracker-pricing-20k-40k.jpg` — primary
+1. `sheikhgo-tracker-pricing-20k-40k.jpg` — primary
 2. `sheikhgo-fb-product-ad-square.jpg`
 3. `sheikhgo-fb-product-photo-vertical.jpg`
