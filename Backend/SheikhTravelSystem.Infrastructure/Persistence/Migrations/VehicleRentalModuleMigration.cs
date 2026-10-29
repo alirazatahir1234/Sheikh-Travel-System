@@ -130,7 +130,7 @@ public static class VehicleRentalModuleMigration
                 UPDATE Modules
                 SET Status = N'Active', Route = N'/rental',
                     DisplayName = COALESCE(NULLIF(LTRIM(RTRIM(DisplayName)), ''), N'Rental'),
-                    Name = COALESCE(NULLIF(LTRIM(RTRIM(Name)), ''), N'Vehicle Rental')
+                    ModuleName = COALESCE(NULLIF(LTRIM(RTRIM(ModuleName)), ''), N'Vehicle Rental')
                 WHERE ModuleCode = N'RENTAL';
             END
 
@@ -140,6 +140,109 @@ public static class VehicleRentalModuleMigration
                 WHERE FeatureKey = N'rental' AND IsEnabled = 0;
             END
             """, cancellationToken: cancellationToken));
+
+        // Feature registry row required before TenantFeatures FK insert.
+        if (await TableExistsAsync(connection, "FeatureDefinitions", cancellationToken))
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                IF NOT EXISTS (SELECT 1 FROM FeatureDefinitions WHERE FeatureKey = N'rental')
+                    INSERT INTO FeatureDefinitions (
+                        FeatureKey, ModuleKey, Name, Description, SortOrder, IsActive,
+                        DisplayName, Category, Icon, Route, Visible, Status)
+                    VALUES (
+                        N'rental', N'RENTAL', N'Vehicle Rental', N'Rental bookings and fleet hire',
+                        40, 1, N'Vehicle Rental', N'Fleet', N'car_rental', N'/rental', 1, N'Active');
+                ELSE
+                    UPDATE FeatureDefinitions
+                    SET ModuleKey = N'RENTAL', Name = N'Vehicle Rental',
+                        Description = N'Rental bookings and fleet hire',
+                        DisplayName = N'Vehicle Rental', Category = N'Fleet',
+                        Icon = N'car_rental', Route = N'/rental', Visible = 1,
+                        Status = N'Active', IsActive = 1, SortOrder = 40
+                    WHERE FeatureKey = N'rental';
+                """, cancellationToken: cancellationToken));
+        }
+
+        // Opt-in RENTAL for tenants that already have FLEET (dependency in ModuleRegistrySeed).
+        var tenantBackfill = 0;
+        if (await TableExistsAsync(connection, "TenantModules", cancellationToken)
+            && await TableExistsAsync(connection, "Modules", cancellationToken))
+        {
+            tenantBackfill = await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO TenantModules (TenantId, ModuleId)
+                SELECT DISTINCT tm.TenantId, rental.Id
+                FROM TenantModules tm
+                INNER JOIN Modules fleet ON fleet.Id = tm.ModuleId AND fleet.ModuleCode = N'FLEET'
+                CROSS JOIN Modules rental
+                WHERE rental.ModuleCode = N'RENTAL'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM TenantModules x
+                      WHERE x.TenantId = tm.TenantId AND x.ModuleId = rental.Id);
+                """, cancellationToken: cancellationToken));
+        }
+
+        // Ensure company feature flag `rental` is on for RENTAL tenants (menu + PermissionEngine).
+        if (await TableExistsAsync(connection, "TenantFeatures", cancellationToken)
+            && await TableExistsAsync(connection, "FeatureDefinitions", cancellationToken))
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                IF EXISTS (SELECT 1 FROM FeatureDefinitions WHERE FeatureKey = N'rental')
+                BEGIN
+                    INSERT INTO TenantFeatures (TenantId, FeatureKey, IsEnabled, EnabledDate, LastModified)
+                    SELECT DISTINCT tm.TenantId, N'rental', 1, SYSUTCDATETIME(), SYSUTCDATETIME()
+                    FROM TenantModules tm
+                    INNER JOIN Modules m ON m.Id = tm.ModuleId AND m.ModuleCode = N'RENTAL'
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM TenantFeatures tf
+                        WHERE tf.TenantId = tm.TenantId AND tf.FeatureKey = N'rental');
+
+                    UPDATE tf
+                    SET tf.IsEnabled = 1, tf.LastModified = SYSUTCDATETIME()
+                    FROM TenantFeatures tf
+                    INNER JOIN TenantModules tm ON tm.TenantId = tf.TenantId
+                    INNER JOIN Modules m ON m.Id = tm.ModuleId AND m.ModuleCode = N'RENTAL'
+                    WHERE tf.FeatureKey = N'rental' AND tf.IsEnabled = 0;
+                END
+                """, cancellationToken: cancellationToken));
+        }
+
+        // Additive legacy key so ERP menuKey `rental` is entitled (do not rewrite full JSON).
+        if (await ColumnExistsAsync(connection, "Tenants", "EnabledModulesJson", cancellationToken)
+            && await TableExistsAsync(connection, "TenantModules", cancellationToken))
+        {
+            var tenants = (await connection.QueryAsync<(int TenantId, string? Json)>(new CommandDefinition("""
+                SELECT DISTINCT t.Id AS TenantId, t.EnabledModulesJson AS Json
+                FROM Tenants t
+                INNER JOIN TenantModules tm ON tm.TenantId = t.Id
+                INNER JOIN Modules m ON m.Id = tm.ModuleId AND m.ModuleCode = N'RENTAL'
+                """, cancellationToken: cancellationToken))).ToList();
+
+            foreach (var (tenantId, existingJson) in tenants)
+            {
+                List<string> keys;
+                try
+                {
+                    keys = string.IsNullOrWhiteSpace(existingJson)
+                        ? []
+                        : (System.Text.Json.JsonSerializer.Deserialize<List<string>>(existingJson) ?? []);
+                }
+                catch
+                {
+                    keys = [];
+                }
+
+                if (keys.Any(k => string.Equals(k, "rental", StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                keys.Add("rental");
+                var json = TenantModuleCatalog.SerializeLegacyKeys(keys);
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE Tenants
+                    SET EnabledModulesJson = @Json, UpdatedAt = SYSUTCDATETIME()
+                    WHERE Id = @TenantId
+                    """, new { TenantId = tenantId, Json = json }, cancellationToken: cancellationToken));
+            }
+        }
 
         foreach (var (module, code, desc) in Permissions)
         {
@@ -233,6 +336,34 @@ public static class VehicleRentalModuleMigration
             }
         }
 
-        logger.LogInformation("VehicleRentalModuleMigration applied (tables + RENTAL Active + permissions).");
+        logger.LogInformation(
+            "VehicleRentalModuleMigration applied (tables + RENTAL Active + permissions; TenantModules backfill={Backfill}).",
+            tenantBackfill);
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        System.Data.IDbConnection connection,
+        string table,
+        CancellationToken cancellationToken)
+    {
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(@Table, 'U') IS NOT NULL THEN 1 ELSE 0 END",
+            new { Table = table },
+            cancellationToken: cancellationToken)) == 1;
+    }
+
+    private static async Task<bool> ColumnExistsAsync(
+        System.Data.IDbConnection connection,
+        string table,
+        string column,
+        CancellationToken cancellationToken)
+    {
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = @Table AND COLUMN_NAME = @Column
+            ) THEN 1 ELSE 0 END
+            """, new { Table = table, Column = column },
+            cancellationToken: cancellationToken)) == 1;
     }
 }

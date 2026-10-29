@@ -2,55 +2,90 @@
   <div class="hero-mesh" aria-hidden="true"></div>
   <div class="container hero-inner">
     <div class="hero-copy reveal">
-      <span class="section-kicker">{{ 'home.hero.kicker' | wsTranslate }}</span>
-      <h1>{{ 'home.hero.titleLine1' | wsTranslate }}<br />{{ 'home.hero.titleLine2' | wsTranslate }}</h1>
-      <p class="hero-tagline">{{ 'home.hero.tagline' | wsTranslate }}</p>
+      <span class="hero-eyebrow">{{ 'home.hero.kicker' | wsTranslate }}</span>
+      <h1>
+        <span class="hero-title-line">{{ 'home.hero.titleLine1' | wsTranslate }}</span>
+        <span class="hero-title-line hero-title-accent">{{ 'home.hero.titleLine2' | wsTranslate }}</span>
+      </h1>
       <p class="hero-lead">{{ 'home.hero.lead' | wsTranslate }}</p>
       <div class="hero-actions" id="watch-demo">
-        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
-        <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
-          <mat-icon aria-hidden="true">play_circle</mat-icon>
-          {{ 'common.watchDemo' | wsTranslate }}
-        </button>
-        <button type="button" class="btn btn-ghost" id="watch-promo" (click)="openPromoModal()">
-          <mat-icon aria-hidden="true">movie</mat-icon>
-          {{ 'common.watchPromo' | wsTranslate }}
-        </button>
-        <a routerLink="/" fragment="see-the-platform" class="btn btn-ghost btn-compact">
-          {{ 'home.hero.seeDashboard' | wsTranslate }}
+        <a routerLink="/request-demo" class="btn btn-primary hero-cta-primary">
+          {{ 'common.requestDemo' | wsTranslate }}
+          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+        </a>
+        <a routerLink="/features" class="btn btn-ghost hero-cta-secondary">
+          {{ 'home.hero.explorePlatform' | wsTranslate }}
         </a>
       </div>
+      <p class="hero-trust">{{ 'home.hero.trustLine' | wsTranslate }}</p>
       <ul class="hero-perks">
         @for (p of heroPerks(); track p.text) {
           <li class="hero-perk">
-            <mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>
+            <span class="hero-perk-icon" aria-hidden="true">
+              <mat-icon>{{ p.icon }}</mat-icon>
+            </span>
             {{ p.text }}
           </li>
         }
       </ul>
     </div>
-    <div class="hero-visual reveal delay" aria-hidden="true">
-      <div class="hero-glow"></div>
-      <div class="float-chip">
+
+    <div class="hero-visual reveal delay">
+      <div class="hero-glow" aria-hidden="true"></div>
+
+      <div class="hero-browser" role="img" [attr.aria-label]="'home.hero.browserAria' | wsTranslate">
+        <div class="hero-browser-chrome" aria-hidden="true">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="hero-browser-url">app.sheikhgo.com/nexus</span>
+        </div>
+        <div class="hero-browser-screen">
+          <img
+            src="/website/nexus/fleet-intelligence-dashboard.jpg"
+            alt=""
+            width="1920"
+            height="1080"
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+            [class.is-hidden]="nexusImageError"
+            (error)="nexusImageError = true" />
+          @if (nexusImageError) {
+            <div class="hero-browser-fallback">
+              <mat-icon aria-hidden="true">dashboard</mat-icon>
+              <span>SheikhGo Nexus dashboard</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="hero-phone" aria-hidden="true">
+        <div class="hero-phone-notch"></div>
+        <div class="hero-phone-screen">
+          <img
+            src="/website/demo/sheikhgo-nexus-mobile-promo-poster.jpg"
+            alt=""
+            width="720"
+            height="1560"
+            loading="lazy"
+            decoding="async" />
+        </div>
+      </div>
+
+      <div class="hero-float hero-float--gps" aria-hidden="true">
+        <span class="hero-float-pulse"></span>
         <mat-icon>gps_fixed</mat-icon>
         <div>
           <strong>{{ 'home.hero.chipMapTitle' | wsTranslate }}</strong>
           <span>{{ 'home.hero.chipMapSub' | wsTranslate }}</span>
         </div>
       </div>
-      <div class="chat-shell">
-        <div class="chat-head">
-          <mat-icon>auto_awesome</mat-icon>
-          <span>{{ 'home.hero.aiLabel' | wsTranslate }}</span>
-          <span class="live">{{ 'home.hero.aiLive' | wsTranslate }}</span>
-        </div>
-        <div class="chat-body">
-          <div class="bubble user">Which vehicles are offline right now?</div>
-          <div class="bubble bot">
-            <span class="tool-tag">live · alerts</span>
-            3 units — last seen times and locations from your GPS feed.
-          </div>
-          <div class="bubble bot dim">Heuristic insights — not undisclosed trained models.</div>
+      <div class="hero-float hero-float--ops" aria-hidden="true">
+        <mat-icon>route</mat-icon>
+        <div>
+          <strong>{{ 'home.hero.chipOpsTitle' | wsTranslate }}</strong>
+          <span>{{ 'home.hero.chipOpsSub' | wsTranslate }}</span>
         </div>
       </div>
     </div>

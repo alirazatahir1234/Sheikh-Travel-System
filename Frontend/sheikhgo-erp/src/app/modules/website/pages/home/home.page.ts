@@ -47,10 +47,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly heroPerks = computed(() => {
     this.i18n.lang();
     return [
-      { icon: 'my_location', text: this.i18n.t('home.perk.gps') },
-      { icon: 'auto_awesome', text: this.i18n.t('home.perk.ai') },
-      { icon: 'shield', text: this.i18n.t('home.perk.secure') },
-      { icon: 'hub', text: this.i18n.t('home.perk.nexus') },
+      { icon: 'my_location', text: this.i18n.t('home.perk.visibility') },
+      { icon: 'hub', text: this.i18n.t('home.perk.operations') },
+      { icon: 'insights', text: this.i18n.t('home.perk.analytics') },
     ] as const;
   });
 
