@@ -334,7 +334,9 @@ class UniversalSearchBarCard extends StatelessWidget {
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Search vehicle, driver, trip, booking, or location...',
+                  'Search vehicle, driver, trip…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style:
                       TextStyle(color: AppColors.textMuted, fontSize: 14),
                 ),

@@ -53,30 +53,35 @@ class MoreScreen extends ConsumerWidget {
                 ),
           ),
           const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.92,
-            ),
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return _MoreTile(
-                entry: entry,
-                onTap: () {
-                  if (entry.comingSoonSprint != null) {
-                    _showComingSoon(context, entry);
-                    return;
-                  }
-                  if (FleetNavConfig.isShellRoute(entry.route)) {
-                    context.go(entry.route);
-                  } else {
-                    context.push(entry.route);
-                  }
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth < 360 ? 2 : 3;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: cols == 2 ? 1.15 : 0.92,
+                ),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return _MoreTile(
+                    entry: entry,
+                    onTap: () {
+                      if (entry.comingSoonSprint != null) {
+                        _showComingSoon(context, entry);
+                        return;
+                      }
+                      if (FleetNavConfig.isShellRoute(entry.route)) {
+                        context.go(entry.route);
+                      } else {
+                        context.push(entry.route);
+                      }
+                    },
+                  );
                 },
               );
             },
