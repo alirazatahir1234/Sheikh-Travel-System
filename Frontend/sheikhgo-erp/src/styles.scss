@@ -375,6 +375,16 @@ html, body {
   color: var(--stb-text);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* Prevent accidental horizontal pan from wide children */
+  overscroll-behavior-x: none;
+}
+
+/* App root must never force a wider viewport than the device */
+app-root {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 /* Marketing site: document (window) scroll — not height-locked body scrollport.

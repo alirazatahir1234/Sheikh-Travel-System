@@ -79,9 +79,147 @@
     border-radius: 0;
     box-shadow: none;
 
+    /*
+     * Mobile / narrow: single chat column.
+     * Composer must stay pinned to the bottom — never mid-viewport
+     * (the old 44vh rail + workspace stack put the input in the middle).
+     */
     @media (max-width: 820px) {
+      display: grid;
       grid-template-columns: 1fr;
-      grid-template-rows: minmax(300px, 44vh) minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        'hdr'
+        'live'
+        'mid'
+        'composer';
+      height: 100%;
+      max-height: 100%;
+      min-height: 0;
+      background: #fff;
+
+      .ai-rail {
+        display: contents;
+        border-right: none;
+      }
+
+      .ai-rail__header {
+        grid-area: hdr;
+      }
+
+      .ai-rail__live {
+        grid-area: live;
+        margin: 8px 10px 0;
+        padding: 10px 12px;
+      }
+
+      .ai-rail__scroll {
+        grid-area: mid;
+        min-height: 0;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 10px 10px 8px;
+      }
+
+      .ai-rail__composer {
+        grid-area: composer;
+        padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid #e2eaf3;
+        background: #fff;
+        z-index: 2;
+      }
+
+      .chat-main--workspace,
+      .ai-workspace {
+        grid-area: mid;
+        min-height: 0;
+        height: auto;
+        max-height: 100%;
+        background: #fff;
+      }
+
+      /* Empty workspace would sit on top of prompts — hide it so suggestions stay usable */
+      .ai-workspace:has(.ai-workspace__empty),
+      .chat-main--workspace:has(.ai-workspace__empty) {
+        display: none;
+      }
+
+      /* Once there are replies, prefer the message stream over the large empty hero */
+      &:has(.bubble) .ai-rail__scroll,
+      &.has-thread .ai-rail__scroll {
+        display: none;
+      }
+
+      &:not(.has-thread) .chat-main--workspace,
+      &:not(.has-thread) .ai-workspace {
+        display: none;
+      }
+
+      .ai-rail__robot-ring {
+        width: 96px;
+        height: 96px;
+      }
+
+      .ai-rail__robot {
+        width: 72px;
+        height: 72px;
+      }
+
+      .ai-rail__hero {
+        padding: 2px 0 6px;
+
+        h2 {
+          margin-top: 8px;
+          font-size: 0.98rem;
+        }
+
+        > p {
+          font-size: 0.82rem;
+        }
+      }
+
+      .messages--workspace {
+        padding: 12px 10px 16px;
+      }
+
+      .prompt-card {
+        padding: 10px 10px 10px 12px;
+      }
+
+      .prompt-card__text {
+        font-size: 0.84rem;
+      }
+
+      .confirm-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+
+        .confirm-actions {
+          width: 100%;
+
+          button {
+            flex: 1 1 auto;
+          }
+        }
+      }
+    }
+
+    @media (max-width: 400px) {
+      .ai-rail__titles strong {
+        font-size: 0.84rem;
+      }
+
+      .ai-rail__live {
+        gap: 8px;
+        font-size: 0.78rem;
+
+        > mat-icon {
+          width: 30px;
+          height: 30px;
+          font-size: 18px;
+        }
+      }
     }
   }
 }
@@ -1141,19 +1279,28 @@
 }
 
 @media (max-width: 900px) {
-  .chat-shell.has-sessions {
+  .chat-shell.has-sessions:not(.is-workspace) {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
   }
 
-  .conversations {
+  .chat-shell.has-sessions:not(.is-workspace) .conversations {
     max-height: 220px;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
   }
 
-  .chat-main {
-    min-height: 420px;
+  .chat-shell:not(.is-workspace) .chat-main {
+    min-height: min(420px, 60dvh);
+    min-width: 0;
+  }
+
+  .composer {
+    max-width: 100%;
+  }
+
+  .composer-dock {
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }

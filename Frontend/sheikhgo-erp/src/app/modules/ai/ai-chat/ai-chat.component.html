@@ -3,7 +3,8 @@
   [class.has-sessions]="showSessionsPanel"
   [class.is-compact]="compact"
   [class.is-dashboard]="workspace"
-  [class.is-workspace]="workspace">
+  [class.is-workspace]="workspace"
+  [class.has-thread]="messages.length > 0 || sending">
   <div class="access-denied" *ngIf="accessDeniedMessage" role="status">
     <mat-icon>lock</mat-icon>
     <p>{{ accessDeniedMessage }}</p>
