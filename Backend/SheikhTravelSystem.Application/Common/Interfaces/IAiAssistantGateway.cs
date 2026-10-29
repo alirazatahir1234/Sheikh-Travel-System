@@ -35,4 +35,6 @@ public record AiAssistantQueryResponse(
     /// <summary>Phase 7 — conversation session for follow-ups (null when persistence skipped).</summary>
     Guid? SessionId = null,
     /// <summary>Phase 8 — turn correlation id for support / log linkage.</summary>
-    string? CorrelationId = null);
+    string? CorrelationId = null,
+    /// <summary>Pending write (e.g. tracker registration ready for CONFIRM).</summary>
+    AiPendingActionDto? PendingAction = null);

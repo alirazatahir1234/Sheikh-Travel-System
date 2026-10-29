@@ -113,6 +113,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -155,6 +157,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -249,6 +253,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(1, 1, new AiAssistantQueryRequest(question), CancellationToken.None);
@@ -380,6 +386,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var denied = await gateway.QueryAsync(
@@ -426,6 +434,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -488,6 +498,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -531,6 +543,8 @@ public class AiAssistantGatewayTests
             CreatePassthroughMemory(),
             CreatePassthroughContextBuilder(),
             CreateAmbient(),
+            CreateIdleTrackerWizard(),
+            CreateCurrentUser(),
             NullLogger<AiAssistantGateway>.Instance);
 
         var response = await gateway.QueryAsync(
@@ -682,6 +696,24 @@ public class AiAssistantGatewayTests
                     ClarificationPrompt: null,
                     BoundedHistoryMessages: req.Memory?.RecentMessages ?? []));
         return m.Object;
+    }
+
+
+    private static ITrackerConfigWizardService CreateIdleTrackerWizard()
+    {
+        var wizard = new Mock<ITrackerConfigWizardService>();
+        wizard.Setup(w => w.TryHandleAsync(
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<TrackerConfigWizardPermissions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TrackerConfigWizardTurn?)null);
+        return wizard.Object;
+    }
+
+    private static ICurrentUserService CreateCurrentUser()
+    {
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.HasPermission(It.IsAny<string>())).Returns(false);
+        return user.Object;
     }
 
     private static IMcpExecutionAmbient CreateAmbient()

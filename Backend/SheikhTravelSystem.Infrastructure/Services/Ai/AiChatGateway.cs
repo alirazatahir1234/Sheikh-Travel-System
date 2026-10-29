@@ -29,6 +29,7 @@ public sealed class AiChatGateway(
     IAiConversationMemoryService conversationMemory,
     IAiConversationContextBuilder contextBuilder,
     IMcpExecutionAmbient executionAmbient,
+    ITrackerConfigWizardService trackerWizard,
     ILogger<AiChatGateway> logger) : IAiChatGateway
 {
     private static readonly TimeSpan PendingTtl = TimeSpan.FromMinutes(15);
@@ -101,14 +102,57 @@ public sealed class AiChatGateway(
 
         if (isConfirm)
         {
-            var executed = await ExecutePendingActionAsync(tenantId, userId, sessionId, cancellationToken);
-            answer = executed.Answer;
-            mode = executed.Mode;
-            tools.AddRange(executed.ToolsUsed);
-            logger.LogInformation("AI confirm executed session={SessionId} tools={Tools}", sessionId, string.Join(",", tools));
+            // Prefer ConfigureTracker wizard confirm (draft in AiPendingActions).
+            var wizardConfirm = await trackerWizard.TryHandleAsync(
+                sessionId, tenantId, userId, "CONFIRM",
+                new TrackerConfigWizardPermissions(
+                    CanExecuteWrite,
+                    currentUser.HasPermission(Application.Common.GpsPermissions.DeviceManage)),
+                cancellationToken);
+            if (wizardConfirm is not null)
+            {
+                answer = wizardConfirm.Answer;
+                mode = wizardConfirm.Mode;
+                tools.Add(wizardConfirm.ToolUsed);
+                tools.Add(wizardConfirm.Mode == "tracker_wizard_done" ? "confirm_executed" : "tracker_wizard");
+                pendingAction = wizardConfirm.PendingConfirmation ? wizardConfirm.PendingAction : null;
+                logger.LogInformation("AI tracker wizard confirm session={SessionId} mode={Mode}", sessionId, mode);
+            }
+            else
+            {
+                var executed = await ExecutePendingActionAsync(tenantId, userId, sessionId, cancellationToken);
+                answer = executed.Answer;
+                mode = executed.Mode;
+                tools.AddRange(executed.ToolsUsed);
+                logger.LogInformation("AI confirm executed session={SessionId} tools={Tools}", sessionId, string.Join(",", tools));
+            }
         }
         else
         {
+            var wizardPerms = new TrackerConfigWizardPermissions(
+                CanExecuteWrite,
+                currentUser.HasPermission(Application.Common.GpsPermissions.DeviceManage));
+            var wizardTurn = await trackerWizard.TryHandleAsync(
+                sessionId, tenantId, userId, message, wizardPerms, cancellationToken);
+            if (wizardTurn is not null)
+            {
+                answer = wizardTurn.Answer;
+                mode = wizardTurn.Mode;
+                tools.Add(wizardTurn.ToolUsed);
+                // Collecting drafts stay in DB but Confirm UI only when ready.
+                pendingAction = wizardTurn.PendingConfirmation ? wizardTurn.PendingAction : null;
+
+                await conversationMemory.AppendMessageAsync(sessionId, "assistant", answer, cancellationToken);
+                await conversationMemory.TouchSessionAsync(sessionId, cancellationToken);
+
+                return new AiChatTurnResponse(
+                    sessionId, answer, mode, UsedLlm: false,
+                    Provider: "rules", Model: null,
+                    DefaultSuggestions, tools,
+                    pendingAction,
+                    CorrelationId: correlationId);
+            }
+
             var memory = await conversationMemory.LoadAuthorizedAsync(
                 tenantId, userId, sessionId, cancellationToken);
 
@@ -322,6 +366,7 @@ public sealed class AiChatGateway(
             WHERE p.SessionId = @SessionId
               AND s.TenantId = @TenantId AND s.UserId = @UserId AND s.IsDeleted = 0
               AND p.ExpiresAt > GETUTCDATE()
+              AND p.ToolName NOT LIKE '%.Draft'
             """, new { SessionId = sessionId, TenantId = tenantId, UserId = userId }, cancellationToken: cancellationToken));
     }
 

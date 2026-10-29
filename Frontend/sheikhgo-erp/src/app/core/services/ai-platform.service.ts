@@ -73,6 +73,8 @@ export interface AiAssistantQueryResponse {
   mode: string;
   /** Phase 7 — persisted conversation id for follow-ups. */
   sessionId?: string | null;
+  /** Pending write (e.g. tracker registration ready for CONFIRM). */
+  pendingAction?: AiPendingAction | null;
 }
 
 export interface AiChatMessage {

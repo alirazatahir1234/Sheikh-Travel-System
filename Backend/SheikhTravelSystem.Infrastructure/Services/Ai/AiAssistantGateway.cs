@@ -1,13 +1,15 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Ai;
 
 /// <summary>
-/// Phase 2 AI Assistant orchestrator: allowlisted read-only tools only.
+/// Phase 2 AI Assistant orchestrator: allowlisted read-only tools only,
+/// plus the multi-turn ConfigureTracker registration wizard.
 /// When keyword IAiTools miss (or fail) and Ai:McpBridge is on, uses the same
 /// DeepInfra ↔ MCP tool-calling loop as chat (<see cref="IAiMcpToolCallingLoop"/>),
 /// then deterministic <see cref="IMcpDatabaseRecordRouter"/> prefetch, then help.
@@ -22,6 +24,8 @@ public sealed class AiAssistantGateway(
     IAiConversationMemoryService conversationMemory,
     IAiConversationContextBuilder contextBuilder,
     IMcpExecutionAmbient executionAmbient,
+    ITrackerConfigWizardService trackerWizard,
+    ICurrentUserService currentUser,
     ILogger<AiAssistantGateway> logger) : IAiAssistantGateway
 {
     public static readonly string[] AllowlistedToolNames =
@@ -65,7 +69,8 @@ public sealed class AiAssistantGateway(
         "What is our daily, weekly, and monthly revenue?",
         "Which vehicles have maintenance due?",
         "Who is the best performing driver today?",
-        "How healthy is my fleet today?"
+        "How healthy is my fleet today?",
+        "Register tracker (IMEI) — step-by-step setup"
     ];
 
     private readonly IReadOnlyDictionary<string, IAiTool> _allowlisted = tools
@@ -116,6 +121,30 @@ public sealed class AiAssistantGateway(
                 VehicleId: vehicleId,
                 IsPlatformSuperAdmin: request.IsPlatformSuperAdmin),
             cancellationToken);
+
+        // Tracker registration wizard — one field per turn (before clarification/tools).
+        var wizardPerms = new TrackerConfigWizardPermissions(
+            CanExecuteWrite: currentUser.HasPermission(AiPermissions.ExecuteWrite),
+            CanManageDevices: currentUser.HasPermission(GpsPermissions.DeviceManage));
+        var wizardTurn = await trackerWizard.TryHandleAsync(
+            sessionId, tenantId, userId, question, wizardPerms, cancellationToken);
+        if (wizardTurn is not null)
+        {
+            return await PersistAndReturnAsync(
+                tenantId, userId, sessionId,
+                new AiAssistantQueryResponse(
+                    wizardTurn.Answer,
+                    Period: null,
+                    wizardTurn.ToolUsed,
+                    Data: null,
+                    Array.Empty<string>(),
+                    UsedLlm: false,
+                    Mode: wizardTurn.Mode,
+                    SessionId: sessionId,
+                    PendingAction: wizardTurn.PendingConfirmation ? wizardTurn.PendingAction : null),
+                cancellationToken,
+                ensured.Notice);
+        }
 
         if (preAssembled.NeedsClarification && !string.IsNullOrWhiteSpace(preAssembled.ClarificationPrompt))
         {
