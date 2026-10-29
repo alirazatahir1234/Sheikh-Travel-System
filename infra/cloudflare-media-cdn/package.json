@@ -1,0 +1,15 @@
+{
+  "name": "sheikhgo-media-cdn",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare Worker CDN in front of Azure Blob website media (sheikhtravelblob)",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail",
+    "whoami": "wrangler whoami"
+  },
+  "devDependencies": {
+    "wrangler": "^4.155.0"
+  }
+}

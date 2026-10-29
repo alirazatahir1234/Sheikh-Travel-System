@@ -6,6 +6,12 @@ export const environment = {
   apiUrl: '/api',
   /** Absolute base for uploaded files (API origin). Avoids resolving /uploads on :4200. */
   filesBaseUrl: 'http://127.0.0.1:5082',
+  /**
+   * Marketing media CDN origin (no trailing slash).
+   * Paths resolve to {base}/website-images|website-videos/...
+   * Cloudflare Worker proxies Azure Blob; leave empty to use local /website/.
+   */
+  websiteMediaBaseUrl: 'https://sheikhgo-media.sheikhgo.workers.dev',
   tenantSlug: 'default',
   // Merged from gitignored environment.secrets.local.ts so bare `ng s` works
   // without npm start. Copy from environment.secrets.local.ts.example if missing

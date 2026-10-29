@@ -4,13 +4,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteCssUrl } from '../../core/website-media';
 
 @Component({
   selector: 'app-fuel-page',
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   template: `
-    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/nexus/fuel.png')">
+    <section class="page-hero page-hero-cinematic" [style.--hero-image]="heroImageCss">
       <div class="container">
         <span class="section-kicker" style="color:#99f6e4">{{ 'pages.fuel.kicker' | wsTranslate }}</span>
         <h1>{{ 'pages.fuel.title' | wsTranslate }}</h1>
@@ -92,6 +93,8 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
   `
 })
 export class FuelPage implements OnInit {
+  readonly heroImageCss = websiteCssUrl('/website/nexus/modules/fuel.png');
+
   private readonly seo = inject(WebsiteSeoService);
 
   readonly features = [

@@ -42,7 +42,7 @@
         </div>
         <div class="hero-browser-screen">
           <img
-            src="/website/nexus/fleet-intelligence-dashboard.jpg"
+            [src]="nexusDashboardSrc"
             alt=""
             width="1920"
             height="1080"
@@ -64,7 +64,7 @@
         <div class="hero-phone-notch"></div>
         <div class="hero-phone-screen">
           <img
-            src="/website/demo/sheikhgo-nexus-mobile-promo-poster.jpg"
+            [src]="mobilePromoPosterSrc"
             alt=""
             width="720"
             height="1560"
@@ -88,6 +88,183 @@
           <span>{{ 'home.hero.chipOpsSub' | wsTranslate }}</span>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="platform-overview" id="platform-overview" aria-labelledby="platform-overview-heading">
+  <div class="container">
+    <header class="section-head platform-overview-head">
+      <span class="section-kicker">{{ 'home.overview.kicker' | wsTranslate }}</span>
+      <h2 id="platform-overview-heading" class="section-title">{{ 'home.overview.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.overview.lead' | wsTranslate }}</p>
+    </header>
+    <div class="platform-overview-grid">
+      @for (card of platformOverviewCards; track card.id) {
+        <a class="platform-overview-card" [routerLink]="card.link">
+          <span class="platform-overview-icon" aria-hidden="true">
+            <mat-icon>{{ card.icon }}</mat-icon>
+          </span>
+          <h3>{{ card.titleKey | wsTranslate }}</h3>
+          <p>{{ card.textKey | wsTranslate }}</p>
+          <span class="platform-overview-link">
+            {{ 'home.overview.explore' | wsTranslate }}
+            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          </span>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="product-showcase" id="product-showcase" aria-labelledby="product-showcase-heading">
+  <div class="product-showcase-bg" aria-hidden="true"></div>
+  <div class="container product-showcase-inner">
+    <header class="section-head product-showcase-head">
+      <span class="section-kicker">{{ 'home.showcaseTabs.kicker' | wsTranslate }}</span>
+      <h2 id="product-showcase-heading" class="section-title">{{ 'home.showcaseTabs.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.showcaseTabs.lead' | wsTranslate }}</p>
+    </header>
+
+    <div
+      class="showcase-tablist"
+      role="tablist"
+      [attr.aria-label]="'home.showcaseTabs.tablistLabel' | wsTranslate">
+      @for (tab of productShowcaseTabs; track tab.id; let i = $index) {
+        <button
+          type="button"
+          class="showcase-tab"
+          role="tab"
+          [id]="'showcase-tab-' + tab.id"
+          [attr.aria-selected]="showcaseTabIndex() === i"
+          [attr.aria-controls]="'showcase-panel-' + tab.id"
+          [attr.tabindex]="showcaseTabIndex() === i ? 0 : -1"
+          [class.active]="showcaseTabIndex() === i"
+          (click)="selectShowcaseTab(i)"
+          (keydown)="onShowcaseTabKeydown($event, i)">
+          {{ tab.tabKey | wsTranslate }}
+        </button>
+      }
+    </div>
+
+    @for (tab of productShowcaseTabs; track tab.id; let i = $index) {
+      <div
+        class="showcase-panel"
+        role="tabpanel"
+        [id]="'showcase-panel-' + tab.id"
+        [attr.aria-labelledby]="'showcase-tab-' + tab.id"
+        [hidden]="showcaseTabIndex() !== i">
+        <div class="showcase-panel-copy">
+          <h3>{{ tab.titleKey | wsTranslate }}</h3>
+          <p>{{ tab.leadKey | wsTranslate }}</p>
+          <ul>
+            @for (bullet of tab.bulletKeys; track bullet) {
+              <li>
+                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                <span>{{ bullet | wsTranslate }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+        <div class="showcase-panel-visual">
+          <div class="showcase-browser" aria-hidden="true">
+            <div class="showcase-browser-chrome">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+            <div class="showcase-browser-screen">
+              <img
+                [src]="tab.image"
+                [alt]="tab.imageAlt"
+                width="1440"
+                height="900"
+                loading="lazy"
+                decoding="async" />
+            </div>
+          </div>
+          <p class="showcase-visual-note">{{ 'home.showcaseTabs.visualNote' | wsTranslate }}</p>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="business-benefits" id="business-benefits" aria-labelledby="business-benefits-heading">
+  <div class="container business-benefits-inner">
+    <div class="business-benefits-copy">
+      <span class="section-kicker">{{ 'home.benefits.kicker' | wsTranslate }}</span>
+      <h2 id="business-benefits-heading" class="section-title">{{ 'home.benefits.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.benefits.lead' | wsTranslate }}</p>
+      <ul class="business-benefits-list">
+        @for (item of businessBenefits; track item.id) {
+          <li class="business-benefit-item">
+            <span class="business-benefit-icon" aria-hidden="true">
+              <mat-icon>{{ item.icon }}</mat-icon>
+            </span>
+            <div>
+              <h3>{{ item.titleKey | wsTranslate }}</h3>
+              <p>{{ item.textKey | wsTranslate }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="business-benefits-visual" role="img" [attr.aria-label]="'home.benefits.visualAria' | wsTranslate">
+      <div class="benefits-visual-frame benefits-visual-primary">
+        <img
+          [src]="benefitsVisual.primary.src"
+          [alt]="benefitsVisual.primary.alt"
+          width="1920"
+          height="1080"
+          loading="lazy"
+          decoding="async" />
+      </div>
+      <div class="benefits-visual-frame benefits-visual-map" aria-hidden="true">
+        <img
+          [src]="benefitsVisual.map.src"
+          [alt]="benefitsVisual.map.alt"
+          width="1440"
+          height="900"
+          loading="lazy"
+          decoding="async" />
+      </div>
+      <div class="benefits-visual-frame benefits-visual-reports" aria-hidden="true">
+        <img
+          [src]="benefitsVisual.reports.src"
+          [alt]="benefitsVisual.reports.alt"
+          width="1440"
+          height="900"
+          loading="lazy"
+          decoding="async" />
+      </div>
+      <p class="benefits-visual-note">{{ 'home.benefits.visualNote' | wsTranslate }}</p>
+    </div>
+  </div>
+</section>
+
+<section class="industries-serve" id="industries-serve" aria-labelledby="industries-serve-heading">
+  <div class="container">
+    <header class="section-head industries-serve-head">
+      <span class="section-kicker">{{ 'home.industriesServe.kicker' | wsTranslate }}</span>
+      <h2 id="industries-serve-heading" class="section-title">{{ 'home.industriesServe.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.industriesServe.lead' | wsTranslate }}</p>
+    </header>
+    <div class="industries-serve-grid">
+      @for (card of industryServeCards; track card.id) {
+        <a class="industries-serve-card" [routerLink]="card.link">
+          <span class="industries-serve-icon" aria-hidden="true">
+            <mat-icon>{{ card.icon }}</mat-icon>
+          </span>
+          <h3>{{ card.titleKey | wsTranslate }}</h3>
+          <p>{{ card.textKey | wsTranslate }}</p>
+          <span class="industries-serve-link">
+            {{ 'home.industriesServe.explore' | wsTranslate }}
+            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          </span>
+        </a>
+      }
     </div>
   </div>
 </section>
@@ -159,7 +336,7 @@
       <div class="nexus-frame-glow" aria-hidden="true"></div>
       <div class="nexus-screenshot-wrap">
         <img
-          src="/website/nexus/fleet-intelligence-dashboard.jpg"
+          [src]="nexusDashboardSrc"
           alt="SheikhGo NEXUS fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant"
           class="nexus-screenshot"
           width="1920"
@@ -173,7 +350,7 @@
           <div class="nexus-screenshot-placeholder" role="img" aria-label="Platform preview placeholder">
             <mat-icon aria-hidden="true">dashboard</mat-icon>
             <span>SheikhGo NEXUS dashboard preview</span>
-            <small>Add asset at /website/nexus/fleet-intelligence-dashboard.jpg</small>
+            <small>Dashboard image unavailable</small>
           </div>
         }
       </div>

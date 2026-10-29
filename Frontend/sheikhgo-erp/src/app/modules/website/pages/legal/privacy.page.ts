@@ -5,6 +5,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
+import { websiteAssetUrl } from '../../core/website-media';
 
 @Component({
   selector: 'app-privacy-page',
@@ -23,6 +24,7 @@ export class PrivacyPage implements OnInit {
   readonly effectiveDate = '29 August 2026';
   readonly lastUpdated = '10 September 2026';
   readonly websiteUrl = 'https://www.sheikhgo.com';
+  readonly privacyBannerSrc = websiteAssetUrl('/website/privacy-policy-banner.jpg');
 
   cmsTitle: string | null = null;
   cmsHtml: SafeHtml | null = null;

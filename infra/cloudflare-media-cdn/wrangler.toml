@@ -1,0 +1,23 @@
+# SheikhGo website media CDN — Cloudflare Worker proxy in front of Azure Blob.
+# Account: https://dash.cloudflare.com/05cf981da1f681f3ee10789fd63ff04a/home
+# Origin: sheikhtravelblob (website-images / website-videos only).
+# Never expose gps-playbacks or other private containers.
+#
+# Deploy:
+#   cd infra/cloudflare-media-cdn && npm install && npx wrangler deploy
+#
+# Custom hostname media.sheikhgo.com is NOT attached until Ali reviews DNS
+# (apex/www stay on Spaceship → Vercel for now).
+
+name = "sheikhgo-media"
+account_id = "05cf981da1f681f3ee10789fd63ff04a"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+BLOB_ORIGIN = "https://sheikhtravelblob.blob.core.windows.net"
+ALLOWED_CONTAINERS = "website-images,website-videos"
+EDGE_TTL_IMAGES = "2592000"
+EDGE_TTL_VIDEOS = "2592000"
+BROWSER_TTL = "604800"

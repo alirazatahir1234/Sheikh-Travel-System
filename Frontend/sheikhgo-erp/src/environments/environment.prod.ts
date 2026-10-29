@@ -9,6 +9,12 @@ export const environment = {
   apiUrl: 'https://20-174-1-230.sslip.io/api',
   /** Same host as SPA; absolute API origin used for /uploads when filesBaseUrl is empty. */
   filesBaseUrl: '',
+  /**
+   * Marketing media CDN origin (no trailing slash).
+   * Cloudflare Worker proxies Azure Blob (same /website-images|website-videos paths).
+   * Do not point at blob.core.windows.net directly; custom media.sheikhgo.com DNS is later.
+   */
+  websiteMediaBaseUrl: 'https://sheikhgo-media.sheikhgo.workers.dev',
   tenantSlug: 'default',
   // Injected at build by scripts/inject-maps-env.mjs from GOOGLE_MAPS_API_KEY /
   // environment.secrets.local.ts / .env.local — never commit a live key here.

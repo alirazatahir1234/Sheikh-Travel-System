@@ -3,6 +3,8 @@
  * No fabricated customers, MRR, or case studies.
  */
 
+import { websiteAssetUrl } from './website-media';
+
 export interface SolutionShot {
   src: string;
   alt: string;
@@ -64,7 +66,7 @@ export const FLEET_MANAGEMENT_SOLUTION: ChannelCSolutionPage = {
   kicker: 'Fleet management software',
   title: 'Fleet Management Software',
   lead: 'Run vehicles, drivers, assignments, trips, fuel, and maintenance from one SheikhGo Nexus workspace — with live GPS when devices are connected.',
-  heroImage: '/website/sheikhgo-fleet-hero.png',
+  heroImage: websiteAssetUrl('/website/sheikhgo-fleet-hero.png'),
   targetCustomer: {
     title: 'Who it’s for',
     lead: 'B2B operators who need operational control — not a consumer tracker app.',
@@ -103,37 +105,37 @@ export const FLEET_MANAGEMENT_SOLUTION: ChannelCSolutionPage = {
   shotsLead: 'Screens from SheikhGo Nexus — not mockups.',
   shots: [
     {
-      src: '/website/product/live-map.png',
+      src: websiteAssetUrl('/website/product/live-map.png'),
       alt: 'SheikhGo Fleet live GPS map showing tracked vehicles',
       title: 'Live GPS map',
       text: 'Every vehicle on one map with online state, speed and last update.',
     },
     {
-      src: '/website/product/dashboard.png',
+      src: websiteAssetUrl('/website/product/dashboard.png'),
       alt: 'SheikhGo Fleet operations dashboard',
       title: 'Operations dashboard',
       text: 'Fleet health, active trips, alerts and utilisation at a glance.',
     },
     {
-      src: '/website/product/vehicles.png',
+      src: websiteAssetUrl('/website/product/vehicles.png'),
       alt: 'SheikhGo Fleet vehicle register',
       title: 'Vehicle register',
       text: 'Plates, status, documents and the GPS device linked to each vehicle.',
     },
     {
-      src: '/website/product/trips.png',
+      src: websiteAssetUrl('/website/product/trips.png'),
       alt: 'SheikhGo Fleet trip management screen',
       title: 'Trips',
       text: 'Plan, monitor and close trips with full GPS history behind each one.',
     },
     {
-      src: '/website/product/drivers.png',
+      src: websiteAssetUrl('/website/product/drivers.png'),
       alt: 'SheikhGo Fleet driver management screen',
       title: 'Drivers',
       text: 'Profiles, assignments, duty status and activity history.',
     },
     {
-      src: '/website/product/reports.png',
+      src: websiteAssetUrl('/website/product/reports.png'),
       alt: 'SheikhGo Fleet reports and analytics',
       title: 'Reports',
       text: 'Utilisation, distance, fuel and cost reporting for managers.',
@@ -149,7 +151,7 @@ export const GPS_TRACKING_SOLUTION: ChannelCSolutionPage = {
   kicker: 'GPS vehicle tracking',
   title: 'GPS Vehicle Tracking',
   lead: 'Know where each vehicle is — with live status, road-level addresses, journey playback, geofences, and alerts that reach your team.',
-  heroImage: '/website/gps-alerts/hero-bg.jpg',
+  heroImage: websiteAssetUrl('/website/gps-alerts/hero-bg.jpg'),
   targetCustomer: {
     title: 'Who it’s for',
     lead: 'Dispatchers, fleet owners, and compliance teams who need evidence — not vanity pins.',
@@ -194,7 +196,7 @@ export const VEHICLE_RENTAL_SOLUTION: ChannelCSolutionPage = {
   kicker: 'Vehicle rental',
   title: 'Vehicle Rental Management',
   lead: 'Run rental rates, bookings, and availability inside SheikhGo Nexus — alongside fleet GPS, vehicles, customers, and maintenance for every asset on rent.',
-  heroImage: '/website/product/vehicles.png',
+  heroImage: websiteAssetUrl('/website/product/vehicles.png'),
   honestyNote:
     'Honest status: Nexus includes an ERP Vehicle Rental module (rates, bookings, availability, payments) plus fleet GPS and ops. This is an operator workspace for rental fleets — not a consumer car-rental marketplace or white-label public booking site.',
   targetCustomer: {
@@ -241,7 +243,7 @@ export const TRANSPORTATION_OPS_SOLUTION: ChannelCSolutionPage = {
   kicker: 'Transportation operations',
   title: 'Transportation Operations',
   lead: 'Coordinate bookings, trips, drivers, and vehicles in one operations platform — with live tracking when your fleet is on the road.',
-  heroImage: '/website/product/trips.png',
+  heroImage: websiteAssetUrl('/website/product/trips.png'),
   targetCustomer: {
     title: 'Who it’s for',
     lead: 'Travel agencies, transport companies, and operators who move people or goods on a schedule.',
@@ -286,7 +288,7 @@ export const AI_FLEET_INSIGHTS_SOLUTION: ChannelCSolutionPage = {
   kicker: 'AI fleet insights',
   title: 'AI Fleet Insights',
   lead: 'Ask questions and surface fleet health signals from the same GPS and operations data your team already runs — transparent tools, not black-box marketing claims.',
-  heroImage: '/website/nexus/modules/ai-assistant.png',
+  heroImage: websiteAssetUrl('/website/nexus/modules/ai-assistant.png'),
   honestyNote:
     'SheikhGo AI uses operational tools and heuristics on your tenant data. Optional language-model polish requires a provider you configure — we do not invent accuracy guarantees or unnamed customer results.',
   targetCustomer: {

@@ -164,6 +164,118 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.perk.ai': 'Tool-first AI insights',
   'home.perk.secure': 'Secure & scalable platform',
   'home.perk.nexus': 'All-in-one NEXUS dashboard',
+
+  'home.overview.kicker': 'One connected platform',
+  'home.overview.title': 'Everything You Need to Manage Mobility',
+  'home.overview.lead':
+    'Bring fleet operations, GPS tracking, vehicle rentals, and travel management together in one connected platform designed to simplify operations and improve visibility.',
+  'home.overview.explore': 'Explore',
+  'home.overview.card.fleet.title': 'Fleet Management',
+  'home.overview.card.fleet.text':
+    'Manage vehicles, drivers, trips, maintenance, and operational workflows from one centralized workspace.',
+  'home.overview.card.gps.title': 'GPS Tracking',
+  'home.overview.card.gps.text':
+    'Monitor vehicle locations, review routes, and improve fleet visibility with integrated GPS tracking.',
+  'home.overview.card.rental.title': 'Vehicle Rental',
+  'home.overview.card.rental.text':
+    'Organize vehicle availability, reservations, rental operations, and vehicle handovers.',
+  'home.overview.card.travel.title': 'Travel Management',
+  'home.overview.card.travel.text':
+    'Coordinate travel services, bookings, customer information, and agency operations.',
+  'home.overview.card.intelligence.title': 'Fleet Intelligence',
+  'home.overview.card.intelligence.text':
+    'Turn operational data into useful insights for fleet utilization, costs, and business decisions.',
+
+  'home.showcaseTabs.kicker': 'Explore the platform',
+  'home.showcaseTabs.title': 'Powerful Tools. One Connected Experience.',
+  'home.showcaseTabs.lead':
+    'Explore the tools that help your team manage vehicles, monitor trips, coordinate operations, and make informed decisions.',
+  'home.showcaseTabs.tablistLabel': 'Platform modules',
+  'home.showcaseTabs.visualNote': 'Product UI from SheikhGo Nexus — illustrative preview, not live account data.',
+  'home.showcaseTabs.fleet.tab': 'Fleet Management',
+  'home.showcaseTabs.fleet.title': 'Your Fleet, Under Control',
+  'home.showcaseTabs.fleet.lead':
+    'Manage vehicles, drivers, maintenance, and fleet operations through a centralized workspace.',
+  'home.showcaseTabs.fleet.b1': 'Vehicle and driver records.',
+  'home.showcaseTabs.fleet.b2': 'Fleet status and availability.',
+  'home.showcaseTabs.fleet.b3': 'Maintenance and operational visibility.',
+  'home.showcaseTabs.fleet.b4': 'Centralized fleet information.',
+  'home.showcaseTabs.gps.tab': 'GPS Tracking',
+  'home.showcaseTabs.gps.title': 'Know Where Your Vehicles Are',
+  'home.showcaseTabs.gps.lead':
+    'Get a clearer view of vehicle locations, movement, and route activity through integrated GPS tracking.',
+  'home.showcaseTabs.gps.b1': 'Live location visibility where supported.',
+  'home.showcaseTabs.gps.b2': 'Vehicle movement and route history where supported.',
+  'home.showcaseTabs.gps.b3': 'Tracking-device integration.',
+  'home.showcaseTabs.gps.b4': 'Fleet monitoring and alerts where available.',
+  'home.showcaseTabs.trips.tab': 'Trip Management',
+  'home.showcaseTabs.trips.title': 'Keep Every Trip Organized',
+  'home.showcaseTabs.trips.lead':
+    'Help your team coordinate trips, review trip information, and manage operational progress from one place.',
+  'home.showcaseTabs.trips.b1': 'Trip records and status.',
+  'home.showcaseTabs.trips.b2': 'Driver and vehicle assignment where supported.',
+  'home.showcaseTabs.trips.b3': 'Trip progress visibility.',
+  'home.showcaseTabs.trips.b4': 'Organized trip information.',
+  'home.showcaseTabs.rental.tab': 'Vehicle Rental',
+  'home.showcaseTabs.rental.title': 'Simplify Vehicle Rental Operations',
+  'home.showcaseTabs.rental.lead':
+    'Manage rental workflows and vehicle availability with a more organized customer experience.',
+  'home.showcaseTabs.rental.b1': 'Vehicle availability.',
+  'home.showcaseTabs.rental.b2': 'Rental and reservation records.',
+  'home.showcaseTabs.rental.b3': 'Booking status.',
+  'home.showcaseTabs.rental.b4': 'Customer and vehicle information.',
+  'home.showcaseTabs.analytics.tab': 'Fleet Analytics',
+  'home.showcaseTabs.analytics.title': 'Make Better Decisions with Fleet Data',
+  'home.showcaseTabs.analytics.lead':
+    'Turn fleet activity into clearer insights to help identify trends, monitor costs, and understand operations.',
+  'home.showcaseTabs.analytics.b1': 'Fleet utilization insights where available.',
+  'home.showcaseTabs.analytics.b2': 'Fuel and operating cost analysis where supported.',
+  'home.showcaseTabs.analytics.b3': 'Trip and vehicle summaries.',
+  'home.showcaseTabs.analytics.b4': 'Data-driven operational reporting.',
+
+  'home.benefits.kicker': 'Built for better operations',
+  'home.benefits.title': 'Less Complexity. More Control. Better Decisions.',
+  'home.benefits.lead':
+    'Bring your mobility operations together with tools designed to improve visibility, simplify workflows, and help your team work more efficiently.',
+  'home.benefits.visualAria': 'Connected SheikhGo platform preview with dashboard, map, and reports',
+  'home.benefits.visualNote': 'Illustrative product UI from SheikhGo Nexus — not live account data.',
+  'home.benefits.item.visibility.title': 'Real-Time Visibility',
+  'home.benefits.item.visibility.text':
+    'Get a clearer view of vehicles, trips, and operational activity through connected tracking and management tools.',
+  'home.benefits.item.operations.title': 'Streamlined Operations',
+  'home.benefits.item.operations.text':
+    'Organize fleet, driver, trip, and rental workflows in a centralized platform.',
+  'home.benefits.item.decisions.title': 'Data-Driven Decisions',
+  'home.benefits.item.decisions.text':
+    'Use available operational reports and analytics to understand activity, identify trends, and make informed decisions.',
+  'home.benefits.item.connected.title': 'Connected Business Management',
+  'home.benefits.item.connected.text':
+    'Bring relevant mobility operations into one experience instead of relying on disconnected tools and manual processes.',
+
+  'home.industriesServe.kicker': 'Solutions for your industry',
+  'home.industriesServe.title': 'One Platform. Multiple Possibilities.',
+  'home.industriesServe.lead':
+    'Whether you manage vehicles, coordinate journeys, or operate a rental business, SheikhGo helps bring your mobility workflows together.',
+  'home.industriesServe.explore': 'Explore',
+  'home.industriesServe.card.logistics.title': 'Fleet & Logistics',
+  'home.industriesServe.card.logistics.text':
+    'Coordinate vehicles, drivers, trips, and fleet operations with better visibility across your activities.',
+  'home.industriesServe.card.rental.title': 'Vehicle Rental Companies',
+  'home.industriesServe.card.rental.text':
+    'Organize vehicle availability, rental records, reservations, and customer workflows.',
+  'home.industriesServe.card.travel.title': 'Travel Agencies',
+  'home.industriesServe.card.travel.text':
+    'Manage travel-related operations, bookings, and customer information through a connected workflow.',
+  'home.industriesServe.card.enterprise.title': 'Corporate & Enterprise Fleets',
+  'home.industriesServe.card.enterprise.text':
+    'Support business transportation with centralized vehicle information and operational oversight.',
+  'home.industriesServe.card.transport.title': 'Transport Operators',
+  'home.industriesServe.card.transport.text':
+    'Monitor transport activity and coordinate trips and vehicles with more organized processes.',
+  'home.industriesServe.card.field.title': 'Service & Field Operations',
+  'home.industriesServe.card.field.text':
+    'Improve visibility into vehicle movement and help coordinate teams working across multiple locations.',
+
   'home.showcase.kicker': 'Centerpiece · SheikhGo NEXUS',
   'home.showcase.title': 'Fleet intelligence dashboard',
   'home.showcase.lead':

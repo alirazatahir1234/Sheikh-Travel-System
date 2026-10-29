@@ -6,13 +6,14 @@ import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { PublicDriverRating, TripFeedbackService } from '../../../../core/services/trip-feedback.service';
+import { websiteCssUrl } from '../../core/website-media';
 
 @Component({
   selector: 'app-driver-ratings-page',
   standalone: true,
   imports: [NgIf, NgFor, DecimalPipe, RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   template: `
-    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/nexus/modules/drivers.png')">
+    <section class="page-hero page-hero-cinematic" [style.--hero-image]="heroImageCss">
       <div class="container hero-layout">
         <div class="hero-copy">
           <span class="section-kicker">{{ 'pages.driverRatings.kicker' | wsTranslate }}</span>
@@ -61,6 +62,8 @@ import { PublicDriverRating, TripFeedbackService } from '../../../../core/servic
   `],
 })
 export class DriverRatingsPage implements OnInit {
+  readonly heroImageCss = websiteCssUrl('/website/nexus/modules/drivers.png');
+
   private readonly seo = inject(WebsiteSeoService);
   private readonly feedback = inject(TripFeedbackService);
 

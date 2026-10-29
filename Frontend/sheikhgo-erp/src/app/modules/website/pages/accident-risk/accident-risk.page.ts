@@ -4,13 +4,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteCssUrl } from '../../core/website-media';
 
 @Component({
   selector: 'app-accident-risk-page',
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   template: `
-    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/gps-alerts/scene-safety.jpg')">
+    <section class="page-hero page-hero-cinematic" [style.--hero-image]="heroImageCss">
       <div class="container hero-layout">
         <div class="hero-copy">
           <span class="section-kicker">{{ 'pages.accidentRisk.kicker' | wsTranslate }}</span>
@@ -40,6 +41,8 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
   `]
 })
 export class AccidentRiskPage implements OnInit {
+  readonly heroImageCss = websiteCssUrl('/website/gps-alerts/scene-safety.jpg');
+
   private readonly seo = inject(WebsiteSeoService);
   ngOnInit(): void {
     this.seo.setPage({

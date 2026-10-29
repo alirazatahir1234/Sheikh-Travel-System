@@ -4,13 +4,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteCssUrl } from '../../core/website-media';
 
 @Component({
   selector: 'app-client-tracking-page',
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
   template: `
-    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/product/live-map.png')">
+    <section class="page-hero page-hero-cinematic" [style.--hero-image]="heroImageCss">
       <div class="container hero-layout">
         <div class="hero-copy">
           <span class="section-kicker">{{ 'pages.clientTracking.kicker' | wsTranslate }}</span>
@@ -40,6 +41,8 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
   `]
 })
 export class ClientTrackingPage implements OnInit {
+  readonly heroImageCss = websiteCssUrl('/website/product/live-map.png');
+
   private readonly seo = inject(WebsiteSeoService);
   ngOnInit(): void {
     this.seo.setPage({

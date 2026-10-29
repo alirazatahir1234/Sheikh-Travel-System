@@ -1,4 +1,5 @@
 import { WEBSITE_BRAND } from './brand';
+import { websiteAssetUrl } from './website-media';
 
 /** Anchor targets on /services — SheikhGo Nexus portfolio navigation. */
 export interface NexusPortfolioItem {
@@ -119,15 +120,15 @@ export const NEXUS_PORTFOLIO_ITEMS: readonly NexusPortfolioItem[] = [
 export const SERVICE_ITEMS: readonly NexusPortfolioItem[] = NEXUS_PORTFOLIO_ITEMS;
 
 export const NEXUS_DASHBOARD_IMAGE = {
-  src: '/website/nexus/fleet-intelligence-dashboard.jpg',
+  src: websiteAssetUrl('/website/nexus/fleet-intelligence-dashboard.jpg'),
   alt: 'SheikhGo Nexus fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant',
 } as const;
 
-/** Bump when replacing PNGs under public/website/nexus/modules/ (browser/CDN cache). */
+/** Bump when replacing PNGs under website-images/nexus/modules/ (browser/CDN cache). */
 export const NEXUS_MODULE_SHOTS_VERSION = '20261027';
 
 const nexusModuleSrc = (file: string) =>
-  `/website/nexus/modules/${file}?v=${NEXUS_MODULE_SHOTS_VERSION}` as const;
+  websiteAssetUrl(`/website/nexus/modules/${file}?v=${NEXUS_MODULE_SHOTS_VERSION}`);
 
 /** Product UI captures from SheikhGo Nexus (demo tenant). Shared by home and /services. */
 /** Homepage feature modules — image + in-page fragment or route (pill nav + jump cards). */
@@ -227,7 +228,7 @@ export const HOME_MODULE_JUMPS: readonly HomeModuleJump[] = [
   {
     labelKey: 'home.pill.demo',
     fragment: 'cta',
-    image: '/website/gps-alerts/scene-tracking.jpg',
+    image: websiteAssetUrl('/website/gps-alerts/scene-tracking.jpg'),
     alt: 'Request a SheikhGo Nexus demo',
   },
 ] as const;
@@ -249,12 +250,248 @@ export const NEXUS_MODULE_SHOTS = [
   { caption: 'Notifications', src: nexusModuleSrc('notifications.png'), alt: 'Notification center in SheikhGo Nexus' },
 ] as const;
 
+/** Phase 2 — Platform Overview cards (home). Links are existing Channel C / product routes only. */
+export interface PlatformOverviewCardDef {
+  id: string;
+  icon: string;
+  link: string;
+  titleKey: string;
+  textKey: string;
+}
+
+export const PLATFORM_OVERVIEW_CARDS: readonly PlatformOverviewCardDef[] = [
+  {
+    id: 'fleet',
+    icon: 'local_shipping',
+    link: '/fleet-management',
+    titleKey: 'home.overview.card.fleet.title',
+    textKey: 'home.overview.card.fleet.text',
+  },
+  {
+    id: 'gps',
+    icon: 'gps_fixed',
+    link: '/gps-tracking',
+    titleKey: 'home.overview.card.gps.title',
+    textKey: 'home.overview.card.gps.text',
+  },
+  {
+    id: 'rental',
+    icon: 'key',
+    link: '/vehicle-rental',
+    titleKey: 'home.overview.card.rental.title',
+    textKey: 'home.overview.card.rental.text',
+  },
+  {
+    id: 'travel',
+    icon: 'luggage',
+    link: '/transportation-operations',
+    titleKey: 'home.overview.card.travel.title',
+    textKey: 'home.overview.card.travel.text',
+  },
+  {
+    id: 'intelligence',
+    icon: 'insights',
+    link: '/ai-fleet-insights',
+    titleKey: 'home.overview.card.intelligence.title',
+    textKey: 'home.overview.card.intelligence.text',
+  },
+] as const;
+
+/** Phase 2 — Product Showcase tabs (home). Visuals use real Nexus screenshots. */
+export interface ProductShowcaseTabDef {
+  id: string;
+  tabKey: string;
+  titleKey: string;
+  leadKey: string;
+  bulletKeys: readonly string[];
+  image: string;
+  imageAlt: string;
+}
+
+export const PRODUCT_SHOWCASE_TABS: readonly ProductShowcaseTabDef[] = [
+  {
+    id: 'fleet',
+    tabKey: 'home.showcaseTabs.fleet.tab',
+    titleKey: 'home.showcaseTabs.fleet.title',
+    leadKey: 'home.showcaseTabs.fleet.lead',
+    bulletKeys: [
+      'home.showcaseTabs.fleet.b1',
+      'home.showcaseTabs.fleet.b2',
+      'home.showcaseTabs.fleet.b3',
+      'home.showcaseTabs.fleet.b4',
+    ],
+    image: nexusModuleSrc('vehicles.png'),
+    imageAlt: 'Vehicle and fleet registry in SheikhGo Nexus',
+  },
+  {
+    id: 'gps',
+    tabKey: 'home.showcaseTabs.gps.tab',
+    titleKey: 'home.showcaseTabs.gps.title',
+    leadKey: 'home.showcaseTabs.gps.lead',
+    bulletKeys: [
+      'home.showcaseTabs.gps.b1',
+      'home.showcaseTabs.gps.b2',
+      'home.showcaseTabs.gps.b3',
+      'home.showcaseTabs.gps.b4',
+    ],
+    image: nexusModuleSrc('live-tracking.png'),
+    imageAlt: 'Live GPS fleet map in SheikhGo Nexus',
+  },
+  {
+    id: 'trips',
+    tabKey: 'home.showcaseTabs.trips.tab',
+    titleKey: 'home.showcaseTabs.trips.title',
+    leadKey: 'home.showcaseTabs.trips.lead',
+    bulletKeys: [
+      'home.showcaseTabs.trips.b1',
+      'home.showcaseTabs.trips.b2',
+      'home.showcaseTabs.trips.b3',
+      'home.showcaseTabs.trips.b4',
+    ],
+    image: nexusModuleSrc('trips.png'),
+    imageAlt: 'Trip operations workspace in SheikhGo Nexus',
+  },
+  {
+    id: 'rental',
+    tabKey: 'home.showcaseTabs.rental.tab',
+    titleKey: 'home.showcaseTabs.rental.title',
+    leadKey: 'home.showcaseTabs.rental.lead',
+    bulletKeys: [
+      'home.showcaseTabs.rental.b1',
+      'home.showcaseTabs.rental.b2',
+      'home.showcaseTabs.rental.b3',
+      'home.showcaseTabs.rental.b4',
+    ],
+    image: nexusModuleSrc('bookings.png'),
+    imageAlt: 'Bookings and rental operations in SheikhGo Nexus',
+  },
+  {
+    id: 'analytics',
+    tabKey: 'home.showcaseTabs.analytics.tab',
+    titleKey: 'home.showcaseTabs.analytics.title',
+    leadKey: 'home.showcaseTabs.analytics.lead',
+    bulletKeys: [
+      'home.showcaseTabs.analytics.b1',
+      'home.showcaseTabs.analytics.b2',
+      'home.showcaseTabs.analytics.b3',
+      'home.showcaseTabs.analytics.b4',
+    ],
+    image: nexusModuleSrc('reports.png'),
+    imageAlt: 'Operational reports and analytics in SheikhGo Nexus',
+  },
+] as const;
+
 export const NEXUS_VALUE_PILLARS = [
   { title: 'One platform', text: 'GPS, operations, and AI in a single tenant — fewer integrations to babysit.', icon: 'layers' },
   { title: 'Built for operators', text: 'Workflows for dispatch, maintenance, and finance — not a tracker bolt-on.', icon: 'engineering' },
   { title: 'Premium product UI', text: 'Polished Nexus workspace with module depth you can demo today.', icon: 'verified' },
   { title: 'Transparent AI', text: 'Assistants use your tools; claims match what ships.', icon: 'policy' },
 ] as const;
+
+/** Phase 3 — Business Benefits list (home). */
+export interface BusinessBenefitDef {
+  id: string;
+  icon: string;
+  titleKey: string;
+  textKey: string;
+}
+
+export const BUSINESS_BENEFITS: readonly BusinessBenefitDef[] = [
+  {
+    id: 'visibility',
+    icon: 'map',
+    titleKey: 'home.benefits.item.visibility.title',
+    textKey: 'home.benefits.item.visibility.text',
+  },
+  {
+    id: 'operations',
+    icon: 'account_tree',
+    titleKey: 'home.benefits.item.operations.title',
+    textKey: 'home.benefits.item.operations.text',
+  },
+  {
+    id: 'decisions',
+    icon: 'monitoring',
+    titleKey: 'home.benefits.item.decisions.title',
+    textKey: 'home.benefits.item.decisions.text',
+  },
+  {
+    id: 'connected',
+    icon: 'hub',
+    titleKey: 'home.benefits.item.connected.title',
+    textKey: 'home.benefits.item.connected.text',
+  },
+] as const;
+
+/** Phase 3 — Industries We Serve cards (home). Links are existing routes only. */
+export interface IndustryServeCardDef {
+  id: string;
+  icon: string;
+  link: string;
+  titleKey: string;
+  textKey: string;
+}
+
+export const INDUSTRY_SERVE_CARDS: readonly IndustryServeCardDef[] = [
+  {
+    id: 'logistics',
+    icon: 'local_shipping',
+    link: '/fleet-management',
+    titleKey: 'home.industriesServe.card.logistics.title',
+    textKey: 'home.industriesServe.card.logistics.text',
+  },
+  {
+    id: 'rental',
+    icon: 'key',
+    link: '/vehicle-rental',
+    titleKey: 'home.industriesServe.card.rental.title',
+    textKey: 'home.industriesServe.card.rental.text',
+  },
+  {
+    id: 'travel',
+    icon: 'flight_takeoff',
+    link: '/transportation-operations',
+    titleKey: 'home.industriesServe.card.travel.title',
+    textKey: 'home.industriesServe.card.travel.text',
+  },
+  {
+    id: 'enterprise',
+    icon: 'apartment',
+    link: '/fleet-management',
+    titleKey: 'home.industriesServe.card.enterprise.title',
+    textKey: 'home.industriesServe.card.enterprise.text',
+  },
+  {
+    id: 'transport',
+    icon: 'route',
+    link: '/transportation-operations',
+    titleKey: 'home.industriesServe.card.transport.title',
+    textKey: 'home.industriesServe.card.transport.text',
+  },
+  {
+    id: 'field',
+    icon: 'near_me',
+    link: '/gps-tracking',
+    titleKey: 'home.industriesServe.card.field.title',
+    textKey: 'home.industriesServe.card.field.text',
+  },
+] as const;
+
+/** Phase 3 — Benefits visual screenshots (illustrative product UI). */
+export const BUSINESS_BENEFITS_VISUAL = {
+  primary: {
+    src: NEXUS_DASHBOARD_IMAGE.src,
+    alt: NEXUS_DASHBOARD_IMAGE.alt,
+  },
+  map: {
+    src: nexusModuleSrc('live-tracking.png'),
+    alt: 'Live GPS map panel in SheikhGo Nexus',
+  },
+  reports: {
+    src: nexusModuleSrc('reports.png'),
+    alt: 'Operational reports panel in SheikhGo Nexus',
+  },
+} as const;
 
 export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
   {

@@ -6,6 +6,7 @@ import { MobileAppPromoComponent } from '../../shared/mobile-app-promo/mobile-ap
 import { WEBSITE_DEMO_MAP_ADDRESS_SHORT, WEBSITE_DEMO_MAP_COORDINATES } from '../../core/brand';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteCssUrl } from '../../core/website-media';
 
 interface FeatureItem {
   title: string;
@@ -30,7 +31,7 @@ interface FeatureGroup {
   standalone: true,
   imports: [RouterLink, MatIconModule, CtaBandComponent, MobileAppPromoComponent, WebsiteTranslatePipe],
   template: `
-    <section class="page-hero page-hero-cinematic" style="--hero-image: url('/website/product/live-map.png')">
+    <section class="page-hero page-hero-cinematic" [style.--hero-image]="heroImageCss">
       <div class="container hero-layout">
         <div class="hero-copy">
           <span class="section-kicker" style="color:#99f6e4">{{ 'pages.liveTracking.kicker' | wsTranslate }}</span>
@@ -646,6 +647,8 @@ interface FeatureGroup {
   `,
 })
 export class LiveTrackingPage implements OnInit, AfterViewInit {
+  readonly heroImageCss = websiteCssUrl('/website/product/live-map.png');
+
   private readonly seo = inject(WebsiteSeoService);
   private readonly route = inject(ActivatedRoute);
 

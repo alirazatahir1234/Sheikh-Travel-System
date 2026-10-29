@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { WEBSITE_BRAND } from './brand';
+import { websiteAssetUrl } from './website-media';
 
 /** Canonical marketing origin for Open Graph URLs (production site). */
 export const WEBSITE_PUBLIC_ORIGIN = 'https://www.sheikhgo.com';
@@ -36,7 +37,7 @@ export class WebsiteSeoService {
     this.upsertMeta({ name: 'twitter:card' }, { name: 'twitter:card', content: 'summary_large_image' });
     this.upsertMeta({ name: 'twitter:title' }, { name: 'twitter:title', content: full });
     this.upsertMeta({ name: 'twitter:description' }, { name: 'twitter:description', content: description });
-    const ogImage = `${WEBSITE_PUBLIC_ORIGIN}/brand/sheikhgo-logo.png`;
+    const ogImage = websiteAssetUrl('/website/brand/sheikhgo-logo.png');
     this.upsertMeta({ property: 'og:image' }, { property: 'og:image', content: ogImage });
     this.setCanonical(pageUrl);
   }

@@ -7,12 +7,21 @@ import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
-import { HOME_MODULE_JUMPS, NEXUS_MODULE_SHOTS } from '../../core/site-catalog';
+import {
+  BUSINESS_BENEFITS,
+  BUSINESS_BENEFITS_VISUAL,
+  HOME_MODULE_JUMPS,
+  INDUSTRY_SERVE_CARDS,
+  NEXUS_DASHBOARD_IMAGE,
+  NEXUS_MODULE_SHOTS,
+  PLATFORM_OVERVIEW_CARDS,
+  PRODUCT_SHOWCASE_TABS,
+} from '../../core/site-catalog';
 import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
 import { MobileAppPromoComponent } from '../../shared/mobile-app-promo/mobile-app-promo.component';
-import { NexusDemoModalMode } from '../../core/demo-media';
+import { NEXUS_MOBILE_PROMO_POSTER, NexusDemoModalMode } from '../../core/demo-media';
 import { WebsiteGoogleAnalyticsService } from '../../core/website-google-analytics.service';
 
 @Component({
@@ -40,9 +49,24 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   private fragmentSub?: Subscription;
 
   nexusImageError = false;
+  readonly nexusDashboardSrc = NEXUS_DASHBOARD_IMAGE.src;
+  readonly mobilePromoPosterSrc = NEXUS_MOBILE_PROMO_POSTER;
   readonly demoModalOpen = signal(false);
   readonly demoModalMode = signal<NexusDemoModalMode>('erp');
   readonly newsPreview = NEWS_ANNOUNCEMENTS.slice(0, 4);
+
+  readonly platformOverviewCards = PLATFORM_OVERVIEW_CARDS;
+  readonly productShowcaseTabs = PRODUCT_SHOWCASE_TABS;
+  readonly businessBenefits = BUSINESS_BENEFITS;
+  readonly industryServeCards = INDUSTRY_SERVE_CARDS;
+  readonly benefitsVisual = BUSINESS_BENEFITS_VISUAL;
+  readonly showcaseTabIndex = signal(0);
+
+  readonly activeShowcaseTab = computed(() => {
+    const tabs = this.productShowcaseTabs;
+    const i = this.showcaseTabIndex();
+    return tabs[Math.min(Math.max(i, 0), tabs.length - 1)]!;
+  });
 
   readonly heroPerks = computed(() => {
     this.i18n.lang();
@@ -52,6 +76,41 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       { icon: 'insights', text: this.i18n.t('home.perk.analytics') },
     ] as const;
   });
+
+  selectShowcaseTab(index: number): void {
+    const max = this.productShowcaseTabs.length - 1;
+    this.showcaseTabIndex.set(Math.min(Math.max(index, 0), max));
+  }
+
+  onShowcaseTabKeydown(event: KeyboardEvent, index: number): void {
+    const count = this.productShowcaseTabs.length;
+    let next = index;
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        next = (index + 1) % count;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        next = (index - 1 + count) % count;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = count - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    this.selectShowcaseTab(next);
+    requestAnimationFrame(() => {
+      (
+        document.getElementById(`showcase-tab-${this.productShowcaseTabs[next]!.id}`) as HTMLButtonElement | null
+      )?.focus();
+    });
+  }
 
   readonly pillLinks = computed(() => {
     this.i18n.lang();

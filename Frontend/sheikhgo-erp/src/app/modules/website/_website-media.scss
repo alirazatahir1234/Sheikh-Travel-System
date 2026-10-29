@@ -1,0 +1,3 @@
+// Keep in sync with environment.websiteMediaBaseUrl + website-images container.
+// Cloudflare Worker CDN (same /website-images/... path); prefer websiteCssUrl() in TS.
+$sg-website-images-base: 'https://sheikhgo-media.sheikhgo.workers.dev/website-images';

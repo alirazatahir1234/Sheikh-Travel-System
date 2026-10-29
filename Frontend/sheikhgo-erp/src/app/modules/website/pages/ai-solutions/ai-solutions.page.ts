@@ -7,6 +7,7 @@ import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteAssetUrl } from '../../core/website-media';
 
 interface SolutionItem {
   title: string;
@@ -187,7 +188,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'forum',
       accent: 'chat',
       count: 5,
-      sceneImage: '/website/product/dashboard.png',
+      sceneImage: websiteAssetUrl('/website/product/dashboard.png'),
       sceneToast: {
         tone: 'info',
         icon: 'support_agent',
@@ -246,7 +247,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'insights',
       accent: 'engine',
       count: 6,
-      sceneImage: '/website/nexus/fleet-intelligence-dashboard.jpg',
+      sceneImage: websiteAssetUrl('/website/nexus/fleet-intelligence-dashboard.jpg'),
       sceneToast: {
         tone: 'ok',
         icon: 'favorite',
@@ -313,7 +314,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'chat',
       accent: 'whatsapp',
       count: 1,
-      sceneImage: '/website/gps-alerts/scene-health.jpg',
+      sceneImage: websiteAssetUrl('/website/gps-alerts/scene-health.jpg'),
       sceneToast: {
         tone: 'warn',
         icon: 'edit_note',
@@ -340,7 +341,7 @@ export class AiSolutionsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'devices',
       accent: 'surfaces',
       count: 2,
-      sceneImage: '/website/product/live-map.png',
+      sceneImage: websiteAssetUrl('/website/product/live-map.png'),
       sceneToast: {
         tone: 'info',
         icon: 'dashboard',

@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
+import { websiteAssetUrl } from '../../core/website-media';
 
 interface AlertItem {
   title: string;
@@ -39,6 +40,8 @@ interface AlertGroup {
   styleUrl: './gps-alerts.page.scss',
 })
 export class GpsAlertsPage implements OnInit, AfterViewInit, OnDestroy {
+  readonly roadSpeedSceneSrc = websiteAssetUrl('/website/gps-alerts/scene-road-speed.jpg');
+
   private readonly seo = inject(WebsiteSeoService);
   private readonly route = inject(ActivatedRoute);
   private fragmentSub?: Subscription;
@@ -104,7 +107,7 @@ export class GpsAlertsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'health_and_safety',
       accent: 'safety',
       count: 5,
-      sceneImage: '/website/gps-alerts/scene-safety.jpg',
+      sceneImage: websiteAssetUrl('/website/gps-alerts/scene-safety.jpg'),
       sceneToast: {
         tone: 'danger',
         icon: 'sos',
@@ -154,7 +157,7 @@ export class GpsAlertsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'my_location',
       accent: 'tracking',
       count: 5,
-      sceneImage: '/website/gps-alerts/scene-tracking.jpg',
+      sceneImage: websiteAssetUrl('/website/gps-alerts/scene-tracking.jpg'),
       sceneToast: {
         tone: 'warn',
         icon: 'wifi_off',
@@ -202,7 +205,7 @@ export class GpsAlertsPage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'directions_car',
       accent: 'health',
       count: 3,
-      sceneImage: '/website/gps-alerts/scene-health.jpg',
+      sceneImage: websiteAssetUrl('/website/gps-alerts/scene-health.jpg'),
       sceneToast: {
         tone: 'warn',
         icon: 'battery_alert',

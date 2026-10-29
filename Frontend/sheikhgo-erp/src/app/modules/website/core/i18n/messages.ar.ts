@@ -165,6 +165,118 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.perk.ai': 'رؤى ذكاء اصطناعي مبنية على الأدوات',
   'home.perk.secure': 'منصة آمنة وقابلة للتوسع',
   'home.perk.nexus': 'لوحة NEXUS شاملة',
+
+  'home.overview.kicker': 'منصة واحدة متصلة',
+  'home.overview.title': 'كل ما تحتاجه لإدارة التنقّل',
+  'home.overview.lead':
+    'اجمع عمليات الأسطول وتتبع GPS وتأجير المركبات وإدارة السفر في منصة واحدة متصلة مصممة لتبسيط التشغيل وتحسين الرؤية.',
+  'home.overview.explore': 'استكشف',
+  'home.overview.card.fleet.title': 'إدارة الأسطول',
+  'home.overview.card.fleet.text':
+    'أدِر المركبات والسائقين والرحلات والصيانة وسير العمل التشغيلي من مساحة عمل مركزية واحدة.',
+  'home.overview.card.gps.title': 'تتبع GPS',
+  'home.overview.card.gps.text':
+    'راقب مواقع المركبات وراجع المسارات وحسّن رؤية الأسطول مع تتبع GPS متكامل.',
+  'home.overview.card.rental.title': 'تأجير المركبات',
+  'home.overview.card.rental.text':
+    'نظّم توفر المركبات والحجوزات وعمليات التأجير وتسليم المركبات.',
+  'home.overview.card.travel.title': 'إدارة السفر',
+  'home.overview.card.travel.text':
+    'نسّق خدمات السفر والحجوزات ومعلومات العملاء وعمليات الوكالة.',
+  'home.overview.card.intelligence.title': 'ذكاء الأسطول',
+  'home.overview.card.intelligence.text':
+    'حوّل البيانات التشغيلية إلى رؤى مفيدة لاستخدام الأسطول والتكاليف وقرارات العمل.',
+
+  'home.showcaseTabs.kicker': 'استكشف المنصة',
+  'home.showcaseTabs.title': 'أدوات قوية. تجربة متصلة واحدة.',
+  'home.showcaseTabs.lead':
+    'استكشف الأدوات التي تساعد فريقك على إدارة المركبات ومراقبة الرحلات وتنسيق العمليات واتخاذ قرارات مستنيرة.',
+  'home.showcaseTabs.tablistLabel': 'وحدات المنصة',
+  'home.showcaseTabs.visualNote': 'واجهة منتج من SheikhGo Nexus — معاينة توضيحية وليست بيانات حساب مباشرة.',
+  'home.showcaseTabs.fleet.tab': 'إدارة الأسطول',
+  'home.showcaseTabs.fleet.title': 'أسطولك تحت السيطرة',
+  'home.showcaseTabs.fleet.lead':
+    'أدِر المركبات والسائقين والصيانة وعمليات الأسطول عبر مساحة عمل مركزية.',
+  'home.showcaseTabs.fleet.b1': 'سجلات المركبات والسائقين.',
+  'home.showcaseTabs.fleet.b2': 'حالة الأسطول والتوفر.',
+  'home.showcaseTabs.fleet.b3': 'الصيانة والرؤية التشغيلية.',
+  'home.showcaseTabs.fleet.b4': 'معلومات أسطول مركزية.',
+  'home.showcaseTabs.gps.tab': 'تتبع GPS',
+  'home.showcaseTabs.gps.title': 'اعرف أين مركباتك',
+  'home.showcaseTabs.gps.lead':
+    'احصل على رؤية أوضح لمواقع المركبات والحركة ونشاط المسارات عبر تتبع GPS متكامل.',
+  'home.showcaseTabs.gps.b1': 'رؤية الموقع المباشر حيث يُدعم.',
+  'home.showcaseTabs.gps.b2': 'حركة المركبات وسجل المسارات حيث يُدعم.',
+  'home.showcaseTabs.gps.b3': 'تكامل أجهزة التتبع.',
+  'home.showcaseTabs.gps.b4': 'مراقبة الأسطول والتنبيهات حيث تتوفر.',
+  'home.showcaseTabs.trips.tab': 'إدارة الرحلات',
+  'home.showcaseTabs.trips.title': 'نظّم كل رحلة',
+  'home.showcaseTabs.trips.lead':
+    'ساعد فريقك على تنسيق الرحلات ومراجعة معلوماتها وإدارة التقدم التشغيلي من مكان واحد.',
+  'home.showcaseTabs.trips.b1': 'سجلات الرحلات والحالة.',
+  'home.showcaseTabs.trips.b2': 'تعيين السائق والمركبة حيث يُدعم.',
+  'home.showcaseTabs.trips.b3': 'رؤية تقدم الرحلة.',
+  'home.showcaseTabs.trips.b4': 'معلومات رحلات منظّمة.',
+  'home.showcaseTabs.rental.tab': 'تأجير المركبات',
+  'home.showcaseTabs.rental.title': 'بسّط عمليات تأجير المركبات',
+  'home.showcaseTabs.rental.lead':
+    'أدِر سير عمل التأجير وتوفر المركبات بتجربة عملاء أكثر تنظيماً.',
+  'home.showcaseTabs.rental.b1': 'توفر المركبات.',
+  'home.showcaseTabs.rental.b2': 'سجلات التأجير والحجز.',
+  'home.showcaseTabs.rental.b3': 'حالة الحجز.',
+  'home.showcaseTabs.rental.b4': 'معلومات العملاء والمركبات.',
+  'home.showcaseTabs.analytics.tab': 'تحليلات الأسطول',
+  'home.showcaseTabs.analytics.title': 'اتخذ قرارات أفضل ببيانات الأسطول',
+  'home.showcaseTabs.analytics.lead':
+    'حوّل نشاط الأسطول إلى رؤى أوضح للمساعدة في تحديد الاتجاهات ومراقبة التكاليف وفهم العمليات.',
+  'home.showcaseTabs.analytics.b1': 'رؤى استخدام الأسطول حيث تتوفر.',
+  'home.showcaseTabs.analytics.b2': 'تحليل الوقود وتكاليف التشغيل حيث يُدعم.',
+  'home.showcaseTabs.analytics.b3': 'ملخصات الرحلات والمركبات.',
+  'home.showcaseTabs.analytics.b4': 'تقارير تشغيلية مبنية على البيانات.',
+
+  'home.benefits.kicker': 'مبني لعمليات أفضل',
+  'home.benefits.title': 'تعقيد أقل. تحكّم أكبر. قرارات أفضل.',
+  'home.benefits.lead':
+    'اجمع عمليات التنقّل مع أدوات مصممة لتحسين الرؤية وتبسيط سير العمل ومساعدة فريقك على العمل بكفاءة أكبر.',
+  'home.benefits.visualAria': 'معاينة منصة SheikhGo المتصلة مع لوحة وخريطة وتقارير',
+  'home.benefits.visualNote': 'واجهة منتج توضيحية من SheikhGo Nexus — ليست بيانات حساب مباشرة.',
+  'home.benefits.item.visibility.title': 'رؤية في الوقت الفعلي',
+  'home.benefits.item.visibility.text':
+    'احصل على رؤية أوضح للمركبات والرحلات والنشاط التشغيلي عبر أدوات التتبع والإدارة المتصلة.',
+  'home.benefits.item.operations.title': 'عمليات مبسّطة',
+  'home.benefits.item.operations.text':
+    'نظّم سير عمل الأسطول والسائقين والرحلات والتأجير في منصة مركزية.',
+  'home.benefits.item.decisions.title': 'قرارات مبنية على البيانات',
+  'home.benefits.item.decisions.text':
+    'استخدم التقارير والتحليلات التشغيلية المتاحة لفهم النشاط وتحديد الاتجاهات واتخاذ قرارات مستنيرة.',
+  'home.benefits.item.connected.title': 'إدارة أعمال متصلة',
+  'home.benefits.item.connected.text':
+    'اجمع عمليات التنقّل ذات الصلة في تجربة واحدة بدلاً من أدوات منفصلة وعمليات يدوية.',
+
+  'home.industriesServe.kicker': 'حلول لقطاعك',
+  'home.industriesServe.title': 'منصة واحدة. إمكانات متعددة.',
+  'home.industriesServe.lead':
+    'سواء كنت تدير مركبات أو تنسّق رحلات أو تشغّل أعمال تأجير، يساعد SheikhGo على جمع سير عمل التنقّل معاً.',
+  'home.industriesServe.explore': 'استكشف',
+  'home.industriesServe.card.logistics.title': 'الأسطول واللوجستيات',
+  'home.industriesServe.card.logistics.text':
+    'نسّق المركبات والسائقين والرحلات وعمليات الأسطول برؤية أفضل عبر أنشطتك.',
+  'home.industriesServe.card.rental.title': 'شركات تأجير المركبات',
+  'home.industriesServe.card.rental.text':
+    'نظّم توفر المركبات وسجلات التأجير والحجوزات وسير عمل العملاء.',
+  'home.industriesServe.card.travel.title': 'وكالات السفر',
+  'home.industriesServe.card.travel.text':
+    'أدِر عمليات السفر والحجوزات ومعلومات العملاء عبر سير عمل متصل.',
+  'home.industriesServe.card.enterprise.title': 'أسطول الشركات والمؤسسات',
+  'home.industriesServe.card.enterprise.text':
+    'ادعم نقل الأعمال بمعلومات مركبات مركزية وإشراف تشغيلي.',
+  'home.industriesServe.card.transport.title': 'مشغّلو النقل',
+  'home.industriesServe.card.transport.text':
+    'راقب نشاط النقل ونسّق الرحلات والمركبات بعمليات أكثر تنظيماً.',
+  'home.industriesServe.card.field.title': 'الخدمات والعمليات الميدانية',
+  'home.industriesServe.card.field.text':
+    'حسّن رؤية حركة المركبات وساعد على تنسيق الفرق العاملة عبر مواقع متعددة.',
+
   'home.showcase.kicker': 'محور المنصة · SheikhGo NEXUS',
   'home.showcase.title': 'لوحة ذكاء الأسطول',
   'home.showcase.lead':
