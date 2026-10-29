@@ -56,16 +56,22 @@ sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl is-active "$SERVICE_NAME"
 
 HTTP=""; BODY=""
+health_ok() {
+  # Accept legacy plain "Healthy" or JSON {"status":"Healthy",...}.
+  [[ "$HTTP" == "200" ]] || return 1
+  [[ "$BODY" == "Healthy" ]] && return 0
+  echo "$BODY" | grep -Eqi '"status"[[:space:]]*:[[:space:]]*"Healthy"'
+}
 for i in 1 2 3 4 5 6 7 8 9 10; do
   sleep 3
   HTTP="$(curl -s -m 20 -o /tmp/sheikhgo-health.txt -w '%{http_code}' http://127.0.0.1:5082/health || true)"
   BODY="$(cat /tmp/sheikhgo-health.txt 2>/dev/null || true)"
   echo "==> /health try=$i => HTTP $HTTP body=$BODY"
-  if [[ "$HTTP" == "200" && "$BODY" == "Healthy" ]]; then
+  if health_ok; then
     break
   fi
 done
-if [[ "$HTTP" != "200" || "$BODY" != "Healthy" ]]; then
+if ! health_ok; then
   echo "Health check failed" >&2
   journalctl -u "$SERVICE_NAME" -n 40 --no-pager || true
   exit 1

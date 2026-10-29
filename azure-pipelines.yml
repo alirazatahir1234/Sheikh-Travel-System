@@ -37,6 +37,10 @@ trigger:
 
 pr: none
 
+# Library group (Vercel + Maps). Required for Frontend job env macros.
+variables:
+  - group: SheikhGo-Deploy
+
 stages:
   # ── Phase 8 AI/MCP tests (incl. live SQL + MCP stdio when SQL/MCP available) ──
   - stage: Phase8_CI
