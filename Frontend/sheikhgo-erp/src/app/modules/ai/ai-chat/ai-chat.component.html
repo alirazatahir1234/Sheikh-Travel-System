@@ -3,7 +3,18 @@
   [class.has-sessions]="showSessionsPanel"
   [class.is-compact]="compact"
   [class.is-dashboard]="workspace"
-  [class.is-workspace]="workspace">
+  [class.is-workspace]="workspace"
+  [class.is-narrow]="narrowViewport">
+  <input
+    #fileInput
+    type="file"
+    class="sr-only"
+    [attr.accept]="attachAccept"
+    multiple
+    (change)="onFilesSelected($event)"
+    tabindex="-1"
+    aria-hidden="true" />
+
   <div class="access-denied" *ngIf="accessDeniedMessage" role="status">
     <mat-icon>lock</mat-icon>
     <p>{{ accessDeniedMessage }}</p>
@@ -119,13 +130,13 @@
       <mat-icon aria-hidden="true">radar</mat-icon>
       <div>
         <strong>Connected to Live Fleet Data</strong>
-        <div style="font-weight:500;opacity:.85;font-size:.78rem;margin-top:2px">
+        <div class="ai-rail__live-sub">
           Real-time insights from your SheikhGo tools.
         </div>
       </div>
     </div>
 
-    <div class="ai-rail__scroll">
+    <div class="ai-rail__scroll" *ngIf="!narrowViewport">
       <div class="ai-rail__hero" *ngIf="!messages.length && !sending">
         <div class="ai-rail__robot-ring" aria-hidden="true">
           <img
@@ -166,7 +177,7 @@
       </div>
     </div>
 
-    <div class="ai-rail__composer">
+    <div class="ai-rail__composer" *ngIf="!narrowViewport">
       <div class="confirm-bar" *ngIf="pendingAction && !sending">
         <div>
           <strong>Confirm this action</strong>
@@ -190,15 +201,6 @@
       </div>
 
       <form class="composer composer--rail" (ngSubmit)="send()">
-        <input
-          #fileInput
-          type="file"
-          class="sr-only"
-          [attr.accept]="attachAccept"
-          multiple
-          (change)="onFilesSelected($event)"
-          tabindex="-1"
-          aria-hidden="true" />
         <button
           type="button"
           class="attach-btn"
@@ -210,12 +212,13 @@
           <mat-icon>attach_file</mat-icon>
         </button>
         <textarea
-          #composerInput
+          #railComposer
           class="composer-input"
           [(ngModel)]="draft"
           name="draft"
           rows="1"
           [disabled]="sending || !!accessDeniedMessage"
+          (input)="onDraftInput($event)"
           (keydown)="onComposerKeydown($event)"
           placeholder="Ask SheikhGo AI Assistant..."
           aria-label="Message SheikhGo AI Assistant"></textarea>
@@ -273,8 +276,14 @@
 
         <div class="ai-workspace__empty" *ngIf="workspace && !messages.length && !sending" role="status">
           <mat-icon aria-hidden="true">insights</mat-icon>
-          <h3>Response workspace</h3>
-          <p>Ask a question on the left to see live fleet KPIs, charts, and recommended actions here.</p>
+          <h3>{{ narrowViewport ? 'Ask SheikhGo AI' : 'Response workspace' }}</h3>
+          <p>
+            {{
+              narrowViewport
+                ? 'Pick a suggestion or type below to see live fleet insights.'
+                : 'Ask a question on the left to see live fleet KPIs, charts, and recommended actions here.'
+            }}
+          </p>
         </div>
 
         <article
@@ -351,7 +360,7 @@
       </div>
     </div>
 
-    <div class="composer-dock" *ngIf="!workspace">
+    <div class="composer-dock" *ngIf="!workspace || narrowViewport">
       <div class="suggestions" *ngIf="visibleSuggestions.length" role="list" aria-label="Suggested questions">
         <button
           type="button"
@@ -386,14 +395,6 @@
       </div>
 
       <form class="composer" (ngSubmit)="send()">
-        <input
-          type="file"
-          class="sr-only"
-          [attr.accept]="attachAccept"
-          multiple
-          (change)="onFilesSelected($event)"
-          tabindex="-1"
-          aria-hidden="true" />
         <button
           type="button"
           class="attach-btn"
@@ -405,13 +406,15 @@
           <mat-icon>attach_file</mat-icon>
         </button>
         <textarea
+          #dockComposer
           class="composer-input"
           [(ngModel)]="draft"
           name="draftClassic"
           rows="1"
           [disabled]="sending || !!accessDeniedMessage"
+          (input)="onDraftInput($event)"
           (keydown)="onComposerKeydown($event)"
-          placeholder="Ask SheikhGo AI Assistant anything about your fleet..."
+          placeholder="Ask SheikhGo AI Assistant..."
           aria-label="Message SheikhGo AI Assistant"></textarea>
         <button
           mat-flat-button
