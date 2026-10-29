@@ -177,6 +177,23 @@ public static class DependencyInjection
         services.AddScoped<NotificationRecipientResolver>();
         services.AddScoped<INotificationRetentionService, NotificationRetentionService>();
         services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
+        // Singleton: in-memory MX domain cache shared across requests (TTL 5–15 min).
+        services.AddSingleton<DnsClient.ILookupClient>(_ =>
+        {
+            var mxSection = configuration.GetSection("Notifications:Email:MxLookup");
+            var timeoutMs = mxSection.GetValue("TimeoutMilliseconds", 3000);
+            if (timeoutMs < 500) timeoutMs = 500;
+            if (timeoutMs > 15000) timeoutMs = 15000;
+            var options = new DnsClient.LookupClientOptions
+            {
+                Timeout = TimeSpan.FromMilliseconds(timeoutMs),
+                Retries = 1,
+                UseCache = false // we cache decisions ourselves by domain
+            };
+            return new DnsClient.LookupClient(options);
+        });
+        services.AddSingleton<IMxDnsLookup, DnsClientMxDnsLookup>();
+        services.AddSingleton<IEmailRecipientMailabilityGuard, EmailRecipientMailabilityGuard>();
         services.AddScoped<INotificationChannelSender, EmailNotificationSender>();
         services.AddScoped<INotificationChannelSender, SmsNotificationSender>();
         services.AddHttpClient(SmsNotificationSender.HttpClientName, client =>

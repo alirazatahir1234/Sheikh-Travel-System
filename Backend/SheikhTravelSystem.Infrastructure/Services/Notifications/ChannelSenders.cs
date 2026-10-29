@@ -18,6 +18,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Notifications;
 public sealed class EmailNotificationSender(
     IConfiguration configuration,
     IDbConnectionFactory dbFactory,
+    IEmailRecipientMailabilityGuard mailabilityGuard,
     ILogger<EmailNotificationSender> logger) : INotificationChannelSender
 {
     public string Channel => NotificationChannels.Email;
@@ -53,6 +54,28 @@ public sealed class EmailNotificationSender(
 
         if (string.IsNullOrWhiteSpace(to))
             return new ChannelSendResult(false, "Failed", "No recipient email address", "Smtp");
+
+        // Central MX gate: skip SMTP (no exception) when domain cannot receive mail.
+        // In-app / browser / push / SMS are unaffected — they use other channel senders.
+        var mailability = await mailabilityGuard.EvaluateAsync(to, cancellationToken);
+        if (!mailability.ShouldSend)
+        {
+            logger.LogInformation(
+                "Skipping SMTP for notification {Id} → {Email}: {Reason}",
+                request.NotificationId, to, mailability.Reason);
+            return new ChannelSendResult(
+                true,
+                "Skipped",
+                mailability.Reason,
+                "MxGate");
+        }
+
+        if (mailability.IsTransientDnsUncertainty)
+        {
+            logger.LogDebug(
+                "MX lookup uncertain for notification {Id} → {Email}; proceeding with SMTP. {Reason}",
+                request.NotificationId, to, mailability.Reason);
+        }
 
         try
         {
