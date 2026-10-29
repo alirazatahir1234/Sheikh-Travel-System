@@ -434,6 +434,22 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.testimonials.title': 'Operators who run on Nexus',
   'home.testimonials.lead':
     'Sample stories from fleet and travel teams — swap in your real clients, quotes, and photos when you are ready.',
+  'home.scenarios.kicker': 'How teams use SheikhGo',
+  'home.scenarios.title': 'Built for day-to-day mobility work',
+  'home.scenarios.lead':
+    'Illustrative operator scenarios based on capabilities available in SheikhGo Nexus — not attributed customer quotes.',
+  'home.scenarios.dispatch.title': 'Dispatch & operations',
+  'home.scenarios.dispatch.text':
+    'Keep GPS status, trip progress, and operational records in one workspace instead of juggling spreadsheets and chat threads.',
+  'home.scenarios.rental.title': 'Rental workflows',
+  'home.scenarios.rental.text':
+    'Organize vehicle availability, reservations, and customer records alongside fleet GPS for assets on rent.',
+  'home.scenarios.visibility.title': 'Fleet visibility',
+  'home.scenarios.visibility.text':
+    'Use live map views, geofences, and trip history where supported to reduce “where is the vehicle?” interruptions.',
+  'home.scenarios.insights.title': 'Operational insights',
+  'home.scenarios.insights.text':
+    'Review reports and tool-first AI answers grounded in your fleet data — without inventing metrics or live account claims.',
   'home.capabilities.kicker': 'Platform',
   'home.capabilities.title': 'Everything operators expect — honestly delivered',
   'home.capabilities.lead':

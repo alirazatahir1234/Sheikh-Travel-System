@@ -371,6 +371,22 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.testimonials.title': 'مشغّلون يعملون على Nexus',
   'home.testimonials.lead':
     'قصص نموذجية من فرق الأسطول والسفر — استبدلها بعملائك الحقيقيين واقتباساتهم وصورهم عندما تكون جاهزاً.',
+  'home.scenarios.kicker': 'كيف تستخدم الفرق SheikhGo',
+  'home.scenarios.title': 'مصمم للعمل اليومي للتنقّل',
+  'home.scenarios.lead':
+    'سيناريوهات تشغيلية توضيحية مبنية على قدرات SheikhGo Nexus — وليست اقتباسات عملاء منسوبة.',
+  'home.scenarios.dispatch.title': 'التوزيع والعمليات',
+  'home.scenarios.dispatch.text':
+    'اجمع حالة GPS وتقدم الرحلات والسجلات التشغيلية في مساحة عمل واحدة بدلاً من جداول الدردشة.',
+  'home.scenarios.rental.title': 'سير عمل التأجير',
+  'home.scenarios.rental.text':
+    'نظّم توفر المركبات والحجوزات وسجلات العملاء مع GPS للأصول المؤجرة.',
+  'home.scenarios.visibility.title': 'رؤية الأسطول',
+  'home.scenarios.visibility.text':
+    'استخدم خرائط مباشرة وسياجاً جغرافياً وسجل رحلات حيث يُدعم لتقليل أسئلة «أين المركبة؟».',
+  'home.scenarios.insights.title': 'رؤى تشغيلية',
+  'home.scenarios.insights.text':
+    'راجع التقارير وإجابات الذكاء الاصطناعي المبنية على أدواتك وبيانات أسطولك — دون اختراع مقاييس.',
   'home.capabilities.kicker': 'المنصة',
   'home.capabilities.title': 'كل ما يتوقعه المشغّلون — بصدق',
   'home.capabilities.lead': 'من أول إصلاح GPS إلى سجلات ERP والتشغيل وقرارات بمساعدة الذكاء الاصطناعي.',

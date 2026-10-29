@@ -43,7 +43,7 @@
         <div class="hero-browser-screen">
           <img
             [src]="nexusDashboardSrc"
-            alt=""
+            [alt]="nexusDashboardAlt"
             width="1920"
             height="1080"
             loading="eager"
@@ -337,12 +337,11 @@
       <div class="nexus-screenshot-wrap">
         <img
           [src]="nexusDashboardSrc"
-          alt="SheikhGo NEXUS fleet intelligence dashboard with live map, GPS alerts, feature cards, and AI assistant"
+          [alt]="nexusDashboardAlt"
           class="nexus-screenshot"
           width="1920"
           height="1080"
-          loading="eager"
-          fetchpriority="high"
+          loading="lazy"
           decoding="async"
           [class.is-hidden]="nexusImageError"
           (error)="nexusImageError = true" />
@@ -678,24 +677,18 @@
 <section class="section client-testimonials" id="client-testimonials" aria-labelledby="client-testimonials-heading">
   <div class="container">
     <header class="section-head testimonials-head">
-      <span class="section-kicker">{{ 'home.testimonials.kicker' | wsTranslate }}</span>
-      <h2 id="client-testimonials-heading" class="section-title">{{ 'home.testimonials.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.testimonials.lead' | wsTranslate }}</p>
+      <span class="section-kicker">{{ 'home.scenarios.kicker' | wsTranslate }}</span>
+      <h2 id="client-testimonials-heading" class="section-title">{{ 'home.scenarios.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.scenarios.lead' | wsTranslate }}</p>
     </header>
     <div class="testimonials-grid">
-      @for (t of clientTestimonials; track t.name) {
-        <article class="testimonial-card">
-          <mat-icon class="testimonial-quote-icon" aria-hidden="true">format_quote</mat-icon>
-          <blockquote class="testimonial-quote">
-            <p>{{ t.quote }}</p>
-          </blockquote>
-          <footer class="testimonial-author">
-            <span class="testimonial-avatar" aria-hidden="true">{{ t.initials }}</span>
-            <div class="testimonial-meta">
-              <cite class="testimonial-name">{{ t.name }}</cite>
-              <span class="testimonial-role">{{ t.role }}, {{ t.company }}</span>
-            </div>
-          </footer>
+      @for (s of operatorScenarios; track s.id) {
+        <article class="testimonial-card scenario-card">
+          <span class="scenario-icon" aria-hidden="true">
+            <mat-icon>{{ s.icon }}</mat-icon>
+          </span>
+          <h3>{{ s.titleKey | wsTranslate }}</h3>
+          <p>{{ s.textKey | wsTranslate }}</p>
         </article>
       }
     </div>
@@ -769,6 +762,7 @@
     </div>
     <div class="actions">
       <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
+      <a routerLink="/features" class="btn btn-ghost">{{ 'home.hero.explorePlatform' | wsTranslate }}</a>
       <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
         <mat-icon aria-hidden="true">play_circle</mat-icon>
         {{ 'common.watchDemo' | wsTranslate }}

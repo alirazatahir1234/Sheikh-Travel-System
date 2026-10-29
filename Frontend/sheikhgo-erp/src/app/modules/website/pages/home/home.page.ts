@@ -50,6 +50,7 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   nexusImageError = false;
   readonly nexusDashboardSrc = NEXUS_DASHBOARD_IMAGE.src;
+  readonly nexusDashboardAlt = NEXUS_DASHBOARD_IMAGE.alt;
   readonly mobilePromoPosterSrc = NEXUS_MOBILE_PROMO_POSTER;
   readonly demoModalOpen = signal(false);
   readonly demoModalMode = signal<NexusDemoModalMode>('erp');
@@ -273,46 +274,39 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       title: 'NEXUS Dashboard',
       text: 'Unified fleet intelligence UI — map, alerts, modules, and AI panel in one workspace.',
       icon: 'dashboard',
-      link: '/',
-      linkLabel: 'See showcase',
+      link: '/features',
+      linkLabel: 'Explore platform',
     },
   ] as const;
 
   readonly nexusModuleShots = NEXUS_MODULE_SHOTS;
   readonly homeModuleJumps = HOME_MODULE_JUMPS;
 
-  readonly clientTestimonials = [
+  /** Illustrative operator scenarios — not attributed customer testimonials. */
+  readonly operatorScenarios = [
     {
-      name: 'Sara Khalil',
-      role: 'Operations Director',
-      company: 'Gulf Line Transport',
-      initials: 'SK',
-      quote:
-        'We replaced three spreadsheets and a dispatch WhatsApp thread with one Nexus workspace. Live GPS, trip status, and fuel receipts sit on the same screen — our morning stand-ups are half as long.',
+      id: 'dispatch',
+      icon: 'hub',
+      titleKey: 'home.scenarios.dispatch.title',
+      textKey: 'home.scenarios.dispatch.text',
     },
     {
-      name: 'James Okonkwo',
-      role: 'Fleet Manager',
-      company: 'MetroCoach Rentals',
-      initials: 'JO',
-      quote:
-        'Geofence alerts and trip playback cut our “where is the bus?” calls dramatically. Maintenance due dates tied to odometer readings finally match what drivers actually run.',
+      id: 'rental',
+      icon: 'key',
+      titleKey: 'home.scenarios.rental.title',
+      textKey: 'home.scenarios.rental.text',
     },
     {
-      name: 'Fatima Al-Rashid',
-      role: 'CEO',
-      company: 'Desert Wings Logistics',
-      initials: 'FA',
-      quote:
-        'Multi-branch visibility without exporting CSVs every night. Bookings, vehicle assignments, and GPS health in one tenant — our auditors get clear trails when they ask.',
+      id: 'visibility',
+      icon: 'gps_fixed',
+      titleKey: 'home.scenarios.visibility.title',
+      textKey: 'home.scenarios.visibility.text',
     },
     {
-      name: 'Daniel Meyer',
-      role: 'Head of Dispatch',
-      company: 'Alpine Shuttle Co.',
-      initials: 'DM',
-      quote:
-        'The AI assistant answers from our live map and alert feed, not generic chatbot fluff. Drivers still use our process; dispatch just spends less time hunting data.',
+      id: 'insights',
+      icon: 'insights',
+      titleKey: 'home.scenarios.insights.title',
+      textKey: 'home.scenarios.insights.text',
     },
   ] as const;
 
@@ -338,21 +332,20 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     },
   ] as const;
 
+  private static readonly HOME_SEO_TITLE =
+    'SheikhGo | Fleet Management, GPS Tracking & Mobility Solutions';
+  private static readonly HOME_SEO_DESCRIPTION =
+    "Manage fleet operations, GPS tracking, vehicle rentals, and travel workflows with SheikhGo's connected mobility platform.";
+
   ngOnInit(): void {
-    this.seo.set(
-      'SheikhGo Nexus | Fleet Intelligence, GPS & AI',
-      'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, Nexus operations, and honest AI assistants for transport teams.',
-      '/',
-    );
+    this.seo.set(HomePage.HOME_SEO_TITLE, HomePage.HOME_SEO_DESCRIPTION, '/');
 
     this.content.getHome().subscribe(home => {
       if (!home?.settings) return;
       if (home.settings.defaultMetaTitle || home.settings.defaultMetaDescription) {
         this.seo.set(
-          home.settings.defaultMetaTitle ||
-            'SheikhGo Nexus | Fleet Intelligence, GPS & AI',
-          home.settings.defaultMetaDescription ||
-            'SheikhGo NEXUS — live GPS tracking, geofencing, playback, offline sync, fleet health alerts, Nexus operations, and honest AI assistants for transport teams.',
+          home.settings.defaultMetaTitle || HomePage.HOME_SEO_TITLE,
+          home.settings.defaultMetaDescription || HomePage.HOME_SEO_DESCRIPTION,
         );
       }
     });
