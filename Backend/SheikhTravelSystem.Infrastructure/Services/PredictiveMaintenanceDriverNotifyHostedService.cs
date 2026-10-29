@@ -90,7 +90,7 @@ public class PredictiveMaintenanceDriverNotifyHostedService(
                     SELECT COUNT(*) FROM Notifications
                     WHERE TenantId = @TenantId AND UserId = @UserId AND Module = N'maintenance'
                       AND TemplateKey = @Key AND IsDeleted = 0
-                      AND CreatedAt > DATEADD(DAY, -3, GETUTCDATETIME())
+                      AND CreatedAt > DATEADD(DAY, -3, SYSUTCDATETIME())
                     """, new { TenantId = tenantId, UserId = driverUserId.Value, Key = dedupeKey },
                     cancellationToken: cancellationToken));
                 if (exists > 0)

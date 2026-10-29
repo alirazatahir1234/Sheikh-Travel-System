@@ -158,7 +158,7 @@ public class DriverVerificationExpiryHostedService(
             SELECT COUNT(*) FROM Notifications
             WHERE TenantId = @TenantId AND UserId = @UserId AND Module = N'driver_verification'
               AND TemplateKey = @Key AND IsDeleted = 0
-              AND CreatedAt > DATEADD(DAY, -3, GETUTCDATETIME())
+              AND CreatedAt > DATEADD(DAY, -3, SYSUTCDATETIME())
             """, new { TenantId = tenantId, UserId = userId, Key = templateKey },
             cancellationToken: cancellationToken));
         if (exists > 0)
