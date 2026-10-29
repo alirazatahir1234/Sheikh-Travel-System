@@ -81,8 +81,9 @@ Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pip
 
 ## Verify
 
-- Backend HTTPS: `curl -s https://20-174-1-230.sslip.io/health` → JSON `"status":"Healthy"`
-- Backend HTTP (kept): `curl -s http://20.174.1.230:5082/health` → JSON `"status":"Healthy"`
+- Backend HTTPS: `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
+- Backend HTTP (kept): `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
+- Detail JSON: `curl -s http://20.174.1.230:5082/health/detail` → `"status":"Healthy"`
 - Readiness: `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (503 if deps degraded)
 - Logs: `journalctl -u sheikhgo-api -f` on the VM
 - Frontend: Vercel dashboard deployment for ERP / customer-hub

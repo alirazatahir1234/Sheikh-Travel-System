@@ -402,20 +402,27 @@ app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<WhatsAppHub>("/hubs/whatsapp");
-// /health/live — process up only (no dependency checks).
+// /health/live — process up only; plain text for probes (body: Healthy).
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,
-    ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync
+    ResponseWriter = HealthCheckPlainTextResponseWriter.WriteAsync
 });
 
-// /health — dependency checks with JSON detail (HTTP 200 even when Degraded, for simple up probes).
+// /health — dependency checks; plain text "Healthy" for ADO/Caddy/curl probes
+// (HTTP 200 even when Degraded so simple up checks stay green).
 app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckPlainTextResponseWriter.WriteAsync
+});
+
+// /health/detail — same checks with JSON entries (ops / dashboards).
+app.MapHealthChecks("/health/detail", new HealthCheckOptions
 {
     ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync
 });
 
-// /health/ready — same checks; Degraded (e.g. Traccar unreachable) → 503.
+// /health/ready — JSON; Degraded (e.g. Traccar unreachable) → 503.
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync,

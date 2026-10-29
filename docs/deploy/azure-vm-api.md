@@ -104,10 +104,11 @@ unset AZP_TOKEN
 ### How to trigger / verify
 
 - **Trigger:** `git push` to `main`/`master` (with matching path changes), or **Run pipeline** in Azure DevOps.
-- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → JSON `"status":"Healthy"`
-- **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → JSON `"status":"Healthy"`
-- **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → JSON `"status":"Healthy"`
-- **Liveness:** `curl -s http://20.174.1.230:5082/health/live` → JSON Healthy (no deps)
+- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → plain text `Healthy`
+- **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
+- **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
+- **Liveness:** `curl -s http://20.174.1.230:5082/health/live` → plain text `Healthy` (no deps)
+- **Detail (JSON):** `curl -s http://20.174.1.230:5082/health/detail` → JSON `"status":"Healthy"` with per-check entries
 - **Readiness:** `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (or `503` if SQL/Redis/Traccar degraded)
 - **Logs:** `journalctl -u sheikhgo-api -f` / `journalctl -u caddy -f` / `journalctl -u sheikhgo-cloudflared -f`
 - **Agent:** Azure DevOps → Agent pools → SheikhGo-VM → agent online

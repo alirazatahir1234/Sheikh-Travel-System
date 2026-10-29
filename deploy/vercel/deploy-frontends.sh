@@ -19,9 +19,24 @@ set -euo pipefail
 
 ROOT="${BUILD_SOURCESDIRECTORY:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
+# Reject empty or unresolved ADO macros like "$(VERCEL_TOKEN)" (library group not linked).
+assert_resolved_secret() {
+  local name="$1"
+  local val="${2:-}"
+  # Unresolved ADO macros look like $(NAME)
+  if [[ -z "$val" || "$val" == *'$('* ]]; then
+    echo "ERROR: ${name} is missing or still an unresolved ADO macro." >&2
+    echo "Link Library variable group 'SheikhGo-Deploy' to this pipeline (or set ${name})." >&2
+    exit 1
+  fi
+}
+
 : "${VERCEL_TOKEN:?VERCEL_TOKEN is required (ADO secret)}"
 : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
 : "${VERCEL_ERP_PROJECT_ID:?VERCEL_ERP_PROJECT_ID is required (sheikh-travel-system)}"
+assert_resolved_secret VERCEL_TOKEN "${VERCEL_TOKEN}"
+assert_resolved_secret VERCEL_ORG_ID "${VERCEL_ORG_ID}"
+assert_resolved_secret VERCEL_ERP_PROJECT_ID "${VERCEL_ERP_PROJECT_ID}"
 
 # Angular/Node OOM guard (exit 137 / SIGKILL on SheikhGo-VM ~4Gi RAM).
 # Cap heap below full RAM; rely on swap for peak. Do not set to full physical RAM.
