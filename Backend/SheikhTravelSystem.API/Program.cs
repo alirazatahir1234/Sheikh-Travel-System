@@ -3,8 +3,10 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -400,8 +402,30 @@ app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<WhatsAppHub>("/hubs/whatsapp");
-app.MapHealthChecks("/health");
-app.MapHealthChecks("/health/ready");
+// /health/live — process up only (no dependency checks).
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync
+});
+
+// /health — dependency checks with JSON detail (HTTP 200 even when Degraded, for simple up probes).
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync
+});
+
+// /health/ready — same checks; Degraded (e.g. Traccar unreachable) → 503.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    }
+});
 
 {
     var fileStorage = app.Configuration.GetSection("FileStorage");

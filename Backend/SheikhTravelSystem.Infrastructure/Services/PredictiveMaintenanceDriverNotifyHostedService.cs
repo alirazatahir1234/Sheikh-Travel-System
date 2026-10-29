@@ -54,6 +54,7 @@ public class PredictiveMaintenanceDriverNotifyHostedService(
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
         var maintenanceRepo = scope.ServiceProvider.GetRequiredService<IMaintenanceModuleRepository>();
         var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContext>();
 
         using var connection = dbFactory.CreateConnection();
         var tenants = await connection.QueryAsync<int>(new CommandDefinition(
@@ -62,14 +63,15 @@ public class PredictiveMaintenanceDriverNotifyHostedService(
 
         foreach (var tenantId in tenants)
         {
+            tenantContext.SetTenant(tenantId);
             var dashboard = await maintenanceRepo.GetMaintenanceDashboardAsync(
                 new GetMaintenanceDashboardQuery(BranchId: null), cancellationToken);
             if (!dashboard.Success || dashboard.Data?.PredictiveAlerts is not { Count: > 0 } alerts)
                 continue;
 
             foreach (var alert in alerts.Where(a =>
-                         a.Severity is "Critical" or "Warning"
-                         && a.Status is "DueSoon" or "Overdue"))
+                         (a.Severity is "Critical" or "Warning")
+                         && (a.Status is "DueSoon" or "Overdue")))
             {
                 var driverUserId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
                     SELECT TOP 1 d.UserId

@@ -2989,7 +2989,7 @@ public sealed partial class GpsTrackingRepository(
             new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 
-        var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
+        var rows = await connection.QueryAsync<LivePositionRow>(new CommandDefinition(
             $"""
               SELECT CAST(vcl.VehicleId AS BIGINT) AS Id,
                      vcl.VehicleId,
@@ -3019,7 +3019,7 @@ public sealed partial class GpsTrackingRepository(
             cancellationToken: cancellationToken));
 
         var items = rows
-            .Select(r => r with { Timestamp = GpsUtcDateTime.AsUtc(r.Timestamp) })
+            .Select(GpsPositionHistoryMapper.ToPositionDto)
             .ToList();
 
         items = await EnrichLiveAddressesAsync(connection, items, cancellationToken);
@@ -3174,7 +3174,8 @@ public sealed partial class GpsTrackingRepository(
 
     public async Task<ApiResponse<HistoryReplayBundleDto>> GetHistoryReplayAsync(GetHistoryReplayQuery request, CancellationToken cancellationToken = default)
     {
-        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
+        // Default 1 day (was 7) — unbounded week-long replays spiked to ~34s under VM memory pressure.
+        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-1);
         var toDate = request.ToDate ?? DateTime.UtcNow;
         fromDate = GpsUtcDateTime.AsUtc(fromDate);
         toDate = GpsUtcDateTime.AsUtc(toDate);

@@ -21,10 +21,38 @@ public sealed record GpsPositionHistoryRow(
     DateTime Timestamp,
     string? Address = null);
 
+/// <summary>
+/// Dapper row for live fleet positions. Mutable class so nullable SQL columns map correctly;
+/// <see cref="PositionDto"/> positional records break materialization against reader types.
+/// </summary>
+public sealed class LivePositionRow
+{
+    public long Id { get; set; }
+    public int VehicleId { get; set; }
+    public int? DriverId { get; set; }
+    public int? BookingId { get; set; }
+    public int? GpsDeviceId { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public decimal Speed { get; set; }
+    public double? Heading { get; set; }
+    public double? Altitude { get; set; }
+    public bool? Ignition { get; set; }
+    public DateTime Timestamp { get; set; }
+    public decimal? FuelLevel { get; set; }
+    public decimal? BatteryLevel { get; set; }
+    public int? GsmSignal { get; set; }
+    public decimal? TotalDistanceKm { get; set; }
+    public string? Address { get; set; }
+    public string? AlarmType { get; set; }
+    public string? DriverPhone { get; set; }
+    public decimal? Temperature { get; set; }
+}
+
 public static class GpsPositionHistoryMapper
 {
     private const decimal KnotsToKmh = 1.852m;
-    public const int MaxPlaybackPoints = 2500;
+    public const int MaxPlaybackPoints = 1500;
 
     public static PositionDto ToPositionDto(GpsPositionHistoryRow row) =>
         new(
@@ -41,6 +69,29 @@ public static class GpsPositionHistoryMapper
             row.Ignition,
             GpsUtcDateTime.AsUtc(row.Timestamp),
             Address: row.Address);
+
+    public static PositionDto ToPositionDto(LivePositionRow row) =>
+        new(
+            row.Id,
+            row.VehicleId,
+            row.DriverId,
+            row.BookingId,
+            row.GpsDeviceId,
+            row.Latitude,
+            row.Longitude,
+            row.Speed,
+            row.Heading,
+            row.Altitude,
+            row.Ignition,
+            GpsUtcDateTime.AsUtc(row.Timestamp),
+            FuelLevel: row.FuelLevel,
+            BatteryLevel: row.BatteryLevel,
+            GsmSignal: row.GsmSignal,
+            TotalDistanceKm: row.TotalDistanceKm,
+            Address: row.Address,
+            AlarmType: row.AlarmType,
+            DriverPhone: row.DriverPhone,
+            Temperature: row.Temperature);
 
     public static PositionDto FromTraccar(
         Traccar.TraccarPosition position,

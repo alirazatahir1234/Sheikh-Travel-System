@@ -7,8 +7,9 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 public static class TripReplayLoader
 {
     private const int SparseRouteThreshold = 5;
-    private const int DefaultRouteMaxPoints = 2000;
-    private const int DefaultPlaybackMaxPoints = 800;
+    // Tighter defaults on the 4GB Azure VM (API MemoryMax=512M) — callers can still raise via query params.
+    private const int DefaultRouteMaxPoints = 1200;
+    private const int DefaultPlaybackMaxPoints = 500;
     private const int AbsoluteMaxPoints = 10000;
 
     private static bool IsOverlayEventType(string type) =>

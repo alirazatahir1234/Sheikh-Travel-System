@@ -102,7 +102,7 @@ public sealed class FatigueEscalationHostedService(
                 if (row.AutoStopEnabled && settings.AutoStopEnabled && row.VehicleId is int vehicleId)
                 {
                     await QueueDeviceActionAsync(
-                        automatedCommands, repository, row with { VehicleId = vehicleId },
+                        automatedCommands, repository, row,
                         "engineStop",
                         "Fatigue auto-stop — no driver acknowledgment",
                         ct);

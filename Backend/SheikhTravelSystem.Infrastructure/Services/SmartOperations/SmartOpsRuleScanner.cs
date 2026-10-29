@@ -154,7 +154,7 @@ public class SmartOpsRuleScanner(
                    COALESCE(
                        NULLIF(LTRIM(RTRIM(CONCAT(ISNULL(v.Make, N''), N' ', ISNULL(v.Model, N'')))), N''),
                        NULLIF(LTRIM(RTRIM(v.Name)), N''),
-                       v.PlateNumber,
+                       v.RegistrationNumber,
                        CONCAT(N'Vehicle #', v.Id)) AS Name,
                    v.InsuranceExpiryDate AS Expiry
             FROM Vehicles v

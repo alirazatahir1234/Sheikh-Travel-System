@@ -358,7 +358,7 @@ public sealed class FatigueDetectionRepository(IDbConnectionFactory dbFactory) :
                 e.EscalationStage,
                 e.NextEscalationUtc,
                 e.AckDeadlineUtc,
-                COALESCE(s.AutoStopEnabled, 1) AS AutoStopEnabled
+                CAST(COALESCE(s.AutoStopEnabled, 1) AS bit) AS AutoStopEnabled
             FROM DriverFatigueEvents e
             LEFT JOIN FatigueTenantSettings s ON s.TenantId = e.TenantId
             WHERE e.IsDeleted = 0

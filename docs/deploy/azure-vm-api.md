@@ -104,9 +104,11 @@ unset AZP_TOKEN
 ### How to trigger / verify
 
 - **Trigger:** `git push` to `main`/`master` (with matching path changes), or **Run pipeline** in Azure DevOps.
-- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → `Healthy`
-- **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → `Healthy`
-- **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → `Healthy`
+- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → JSON `"status":"Healthy"`
+- **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → JSON `"status":"Healthy"`
+- **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → JSON `"status":"Healthy"`
+- **Liveness:** `curl -s http://20.174.1.230:5082/health/live` → JSON Healthy (no deps)
+- **Readiness:** `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (or `503` if SQL/Redis/Traccar degraded)
 - **Logs:** `journalctl -u sheikhgo-api -f` / `journalctl -u caddy -f` / `journalctl -u sheikhgo-cloudflared -f`
 - **Agent:** Azure DevOps → Agent pools → SheikhGo-VM → agent online
 
@@ -122,6 +124,7 @@ DEPLOY_BRANCH=main /opt/sheikhgo-api/src/deploy/azure-vm/deploy-api.sh
 ## Caveats
 
 - **CORS** already allows `https://www.sheikhgo.com` / `https://sheikhgo.com` and `*.sheikhgo.com` (no change required for sslip.io API host — CORS checks the browser Origin, not the API hostname).
-- **RAM:** ~4 GB VM with SQL + Traccar + API + Caddy; 2 GB swap enabled. Keep API `MemoryMax=512M`.
+- **RAM:** ~4 GB VM with SQL + Traccar + API + Caddy; swap in use under load. Live unit uses `MemoryMax=512M` / `MemoryHigh=400M` (not managed by `deploy-api.sh` — unit lives on the VM only).
+- **Memory (Ali approve before changing live):** if swap stays high after worker/GPS fixes, consider a conservative bump, e.g. `MemoryMax=768M` + `MemoryHigh=600M` in `/etc/systemd/system/sheikhgo-api.service`, then `sudo systemctl daemon-reload && sudo systemctl restart sheikhgo-api`. Do **not** raise past ~1G without more host RAM or moving SQL/Traccar off-box. App-side mitigations (tighter history-replay default window + lower route/playback point caps) ship in code.
 - **Do not** restart/reconfigure Traccar or `sheikhgo-sql` for API deploys.
 - **Do not** pause/delete Railway until you explicitly choose to.

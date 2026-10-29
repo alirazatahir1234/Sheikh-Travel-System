@@ -91,13 +91,19 @@ public record DriverFatigueActivePromptDto(
 
 public record IngestFatigueSignalResultDto(int EventId, string Status, DateTime AckDeadlineUtc);
 
-public record FatigueEscalationCandidateRow(
-    int Id,
-    int TenantId,
-    int DriverId,
-    int? VehicleId,
-    string Status,
-    int EscalationStage,
-    DateTime? NextEscalationUtc,
-    DateTime AckDeadlineUtc,
-    bool AutoStopEnabled);
+/// <summary>
+/// Dapper row for escalation polling. Mutable class (not positional record) so nullable
+/// columns and BIT map correctly — positional records fail materialization against SQL reader types.
+/// </summary>
+public sealed class FatigueEscalationCandidateRow
+{
+    public int Id { get; set; }
+    public int TenantId { get; set; }
+    public int DriverId { get; set; }
+    public int? VehicleId { get; set; }
+    public string Status { get; set; } = "";
+    public int EscalationStage { get; set; }
+    public DateTime? NextEscalationUtc { get; set; }
+    public DateTime AckDeadlineUtc { get; set; }
+    public bool AutoStopEnabled { get; set; }
+}
