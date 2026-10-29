@@ -100,8 +100,12 @@ abstract final class FleetPermissions {
   static const gpsCommandCancel = 'Gps.CommandCancel';
   static const aiView = 'Ai.View';
   static const aiManage = 'Ai.Manage';
+  static const aiChat = 'Ai.Chat';
   static const aiExecuteWrite = 'Ai.ExecuteWrite';
   static const notificationView = 'Notification.View';
+
+  /// Any role permission that unlocks SheikhGo AI Assistant (Shako) in the app.
+  static const aiAgentAccess = [aiView, aiManage, aiChat];
 
   static const driverDefaults = [
     tripView,
@@ -256,7 +260,7 @@ class FleetSession {
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
   /// Premium SheikhGo AI Assistant module (TenantModules code `AI` / legacy key `ai`).
-  /// Default off — company must opt in at provision or via module management.
+  /// Kept for ERP/billing entitlement checks — UI visibility uses [canSeeAiTab] (role permission).
   bool get hasAiAssistantModule {
     final ctx = companyContext;
     if (ctx == null) return false;
@@ -266,26 +270,11 @@ class FleetSession {
     return ctx.enabledModuleKeys.any((k) => k.toLowerCase() == 'ai');
   }
 
-  /// Co-pilot is Admin / Fleet Manager ops intelligence — not Owner Tracking or Driver.
-  /// Pure OWNER (even with Ai.View seeded) stays off the Copilot surface this phase.
-  /// Also requires company AI module entitlement (premium).
-  bool get canSeeAiTab {
-    if (isDriverOnly) return false;
-    if (!hasAiAssistantModule) return false;
-    final isPureOwner = hasRole(FleetRole.owner) &&
-        !hasAnyRole(const [
-          FleetRole.superAdmin,
-          FleetRole.tenantAdmin,
-          FleetRole.fleetManager,
-        ]);
-    if (isPureOwner) return false;
-    return hasPermission(FleetPermissions.aiView) ||
-        hasAnyRole(const [
-          FleetRole.superAdmin,
-          FleetRole.tenantAdmin,
-          FleetRole.fleetManager,
-        ]);
-  }
+  /// SheikhGo AI Assistant (Shako) visibility — driven by the role's AI permission flag.
+  /// When Ai.View / Ai.Manage / Ai.Chat is enabled on the user's role, the agent appears
+  /// in the app (nav / More / dashboard). No separate company-module toggle required.
+  bool get canSeeAiTab =>
+      hasAnyPermission(FleetPermissions.aiAgentAccess);
 
   bool get canSeeBookingsTab =>
       !isDriverOnly && hasPermission(FleetPermissions.bookingView);

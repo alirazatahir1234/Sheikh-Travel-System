@@ -284,7 +284,12 @@ abstract final class FleetNavConfig {
       route: '/notifications',
       isVisible: _alwaysEntry,
     ),
-    // Co-pilot is Admin/FM — omitted from Owner Tracking More (see FleetSession.canSeeAiTab).
+    MoreMenuEntry(
+      label: 'SheikhGo AI Assistant',
+      icon: Icons.auto_awesome_outlined,
+      route: '/ai',
+      isVisible: _aiMenu,
+    ),
     MoreMenuEntry(
       label: 'Profile',
       icon: Icons.person_outline_rounded,
@@ -457,7 +462,7 @@ abstract final class FleetNavConfig {
       isVisible: _driverWorkflow,
     ),
     MoreMenuEntry(
-      label: 'AI Copilot',
+      label: 'SheikhGo AI Assistant',
       icon: Icons.auto_awesome_outlined,
       route: '/ai',
       isVisible: _aiMenu,
@@ -543,6 +548,12 @@ abstract final class FleetNavConfig {
       icon: Icons.auto_awesome_outlined,
       route: '/gps/operator-ai',
       isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'SheikhGo AI Assistant',
+      icon: Icons.smart_toy_outlined,
+      route: '/ai',
+      isVisible: _aiMenu,
     ),
     MoreMenuEntry(
       label: 'Support',

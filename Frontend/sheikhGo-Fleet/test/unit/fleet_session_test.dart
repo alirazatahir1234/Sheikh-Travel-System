@@ -71,7 +71,7 @@ void main() {
       expect(session.canSeeTripsTab, isTrue);
     });
 
-    test('fleet manager without AI module hides AI tab', () {
+    test('fleet manager with Ai.View sees AI even without company module', () {
       final session = _session(
         roles: const [FleetRole.fleetManager],
         permissions: const [
@@ -85,29 +85,26 @@ void main() {
       );
       expect(session.canSeeFleetTab, isTrue);
       expect(session.hasAiAssistantModule, isFalse);
-      expect(session.canSeeAiTab, isFalse);
+      expect(session.canSeeAiTab, isTrue);
     });
 
-    test('fleet manager with AI module sees AI tab', () {
+    test('fleet manager without AI permission hides AI tab', () {
       final session = _session(
         roles: const [FleetRole.fleetManager],
         permissions: const [
           FleetPermissions.tripView,
           FleetPermissions.gpsView,
           FleetPermissions.vehicleView,
-          FleetPermissions.aiView,
         ],
         authMode: AuthMode.staff,
         driverId: null,
         companyContext: _aiEntitledContext(),
       );
-      expect(session.canSeeFleetTab, isTrue);
       expect(session.hasAiAssistantModule, isTrue);
-      expect(session.canSeeAiTab, isTrue);
-      expect(session.canSeeTripsTab, isTrue);
+      expect(session.canSeeAiTab, isFalse);
     });
 
-    test('driver manager sees drivers but not AI', () {
+    test('driver manager sees drivers but not AI without permission', () {
       final session = _session(
         roles: const [FleetRole.driverManager],
         permissions: const [

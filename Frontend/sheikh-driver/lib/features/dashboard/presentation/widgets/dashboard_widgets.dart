@@ -788,7 +788,7 @@ class AiCopilotSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'AI Copilot',
+                  'SheikhGo AI Assistant',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

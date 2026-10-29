@@ -274,8 +274,8 @@ abstract final class FleetNavConfig {
       route: '/timeline',
       isVisible: _driverWorkflow,
     ),
-        MoreMenuEntry(
-      label: 'AI Copilot',
+    MoreMenuEntry(
+      label: 'SheikhGo AI Assistant',
       icon: Icons.auto_awesome_outlined,
       route: '/ai',
       isVisible: _aiMenu,
