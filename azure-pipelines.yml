@@ -111,9 +111,10 @@ stages:
     # Deploy proceeds when Phase8 skipped (path filter) or succeeded; blocks on Phase8 failure.
     condition: in(dependencies.Phase8_CI.result, 'Succeeded', 'SucceededWithIssues')
     jobs:
-      # ── Backend → Azure VM (self-hosted on 20.174.1.230) ───────────
-      - job: Backend_AzureVM
-        displayName: Backend → Azure VM (sheikhgo-api)
+      # Single job: one SheikhGo-VM agent. Two parallel jobs were left "pending"
+      # forever after Phase8 (no second agent / parallelism grant).
+      - job: Deploy_VM_And_Vercel
+        displayName: Backend VM + Frontend Vercel
         pool:
           name: SheikhGo-VM
         variables:
@@ -135,7 +136,7 @@ stages:
                 fi
               else
                 echo "##vso[task.setvariable variable=SKIP_VM]false"
-                echo "No parent commit; running Azure VM job."
+                echo "No parent commit; running Azure VM deploy."
               fi
             displayName: Detect Backend changes
 
@@ -150,20 +151,6 @@ stages:
             env:
               DEPLOY_BRANCH: $(DEPLOY_BRANCH)
 
-      # ── Frontend → Vercel (self-hosted SheikhGo-VM) ──
-      # Org has no Microsoft-hosted parallelism grant — must use SheikhGo-VM.
-      # OOM guard: NODE_OPTIONS=3072, NG_BUILD_MAX_WORKERS=1, 8Gi swap, serialize after Backend.
-      # No dependsOn: single SheikhGo-VM agent already serializes jobs. Explicit
-      # dependsOn has left Frontend "pending" forever after Backend succeeded.
-      - job: Frontend_Vercel
-        displayName: Frontend → Vercel
-        pool:
-          name: SheikhGo-VM
-        steps:
-          - checkout: self
-            clean: true
-            fetchDepth: 1
-
           - bash: |
               set -euo pipefail
               if git rev-parse HEAD^ >/dev/null 2>&1; then
@@ -176,7 +163,7 @@ stages:
                 fi
               else
                 echo "##vso[task.setvariable variable=SKIP_VERCEL]false"
-                echo "No parent commit; running Vercel job."
+                echo "No parent commit; running Vercel deploy."
               fi
             displayName: Detect Frontend changes
 
@@ -185,10 +172,8 @@ stages:
               echo "=== SheikhGo-VM memory hygiene (pre-Node) ==="
               free -h
               swapon --show || true
-              # Reclaim orphaned CLI leftovers from canceled runs (never touch Agent.Listener).
               pkill -f 'vercel deploy' 2>/dev/null || true
               pkill -f 'ng build' 2>/dev/null || true
-              # Backend job leaves nodeReuse MSBuild/VBCSCompiler — free RAM before ng build.
               pkill -f 'VBCSCompiler' 2>/dev/null || true
               pkill -f 'MSBuild.dll' 2>/dev/null || true
               sleep 1
@@ -220,7 +205,6 @@ stages:
             condition: ne(variables['SKIP_VERCEL'], 'true')
             displayName: Deploy sheikhgo-erp + customer-hub to Vercel
             env:
-              # Cap Node heap below full RAM on ~4Gi SheikhGo-VM (exit 137 = OOM).
               NODE_OPTIONS: --max-old-space-size=3072
               NG_BUILD_MAX_WORKERS: '1'
               VERCEL_TOKEN: $(VERCEL_TOKEN)
