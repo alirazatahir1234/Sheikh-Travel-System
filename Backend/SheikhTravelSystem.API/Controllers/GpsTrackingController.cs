@@ -78,16 +78,44 @@ public partial class GpsTrackingController : BaseApiController
             body.FromDate,
             body.ToDate)));
 
+    /// <summary>
+    /// Export history coordinates. Default <c>delivery=file</c> streams through the authenticated API.
+    /// <c>delivery=signed</c> stores in private container <c>gps-playbacks</c> and returns a short-lived SAS URL
+    /// (never anonymous public blob access). Website marketing containers are separate.
+    /// </summary>
     [HttpGet("history/{vehicleId:int}/export")]
     public async Task<IActionResult> ExportHistory(
         int vehicleId,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
-        [FromQuery] string format = "csv")
+        [FromQuery] string format = "csv",
+        [FromQuery] string delivery = "file",
+        [FromQuery] bool persist = false,
+        [FromServices] IPlaybackCoordinateStorage? playbackStorage = null)
     {
-        var result = await Mediator.Send(new GetHistoryExportQuery(vehicleId, from, to, format));
+        var result = await Mediator.Send(new GetHistoryExportQuery(vehicleId, from, to, format, delivery, persist));
         if (!result.Success || result.Data is null)
             return Ok(result);
+
+        var wantSigned = string.Equals(delivery, "signed", StringComparison.OrdinalIgnoreCase);
+        if (wantSigned)
+        {
+            if (string.IsNullOrWhiteSpace(result.Data.SignedUrl) || result.Data.SignedUrlExpiresOn is null)
+            {
+                return Ok(ApiResponse<object>.FailResponse(
+                    "Signed playback URL could not be generated. Check FileStorage playback container configuration."));
+            }
+
+            return Ok(ApiResponse<HistoryExportSignedUrlDto>.SuccessResponse(
+                new HistoryExportSignedUrlDto(
+                    result.Data.FileName,
+                    result.Data.ContentType,
+                    result.Data.SignedUrl,
+                    result.Data.SignedUrlExpiresOn.Value,
+                    result.Data.StorageKey ?? string.Empty,
+                    playbackStorage?.ContainerName ?? "gps-playbacks")));
+        }
+
         return File(result.Data.Bytes, result.Data.ContentType, result.Data.FileName);
     }
 

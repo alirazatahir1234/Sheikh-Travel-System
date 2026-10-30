@@ -501,9 +501,12 @@ public static class DependencyInjection
         {
             services.AddSingleton(_ => new BlobServiceClient(azureConnection));
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+            // Dedicated private container + short SAS for GPS playback coordinates (never public).
+            services.AddScoped<IPlaybackCoordinateStorage, AzurePlaybackCoordinateStorage>();
             return;
         }
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IPlaybackCoordinateStorage, LocalPlaybackCoordinateStorage>();
     }
 }

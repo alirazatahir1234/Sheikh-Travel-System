@@ -1109,14 +1109,20 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (!this.vehicleId) return;
     const fromDate = new Date(this.from);
     const toDate = new Date(this.to);
-    this.gps.exportHistory(this.vehicleId, fromDate, toDate, format, this.tenantScopeId).subscribe({
-      next: blob => {
-        const url = URL.createObjectURL(blob);
+    this.gps.exportHistorySignedUrl(this.vehicleId, fromDate, toDate, format, this.tenantScopeId).subscribe({
+      next: result => {
+        const fileName = result.fileName || `gps-history-${this.vehicleId}.${format}`;
+        // Cross-origin Azure SAS: download attr is advisory; navigate so browser
+        // honors blob Content-Disposition. Fallback open if popup blocked.
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `gps-history-${this.vehicleId}.${format}`;
+        a.href = result.signedUrl;
+        a.download = fileName;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        a.remove();
+        this.toast.success('Export ready — download started.');
       },
       error: () => this.toast.error('Export failed.')
     });

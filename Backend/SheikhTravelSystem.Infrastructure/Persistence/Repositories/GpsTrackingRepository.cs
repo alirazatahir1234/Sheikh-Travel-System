@@ -51,6 +51,7 @@ public sealed partial class GpsTrackingRepository(
     IEscalationService escalation,
     ILocationBroadcastService broadcaster,
     IDriverPerformanceScoringRepository driverPerformanceScoring,
+    IPlaybackCoordinateStorage playbackCoordinateStorage,
     ILogger<GpsTrackingRepository> logger) : IGpsTrackingRepository
 {
     private readonly IGpsAlertWriter _alertWriter = alertWriter;
@@ -3255,29 +3256,46 @@ public sealed partial class GpsTrackingRepository(
         var stampTo = toDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var baseName = $"gps-history-{request.VehicleId}-{stamp}-{stampTo}";
 
-        return format switch
+        var (bytes, contentType, fileName) = format switch
         {
-            "gpx" => ApiResponse<HistoryExportFileDto>.SuccessResponse(
-                new HistoryExportFileDto(
-                    Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGpx(positions, request.VehicleId)),
-                    "application/gpx+xml",
-                    $"{baseName}.gpx")),
-            "kml" => ApiResponse<HistoryExportFileDto>.SuccessResponse(
-                new HistoryExportFileDto(
-                    Encoding.UTF8.GetBytes(HistoryExportFormatter.ToKml(positions, request.VehicleId)),
-                    "application/vnd.google-earth.kml+xml",
-                    $"{baseName}.kml")),
-            "geojson" => ApiResponse<HistoryExportFileDto>.SuccessResponse(
-                new HistoryExportFileDto(
-                    Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGeoJson(positions)),
-                    "application/geo+json",
-                    $"{baseName}.geojson")),
-            _ => ApiResponse<HistoryExportFileDto>.SuccessResponse(
-                new HistoryExportFileDto(
-                    Encoding.UTF8.GetBytes(HistoryExportFormatter.ToCsv(positions)),
-                    "text/csv",
-                    $"{baseName}.csv"))
+            "gpx" => (
+                Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGpx(positions, request.VehicleId)),
+                "application/gpx+xml",
+                $"{baseName}.gpx"),
+            "kml" => (
+                Encoding.UTF8.GetBytes(HistoryExportFormatter.ToKml(positions, request.VehicleId)),
+                "application/vnd.google-earth.kml+xml",
+                $"{baseName}.kml"),
+            "geojson" => (
+                Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGeoJson(positions)),
+                "application/geo+json",
+                $"{baseName}.geojson"),
+            _ => (
+                Encoding.UTF8.GetBytes(HistoryExportFormatter.ToCsv(positions)),
+                "text/csv",
+                $"{baseName}.csv")
         };
+
+        string? storageKey = null;
+        string? signedUrl = null;
+        DateTimeOffset? signedExpiresOn = null;
+
+        // Persist coordinate export into private gps-playbacks and issue a short-lived SAS when
+        // the client requests signed delivery (or when explicitly persisting for archival).
+        if (request.PersistToBlob || string.Equals(request.Delivery, "signed", StringComparison.OrdinalIgnoreCase))
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            var folder = $"tenant-{tenantId}/vehicle-{request.VehicleId}/{fromDate:yyyy}/{fromDate:MM}";
+            await using var stream = new MemoryStream(bytes);
+            var stored = await playbackCoordinateStorage.SaveAsync(
+                stream, fileName, contentType, folder, cancellationToken);
+            storageKey = stored.StorageKey;
+            signedUrl = stored.SignedUrl;
+            signedExpiresOn = stored.ExpiresOn;
+        }
+
+        return ApiResponse<HistoryExportFileDto>.SuccessResponse(
+            new HistoryExportFileDto(bytes, contentType, fileName, storageKey, signedUrl, signedExpiresOn));
         }
 
     public async Task<ApiResponse<TripAnalyticsBundleDto>> GetTripAnalyticsAsync(GetTripAnalyticsQuery request, CancellationToken cancellationToken = default)

@@ -26,6 +26,8 @@ public class AzureBlobStorageService : IFileStorageService
     {
         var blobName = BuildBlobName(folder, fileName);
 
+        // General ERP files — private by default. GPS playback coordinates use
+        // AzurePlaybackCoordinateStorage / gps-playbacks (never share website public containers).
         var containerClient = _blobServiceClient.GetBlobContainerClient(_options.AzureContainerName);
         await containerClient.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 

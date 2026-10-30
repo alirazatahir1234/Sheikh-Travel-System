@@ -88,9 +88,26 @@ public class PostHistoryReplayInsightsHandler(IMediator mediator)
     }
 }
 
-public record HistoryExportFileDto(byte[] Bytes, string ContentType, string FileName);
+public record HistoryExportFileDto(
+    byte[] Bytes,
+    string ContentType,
+    string FileName,
+    string? StorageKey = null,
+    string? SignedUrl = null,
+    DateTimeOffset? SignedUrlExpiresOn = null);
 
-public record GetHistoryExportQuery(int VehicleId, DateTime? FromDate, DateTime? ToDate, string Format)
+/// <param name="Delivery">
+/// <c>file</c> (default) streams bytes through the authenticated API.
+/// <c>signed</c> also stores the file in the private gps-playbacks container and returns a time-limited SAS URL.
+/// </param>
+/// <param name="PersistToBlob">When true, stores the export under private gps-playbacks even if Delivery is file.</param>
+public record GetHistoryExportQuery(
+    int VehicleId,
+    DateTime? FromDate,
+    DateTime? ToDate,
+    string Format,
+    string Delivery = "file",
+    bool PersistToBlob = false)
     : IRequest<ApiResponse<HistoryExportFileDto>>;
 
 public class GetHistoryExportQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
@@ -99,6 +116,15 @@ public class GetHistoryExportQueryHandler(IGpsTrackingRepository gpsTrackingRepo
     public Task<ApiResponse<HistoryExportFileDto>> Handle(GetHistoryExportQuery request, CancellationToken cancellationToken)
         => gpsTrackingRepository.GetHistoryExportAsync(request, cancellationToken);
 }
+
+/// <summary>JSON payload when history export is delivered via private-blob SAS (never public ACL).</summary>
+public record HistoryExportSignedUrlDto(
+    string FileName,
+    string ContentType,
+    string SignedUrl,
+    DateTimeOffset ExpiresOn,
+    string StorageKey,
+    string Container);
 
 internal static class HistoryExportFormatter
 {

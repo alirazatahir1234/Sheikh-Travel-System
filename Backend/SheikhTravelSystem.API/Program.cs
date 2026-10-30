@@ -444,9 +444,11 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
         && !string.IsNullOrWhiteSpace(azureConnection)
         && azureConnection != "__SET_IN_USER_SECRETS_OR_ENV__";
     Log.Information(
-        "File storage: {Mode} (container: {Container})",
+        "File storage: {Mode} (container: {Container}; playback: {PlaybackContainer}, sasMinutes: {PlaybackSasMinutes})",
         usesAzure ? "Azure Blob" : "Local disk",
-        fileStorage.GetValue<string>("AzureContainerName") ?? "vehicle-files");
+        fileStorage.GetValue<string>("AzureContainerName") ?? "vehicle-files",
+        fileStorage.GetValue<string>("PlaybackContainerName") ?? "gps-playbacks",
+        fileStorage.GetValue<int?>("PlaybackSasExpiryMinutes") ?? 60);
 }
 
 app.Run();

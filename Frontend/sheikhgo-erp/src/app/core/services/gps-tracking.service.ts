@@ -31,6 +31,7 @@ import {
   TripFleetFilters,
   TripReplayBundle,
   HistoryReplayBundle,
+  HistoryExportSignedUrl,
   GpsFleetStatus,
   GpsFleetStatusLocal,
   GpsFleetStatusSnapshot,
@@ -730,13 +731,47 @@ export class GpsTrackingService {
     const params: Record<string, string> = {
       from: from.toISOString(),
       to: to.toISOString(),
-      format
+      format,
+      delivery: 'file'
     };
     return this.http.get(`${this.base}/history/${vehicleId}/export`, {
       params,
       responseType: 'blob',
       ...this.tenantScopedHttpOptions(tenantScopeId)
     });
+  }
+
+  /**
+   * Export history coordinates via private Azure blob SAS (gps-playbacks container).
+   * Never uses public blob ACLs — URL expires after FileStorage:PlaybackSasExpiryMinutes.
+   */
+  exportHistorySignedUrl(
+    vehicleId: number,
+    from: Date,
+    to: Date,
+    format: 'csv' | 'gpx' | 'geojson' | 'kml',
+    tenantScopeId?: number | null
+  ): Observable<HistoryExportSignedUrl> {
+    const params: Record<string, string> = {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      format,
+      delivery: 'signed'
+    };
+    return this.http.get<ApiResponse<HistoryExportSignedUrl>>(
+      `${this.base}/history/${vehicleId}/export`,
+      {
+        params,
+        ...this.tenantScopedHttpOptions(tenantScopeId)
+      }
+    ).pipe(
+      map(raw => {
+        if (!raw?.success || !raw.data?.signedUrl) {
+          throw new Error(raw?.message || 'Signed playback URL missing from export response.');
+        }
+        return raw.data;
+      })
+    );
   }
 
   getTripAnalytics(vehicleId: number, from?: Date, to?: Date): Observable<TripAnalyticsBundle> {

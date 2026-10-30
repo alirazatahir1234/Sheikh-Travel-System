@@ -521,6 +521,16 @@ export interface TripReplayBundle {
   summary?: TripReplaySummary | null;
 }
 
+/** Private-blob SAS delivery for history coordinate exports (gps-playbacks). */
+export interface HistoryExportSignedUrl {
+  fileName: string;
+  contentType: string;
+  signedUrl: string;
+  expiresOn: string;
+  storageKey: string;
+  container: string;
+}
+
 /** Unified history replay bundle (route, stats, vehicle context). */
 export interface HistoryDisplaySummary {
   movingTime: string;
