@@ -12,7 +12,7 @@
 5. Trip Management *(mid-reel screenshot)*
 6. Navigate & Track Trips *(mid-reel screenshot)*
 7. Single Tracker: Rs 20,000 / Yearly Plan: Rs 40,000
-8. Company Package — Book a Demo / WhatsApp +92 301 616 9209
+8. Company Package — Book a Demo / WhatsApp +92 317 736 8305
 
 **Brand check:** SheikhGo Technologies only (correct spelling throughout overlays and captions).
 
@@ -30,7 +30,7 @@ Pricing:
 • Yearly plan: Rs 40,000
 • Company / fleet package: Book a Demo
 
-WhatsApp Pakistan: https://wa.me/923016169209
+WhatsApp Pakistan: https://wa.me/923177368305
 WhatsApp UAE/GCC: https://wa.me/971557701219
 
 #SheikhGoTechnologies #GPSTracker #FleetTracking #Lahore #Multan #Sialkot #Burewala #Basrur #BookADemo #Pakistan
@@ -47,7 +47,7 @@ Live dashboard, trip management, and navigation — built for fleets in Multan, 
 • Yearly plan: Rs 40,000
 • Company package: Book a Demo
 
-WhatsApp PK: https://wa.me/923016169209
+WhatsApp PK: https://wa.me/923177368305
 WhatsApp UAE: https://wa.me/971557701219
 
 #SheikhGoTechnologies #FleetManagement #GPSTracking #DriverApp #Lahore #Multan #Sialkot #BookADemo

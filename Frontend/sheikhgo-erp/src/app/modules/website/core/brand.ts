@@ -9,11 +9,11 @@ export type WebsiteContactPhone = {
 /** Public marketing lines — verified with Ali; PK matches WhatsApp Business. */
 export const WEBSITE_CONTACT_PHONES: readonly WebsiteContactPhone[] = [
   { label: 'UAE', display: '+971 55 770 1219', tel: '+971557701219' },
-  { label: 'Pakistan', display: '+92 301 616 9209', tel: '+923016169209' },
+  { label: 'Pakistan', display: '+92 317 736 8305', tel: '+923177368305' },
 ];
 
 /** E.164 digits (no +) for wa.me links — same as Pakistan contact line. */
-export const WEBSITE_WHATSAPP_DIGITS = '923016169209';
+export const WEBSITE_WHATSAPP_DIGITS = '923177368305';
 
 /** Office postal address — verified with Ali (Exchange Tower, Business Bay). */
 export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;

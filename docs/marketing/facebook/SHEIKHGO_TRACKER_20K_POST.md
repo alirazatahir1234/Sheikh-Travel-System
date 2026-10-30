@@ -18,7 +18,7 @@ https://www.facebook.com/people/SheikhGo-Technologies/61593609047248/
 
 ## WhatsApp
 
-- PK primary: https://wa.me/923016169209
+- PK primary: https://wa.me/923177368305
 - UAE/GCC: https://wa.me/971557701219
 
 ## Caption (Roman Urdu — copy/paste FB + IG)
@@ -33,7 +33,7 @@ GPS tracker pricing — clear aur seedha:
 Pakistan pehle (Multan · Sialkot · Lahore), phir GCC.
 
 Aaj order / demo chahiye? Abhi WhatsApp:
-PK → https://wa.me/923016169209
+PK → https://wa.me/923177368305
 UAE/GCC → https://wa.me/971557701219
 
 #SheikhGo #GPSTracker #FleetTracking #Pakistan #BookADemo
@@ -48,7 +48,7 @@ SheikhGo Technologies — GPS & fleet (Pakistan → GCC)
 • Yearly plan: Rs 40,000
 • Company / multi-vehicle package: separate pricing — Book a Demo
 
-WhatsApp PK: https://wa.me/923016169209
+WhatsApp PK: https://wa.me/923177368305
 WhatsApp UAE: https://wa.me/971557701219
 ```
 

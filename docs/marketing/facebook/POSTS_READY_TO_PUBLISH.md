@@ -1,7 +1,7 @@
 # SheikhGo — posts ready (Facebook + Instagram + LinkedIn)
 
 WhatsApp (Ali confirmed):
-- PK primary: https://wa.me/923016169209
+- PK primary: https://wa.me/923177368305
 - UAE/GCC: https://wa.me/971557701219
 
 Pricing (Ali confirmed):
@@ -34,7 +34,7 @@ Aapki fleet live GPS pe — operations ek jagah.
 Single tracker: Rs 20,000 | Yearly: Rs 40,000
 Company package alag — Book a Demo
 
-WhatsApp PK: https://wa.me/923016169209
+WhatsApp PK: https://wa.me/923177368305
 UAE/GCC: https://wa.me/971557701219
 
 #SheikhGo #GPSTracking #Pakistan
@@ -54,7 +54,7 @@ Gaariyan live track — Multan · Sialkot · Lahore.
 ✅ Yearly: Rs 40,000
 ✅ Company: Book a Demo
 
-PK: https://wa.me/923016169209
+PK: https://wa.me/923177368305
 UAE: https://wa.me/971557701219
 
 #SheikhGo #Nexus #VehicleTracking #BookADemo
