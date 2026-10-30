@@ -347,3 +347,102 @@ a.stb-touch {
     display: block;
   }
 }
+
+/* ── Hardening: prevent horizontal bleed on phones / tablets ─────────── */
+@media (max-width: 991px) {
+  .stb-page,
+  .page-header,
+  .page-body,
+  .mat-mdc-card,
+  mat-card,
+  .mat-mdc-tab-body-content,
+  .cdk-overlay-pane {
+    max-width: 100%;
+  }
+
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-width: 0;
+
+    h1, h2, .page-title {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .page-actions,
+    .header-actions,
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      width: 100%;
+    }
+  }
+
+  /* Wide Material tables must scroll inside a host, never the viewport */
+  .mat-mdc-table,
+  table.mat-table {
+    min-width: 0;
+  }
+
+  .mat-mdc-row,
+  .mat-mdc-header-row {
+    min-width: 0;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  pre, code {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Safe area for bottom FABs / sticky composers across the app */
+  .stb-page {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mat-mdc-form-field {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mat-mdc-dialog-container {
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  /* Prefer wrapping action toolbars instead of overflowing */
+  .mat-mdc-card-actions,
+  .mat-card-actions,
+  .toolbar,
+  .list-toolbar,
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-width: 100%;
+  }
+}
+
+/* Reduce motion: keep layout stable without distracting transforms */
+@media (prefers-reduced-motion: reduce) {
+  .stb-page *,
+  .stb-shell * {
+    scroll-behavior: auto;
+  }
+}

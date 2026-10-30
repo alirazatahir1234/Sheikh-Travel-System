@@ -56,8 +56,12 @@ abstract final class FleetPermissions {
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
   static const aiView = 'Ai.View';
   static const aiManage = 'Ai.Manage';
+  static const aiChat = 'Ai.Chat';
   static const aiExecuteWrite = 'Ai.ExecuteWrite';
   static const notificationView = 'Notification.View';
+
+  /// Any role permission that unlocks SheikhGo AI Assistant (Shako) in the app.
+  static const aiAgentAccess = [aiView, aiManage, aiChat];
 
   static const driverDefaults = [
     tripView,
@@ -192,6 +196,7 @@ class FleetSession {
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
   /// Premium SheikhGo AI Assistant module (TenantModules code `AI` / legacy key `ai`).
+  /// Kept for entitlement checks — UI visibility uses [canSeeAiTab] (role permission).
   bool get hasAiAssistantModule {
     final ctx = companyContext;
     if (ctx == null) return false;
@@ -201,14 +206,9 @@ class FleetSession {
     return ctx.enabledModuleKeys.any((k) => k.toLowerCase() == 'ai');
   }
 
+  /// SheikhGo AI Assistant (Shako) — visible when the role has AI permission enabled.
   bool get canSeeAiTab =>
-      hasAiAssistantModule &&
-      (hasPermission(FleetPermissions.aiView) ||
-          hasAnyRole(const [
-            FleetRole.superAdmin,
-            FleetRole.tenantAdmin,
-            FleetRole.fleetManager,
-          ]));
+      hasAnyPermission(FleetPermissions.aiAgentAccess);
 
   bool get canSeeBookingsTab =>
       !isDriverOnly && hasPermission(FleetPermissions.bookingView);

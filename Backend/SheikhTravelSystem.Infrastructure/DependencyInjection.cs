@@ -267,6 +267,8 @@ public static class DependencyInjection
         services.AddScoped<IAiTool, GetVehicleStatusTool>();
         services.AddScoped<IAiTool, AssignDriverTool>();
         services.AddScoped<IAiTool, SendNotificationTool>();
+        services.AddScoped<IAiTool, ConfigureTrackerTool>();
+        services.AddScoped<ITrackerConfigWizardService, TrackerConfigWizardService>();
         // Phase 2 AI Assistant — allowlisted reporting tools
         services.AddScoped<IAiTool, GetFuelCostSummaryTool>();
         services.AddScoped<IAiTool, GetVehicleMaintenanceSummaryTool>();

@@ -119,7 +119,7 @@ void main() {
       expect(session.canSeeTripsTab, isTrue);
     });
 
-    test('fleet manager without AI module hides AI tab', () {
+    test('fleet manager with Ai.View sees AI even without company module', () {
       final session = _session(
         roles: const [FleetRole.fleetManager],
         permissions: const [
@@ -133,29 +133,26 @@ void main() {
       );
       expect(session.canSeeFleetTab, isTrue);
       expect(session.hasAiAssistantModule, isFalse);
-      expect(session.canSeeAiTab, isFalse);
+      expect(session.canSeeAiTab, isTrue);
     });
 
-    test('fleet manager with AI module sees AI tab', () {
+    test('fleet manager without AI permission hides AI tab', () {
       final session = _session(
         roles: const [FleetRole.fleetManager],
         permissions: const [
           FleetPermissions.tripView,
           FleetPermissions.gpsView,
           FleetPermissions.vehicleView,
-          FleetPermissions.aiView,
         ],
         authMode: AuthMode.staff,
         driverId: null,
         companyContext: _aiEntitledContext(),
       );
-      expect(session.canSeeFleetTab, isTrue);
       expect(session.hasAiAssistantModule, isTrue);
-      expect(session.canSeeAiTab, isTrue);
-      expect(session.canSeeTripsTab, isTrue);
+      expect(session.canSeeAiTab, isFalse);
     });
 
-    test('driver manager sees drivers but not AI', () {
+    test('driver manager sees drivers but not AI without permission', () {
       final session = _session(
         roles: const [FleetRole.driverManager],
         permissions: const [
@@ -173,7 +170,7 @@ void main() {
       expect(session.canSeeFleetTab, isTrue);
     });
 
-    test('pure OWNER does not see Co-pilot even with Ai.View', () {
+    test('OWNER with Ai.View sees Shako agent', () {
       final session = _session(
         roles: const [FleetRole.owner],
         permissions: const [
@@ -186,7 +183,20 @@ void main() {
         driverId: null,
       );
       expect(session.canSeeOwnerEarnings, isTrue);
-      expect(session.canSeeAiTab, isFalse);
+      expect(session.canSeeAiTab, isTrue);
+    });
+
+    test('Ai.Chat alone unlocks Shako agent', () {
+      final session = _session(
+        roles: const [FleetRole.dispatcher],
+        permissions: const [
+          FleetPermissions.bookingView,
+          FleetPermissions.aiChat,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      expect(session.canSeeAiTab, isTrue);
     });
   });
 
@@ -320,7 +330,7 @@ void main() {
       expect(routes, contains('/gps/incidents'));
       expect(routes, contains('/gps/mileage'));
       expect(routes, contains('/fleet'));
-      expect(routes, isNot(contains('/ai')));
+      expect(routes, contains('/ai'));
       expect(routes, contains('/earnings'));
       // Bottom tab already exposes Drivers and Fuel — no duplicate tiles in More.
       expect(routes, isNot(contains('/more/drivers')));

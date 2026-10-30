@@ -788,7 +788,7 @@ class AiCopilotSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'AI Copilot',
+                  'SheikhGo AI Assistant',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -1417,71 +1417,119 @@ class KpiStrip extends StatelessWidget {
         SgCard(
           child: Column(
             children: [
-              Row(
-                children: [
-                  for (var i = 0; i < items.length; i++) ...[
-                    if (i > 0)
-                      Container(
-                          height: 36,
-                          width: 1,
-                          color: context.sg.divider),
-                    Expanded(
-                      child: Builder(builder: (context) {
-                        final route = (itemRoutes != null &&
-                                i < itemRoutes!.length)
-                            ? itemRoutes![i]
-                            : null;
-                        final cell = Column(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final narrow = constraints.maxWidth < 360 && items.length >= 4;
+                  Widget cellAt(int i) {
+                    final route = (itemRoutes != null && i < itemRoutes!.length)
+                        ? itemRoutes![i]
+                        : null;
+                    final cell = Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        items[i].$3.withValues(alpha: 0.85),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: items[i].$3.withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
                                   items[i].$2,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 22,
+                                    fontSize: narrow ? 18 : 22,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.3,
                                     color: items[i].$3,
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              items[i].$1,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: context.sg.textSecondary,
                               ),
                             ),
                           ],
-                        );
-                        if (route == null) return cell;
-                        return InkWell(
-                          onTap: () => context.push(route),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: cell,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          items[i].$1,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.sg.textSecondary,
                           ),
-                        );
-                      }),
-                    ),
-                  ],
-                ],
+                        ),
+                      ],
+                    );
+                    final padded = Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 2, vertical: 2),
+                      child: cell,
+                    );
+                    if (route == null) return padded;
+                    return InkWell(
+                      onTap: () => context.push(route),
+                      borderRadius: BorderRadius.circular(8),
+                      child: padded,
+                    );
+                  }
+
+                  if (narrow) {
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            for (var i = 0; i < 2 && i < items.length; i++) ...[
+                              if (i > 0)
+                                Container(
+                                    height: 36,
+                                    width: 1,
+                                    color: context.sg.divider),
+                              Expanded(child: cellAt(i)),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            for (var i = 2; i < items.length; i++) ...[
+                              if (i > 2)
+                                Container(
+                                    height: 36,
+                                    width: 1,
+                                    color: context.sg.divider),
+                              Expanded(child: cellAt(i)),
+                            ],
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i > 0)
+                          Container(
+                              height: 36,
+                              width: 1,
+                              color: context.sg.divider),
+                        Expanded(child: cellAt(i)),
+                      ],
+                    ],
+                  );
+                },
               ),
               if (total > 0) ...[
                 const SizedBox(height: 10),

@@ -134,7 +134,7 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     { text: "Show today's trips", icon: 'bar_chart', tone: 'success' },
     { text: 'Check vehicle health', icon: 'monitor_heart', tone: 'teal' },
     { text: 'Pending bookings', icon: 'calendar_month', tone: 'purple' },
-    { text: 'Fuel consumption report', icon: 'local_gas_station', tone: 'info' }
+    { text: 'Register tracker (IMEI)', icon: 'sensors', tone: 'info' }
   ];
 
   private readonly defaultSuggestions: string[] = [
@@ -142,7 +142,7 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     "Show today's trips",
     'Check vehicle health',
     'Pending bookings',
-    'Fuel consumption report',
+    'Register tracker (IMEI)',
     'How healthy is my fleet today?',
     'Which vehicles have maintenance due?',
     'Who is the best performing driver today?'
@@ -456,9 +456,14 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (res?.sessionId) {
       this.sessionId = res.sessionId;
     }
+    this.pendingAction = res?.pendingAction ?? null;
     const followUps = extractFollowUps(res?.data);
     if (followUps.length) {
       this.suggestions = followUps;
+    } else if ((res?.mode ?? '').startsWith('tracker_wizard')) {
+      this.suggestions = res?.mode === 'tracker_wizard_ready'
+        ? ['CONFIRM', 'cancel']
+        : ['skip', 'done', 'cancel'];
     }
     this.messages.push({
       role: 'assistant',
