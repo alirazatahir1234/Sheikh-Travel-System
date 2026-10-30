@@ -5,7 +5,7 @@
 | Market | Display | wa.me |
 |--------|---------|-------|
 | **Primary (PK Facebook)** | +92 301 616 9209 | https://wa.me/923016169209 |
-| Secondary (UAE/GCC) | +971 55 770 0119 | https://wa.me/971557700119 |
+| Secondary (UAE/GCC) | +971 55 770 1219 | https://wa.me/971557701219 |
 
 ## Pricing (Ali confirmed)
 
@@ -23,7 +23,7 @@ GPS tracker pricing — clear aur seedha:
 ✅ Company / fleet package ALAG — Book a Demo
 
 WhatsApp PK: https://wa.me/923016169209
-UAE/GCC: https://wa.me/971557700119
+UAE/GCC: https://wa.me/971557701219
 
 #SheikhGo #GPSTracking #Pakistan #BookADemo
 ```
@@ -42,7 +42,7 @@ UAE/GCC: https://wa.me/971557700119
 2. Go to **Meta Business Suite** → **Inbox** / **Page settings**, or on the Page: **Edit Page info** / **Action buttons**.
 3. **Add button** → choose **WhatsApp** (or **Send message** → WhatsApp).
 4. Link / phone: **+923016169209** (primary for PK audience).
-5. Save. Optionally add a second contact note in About with UAE: **+971557700119**.
+5. Save. Optionally add a second contact note in About with UAE: **+971557701219**.
 6. Confirm the button opens: https://wa.me/923016169209
 
 ### If button option is missing
@@ -54,4 +54,4 @@ UAE/GCC: https://wa.me/971557700119
 ## Instagram — QUEUED (do not do now)
 
 After Facebook is live: cross-post same product photos, demo reel, and WhatsApp CTAs
-(`wa.me/923016169209` + `wa.me/971557700119`) to SheikhGo Instagram.
+(`wa.me/923016169209` + `wa.me/971557701219`) to SheikhGo Instagram.

@@ -10,7 +10,7 @@
 
 WhatsApp:
 - PK: https://wa.me/923016169209
-- UAE/GCC: https://wa.me/971557700119
+- UAE/GCC: https://wa.me/971557701219
 
 ---
 
@@ -26,7 +26,7 @@ Aaj order / demo chahiye — abhi WhatsApp karo.
 Gaari live track · Multan · Sialkot · Lahore (phir GCC)
 
 PK WhatsApp → https://wa.me/923016169209
-UAE/GCC → https://wa.me/971557700119
+UAE/GCC → https://wa.me/971557701219
 
 #SheikhGo #GPSTracker #FleetManagement #Pakistan #BookADemo
 ```
@@ -42,7 +42,7 @@ Fleet owners & travel agencies (Pakistan → GCC):
 
 Message today:
 WhatsApp PK: https://wa.me/923016169209
-WhatsApp UAE: https://wa.me/971557700119
+WhatsApp UAE: https://wa.me/971557701219
 
 SheikhGo Technologies — live GPS + fleet operations.
 ```

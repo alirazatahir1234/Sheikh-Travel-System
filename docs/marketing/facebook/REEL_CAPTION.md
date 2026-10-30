@@ -31,7 +31,7 @@ Pricing:
 • Company / fleet package: Book a Demo
 
 WhatsApp Pakistan: https://wa.me/923016169209
-WhatsApp UAE/GCC: https://wa.me/971557700119
+WhatsApp UAE/GCC: https://wa.me/971557701219
 
 #SheikhGoTechnologies #GPSTracker #FleetTracking #Lahore #Multan #Sialkot #Burewala #Basrur #BookADemo #Pakistan
 ```
@@ -48,7 +48,7 @@ Live dashboard, trip management, and navigation — built for fleets in Multan, 
 • Company package: Book a Demo
 
 WhatsApp PK: https://wa.me/923016169209
-WhatsApp UAE: https://wa.me/971557700119
+WhatsApp UAE: https://wa.me/971557701219
 
 #SheikhGoTechnologies #FleetManagement #GPSTracking #DriverApp #Lahore #Multan #Sialkot #BookADemo
 ```

@@ -2,7 +2,7 @@
 
 WhatsApp (Ali confirmed):
 - PK primary: https://wa.me/923016169209
-- UAE/GCC: https://wa.me/971557700119
+- UAE/GCC: https://wa.me/971557701219
 
 Pricing (Ali confirmed):
 - Single tracker: **Rs 20,000**
@@ -35,7 +35,7 @@ Single tracker: Rs 20,000 | Yearly: Rs 40,000
 Company package alag — Book a Demo
 
 WhatsApp PK: https://wa.me/923016169209
-UAE/GCC: https://wa.me/971557700119
+UAE/GCC: https://wa.me/971557701219
 
 #SheikhGo #GPSTracking #Pakistan
 ```
@@ -55,7 +55,7 @@ Gaariyan live track — Multan · Sialkot · Lahore.
 ✅ Company: Book a Demo
 
 PK: https://wa.me/923016169209
-UAE: https://wa.me/971557700119
+UAE: https://wa.me/971557701219
 
 #SheikhGo #Nexus #VehicleTracking #BookADemo
 ```
