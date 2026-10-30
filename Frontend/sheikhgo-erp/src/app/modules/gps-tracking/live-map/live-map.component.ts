@@ -2217,18 +2217,18 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // backgroundColor matches .map-container — avoids WebGL black flash before tiles paint.
+    // Custom glass toolbar owns zoom; disable Maps default zoom to prevent bottom-right collisions.
     const mapOptions: google.maps.MapOptions = {
       center: { lat: 30.3753, lng: 69.3451 },
       zoom: 6,
       maxZoom: 20,
+      backgroundColor: '#e5e7eb',
       disableDefaultUI: false,
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: google.maps.ControlPosition.RIGHT_BOTTOM
-      },
+      zoomControl: false,
       // Advanced Markers require a Map ID; DEMO_MAP_ID works for local/dev without Cloud Map Management.
       mapId: (environment as { googleMapsMapId?: string }).googleMapsMapId?.trim() || 'DEMO_MAP_ID'
     };

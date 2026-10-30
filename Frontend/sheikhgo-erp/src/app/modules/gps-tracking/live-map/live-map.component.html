@@ -366,13 +366,13 @@
             (click)="toggleFollowSelected()">
             <mat-icon>{{ followSelected ? 'location_disabled' : 'directions_run' }}</mat-icon>
           </button>
-          <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map"
+          <button type="button" class="glass-btn stb-touch map-tool--secondary" matTooltip="Refresh" aria-label="Refresh map"
             (click)="refreshNow()" [disabled]="loading || refreshing">
             <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
           </button>
           <button
             type="button"
-            class="glass-btn stb-touch"
+            class="glass-btn stb-touch map-tool--secondary"
             [class.glass-btn--accent]="nearbyExpanded"
             matTooltip="Nearby places"
             aria-label="Nearby places"
@@ -389,13 +389,13 @@
             <mat-icon>fence</mat-icon>
           </button>
           <a
-            class="glass-btn stb-touch"
+            class="glass-btn stb-touch map-tool--secondary"
             routerLink="/gps-tracking/geofences"
             matTooltip="Manage geofences — draw and edit zones"
             aria-label="Manage geofences">
             <mat-icon>edit_location_alt</mat-icon>
           </a>
-          <div class="map-theme-control">
+          <div class="map-theme-control map-tool--secondary">
             <button
               type="button"
               class="glass-btn stb-touch"
@@ -421,7 +421,7 @@
               </button>
             </div>
           </div>
-          <button type="button" class="glass-btn stb-touch" matTooltip="Reset zoom" aria-label="Reset zoom" (click)="resetZoom()">
+          <button type="button" class="glass-btn stb-touch map-tool--secondary" matTooltip="Reset zoom" aria-label="Reset zoom" (click)="resetZoom()">
             <mat-icon>zoom_out_map</mat-icon>
           </button>
           <button type="button" class="glass-btn glass-btn--accent stb-touch" matTooltip="Fullscreen map" aria-label="Toggle fullscreen map" (click)="toggleFullscreen()">

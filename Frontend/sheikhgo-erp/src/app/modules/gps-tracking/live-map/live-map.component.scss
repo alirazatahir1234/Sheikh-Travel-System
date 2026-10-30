@@ -755,6 +755,7 @@
   min-height: 280px;
   z-index: 1;
   position: relative;
+  /* Light placeholder until Google tiles paint (avoids black WebGL flash). */
   background: #e5e7eb;
 }
 
@@ -763,7 +764,14 @@
   position: absolute;
   inset: 0;
   z-index: 3;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.12) 0%, transparent 18%, transparent 82%, rgba(15, 23, 42, 0.2) 100%);
+  /* Soft edges only — keep center fully transparent so tiles never look blacked-out. */
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.08) 0%,
+    transparent 14%,
+    transparent 88%,
+    rgba(15, 23, 42, 0.12) 100%
+  );
   border-radius: inherit;
 }
 
@@ -812,6 +820,11 @@
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  /* Leave room for bottom legend so zoom/pan never covers status labels. */
+  max-height: calc(100% - 72px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 
   .toolbar-label {
     font-size: 0.6rem;
@@ -927,7 +940,10 @@ a.glass-btn {
   position: absolute;
   bottom: 14px;
   left: 14px;
-  z-index: 500;
+  /* Clear the right glass toolbar column (+ padding). */
+  right: 72px;
+  max-width: calc(100% - 86px);
+  z-index: 490;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -937,6 +953,7 @@ a.glass-btn {
   border-radius: var(--stb-radius-sm);
   font-size: 0.7rem;
   color: #e2e8f0;
+  pointer-events: none;
 
   .leg {
     display: inline-block;
@@ -1535,22 +1552,29 @@ a.glass-btn {
     height: clamp(240px, 40vh, 360px);
   }
 
+  /* Flutter-like: compact vertical tools on the right; legend clear of them. */
   .map-glass-toolbar {
-    flex-direction: row;
-    top: auto;
-    bottom: 12px;
-    right: 10px;
+    flex-direction: column;
+    top: 52px;
+    bottom: auto;
+    right: 8px;
     left: auto;
     flex-wrap: nowrap;
     padding: 6px;
-    gap: 4px;
-    max-width: calc(100% - 24px);
+    gap: 2px;
+    max-width: none;
+    max-height: calc(100% - 108px);
+  }
+
+  .map-tool--secondary {
+    display: none !important;
   }
 
   .map-legend {
-    bottom: 12px;
-    left: 10px;
-    max-width: calc(100% - 140px);
+    bottom: 10px;
+    left: 8px;
+    right: 60px;
+    max-width: calc(100% - 68px);
     font-size: 0.65rem;
     gap: 6px;
     padding: 6px 10px;
@@ -1597,9 +1621,17 @@ a.glass-btn {
 
   .glass-btn { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
 
-  .map-glass-toolbar { right: 6px; bottom: 8px; }
+  .map-glass-toolbar {
+    right: 6px;
+    top: 48px;
+    max-height: calc(100% - 96px);
+  }
 
-  .map-legend { left: 6px; max-width: calc(100% - 120px); }
+  .map-legend {
+    left: 6px;
+    right: 54px;
+    max-width: calc(100% - 60px);
+  }
 }
 
 /* Desktop — full-height vehicle list (virtual scroll needs bounded parent) */
