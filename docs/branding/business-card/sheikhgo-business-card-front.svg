@@ -1,11 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="94.9000mm" height="56.8000mm"
-     viewBox="0 0 1121 671"
-     xml:space="preserve">
-  <!-- Quality: embeds source PNG 1:1. No redraw. Print size matches Ali PDF mediabox. -->
-  <title>SheikhGo Business Card — sheikhgo-business-card-front</title>
-  <image x="0" y="0" width="1121" height="671"
-         xlink:href="sheikhgo-business-card-front.png" href="sheikhgo-business-card-front.png"
-         image-rendering="optimizeQuality" />
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3.73667in" height="2.23667in" viewBox="0 0 1121 671">
+  <title>SheikhGo Technologies — Business Card Front (300 DPI Print Master)</title>
+  <image x="0" y="0" width="1121" height="671" preserveAspectRatio="none" xlink:href="sheikhgo-business-card-front.png"/>
 </svg>
