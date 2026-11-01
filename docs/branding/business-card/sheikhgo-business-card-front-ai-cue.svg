@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3.73667in" height="2.23667in" viewBox="0 0 1121 671">
-  <title>SheikhGo Technologies — Business Card Front (with AI-Powered Micro-Cue)</title>
-  <image x="0" y="0" width="1121" height="671" preserveAspectRatio="none" xlink:href="sheikhgo-business-card-front.png"/>
-  <g transform="translate(278, 205)">
-    <rect x="0" y="0" width="102" height="20" rx="10" fill="#071D2E" stroke="#14B8A6" stroke-width="1.2" opacity="0.92"/>
-    <circle cx="12" cy="10" r="3" fill="#22D3EE"/>
-    <text x="21" y="13.5" font-family="Montserrat, Inter, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#22D3EE" letter-spacing="0.8">AI-POWERED</text>
-  </g>
-</svg>

@@ -1,40 +1,34 @@
-# SheikhGo Technologies — Premium Business Card Production Assets
+# SheikhGo Technologies — Premium Business Card Production & Vector Assets
 
 ## Overview
 
-Print-ready and digital presentation assets for **SheikhGo Technologies** (`Ali Raza Tahir — CEO & Founder`), matching the approved **SheikhGo Technologies — Premium Business Card Design** mockup (`image-5aacf04d-a083-469a-b6ef-9df72d79a729.jpg` / `SheikhGo Technologies Business Cards.png`) 100% same-to-same.
+Print-ready and multi-layer vector production assets for **SheikhGo Technologies** (`Ali Raza Tahir — CEO & Founder`), matching the approved **SheikhGo Technologies — Premium Business Card Design** (`3.5 × 2.0 in` standard landscape card with `3mm` print bleed).
 
 ## Specifications
 
 - **Trim Size**: `3.5 in × 2.0 in` (`88.9 mm × 50.8 mm`) standard landscape business card
-- **Bleed Size**: `3.736 in × 2.236 in` (`94.9 mm × 56.8 mm` = `1121 × 671 px` at **300 DPI** with 3mm bleed)
+- **Bleed Size**: `3.7367 in × 2.2367 in` (`94.9 mm × 56.8 mm` = `1121 × 671 px` at **300 DPI** with `3 mm` bleed)
 - **Color Palette**:
   - Primary Deep Navy: `#071D2E`
-  - Secondary Dark Teal: `#003B3B`
-  - Primary Accent Teal: `#14B8A6`
+  - Secondary Dark Teal: `#0B5560`
+  - Primary Accent Teal: `#14B8A6` / `#0D9488`
   - Bright Cyan Highlight: `#22D3EE`
-  - Back Light Background: `#F4F8FA` / `#FFFFFF`
+  - Service Checkmark Green: `#10B981` / `#22C55E`
+  - Back Light Surface: `#F4F8FA` / `#FFFFFF`
 
-## Primary Print & Vector Deliverables
-
-| File | Description |
-|------|-------------|
-| `SheikhGo_Business_Card_Print.pdf` | **Canonical 2-page Print-Ready PDF** (Front + Back, 3.5 × 2 in with 3mm bleed / TrimBox + BleedBox, 300 DPI lossless artwork, embedded searchable text layer, and clickable QR / WhatsApp URI links) |
-| `sheikhgo-business-card-front.png` | Front print master (`1121 × 671 px`, 300 DPI lossless PNG) — official SheikhGo logo (no white box), `SheikhGo® TECHNOLOGIES`, `TRACK • MANAGE • MOVE`, full-height night highway/bus/car/skyline scene with glowing teal wave divider, `Ali Raza Tahir` / `CEO & Founder`, glowing WhatsApp pill (`+92 317 7368305`), bottom service bar (`Fleet & Telematics` \| `Software Consultancy`), and dual scannable QR panels (Website with SheikhGo logo + globe icon `WEBSITE` / `sheikhgo.com`; WhatsApp with green WhatsApp icon + `WHATSAPP` / `Start a conversation`) |
-| `sheikhgo-business-card-back.png` | Back print master (`1121 × 671 px`, 300 DPI lossless PNG) — split layout (`#F4F8FA` left ~68%, angled glowing teal/cyan ribbon, `#071D2E` right ~32% with digital world map, glowing teal GPS route line + 3 white location pins, and official SheikhGo logo at top-right), `SheikhGo® SOLUTIONS` + horizontal line, `Smart movement. Smarter software.`, two rounded service cards with dark navy headers (Truck icon `CONNECTED OPERATIONS / FLEET & TELEMATICS` and Laptop icon `DIGITAL PRODUCTS / SOFTWARE CONSULTANCY`) + 5 green-checkmark items each, and full-width bottom teal gradient banner (`LET'S BUILD YOUR NEXT SOLUTION.` \| `SheikhGo Technologies`) |
-| `sheikhgo-business-card-front-vector.svg` | Self-contained hybrid vector SVG (Front) — full high-res artwork + crisp scannable QR overlays + vector text layer |
-| `sheikhgo-business-card-back-vector.svg` | Self-contained hybrid vector SVG (Back) — full high-res artwork + vector text layer |
-| `sheikhgo-business-card-front.svg` / `sheikhgo-business-card-back.svg` | 1:1 print SVG wrappers referencing the 300 DPI PNG masters |
-| `sheikhgo-business-card-presentation-mockup.png` | Full 2-card presentation mockup (`1536 × 1024 px`) showing front on top and back below on dark textured background with scannable QR codes |
-
-## Native Mockup Crops & Companion Assets
+## Vector & Print Master Deliverables
 
 | File | Description |
 |------|-------------|
-| `sheikhgo-business-card-front-mockup-variant.png` | Lossless direct crop of the front card from the `1536 × 1024` presentation master with scannable QR codes |
-| `sheikhgo-business-card-back-mockup-variant.png` | Lossless direct crop of the back card from the `1536 × 1024` presentation master |
-| `qr-website-with-logo.png` | Scannable QR code (`https://sheikhgo.com`) with official SheikhGo center logo |
-| `qr-whatsapp-with-icon.png` | Scannable QR code (`https://wa.me/923177368305`) with green WhatsApp center icon |
-| `qr-website-sheikhgo.com.png` / `qr-whatsapp-923177368305.png` | Plain high-contrast scannable QR codes |
-| `logo-sheikhgo-source-v8.png` / `logo-sheikh-source.svg` | Official SheikhGo logo sources |
-| `SheikhGo_Business_Card_Print_first.pdf` | Archived flat 2-page PDF for comparison only — **do not print** |
+| `SheikhGo_Business_Card_Print.pdf` | **2-Page Print & Vector Master PDF** (Front + Back, `3.5 × 2.0 in` `TrimBox` + `3 mm` `BleedBox`, 783 front vector paths + 979 back vector paths, 300 DPI artwork layer, searchable text layer, and clickable Website / WhatsApp URI links) |
+| `SheikhGo_Business_Card_Vector.pdf` | **2-Page Editable Vector Master PDF** for Adobe Illustrator, CorelDRAW, Affinity Designer, Inkscape, and print house RIP workflows |
+| `sheikhgo-business-card-front-vector.svg` | **Multi-Layer Vector SVG (Front)** — organized vector `<path>` layers (`#vector-teal-outlines`, `#vector-cyan-outlines`, `#vector-qr-modules-and-labels`, `#vector-green-icons`, `#vector-white-typography-and-icons`), searchable `<text>` layer, and embedded high-resolution night highway/bus/car/skyline canvas |
+| `sheikhgo-business-card-back-vector.svg` | **Multi-Layer Vector SVG (Back)** — organized vector `<path>` layers (`#vector-navy-headers-and-text`, `#vector-slate-subtitle`, `#vector-teal-elements`, `#vector-cyan-subheaders`, `#vector-green-checkmarks`, `#vector-white-icons-and-text`), searchable `<text>` layer, and split layout canvas |
+| `sheikhgo-business-card-front.svg` | Standalone Front Vector SVG master (identical multi-layer vector structure) |
+| `sheikhgo-business-card-back.svg` | Standalone Back Vector SVG master (identical multi-layer vector structure) |
+| `sheikhgo-logo-vector.svg` | **100% Pure Vector SheikhGo Technologies Logo SVG** (`#logo-globe-and-accents`, `#logo-teal-mark`, `#logo-white-road-and-car`) |
+| `sheikhgo-business-card-front.png` | **Front 300 DPI Print Master PNG** (`1121 × 671 px`, lossless RGB) |
+| `sheikhgo-business-card-back.png` | **Back 300 DPI Print Master PNG** (`1121 × 671 px`, lossless RGB) |
+| `sheikhgo-business-card-presentation-mockup.png` | **2-Card Presentation Mockup PNG** (`1536 × 1024 px`) showing front on top and back below with scannable QR codes |
+| `qr-website-with-logo.png` | Scannable Website QR code (`https://sheikhgo.com`) with official SheikhGo center logo |
+| `qr-whatsapp-with-icon.png` | Scannable WhatsApp QR code (`https://wa.me/923177368305`) with green WhatsApp center icon |
