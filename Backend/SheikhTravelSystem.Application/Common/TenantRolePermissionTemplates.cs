@@ -50,7 +50,6 @@ public static class TenantRolePermissionTemplates
         "Trip.View", "Route.View", "GPS.View", "Report.View",
         "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
-        "Gps.DeviceManage",
         "Maintenance.View", "Maintenance.Report.View",
         "Settlement.View", "Payment.View", "Invoice.View",
         "Ai.View", "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
@@ -64,7 +63,6 @@ public static class TenantRolePermissionTemplates
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
         "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "Driver.ManagePerformanceWeights", "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
-        "Gps.DeviceManage",
         "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve", "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View", "Report.View",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
@@ -100,14 +98,14 @@ public static class TenantRolePermissionTemplates
     ];
 
     /// <summary>
-    /// GPS monitoring operator — live map, alerts, telemetry, playback, reports (no bookings/finance).
+    /// GPS monitoring operator — live map, trackers/geofences, alerts, telemetry, playback (no bookings/finance).
     /// Device Commands are SUPER_ADMIN-only (not GPS_OPERATOR).
     /// </summary>
     public static readonly string[] GpsOperator =
     [
         "Platform.Dashboard.View",
         "Vehicle.View", "Driver.View",
-        "GPS.View", "Report.View", "Fuel.View",
+        "GPS.View", "Gps.DeviceManage", "Report.View", "Fuel.View",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
         "Trip.View",
         "Notification.View"

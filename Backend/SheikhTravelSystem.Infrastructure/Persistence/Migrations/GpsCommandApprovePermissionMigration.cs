@@ -27,15 +27,12 @@ public static class GpsCommandApprovePermissionMigration
             new { Code = GpsPermissions.CommandApprove },
             cancellationToken: cancellationToken));
 
-        string[] roles = ["TENANT_ADMIN", "OWNER", "FLEET_MANAGER"];
-        foreach (var role in roles)
-        {
-            await TenantRolePermissionSeeder.AssignRolePermissionsForAllTenantsAsync(
-                connection,
-                role,
-                [GpsPermissions.CommandApprove],
-                cancellationToken);
-        }
+        // Device commands (including CommandApprove) are restricted to SUPER_ADMIN only.
+        await TenantRolePermissionSeeder.AssignRolePermissionsForAllTenantsAsync(
+            connection,
+            "SUPER_ADMIN",
+            [GpsPermissions.CommandApprove],
+            cancellationToken);
 
         logger.LogInformation("GpsCommandApprovePermissionMigration applied successfully.");
     }

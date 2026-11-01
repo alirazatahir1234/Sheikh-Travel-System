@@ -2993,10 +2993,14 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       el.title = place.name;
       const icon = this.nearbyCategoryIcon(place.category);
       el.setAttribute('aria-label', place.name);
-      el.innerHTML =
-        `<span class="nearby-place-marker__chip" aria-hidden="true">` +
-        `<span class="material-icons nearby-place-marker__icon">${icon}</span>` +
-        `</span>`;
+      const chip = document.createElement('span');
+      chip.className = 'nearby-place-marker__chip';
+      chip.setAttribute('aria-hidden', 'true');
+      const iconEl = document.createElement('span');
+      iconEl.className = 'material-icons nearby-place-marker__icon';
+      iconEl.textContent = icon;
+      chip.appendChild(iconEl);
+      el.appendChild(chip);
       const position = { lat: place.latitude, lng: place.longitude };
       const marker = new AdvancedMarkerElement({
         map: this.map,

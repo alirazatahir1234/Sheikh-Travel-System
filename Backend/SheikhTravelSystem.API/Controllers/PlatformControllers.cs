@@ -38,6 +38,7 @@ public class BranchesController : BaseApiController
         => Ok(await Mediator.Send(new DeleteBranchCommand(id)));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.DepartmentsManage)]
 [ApiController]
 [Route("api/platform/departments")]
@@ -60,6 +61,7 @@ public class DepartmentsController : BaseApiController
         => Ok(await Mediator.Send(new DeleteDepartmentCommand(id)));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.RolesView)]
 [ApiController]
 [Route("api/platform/roles")]
@@ -84,6 +86,7 @@ public class RolesController : BaseApiController
         => Ok(await Mediator.Send(command with { RoleId = id }));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.RolesView)]
 [ApiController]
 [Route("api/platform/permissions")]
@@ -103,6 +106,7 @@ public class PermissionsController : BaseApiController
         => Ok(await Mediator.Send(new GetEffectivePermissionsQuery()));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/modules")]
@@ -140,7 +144,7 @@ public class PlatformMenusController : BaseApiController
         => Ok(await Mediator.Send(new GetMenuCatalogQuery()));
 
     [HttpGet("catalog")]
-    [Authorize]
+    [RequirePermission(PlatformPermissions.MenusManage)]
     public async Task<IActionResult> GetCatalogAlias()
         => Ok(await Mediator.Send(new GetMenuCatalogQuery()));
 
@@ -180,7 +184,7 @@ public class PlatformWorkspacesController : BaseApiController
         => Ok(await Mediator.Send(new GetWorkspaceCatalogQuery()));
 
     [HttpGet("catalog")]
-    [Authorize]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
     public async Task<IActionResult> GetCatalogAlias()
         => Ok(await Mediator.Send(new GetWorkspaceCatalogQuery()));
 
@@ -333,7 +337,7 @@ public class PlatformDashboardsController : BaseApiController
         => Ok(await Mediator.Send(new GetDashboardCatalogQuery(activeOnly)));
 
     [HttpGet("catalog")]
-    [Authorize]
+    [RequirePermission(PlatformPermissions.DashboardsView)]
     public async Task<IActionResult> GetCatalogAlias([FromQuery] bool activeOnly = false)
         => Ok(await Mediator.Send(new GetDashboardCatalogQuery(activeOnly)));
 
@@ -358,6 +362,7 @@ public class PlatformDashboardsController : BaseApiController
         => Ok(await Mediator.Send(new UpdateDashboardLayoutCommand(key, payload)));
 }
 
+[Authorize]
 [ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantOrganizationController : BaseApiController
@@ -416,11 +421,13 @@ public class TenantOrganizationController : BaseApiController
 public record UpdateDepartmentWithBranchRequest(DepartmentUpsertWithBranchPayload Payload, bool IsActive);
 public record MoveDepartmentRequest(int? NewBranchId);
 
+[Authorize]
 [RequirePermission(PlatformPermissions.RolesView)]
 [ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantAccessController : BaseApiController
 {
+    [RequirePermission(PlatformPermissions.RolesView)]
     [HttpGet("roles")]
     public async Task<IActionResult> GetRoles(int tenantId)
         => Ok(await Mediator.Send(new GetRolesForTenantQuery(tenantId)));
@@ -447,6 +454,7 @@ public class TenantAccessController : BaseApiController
     public async Task<IActionResult> UpdateRolePermissions(int tenantId, int roleId, [FromBody] UpdateRolePermissionsRequest request)
         => Ok(await Mediator.Send(new UpdateRolePermissionsForTenantCommand(tenantId, roleId, request.PermissionCodes)));
 
+    [RequirePermission(PlatformPermissions.RolesView)]
     [HttpGet("security")]
     public async Task<IActionResult> GetSecuritySettings(int tenantId)
         => Ok(await Mediator.Send(new GetTenantSecuritySettingsQuery(tenantId)));
@@ -462,6 +470,7 @@ public class TenantAccessController : BaseApiController
         => Ok(await Mediator.Send(new ApplyRoleTemplateCommand(tenantId, request.RoleCode)));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.RolesView)]
 [ApiController]
 [Route("api/platform/role-templates")]
@@ -482,15 +491,18 @@ public record UpdateRoleForTenantRequest(
 public record UpdateRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
 public record ApplyRoleTemplateRequest(string RoleCode);
 
+[Authorize]
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantModuleManagementController : BaseApiController
 {
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpGet("module-overview")]
     public async Task<IActionResult> GetModuleOverview(int tenantId)
         => Ok(await Mediator.Send(new GetTenantModuleOverviewQuery(tenantId)));
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpPut("modules")]
     public async Task<IActionResult> SetModules(int tenantId, [FromBody] SetTenantModulesRequest request)
         => Ok(await Mediator.Send(new SetTenantModulesCommand(tenantId, request.ModuleCodes)));
@@ -498,6 +510,7 @@ public class TenantModuleManagementController : BaseApiController
 
 public record SetTenantModulesRequest(IReadOnlyList<string> ModuleCodes);
 
+[Authorize]
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/subscriptions")]
@@ -531,23 +544,28 @@ public class LicenseController : BaseApiController
         => Ok(await Mediator.Send(new GetLicenseSummaryQuery()));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantSubscriptionController : BaseApiController
 {
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpGet("subscription")]
     public async Task<IActionResult> GetSubscription(int tenantId)
         => Ok(await Mediator.Send(new GetSubscriptionOverviewQuery(tenantId)));
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpGet("license")]
     public async Task<IActionResult> GetLicense(int tenantId)
         => Ok(await Mediator.Send(new GetCompanyLicenseQuery(tenantId)));
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpGet("license/summary")]
     public async Task<IActionResult> GetLicenseSummary(int tenantId)
         => Ok(await Mediator.Send(new GetLicenseSummaryQuery(tenantId)));
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpPost("subscription/action")]
     public async Task<IActionResult> UpdateSubscription(int tenantId, [FromBody] UpdateSubscriptionRequest request)
     {
@@ -558,12 +576,14 @@ public class TenantSubscriptionController : BaseApiController
             tenantId, action, request.PlanName, request.MonthlyAmount, request.AutoRenew, request.BillingCycle)));
     }
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpPost("subscription/invoices/{invoiceId:int}/mark-paid")]
     public async Task<IActionResult> MarkSubscriptionInvoicePaid(
         int tenantId, int invoiceId, [FromBody] MarkSubscriptionInvoicePaidRequest? request)
         => Ok(await Mediator.Send(new MarkTenantSubscriptionInvoicePaidCommand(
             tenantId, invoiceId, request?.PaymentMethod, request?.Reference)));
 
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     [HttpPost("subscription/invoices/{invoiceId:int}/email")]
     public async Task<IActionResult> EmailSubscriptionInvoice(int tenantId, int invoiceId)
         => Ok(await Mediator.Send(new SendTenantSubscriptionInvoiceEmailCommand(tenantId, invoiceId)));
@@ -571,6 +591,7 @@ public class TenantSubscriptionController : BaseApiController
 
 public record MarkSubscriptionInvoicePaidRequest(string? PaymentMethod, string? Reference);
 
+[Authorize]
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/subscription-billing")]
@@ -598,6 +619,7 @@ public class DataScopeController : BaseApiController
         => Ok(await Mediator.Send(new GetMyDataScopeQuery()));
 }
 
+[Authorize]
 [RequirePermission(PlatformPermissions.GpsControlView)]
 [ApiController]
 [Route("api/platform/gps-control")]

@@ -28,8 +28,8 @@ export class LoginComponent implements OnInit {
     private toast: UiToastService
   ) {
     this.form = this.fb.group({
-      email: ['admin@sheikhtravel.com', [Validators.required, Validators.email]],
-      password: ['Pass@123', Validators.required]
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', Validators.required]
     });
 
     if (this.auth.isLoggedIn()) {

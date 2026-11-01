@@ -307,8 +307,8 @@ const driverItems: NavItem[] = [
 
 const tenantGroupIds: Record<TenantType, string[]> = {
   [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'rental', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'rental', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
-  [TenantType.CorporateCustomer]: ['dashboard', 'travel-fleet-operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'rental', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'whatsapp', 'administration'],
+  [TenantType.CorporateCustomer]: ['dashboard', 'travel-fleet-operations', 'customers', 'finance', 'analytics'],
   [TenantType.Driver]: []
 };
 
@@ -320,17 +320,7 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'corporate-accounts',
     'passengers',
     'invoices',
-    'reports',
-    'tenant-settings',
-    'website-dashboard',
-    'website-home',
-    'website-features',
-    'website-pages',
-    'website-contact-requests',
-    'website-demo-requests',
-    'website-media',
-    'website-legal',
-    'website-settings'
+    'reports'
   ]),
   [TenantType.FleetOperator]: new Set([
     'dashboard',
@@ -355,7 +345,6 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-documents',
     'fleet-expenses',
     'fleet-reports',
-    'tracker-config',
     'geofencing',
     'notifications',
     'whatsapp-inbox',
@@ -365,24 +354,151 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'whatsapp-webhook-logs',
     'ai-center',
     'mcp-console',
-    'fleet-settings',
     'fleet-analytics',
     'driver-performance',
     'trip-smart-assignment',
     'ev-fleet',
-    'reports',
-    'tenant-settings',
-    'website-dashboard',
-    'website-home',
-    'website-features',
-    'website-pages',
-    'website-contact-requests',
-    'website-demo-requests',
-    'website-media',
-    'website-legal',
-    'website-settings'
+    'reports'
   ])
 };
+
+/**
+ * Strict role-domain route allowlist for ERP navigation and route guards.
+ * Ensures every role only sees and accesses routes within its operational domain.
+ */
+export function isRouteAllowedForPrimaryRole(urlOrRoute: string, primaryRoleCode: string): boolean {
+  const path = (urlOrRoute || '').split('?')[0].trim();
+  if (!path || path === '/') return true;
+
+  const role = (primaryRoleCode || '').trim().toUpperCase().replace(/[\s-]/g, '_');
+  if (!role || role === 'SUPER_ADMIN' || role === 'SUPERADMIN') {
+    return true;
+  }
+
+  // SuperAdmin-only routes (never accessible to tenant roles, including TENANT_ADMIN / OWNER)
+  if (
+    path.startsWith('/gps-tracking/commands') ||
+    path.startsWith('/platform/tenants') ||
+    path.startsWith('/platform/companies') ||
+    path.startsWith('/platform/module-management') ||
+    path.startsWith('/platform/feature-management') ||
+    path.startsWith('/platform/subscription') ||
+    path.startsWith('/platform/gps-control-center') ||
+    path.startsWith('/platform/migrations') ||
+    path.startsWith('/platform/maintenance')
+  ) {
+    return false;
+  }
+
+  switch (role) {
+    case 'GPS_OPERATOR':
+      return (
+        path === '/dashboard' ||
+        path === '/tracking' ||
+        path.startsWith('/gps-tracking') ||
+        path.startsWith('/notifications') ||
+        path.startsWith('/profile')
+      );
+
+    case 'FLEET_MANAGER':
+      // Fleet Manager sees vehicles, maintenance, fuel, fleet trips/assignments, live map, reports —
+      // NEVER tracker hardware provisioning (/gps-tracking/devices, /gps-tracking/trip-mode),
+      // platform admin, bookings, or finance settlements.
+      if (
+        path.startsWith('/gps-tracking/devices') ||
+        path.startsWith('/gps-tracking/trip-mode') ||
+        path.startsWith('/platform') ||
+        path.startsWith('/users') ||
+        path.startsWith('/settings') ||
+        path.startsWith('/website') ||
+        path.startsWith('/bookings') ||
+        path.startsWith('/customers') ||
+        path.startsWith('/payments') ||
+        path.startsWith('/settlements') ||
+        path.startsWith('/driver-wallets')
+      ) {
+        return false;
+      }
+      return true;
+
+    case 'DRIVER_MANAGER':
+      return (
+        path === '/dashboard' ||
+        path.startsWith('/drivers') ||
+        path.startsWith('/driver-allowance-rules') ||
+        path.startsWith('/fleet/compliance') ||
+        path.startsWith('/fleet/documents') ||
+        path.startsWith('/fleet/inspections') ||
+        path.startsWith('/fleet/assignments') ||
+        path === '/gps-tracking' ||
+        path.startsWith('/gps-tracking/live') ||
+        path.startsWith('/gps-tracking/driver-performance') ||
+        path.startsWith('/gps-tracking/alerts') ||
+        path.startsWith('/gps-tracking/fatigue-events') ||
+        path.startsWith('/reports') ||
+        path.startsWith('/notifications') ||
+        path.startsWith('/profile')
+      );
+
+    case 'DISPATCHER':
+      return (
+        path === '/dashboard' ||
+        path.startsWith('/bookings') ||
+        path.startsWith('/trips') ||
+        path.startsWith('/routes') ||
+        path.startsWith('/customers') ||
+        path === '/gps-tracking' ||
+        path.startsWith('/gps-tracking/live') ||
+        path.startsWith('/gps-tracking/trips') ||
+        path.startsWith('/gps-tracking/alerts') ||
+        path.startsWith('/gps-tracking/sos') ||
+        path.startsWith('/gps-tracking/client-tracking-links') ||
+        path.startsWith('/notifications') ||
+        path.startsWith('/ai') ||
+        path.startsWith('/mcp') ||
+        path.startsWith('/profile')
+      );
+
+    case 'ACCOUNTANT':
+      return (
+        path === '/dashboard' ||
+        path.startsWith('/payments') ||
+        path.startsWith('/invoices') ||
+        path.startsWith('/settlements') ||
+        path.startsWith('/driver-wallets') ||
+        path.startsWith('/fuel-logs') ||
+        path.startsWith('/reports') ||
+        path.startsWith('/maintenance') ||
+        path.startsWith('/fleet/maintenance') ||
+        path.startsWith('/notifications') ||
+        path.startsWith('/profile')
+      );
+
+    case 'OWNER':
+      if (
+        path.startsWith('/gps-tracking/devices') ||
+        path.startsWith('/gps-tracking/trip-mode') ||
+        path.startsWith('/platform') ||
+        path.startsWith('/users') ||
+        path.startsWith('/settings') ||
+        path.startsWith('/website')
+      ) {
+        return false;
+      }
+      return true;
+
+    case 'DRIVER':
+    case 'FIELD_DRIVER':
+      return (
+        path.startsWith('/my-trips') ||
+        path.startsWith('/wallet') ||
+        path.startsWith('/profile')
+      );
+
+    default:
+      return true;
+  }
+}
 
 function moduleKeyMatches(item: NavItem, enabledModules: string[]): boolean {
   if (!item.moduleKey) return true;
@@ -392,6 +508,7 @@ function moduleKeyMatches(item: NavItem, enabledModules: string[]): boolean {
 function filterItems(
   items: NavItem[],
   isAdmin: boolean,
+  primaryRole: string,
   itemFilter: Set<string> | undefined,
   enabledModules: string[]
 ): NavItem[] {
@@ -399,6 +516,7 @@ function filterItems(
     if (item.adminOnly && !isAdmin) return false;
     if (itemFilter && !itemFilter.has(item.id)) return false;
     if (enabledModules.length && !moduleKeyMatches(item, enabledModules)) return false;
+    if (primaryRole && !isRouteAllowedForPrimaryRole(item.route, primaryRole)) return false;
     return true;
   });
 }
@@ -421,6 +539,7 @@ export function resolveMenu(options: {
       || code === 'TENANT_ADMIN'
       || code === 'SUPERADMIN';
   });
+  const primaryRole = (roles[0] || '').toUpperCase();
   const groupIds = tenantGroupIds[tenantType] ?? tenantGroupIds[TenantType.TravelAgency];
   const itemFilter = tenantItemIds[tenantType];
 
@@ -428,7 +547,7 @@ export function resolveMenu(options: {
   for (const group of allGroups) {
     if (!groupIds.includes(group.id)) continue;
 
-    const items = filterItems(group.items, isAdmin, itemFilter, enabledModules);
+    const items = filterItems(group.items, isAdmin, primaryRole, itemFilter, enabledModules);
     if (!items.length) continue;
 
     groups.push({ ...group, items });

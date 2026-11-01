@@ -32,6 +32,7 @@ public partial class MaintenanceController : BaseApiController
     /// Creates a new maintenance record.
     /// </summary>
     [HttpPost]
+    [RequirePermission(MaintenancePermissions.Manage)]
     public async Task<IActionResult> Create([FromBody] CreateMaintenanceCommand command)
     {
         var result = await Mediator.Send(command);
@@ -42,6 +43,7 @@ public partial class MaintenanceController : BaseApiController
     /// Updates an existing maintenance record.
     /// </summary>
     [HttpPut("{id:int}")]
+    [RequirePermission(MaintenancePermissions.Manage)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateMaintenanceCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
@@ -49,6 +51,7 @@ public partial class MaintenanceController : BaseApiController
     /// Updates the status of a maintenance record.
     /// </summary>
     [HttpPut("{id}/status")]
+    [RequirePermission(MaintenancePermissions.Manage)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateMaintenanceStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
@@ -56,6 +59,7 @@ public partial class MaintenanceController : BaseApiController
     /// Deletes a maintenance record.
     /// </summary>
     [HttpDelete("{id:int}")]
+    [RequirePermission(MaintenancePermissions.Manage)]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteMaintenanceCommand(id)));
 }

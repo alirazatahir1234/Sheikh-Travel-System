@@ -34,6 +34,7 @@ import {
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { splitDisplayAddress } from '../../utils/gps-address.util';
+import { escapeHtml } from '../../../../core/utils/escape-html';
 
 export interface HistoryCompareRouteOverlay {
   label: string;
@@ -784,18 +785,21 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     });
     const address = p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
     const lines = splitDisplayAddress(p.address);
-    const primary = lines.primary || address;
+    const primary = escapeHtml(lines.primary || address);
     const secondary = lines.secondary
-      ? `<br><span style="color:#64748b">${lines.secondary}</span>`
+      ? `<br><span style="color:#64748b">${escapeHtml(lines.secondary)}</span>`
       : '';
+    const safeLabel = escapeHtml(label);
+    const safeTime = escapeHtml(time);
+    const safeColor = /^#[0-9A-Fa-f]{3,8}$/.test(color) ? color : '#0d9488';
     const glyph = kind === 'flag-start' ? '▶' : '🏁';
     const el = document.createElement('div');
     el.className = 'replay-endpoint-wrap';
-    el.innerHTML = `<div class="replay-flag" style="--flag:${color}">
+    el.innerHTML = `<div class="replay-flag" style="--flag:${safeColor}">
         <span class="replay-flag__pin">${glyph}</span>
         <span class="replay-flag__meta">
-          <strong>${label}</strong>
-          <small>${time}</small>
+          <strong>${safeLabel}</strong>
+          <small>${safeTime}</small>
         </span>
       </div>`;
 
@@ -808,7 +812,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       title: label
     });
     const popup =
-      `<strong>${label}</strong><br>${time}<br><strong>${primary}</strong>${secondary}<br>` +
+      `<strong>${safeLabel}</strong><br>${safeTime}<br><strong>${primary}</strong>${secondary}<br>` +
       `<span style="color:#94a3b8;font-size:11px">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span><br>` +
       `${Number(p.speedKmh ?? 0).toFixed(0)} km/h`;
     const listener = marker.addListener('click', () => this.openInfo(popup, marker));
@@ -953,10 +957,10 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private popupHtml(p: TripReplayPosition, label: string): string {
-    return `<strong>${label}</strong><br>
-      ${new Date(p.timestamp).toLocaleString()}<br>
-      ${p.speedKmh} km/h · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}<br>
-      ${p.address ?? ''}`;
+    return `<strong>${escapeHtml(label)}</strong><br>
+      ${escapeHtml(new Date(p.timestamp).toLocaleString())}<br>
+      ${Number(p.speedKmh) || 0} km/h · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}<br>
+      ${escapeHtml(p.address ?? '')}`;
   }
 
   private advanceReplay(): void {

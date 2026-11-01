@@ -218,6 +218,7 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetGeofenceStatsQuery()));
 
     [HttpPost("geofences")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> CreateGeofence([FromBody] CreateGeofenceDto geofence)
     {
         var result = await Mediator.Send(new CreateGeofenceCommand(geofence));
@@ -225,14 +226,17 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPut("geofences/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateGeofence(int id, [FromBody] UpdateGeofenceDto geofence)
         => Ok(await Mediator.Send(new UpdateGeofenceCommand(id, geofence)));
 
     [HttpDelete("geofences/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DeleteGeofence(int id)
         => Ok(await Mediator.Send(new DeleteGeofenceCommand(id)));
 
     [HttpPost("geofences/{id:int}/duplicate")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DuplicateGeofence(int id)
     {
         var result = await Mediator.Send(new DuplicateGeofenceCommand(id));
@@ -244,10 +248,12 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetGeofenceAssignmentsQuery(id)));
 
     [HttpPost("geofences/{id:int}/assignments")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpsertGeofenceAssignments(int id, [FromBody] UpsertGeofenceAssignmentsDto body)
         => Ok(await Mediator.Send(new UpsertGeofenceAssignmentsCommand(id, body)));
 
     [HttpDelete("geofences/{id:int}/assignments/{assignmentId:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DeleteGeofenceAssignment(int id, int assignmentId)
         => Ok(await Mediator.Send(new DeleteGeofenceAssignmentCommand(id, assignmentId)));
 
@@ -260,6 +266,7 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetGpsAlertRulesQuery()));
 
     [HttpPost("alerts/rules")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> CreateAlertRule([FromBody] CreateGpsAlertRuleDto rule)
     {
         var result = await Mediator.Send(new CreateGpsAlertRuleCommand(rule));
@@ -344,6 +351,7 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetAlertSettingsQuery()));
 
     [HttpPut("alerts/settings")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateAlertSettings([FromBody] UpdateAlertSettingsDto settings)
         => Ok(await Mediator.Send(new UpdateAlertSettingsCommand(settings)));
 
@@ -353,6 +361,7 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpGet("devices")]
     [Obsolete("Use GET /api/gps/trackers")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetDevices([FromQuery] int? tenantId = null)
         => Ok(await Mediator.Send(new GetTrackersQuery(tenantId)));
 
@@ -384,15 +393,17 @@ public partial class GpsTrackingController : BaseApiController
     // ── Tracker registration (SheikhGo master, Traccar engine) ─────────────
 
     [HttpGet("trackers")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTrackers([FromQuery] int? tenantId = null)
         => Ok(await Mediator.Send(new GetTrackersQuery(tenantId)));
 
     [HttpGet("trackers/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTracker(int id)
         => Ok(await Mediator.Send(new GetTrackerByIdQuery(id)));
 
     [HttpGet("trackers/annual-plans")]
-    [AllowAnonymous]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTrackerAnnualPlans()
         => Ok(await Mediator.Send(new GetTrackerAnnualPlansQuery()));
 
@@ -444,18 +455,22 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("trackers/install-vehicles")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTrackerInstallVehicles([FromQuery] int? trackerId)
         => Ok(await Mediator.Send(new GetTrackerInstallVehiclesQuery(trackerId)));
 
     [HttpGet("trackers/{id:int}/assignments")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTrackerAssignments(int id)
         => Ok(await Mediator.Send(new GetTrackerAssignmentsQuery(id)));
 
     [HttpPost("trackers/{id:int}/sync")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> SyncTracker(int id)
         => Ok(await Mediator.Send(new SyncTrackerCommand(id)));
 
     [HttpPost("trackers/sync-all")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> SyncAllTrackers()
         => Ok(await Mediator.Send(new SyncAllTrackersCommand()));
 
@@ -584,9 +599,9 @@ public partial class GpsTrackingController : BaseApiController
         [FromServices] IOptions<TraccarOptions> traccarOptions)
     {
         var syncEnabled = traccarOptions.Value.Enabled;
+        // Probe server only — avoid GetDevicesAsync here (shared Traccar can leak IMEIs).
         var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
-        var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
-        var connected = server is not null || devices.Count > 0;
+        var connected = server is not null;
 
         var tenantId = tenantContext.GetRequiredTenantId();
         var linkedCount = await gpsDevices.CountTraccarLinkedAsync(tenantId, HttpContext.RequestAborted);
@@ -607,9 +622,6 @@ public partial class GpsTrackingController : BaseApiController
         if (server is not null)
             return Ok(new TraccarStatusDto(true, server.Version, linkedCount, SyncEnabled: true));
 
-        if (connected)
-            return Ok(new TraccarStatusDto(true, null, linkedCount, "Server info unavailable; device API reachable.", SyncEnabled: true));
-
         return Ok(new TraccarStatusDto(false, null, linkedCount, "Traccar server unreachable.", SyncEnabled: true));
     }
 
@@ -627,6 +639,7 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("traccar/sync")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> RunTraccarSync(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
         => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));
@@ -640,14 +653,14 @@ public partial class GpsTrackingController : BaseApiController
         if (!traccarOptions.Value.Enabled)
             return Ok(syncState.Snapshot(connected: false));
 
+        // Probe server only — do not enumerate devices (shared Traccar can leak IMEIs).
         var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
-        var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
-        var connected = server is not null || devices.Count > 0;
-        return Ok(syncState.Snapshot(connected));
+        return Ok(syncState.Snapshot(connected: server is not null));
     }
 
     /// <summary>Deprecated — use POST traccar/sync for full manual sync.</summary>
     [HttpPost("traccar/sync-devices")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> SyncTraccarDevices(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
     {

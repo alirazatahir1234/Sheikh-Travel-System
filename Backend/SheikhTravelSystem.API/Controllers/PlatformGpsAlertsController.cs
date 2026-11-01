@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 /// <summary>Super Admin cross-tenant GPS alert feed (platform operator only — enforced in query handlers).</summary>
 [Authorize]
+[RequirePermission(PlatformPermissions.GpsControlView)]
 [ApiController]
 [Route("api/platform/gps/alerts")]
 public class PlatformGpsAlertsController : BaseApiController

@@ -118,7 +118,7 @@ class GpsBackgroundService {
 
   /// Register periodic drain + heartbeat tasks (Android ~15 min minimum).
   static Future<void> registerDrainTask() async {
-    if (!_supported) return;
+    if (!_supported || Platform.isIOS) return;
     try {
       await Workmanager().registerPeriodicTask(
         _drainTaskTag,

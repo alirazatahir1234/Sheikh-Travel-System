@@ -1,7 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, SecurityContext, inject } from '@angular/core';
 import { NgIf } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { CookieConsentService } from '../../core/cookie-consent.service';
@@ -24,7 +24,7 @@ export class CookiePage implements OnInit {
   readonly lastUpdated = '10 September 2026';
 
   cmsTitle: string | null = null;
-  cmsHtml: SafeHtml | null = null;
+  cmsHtml: string | null = null;
   cmsVersion: string | null = null;
 
   readonly legalLinks = [
@@ -45,7 +45,7 @@ export class CookiePage implements OnInit {
       if (!doc?.content?.trim()) return;
       this.cmsTitle = doc.title || 'Cookie Policy';
       this.cmsVersion = doc.version || null;
-      this.cmsHtml = this.sanitizer.bypassSecurityTrustHtml(doc.content);
+      this.cmsHtml = this.sanitizer.sanitize(SecurityContext.HTML, doc.content) ?? '';
       this.seo.set(this.cmsTitle, 'How SheikhGo uses cookies and how you can manage your preferences.', '/cookie-policy');
     });
   }

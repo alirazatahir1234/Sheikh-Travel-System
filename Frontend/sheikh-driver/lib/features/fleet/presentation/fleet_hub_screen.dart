@@ -55,11 +55,12 @@ class FleetHubScreen extends ConsumerWidget {
               : 'Fleet',
         ),
         actions: [
-          IconButton(
-            tooltip: 'Assignments',
-            icon: const Icon(Icons.event_available_outlined),
-            onPressed: () => context.push('/fleet/assignments'),
-          ),
+          if (ref.watch(fleetSessionProvider)?.canSeeFleetAssignments == true)
+            IconButton(
+              tooltip: 'Assignments',
+              icon: const Icon(Icons.event_available_outlined),
+              onPressed: () => context.push('/fleet/assignments'),
+            ),
           IconButton(
             tooltip: 'Live map',
             icon: const Icon(Icons.map_outlined),

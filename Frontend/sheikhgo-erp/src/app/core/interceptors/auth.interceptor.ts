@@ -2,8 +2,8 @@ import { Injectable, Injector } from '@angular/core';
 import {
   HttpRequest, HttpHandler, HttpEvent, HttpInterceptor, HttpErrorResponse
 } from '@angular/common/http';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, switchMap, filter, take } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { resolveTenantSlug } from '../utils/tenant-slug';
@@ -11,8 +11,8 @@ import { UiToastService } from '../../shared/components/ui/toast/ui-toast.servic
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
-  private isRefreshing = false;
-  private refreshTokenSubject = new BehaviorSubject<string | null>(null);
+  /** Shared in-flight refresh so concurrent 401s wait on one call (and fail together). */
+  private refreshInFlight$: Observable<string> | null = null;
   private sessionEndedToastShown = false;
 
   constructor(
@@ -46,29 +46,23 @@ export class AuthInterceptor implements HttpInterceptor {
     next: HttpHandler,
     originalError: HttpErrorResponse
   ): Observable<HttpEvent<unknown>> {
-    if (!this.isRefreshing) {
-      this.isRefreshing = true;
-      this.refreshTokenSubject.next(null);
-
-      return this.auth.refreshToken().pipe(
-        switchMap(res => {
-          this.isRefreshing = false;
-          this.refreshTokenSubject.next(res.accessToken);
-          return next.handle(this.withBearerToken(req, res.accessToken));
-        }),
+    if (!this.refreshInFlight$) {
+      this.refreshInFlight$ = this.auth.refreshToken().pipe(
+        map(res => res.accessToken),
         catchError(err => {
-          this.isRefreshing = false;
           this.notifySessionEndedIfNeeded(originalError, err);
           this.auth.logout();
           return throwError(() => err);
-        })
+        }),
+        finalize(() => {
+          this.refreshInFlight$ = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
       );
     }
 
-    return this.refreshTokenSubject.pipe(
-      filter(token => token !== null),
-      take(1),
-      switchMap(token => next.handle(this.withBearerToken(req, token as string)))
+    return this.refreshInFlight$.pipe(
+      switchMap(accessToken => next.handle(this.withBearerToken(req, accessToken)))
     );
   }
 

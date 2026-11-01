@@ -194,6 +194,120 @@ public static class MenuBuilderQueries
         return result;
     }
 
+    /// <summary>
+    /// Enforces strict role-domain menu isolation so specialized operational roles
+    /// (GPS_OPERATOR, FLEET_MANAGER, DRIVER_MANAGER, DISPATCHER, ACCOUNTANT, OWNER)
+    /// only see navigation items belonging to their domain.
+    /// </summary>
+    public static List<MenuModuleDto> FilterByPrimaryRole(
+        List<MenuModuleDto> modules,
+        string? primaryRoleCode)
+    {
+        var role = (primaryRoleCode ?? string.Empty).Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(role) || role == PlatformRoles.SuperAdmin)
+            return modules;
+
+        static bool IsRouteAllowed(string route, string roleCode)
+        {
+            var path = (route ?? string.Empty).Split('?')[0].Trim();
+            if (string.IsNullOrEmpty(path)) return false;
+
+            // SuperAdmin-only routes
+            if (path.StartsWith("/gps-tracking/commands", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/tenants", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/companies", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/module-management", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/feature-management", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/subscription", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/gps-control-center", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/migrations", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/platform/maintenance", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return roleCode switch
+            {
+                "GPS_OPERATOR" => path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/notifications", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/profile", StringComparison.OrdinalIgnoreCase),
+
+                "FLEET_MANAGER" => !path.StartsWith("/gps-tracking/devices", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/gps-tracking/trip-mode", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/users", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/website", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/bookings", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/customers", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/payments", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/settlements", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/driver-wallets", StringComparison.OrdinalIgnoreCase),
+
+                "DRIVER_MANAGER" => path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/drivers", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fleet/compliance", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fleet/documents", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fleet/inspections", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fleet/assignments", StringComparison.OrdinalIgnoreCase)
+                    || path.Equals("/gps-tracking", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/live", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/driver-performance", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/alerts", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/fatigue-events", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/reports", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/notifications", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/profile", StringComparison.OrdinalIgnoreCase),
+
+                "DISPATCHER" => path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/bookings", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/trips", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/routes", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/customers", StringComparison.OrdinalIgnoreCase)
+                    || path.Equals("/gps-tracking", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/live", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/trips", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/alerts", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/sos", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/gps-tracking/client-tracking-links", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/notifications", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/ai", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/mcp", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/profile", StringComparison.OrdinalIgnoreCase),
+
+                "ACCOUNTANT" => path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/payments", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/invoices", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/settlements", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/driver-wallets", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fuel-logs", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/reports", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/maintenance", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/fleet/maintenance", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/notifications", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/profile", StringComparison.OrdinalIgnoreCase),
+
+                "OWNER" => !path.StartsWith("/gps-tracking/devices", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/gps-tracking/trip-mode", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/users", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/website", StringComparison.OrdinalIgnoreCase),
+
+                _ => true
+            };
+        }
+
+        return modules
+            .Select(m => m with
+            {
+                Items = m.Items.Where(i => IsRouteAllowed(i.Route, role)).ToList()
+            })
+            .Where(m => m.Items.Count > 0)
+            .ToList();
+    }
+
     public static CompanyNavSummaryDto ToNavSummary(IReadOnlyList<MenuModuleDto> menu)
     {
         var top = menu.Take(6)

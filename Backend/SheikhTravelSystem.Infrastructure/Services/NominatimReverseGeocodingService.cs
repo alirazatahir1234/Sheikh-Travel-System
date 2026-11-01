@@ -123,7 +123,7 @@ public sealed class NominatimReverseGeocodingService(
             {
                 var google = await ResolveFromGoogleAsync(latitude, longitude, cancellationToken);
                 if (google is not null)
-                    resolved = MergeResults(google, resolved);
+                    resolved = resolved is null ? google : MergeResults(google, resolved);
             }
         }
 

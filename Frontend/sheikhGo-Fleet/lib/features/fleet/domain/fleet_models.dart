@@ -403,6 +403,7 @@ class FleetVehicleLocation {
     this.lastUpdated,
     this.speed = 0,
     this.driverName,
+    this.driverPhone,
     this.hasGps = false,
     this.ignition,
     this.heading,
@@ -423,6 +424,7 @@ class FleetVehicleLocation {
   final DateTime? lastUpdated;
   final double speed;
   final String? driverName;
+  final String? driverPhone;
   final bool hasGps;
   final bool? ignition;
   final double? heading;

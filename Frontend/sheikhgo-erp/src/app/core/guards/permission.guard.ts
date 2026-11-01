@@ -1,28 +1,40 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateFn, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { map, take } from 'rxjs/operators';
 import { Observable } from 'rxjs';
+import { selectPrimaryRole } from '../auth/role-priority';
 import { isAnyModuleEntitled } from '../navigation/module-entitlement.util';
+import { isRouteAllowedForPrimaryRole } from '../navigation/menu-config';
 import { AuthService } from '../services/auth.service';
 import { TenantConfigService } from '../services/tenant-config.service';
 
 /**
- * Requires one of the permissions listed in route data.permissions.
+ * Requires one of the permissions listed in route data.permissions,
+ * optional roles in route data.roles, and strict primary-role domain isolation.
  * Optionally requires tenant module legacy keys in route data.modules
  * (e.g. modules: ['ai'] for premium SheikhGo AI Assistant).
- *
- * Example: data: { permissions: ['Ai.View', 'Ai.Chat'], modules: ['ai'] }
- *
- * For AI module routes, elevated admins match MenuService.canAccessAiAssistant
- * (menu link + FAB) even when Ai.* permissions are not yet assigned.
  */
-export const permissionGuard: CanActivateFn = (route): boolean | UrlTree | Observable<boolean | UrlTree> => {
+export const permissionGuard: CanActivateFn = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+): boolean | UrlTree | Observable<boolean | UrlTree> => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const tenantConfig = inject(TenantConfigService);
 
   if (!auth.isLoggedIn()) {
     return router.createUrlTree(['/auth/login']);
+  }
+
+  const requiredRoles = (route.data?.['roles'] as string[] | undefined) ?? [];
+  if (requiredRoles.length > 0 && !requiredRoles.some(r => auth.hasRole(r))) {
+    return router.createUrlTree([auth.getHomeRoute()]);
+  }
+
+  const userRoles = auth.getCurrentUser()?.roles ?? [];
+  const primaryRole = selectPrimaryRole(userRoles, '');
+  if (primaryRole && !isRouteAllowedForPrimaryRole(state.url, primaryRole)) {
+    return router.createUrlTree([auth.getHomeRoute()]);
   }
 
   const required = (route.data?.['permissions'] as string[] | undefined) ?? [];

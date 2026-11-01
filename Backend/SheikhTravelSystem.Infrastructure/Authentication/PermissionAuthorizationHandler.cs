@@ -15,6 +15,20 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
+        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.SuperAdmin))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
+        // SuperAdmin-only permissions (Gps.Command*, Platform.Tenants.*, Platform.Gps.*,
+        // Platform.Migrations.*, Platform.System.*) must never succeed for tenant roles,
+        // even if a stale token or legacy RolePermissions row carries the claim.
+        if (IsSuperAdminOnlyPermission(requirement.Permission))
+        {
+            return Task.CompletedTask;
+        }
+
         if (context.User.HasClaim("permission", requirement.Permission))
         {
             context.Succeed(requirement);
@@ -39,12 +53,6 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
 
         if (AiPermissions.ImpliedByManage.Contains(requirement.Permission) &&
             context.User.HasClaim("permission", AiPermissions.Manage))
-        {
-            context.Succeed(requirement);
-            return Task.CompletedTask;
-        }
-
-        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.SuperAdmin))
         {
             context.Succeed(requirement);
             return Task.CompletedTask;
@@ -77,6 +85,16 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         }
 
         return Task.CompletedTask;
+    }
+
+    public static bool IsSuperAdminOnlyPermission(string permission)
+    {
+        if (string.IsNullOrWhiteSpace(permission)) return false;
+        return permission.StartsWith("Gps.Command", StringComparison.OrdinalIgnoreCase)
+            || permission.StartsWith("Platform.Tenants.", StringComparison.OrdinalIgnoreCase)
+            || permission.StartsWith("Platform.Gps.", StringComparison.OrdinalIgnoreCase)
+            || permission.StartsWith("Platform.Migrations.", StringComparison.OrdinalIgnoreCase)
+            || permission.StartsWith("Platform.System.", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

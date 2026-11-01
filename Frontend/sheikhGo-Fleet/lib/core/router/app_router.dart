@@ -53,11 +53,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isLoggedIn && !onLogin) return '/login';
       if (isLoggedIn && onLogin) return '/dashboard';
 
+      if (session != null &&
+          (loc.startsWith('/trips/') &&
+              (loc.endsWith('/navigate') ||
+                  loc.endsWith('/collect-payment')))) {
+        if (!session.isDriverSession && !session.canSeeTripsTab) {
+          return '/dashboard';
+        }
+      }
+
       if (session != null && FleetNavConfig.isShellRoute(loc)) {
         if (loc.startsWith('/fleet') && !session.canSeeFleetTab) {
           return '/dashboard';
         }
-        if (loc.startsWith('/trips') && !session.canSeeTripsTab) {
+        if (RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc) &&
+            (session.isDriverOnly ||
+                !session.hasPermission(FleetPermissions.gpsView))) {
+          return '/fleet';
+        }
+        if (loc.startsWith('/trips') &&
+            (session.isGpsOperator || !session.canSeeTripsTab)) {
           return '/dashboard';
         }
         if (loc.startsWith('/ai') && !session.canSeeAiTab) {
@@ -79,18 +94,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
         if (loc.startsWith('/more/drivers') &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.driverView))) {
           return '/more';
         }
         if (loc.startsWith('/more/maintenance') &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.maintenanceView))) {
           return '/more';
         }
         if (loc.startsWith('/more/reports') &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.reportView))) {
           return '/more';
+        }
+        if (loc.startsWith('/fuel') &&
+            (session.isGpsOperator ||
+                (!session.isDriverSession &&
+                    !session.hasPermission(FleetPermissions.fuelView)))) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/documents') &&
+            (session.isGpsOperator ||
+                (!session.isDriverSession &&
+                    !session.hasPermission(FleetPermissions.vehicleView)))) {
+          return '/dashboard';
+        }
+        if ((loc == '/attendance' ||
+                loc == '/inspection' ||
+                loc == '/earnings' ||
+                loc == '/timeline') &&
+            !session.isDriverSession) {
+          return '/dashboard';
         }
         if (loc == '/live' && !session.isDriverSession) {
           return '/dashboard';

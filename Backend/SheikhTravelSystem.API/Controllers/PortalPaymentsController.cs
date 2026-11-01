@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
@@ -9,15 +10,21 @@ namespace SheikhTravelSystem.API.Controllers;
 
 [ApiController]
 [Route("api/customer-portal/payments")]
+[EnableRateLimiting("portal")]
 public class PortalPaymentsController : BaseApiController
 {
-    [Authorize(Roles = "PortalCustomer")]
+    [Authorize(Roles = PortalUserContext.PortalRole)]
     [HttpPost("checkout")]
     public async Task<IActionResult> CreateCheckout([FromBody] PortalPaymentCheckoutRequest body)
     {
         var phone = PortalUserContext.GetPhone(User);
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return Unauthorized(new { success = false, message = "Portal sign-in required." });
+        }
+
         var customerId = PortalUserContext.GetCustomerId(User);
-        return Ok(await Mediator.Send(new CreatePortalPaymentCheckoutCommand(body.BookingId, body.Amount, phone ?? "", customerId)));
+        return Ok(await Mediator.Send(new CreatePortalPaymentCheckoutCommand(body.BookingId, body.Amount, phone, customerId)));
     }
 
     [AllowAnonymous]

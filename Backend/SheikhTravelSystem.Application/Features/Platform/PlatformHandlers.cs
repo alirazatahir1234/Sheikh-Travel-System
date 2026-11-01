@@ -506,6 +506,10 @@ public class GetUserMenuQueryHandler(
             featureFlags,
             workspaceModuleKeys,
             grantFullCatalog: isSuperAdmin);
+        var primaryRole = isSuperAdmin
+            ? PlatformRoles.SuperAdmin
+            : RoleCodePriority.SelectPrimary(access.RoleCodes);
+        result = MenuBuilderQueries.FilterByPrimaryRole(result, primaryRole);
         return ApiResponse<IReadOnlyList<MenuModuleDto>>.SuccessResponse(result);
     }
 }

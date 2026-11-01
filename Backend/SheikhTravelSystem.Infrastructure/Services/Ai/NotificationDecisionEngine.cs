@@ -26,7 +26,19 @@ public sealed class NotificationDecisionEngine(
         NotificationDecisionRequest request,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = request.TenantId ?? tenantContext.TenantId ?? 1;
+        var resolvedTenantId = request.TenantId ?? tenantContext.TenantId;
+        if (resolvedTenantId is null or <= 0)
+        {
+            logger.LogWarning(
+                "Notification decision skipped: missing tenant for event {EventType}",
+                request.EventType);
+            return new NotificationDecisionResult(
+                false, "Suppress", "Tenant required",
+                request.SuggestedPriority ?? 2,
+                []);
+        }
+
+        var tenantId = resolvedTenantId.Value;
         var config = await aiManagement.GetConfigAsync(tenantId, cancellationToken);
         if (!config.DecisionEngineEnabled)
         {

@@ -14,6 +14,7 @@ import { TripCalendarComponent } from './trip-calendar/trip-calendar.component';
 import { TripLiveBoardComponent } from './trip-live-board/trip-live-board.component';
 import { TripReportsComponent } from './trip-reports/trip-reports.component';
 import { TripSmartAssignmentComponent } from './smart-assignment/smart-assignment.component';
+import { permissionGuard } from '../../core/guards/permission.guard';
 
 const routes: Routes = [
   {
@@ -27,8 +28,19 @@ const routes: Routes = [
       { path: 'live', component: TripLiveBoardComponent },
       { path: 'reports', component: TripReportsComponent },
       { path: 'smart-assignment', component: TripSmartAssignmentComponent },
-      { path: 'new', component: TripFormComponent },
-      { path: ':id/edit', component: TripFormComponent, canMatch: [tripIdCanMatch] },
+      {
+        path: 'new',
+        component: TripFormComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Trip.Create'] }
+      },
+      {
+        path: ':id/edit',
+        component: TripFormComponent,
+        canMatch: [tripIdCanMatch],
+        canActivate: [permissionGuard],
+        data: { permissions: ['Trip.Update'] }
+      },
       { path: ':id', component: TripDetailComponent, canMatch: [tripIdCanMatch] }
     ]
   }

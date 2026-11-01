@@ -27,4 +27,20 @@ void main() {
       ['dashboard', 'map', 'fleet', 'alerts', 'more'],
     );
   });
+
+  test('GPS operator More menu excludes fleet documents, reports, and commands',
+      () {
+    final session = _gpsOperatorSession();
+    final routes = FleetNavConfig.visibleMoreEntries(session)
+        .map((e) => e.route)
+        .toList();
+    expect(routes, contains('/gps/geofences'));
+    expect(routes, contains('/gps/trips'));
+    expect(routes, contains('/gps/incidents'));
+    expect(routes, isNot(contains('/documents')));
+    expect(routes, isNot(contains('/more/reports')));
+    expect(routes, isNot(contains('/gps/commands')));
+    expect(session.canSeeTrackerHardware, isTrue);
+    expect(session.canSeeFleetAssignments, isFalse);
+  });
 }

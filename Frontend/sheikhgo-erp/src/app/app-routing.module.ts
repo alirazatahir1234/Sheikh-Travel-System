@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
 import { authGuard } from './core/guards/auth.guard';
-import { driverWorkspaceGuard } from './core/guards/driver-workspace.guard';
+import { driverOnlyGuard, driverWorkspaceGuard } from './core/guards/driver-workspace.guard';
 import { permissionGuard } from './core/guards/permission.guard';
 import { guestCanMatch } from './core/guards/guest.guard';
 import { WebsiteShellComponent } from './modules/website/website-shell.component';
@@ -337,6 +337,7 @@ const routes: Routes = [
       },
       {
         path: 'wallet',
+        canActivate: [driverOnlyGuard],
         loadChildren: () => import('./modules/driver-wallet/driver-wallet.module').then(m => m.DriverWalletModule)
       },
       {

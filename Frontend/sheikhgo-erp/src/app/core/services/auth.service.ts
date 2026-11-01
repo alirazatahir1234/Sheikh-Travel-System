@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, LoginResponseDto } from '../models/auth.model';
 import { SecurityCompanySummary } from '../models/platform.model';
-import { orderRolesByPrivilege } from '../auth/role-priority';
+import { isDriverPrimaryAccount, orderRolesByPrivilege } from '../auth/role-priority';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -132,7 +132,20 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    if (!token) return false;
+    const exp = this.readJwtExpSeconds(token);
+    if (exp == null) return true; // opaque / non-JWT — defer to API
+    // Access token expired: still treat as logged-in when refresh can recover the session.
+    if (exp * 1000 <= Date.now()) {
+      return !!this.getRefreshToken();
+    }
+    return true;
+  }
+
+  /** Driver / Field Driver workspace accounts (primary role only). */
+  isDriverUser(): boolean {
+    return isDriverPrimaryAccount(this.getCurrentUser()?.roles);
   }
 
   getCurrentUser(): LoginResponse | null {
@@ -142,8 +155,8 @@ export class AuthService {
   hasRole(role: string): boolean {
     const user = this.getCurrentUser();
     if (!user?.roles?.length || !role) return false;
-    const needle = role.toUpperCase();
-    return user.roles.some(r => (r || '').toUpperCase() === needle);
+    const needle = role.toUpperCase().replace(/[\s-]/g, '_');
+    return user.roles.some(r => (r || '').toUpperCase().replace(/[\s-]/g, '_') === needle);
   }
 
   getHomeRoute(): string {
@@ -272,5 +285,20 @@ export class AuthService {
     window.removeEventListener('keydown', this.activityHandler);
     window.removeEventListener('click', this.activityHandler);
     window.removeEventListener('touchstart', this.activityHandler);
+  }
+
+  /** Best-effort JWT `exp` (seconds). Returns null when token is not a readable JWT. */
+  private readJwtExpSeconds(token: string): number | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) return null;
+      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+      const json = JSON.parse(atob(padded)) as { exp?: unknown };
+      const exp = Number(json?.exp);
+      return Number.isFinite(exp) ? exp : null;
+    } catch {
+      return null;
+    }
   }
 }

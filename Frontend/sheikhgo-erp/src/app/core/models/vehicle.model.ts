@@ -42,6 +42,8 @@ export interface VehicleListItem {
   createdAt: string;
   driverName?: string | null;
   driverId?: number | null;
+  /** Present on detail DTO; list API may omit — keep optional for GPS legacy join. */
+  driverPhone?: string | null;
   gpsImei?: string | null;
   gpsSim?: string | null;
   engineIgnition?: boolean | null;

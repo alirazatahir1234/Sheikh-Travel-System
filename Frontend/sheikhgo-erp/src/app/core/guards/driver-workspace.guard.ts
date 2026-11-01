@@ -2,19 +2,19 @@ import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-const driverAllowedPrefixes = ['/my-trips', '/profile'];
+const driverAllowedPrefixes = ['/my-trips', '/profile', '/wallet'];
 
 function isDriverAllowedPath(url: string): boolean {
   const path = url.split('?')[0];
   return driverAllowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
 }
 
-/** Restricts Field Driver accounts to the driver workspace routes. */
+/** Restricts Driver / Field Driver accounts to the driver workspace routes. */
 export const driverWorkspaceGuard: CanActivateChildFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  if (!auth.hasRole('Driver')) {
+  if (!auth.isDriverUser()) {
     return true;
   }
 
@@ -34,5 +34,5 @@ export const driverWorkspaceGuard: CanActivateChildFn = (_route, state) => {
 export const driverOnlyGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  return auth.hasRole('Driver') ? true : router.createUrlTree(['/dashboard']);
+  return auth.isDriverUser() ? true : router.createUrlTree(['/dashboard']);
 };

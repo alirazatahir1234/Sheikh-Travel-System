@@ -6,8 +6,10 @@ enum AuthMode { staff, driver }
 abstract final class FleetRole {
   static const superAdmin = 'SUPER_ADMIN';
   static const tenantAdmin = 'TENANT_ADMIN';
+  static const owner = 'OWNER';
   static const fleetManager = 'FLEET_MANAGER';
   static const driverManager = 'DRIVER_MANAGER';
+  static const gpsOperator = 'GPS_OPERATOR';
   static const dispatcher = 'DISPATCHER';
   static const driver = 'DRIVER';
   static const accountant = 'ACCOUNTANT';
@@ -16,20 +18,49 @@ abstract final class FleetRole {
   static const navRolePriority = [
     superAdmin,
     tenantAdmin,
+    owner,
     fleetManager,
     driverManager,
+    gpsOperator,
     dispatcher,
     accountant,
     driver,
   ];
 
+  static List<String> orderByPrivilege(Iterable<String> roles) {
+    final seen = <String>{};
+    final unique = <String>[];
+    for (final raw in roles) {
+      final code = raw.trim().toUpperCase();
+      if (code.isEmpty || !seen.add(code)) continue;
+      unique.add(code);
+    }
+    unique.sort((a, b) {
+      final ai = navRolePriority.indexOf(a);
+      final bi = navRolePriority.indexOf(b);
+      final ar = ai < 0 ? navRolePriority.length + 1 : ai;
+      final br = bi < 0 ? navRolePriority.length + 1 : bi;
+      if (ar != br) return ar.compareTo(br);
+      return a.compareTo(b);
+    });
+    return unique;
+  }
+
   static const managementRoles = {
     superAdmin,
     tenantAdmin,
+    owner,
     fleetManager,
     driverManager,
+    gpsOperator,
     dispatcher,
     accountant,
+  };
+
+  static const ownerTrackingRoles = {
+    owner,
+    tenantAdmin,
+    superAdmin,
   };
 }
 
@@ -51,6 +82,7 @@ abstract final class FleetPermissions {
   static const paymentView = 'Payment.View';
   static const invoiceView = 'Invoice.View';
   static const platformUsersView = 'Platform.Users.View';
+  static const gpsDeviceManage = 'Gps.DeviceManage';
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
@@ -176,15 +208,35 @@ class FleetSession {
     return FleetRole.driver;
   }
 
+  bool get isGpsOperator =>
+      !isDriverOnly &&
+      hasRole(FleetRole.gpsOperator) &&
+      primaryNavRole == FleetRole.gpsOperator;
+
+  bool get isOwnerTracking =>
+      !isDriverOnly &&
+      (primaryNavRole == FleetRole.owner ||
+          hasAnyRole(FleetRole.ownerTrackingRoles));
+
   /// Live Map / vehicle Device Commands — platform SUPER_ADMIN only.
   bool get canUseGpsCommands => hasRole(FleetRole.superAdmin);
+
+  /// Tracker hardware / diagnostics — GPS_OPERATOR or SUPER_ADMIN only.
+  bool get canSeeTrackerHardware =>
+      !isDriverOnly &&
+      !hasRole(FleetRole.fleetManager) &&
+      (isGpsOperator ||
+          hasRole(FleetRole.superAdmin) ||
+          hasPermission(FleetPermissions.gpsDeviceManage));
 
   bool get canSeeFleetTab =>
       !isDriverOnly &&
       (hasAnyRole(const [
             FleetRole.superAdmin,
             FleetRole.tenantAdmin,
+            FleetRole.owner,
             FleetRole.fleetManager,
+            FleetRole.gpsOperator,
             FleetRole.dispatcher,
             FleetRole.driverManager,
           ]) ||
@@ -204,14 +256,23 @@ class FleetSession {
     return ctx.enabledModuleKeys.any((k) => k.toLowerCase() == 'ai');
   }
 
-  bool get canSeeAiTab =>
-      hasAiAssistantModule &&
-      (hasPermission(FleetPermissions.aiView) ||
-          hasAnyRole(const [
-            FleetRole.superAdmin,
-            FleetRole.tenantAdmin,
-            FleetRole.fleetManager,
-          ]));
+  bool get canSeeAiTab {
+    if (isDriverOnly || isGpsOperator) return false;
+    if (!hasAiAssistantModule) return false;
+    final isPureOwner = hasRole(FleetRole.owner) &&
+        !hasAnyRole(const [
+          FleetRole.superAdmin,
+          FleetRole.tenantAdmin,
+          FleetRole.fleetManager,
+        ]);
+    if (isPureOwner) return false;
+    return hasPermission(FleetPermissions.aiView) ||
+        hasAnyRole(const [
+          FleetRole.superAdmin,
+          FleetRole.tenantAdmin,
+          FleetRole.fleetManager,
+        ]);
+  }
 
   bool get canSeeBookingsTab =>
       !isDriverOnly && hasPermission(FleetPermissions.bookingView);
@@ -237,10 +298,11 @@ class FleetSession {
         json['refreshToken'] as String? ?? json['RefreshToken'] as String? ?? '';
     final roles = _parseStringList(json['roles'] ?? json['Roles']);
     final primaryRole =
-        json['role'] as String? ?? json['Role'] as String? ?? '';
-    final mergedRoles = roles.isEmpty && primaryRole.isNotEmpty
-        ? [primaryRole]
-        : roles;
+        (json['role'] as String? ?? json['Role'] as String? ?? '').trim();
+    final mergedRoles = <String>[
+      ...roles,
+      if (primaryRole.isNotEmpty) primaryRole,
+    ];
     final permissions =
         _parseStringList(json['permissions'] ?? json['Permissions']);
     final userId = json['userId'] as int? ??
@@ -262,7 +324,7 @@ class FleetSession {
       displayName: json['fullName'] as String? ??
           json['FullName'] as String? ??
           '',
-      roles: mergedRoles.map((r) => r.toUpperCase()).toList(),
+      roles: FleetRole.orderByPrivilege(mergedRoles),
       permissions: permissions,
       authMode: AuthMode.staff,
       driverId: driverId,

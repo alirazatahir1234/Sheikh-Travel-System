@@ -35,6 +35,17 @@ public static class SystemRolePermissionSyncMigration
                 connection, tenantId, cancellationToken);
         }
 
+        // Remove SuperAdmin-only GPS command permissions from non-SUPER_ADMIN roles,
+        // and remove Gps.DeviceManage from FLEET_MANAGER / OWNER (tracker hardware is GPS_OPERATOR / TENANT_ADMIN / SUPER_ADMIN).
+        await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE rp
+            FROM RolePermissions rp
+            INNER JOIN Roles r ON r.Id = rp.RoleId
+            INNER JOIN Permissions p ON p.Id = rp.PermissionId
+            WHERE (p.PermissionCode LIKE N'Gps.Command%' AND UPPER(r.Code) <> N'SUPER_ADMIN')
+               OR (p.PermissionCode = N'Gps.DeviceManage' AND UPPER(r.Code) IN (N'FLEET_MANAGER', N'OWNER', N'DRIVER', N'DRIVER_MANAGER', N'DISPATCHER', N'ACCOUNTANT'));
+            """, cancellationToken: cancellationToken));
+
         // SUPER_ADMIN: every permission currently in the catalog.
         var allCodes = (await connection.QueryAsync<string>(
             new CommandDefinition(

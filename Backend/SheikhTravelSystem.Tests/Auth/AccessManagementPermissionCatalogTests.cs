@@ -108,6 +108,10 @@ public class AccessManagementPermissionCatalogTests
         TenantRolePermissionTemplates.Driver.Should().NotContain(OperationsPermissions.BookingCreate);
 
         TenantRolePermissionTemplates.FleetManager.Should().Contain(AiPermissions.ExecuteWrite);
+        // Tracker hardware provisioning (Gps.DeviceManage) is GPS_OPERATOR / TENANT_ADMIN / SUPER_ADMIN — not FleetManager / Owner.
+        TenantRolePermissionTemplates.FleetManager.Should().NotContain(GpsPermissions.DeviceManage);
+        TenantRolePermissionTemplates.Owner.Should().NotContain(GpsPermissions.DeviceManage);
+        TenantRolePermissionTemplates.GpsOperator.Should().Contain(GpsPermissions.DeviceManage);
         // Device Commands (Gps.Command*) are SUPER_ADMIN-only — not tenant Owner / Fleet Manager / Admin.
         TenantRolePermissionTemplates.FleetManager.Should().NotContain(GpsPermissions.CommandApprove);
         TenantRolePermissionTemplates.FleetManager.Should().NotContain(GpsPermissions.CommandSend);
@@ -171,6 +175,20 @@ public class PermissionAuthorizationHandlerTests
 
         var ctx = await EvaluateAsync(user, GpsPermissions.CommandEngineCutoff);
         ctx.HasSucceeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Non_SuperAdmin_cannot_use_Gps_Commands_even_with_stale_permission_claim()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("role", "FLEET_MANAGER"),
+            new Claim("permission", GpsPermissions.CommandSend),
+            new Claim("permission", GpsPermissions.CommandApprove)
+        ], "test"));
+
+        (await EvaluateAsync(user, GpsPermissions.CommandSend)).HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, GpsPermissions.CommandApprove)).HasSucceeded.Should().BeFalse();
     }
 
     [Fact]

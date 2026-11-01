@@ -1,7 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, SecurityContext, inject } from '@angular/core';
 import { NgIf } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
@@ -27,7 +27,7 @@ export class PrivacyPage implements OnInit {
   readonly privacyBannerSrc = websiteAssetUrl('/website/privacy-policy-banner.jpg');
 
   cmsTitle: string | null = null;
-  cmsHtml: SafeHtml | null = null;
+  cmsHtml: string | null = null;
   cmsVersion: string | null = null;
 
   ngOnInit(): void {
@@ -41,7 +41,8 @@ export class PrivacyPage implements OnInit {
       if (!doc?.content?.trim()) return;
       this.cmsTitle = doc.title || 'Privacy Policy';
       this.cmsVersion = doc.version || null;
-      this.cmsHtml = this.sanitizer.bypassSecurityTrustHtml(doc.content);
+      // Sanitize CMS HTML (do not bypass — admin-poisoned content must not run scripts).
+      this.cmsHtml = this.sanitizer.sanitize(SecurityContext.HTML, doc.content) ?? '';
       this.seo.set(this.cmsTitle, 'Privacy Policy for SheikhGo Fleet and related services.', '/privacy-policy');
     });
   }

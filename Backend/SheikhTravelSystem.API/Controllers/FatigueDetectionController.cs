@@ -15,7 +15,7 @@ public class FatigueDetectionController : BaseApiController
     public async Task<IActionResult> ListEvents([FromQuery] string? status = null, [FromQuery] int limit = 50)
         => Ok(await Mediator.Send(new GetFatigueEventsQuery(status, limit)));
 
-    [RequirePermission(GpsPermissions.AlertView)]
+    [RequirePermission(PlatformPermissions.TenantsView)]
     [HttpGet("platform/events")]
     public async Task<IActionResult> ListPlatformEvents(
         [FromQuery] int? tenantId = null,

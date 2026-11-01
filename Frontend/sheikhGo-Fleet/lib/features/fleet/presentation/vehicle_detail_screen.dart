@@ -47,9 +47,24 @@ class VehicleDetailScreen extends ConsumerWidget {
         hubLocations.where((v) => v.vehicleId == vehicleId).firstOrNull;
     final session = ref.watch(fleetSessionProvider);
     final canCommands = session?.canUseGpsCommands ?? false;
+    final isGpsOperator = session?.isGpsOperator ?? false;
+    final canSeeDocsTab = !isGpsOperator &&
+        (session?.hasPermission(FleetPermissions.vehicleView) ?? false);
+    final canSeeMaintTab = !isGpsOperator &&
+        (session?.hasPermission(FleetPermissions.maintenanceView) ?? false);
+    final canSeeFuelTab = !isGpsOperator &&
+        (session?.hasPermission(FleetPermissions.fuelView) ?? false);
+
+    final tabs = <Tab>[
+      const Tab(text: 'Overview'),
+      const Tab(text: 'GPS'),
+      if (canSeeDocsTab) const Tab(text: 'Docs'),
+      if (canSeeMaintTab) const Tab(text: 'Maint'),
+      if (canSeeFuelTab) const Tab(text: 'Fuel'),
+    ];
 
     return DefaultTabController(
-      length: 5,
+      length: tabs.length,
       child: Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(
@@ -74,15 +89,9 @@ class VehicleDetailScreen extends ConsumerWidget {
                 onPressed: () => showVehicleCommandsSheet(context, vehicleId),
               ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
-            tabs: [
-              Tab(text: 'Overview'),
-              Tab(text: 'GPS'),
-              Tab(text: 'Docs'),
-              Tab(text: 'Maint'),
-              Tab(text: 'Fuel'),
-            ],
+            tabs: tabs,
           ),
         ),
         body: async.when(
@@ -108,9 +117,9 @@ class VehicleDetailScreen extends ConsumerWidget {
             children: [
               _OverviewTab(vehicle: v, live: hubLoc),
               _GpsTab(vehicleId: vehicleId, vehicle: v, live: hubLoc),
-              _DocsTab(vehicleId: vehicleId),
-              _MaintTab(vehicleId: vehicleId),
-              _FuelTab(vehicleId: vehicleId),
+              if (canSeeDocsTab) _DocsTab(vehicleId: vehicleId),
+              if (canSeeMaintTab) _MaintTab(vehicleId: vehicleId),
+              if (canSeeFuelTab) _FuelTab(vehicleId: vehicleId),
             ],
           ),
         ),
@@ -251,8 +260,9 @@ class _GpsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(vehicleGpsInfoProvider(vehicleId));
-    final canCommands =
-        ref.watch(fleetSessionProvider)?.canUseGpsCommands ?? false;
+    final session = ref.watch(fleetSessionProvider);
+    final canCommands = session?.canUseGpsCommands ?? false;
+    final canSeeHardware = session?.canSeeTrackerHardware ?? false;
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return async.when(
@@ -268,21 +278,25 @@ class _GpsTab extends ConsumerWidget {
             SgCard(
               child: Column(
                 children: [
-                  _Row('Device', gps.deviceName ?? '—'),
-                  _Row('IMEI / Unique ID', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
+                  if (canSeeHardware) ...[
+                    _Row('Device', gps.deviceName ?? '—'),
+                    _Row('IMEI / Unique ID', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
+                  ],
                   _Row(
                     'Online',
                     gps.gpsOnline || vehicle.gpsOnline ? 'Yes' : 'No',
                   ),
-                  _Row(
-                    'Model',
-                    [gps.brandName, gps.modelName]
-                        .whereType<String>()
-                        .where((s) => s.isNotEmpty)
-                        .join(' · ')
-                        .ifEmpty('—'),
-                  ),
-                  _Row('SIM', gps.simNumber ?? '—'),
+                  if (canSeeHardware) ...[
+                    _Row(
+                      'Model',
+                      [gps.brandName, gps.modelName]
+                          .whereType<String>()
+                          .where((s) => s.isNotEmpty)
+                          .join(' · ')
+                          .ifEmpty('—'),
+                    ),
+                    _Row('SIM', gps.simNumber ?? '—'),
+                  ],
                   _Row(
                     'Speed',
                     live != null

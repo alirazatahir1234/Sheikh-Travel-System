@@ -1,3 +1,5 @@
+import { isDriverPrimaryAccount, rolesInclude } from '../auth/role-priority';
+
 export enum TenantType {
   TravelAgency = 'travelAgency',
   FleetOperator = 'fleetOperator',
@@ -10,9 +12,9 @@ export function resolveTenantType(
   override?: TenantType
 ): TenantType {
   if (override) return override;
-  if (roles.includes('Driver')) return TenantType.Driver;
-  if (roles.includes('FleetManager')) return TenantType.FleetOperator;
-  if (roles.includes('CorporateUser')) return TenantType.CorporateCustomer;
+  if (isDriverPrimaryAccount(roles)) return TenantType.Driver;
+  if (rolesInclude(roles, 'FleetManager', 'FLEET_MANAGER')) return TenantType.FleetOperator;
+  if (rolesInclude(roles, 'CorporateUser', 'CORPORATE_USER')) return TenantType.CorporateCustomer;
   return TenantType.TravelAgency;
 }
 

@@ -1,6 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, SecurityContext, inject } from '@angular/core';
 import { NgIf } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
@@ -23,7 +23,7 @@ export class TermsPage implements OnInit {
   readonly websiteUrl = 'https://www.sheikhgo.com';
 
   cmsTitle: string | null = null;
-  cmsHtml: SafeHtml | null = null;
+  cmsHtml: string | null = null;
   cmsVersion: string | null = null;
 
   ngOnInit(): void {
@@ -37,7 +37,7 @@ export class TermsPage implements OnInit {
       if (!doc?.content?.trim()) return;
       this.cmsTitle = doc.title || 'Terms & Conditions';
       this.cmsVersion = doc.version || null;
-      this.cmsHtml = this.sanitizer.bypassSecurityTrustHtml(doc.content);
+      this.cmsHtml = this.sanitizer.sanitize(SecurityContext.HTML, doc.content) ?? '';
       this.seo.set(this.cmsTitle, 'Terms of use for SheikhGo Fleet and related services.', '/terms-and-conditions');
     });
   }

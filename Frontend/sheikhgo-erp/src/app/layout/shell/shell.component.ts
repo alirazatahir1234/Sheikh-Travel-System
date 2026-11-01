@@ -124,7 +124,7 @@ export class ShellComponent implements OnInit, OnDestroy {
         const roles = user?.roles ?? [];
         const tenantType = resolveTenantType(roles);
 
-        if (roles.includes('Driver')) {
+        if (this.isDriverUser) {
           return of(resolveMenu({ tenantType, roles, enabledModules }));
         }
 
@@ -144,11 +144,11 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   get homeRoute(): string {
-    return this.auth.hasRole('Driver') ? '/my-trips' : '/dashboard';
+    return this.isDriverUser ? '/my-trips' : '/dashboard';
   }
 
   get isDriverUser(): boolean {
-    return this.auth.hasRole('Driver');
+    return this.auth.isDriverUser();
   }
 
   ngOnInit(): void {

@@ -97,6 +97,7 @@ abstract final class FleetPermissions {
   static const gpsAlertView = 'Gps.AlertView';
   static const gpsAlertAcknowledge = 'Gps.AlertAcknowledge';
   static const gpsAlertResolve = 'Gps.AlertResolve';
+  static const gpsDeviceManage = 'Gps.DeviceManage';
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
@@ -245,6 +246,26 @@ class FleetSession {
   /// Live Map / vehicle Device Commands — platform SUPER_ADMIN only.
   /// Fleet owners, managers, and GPS operators must not see or run Commands.
   bool get canUseGpsCommands => hasRole(FleetRole.superAdmin);
+
+  /// Tracker hardware / diagnostics & device health — GPS_OPERATOR or SUPER_ADMIN only
+  /// (never exposed to FLEET_MANAGER, DISPATCHER, DRIVER_MANAGER, ACCOUNTANT, or DRIVER).
+  bool get canSeeTrackerHardware =>
+      !isDriverOnly &&
+      !hasRole(FleetRole.fleetManager) &&
+      (isGpsOperator ||
+          hasRole(FleetRole.superAdmin) ||
+          hasPermission(FleetPermissions.gpsDeviceManage));
+
+  /// GPS Operator screens (/gps/*) — GPS_OPERATOR, OWNER (for owner tracker ops), or SUPER_ADMIN.
+  /// Never exposed to FLEET_MANAGER, DRIVER_MANAGER, DISPATCHER, ACCOUNTANT, or DRIVER.
+  bool get canSeeGpsOperatorScreens =>
+      !isDriverOnly &&
+      hasPermission(FleetPermissions.gpsView) &&
+      (isGpsOperator || isOwnerTracking || hasRole(FleetRole.superAdmin));
+
+  /// Fleet vehicle-driver assignments — hidden from GPS_OPERATOR and DRIVER.
+  bool get canSeeFleetAssignments =>
+      !isDriverOnly && !isGpsOperator && canSeeFleetTab;
 
   bool get canSeeFleetTab =>
       !isDriverOnly &&

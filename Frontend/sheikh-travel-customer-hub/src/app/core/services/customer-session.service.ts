@@ -20,7 +20,37 @@ export class CustomerSessionService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.phone()?.trim() && !!this.accessToken()?.trim();
+    const phone = this.phone()?.trim();
+    const token = this.accessToken()?.trim();
+    if (!phone || !token) return false;
+    return this.isValidPortalToken(token);
+  }
+
+  private isValidPortalToken(token: string): boolean {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) return true;
+      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+      const json = JSON.parse(atob(padded)) as Record<string, unknown>;
+      const exp = Number(json['exp']);
+      if (Number.isFinite(exp) && exp * 1000 <= Date.now()) {
+        return false;
+      }
+      const roleClaim =
+        json['role'] ??
+        json['roles'] ??
+        json['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+      if (typeof roleClaim === 'string') {
+        return roleClaim === 'PortalCustomer';
+      }
+      if (Array.isArray(roleClaim)) {
+        return roleClaim.includes('PortalCustomer');
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Alias used in templates (OTP sign-in with JWT). */

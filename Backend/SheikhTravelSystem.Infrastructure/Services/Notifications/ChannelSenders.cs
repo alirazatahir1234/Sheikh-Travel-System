@@ -34,10 +34,13 @@ public sealed class EmailNotificationSender(
         var to = request.Email;
         if (string.IsNullOrWhiteSpace(to) && request.UserId is int uid)
         {
+            if (request.TenantId is not int tenantId || tenantId <= 0)
+                return new ChannelSendResult(false, "Failed", "Tenant required to resolve recipient email", "Smtp");
+
             using var connection = dbFactory.CreateConnection();
             to = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
                 "SELECT Email FROM Users WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
-                new { Id = uid, TenantId = request.TenantId ?? 1 }, cancellationToken: cancellationToken));
+                new { Id = uid, TenantId = tenantId }, cancellationToken: cancellationToken));
         }
         to ??= section.GetValue<string>("DefaultTo");
 
@@ -350,9 +353,12 @@ public sealed class BrowserNotificationSender(
         if (request.UserId is not int userId)
             return new ChannelSendResult(false, "Failed", "Browser channel requires UserId");
 
+        if (request.TenantId is not int browserTenantId || browserTenantId <= 0)
+            return new ChannelSendResult(false, "Failed", "Tenant required for browser channel");
+
         await realtime.PublishToUserAsync(userId, new
         {
-            tenantId = request.TenantId ?? 1,
+            tenantId = browserTenantId,
             kind = "browser",
             title = request.Title,
             message = request.Message,
@@ -393,13 +399,20 @@ public sealed class WhatsAppNotificationSender(
         if (string.IsNullOrWhiteSpace(phone))
             return new ChannelSendResult(false, "Failed", "Recipient phone missing");
 
-        // Prefer tenant from request when available; notifications often use tenant 1 accounts list.
         var accounts = await inboxRepository.ListActiveAccountRowsAsync(cancellationToken);
         var code = routing.ResolveAccountCode(request.Phone);
         var account = accounts.FirstOrDefault(a =>
-            string.Equals(a.Code, code, StringComparison.OrdinalIgnoreCase))
-            ?? await accountResolver.ResolveAsync(
-                accounts.FirstOrDefault()?.TenantId ?? 1, null, request.Phone, cancellationToken);
+            string.Equals(a.Code, code, StringComparison.OrdinalIgnoreCase));
+        if (account is null)
+        {
+            var resolveTenantId = request.TenantId
+                ?? accounts.FirstOrDefault()?.TenantId;
+            if (resolveTenantId is null or <= 0)
+                return new ChannelSendResult(false, "Failed", "Tenant required to resolve WhatsApp account");
+
+            account = await accountResolver.ResolveAsync(
+                resolveTenantId.Value, null, request.Phone, cancellationToken);
+        }
         if (account is null)
             return new ChannelSendResult(false, "Failed", "No WhatsApp account configured");
 

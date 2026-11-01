@@ -9,13 +9,29 @@ import { DriverDetailsDrawerComponent } from './driver-details-drawer/driver-det
 import { DriverVerificationHubComponent } from './driver-verification-hub/driver-verification-hub.component';
 import { DriverTrackingRedirectComponent } from './driver-tracking-redirect/driver-tracking-redirect.component';
 import { DriverClientRatingsPageComponent } from './driver-client-ratings/driver-client-ratings-page.component';
+import { permissionGuard } from '../../core/guards/permission.guard';
 
 const routes: Routes = [
   { path: '', component: DriverInventoryPageComponent },
   { path: 'client-ratings', component: DriverClientRatingsPageComponent },
-  { path: 'new', component: DriverRegisterWizardComponent },
-  { path: ':id/edit', component: DriverRegisterWizardComponent },
-  { path: ':id/verify', component: DriverVerificationHubComponent },
+  {
+    path: 'new',
+    component: DriverRegisterWizardComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Driver.Create'] }
+  },
+  {
+    path: ':id/edit',
+    component: DriverRegisterWizardComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Driver.Update'] }
+  },
+  {
+    path: ':id/verify',
+    component: DriverVerificationHubComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Driver.Update'] }
+  },
   { path: ':id/tracking', component: DriverTrackingRedirectComponent },
   { path: ':id', component: DriverProfileComponent }
 ];

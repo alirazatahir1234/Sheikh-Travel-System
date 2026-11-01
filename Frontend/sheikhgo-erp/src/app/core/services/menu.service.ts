@@ -3,7 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NavGroup, NavItem, ResolvedMenu } from '../navigation/nav-models';
-import { resolveMenu } from '../navigation/menu-config';
+import { isRouteAllowedForPrimaryRole, resolveMenu } from '../navigation/menu-config';
+import { selectPrimaryRole } from '../auth/role-priority';
 import { normalizeNavMenuRoute } from '../navigation/nav-menu-route.util';
 import { resolveTenantType } from '../navigation/tenant-type';
 import { AuthService } from './auth.service';
@@ -86,18 +87,41 @@ export class MenuService {
   ) {}
 
   loadMenu(roles: string[], enabledModules: string[] = []): Observable<ResolvedMenu> {
+    const primaryRole = selectPrimaryRole(roles, '');
     return this.http
       .get<MenuModuleDto[]>(`${environment.apiUrl}/platform/menus/me`)
       .pipe(
-        map(modules => this.ensureGpsAnalyticsNav(
-          this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules),
-          enabledModules
+        map(modules => this.filterMenuByRole(
+          this.ensureGpsAnalyticsNav(
+            this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules),
+            enabledModules
+          ),
+          primaryRole
         )),
-        catchError(() => of(this.ensureGpsAnalyticsNav(
-          this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules),
-          enabledModules
+        catchError(() => of(this.filterMenuByRole(
+          this.ensureGpsAnalyticsNav(
+            this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules),
+            enabledModules
+          ),
+          primaryRole
         )))
       );
+  }
+
+  private filterMenuByRole(menu: ResolvedMenu, primaryRole: string): ResolvedMenu {
+    if (menu.isDriverLayout || !primaryRole) return menu;
+    return {
+      ...menu,
+      groups: menu.groups
+        .map(g => ({
+          ...g,
+          items: g.items.filter(i => isRouteAllowedForPrimaryRole(i.route, primaryRole))
+        }))
+        .filter(g => g.items.length > 0),
+      standaloneItems: (menu.standaloneItems ?? []).filter(i =>
+        isRouteAllowedForPrimaryRole(i.route, primaryRole)
+      )
+    };
   }
 
   private fromApi(modules: MenuModuleDto[]): ResolvedMenu {

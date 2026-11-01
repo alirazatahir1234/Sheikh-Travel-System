@@ -16,6 +16,7 @@ interface PortalNavItem {
   readonly icon: string;
   readonly label: string;
   readonly exact: boolean;
+  readonly requiresAuth?: boolean;
 }
 
 @Component({
@@ -64,14 +65,20 @@ export class PortalShellComponent {
     this.isSidebarPinned.update((v) => !v);
   }
 
-  readonly navItems: readonly PortalNavItem[] = [
-    { route: '/dashboard', icon: 'dashboard', label: 'Dashboard', exact: true },
-    { route: '/book', icon: 'edit_calendar', label: 'Book a ride', exact: true },
-    { route: '/bookings', icon: 'confirmation_number', label: 'My bookings', exact: true },
-    { route: '/trip-history', icon: 'history', label: 'Trip history', exact: true },
-    { route: '/notifications', icon: 'notifications', label: 'Notifications', exact: true },
-    { route: '/payments', icon: 'account_balance_wallet', label: 'Payments', exact: true }
+  private readonly allNavItems: readonly PortalNavItem[] = [
+    { route: '/dashboard', icon: 'dashboard', label: 'Dashboard', exact: true, requiresAuth: true },
+    { route: '/book', icon: 'edit_calendar', label: 'Book a ride', exact: true, requiresAuth: false },
+    { route: '/bookings', icon: 'confirmation_number', label: 'My bookings', exact: true, requiresAuth: true },
+    { route: '/trip-history', icon: 'history', label: 'Trip history', exact: true, requiresAuth: true },
+    { route: '/notifications', icon: 'notifications', label: 'Notifications', exact: true, requiresAuth: true },
+    { route: '/payments', icon: 'account_balance_wallet', label: 'Payments', exact: true, requiresAuth: true }
   ];
+
+  readonly navItems = computed(() => {
+    this.session.sessionVersion();
+    const authed = this.session.isAuthenticated();
+    return this.allNavItems.filter((item) => !item.requiresAuth || authed);
+  });
 
   /** Local clock (admin shell shows HQ time; portal shows browser-local). */
   readonly timeDisplay = signal<{ time: string; sub: string }>({ time: '', sub: '' });

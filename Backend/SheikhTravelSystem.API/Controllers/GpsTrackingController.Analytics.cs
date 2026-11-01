@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
@@ -12,6 +13,8 @@ namespace SheikhTravelSystem.API.Controllers;
 /// GpsTrackingController.cs since this domain adds ~18 endpoints on top of an already
 /// multi-resource controller (see the class doc-comment on the main file).
 /// </summary>
+[Authorize]
+[RequirePermission(AnalyticsPermissions.GpsView)]
 public partial class GpsTrackingController
 {
     [HttpGet("analytics/overview")]
@@ -174,14 +177,17 @@ public partial class GpsTrackingController
         => Ok(await Mediator.Send(new ListAnalyticsReportSchedulesQuery()));
 
     [HttpPost("analytics/reports/schedules")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> CreateAnalyticsReportSchedule([FromBody] CreateAnalyticsReportScheduleDto body)
         => Ok(await Mediator.Send(new CreateAnalyticsReportScheduleCommand(body)));
 
     [HttpPut("analytics/reports/schedules/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateAnalyticsReportSchedule(int id, [FromBody] UpdateAnalyticsReportScheduleDto body)
         => Ok(await Mediator.Send(new UpdateAnalyticsReportScheduleCommand(id, body)));
 
     [HttpDelete("analytics/reports/schedules/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DeleteAnalyticsReportSchedule(int id)
         => Ok(await Mediator.Send(new DeleteAnalyticsReportScheduleCommand(id)));
 }

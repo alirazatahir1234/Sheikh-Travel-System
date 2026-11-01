@@ -17,6 +17,7 @@ using SheikhTravelSystem.Application.Features.FuelFraud;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/driver-app")]
 public class DriverAppController : BaseApiController

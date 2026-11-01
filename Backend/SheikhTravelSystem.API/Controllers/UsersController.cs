@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+[Authorize]
 [RequirePermission(PlatformPermissions.UsersView)]
 public class UsersController : BaseApiController
 {

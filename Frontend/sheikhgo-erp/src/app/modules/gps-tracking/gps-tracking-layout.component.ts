@@ -28,7 +28,7 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
 
   private readonly allNavItems: GpsNavItem[] = [
     { label: 'Live Map', icon: 'my_location', route: 'live' },
-    { label: 'Devices', icon: 'sensors', route: 'devices' },
+    { label: 'Devices', icon: 'sensors', route: 'devices', permission: 'Gps.DeviceManage' },
     { label: 'Alerts', icon: 'notifications_active', route: 'alerts', permission: 'Gps.AlertView' },
     { label: 'Geofences', icon: 'fence', route: 'geofences' },
     { label: 'Trips', icon: 'route', route: 'trips' },

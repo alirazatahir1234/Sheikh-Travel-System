@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
@@ -5,6 +6,7 @@ using SheikhTravelSystem.Application.Features.AuditLogs.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+[Authorize]
 [RequirePermission(PlatformPermissions.AuditLogsView)]
 public class AuditLogsController : BaseApiController
 {

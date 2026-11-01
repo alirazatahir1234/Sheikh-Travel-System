@@ -46,3 +46,36 @@ export function selectPrimaryRole(roles: string[] | null | undefined, fallback =
   const ordered = orderRolesByPrivilege(roles);
   return ordered[0] || fallback;
 }
+
+/** Normalize role codes for comparisons (Driver, FIELD-DRIVER → FIELD_DRIVER). */
+export function normalizeRoleCode(code: string | null | undefined): string {
+  return (code || '').toUpperCase().replace(/[\s-]/g, '_');
+}
+
+/** True for DRIVER / FIELD_DRIVER (field-ops driver workspace accounts). */
+export function isDriverRoleCode(code: string | null | undefined): boolean {
+  const c = normalizeRoleCode(code);
+  return c === 'DRIVER' || c === 'FIELD_DRIVER';
+}
+
+/** True when any assigned role is a driver workspace role. */
+export function rolesIncludeDriver(roles: string[] | null | undefined): boolean {
+  return (roles ?? []).some(isDriverRoleCode);
+}
+
+/**
+ * True when the highest-privilege role is a driver workspace role.
+ * Multi-role staff (e.g. Admin + Driver) keep full ERP access; only
+ * driver-primary accounts are locked to /my-trips|/wallet|/profile.
+ */
+export function isDriverPrimaryAccount(roles: string[] | null | undefined): boolean {
+  const primary = orderRolesByPrivilege(roles)[0];
+  return isDriverRoleCode(primary);
+}
+
+/** Case-insensitive role membership (avoids brittle roles.includes('Driver')). */
+export function rolesInclude(roles: string[] | null | undefined, ...needles: string[]): boolean {
+  if (!roles?.length || !needles.length) return false;
+  const set = new Set(roles.map(normalizeRoleCode));
+  return needles.some(n => set.has(normalizeRoleCode(n)));
+}

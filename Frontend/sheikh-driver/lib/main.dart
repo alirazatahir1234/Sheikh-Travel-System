@@ -36,7 +36,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp().timeout(const Duration(seconds: 3));
     FcmService.instance.recordFirebaseInitSuccess();
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -44,8 +44,11 @@ void main() async {
       return true;
     };
     await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(!kDebugMode);
-    await AnalyticsService.instance.init();
+        .setCrashlyticsCollectionEnabled(!kDebugMode)
+        .timeout(const Duration(seconds: 2));
+    await AnalyticsService.instance
+        .init()
+        .timeout(const Duration(seconds: 2));
   } catch (e) {
     debugPrint('[Firebase] Init skipped: $e');
     FcmService.instance.recordFirebaseInitFailure(e);
@@ -57,8 +60,11 @@ void main() async {
   await OfflineOutbox.init();
   await TripsCache.init();
   await GpsSessionStore.init();
-  await GpsBackgroundService.initialize();
-  await GpsBackgroundService.registerDrainTask();
+  unawaited(
+    GpsBackgroundService.initialize().then(
+      (_) => GpsBackgroundService.registerDrainTask(),
+    ),
+  );
   final isDark = prefsBox.get('darkMode', defaultValue: false) as bool;
   final localeCode =
       prefsBox.get(localePrefsKey, defaultValue: 'en') as String? ?? 'en';

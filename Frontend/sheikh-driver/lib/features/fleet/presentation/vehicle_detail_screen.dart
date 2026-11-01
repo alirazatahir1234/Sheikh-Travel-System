@@ -46,14 +46,17 @@ class VehicleDetailScreen extends ConsumerWidget {
     final canCommands = session?.canUseGpsCommands ?? false;
     final canPlayback =
         session?.hasPermission(FleetPermissions.gpsView) ?? false;
+    final canSeeDeviceTab = session?.canSeeTrackerHardware ?? false;
+    final canSeeFuelTab = !(session?.isGpsOperator ?? false) &&
+        (session?.hasPermission(FleetPermissions.fuelView) ?? false);
 
     final tabs = <Tab>[
       const Tab(text: 'Overview'),
       const Tab(text: 'Live'),
       if (canPlayback) const Tab(text: 'Playback'),
       const Tab(text: 'Alerts'),
-      const Tab(text: 'Fuel'),
-      const Tab(text: 'Device'),
+      if (canSeeFuelTab) const Tab(text: 'Fuel'),
+      if (canSeeDeviceTab) const Tab(text: 'Device'),
     ];
 
     return DefaultTabController(
@@ -138,8 +141,8 @@ class VehicleDetailScreen extends ConsumerWidget {
                 vehicleName: v.name,
                 plate: v.registrationNumber,
               ),
-              _FuelTab(vehicleId: vehicleId),
-              _DeviceTab(vehicleId: vehicleId),
+              if (canSeeFuelTab) _FuelTab(vehicleId: vehicleId),
+              if (canSeeDeviceTab) _DeviceTab(vehicleId: vehicleId),
             ],
           ),
         ),
@@ -321,7 +324,7 @@ class _VehicleAssignmentActionsState
   VehicleDetail get vehicle => widget.vehicle;
 
   bool _canAssign(FleetSession? session) {
-    if (session == null) return false;
+    if (session == null || session.isGpsOperator) return false;
     return session.hasPermission(FleetPermissions.driverAssign) ||
         session.hasPermission(FleetPermissions.vehicleUpdate);
   }

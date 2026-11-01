@@ -35,6 +35,7 @@ import { ClientTrackingLinksPageComponent } from './client-tracking-links/client
 import { FatigueEventsPageComponent } from './fatigue-events/fatigue-events-page.component';
 import { AccidentRiskPageComponent } from './accident-risk/accident-risk-page.component';
 import { GpsTripModePageComponent } from './trip-mode/gps-trip-mode-page.component';
+import { permissionGuard } from '../../core/guards/permission.guard';
 
 const routes: Routes = [
   {
@@ -45,22 +46,82 @@ const routes: Routes = [
       { path: 'live', component: LiveMapComponent },
       { path: 'history', component: GpsHistoryComponent },
       { path: 'trips', component: GpsTripsComponent },
-      { path: 'trip-mode', component: GpsTripModePageComponent },
+      {
+        path: 'trip-mode',
+        component: GpsTripModePageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
       { path: 'trips/:tripKey', component: TripDetailPageComponent },
       { path: 'geofences', component: GpsGeofencesComponent },
-      { path: 'alerts', component: GpsAlertsComponent },
-      { path: 'sos', component: SosDispatchComponent },
-      { path: 'fatigue-events', component: FatigueEventsPageComponent },
-      { path: 'devices', component: GpsDevicesComponent },
-      { path: 'devices/register', component: TrackerRegisterPageComponent },
-      { path: 'devices/:id/install', component: TrackerInstallPageComponent },
-      { path: 'devices/:id/transfer', component: TrackerInstallPageComponent },
-      { path: 'devices/:id/edit', component: TrackerRegisterPageComponent },
-      { path: 'devices/:id', component: TrackerDetailsPageComponent },
-      { path: 'commands', component: GpsCommandsComponent },
+      {
+        path: 'alerts',
+        component: GpsAlertsComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.AlertView'] }
+      },
+      {
+        path: 'sos',
+        component: SosDispatchComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.AlertView'] }
+      },
+      {
+        path: 'fatigue-events',
+        component: FatigueEventsPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.AlertView'] }
+      },
+      {
+        path: 'devices',
+        component: GpsDevicesComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'devices/register',
+        component: TrackerRegisterPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'devices/:id/install',
+        component: TrackerInstallPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'devices/:id/transfer',
+        component: TrackerInstallPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'devices/:id/edit',
+        component: TrackerRegisterPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'devices/:id',
+        component: TrackerDetailsPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.DeviceManage'] }
+      },
+      {
+        path: 'commands',
+        component: GpsCommandsComponent,
+        canActivate: [permissionGuard],
+        data: { roles: ['SUPER_ADMIN'], permissions: ['Gps.CommandView'] }
+      },
       { path: 'analytics', component: GpsAnalyticsComponent },
       { path: 'driver-performance', component: DriverPerformancePageComponent },
-      { path: 'accident-risk', component: AccidentRiskPageComponent, data: { permission: 'Gps.AlertView' } },
+      {
+        path: 'accident-risk',
+        component: AccidentRiskPageComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.AlertView'] }
+      },
       { path: 'client-tracking-links', component: ClientTrackingLinksPageComponent }
     ]
   }

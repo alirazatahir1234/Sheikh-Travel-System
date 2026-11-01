@@ -10,12 +10,23 @@ import { BookingWizardComponent } from './booking-wizard/booking-wizard.componen
 import { BookingDetailComponent } from './booking-detail/booking-detail.component';
 import { BookingEditComponent } from './booking-edit/booking-edit.component';
 import { BookingInvoiceComponent } from './booking-invoice/booking-invoice.component';
+import { permissionGuard } from '../../core/guards/permission.guard';
 
 const routes: Routes = [
   { path: '',            component: BookingListComponent    },
-  { path: 'new',         component: BookingWizardComponent  },
+  {
+    path: 'new',
+    component: BookingWizardComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Booking.Create'] }
+  },
   { path: ':id',         component: BookingDetailComponent  },
-  { path: ':id/edit',    component: BookingEditComponent    },
+  {
+    path: ':id/edit',
+    component: BookingEditComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Booking.Update'] }
+  },
   { path: ':id/invoice', component: BookingInvoiceComponent }
 ];
 

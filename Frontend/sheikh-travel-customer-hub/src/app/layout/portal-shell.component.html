@@ -37,7 +37,7 @@
     </div>
 
     <nav class="stb-rail-nav">
-      @for (item of navItems; track item.route) {
+      @for (item of navItems(); track item.route) {
         <a
           [routerLink]="item.route"
           routerLinkActive="active"

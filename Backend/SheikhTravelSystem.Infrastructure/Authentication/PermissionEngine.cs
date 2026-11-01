@@ -120,7 +120,10 @@ public class PermissionEngine(IDbConnectionFactory dbFactory) : IPermissionEngin
                     AddSource(sourceByPerm, p, PlatformRoles.TenantAdmin);
             }
 
-            permissionCodes = sourceByPerm.Keys.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+            permissionCodes = sourceByPerm.Keys
+                .Where(p => !PermissionAuthorizationHandler.IsSuperAdminOnlyPermission(p))
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         if (!isSuperAdmin)

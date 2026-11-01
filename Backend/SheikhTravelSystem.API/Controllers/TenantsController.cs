@@ -8,6 +8,7 @@ using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/tenants")]
 public class TenantsController : BaseApiController

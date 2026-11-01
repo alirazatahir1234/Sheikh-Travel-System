@@ -301,10 +301,13 @@ abstract final class FleetNavConfig {
         return const [dashboard, trips, tracking, notifications, profile];
       case FleetRole.driverManager:
         return const [dashboard, drivers, trips, more];
+      case FleetRole.gpsOperator:
+        return const [dashboard, map, fleet, more];
       case FleetRole.dispatcher:
         return const [dashboard, bookings, trips, map, more];
       case FleetRole.accountant:
         return const [dashboard, finance, reports, notifications, more];
+      case FleetRole.owner:
       case FleetRole.superAdmin:
       case FleetRole.tenantAdmin:
       case FleetRole.fleetManager:
@@ -402,17 +405,24 @@ abstract final class FleetNavConfig {
   static bool _alwaysEntry(FleetSession _) => true;
   static bool _fleetLiveMap(FleetSession s) => s.canSeeFleetTab;
   static bool _driverTracking(FleetSession s) => s.isDriverSession;
-  static bool _driversMenu(FleetSession s) => s.canSeeDriversTab;
+  static bool _driversMenu(FleetSession s) =>
+      !s.isGpsOperator && s.canSeeDriversTab;
   static bool _alertsMenu(FleetSession s) =>
       !s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView);
   static bool _maintenanceMenu(FleetSession s) =>
-      !s.isDriverOnly && s.hasPermission(FleetPermissions.maintenanceView);
+      !s.isDriverOnly &&
+      !s.isGpsOperator &&
+      s.hasPermission(FleetPermissions.maintenanceView);
   static bool _fuelMenu(FleetSession s) =>
-      s.hasPermission(FleetPermissions.fuelView) || s.isDriverSession;
+      !s.isGpsOperator &&
+      (s.hasPermission(FleetPermissions.fuelView) || s.isDriverSession);
   static bool _reportsMenu(FleetSession s) =>
-      !s.isDriverOnly && s.hasPermission(FleetPermissions.reportView);
+      !s.isDriverOnly &&
+      !s.isGpsOperator &&
+      s.hasPermission(FleetPermissions.reportView);
   static bool _documentsMenu(FleetSession s) =>
-      s.isDriverSession || s.hasPermission(FleetPermissions.vehicleView);
+      !s.isGpsOperator &&
+      (s.isDriverSession || s.hasPermission(FleetPermissions.vehicleView));
   static bool _driverWorkflow(FleetSession s) => s.isDriverSession;
   static bool _bookingsMenu(FleetSession s) => s.canSeeBookingsTab;
   static bool _financeMenu(FleetSession s) => s.canSeeFinanceTab;

@@ -432,15 +432,23 @@ export class OrganizationTreeComponent {
   }
 
   highlightMatch(text: string): string {
-    const query = this.searchQuery().toLowerCase().trim();
-    if (!query) return text;
-
-    const regex = new RegExp(`(${this.escapeRegex(query)})`, 'gi');
-    return text.replace(regex, '<mark class="bg-yellow-200 rounded px-0.5">$1</mark>');
+    const raw = text ?? '';
+    const query = this.searchQuery().trim();
+    if (!query) return this.escapeHtml(raw);
+    const idx = raw.toLowerCase().indexOf(query.toLowerCase());
+    if (idx < 0) return this.escapeHtml(raw);
+    const before = this.escapeHtml(raw.slice(0, idx));
+    const match = this.escapeHtml(raw.slice(idx, idx + query.length));
+    const after = this.escapeHtml(raw.slice(idx + query.length));
+    return `${before}<mark class="bg-yellow-200 rounded px-0.5">${match}</mark>${after}`;
   }
 
-  private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  private escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   private collectSearchResults(
