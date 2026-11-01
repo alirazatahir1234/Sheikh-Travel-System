@@ -243,6 +243,7 @@ class _OverviewTab extends StatelessWidget {
         VehicleCommsButtons(
           phone: vehicle.driverPhone,
           vehicleLabel: vehicle.name,
+          compact: true,
         ),
         const SizedBox(height: 12),
         const SgSectionTitle('Live telemetry'),

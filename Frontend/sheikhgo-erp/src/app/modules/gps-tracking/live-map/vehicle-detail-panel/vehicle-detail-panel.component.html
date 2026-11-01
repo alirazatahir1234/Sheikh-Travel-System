@@ -112,10 +112,28 @@
           </div>
           <div class="vdp__metric">
             <mat-icon>person</mat-icon>
-            <div>
+            <div class="vdp__driver">
               <span class="vdp__lbl">Driver</span>
-              <span class="vdp__val" *ngIf="v.driverName">{{ v.driverName }}</span>
-              <span class="vdp__val vdp__muted" *ngIf="!v.driverName">Not assigned</span>
+              <div class="vdp__driver-row">
+                <span class="vdp__val" *ngIf="v.driverName">{{ v.driverName }}</span>
+                <span class="vdp__val vdp__muted" *ngIf="!v.driverName">Not assigned</span>
+                <div class="vdp__comms" *ngIf="hasDriverPhone">
+                  <a
+                    class="vdp__comms-btn"
+                    [href]="driverTelHref"
+                    aria-label="Call driver">
+                    <mat-icon>call</mat-icon>
+                  </a>
+                  <a
+                    class="vdp__comms-btn vdp__comms-btn--wa"
+                    [href]="driverWhatsAppHref"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp driver">
+                    <mat-icon>chat</mat-icon>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
           <div class="vdp__metric">

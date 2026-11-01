@@ -199,5 +199,36 @@ void main() {
       expect(next.first.latitude, 24.86);
       expect(next.first.speed, 20);
     });
+
+    test('applyLiveUpdate preserves driverPhone when SignalR omits it', () {
+      final now = DateTime.now().toUtc();
+      final current = [
+        FleetVehicleLocation(
+          vehicleId: 1,
+          vehicleName: 'Bus A',
+          registrationNumber: 'ABC-1',
+          status: FleetTrackStatus.idle,
+          latitude: 24.86,
+          longitude: 67.0,
+          lastUpdated: now.subtract(const Duration(seconds: 30)),
+          speed: 0,
+          hasGps: true,
+          driverPhone: '03202223333',
+          driverName: 'Kashif Butt',
+        ),
+      ];
+      final update = GpsPosition(
+        vehicleId: 1,
+        latitude: 24.861,
+        longitude: 67.001,
+        speed: 12,
+        ignition: true,
+        timestamp: now,
+      );
+      final next = applyLiveUpdate(current, update);
+      expect(next.first.driverPhone, '03202223333');
+      expect(next.first.driverName, 'Kashif Butt');
+      expect(next.first.status, FleetTrackStatus.moving);
+    });
   });
 }

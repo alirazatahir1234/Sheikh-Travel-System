@@ -57,4 +57,47 @@ export class VehicleDetailPanelComponent {
   setTab(tab: DetailTab): void {
     this.tabChange.emit(tab);
   }
+
+  /** True when the selected vehicle has a dialable/WhatsApp-able driver phone. */
+  get hasDriverPhone(): boolean {
+    return !!this.driverWhatsAppDigits && !!this.driverTelHref;
+  }
+
+  get driverTelHref(): string | null {
+    const cleaned = this.normalizeTel(this.loc?.driverPhone);
+    return cleaned ? `tel:${cleaned}` : null;
+  }
+
+  get driverWhatsAppHref(): string | null {
+    const digits = this.driverWhatsAppDigits;
+    return digits ? `https://wa.me/${digits}` : null;
+  }
+
+  private get driverWhatsAppDigits(): string | null {
+    return this.normalizeWhatsAppDigits(this.loc?.driverPhone);
+  }
+
+  /** Strip formatting; keep leading + for the device dialer. */
+  private normalizeTel(phone: string | null | undefined): string | null {
+    const raw = (phone ?? '').trim();
+    if (!raw) return null;
+    const cleaned = raw.replace(/[^\d+]/g, '');
+    return cleaned.length >= 7 ? cleaned : null;
+  }
+
+  /**
+   * Digits for wa.me — converts common PK local mobiles (`03XXXXXXXXX`) to
+   * `923XXXXXXXXX` and strips a leading +.
+   */
+  private normalizeWhatsAppDigits(phone: string | null | undefined): string | null {
+    const raw = (phone ?? '').trim();
+    if (!raw) return null;
+    let digits = raw.replace(/[^\d+]/g, '');
+    if (digits.startsWith('+')) digits = digits.slice(1);
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (digits.length === 11 && digits.startsWith('0')) {
+      digits = `92${digits.slice(1)}`;
+    }
+    return digits.length >= 10 ? digits : null;
+  }
 }

@@ -3104,6 +3104,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const prevStatus = prev.status;
     const incomingAddr = update.address?.trim() || null;
     const keptAddr = preferRicherAddress(prev.address, incomingAddr);
+    const incomingPhone = update.driverPhone?.trim();
     this.locations[idx] = {
       ...prev,
       latitude: update.latitude,
@@ -3123,6 +3124,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       address: keptAddr,
       alarmType: update.alarmType,
       temperature: update.temperature,
+      // Keep assigned driver phone when SignalR position omits it.
+      driverPhone: incomingPhone || prev.driverPhone,
       routeHint: this.realtimeRouteHint(status, speed)
     };
 

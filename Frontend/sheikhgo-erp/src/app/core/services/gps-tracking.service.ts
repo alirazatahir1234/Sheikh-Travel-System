@@ -330,10 +330,30 @@ export class GpsTrackingService {
     }).pipe(
       map(({ tracking, vehicles, drivers, devices }) => {
         const driverMap = new Map(drivers.items.map(d => [d.id, d.fullName]));
+        const driverPhoneMap = new Map(
+          drivers.items
+            .filter(d => !!(d.phone && String(d.phone).trim()))
+            .map(d => [d.id, String(d.phone).trim()])
+        );
         const liveByVehicle = new Map(tracking.map(t => [t.vehicleId, t]));
         const deviceByVehicle = new Map(
           devices.filter(d => d.vehicleId != null).map(d => [d.vehicleId as number, d])
         );
+
+        const resolveDriverPhone = (
+          livePhone: string | null | undefined,
+          driverId: number | null | undefined,
+          vehiclePhone: string | null | undefined
+        ): string | undefined => {
+          const fromLive = livePhone?.trim();
+          if (fromLive) return fromLive;
+          if (driverId != null) {
+            const fromDriver = driverPhoneMap.get(driverId)?.trim();
+            if (fromDriver) return fromDriver;
+          }
+          const fromVehicle = vehiclePhone?.trim();
+          return fromVehicle || undefined;
+        };
 
         const result: VehicleLocation[] = vehicles.items
           .filter(v => v.status !== VehicleStatus.Retired)
@@ -378,7 +398,7 @@ export class GpsTrackingService {
                 alarmType: live.alarmType,
                 temperature: live.temperature,
                 vehicleType: v.vehicleType,
-                driverPhone: live.driverPhone,
+                driverPhone: resolveDriverPhone(live.driverPhone, live.driverId ?? v.driverId, v.driverPhone),
                 bookingId: live.bookingId,
                 ...trackerFields
               };
@@ -408,6 +428,7 @@ export class GpsTrackingService {
                 routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, 0),
                 ignition: v.engineIgnition ?? undefined,
                 vehicleType: v.vehicleType,
+                driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
                 ...trackerFields
               };
             }
@@ -426,6 +447,7 @@ export class GpsTrackingService {
                 hasGps: false,
                 routeHint: 'No GPS signal',
                 vehicleType: v.vehicleType,
+                driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
                 ...trackerFields
               };
             }
@@ -444,6 +466,7 @@ export class GpsTrackingService {
               hasGps: false,
               routeHint: 'Awaiting GPS signal',
               vehicleType: v.vehicleType,
+              driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
               ...trackerFields
             };
           });

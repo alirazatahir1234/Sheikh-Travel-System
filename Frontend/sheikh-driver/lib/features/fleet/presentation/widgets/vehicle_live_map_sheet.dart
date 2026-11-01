@@ -193,13 +193,27 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                               color: AppColors.textSecondary,
                             ),
                           ),
-                          if ((vehicle.driverName ?? '').isNotEmpty)
-                            Text(
-                              'Driver ${vehicle.driverName}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textMuted,
-                              ),
+                          if ((vehicle.driverName ?? '').isNotEmpty ||
+                              (vehicle.driverPhone ?? '').trim().isNotEmpty)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    (vehicle.driverName ?? '').isNotEmpty
+                                        ? 'Driver ${vehicle.driverName}'
+                                        : 'Driver',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                                VehicleCommsButtons(
+                                  phone: vehicle.driverPhone,
+                                  vehicleLabel: vehicle.vehicleName,
+                                  compact: true,
+                                ),
+                              ],
                             ),
                         ],
                       ),
@@ -421,13 +435,6 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                     return _StatsGrid(items: items);
                   },
                 ),
-                if ((vehicle.driverPhone ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  VehicleCommsButtons(
-                    phone: vehicle.driverPhone,
-                    vehicleLabel: vehicle.vehicleName,
-                  ),
-                ],
                 const SizedBox(height: 14),
                 const _SectionTitle('Actions'),
                 Wrap(

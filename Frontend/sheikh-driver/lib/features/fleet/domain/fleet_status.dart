@@ -145,7 +145,11 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
         lastUpdated: livePos.timestamp,
         speed: livePos.speed,
         driverName: v.driverName,
-        driverPhone: v.driverPhone,
+        driverPhone: () {
+          final livePhone = livePos.driverPhone?.trim();
+          if (livePhone != null && livePhone.isNotEmpty) return livePhone;
+          return v.driverPhone;
+        }(),
         hasGps: true,
         ignition: livePos.ignition,
         heading: livePos.heading,
@@ -229,6 +233,7 @@ List<FleetVehicleLocation> applyLiveUpdate(
     alarmType: update.alarmType,
   );
   final next = List<FleetVehicleLocation>.from(current);
+  final livePhone = update.driverPhone?.trim();
   next[idx] = existing.copyWith(
     latitude: update.latitude,
     longitude: update.longitude,
@@ -242,6 +247,9 @@ List<FleetVehicleLocation> applyLiveUpdate(
     gsmSignal: update.gsmSignal,
     address: _preferAddress(existing.address, update.address),
     alarmType: update.alarmType,
+    driverPhone: (livePhone != null && livePhone.isNotEmpty)
+        ? livePhone
+        : existing.driverPhone,
   );
   return next;
 }
