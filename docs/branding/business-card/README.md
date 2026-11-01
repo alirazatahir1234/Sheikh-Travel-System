@@ -22,8 +22,9 @@
 | `sheikhgo-business-card-back.png` | Back — Solutions / navy sidebar (PDF page 2 embed, byte-identical) |
 | `sheikhgo-business-card-front.svg` | Print wrapper embedding front PNG 1:1 |
 | `sheikhgo-business-card-back.svg` | Print wrapper embedding back PNG 1:1 |
-| `SheikhGo_Business_Card_Front_Vector.svg` / `…_Back_Vector.svg` | Vector companions from the same export |
-| `SheikhGo_Business_Card_Front_300dpi.png` / `…_Back_300dpi.png` | Companion 300 DPI renders from the same export |
+| `sheikhgo-business-card-front-vector.svg` / `sheikhgo-business-card-back-vector.svg` | Vector companions from the same export |
+| `source-codex-front-300dpi.png` / `source-codex-back-300dpi.png` | Companion 300 DPI renders from the same export |
+| `source-presentation-1536x1024.png` | Presentation mock of front+back from the same export |
 
 ## Optional: validated QR overlay
 
