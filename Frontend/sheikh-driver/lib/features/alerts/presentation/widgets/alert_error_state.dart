@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_theme.dart';
+import 'fleet_alerts_colors.dart';
 
 class AlertErrorState extends StatelessWidget {
   const AlertErrorState({
@@ -20,27 +20,15 @@ class AlertErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEE2E2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.wifi_off_rounded,
-                size: 44,
-                color: AppColors.error,
-              ),
-            ),
-            const SizedBox(height: 20),
+            const _ErrorCloud(),
+            const SizedBox(height: 22),
             const Text(
               "Couldn't Load Alerts",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0B253B),
+                color: FleetAlertsColors.navy,
               ),
             ),
             const SizedBox(height: 8),
@@ -50,11 +38,11 @@ class AlertErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                height: 1.4,
-                color: AppColors.textSecondary,
+                height: 1.45,
+                color: FleetAlertsColors.secondary,
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -71,11 +59,11 @@ class AlertErrorState extends StatelessWidget {
                     : const Icon(Icons.refresh_rounded),
                 label: Text(retrying ? 'Retrying…' : 'Retry'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: FleetAlertsColors.teal,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor:
-                      AppColors.primary.withValues(alpha: 0.7),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                      FleetAlertsColors.teal.withValues(alpha: 0.7),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -88,6 +76,56 @@ class AlertErrorState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Soft cloud with red no-wifi + notification dot (Image A error).
+class _ErrorCloud extends StatelessWidget {
+  const _ErrorCloud();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      height: 110,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: 10,
+            child: Container(
+              width: 124,
+              height: 76,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8EEF2),
+                borderRadius: BorderRadius.circular(42),
+              ),
+            ),
+          ),
+          const Positioned(
+            top: 28,
+            child: Icon(
+              Icons.wifi_off_rounded,
+              size: 42,
+              color: FleetAlertsColors.critical,
+            ),
+          ),
+          Positioned(
+            top: 18,
+            right: 28,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: FleetAlertsColors.critical,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

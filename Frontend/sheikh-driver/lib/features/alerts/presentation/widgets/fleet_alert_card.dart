@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_theme.dart';
 import '../../domain/alert_display.dart';
+import 'fleet_alerts_colors.dart';
 
-/// Compact Fleet Alerts list card matching the product mockup.
+/// Compact Fleet Alerts list card matching the product mockup (Image B).
 class FleetAlertCard extends StatelessWidget {
   const FleetAlertCard({
     super.key,
@@ -21,23 +21,19 @@ class FleetAlertCard extends StatelessWidget {
     final primary = incident.primary;
     final bucket = alertSeverityBucket(primary);
     final stripeColor = showAsResolved
-        ? AppColors.success
+        ? FleetAlertsColors.success
         : switch (bucket) {
-            AlertDisplaySeverity.critical => AppColors.error,
-            AlertDisplaySeverity.warning => AppColors.warning,
-            AlertDisplaySeverity.info => const Color(0xFF3B82F6),
-            AlertDisplaySeverity.resolved => AppColors.success,
+            AlertDisplaySeverity.critical => FleetAlertsColors.critical,
+            AlertDisplaySeverity.warning => FleetAlertsColors.warning,
+            AlertDisplaySeverity.info => FleetAlertsColors.info,
+            AlertDisplaySeverity.resolved => FleetAlertsColors.success,
           };
 
-    final iconBg = showAsResolved
-        ? AppColors.success.withValues(alpha: 0.14)
-        : stripeColor.withValues(alpha: 0.12);
-    final iconColor = showAsResolved ? AppColors.success : stripeColor;
     final icon = showAsResolved
         ? Icons.check_rounded
         : switch (bucket) {
-            AlertDisplaySeverity.critical => Icons.error_rounded,
-            AlertDisplaySeverity.warning => Icons.warning_amber_rounded,
+            AlertDisplaySeverity.critical => Icons.priority_high_rounded,
+            AlertDisplaySeverity.warning => Icons.priority_high_rounded,
             AlertDisplaySeverity.info => Icons.info_rounded,
             AlertDisplaySeverity.resolved => Icons.check_rounded,
           };
@@ -64,23 +60,20 @@ class FleetAlertCard extends StatelessWidget {
     final location = alertLocationLabel(primary);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
-        elevation: 0,
-        borderRadius: BorderRadius.circular(18),
-        shadowColor: Colors.black.withValues(alpha: 0.08),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Ink(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: FleetAlertsColors.card,
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
                   offset: const Offset(0, 3),
                 ),
               ],
@@ -90,7 +83,7 @@ class FleetAlertCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    width: 5,
+                    width: 6,
                     decoration: BoxDecoration(
                       color: stripeColor,
                       borderRadius: const BorderRadius.only(
@@ -101,20 +94,20 @@ class FleetAlertCard extends StatelessWidget {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                      padding: const EdgeInsets.fromLTRB(12, 14, 6, 14),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 36,
-                            height: 36,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
-                              color: iconBg,
+                              color: stripeColor,
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(icon, color: iconColor, size: 18),
+                            child: Icon(icon, color: Colors.white, size: 20),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,10 +119,11 @@ class FleetAlertCard extends StatelessWidget {
                                       child: Text(
                                         title,
                                         style: const TextStyle(
-                                          fontSize: 15,
+                                          fontSize: 15.5,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF0B253B),
+                                          color: FleetAlertsColors.navy,
                                           height: 1.2,
+                                          letterSpacing: -0.2,
                                         ),
                                       ),
                                     ),
@@ -139,33 +133,33 @@ class FleetAlertCard extends StatelessWidget {
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
-                                        color: AppColors.textSecondary,
+                                        color: FleetAlertsColors.secondary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 5),
                                 Text(
                                   description,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontSize: 13,
-                                    height: 1.3,
-                                    color: AppColors.textSecondary,
+                                    height: 1.35,
+                                    color: FleetAlertsColors.secondary,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 11),
                                 Wrap(
                                   spacing: 6,
                                   runSpacing: 6,
                                   children: [
                                     _MetaPill(
-                                      icon: Icons.directions_car_outlined,
+                                      icon: Icons.directions_car_filled_rounded,
                                       label: vehicle,
                                     ),
                                     _MetaPill(
-                                      icon: Icons.location_on_outlined,
+                                      icon: Icons.location_on_rounded,
                                       label: location,
                                     ),
                                   ],
@@ -174,10 +168,10 @@ class FleetAlertCard extends StatelessWidget {
                             ),
                           ),
                           const Padding(
-                            padding: EdgeInsets.only(left: 2, top: 8),
+                            padding: EdgeInsets.only(left: 2, top: 6),
                             child: Icon(
                               Icons.chevron_right_rounded,
-                              color: AppColors.textMuted,
+                              color: Color(0xFFB8C4CE),
                               size: 22,
                             ),
                           ),
@@ -204,16 +198,16 @@ class _MetaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(8),
+        color: FleetAlertsColors.pillFill,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
+          Icon(icon, size: 13, color: FleetAlertsColors.secondary),
+          const SizedBox(width: 5),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 140),
             child: Text(
@@ -221,9 +215,9 @@ class _MetaPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF0B253B),
+                color: FleetAlertsColors.secondary,
               ),
             ),
           ),

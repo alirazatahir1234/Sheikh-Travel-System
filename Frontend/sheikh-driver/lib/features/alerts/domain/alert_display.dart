@@ -56,7 +56,7 @@ AlertTypeMeta alertTypeMeta(String eventType) {
         severity: AlertDisplaySeverity.info,
       ),
     'speed_exceeded' => const AlertTypeMeta(
-        title: 'Overspeed',
+        title: 'Over Speed',
         description: 'Vehicle exceeded the configured speed limit.',
         severity: AlertDisplaySeverity.warning,
       ),

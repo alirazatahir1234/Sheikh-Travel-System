@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../domain/alert_display.dart';
 import '../alerts_notifier.dart';
+import 'fleet_alerts_colors.dart';
 
 class FleetAlertsHeader extends StatelessWidget {
   const FleetAlertsHeader({
@@ -23,22 +24,59 @@ class FleetAlertsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final canPop = GoRouter.of(context).canPop();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (canPop)
                 IconButton(
                   tooltip: 'Back',
                   onPressed: () => context.pop(),
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                  color: AppColors.navy,
+                  color: FleetAlertsColors.navy,
                 )
               else
                 const SizedBox(width: 12),
-              const Spacer(),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: canPop ? 0 : 4,
+                    top: 10,
+                    right: 4,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Fleet Alerts',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: FleetAlertsColors.navy,
+                          height: 1.1,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$companyName • $vehicleCount vehicles',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: FleetAlertsColors.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               IconButton(
                 tooltip: 'Notifications',
                 onPressed: onBell,
@@ -53,7 +91,7 @@ class FleetAlertsHeader extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.notifications_none_rounded,
-                        color: AppColors.navy,
+                        color: FleetAlertsColors.navy,
                       ),
                       Positioned(
                         right: 0,
@@ -65,7 +103,7 @@ class FleetAlertsHeader extends StatelessWidget {
                               width: 8,
                               height: 8,
                               decoration: const BoxDecoration(
-                                color: AppColors.error,
+                                color: FleetAlertsColors.critical,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -77,52 +115,6 @@ class FleetAlertsHeader extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: 'Sheikh',
-                        style: TextStyle(color: AppColors.navy),
-                      ),
-                      TextSpan(
-                        text: 'Go',
-                        style: TextStyle(color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Fleet Alerts',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$companyName • $vehicleCount vehicles',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -158,8 +150,8 @@ class FleetAlertKpiRow extends StatelessWidget {
             label: 'Critical',
             count: summary.critical,
             icon: Icons.warning_amber_rounded,
-            bg: const Color(0xFFFEE2E2),
-            fg: AppColors.error,
+            bg: FleetAlertsColors.criticalSoft,
+            fg: FleetAlertsColors.critical,
             selected: selected == FleetAlertChip.critical,
             onTap: () => onSelect(FleetAlertChip.critical),
           ),
@@ -167,8 +159,8 @@ class FleetAlertKpiRow extends StatelessWidget {
             label: 'Warning',
             count: summary.warning,
             icon: Icons.error_outline_rounded,
-            bg: const Color(0xFFFFEDD5),
-            fg: AppColors.warning,
+            bg: FleetAlertsColors.warningSoft,
+            fg: FleetAlertsColors.warning,
             selected: selected == FleetAlertChip.warning,
             onTap: () => onSelect(FleetAlertChip.warning),
           ),
@@ -176,8 +168,8 @@ class FleetAlertKpiRow extends StatelessWidget {
             label: 'Info',
             count: summary.info,
             icon: Icons.info_outline_rounded,
-            bg: const Color(0xFFDBEAFE),
-            fg: AppColors.info,
+            bg: FleetAlertsColors.infoSoft,
+            fg: FleetAlertsColors.info,
             selected: selected == FleetAlertChip.info,
             onTap: () => onSelect(FleetAlertChip.info),
           ),
@@ -186,7 +178,7 @@ class FleetAlertKpiRow extends StatelessWidget {
             count: summary.unacknowledged,
             icon: Icons.notifications_active_outlined,
             bg: const Color(0xFFCCFBF1),
-            fg: AppColors.primary,
+            fg: FleetAlertsColors.teal,
             selected: unacknowledgedSelected,
             onTap: onUnacknowledged,
             emphasizeTap: true,
@@ -238,8 +230,6 @@ class _KpiCard extends StatelessWidget {
                   ? Border.all(color: fg, width: 1.5)
                   : Border.all(color: Colors.transparent),
             ),
-            // Fixed column (no Spacer) — Spacer overflowed the 86px strip by
-            // 8px and contributed to a blank body after layout errors.
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

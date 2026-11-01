@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_theme.dart';
 import '../alerts_notifier.dart';
+import 'fleet_alerts_colors.dart';
 
 /// Active / Resolved segmented control (Fleet Alerts mockup).
 class AlertStatusTabs extends StatelessWidget {
@@ -21,11 +21,11 @@ class AlertStatusTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8EEF2),
+          color: FleetAlertsColors.mutedFill,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -72,20 +72,22 @@ class _TabButton extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       child: Material(
-        color: selected ? AppColors.primary : Colors.transparent,
+        color: selected ? FleetAlertsColors.teal : Colors.transparent,
         borderRadius: BorderRadius.circular(11),
+        elevation: selected ? 1 : 0,
+        shadowColor: FleetAlertsColors.teal.withValues(alpha: 0.35),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(11),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 11),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : AppColors.navy,
+                color: selected ? Colors.white : FleetAlertsColors.navy,
               ),
             ),
           ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_theme.dart';
 import '../../domain/alert_display.dart';
+import 'fleet_alerts_colors.dart';
 
-/// Horizontal Critical / Warning / Info filter chips with counts.
+/// Horizontal Critical / Warning / Info filter chips with counts (Image B).
 class AlertSeverityFilters extends StatelessWidget {
   const AlertSeverityFilters({
     super.key,
@@ -23,34 +23,31 @@ class AlertSeverityFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 42,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _SeverityChip(
             label: 'Critical ($criticalCount)',
-            severity: AlertDisplaySeverity.critical,
-            color: AppColors.error,
-            softBg: const Color(0xFFFEE2E2),
-            icon: Icons.error_rounded,
+            color: FleetAlertsColors.critical,
+            softBg: FleetAlertsColors.criticalSoft,
+            icon: Icons.priority_high_rounded,
             selected: selected.contains(AlertDisplaySeverity.critical),
             onTap: () => onToggle(AlertDisplaySeverity.critical),
           ),
           _SeverityChip(
             label: 'Warning ($warningCount)',
-            severity: AlertDisplaySeverity.warning,
-            color: AppColors.warning,
-            softBg: const Color(0xFFFEF3C7),
+            color: FleetAlertsColors.warning,
+            softBg: FleetAlertsColors.warningSoft,
             icon: Icons.warning_amber_rounded,
             selected: selected.contains(AlertDisplaySeverity.warning),
             onTap: () => onToggle(AlertDisplaySeverity.warning),
           ),
           _SeverityChip(
             label: 'Info ($infoCount)',
-            severity: AlertDisplaySeverity.info,
-            color: const Color(0xFF3B82F6),
-            softBg: const Color(0xFFDBEAFE),
+            color: FleetAlertsColors.info,
+            softBg: FleetAlertsColors.infoSoft,
             icon: Icons.info_rounded,
             selected: selected.contains(AlertDisplaySeverity.info),
             onTap: () => onToggle(AlertDisplaySeverity.info),
@@ -64,7 +61,6 @@ class AlertSeverityFilters extends StatelessWidget {
 class _SeverityChip extends StatelessWidget {
   const _SeverityChip({
     required this.label,
-    required this.severity,
     required this.color,
     required this.softBg,
     required this.icon,
@@ -73,7 +69,6 @@ class _SeverityChip extends StatelessWidget {
   });
 
   final String label;
-  final AlertDisplaySeverity severity;
   final Color color;
   final Color softBg;
   final IconData icon;
@@ -85,28 +80,32 @@ class _SeverityChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Material(
-        color: selected ? color : softBg,
-        borderRadius: BorderRadius.circular(20),
+        color: softBg,
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
+          borderRadius: BorderRadius.circular(22),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: color.withValues(alpha: selected ? 1 : 0.55),
+                width: selected ? 1.8 : 1.2,
+              ),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  selected ? Icons.check_circle_rounded : icon,
-                  size: 16,
-                  color: selected ? Colors.white : color,
-                ),
-                const SizedBox(width: 6),
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 5),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : color,
+                    color: color,
                   ),
                 ),
               ],

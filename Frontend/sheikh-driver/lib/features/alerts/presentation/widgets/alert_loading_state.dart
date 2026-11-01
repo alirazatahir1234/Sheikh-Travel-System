@@ -1,17 +1,40 @@
 import 'package:flutter/material.dart';
 
-/// Skeleton placeholders that match Fleet Alert card proportions.
+/// Skeleton placeholders matching Fleet Alert chips + cards (Image A).
 class AlertLoadingState extends StatelessWidget {
-  const AlertLoadingState({super.key, this.count = 4});
+  const AlertLoadingState({
+    super.key,
+    this.count = 4,
+    this.showChrome = true,
+  });
 
   final int count;
+  final bool showChrome;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      itemCount: count,
-      itemBuilder: (_, __) => const _SkeletonCard(),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      children: [
+        if (showChrome) ...[
+          const _Bone(width: double.infinity, height: 46, radius: 14),
+          const SizedBox(height: 12),
+          const SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                _Bone(width: 108, height: 36, radius: 20),
+                SizedBox(width: 8),
+                _Bone(width: 112, height: 36, radius: 20),
+                SizedBox(width: 8),
+                _Bone(width: 88, height: 36, radius: 20),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        for (var i = 0; i < count; i++) const _SkeletonCard(),
+      ],
     );
   }
 }
@@ -51,9 +74,9 @@ class _SkeletonCardState extends State<_SkeletonCard>
         return Opacity(opacity: t, child: child);
       },
       child: const Padding(
-        padding: EdgeInsets.only(bottom: 10),
+        padding: EdgeInsets.only(bottom: 12),
         child: SizedBox(
-          height: 108,
+          height: 112,
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -69,7 +92,7 @@ class _SkeletonCardState extends State<_SkeletonCard>
             child: Row(
               children: [
                 SizedBox(
-                  width: 5,
+                  width: 6,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: Color(0xFFE2E8F0),
@@ -86,8 +109,8 @@ class _SkeletonCardState extends State<_SkeletonCard>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Bone(width: 36, height: 36, radius: 18),
-                        SizedBox(width: 10),
+                        _Bone(width: 38, height: 38, radius: 19),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,19 +124,19 @@ class _SkeletonCardState extends State<_SkeletonCard>
                                     ),
                                   ),
                                   SizedBox(width: 12),
-                                  _Bone(width: 64, height: 10),
+                                  _Bone(width: 72, height: 10),
                                 ],
                               ),
                               SizedBox(height: 10),
                               _Bone(width: double.infinity, height: 12),
                               SizedBox(height: 6),
-                              _Bone(width: 180, height: 12),
+                              _Bone(width: 160, height: 12),
                               Spacer(),
                               Row(
                                 children: [
-                                  _Bone(width: 88, height: 22, radius: 8),
+                                  _Bone(width: 88, height: 24, radius: 12),
                                   SizedBox(width: 8),
-                                  _Bone(width: 110, height: 22, radius: 8),
+                                  _Bone(width: 110, height: 24, radius: 12),
                                 ],
                               ),
                             ],

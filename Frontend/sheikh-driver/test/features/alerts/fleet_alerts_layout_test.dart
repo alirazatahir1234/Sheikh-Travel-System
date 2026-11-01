@@ -91,7 +91,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('Overspeed'), findsOneWidget);
+    expect(find.textContaining('Over Speed'), findsOneWidget);
     expect(find.text('LHR-4587'), findsOneWidget);
     expect(find.text('Lahore Ring Road'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
@@ -105,7 +105,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('All clear!'), findsOneWidget);
+    expect(find.text('All Clear!'), findsOneWidget);
 
     await tester.pumpWidget(
       MaterialApp(

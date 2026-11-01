@@ -12,6 +12,7 @@ import 'widgets/alert_loading_state.dart';
 import 'widgets/alert_severity_filters.dart';
 import 'widgets/alert_status_tabs.dart';
 import 'widgets/fleet_alert_card.dart';
+import 'widgets/fleet_alerts_colors.dart';
 import 'widgets/fleet_alerts_header.dart';
 
 import '../domain/alert_display.dart';
@@ -71,7 +72,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
     // No nested Scaffold — AppShell already provides bottom navigation.
     return ColoredBox(
-      color: const Color(0xFFF3F7F9),
+      color: FleetAlertsColors.bg,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -86,12 +87,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
               child: async.when(
                 skipLoadingOnReload: true,
                 skipLoadingOnRefresh: true,
-                loading: () => const Column(
-                  children: [
-                    _ChromePlaceholder(),
-                    Expanded(child: AlertLoadingState()),
-                  ],
-                ),
+                loading: () => const AlertLoadingState(),
                 error: (_, __) => AlertErrorState(
                   onRetry: _refresh,
                   retrying: _refreshing,
@@ -116,33 +112,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ChromePlaceholder extends StatelessWidget {
-  const _ChromePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      children: [
-        SizedBox(height: 8),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            height: 46,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(0xFFE8EEF2),
-                borderRadius: BorderRadius.all(Radius.circular(14)),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 12),
-        SizedBox(height: 40),
-      ],
     );
   }
 }
@@ -196,13 +165,13 @@ class _AlertsBody extends StatelessWidget {
           infoCount: summary.info,
           onToggle: onToggleSeverity,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Expanded(
           child: RefreshIndicator(
-            color: const Color(0xFF0D9488),
+            color: FleetAlertsColors.teal,
             onRefresh: onRefresh,
             child: refreshing && visible.isEmpty
-                ? const AlertLoadingState()
+                ? const AlertLoadingState(showChrome: false)
                 : visible.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -222,31 +191,132 @@ class _AlertsBody extends StatelessWidget {
                           ),
                         ],
                       )
-                    : NotificationListener<ScrollNotification>(
-                        onNotification: (n) {
-                          if (n.metrics.pixels >=
-                              n.metrics.maxScrollExtent - 200) {
-                            onLoadMore();
-                          }
-                          return false;
-                        },
-                        child: ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                          itemCount: visible.length,
-                          itemBuilder: (context, i) {
-                            final inc = visible[i];
-                            return FleetAlertCard(
-                              incident: inc,
-                              showAsResolved: isResolvedTab,
-                              onTap: () => onOpen(inc.primary.id),
-                            );
-                          },
-                        ),
+                    : Stack(
+                        children: [
+                          const Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: 96,
+                            child: IgnorePointer(
+                              child: _SoftTruckBackdrop(),
+                            ),
+                          ),
+                          NotificationListener<ScrollNotification>(
+                            onNotification: (n) {
+                              if (n.metrics.pixels >=
+                                  n.metrics.maxScrollExtent - 200) {
+                                onLoadMore();
+                              }
+                              return false;
+                            },
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                              itemCount: visible.length,
+                              itemBuilder: (context, i) {
+                                final inc = visible[i];
+                                return FleetAlertCard(
+                                  incident: inc,
+                                  showAsResolved: isResolvedTab,
+                                  onTap: () => onOpen(inc.primary.id),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
           ),
         ),
       ],
     );
   }
+}
+
+/// Soft teal truck + horizon at list bottom (Image B atmospheric cue).
+class _SoftTruckBackdrop extends StatelessWidget {
+  const _SoftTruckBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _SoftTruckPainter(),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _SoftTruckPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final wash = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          FleetAlertsColors.bg.withValues(alpha: 0),
+          FleetAlertsColors.bg.withValues(alpha: 0.92),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, wash);
+
+    final ground = Paint()..color = const Color(0xFFE8EEF2);
+    final path = Path()
+      ..moveTo(0, size.height * 0.55)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 0.22,
+        size.width,
+        size.height * 0.55,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, ground);
+
+    final accent =
+        FleetAlertsColors.teal.withValues(alpha: 0.55);
+    final tree = Paint()..color = accent;
+    void drawTree(double x, double h) {
+      final top = size.height - h - 18;
+      canvas.drawPath(
+        Path()
+          ..moveTo(x, top)
+          ..lineTo(x + 8, top + h * 0.55)
+          ..lineTo(x - 8, top + h * 0.55)
+          ..close(),
+        tree,
+      );
+    }
+
+    drawTree(size.width * 0.16, 26);
+    drawTree(size.width * 0.84, 22);
+
+    final truck = Paint()..color = accent;
+    final ty = size.height * 0.48;
+    final tx = size.width * 0.40;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(tx, ty, 42, 16),
+        const Radius.circular(3),
+      ),
+      truck,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(tx + 32, ty + 4, 16, 12),
+        const Radius.circular(2),
+      ),
+      truck,
+    );
+    canvas.drawCircle(Offset(tx + 10, ty + 18), 4, truck);
+    canvas.drawCircle(Offset(tx + 34, ty + 18), 4, truck);
+
+    final pin = Paint()..color = accent;
+    canvas.drawCircle(Offset(tx + 22, ty - 10), 5, pin);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
