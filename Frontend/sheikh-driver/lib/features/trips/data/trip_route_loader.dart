@@ -179,7 +179,8 @@ class TripRouteLoader {
       if (raw is! Map) return null;
       final savedAtMs = raw['at'];
       if (savedAtMs is! int) return null;
-      final savedAt = DateTime.fromMillisecondsSinceEpoch(savedAtMs, isUtc: true);
+      final savedAt =
+          DateTime.fromMillisecondsSinceEpoch(savedAtMs, isUtc: true);
       if (_clock().toUtc().difference(savedAt) > tripRouteCacheTtl) {
         await box.delete(key);
         return null;

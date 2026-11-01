@@ -133,8 +133,8 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     if (bytes == null) return null;
     final dir = Directory.systemTemp;
-    final file = File(
-        '${dir.path}/sig_${DateTime.now().millisecondsSinceEpoch}.png');
+    final file =
+        File('${dir.path}/sig_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes.buffer.asUint8List());
     return file;
   }
@@ -206,7 +206,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
     final vehiclesAsync = ref.watch(_vehiclesProvider);
 
     return templateAsync.when(
-      loading: () => Center(child: SgBrandLoader()),
+      loading: () => const Center(child: SgBrandLoader()),
       error: (e, _) => Center(child: Text('$e')),
       data: (template) {
         _ensureResults(template);
@@ -214,13 +214,13 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(template.name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 16)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             if (template.description != null) ...[
               const SizedBox(height: 4),
               Text(template.description!,
-                  style: TextStyle(
-                      color: context.sg.textSecondary, fontSize: 13)),
+                  style:
+                      TextStyle(color: context.sg.textSecondary, fontSize: 13)),
             ],
             const SizedBox(height: 16),
             vehiclesAsync.when(
@@ -239,7 +239,8 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
                   initialSelection: _vehicleId,
                   label: const Text('Vehicle'),
                   dropdownMenuEntries: vehicles
-                      .map((v) => DropdownMenuEntry(value: v.id, label: v.label))
+                      .map(
+                          (v) => DropdownMenuEntry(value: v.id, label: v.label))
                       .toList(),
                   onSelected: (v) {
                     if (v != null) setState(() => _vehicleId = v);
@@ -276,8 +277,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
                       SegmentedButton<String>(
                         segments: const [
                           ButtonSegment(value: 'Pass', label: Text('Pass')),
-                          ButtonSegment(
-                              value: 'Warning', label: Text('Warn')),
+                          ButtonSegment(value: 'Warning', label: Text('Warn')),
                           ButtonSegment(value: 'Fail', label: Text('Fail')),
                         ],
                         selected: {result.status},
@@ -290,8 +290,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
               );
             }),
             const SizedBox(height: 8),
-            const Text('Photos',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text('Photos', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -385,7 +384,7 @@ class _HistoryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_historyProvider);
     return async.when(
-      loading: () => Center(child: SgBrandLoader()),
+      loading: () => const Center(child: SgBrandLoader()),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -430,8 +429,7 @@ class _HistoryTab extends ConsumerWidget {
                   ),
                   trailing: Text(
                     item.result,
-                    style: TextStyle(
-                        color: color, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
                   ),
                 ),
               );

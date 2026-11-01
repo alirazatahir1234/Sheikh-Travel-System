@@ -75,11 +75,10 @@ class OfflineOperation {
         (map['payload'] as Map?)?.map((k, v) => MapEntry(k.toString(), v)) ??
             {},
       ),
-      filePaths: ((map['filePaths'] as List?) ?? [])
-          .map((e) => e.toString())
-          .toList(),
-      createdAt:
-          DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      filePaths:
+          ((map['filePaths'] as List?) ?? []).map((e) => e.toString()).toList(),
+      createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
       attempts: (map['attempts'] as num?)?.toInt() ?? 0,
       lastError: map['lastError']?.toString(),
       status: OfflineOpStatus.values.firstWhere(

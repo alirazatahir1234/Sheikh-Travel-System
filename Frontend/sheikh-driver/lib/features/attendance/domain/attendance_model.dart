@@ -31,20 +31,16 @@ class AttendanceRecord {
   }
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
-    final type = (json['attendanceType'] ??
-            json['AttendanceType'] ??
-            json['type'] ??
-            '')
-        .toString();
+    final type =
+        (json['attendanceType'] ?? json['AttendanceType'] ?? json['type'] ?? '')
+            .toString();
     final recordedRaw =
         json['recordedAt'] ?? json['RecordedAt'] ?? json['eventTime'];
     return AttendanceRecord(
-      id: (json['id'] as num?)?.toInt() ??
-          (json['Id'] as num?)?.toInt() ??
-          0,
+      id: (json['id'] as num?)?.toInt() ?? (json['Id'] as num?)?.toInt() ?? 0,
       attendanceType: type,
-      recordedAt: DateTime.tryParse(recordedRaw?.toString() ?? '') ??
-          DateTime.now(),
+      recordedAt:
+          DateTime.tryParse(recordedRaw?.toString() ?? '') ?? DateTime.now(),
       latitude: (json['latitude'] as num?)?.toDouble() ??
           (json['Latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble() ??
@@ -170,7 +166,8 @@ class AttendanceOverview {
 }
 
 /// Groups punch events into daily summaries for history / calendar.
-List<AttendanceDaySummary> groupAttendanceByDay(List<AttendanceRecord> records) {
+List<AttendanceDaySummary> groupAttendanceByDay(
+    List<AttendanceRecord> records) {
   final map = <String, List<AttendanceRecord>>{};
   for (final r in records) {
     if (r.isCorrectionRequest) continue;
@@ -181,7 +178,8 @@ List<AttendanceDaySummary> groupAttendanceByDay(List<AttendanceRecord> records) 
 
   final days = <AttendanceDaySummary>[];
   for (final entry in map.entries) {
-    final list = entry.value..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    final list = entry.value
+      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     AttendanceRecord? checkIn;
     AttendanceRecord? checkOut;
     for (final r in list) {

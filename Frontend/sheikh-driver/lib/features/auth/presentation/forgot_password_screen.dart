@@ -11,7 +11,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -33,7 +34,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _info = null;
     });
     try {
-      final debugToken = await ref.read(authApiProvider).forgotPassword(_phone.text);
+      final debugToken =
+          await ref.read(authApiProvider).forgotPassword(_phone.text);
       if (!mounted) return;
       final uri = Uri(
         path: '/reset-password',
@@ -91,8 +93,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     hint: '+92…',
                     keyboardType: TextInputType.phone,
                     prefixIcon: Icons.phone_outlined,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Phone is required' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Phone is required'
+                        : null,
                   ),
                 ),
                 if (_info != null) ...[

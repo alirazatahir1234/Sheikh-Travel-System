@@ -23,6 +23,7 @@ class PlaybackMarkerTap {
   final String? eventType;
   final String? eventLabel;
   final int? stopDurationMinutes;
+
   /// Index into the stops list when [eventType] is Stop.
   final int? stopIndex;
 }
@@ -357,8 +358,8 @@ class PlaybackMapAssets {
     final scale = devicePixelRatio;
     canvas.scale(scale);
 
-    final cx = logical / 2;
-    final cy = logical / 2;
+    const cx = logical / 2;
+    const cy = logical / 2;
 
     // Soft drop shadow under the arrow
     final shadowPath = Path()
@@ -415,7 +416,7 @@ class PlaybackMapAssets {
       ..quadraticBezierTo(
           logicalW / 2 - 4, logicalH - 10, logicalW / 2 - 12, logicalH - 18)
       ..arcToPoint(
-        Offset(logicalW / 2 + 12, logicalH - 18),
+        const Offset(logicalW / 2 + 12, logicalH - 18),
         radius: const Radius.circular(13),
         clockwise: false,
       )
@@ -438,7 +439,7 @@ class PlaybackMapAssets {
         ..strokeWidth = 2,
     );
 
-    _paintGlyph(canvas, glyph, Offset(logicalW / 2, (logicalH - 18) / 2));
+    _paintGlyph(canvas, glyph, const Offset(logicalW / 2, (logicalH - 18) / 2));
 
     final image =
         await recorder.endRecording().toImage(width.toInt(), height.toInt());

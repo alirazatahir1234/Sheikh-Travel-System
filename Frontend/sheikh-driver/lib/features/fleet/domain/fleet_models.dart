@@ -113,9 +113,8 @@ class FleetOpsDashboard {
       return int.tryParse(raw.toString()) ?? 0;
     }
 
-    num cost = json['monthlyFuelCost'] as num? ??
-        json['MonthlyFuelCost'] as num? ??
-        0;
+    num cost =
+        json['monthlyFuelCost'] as num? ?? json['MonthlyFuelCost'] as num? ?? 0;
     return FleetOpsDashboard(
       totalVehicles: n('totalVehicles', 'TotalVehicles'),
       activeVehicles: n('activeVehicles', 'ActiveVehicles'),
@@ -189,8 +188,9 @@ class GpsPosition {
       ignition: json['ignition'] as bool? ?? json['Ignition'] as bool?,
       fuelLevel:
           (json['fuelLevel'] as num? ?? json['FuelLevel'] as num?)?.toDouble(),
-      batteryLevel: (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
-          ?.toDouble(),
+      batteryLevel:
+          (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+              ?.toDouble(),
       gsmSignal: json['gsmSignal'] as int? ?? json['GsmSignal'] as int?,
       totalDistanceKm:
           (json['totalDistanceKm'] as num? ?? json['TotalDistanceKm'] as num?)
@@ -290,8 +290,7 @@ class VehicleListItem {
   }
 
   bool get hasAssignee =>
-      driverId != null ||
-      (driverName != null && driverName!.trim().isNotEmpty);
+      driverId != null || (driverName != null && driverName!.trim().isNotEmpty);
 
   factory VehicleListItem.fromJson(Map<String, dynamic> json) {
     final statusRaw = json['status'] ?? json['Status'];
@@ -313,14 +312,15 @@ class VehicleListItem {
           json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
       engineIgnition:
           json['engineIgnition'] as bool? ?? json['EngineIgnition'] as bool?,
-      gpsLastSeenAt:
-          _parseDate(json['gpsLastSeenAt'] ?? json['GpsLastSeenAt']),
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
-      hasGpsDevice:
-          json['hasGpsDevice'] as bool? ?? json['HasGpsDevice'] as bool? ?? false,
-      locationLatitude: (json['locationLatitude'] as num? ??
-              json['LocationLatitude'] as num?)
-          ?.toDouble(),
+      gpsLastSeenAt: _parseDate(json['gpsLastSeenAt'] ?? json['GpsLastSeenAt']),
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      hasGpsDevice: json['hasGpsDevice'] as bool? ??
+          json['HasGpsDevice'] as bool? ??
+          false,
+      locationLatitude:
+          (json['locationLatitude'] as num? ?? json['LocationLatitude'] as num?)
+              ?.toDouble(),
       locationLongitude: (json['locationLongitude'] as num? ??
               json['LocationLongitude'] as num?)
           ?.toDouble(),
@@ -414,34 +414,36 @@ class VehicleDetail {
           json['vehicleType'] as String? ?? json['VehicleType'] as String?,
       seatingCapacity:
           json['seatingCapacity'] as int? ?? json['SeatingCapacity'] as int?,
-      currentMileage: (json['currentMileage'] as num? ??
-              json['CurrentMileage'] as num?)
-          ?.toDouble(),
+      currentMileage:
+          (json['currentMileage'] as num? ?? json['CurrentMileage'] as num?)
+              ?.toDouble(),
       driverName:
           json['driverName'] as String? ?? json['DriverName'] as String?,
       driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
       driverPhone:
           json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
       gpsImei: json['gpsImei'] as String? ?? json['GpsImei'] as String?,
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
-      hasGpsDevice:
-          json['hasGpsDevice'] as bool? ?? json['HasGpsDevice'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      hasGpsDevice: json['hasGpsDevice'] as bool? ??
+          json['HasGpsDevice'] as bool? ??
+          false,
       engineIgnition:
           json['engineIgnition'] as bool? ?? json['EngineIgnition'] as bool?,
-      locationLatitude: (json['locationLatitude'] as num? ??
-              json['LocationLatitude'] as num?)
-          ?.toDouble(),
+      locationLatitude:
+          (json['locationLatitude'] as num? ?? json['LocationLatitude'] as num?)
+              ?.toDouble(),
       locationLongitude: (json['locationLongitude'] as num? ??
               json['LocationLongitude'] as num?)
           ?.toDouble(),
       locationLastUpdate:
           _parseDate(json['locationLastUpdate'] ?? json['LocationLastUpdate']),
-      locationSpeed: (json['locationSpeed'] as num? ??
-              json['LocationSpeed'] as num?)
-          ?.toDouble(),
-      batteryLevel: (json['batteryLevel'] as num? ??
-              json['BatteryLevel'] as num?)
-          ?.toDouble(),
+      locationSpeed:
+          (json['locationSpeed'] as num? ?? json['LocationSpeed'] as num?)
+              ?.toDouble(),
+      batteryLevel:
+          (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+              ?.toDouble(),
       gsmSignal: json['gsmSignal'] as int? ?? json['GsmSignal'] as int?,
       address: json['address'] as String? ?? json['Address'] as String?,
       serviceAlert:
@@ -647,16 +649,16 @@ class VehicleFuelItem {
     return VehicleFuelItem(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
-      liters: (json['liters'] as num? ?? json['Liters'] as num? ?? 0).toDouble(),
-      totalCost:
-          (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
-              .toDouble(),
+      liters:
+          (json['liters'] as num? ?? json['Liters'] as num? ?? 0).toDouble(),
+      totalCost: (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
+          .toDouble(),
       fuelDate: _parseDate(json['fuelDate'] ?? json['FuelDate']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       station: json['station'] as String? ?? json['Station'] as String?,
-      odometerReading: (json['odometerReading'] as num? ??
-              json['OdometerReading'] as num?)
-          ?.toDouble(),
+      odometerReading:
+          (json['odometerReading'] as num? ?? json['OdometerReading'] as num?)
+              ?.toDouble(),
       fuelType: '${json['fuelType'] ?? json['FuelType'] ?? ''}',
     );
   }
@@ -688,11 +690,11 @@ class VehicleFuelSummary {
       totalLiters:
           (json['totalLiters'] as num? ?? json['TotalLiters'] as num? ?? 0)
               .toDouble(),
-      totalCost:
-          (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
-              .toDouble(),
-      totalCount:
-          json['totalCount'] as int? ?? json['TotalCount'] as int? ?? items.length,
+      totalCost: (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
+          .toDouble(),
+      totalCount: json['totalCount'] as int? ??
+          json['TotalCount'] as int? ??
+          items.length,
     );
   }
 }
@@ -744,8 +746,7 @@ class VehicleGpsInfo {
 
   factory VehicleGpsInfo.fromJson(Map<String, dynamic> json) {
     return VehicleGpsInfo(
-      gpsDeviceId:
-          json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
+      gpsDeviceId: json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
       deviceName:
           json['deviceName'] as String? ?? json['DeviceName'] as String?,
       uniqueId: json['uniqueId'] as String? ?? json['UniqueId'] as String?,
@@ -762,15 +763,16 @@ class VehicleGpsInfo {
       simNumber: json['simNumber'] as String? ?? json['SimNumber'] as String?,
       modelName: json['modelName'] as String? ?? json['ModelName'] as String?,
       brandName: json['brandName'] as String? ?? json['BrandName'] as String?,
-      totalDistanceKm: (json['totalDistanceKm'] as num? ??
-              json['TotalDistanceKm'] as num?)
-          ?.toDouble(),
-      batteryLevel: (json['batteryLevel'] as num? ??
-              json['BatteryLevel'] as num?)
-          ?.toDouble(),
+      totalDistanceKm:
+          (json['totalDistanceKm'] as num? ?? json['TotalDistanceKm'] as num?)
+              ?.toDouble(),
+      batteryLevel:
+          (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+              ?.toDouble(),
       gsmSignal: json['gsmSignal'] as int? ?? json['GsmSignal'] as int?,
       address: json['address'] as String? ?? json['Address'] as String?,
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
       heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
       fuelLevel:
           (json['fuelLevel'] as num? ?? json['FuelLevel'] as num?)?.toDouble(),
@@ -809,23 +811,24 @@ class HistoryReplayPoint {
     return HistoryReplayPoint(
       timestamp: _parseDate(json['timestamp'] ?? json['Timestamp']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
-      latitude:
-          (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0).toDouble(),
+      latitude: (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0)
+          .toDouble(),
       longitude: (json['longitude'] as num? ?? json['Longitude'] as num? ?? 0)
           .toDouble(),
-      speedKmh:
-          (json['speedKmh'] as num? ?? json['SpeedKmh'] as num? ?? 0).toDouble(),
+      speedKmh: (json['speedKmh'] as num? ?? json['SpeedKmh'] as num? ?? 0)
+          .toDouble(),
       heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
       ignition: json['ignition'] as bool? ?? json['Ignition'] as bool?,
       address: json['address'] as String? ?? json['Address'] as String?,
-      altitude: (json['altitude'] as num? ?? json['Altitude'] as num?)?.toDouble(),
-      batteryLevel: (json['batteryLevel'] as num? ??
-              json['BatteryLevel'] as num?)
-          ?.toDouble(),
+      altitude:
+          (json['altitude'] as num? ?? json['Altitude'] as num?)?.toDouble(),
+      batteryLevel:
+          (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+              ?.toDouble(),
       satellites: json['satellites'] as int? ?? json['Satellites'] as int?,
-      totalDistanceKm: (json['totalDistanceKm'] as num? ??
-              json['TotalDistanceKm'] as num?)
-          ?.toDouble(),
+      totalDistanceKm:
+          (json['totalDistanceKm'] as num? ?? json['TotalDistanceKm'] as num?)
+              ?.toDouble(),
     );
   }
 }
@@ -849,8 +852,9 @@ class TripReplaySummary {
 
   factory TripReplaySummary.fromJson(Map<String, dynamic> json) {
     return TripReplaySummary(
-      distanceKm: (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
-          .toDouble(),
+      distanceKm:
+          (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
+              .toDouble(),
       drivingMinutes:
           json['drivingMinutes'] as int? ?? json['DrivingMinutes'] as int? ?? 0,
       avgSpeedKmh:
@@ -899,8 +903,9 @@ class TripAnalyticsSummary {
   factory TripAnalyticsSummary.fromJson(Map<String, dynamic> json) {
     return TripAnalyticsSummary(
       tripCount: json['tripCount'] as int? ?? json['TripCount'] as int? ?? 0,
-      distanceKm: (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
-          .toDouble(),
+      distanceKm:
+          (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
+              .toDouble(),
       drivingMinutes:
           json['drivingMinutes'] as int? ?? json['DrivingMinutes'] as int? ?? 0,
       idleMinutes:
@@ -914,10 +919,12 @@ class TripAnalyticsSummary {
       stopCount: json['stopCount'] as int? ?? json['StopCount'] as int? ?? 0,
       overspeedCount:
           json['overspeedCount'] as int? ?? json['OverspeedCount'] as int? ?? 0,
-      harshBrakeCount:
-          json['harshBrakeCount'] as int? ?? json['HarshBrakeCount'] as int? ?? 0,
-      harshAccelCount:
-          json['harshAccelCount'] as int? ?? json['HarshAccelCount'] as int? ?? 0,
+      harshBrakeCount: json['harshBrakeCount'] as int? ??
+          json['HarshBrakeCount'] as int? ??
+          0,
+      harshAccelCount: json['harshAccelCount'] as int? ??
+          json['HarshAccelCount'] as int? ??
+          0,
       fuelLiters: (json['fuelLiters'] as num? ?? json['FuelLiters'] as num?)
           ?.toDouble(),
       engineHours: (json['engineHours'] as num? ?? json['EngineHours'] as num?)
@@ -1002,8 +1009,9 @@ class TripStop {
       latitude: lat,
       longitude: lon,
       address: json['address'] as String? ?? json['Address'] as String?,
-      durationMinutes:
-          json['durationMinutes'] as int? ?? json['DurationMinutes'] as int? ?? 0,
+      durationMinutes: json['durationMinutes'] as int? ??
+          json['DurationMinutes'] as int? ??
+          0,
     );
   }
 }
@@ -1036,10 +1044,13 @@ class TripEvent {
       time: _parseDate(json['time'] ?? json['Time']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       type: json['type'] as String? ?? json['Type'] as String? ?? '',
-      latitude: (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num? ?? json['Longitude'] as num?)?.toDouble(),
+      latitude:
+          (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble(),
+      longitude:
+          (json['longitude'] as num? ?? json['Longitude'] as num?)?.toDouble(),
       address: json['address'] as String? ?? json['Address'] as String?,
-      speedKmh: (json['speedKmh'] as num? ?? json['SpeedKmh'] as num?)?.toDouble(),
+      speedKmh:
+          (json['speedKmh'] as num? ?? json['SpeedKmh'] as num?)?.toDouble(),
       geofenceId: json['geofenceId'] as int? ?? json['GeofenceId'] as int?,
       geofenceName:
           json['geofenceName'] as String? ?? json['GeofenceName'] as String?,
@@ -1088,22 +1099,25 @@ class TripDeviceContext {
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
       plateNumber:
           json['plateNumber'] as String? ?? json['PlateNumber'] as String?,
-      gpsDeviceId:
-          json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
-      deviceName: json['deviceName'] as String? ?? json['DeviceName'] as String?,
+      gpsDeviceId: json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
+      deviceName:
+          json['deviceName'] as String? ?? json['DeviceName'] as String?,
       uniqueId: json['uniqueId'] as String? ?? json['UniqueId'] as String?,
-      hasTraccarLink:
-          json['hasTraccarLink'] as bool? ?? json['HasTraccarLink'] as bool? ?? false,
+      hasTraccarLink: json['hasTraccarLink'] as bool? ??
+          json['HasTraccarLink'] as bool? ??
+          false,
       isOnline: json['isOnline'] as bool? ?? json['IsOnline'] as bool? ?? false,
       lastPositionAt: _parseDate(
         json['lastPositionAt'] ?? json['LastPositionAt'],
       ),
-      lastLatitude: (json['lastLatitude'] as num? ?? json['LastLatitude'] as num?)
-          ?.toDouble(),
+      lastLatitude:
+          (json['lastLatitude'] as num? ?? json['LastLatitude'] as num?)
+              ?.toDouble(),
       lastLongitude:
           (json['lastLongitude'] as num? ?? json['LastLongitude'] as num?)
               ?.toDouble(),
-      lastAddress: json['lastAddress'] as String? ?? json['LastAddress'] as String?,
+      lastAddress:
+          json['lastAddress'] as String? ?? json['LastAddress'] as String?,
       lastSpeedKmh:
           (json['lastSpeedKmh'] as num? ?? json['LastSpeedKmh'] as num?)
               ?.toDouble(),
@@ -1136,12 +1150,10 @@ class HistoryReplayBundle {
   final TripDeviceContext? vehicle;
   final int? gpsDeviceId;
 
-  List<HistoryReplayPoint> get points =>
-      playback.isNotEmpty ? playback : route;
+  List<HistoryReplayPoint> get points => playback.isNotEmpty ? playback : route;
 
   /// Full trail for map coloring (prefer dense route).
-  List<HistoryReplayPoint> get trailPoints =>
-      route.isNotEmpty ? route : points;
+  List<HistoryReplayPoint> get trailPoints => route.isNotEmpty ? route : points;
 
   factory HistoryReplayBundle.fromJson(Map<String, dynamic> json) {
     List<HistoryReplayPoint> parsePoints(Object? raw) {
@@ -1264,8 +1276,7 @@ class GpsTrip {
       vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
-      gpsDeviceId:
-          json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
+      gpsDeviceId: json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
       startTime: _parseDate(json['startTime'] ?? json['StartTime']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       endTime: _parseDate(json['endTime'] ?? json['EndTime']) ??
@@ -1282,7 +1293,8 @@ class GpsTrip {
       durationMinutes: json['durationMinutes'] as int? ??
           json['DurationMinutes'] as int? ??
           0,
-      deviceName: json['deviceName'] as String? ?? json['DeviceName'] as String?,
+      deviceName:
+          json['deviceName'] as String? ?? json['DeviceName'] as String?,
       startAddress:
           json['startAddress'] as String? ?? json['StartAddress'] as String?,
       endAddress:
@@ -1295,15 +1307,14 @@ class GpsTrip {
           json['plateNumber'] as String? ?? json['PlateNumber'] as String?,
       tripKey: json['tripKey'] as String? ?? json['TripKey'] as String?,
       status: json['status'] as String? ?? json['Status'] as String?,
-      startLatitude: (json['startLatitude'] as num? ??
-              json['StartLatitude'] as num?)
-          ?.toDouble(),
-      startLongitude: (json['startLongitude'] as num? ??
-              json['StartLongitude'] as num?)
-          ?.toDouble(),
-      endLatitude:
-          (json['endLatitude'] as num? ?? json['EndLatitude'] as num?)
+      startLatitude:
+          (json['startLatitude'] as num? ?? json['StartLatitude'] as num?)
               ?.toDouble(),
+      startLongitude:
+          (json['startLongitude'] as num? ?? json['StartLongitude'] as num?)
+              ?.toDouble(),
+      endLatitude: (json['endLatitude'] as num? ?? json['EndLatitude'] as num?)
+          ?.toDouble(),
       endLongitude:
           (json['endLongitude'] as num? ?? json['EndLongitude'] as num?)
               ?.toDouble(),
@@ -1444,8 +1455,7 @@ class GpsDeviceCommandItem {
   final String? errorMessage;
 
   bool get isPendingApproval => status == 'PendingApproval';
-  bool get isCancellable =>
-      status == 'pending' || status == 'PendingApproval';
+  bool get isCancellable => status == 'pending' || status == 'PendingApproval';
 
   factory GpsDeviceCommandItem.fromJson(Map<String, dynamic> json) {
     return GpsDeviceCommandItem(

@@ -15,8 +15,8 @@ class MaintenanceApi {
   static const defaultPageSize = 50;
 
   Future<MaintenanceDashboard> getDashboard() async {
-    final res = await _dio
-        .get<Map<String, dynamic>>(ApiEndpoints.maintenanceDashboard);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.maintenanceDashboard);
     return MaintenanceDashboard.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
@@ -162,8 +162,8 @@ class MaintenanceApi {
   }
 
   Future<WorkOrderItem> getWorkOrder(int id) async {
-    final res = await _dio
-        .get<Map<String, dynamic>>(ApiEndpoints.workOrderById(id));
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.workOrderById(id));
     return WorkOrderItem.fromJson(ApiResponseParser.dataMap(res.data));
   }
 

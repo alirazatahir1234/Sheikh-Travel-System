@@ -13,7 +13,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String? initialToken;
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
@@ -51,7 +52,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated. Sign in with your new password.')),
+        const SnackBar(
+            content: Text('Password updated. Sign in with your new password.')),
       );
       context.go('/login');
     } catch (e) {
@@ -101,8 +103,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       SgSheetTextFormField(
                         controller: _token,
                         label: 'Reset code',
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Code is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Code is required'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       SgSheetTextFormField(
@@ -124,7 +127,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         obscureText: true,
                         keyboardType: TextInputType.visiblePassword,
                         validator: (v) {
-                          if (v != _password.text) return 'Passwords do not match';
+                          if (v != _password.text) {
+                            return 'Passwords do not match';
+                          }
                           return null;
                         },
                       ),

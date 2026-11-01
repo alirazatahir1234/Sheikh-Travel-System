@@ -37,7 +37,8 @@ class FatigueApi {
   final Dio _dio;
 
   Future<FatigueActivePrompt?> fetchActivePrompt() async {
-    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.fatigueActive);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.fatigueActive);
     final body = res.data;
     if (body == null || body['data'] == null) return null;
     return FatigueActivePrompt.fromJson(body);

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import '../data/fatigue_api.dart';
 import '../domain/fatigue_ear.dart';
 import 'fatigue_response_screen.dart';
 
@@ -14,7 +13,8 @@ class FatigueMonitorScreen extends ConsumerStatefulWidget {
   const FatigueMonitorScreen({super.key});
 
   @override
-  ConsumerState<FatigueMonitorScreen> createState() => _FatigueMonitorScreenState();
+  ConsumerState<FatigueMonitorScreen> createState() =>
+      _FatigueMonitorScreenState();
 }
 
 class _FatigueMonitorScreenState extends ConsumerState<FatigueMonitorScreen> {
@@ -42,7 +42,8 @@ class _FatigueMonitorScreenState extends ConsumerState<FatigueMonitorScreen> {
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
-      _camera = CameraController(front, ResolutionPreset.medium, enableAudio: false);
+      _camera =
+          CameraController(front, ResolutionPreset.medium, enableAudio: false);
       await _camera!.initialize();
       _detector = FaceDetector(
         options: FaceDetectorOptions(
@@ -114,7 +115,9 @@ class _FatigueMonitorScreenState extends ConsumerState<FatigueMonitorScreen> {
         );
       }
     }
-    if (mounted) setState(() => _status = 'EAR ${ear.toStringAsFixed(3)} (prototype)');
+    if (mounted) {
+      setState(() => _status = 'EAR ${ear.toStringAsFixed(3)} (prototype)');
+    }
   }
 
   @override

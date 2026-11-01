@@ -102,7 +102,8 @@ void main() {
     final playback = [
       for (var m = 0; m <= 40; m += 10)
         HistoryReplayPoint(
-          timestamp: DateTime.parse('2026-07-22T10:${m.toString().padLeft(2, '0')}:00Z'),
+          timestamp: DateTime.parse(
+              '2026-07-22T10:${m.toString().padLeft(2, '0')}:00Z'),
           latitude: m.toDouble(),
           longitude: 0,
           speedKmh: 0,
@@ -156,7 +157,8 @@ void main() {
       longitude: 1,
       durationMinutes: 5,
     );
-    expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:09:00Z')), isFalse);
+    expect(
+        isStopVisited(stop, DateTime.parse('2026-07-22T10:09:00Z')), isFalse);
     expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:10:00Z')), isTrue);
     expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:20:00Z')), isTrue);
   });
@@ -211,7 +213,8 @@ void main() {
       ),
     ];
     final segments = buildSpeedSegments(points);
-    expect(segments.any((s) => s.kind == PlaybackSegmentKind.overspeed), isTrue);
+    expect(
+        segments.any((s) => s.kind == PlaybackSegmentKind.overspeed), isTrue);
   });
 
   test('buildCsv includes header and rows', () {
@@ -372,7 +375,9 @@ void main() {
     expect(isValidPlaybackCoord(32.25, 74.64), isTrue);
   });
 
-  test('buildPlaybackPolylines is fully green at start, blue grows with progress', () {
+  test(
+      'buildPlaybackPolylines is fully green at start, blue grows with progress',
+      () {
     final trail = List.generate(
       5,
       (i) => HistoryReplayPoint(

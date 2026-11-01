@@ -25,10 +25,9 @@ class PlaybackSummaryCard extends StatelessWidget {
       stops: stops.isNotEmpty ? stops : bundle.stops,
     );
     final stats = PlaybackStats.fromBundle(bundle);
-    final parkingCount =
-        (stops.isNotEmpty ? stops : bundle.stops)
-            .where((s) => s.durationMinutes >= 120)
-            .length;
+    final parkingCount = (stops.isNotEmpty ? stops : bundle.stops)
+        .where((s) => s.durationMinutes >= 120)
+        .length;
     final fuel = bundle.summary?.fuelLiters ?? bundle.statistics?.fuelLiters;
     final engineHours =
         bundle.summary?.engineHours ?? bundle.statistics?.engineHours;
@@ -74,9 +73,10 @@ class PlaybackSummaryCard extends StatelessWidget {
                   context,
                   'Idle',
                   metrics.idleLabel,
-                  valueColor: nonMovingExceedsAlertThreshold(metrics.idleMinutes)
-                      ? AppColors.error
-                      : null,
+                  valueColor:
+                      nonMovingExceedsAlertThreshold(metrics.idleMinutes)
+                          ? AppColors.error
+                          : null,
                 ),
               ),
               Expanded(

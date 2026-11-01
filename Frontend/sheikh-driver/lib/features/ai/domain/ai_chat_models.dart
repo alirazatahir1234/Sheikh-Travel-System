@@ -9,7 +9,8 @@ class AiChatMessage {
 
   factory AiChatMessage.fromJson(Map<String, dynamic> json) => AiChatMessage(
         role: json['role']?.toString() ?? json['Role']?.toString() ?? '',
-        content: json['content']?.toString() ?? json['Content']?.toString() ?? '',
+        content:
+            json['content']?.toString() ?? json['Content']?.toString() ?? '',
       );
 }
 
@@ -84,8 +85,9 @@ class AiChatTurnResponse {
       answer: json['answer']?.toString() ?? json['Answer']?.toString() ?? '',
       mode: json['mode']?.toString() ?? json['Mode']?.toString() ?? 'rules',
       usedLlm: json['usedLlm'] == true || json['UsedLlm'] == true,
-      provider:
-          json['provider']?.toString() ?? json['Provider']?.toString() ?? 'None',
+      provider: json['provider']?.toString() ??
+          json['Provider']?.toString() ??
+          'None',
       model: json['model']?.toString() ?? json['Model']?.toString(),
       suggestedPrompts: strings(
         json['suggestedPrompts'] ?? json['SuggestedPrompts'],
@@ -114,8 +116,9 @@ class AiProviderHealth {
 
   factory AiProviderHealth.fromJson(Map<String, dynamic> json) =>
       AiProviderHealth(
-        provider:
-            json['provider']?.toString() ?? json['Provider']?.toString() ?? 'None',
+        provider: json['provider']?.toString() ??
+            json['Provider']?.toString() ??
+            'None',
         model: json['model']?.toString() ?? json['Model']?.toString(),
         endpoint: json['endpoint']?.toString() ?? json['Endpoint']?.toString(),
         configured: json['configured'] == true || json['Configured'] == true,
@@ -141,8 +144,9 @@ class AiToolInfo {
 
   factory AiToolInfo.fromJson(Map<String, dynamic> json) => AiToolInfo(
         name: json['name']?.toString() ?? json['Name']?.toString() ?? '',
-        description:
-            json['description']?.toString() ?? json['Description']?.toString() ?? '',
+        description: json['description']?.toString() ??
+            json['Description']?.toString() ??
+            '',
         kind: json['kind']?.toString() ?? json['Kind']?.toString() ?? 'read',
         requiresConfirmation: json['requiresConfirmation'] == true ||
             json['RequiresConfirmation'] == true,

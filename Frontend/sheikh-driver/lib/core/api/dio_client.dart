@@ -65,7 +65,8 @@ final dioProvider = Provider<Dio>((ref) {
     headers: {
       // Do not hardcode Sheikh's `default` slug — AuthInterceptor sets the
       // logged-in company slug (JWT tenant_id remains authoritative on API).
-      if (AppConfig.hasExplicitTenantSlug) 'X-Tenant-Slug': AppConfig.tenantSlug,
+      if (AppConfig.hasExplicitTenantSlug)
+        'X-Tenant-Slug': AppConfig.tenantSlug,
       'Content-Type': 'application/json',
       'User-Agent': 'SheikhGoTracking/${AppConfig.appVersion} Flutter',
     },

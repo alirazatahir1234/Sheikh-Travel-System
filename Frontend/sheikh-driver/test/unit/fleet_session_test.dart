@@ -64,7 +64,10 @@ void main() {
     test('owner role wins over fleet manager', () {
       final session = _session(
         roles: const [FleetRole.owner, FleetRole.fleetManager],
-        permissions: const [FleetPermissions.gpsView, FleetPermissions.fuelView],
+        permissions: const [
+          FleetPermissions.gpsView,
+          FleetPermissions.fuelView
+        ],
         authMode: AuthMode.staff,
         driverId: null,
       );
@@ -75,7 +78,10 @@ void main() {
     test('tenant admin wins over driver (not Role.Id order)', () {
       final session = _session(
         roles: const [FleetRole.driver, FleetRole.tenantAdmin],
-        permissions: const [FleetPermissions.tripView, FleetPermissions.gpsView],
+        permissions: const [
+          FleetPermissions.tripView,
+          FleetPermissions.gpsView
+        ],
         authMode: AuthMode.staff,
         driverId: null,
       );
@@ -100,7 +106,11 @@ void main() {
         'refreshToken': 'r',
         'fullName': 'Admin',
         'role': FleetRole.driver,
-        'roles': [FleetRole.driver, FleetRole.fleetManager, FleetRole.tenantAdmin],
+        'roles': [
+          FleetRole.driver,
+          FleetRole.fleetManager,
+          FleetRole.tenantAdmin
+        ],
         'permissions': [FleetPermissions.tripView],
         'userId': 1,
         'tenantId': 1,
@@ -331,8 +341,9 @@ void main() {
         authMode: AuthMode.staff,
         driverId: null,
       );
-      final routes =
-          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      final routes = FleetNavConfig.visibleMoreEntries(session)
+          .map((e) => e.route)
+          .toList();
       expect(routes, contains('/gps/trips'));
       expect(routes, isNot(contains('/gps/commands')));
       expect(session.canUseGpsCommands, isFalse);
@@ -360,8 +371,9 @@ void main() {
         driverId: null,
       );
       expect(session.canUseGpsCommands, isTrue);
-      final routes =
-          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      final routes = FleetNavConfig.visibleMoreEntries(session)
+          .map((e) => e.route)
+          .toList();
       expect(routes, contains('/gps/commands'));
     });
 
@@ -397,8 +409,9 @@ void main() {
         authMode: AuthMode.staff,
         driverId: null,
       );
-      final routes =
-          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      final routes = FleetNavConfig.visibleMoreEntries(session)
+          .map((e) => e.route)
+          .toList();
       expect(routes, isNot(contains('/fleet/map')));
       expect(routes, isNot(contains('/more/drivers')));
       // Trips moved off the FM bottom bar — available from More.
@@ -435,8 +448,8 @@ void main() {
           driverId: null,
         ),
       );
-      final historyIdx =
-          FleetNavConfig.indexForLocation(ownerTabs, '/fleet/vehicles/42/history');
+      final historyIdx = FleetNavConfig.indexForLocation(
+          ownerTabs, '/fleet/vehicles/42/history');
       expect(ownerTabs[historyIdx].id, isNot('map'));
       // Owner shell now includes Vehicles — history highlights fleet, not Map.
       expect(ownerTabs[historyIdx].id, 'fleet');

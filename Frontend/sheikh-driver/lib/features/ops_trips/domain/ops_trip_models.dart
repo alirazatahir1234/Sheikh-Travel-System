@@ -56,7 +56,8 @@ class OpsTripListItem {
       customerName:
           json['customerName'] as String? ?? json['CustomerName'] as String?,
       driverId: _asIntOrNull(json['driverId'] ?? json['DriverId']),
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
       vehicleId: _asIntOrNull(json['vehicleId'] ?? json['VehicleId']),
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
@@ -65,7 +66,8 @@ class OpsTripListItem {
           json['pickupAddress'] as String? ?? json['PickupAddress'] as String?,
       destinationAddress: json['destinationAddress'] as String? ??
           json['DestinationAddress'] as String?,
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
     );
   }
 }
@@ -130,7 +132,8 @@ class OpsTripDetail {
     final timeline = rawTimeline is List
         ? rawTimeline
             .whereType<Map>()
-            .map((e) => OpsTripTimelineEvent.fromJson(Map<String, dynamic>.from(e)))
+            .map((e) =>
+                OpsTripTimelineEvent.fromJson(Map<String, dynamic>.from(e)))
             .toList()
         : const <OpsTripTimelineEvent>[];
 
@@ -138,7 +141,8 @@ class OpsTripDetail {
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       tripNumber:
           json['tripNumber'] as String? ?? json['TripNumber'] as String? ?? '',
-      tripName: json['tripName'] as String? ?? json['TripName'] as String? ?? '',
+      tripName:
+          json['tripName'] as String? ?? json['TripName'] as String? ?? '',
       status: (json['status'] ?? json['Status'] ?? '').toString(),
       priority: (json['priority'] ?? json['Priority'] ?? 'Normal').toString(),
       tripType: (json['tripType'] ?? json['TripType'] ?? '').toString(),
@@ -157,7 +161,8 @@ class OpsTripDetail {
       customerName:
           json['customerName'] as String? ?? json['CustomerName'] as String?,
       driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
       vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int?,
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
@@ -168,7 +173,8 @@ class OpsTripDetail {
           json['DestinationAddress'] as String?,
       driverNotes:
           json['driverNotes'] as String? ?? json['DriverNotes'] as String?,
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
       timeline: timeline,
     );
   }
@@ -194,7 +200,8 @@ class OpsTripTimelineEvent {
   factory OpsTripTimelineEvent.fromJson(Map<String, dynamic> json) {
     return OpsTripTimelineEvent(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
-      fromStatus: json['fromStatus']?.toString() ?? json['FromStatus']?.toString(),
+      fromStatus:
+          json['fromStatus']?.toString() ?? json['FromStatus']?.toString(),
       toStatus: (json['toStatus'] ?? json['ToStatus'] ?? '').toString(),
       changedAtUtc: _date(json['changedAtUtc'] ?? json['ChangedAtUtc']) ??
           DateTime.now().toUtc(),

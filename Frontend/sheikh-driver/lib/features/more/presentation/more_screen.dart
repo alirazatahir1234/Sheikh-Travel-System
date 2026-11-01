@@ -35,7 +35,8 @@ class MoreScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             [
-              if (session.companyName != null && session.companyName!.isNotEmpty)
+              if (session.companyName != null &&
+                  session.companyName!.isNotEmpty)
                 session.companyName!,
               if (session.companyContext?.branchName != null)
                 session.companyContext!.branchName!,

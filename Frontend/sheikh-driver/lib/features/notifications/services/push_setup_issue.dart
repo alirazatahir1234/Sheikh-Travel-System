@@ -78,5 +78,6 @@ bool _looksLikeMissingPlayServices(String text) {
       text.contains('missing_instanceid_service') ||
       text.contains('google play services') ||
       text.contains('com.google.android.gms') ||
-      text.contains('java.io.ioexception: java.util.concurrent.executionexception');
+      text.contains(
+          'java.io.ioexception: java.util.concurrent.executionexception');
 }

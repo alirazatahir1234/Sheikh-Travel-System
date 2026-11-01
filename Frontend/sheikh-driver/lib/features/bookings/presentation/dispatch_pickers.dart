@@ -130,7 +130,8 @@ class _DriverPickerSheetState extends ConsumerState<_DriverPickerSheet> {
       requireVerified: widget.requireVerified,
     );
     if (block != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(block)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(block)));
       return;
     }
     Navigator.pop(context, d.id);
@@ -188,9 +189,8 @@ class _DriverPickerSheetState extends ConsumerState<_DriverPickerSheet> {
             block ?? '${d.phone} · ${d.status} · $vehicleLine',
             style: TextStyle(
               fontSize: 12,
-              color: block != null
-                  ? AppColors.warning
-                  : context.sg.textSecondary,
+              color:
+                  block != null ? AppColors.warning : context.sg.textSecondary,
             ),
           ),
           trailing: StatusBadge(d.status),
@@ -255,7 +255,8 @@ class _VehiclePickerSheetState extends ConsumerState<_VehiclePickerSheet> {
   Future<void> _onTap(VehicleListItem v) async {
     final block = v.assignBlockReason;
     if (block != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(block)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(block)));
       return;
     }
 
@@ -431,7 +432,7 @@ class _AssignPickerShell extends StatelessWidget {
               ),
               Expanded(
                 child: loading
-                    ? Center(child: SgBrandLoader())
+                    ? const Center(child: SgBrandLoader())
                     : error != null
                         ? SgErrorView(message: error!, onRetry: onRetry)
                         : itemCount == 0

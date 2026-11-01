@@ -7,7 +7,8 @@ final _evStatusProvider = FutureProvider.autoDispose<DriverEvStatus?>((ref) {
   return ref.watch(evApiProvider).fetchStatus();
 });
 
-final _docExpiriesProvider = FutureProvider.autoDispose<List<VehicleDocExpiry>>((ref) {
+final _docExpiriesProvider =
+    FutureProvider.autoDispose<List<VehicleDocExpiry>>((ref) {
   return ref.watch(evApiProvider).fetchDocumentExpiries();
 });
 
@@ -31,7 +32,8 @@ class EvChargingScreen extends ConsumerWidget {
                   child: ListTile(
                     leading: Icon(Icons.electric_car_outlined),
                     title: Text('No electric vehicle assigned'),
-                    subtitle: Text('Battery view appears when your active vehicle is Electric.'),
+                    subtitle: Text(
+                        'Battery view appears when your active vehicle is Electric.'),
                   ),
                 );
               }
@@ -41,12 +43,15 @@ class EvChargingScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(ev.vehicleName, style: Theme.of(context).textTheme.titleMedium),
+                      Text(ev.vehicleName,
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       if (ev.batteryPercent != null) ...[
-                        LinearProgressIndicator(value: (ev.batteryPercent! / 100).clamp(0, 1)),
+                        LinearProgressIndicator(
+                            value: (ev.batteryPercent! / 100).clamp(0, 1)),
                         const SizedBox(height: 6),
-                        Text('${ev.batteryPercent!.round()}% battery · est. ${ev.estimatedRangeKm?.round() ?? ev.electricRangeKm?.round() ?? "—"} km'),
+                        Text(
+                            '${ev.batteryPercent!.round()}% battery · est. ${ev.estimatedRangeKm?.round() ?? ev.electricRangeKm?.round() ?? "—"} km'),
                       ] else
                         const Text('No live battery reading'),
                       if (ev.rangeAlert)
@@ -54,22 +59,27 @@ class EvChargingScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(top: 8),
                           child: Row(
                             children: [
-                              Icon(Icons.battery_alert, color: Colors.orange.shade800, size: 20),
+                              Icon(Icons.battery_alert,
+                                  color: Colors.orange.shade800, size: 20),
                               const SizedBox(width: 6),
-                              Text('Range alert — plan charging', style: TextStyle(color: Colors.orange.shade900)),
+                              Text('Range alert — plan charging',
+                                  style:
+                                      TextStyle(color: Colors.orange.shade900)),
                             ],
                           ),
                         ),
                       if (ev.nearbyStations.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        Text('Charging stations', style: Theme.of(context).textTheme.labelLarge),
+                        Text('Charging stations',
+                            style: Theme.of(context).textTheme.labelLarge),
                         ...ev.nearbyStations.map(
                           (s) => ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.ev_station),
                             title: Text(s.name),
-                            subtitle: Text(s.address ?? '${s.latitude}, ${s.longitude}'),
+                            subtitle: Text(
+                                s.address ?? '${s.latitude}, ${s.longitude}'),
                           ),
                         ),
                       ],
@@ -82,19 +92,23 @@ class EvChargingScreen extends ConsumerWidget {
             error: (e, _) => Text('Could not load EV status: $e'),
           ),
           const SizedBox(height: 16),
-          Text('Vehicle documents', style: Theme.of(context).textTheme.titleSmall),
+          Text('Vehicle documents',
+              style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           docsAsync.when(
             data: (docs) {
               if (docs.isEmpty) {
-                return const Text('No expiring documents on your assigned vehicle.');
+                return const Text(
+                    'No expiring documents on your assigned vehicle.');
               }
               return Column(
                 children: docs
                     .map(
                       (d) => ListTile(
                         leading: Icon(
-                          d.status == 'Expired' ? Icons.error_outline : Icons.event,
+                          d.status == 'Expired'
+                              ? Icons.error_outline
+                              : Icons.event,
                           color: d.daysRemaining <= 30 ? Colors.orange : null,
                         ),
                         title: Text(d.documentType),

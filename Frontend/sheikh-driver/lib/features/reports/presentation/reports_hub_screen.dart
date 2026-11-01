@@ -135,12 +135,14 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                  const Icon(Icons.error_outline,
+                      color: AppColors.error, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: AppColors.error, height: 1.35),
+                      style:
+                          const TextStyle(color: AppColors.error, height: 1.35),
                     ),
                   ),
                 ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations_en.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_brand.dart';
@@ -113,7 +114,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadii.lg),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.18)),
                   ),
                   child: Image.asset(
                     AppBrand.logoAsset,
@@ -156,7 +158,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             Text(
                               'Welcome back',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
                                     color: p.textPrimary,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.35,
@@ -165,7 +170,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const SizedBox(height: 6),
                             Text(
                               'Use your work email or phone number',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
                                     color: p.textSecondary,
                                     height: 1.35,
                                   ),
@@ -196,7 +204,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               autofillHints: const [AutofillHints.password],
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                prefixIcon:
+                                    const Icon(Icons.lock_outline_rounded),
                                 suffixIcon: IconButton(
                                   tooltip: _obscurePassword ? 'Show' : 'Hide',
                                   onPressed: () => setState(
@@ -229,13 +238,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 Expanded(
                                   child: Text(
                                     'Remember me',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
                                           color: p.textSecondary,
                                         ),
                                   ),
                                 ),
                                 TextButton(
-                                  onPressed: () => context.push('/forgot-password'),
+                                  onPressed: () =>
+                                      context.push('/forgot-password'),
                                   child: const Text(
                                     'Forgot?',
                                     style: TextStyle(
@@ -252,11 +265,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.08),
+                                  color:
+                                      AppColors.error.withValues(alpha: 0.08),
                                   borderRadius:
                                       BorderRadius.circular(AppRadii.sm),
                                   border: Border.all(
-                                    color: AppColors.error.withValues(alpha: 0.22),
+                                    color:
+                                        AppColors.error.withValues(alpha: 0.22),
                                   ),
                                 ),
                                 child: Row(
@@ -295,7 +310,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextButton(
                             onPressed: () => context.push('/legal/terms'),
                             child: Text(
-                              AppLocalizations.of(context).termsShort,
+                              (Localizations.of<AppLocalizations>(
+                                        context,
+                                        AppLocalizations,
+                                      ) ??
+                                      AppLocalizationsEn())
+                                  .termsShort,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: p.textSecondary,
@@ -306,7 +326,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextButton(
                             onPressed: () => context.push('/legal/privacy'),
                             child: Text(
-                              AppLocalizations.of(context).privacyShort,
+                              (Localizations.of<AppLocalizations>(
+                                        context,
+                                        AppLocalizations,
+                                      ) ??
+                                      AppLocalizationsEn())
+                                  .privacyShort,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: p.textSecondary,

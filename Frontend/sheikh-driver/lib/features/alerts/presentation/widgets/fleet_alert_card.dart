@@ -50,9 +50,7 @@ class FleetAlertCard extends StatelessWidget {
 
     final time = formatAlertRelativeTimeVerbose(
       showAsResolved
-          ? (primary.resolvedAt ??
-              incident.endedAt ??
-              primary.timestamp)
+          ? (primary.resolvedAt ?? incident.endedAt ?? primary.timestamp)
           : primary.timestamp,
     );
 

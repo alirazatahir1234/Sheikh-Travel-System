@@ -27,14 +27,15 @@ void main() {
     });
   });
 
-  testWidgets('SplashBrandPanel shows Smart GPS Operations tagline', (tester) async {
+  testWidgets('SplashBrandPanel shows Smart GPS Operations tagline',
+      (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
-        home: SplashBrandPanel(
+        home: const SplashBrandPanel(
           isDark: true,
-          logoFade: const AlwaysStoppedAnimation(1),
-          logoScale: const AlwaysStoppedAnimation(1),
+          logoFade: AlwaysStoppedAnimation(1),
+          logoScale: AlwaysStoppedAnimation(1),
         ),
       ),
     );

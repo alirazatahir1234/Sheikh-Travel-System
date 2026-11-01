@@ -63,8 +63,7 @@ class ActivitiesScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.timeline_outlined,
-                      size: 56, color: p.textMuted),
+                  Icon(Icons.timeline_outlined, size: 56, color: p.textMuted),
                   const SizedBox(height: 12),
                   Text(
                     'No recent activity yet',

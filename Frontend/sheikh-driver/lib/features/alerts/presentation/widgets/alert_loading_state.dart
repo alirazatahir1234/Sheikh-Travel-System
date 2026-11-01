@@ -171,9 +171,8 @@ class _Bone extends StatelessWidget {
     return Container(
       width: width == double.infinity ? null : width,
       height: height,
-      constraints: width == double.infinity
-          ? const BoxConstraints(minWidth: 40)
-          : null,
+      constraints:
+          width == double.infinity ? const BoxConstraints(minWidth: 40) : null,
       decoration: BoxDecoration(
         color: const Color(0xFFE2E8F0),
         borderRadius: BorderRadius.circular(radius),

@@ -40,18 +40,10 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$e'),
-              FilledButton(
-                onPressed: () => ref.read(opsTripsProvider.notifier).refresh(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => SgErrorView(
+          message: '$e',
+          onRetry: () => ref.read(opsTripsProvider.notifier).refresh(),
         ),
         data: (state) {
           final visible = state.visible;
@@ -84,7 +76,8 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
                           padding: const EdgeInsets.only(right: 8),
                           child: FilterChip(
                             label: const Text('All'),
-                            selected: !state.liveOnly && state.statusFilter == null,
+                            selected:
+                                !state.liveOnly && state.statusFilter == null,
                             onSelected: (_) => ref
                                 .read(opsTripsProvider.notifier)
                                 .clearFilters(),
@@ -112,7 +105,8 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
                             padding: const EdgeInsets.only(right: 8),
                             child: FilterChip(
                               label: Text(s),
-                              selected: !state.liveOnly && state.statusFilter == s,
+                              selected:
+                                  !state.liveOnly && state.statusFilter == s,
                               onSelected: (_) => ref
                                   .read(opsTripsProvider.notifier)
                                   .setStatusFilter(s),
@@ -151,7 +145,8 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (state.liveOnly || state.statusFilter != null) ...[
+                            if (state.liveOnly ||
+                                state.statusFilter != null) ...[
                               const SizedBox(height: 12),
                               FilledButton(
                                 onPressed: () => ref

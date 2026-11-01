@@ -10,7 +10,8 @@ import 'fuel_notifier.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../../shared/widgets/sg_brand_loader.dart';
 
-final _fuelVehiclesProvider = FutureProvider.autoDispose<List<InspectionVehicle>>(
+final _fuelVehiclesProvider =
+    FutureProvider.autoDispose<List<InspectionVehicle>>(
   (ref) => ref.read(inspectionApiProvider).getVehicles(),
 );
 
@@ -90,7 +91,8 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
             ),
             if (_receiptImage != null)
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                leading:
+                    const Icon(Icons.delete_outline, color: AppColors.error),
                 title: const Text('Remove photo'),
                 onTap: () {
                   Navigator.pop(context);
@@ -247,7 +249,8 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
       }
       if (next.error != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error!), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(next.error!), backgroundColor: AppColors.error),
         );
       }
     });
@@ -276,8 +279,8 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
           children: [
             vehiclesAsync.when(
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('$e',
-                  style: const TextStyle(color: AppColors.error)),
+              error: (e, _) =>
+                  Text('$e', style: const TextStyle(color: AppColors.error)),
               data: (vehicles) {
                 if (vehicles.isEmpty) {
                   return Text(
@@ -389,17 +392,21 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.document_scanner_outlined),
-                          label: Text(fuel.scanning ? 'Scanning…' : 'Scan receipt (OCR)'),
+                          label: Text(fuel.scanning
+                              ? 'Scanning…'
+                              : 'Scan receipt (OCR)'),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   const Text('Fuel Type',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -409,7 +416,8 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                         label: Text(type),
                         selected: selected,
                         onSelected: (_) => setState(() => _fuelType = type),
-                        selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                        selectedColor:
+                            AppColors.primary.withValues(alpha: 0.15),
                         checkmarkColor: AppColors.primary,
                       );
                     }).toList(),

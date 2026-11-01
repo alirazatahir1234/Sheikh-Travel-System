@@ -14,7 +14,8 @@ class FatigueResponseScreen extends ConsumerStatefulWidget {
   final int? eventId;
 
   @override
-  ConsumerState<FatigueResponseScreen> createState() => _FatigueResponseScreenState();
+  ConsumerState<FatigueResponseScreen> createState() =>
+      _FatigueResponseScreenState();
 }
 
 class _FatigueResponseScreenState extends ConsumerState<FatigueResponseScreen> {
@@ -26,7 +27,8 @@ class _FatigueResponseScreenState extends ConsumerState<FatigueResponseScreen> {
   void initState() {
     super.initState();
     _load();
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _load(silent: true));
+    _timer =
+        Timer.periodic(const Duration(seconds: 2), (_) => _load(silent: true));
   }
 
   @override
@@ -78,9 +80,11 @@ class _FatigueResponseScreenState extends ConsumerState<FatigueResponseScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.bedtime, size: 56, color: Theme.of(context).colorScheme.error),
+                  Icon(Icons.bedtime,
+                      size: 56, color: Theme.of(context).colorScheme.error),
                   const SizedBox(height: 12),
-                  Text(p.promptTitle, style: Theme.of(context).textTheme.headlineSmall),
+                  Text(p.promptTitle,
+                      style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
                   Text(p.promptBody),
                   const SizedBox(height: 8),

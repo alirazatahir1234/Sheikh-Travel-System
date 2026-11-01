@@ -228,13 +228,11 @@ class _LocationTrackingScreenState
                     content: Text(l10n.stopTrackingBody),
                     actions: [
                       TextButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext).pop(false),
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
                         child: Text(l10n.cancel),
                       ),
                       FilledButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext).pop(true),
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
                         child: Text(l10n.stop),
                       ),
                     ],
@@ -250,7 +248,8 @@ class _LocationTrackingScreenState
                   }
                 }
               },
-              icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
+              icon: const Icon(Icons.stop_circle_outlined,
+                  color: AppColors.error),
               label: Text(
                 l10n.stopTracking,
                 style: const TextStyle(color: AppColors.error),

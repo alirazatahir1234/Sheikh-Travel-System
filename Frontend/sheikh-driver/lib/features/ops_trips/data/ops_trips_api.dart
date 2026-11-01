@@ -55,8 +55,8 @@ class OpsTripsApi {
   }
 
   Future<OpsTripsDashboard> dashboard() async {
-    final res = await _dio
-        .get<Map<String, dynamic>>(ApiEndpoints.opsTripsDashboard);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.opsTripsDashboard);
     return OpsTripsDashboard.fromJson(ApiResponseParser.dataMap(res.data));
   }
 

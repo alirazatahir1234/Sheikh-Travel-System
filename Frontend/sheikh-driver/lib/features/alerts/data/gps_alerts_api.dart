@@ -56,7 +56,9 @@ class GpsAlertsApi {
           .map((e) => GpsAlertEvent.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     }
-    return ApiResponseParser.pagedItems(body).map(GpsAlertEvent.fromJson).toList();
+    return ApiResponseParser.pagedItems(body)
+        .map(GpsAlertEvent.fromJson)
+        .toList();
   }
 
   Future<GpsAlertStats> stats() async {

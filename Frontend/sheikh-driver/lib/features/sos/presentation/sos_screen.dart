@@ -34,7 +34,9 @@ class _SosScreenState extends ConsumerState<SosScreen> {
           'This alerts admin, fleet managers, and the nearest verified team with your live location.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -54,13 +56,15 @@ class _SosScreenState extends ConsumerState<SosScreen> {
       double? lat;
       double? lng;
       final perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+      if (perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse) {
         final pos = await Geolocator.getCurrentPosition();
         lat = pos.latitude;
         lng = pos.longitude;
       }
 
-      final result = await ref.read(sosApiProvider).sendSos(latitude: lat, longitude: lng);
+      final result =
+          await ref.read(sosApiProvider).sendSos(latitude: lat, longitude: lng);
       if (!mounted) return;
       setState(() {
         _last = result;
@@ -86,7 +90,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
           _last = SosSubmitResult(
             id: st.id,
             createdAt: _last?.createdAt ?? DateTime.now(),
-            confirmationMessage: st.confirmationMessage ?? _last?.confirmationMessage,
+            confirmationMessage:
+                st.confirmationMessage ?? _last?.confirmationMessage,
             dispatchMode: _last?.dispatchMode,
             assignedTeamName: st.assignedTeamName ?? _last?.assignedTeamName,
             etaMinutes: st.etaMinutes ?? _last?.etaMinutes,
@@ -127,7 +132,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
                       height: 160,
                       child: Center(
                         child: _sending
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
                                 'SOS',
                                 style: TextStyle(
@@ -144,7 +150,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 24),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(_error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             if (_last != null) ...[
               const SizedBox(height: 32),
@@ -155,11 +162,14 @@ class _SosScreenState extends ConsumerState<SosScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Help is on the way', style: TextStyle(fontWeight: FontWeight.bold)),
-                      if (_last!.confirmationMessage != null) Text(_last!.confirmationMessage!),
+                      const Text('Help is on the way',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      if (_last!.confirmationMessage != null)
+                        Text(_last!.confirmationMessage!),
                       if (_last!.assignedTeamName != null)
                         Text('Team: ${_last!.assignedTeamName}'),
-                      if (_last!.etaMinutes != null) Text('ETA: ~${_last!.etaMinutes} min'),
+                      if (_last!.etaMinutes != null)
+                        Text('ETA: ~${_last!.etaMinutes} min'),
                     ],
                   ),
                 ),

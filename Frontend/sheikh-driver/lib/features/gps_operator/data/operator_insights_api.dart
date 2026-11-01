@@ -4,8 +4,8 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 
-final operatorInsightsApiProvider =
-    Provider<OperatorInsightsApi>((ref) => OperatorInsightsApi(ref.read(dioProvider)));
+final operatorInsightsApiProvider = Provider<OperatorInsightsApi>(
+    (ref) => OperatorInsightsApi(ref.read(dioProvider)));
 
 class OperatorInsightResult {
   const OperatorInsightResult({

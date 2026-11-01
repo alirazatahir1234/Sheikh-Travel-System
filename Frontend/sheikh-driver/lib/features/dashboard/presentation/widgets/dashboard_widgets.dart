@@ -113,8 +113,7 @@ class OpsHeaderCard extends ConsumerWidget {
     final tenantLabel = (companyName != null && companyName!.trim().isNotEmpty)
         ? companyName!.trim()
         : (tenantId != null ? 'Tenant $tenantId' : AppBrand.productName);
-    final unread =
-        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -170,13 +169,9 @@ class OpsHeaderCard extends ConsumerWidget {
                   tooltip: 'Notifications',
                   visualDensity: VisualDensity.compact,
                   onPressed: () => context.go('/notifications'),
-                  icon: Badge(
-                    isLabelVisible: unread > 0,
-                    label: Text(unread > 99 ? '99+' : '$unread'),
-                    child: Icon(
-                      Icons.notifications_none_rounded,
-                      color: p.textPrimary,
-                    ),
+                  icon: SgNotificationBellIcon(
+                    unreadCount: unread,
+                    iconColor: p.textPrimary,
                   ),
                 ),
               ],
@@ -203,7 +198,7 @@ class OpsHeaderCard extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.apartment_rounded,
+                    const Icon(Icons.apartment_rounded,
                         size: 16, color: AppColors.primary),
                     const SizedBox(width: 6),
                     ConstrainedBox(
@@ -248,7 +243,7 @@ class OpsHeaderCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.check_circle_rounded,
+                const Icon(Icons.check_circle_rounded,
                     size: 14, color: AppColors.success),
                 const SizedBox(width: 5),
                 Text(
@@ -512,8 +507,8 @@ class FleetActivityDistributionCard extends StatelessWidget {
           'Idle', idle < 0 ? 0 : idle, AppColors.warning, '/fleet?status=idle'),
       _DistItem('Offline', offline < 0 ? 0 : offline, AppColors.error,
           '/fleet?status=offline'),
-      _DistItem('Never Seen', neverSeen < 0 ? 0 : neverSeen, p.textMuted,
-          '/fleet'),
+      _DistItem(
+          'Never Seen', neverSeen < 0 ? 0 : neverSeen, p.textMuted, '/fleet'),
     ];
     final total = items.fold<int>(0, (s, e) => s + e.count);
 
@@ -667,11 +662,9 @@ class FleetHealthCard extends StatelessWidget {
     final total = fleet?.totalVehicles ?? gps?.totalVehicles ?? 0;
     final active = fleet?.activeVehicles ?? gps?.online ?? 0;
     final offline = gps?.offline ?? 0;
-    final maintenance =
-        fleet?.maintenanceDue ?? maint?.dueForService ?? 0;
-    final updated = data.lastSyncedAt == null
-        ? '—'
-        : _relativeTime(data.lastSyncedAt!);
+    final maintenance = fleet?.maintenanceDue ?? maint?.dueForService ?? 0;
+    final updated =
+        data.lastSyncedAt == null ? '—' : _relativeTime(data.lastSyncedAt!);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -973,32 +966,31 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
     return widget.positions
         .where((p) => p.latitude != 0 || p.longitude != 0)
         .map(
-          (p) {
-            final status = resolveFleetStatus(
-              speed: p.speed,
-              ignition: p.ignition,
-              lastUpdated: p.timestamp,
-              hasGps: true,
-              alarmType: p.alarmType,
-            );
-            return Marker(
-              markerId: MarkerId('v${p.vehicleId}'),
-              position: LatLng(p.latitude, p.longitude),
-              rotation: p.heading ?? 0,
-              flat: true,
-              anchor: const Offset(0.5, 0.5),
-              icon: _icons[status] ??
-                  BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueAzure,
-                  ),
-              infoWindow: InfoWindow(
-                title: 'Vehicle ${p.vehicleId}',
-                snippet: '${p.speed.toStringAsFixed(0)} km/h',
+      (p) {
+        final status = resolveFleetStatus(
+          speed: p.speed,
+          ignition: p.ignition,
+          lastUpdated: p.timestamp,
+          hasGps: true,
+          alarmType: p.alarmType,
+        );
+        return Marker(
+          markerId: MarkerId('v${p.vehicleId}'),
+          position: LatLng(p.latitude, p.longitude),
+          rotation: p.heading ?? 0,
+          flat: true,
+          anchor: const Offset(0.5, 0.5),
+          icon: _icons[status] ??
+              BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure,
               ),
-            );
-          },
-        )
-        .toSet();
+          infoWindow: InfoWindow(
+            title: 'Vehicle ${p.vehicleId}',
+            snippet: '${p.speed.toStringAsFixed(0)} km/h',
+          ),
+        );
+      },
+    ).toSet();
   }
 
   Future<void> _fit() async {
@@ -1127,7 +1119,7 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.sensors_rounded,
+                          const Icon(Icons.sensors_rounded,
                               size: 14, color: AppColors.primary),
                           const SizedBox(width: 6),
                           Text(
@@ -1200,11 +1192,11 @@ class AiCopilotSummaryCard extends StatelessWidget {
                 size: 20, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'AI Copilot',
                   style: TextStyle(
                     fontSize: 14,
@@ -1212,7 +1204,7 @@ class AiCopilotSummaryCard extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const Text(
+                Text(
                   'Ask about vehicles, trips, or alerts…',
                   style: TextStyle(
                     fontSize: 11,
@@ -1240,8 +1232,8 @@ class AiCopilotSummaryCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Ask AI',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                   SizedBox(width: 2),
                   Icon(Icons.chevron_right_rounded, size: 16),
                 ],
@@ -1321,8 +1313,7 @@ class CriticalAlertsCard extends StatelessWidget {
               : Column(
                   children: [
                     for (var i = 0; i < visible.length; i++) ...[
-                      if (i > 0)
-                        Divider(height: 1, color: p.divider),
+                      if (i > 0) Divider(height: 1, color: p.divider),
                       _AlertRow(alert: visible[i]),
                     ],
                   ],
@@ -1344,7 +1335,8 @@ class CriticalAlertsCard extends StatelessWidget {
       if (event.timestamp.isAfter(existing.event.timestamp)) {
         map[key] = _GroupedAlert(event: event, count: existing.count + 1);
       } else {
-        map[key] = _GroupedAlert(event: existing.event, count: existing.count + 1);
+        map[key] =
+            _GroupedAlert(event: existing.event, count: existing.count + 1);
       }
     }
     final grouped = map.values.toList();
@@ -1362,8 +1354,9 @@ class _AlertRow extends StatelessWidget {
     return eventType
         .replaceAll('_', ' ')
         .split(' ')
-        .map((w) =>
-            w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .map((w) => w.isEmpty
+            ? ''
+            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
         .join(' ');
   }
 
@@ -1466,7 +1459,6 @@ class _GroupedAlert {
   final GpsAlertEvent event;
   final int count;
 }
-
 
 class TodayOpsKpiRow extends StatelessWidget {
   const TodayOpsKpiRow({super.key, required this.data});
@@ -1845,6 +1837,7 @@ class KpiStrip extends StatelessWidget {
   final String? title;
   final String? viewAllLabel;
   final String? viewAllRoute;
+
   /// Optional per-cell routes (same length as [items]).
   final List<String?>? itemRoutes;
 
@@ -1895,15 +1888,13 @@ class KpiStrip extends StatelessWidget {
                   for (var i = 0; i < items.length; i++) ...[
                     if (i > 0)
                       Container(
-                          height: 36,
-                          width: 1,
-                          color: context.sg.divider),
+                          height: 36, width: 1, color: context.sg.divider),
                     Expanded(
                       child: Builder(builder: (context) {
-                        final route = (itemRoutes != null &&
-                                i < itemRoutes!.length)
-                            ? itemRoutes![i]
-                            : null;
+                        final route =
+                            (itemRoutes != null && i < itemRoutes!.length)
+                                ? itemRoutes![i]
+                                : null;
                         final cell = Column(
                           children: [
                             Row(
@@ -1914,8 +1905,7 @@ class KpiStrip extends StatelessWidget {
                                   width: 8,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color:
-                                        items[i].$3.withValues(alpha: 0.85),
+                                    color: items[i].$3.withValues(alpha: 0.85),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -1985,17 +1975,15 @@ class KpiStrip extends StatelessWidget {
                       Expanded(
                         child: Builder(builder: (_) {
                           final n = int.tryParse(items[i].$2) ?? 0;
-                          final pct = total > 0
-                              ? '${(n * 100 ~/ total)}%'
-                              : '0%';
+                          final pct =
+                              total > 0 ? '${(n * 100 ~/ total)}%' : '0%';
                           return Text(
                             pct,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color:
-                                  items[i].$3.withValues(alpha: 0.8),
+                              color: items[i].$3.withValues(alpha: 0.8),
                             ),
                           );
                         }),
@@ -2434,6 +2422,7 @@ class QuickActionsGrid extends StatelessWidget {
     this.viewAllRoute = '/more',
   });
   final List<DashboardQuickAction> actions;
+
   /// When null, the "View all" control is hidden.
   final String? viewAllRoute;
 

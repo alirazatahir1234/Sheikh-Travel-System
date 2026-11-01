@@ -49,8 +49,9 @@ class NotificationDeepLink {
       return forDriver ? '/notifications' : '/alerts/$alertId';
     }
 
-    final referenceId = int.tryParse(
-        data['referenceId']?.toString() ?? data['ReferenceId']?.toString() ?? '');
+    final referenceId = int.tryParse(data['referenceId']?.toString() ??
+        data['ReferenceId']?.toString() ??
+        '');
 
     return resolve(
       type: data['type']?.toString() ?? data['Type']?.toString(),
@@ -77,7 +78,9 @@ class NotificationDeepLink {
     if (m.contains('fuel') || t.contains('fuel')) return '/fuel';
     if (m.contains('inspection')) return '/inspection';
     if (m.contains('document') || m.contains('compliance')) return '/documents';
-    if (m.contains('earning') || m.contains('payment') || t.contains('payment')) {
+    if (m.contains('earning') ||
+        m.contains('payment') ||
+        t.contains('payment')) {
       return '/earnings';
     }
     if (m.contains('attendance')) return '/attendance';

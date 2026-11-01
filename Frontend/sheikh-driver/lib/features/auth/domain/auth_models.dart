@@ -6,6 +6,7 @@ enum AuthMode { staff, driver }
 abstract final class FleetRole {
   static const superAdmin = 'SUPER_ADMIN';
   static const tenantAdmin = 'TENANT_ADMIN';
+
   /// Company owner — dedicated SheikhGo Tracking mobile shell (live map / drivers / fuel).
   static const owner = 'OWNER';
   static const fleetManager = 'FLEET_MANAGER';
@@ -196,14 +197,12 @@ class FleetSession {
   bool hasRole(String role) =>
       roles.any((r) => r.toUpperCase() == role.toUpperCase());
 
-  bool hasAnyRole(Iterable<String> codes) =>
-      codes.any((code) => hasRole(code));
+  bool hasAnyRole(Iterable<String> codes) => codes.any((code) => hasRole(code));
 
   bool hasPermission(String permission) =>
       permissions.any((p) => p.toLowerCase() == permission.toLowerCase());
 
-  bool hasAnyPermission(Iterable<String> codes) =>
-      codes.any(hasPermission);
+  bool hasAnyPermission(Iterable<String> codes) => codes.any(hasPermission);
 
   /// Resolves which bottom-nav shell to show (role-first).
   String get primaryNavRole {
@@ -233,7 +232,9 @@ class FleetSession {
 
   /// True when primary shell is GPS Operator (mobile V1 monitoring role).
   bool get isGpsOperator =>
-      !isDriverOnly && hasRole(FleetRole.gpsOperator) && primaryNavRole == FleetRole.gpsOperator;
+      !isDriverOnly &&
+      hasRole(FleetRole.gpsOperator) &&
+      primaryNavRole == FleetRole.gpsOperator;
 
   /// Owner Tracking shell: dedicated OWNER role, or company admin acting as owner.
   bool get isOwnerTracking =>
@@ -309,8 +310,7 @@ class FleetSession {
 
   /// Owner earnings / finance surfaces (distinct from driver-only /earnings API).
   bool get canSeeOwnerEarnings =>
-      !isDriverOnly &&
-      (isOwnerTracking || hasPermission('Settlement.View'));
+      !isDriverOnly && (isOwnerTracking || hasPermission('Settlement.View'));
 
   bool get canSeeUsersTab =>
       !isDriverOnly && hasPermission(FleetPermissions.platformUsersView);
@@ -321,8 +321,9 @@ class FleetSession {
   factory FleetSession.fromStaffJson(Map<String, dynamic> json) {
     final accessToken =
         json['accessToken'] as String? ?? json['AccessToken'] as String? ?? '';
-    final refreshToken =
-        json['refreshToken'] as String? ?? json['RefreshToken'] as String? ?? '';
+    final refreshToken = json['refreshToken'] as String? ??
+        json['RefreshToken'] as String? ??
+        '';
     final roles = _parseStringList(json['roles'] ?? json['Roles']);
     final primaryRole =
         (json['role'] as String? ?? json['Role'] as String? ?? '').trim();
@@ -349,9 +350,8 @@ class FleetSession {
       refreshToken: refreshToken,
       userId: userId,
       tenantId: tenantId,
-      displayName: json['fullName'] as String? ??
-          json['FullName'] as String? ??
-          '',
+      displayName:
+          json['fullName'] as String? ?? json['FullName'] as String? ?? '',
       // Privilege order by code — never Role.Id / response array order.
       roles: FleetRole.orderByPrivilege(mergedRoles),
       permissions: permissions,
@@ -368,8 +368,9 @@ class FleetSession {
   factory FleetSession.fromDriverJson(Map<String, dynamic> json) {
     final accessToken =
         json['accessToken'] as String? ?? json['AccessToken'] as String? ?? '';
-    final refreshToken =
-        json['refreshToken'] as String? ?? json['RefreshToken'] as String? ?? '';
+    final refreshToken = json['refreshToken'] as String? ??
+        json['RefreshToken'] as String? ??
+        '';
     final driverId = json['driverId'] as int? ?? json['DriverId'] as int? ?? 0;
     final userId = JwtUtils.claimInt(accessToken, 'userId') ??
         JwtUtils.claimInt(accessToken, 'sub') ??
@@ -381,9 +382,8 @@ class FleetSession {
       refreshToken: refreshToken,
       userId: userId,
       tenantId: tenantId,
-      displayName: json['fullName'] as String? ??
-          json['FullName'] as String? ??
-          '',
+      displayName:
+          json['fullName'] as String? ?? json['FullName'] as String? ?? '',
       roles: const [FleetRole.driver],
       permissions: FleetPermissions.driverDefaults,
       authMode: AuthMode.driver,
@@ -427,7 +427,8 @@ class FleetSession {
 
     final rawContext = json['companyContext'] as Map<String, dynamic>?;
     if (rawContext == null) return session;
-    return session.copyWith(companyContext: CompanyContext.fromJson(rawContext));
+    return session.copyWith(
+        companyContext: CompanyContext.fromJson(rawContext));
   }
 
   Map<String, dynamic> toJson() => {
@@ -750,14 +751,15 @@ class CompanyContext {
         if (item is Map<String, dynamic>) {
           assignedRoles.add(AssignedRole.fromJson(item));
         } else if (item is Map) {
-          assignedRoles.add(
-              AssignedRole.fromJson(Map<String, dynamic>.from(item)));
+          assignedRoles
+              .add(AssignedRole.fromJson(Map<String, dynamic>.from(item)));
         }
       }
     }
 
     final effectivePermissions = <EffectivePermission>[];
-    final permsRaw = json['effectivePermissions'] ?? json['EffectivePermissions'];
+    final permsRaw =
+        json['effectivePermissions'] ?? json['EffectivePermissions'];
     if (permsRaw is List) {
       for (final item in permsRaw) {
         if (item is Map<String, dynamic>) {
@@ -850,7 +852,8 @@ class CompanyContext {
       primaryColor:
           json['primaryColor'] as String? ?? json['PrimaryColor'] as String?,
       branchId: json['branchId'] as int? ?? json['BranchId'] as int?,
-      branchName: json['branchName'] as String? ?? json['BranchName'] as String?,
+      branchName:
+          json['branchName'] as String? ?? json['BranchName'] as String?,
       departmentId:
           json['departmentId'] as int? ?? json['DepartmentId'] as int?,
       departmentName: json['departmentName'] as String? ??
@@ -984,14 +987,16 @@ class CompanySecuritySummary {
       passwordExpired: json['passwordExpired'] as bool? ??
           json['PasswordExpired'] as bool? ??
           false,
-      passwordDaysRemaining: asInt(
-          json['passwordDaysRemaining'] ?? json['PasswordDaysRemaining']),
+      passwordDaysRemaining:
+          asInt(json['passwordDaysRemaining'] ?? json['PasswordDaysRemaining']),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        if (passwordExpiryDays != null) 'passwordExpiryDays': passwordExpiryDays,
-        if (idleTimeoutMinutes != null) 'idleTimeoutMinutes': idleTimeoutMinutes,
+        if (passwordExpiryDays != null)
+          'passwordExpiryDays': passwordExpiryDays,
+        if (idleTimeoutMinutes != null)
+          'idleTimeoutMinutes': idleTimeoutMinutes,
         if (absoluteTimeoutMinutes != null)
           'absoluteTimeoutMinutes': absoluteTimeoutMinutes,
         'auditLevel': auditLevel,
@@ -1049,7 +1054,8 @@ class CompanyDataScope {
       departmentLabels: FleetSession._parseStringList(
         json['departmentLabels'] ?? json['DepartmentLabels'],
       ),
-      source: json['source'] as String? ?? json['Source'] as String? ?? 'default',
+      source:
+          json['source'] as String? ?? json['Source'] as String? ?? 'default',
       homeBranchId:
           json['homeBranchId'] as int? ?? json['HomeBranchId'] as int?,
       homeDepartmentId:
@@ -1092,9 +1098,8 @@ class CompanyDashboardSummary {
       widgetKeys: FleetSession._parseStringList(
         json['widgetKeys'] ?? json['WidgetKeys'],
       ),
-      source: json['source'] as String? ??
-          json['Source'] as String? ??
-          'default',
+      source:
+          json['source'] as String? ?? json['Source'] as String? ?? 'default',
     );
   }
 
@@ -1179,11 +1184,9 @@ class CompanyNavSummary {
 
   factory CompanyNavSummary.fromJson(Map<String, dynamic> json) =>
       CompanyNavSummary(
-        moduleCount: json['moduleCount'] as int? ??
-            json['ModuleCount'] as int? ??
-            0,
-        itemCount:
-            json['itemCount'] as int? ?? json['ItemCount'] as int? ?? 0,
+        moduleCount:
+            json['moduleCount'] as int? ?? json['ModuleCount'] as int? ?? 0,
+        itemCount: json['itemCount'] as int? ?? json['ItemCount'] as int? ?? 0,
         topModuleLabels: FleetSession._parseStringList(
           json['topModuleLabels'] ?? json['TopModuleLabels'],
         ),
@@ -1377,9 +1380,8 @@ class CompanyFeature {
 
   factory CompanyFeature.fromJson(Map<String, dynamic> json) {
     return CompanyFeature(
-      featureKey: json['featureKey'] as String? ??
-          json['FeatureKey'] as String? ??
-          '',
+      featureKey:
+          json['featureKey'] as String? ?? json['FeatureKey'] as String? ?? '',
       moduleKey: json['moduleKey'] as String? ??
           json['ModuleKey'] as String? ??
           json['moduleCode'] as String? ??
@@ -1396,15 +1398,15 @@ class CompanyFeature {
       category: json['category'] as String? ?? json['Category'] as String?,
       icon: json['icon'] as String? ?? json['Icon'] as String?,
       status: json['status'] as String? ?? json['Status'] as String?,
-      isEnabled: json['isEnabled'] as bool? ??
-          json['IsEnabled'] as bool? ??
-          true,
+      isEnabled:
+          json['isEnabled'] as bool? ?? json['IsEnabled'] as bool? ?? true,
       sortOrder: json['sortOrder'] as int? ?? json['SortOrder'] as int? ?? 0,
       isMobileSupported: json['isMobileSupported'] as bool? ??
           json['IsMobileSupported'] as bool? ??
           false,
-      isAISupported:
-          json['isAISupported'] as bool? ?? json['IsAISupported'] as bool? ?? false,
+      isAISupported: json['isAISupported'] as bool? ??
+          json['IsAISupported'] as bool? ??
+          false,
       isGPSSupported: json['isGPSSupported'] as bool? ??
           json['IsGPSSupported'] as bool? ??
           false,
@@ -1495,12 +1497,12 @@ class CompanySubscription {
       planName: json['planName'] as String? ?? json['PlanName'] as String?,
       planDisplayName: json['planDisplayName'] as String? ??
           json['PlanDisplayName'] as String?,
-      status: json['status'] as String? ?? json['Status'] as String? ?? 'Unknown',
+      status:
+          json['status'] as String? ?? json['Status'] as String? ?? 'Unknown',
       startDate: parseDate(json['startDate'] ?? json['StartDate']),
       endDate: parseDate(json['endDate'] ?? json['EndDate']),
-      autoRenew: json['autoRenew'] as bool? ??
-          json['AutoRenew'] as bool? ??
-          false,
+      autoRenew:
+          json['autoRenew'] as bool? ?? json['AutoRenew'] as bool? ?? false,
       licensedModuleCodes: FleetSession._parseStringList(
         json['licensedModuleCodes'] ?? json['LicensedModuleCodes'],
       ),
@@ -1592,8 +1594,9 @@ class CompanyModule {
       isMobileSupported: json['isMobileSupported'] as bool? ??
           json['IsMobileSupported'] as bool? ??
           false,
-      isAISupported:
-          json['isAISupported'] as bool? ?? json['IsAISupported'] as bool? ?? false,
+      isAISupported: json['isAISupported'] as bool? ??
+          json['IsAISupported'] as bool? ??
+          false,
       isGPSSupported: json['isGPSSupported'] as bool? ??
           json['IsGPSSupported'] as bool? ??
           false,

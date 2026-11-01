@@ -188,7 +188,8 @@ void main() {
   });
 
   group('Trip date labels', () {
-    test('formats scheduled date and time-only stop labels in local timezone', () {
+    test('formats scheduled date and time-only stop labels in local timezone',
+        () {
       // Far-future local wall clock so overdue logic stays off in CI.
       final t = Trip(
         id: 1,

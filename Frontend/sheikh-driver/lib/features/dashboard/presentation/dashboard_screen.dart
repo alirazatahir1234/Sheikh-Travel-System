@@ -200,8 +200,8 @@ class DashboardScreen extends ConsumerWidget {
           role: displayRole,
           tenantId: data.tenantId,
           lastSyncedAt: data.lastSyncedAt,
-          companyName: session?.companyName ??
-              session?.companyContext?.companyName,
+          companyName:
+              session?.companyName ?? session?.companyContext?.companyName,
           branchName: session?.companyContext?.branchName,
         );
       case DashboardWidgetId.universalSearchBar:
@@ -273,7 +273,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           );
         }
-        return RecentActivitiesCard(items: const []);
+        return const RecentActivitiesCard(items: []);
       case DashboardWidgetId.aiAttention:
         return AiCopilotSummaryCard(
           items: data.aiItems,

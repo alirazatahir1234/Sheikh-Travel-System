@@ -40,8 +40,7 @@ class PlaybackTimeline extends StatelessWidget {
     if (playback.isEmpty) return const SizedBox.shrink();
     final p = context.sg;
     final max = playback.length - 1;
-    final displayEvents =
-        filteredEvents.isNotEmpty ? filteredEvents : events;
+    final displayEvents = filteredEvents.isNotEmpty ? filteredEvents : events;
     final markerIndices = showEventJumpChips
         ? timelineMarkerIndices(
             playback: playback,
@@ -58,11 +57,9 @@ class PlaybackTimeline extends StatelessWidget {
     final totalMs = total.inMilliseconds;
     final elapsedMs =
         elapsed.inMilliseconds.clamp(0, totalMs < 0 ? 0 : totalMs);
-    final progress =
-        totalMs <= 0 ? 0 : ((elapsedMs / totalMs) * 100).round();
-    final sliderValue = max <= 0 || totalMs <= 0
-        ? 0.0
-        : (elapsedMs / totalMs) * max;
+    final progress = totalMs <= 0 ? 0 : ((elapsedMs / totalMs) * 100).round();
+    final sliderValue =
+        max <= 0 || totalMs <= 0 ? 0.0 : (elapsedMs / totalMs) * max;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

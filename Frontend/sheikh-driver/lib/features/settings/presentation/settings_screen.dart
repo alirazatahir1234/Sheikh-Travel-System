@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations_en.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_brand.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/offline/connectivity_provider.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../core/providers/locale_provider.dart';
@@ -17,10 +19,15 @@ import '../../../features/auth/domain/auth_models.dart';
 import '../../../features/dashboard/domain/dashboard_role.dart';
 import '../../../features/notifications/presentation/notifications_notifier.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import '../../gps/services/background_gps_tracker.dart';
 import '../../notifications/services/push_registration_service.dart';
 import '../domain/settings_access.dart';
 import '../services/app_version_service.dart';
+
+AppLocalizations _l10n(BuildContext context) =>
+    Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+    AppLocalizationsEn();
 
 /// Premium Settings body surface (mock parity).
 const _settingsBodyBg = Color(0xFFF2F6F8);
@@ -35,7 +42,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     final isDark = ref.watch(darkModeProvider);
     final localeCode = ref.watch(localeCodeProvider);
     final biometricOn = ref.watch(biometricLockEnabledProvider);
@@ -94,8 +101,7 @@ class SettingsScreen extends ConsumerWidget {
                   diagnosticsSubtitle: l10n.securityDiagnosticsSubtitle,
                   onChangePassword: () =>
                       _showChangePasswordSheet(context, ref),
-                  onBiometricChanged: (v) =>
-                      _toggleBiometric(context, ref, v),
+                  onBiometricChanged: (v) => _toggleBiometric(context, ref, v),
                   onSecurityCenter: () =>
                       context.push('/settings/security-permissions'),
                   onDiagnostics: () => context.push('/security'),
@@ -207,7 +213,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     bool enable,
   ) async {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     if (!enable) {
       await setBiometricLockEnabled(ref, false);
       return;
@@ -246,7 +252,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showThemeSheet(BuildContext context, WidgetRef ref, bool isDark) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -284,7 +290,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     String localeCode,
   ) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -332,7 +338,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showAlertsSheet(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     final pushOn = ref.read(pushNotificationsEnabledProvider);
     final pushIssue = ref.read(pushRegistrationIssueProvider);
     showModalBottomSheet(
@@ -379,7 +385,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
+    final l10n = _l10n(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -419,85 +425,59 @@ class _SettingsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
+    final canPop = Navigator.of(context).canPop();
     return Container(
       width: double.infinity,
       color: AppColors.navy,
-      padding: EdgeInsets.fromLTRB(20, top + 10, 12, 22),
+      padding: EdgeInsets.fromLTRB(canPop ? 8 : 20, top + 10, 12, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  AppBrand.logoAsset,
-                  width: 36,
-                  height: 36,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.directions_bus_filled_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+              if (canPop)
+                IconButton(
+                  tooltip: 'Back',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  AppBrand.productName,
+                  'Settings',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.15,
                   ),
                 ),
               ),
               IconButton(
                 onPressed: onNotifications,
                 tooltip: 'Notifications',
-                icon: Badge(
-                  isLabelVisible: unreadCount > 0,
-                  label: Text(
-                    unreadCount > 99 ? '99+' : '$unreadCount',
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.white,
-                  ),
+                icon: SgNotificationBellIcon(
+                  unreadCount: unreadCount,
+                  iconColor: Colors.white,
+                  icon: Icons.notifications_outlined,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Settings',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Manage your account, app and tracking preferences.',
-            style: TextStyle(
-              color: Color(0xFF9BB0C0),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 1.35,
+          Padding(
+            padding: EdgeInsets.only(left: canPop ? 12 : 0, top: 4),
+            child: const Text(
+              'Manage your account, app and tracking preferences.',
+              style: TextStyle(
+                color: Color(0xFF9BB0C0),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
             ),
           ),
         ],
@@ -663,9 +643,8 @@ class _SettingsCard extends StatelessWidget {
         color: p.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: isDark ? null : AppShadows.card,
-        border: isDark
-            ? Border.all(color: p.border.withValues(alpha: 0.55))
-            : null,
+        border:
+            isDark ? Border.all(color: p.border.withValues(alpha: 0.55)) : null,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -1032,9 +1011,8 @@ class _TrackingSyncCard extends StatelessWidget {
                                 ? Icons.wifi_tethering_rounded
                                 : Icons.wifi_off_rounded,
                             size: 20,
-                            color: online
-                                ? AppColors.success
-                                : AppColors.warning,
+                            color:
+                                online ? AppColors.success : AppColors.warning,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1074,9 +1052,8 @@ class _TrackingSyncCard extends StatelessWidget {
                             child: Text(
                               online ? onlineLabel : offlineLabel,
                               style: TextStyle(
-                                color: online
-                                    ? _statusPillFg
-                                    : AppColors.warning,
+                                color:
+                                    online ? _statusPillFg : AppColors.warning,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1357,7 +1334,8 @@ class _SignOutButton extends StatelessWidget {
       height: 52,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+        icon:
+            const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
         label: Text(
           label,
           style: const TextStyle(
@@ -1505,7 +1483,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(ErrorHandler.message(e)),
             backgroundColor: AppColors.error,
           ),
         );

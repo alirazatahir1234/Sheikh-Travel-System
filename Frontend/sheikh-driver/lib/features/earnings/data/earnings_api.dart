@@ -7,11 +7,10 @@ import '../../auth/domain/auth_models.dart';
 import '../domain/earnings_models.dart';
 import '../domain/owner_earnings_models.dart';
 
-final earningsApiProvider =
-    Provider<EarningsApi>((ref) => EarningsApi(
-          ref.read(dioProvider),
-          () => ref.read(fleetSessionProvider),
-        ));
+final earningsApiProvider = Provider<EarningsApi>((ref) => EarningsApi(
+      ref.read(dioProvider),
+      () => ref.read(fleetSessionProvider),
+    ));
 
 class EarningsApi {
   EarningsApi(this._dio, this._session);

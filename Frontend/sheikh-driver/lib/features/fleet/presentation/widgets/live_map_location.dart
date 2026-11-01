@@ -35,8 +35,11 @@ bool isLiveMapCoarseAddress(String address) {
       !RegExp(r'\d').hasMatch(trimmed)) {
     return true;
   }
-  final parts =
-      address.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  final parts = address
+      .split(',')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return true;
   if (parts.any(_looksLikeRoadSegment)) return false;
   return parts.length <= 3;

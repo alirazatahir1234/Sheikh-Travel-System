@@ -97,8 +97,7 @@ class AlertEmptyState extends StatelessWidget {
           };
           return (
             title: 'No $name Alerts',
-            body:
-                'There are no active $name alerts for your fleet right now.',
+            body: 'There are no active $name alerts for your fleet right now.',
           );
         }
         return (
@@ -195,8 +194,7 @@ class _ShieldClear extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent =
-        resolved ? FleetAlertsColors.info : FleetAlertsColors.teal;
+    final accent = resolved ? FleetAlertsColors.info : FleetAlertsColors.teal;
     return SizedBox(
       width: 168,
       height: 150,

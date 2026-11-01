@@ -148,9 +148,8 @@ class _DriversListBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visible = hub.visible;
-    final listBottom = 24.0 +
-        MediaQuery.of(context).padding.bottom +
-        (canCreate ? 72.0 : 0.0);
+    final listBottom =
+        24.0 + MediaQuery.of(context).padding.bottom + (canCreate ? 72.0 : 0.0);
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => ref.read(driversHubProvider.notifier).refresh(),
@@ -664,14 +663,11 @@ class _RankingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.sg;
-    final subtitle = item.isPartial
-        ? '${item.rating} · partial score'
-        : item.rating;
+    final subtitle =
+        item.isPartial ? '${item.rating} · partial score' : item.rating;
 
     return Material(
-      color: highlight
-          ? accent.withValues(alpha: 0.06)
-          : Colors.transparent,
+      color: highlight ? accent.withValues(alpha: 0.06) : Colors.transparent,
       child: InkWell(
         onTap: () => context.push('/more/drivers/${item.driverId}'),
         child: Padding(
@@ -895,8 +891,7 @@ class _DriverTile extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: 0.12),
-                            borderRadius:
-                                BorderRadius.circular(AppRadii.pill),
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
                             border: Border.all(
                               color: AppColors.success.withValues(alpha: 0.28),
                             ),

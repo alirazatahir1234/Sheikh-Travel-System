@@ -40,8 +40,7 @@ class FuelApi {
         : const <String>[];
     final receiptPath =
         durablePaths.isNotEmpty ? durablePaths.first : receipt?.path;
-    final receiptFile =
-        receiptPath != null ? File(receiptPath) : null;
+    final receiptFile = receiptPath != null ? File(receiptPath) : null;
 
     await _ref.read(offlineSyncProvider).runOrQueue(
           online: () async {

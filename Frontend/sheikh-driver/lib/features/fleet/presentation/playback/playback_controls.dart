@@ -71,9 +71,7 @@ class PlaybackControls extends StatelessWidget {
             ),
             Semantics(
               button: true,
-              label: playing
-                  ? 'Pause'
-                  : (atEnd ? 'Replay from start' : 'Play'),
+              label: playing ? 'Pause' : (atEnd ? 'Replay from start' : 'Play'),
               child: Material(
                 color: AppColors.primary,
                 shape: const CircleBorder(),
@@ -132,9 +130,7 @@ class PlaybackControls extends StatelessWidget {
                   selected: selected,
                   label: 'Playback speed ${s}x',
                   child: Material(
-                    color: selected
-                        ? AppColors.navy
-                        : p.chipBg,
+                    color: selected ? AppColors.navy : p.chipBg,
                     borderRadius: BorderRadius.circular(AppRadii.sm),
                     child: InkWell(
                       onTap: () => onSpeed(s),
@@ -174,8 +170,7 @@ class PlaybackControls extends StatelessWidget {
                   )
                   .toList(),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

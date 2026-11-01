@@ -134,7 +134,8 @@ class MaintenanceHubNotifier extends AsyncNotifier<MaintenanceHubState> {
   @override
   Future<MaintenanceHubState> build() => _load();
 
-  Future<void> _softReload(Future<MaintenanceHubState> Function() loader) async {
+  Future<void> _softReload(
+      Future<MaintenanceHubState> Function() loader) async {
     final previous = state.valueOrNull;
     if (previous != null) {
       state = const AsyncLoading<MaintenanceHubState>().copyWithPrevious(
@@ -168,7 +169,8 @@ class MaintenanceHubNotifier extends AsyncNotifier<MaintenanceHubState> {
         : (scheduleStatus ?? prev?.scheduleStatusFilter);
     final useSearch = search ?? prev?.search ?? '';
 
-    MaintenanceDashboard dashboard = prev?.dashboard ?? MaintenanceDashboard.empty;
+    MaintenanceDashboard dashboard =
+        prev?.dashboard ?? MaintenanceDashboard.empty;
     MaintenanceRequestStats requestStats =
         prev?.requestStats ?? MaintenanceRequestStats.empty;
     WorkOrderStats workOrderStats =
@@ -326,8 +328,9 @@ class MaintenanceHubNotifier extends AsyncNotifier<MaintenanceHubState> {
 
   Future<void> setWorkOrderStatusFilter(String? status) async {
     final cur = state.valueOrNull;
-    final next =
-        (status == null || cur?.workOrderStatusFilter == status) ? null : status;
+    final next = (status == null || cur?.workOrderStatusFilter == status)
+        ? null
+        : status;
     await _softReload(
       () => _load(
         workOrderStatus: next,

@@ -21,7 +21,8 @@ class OfflineFileStore {
 
   /// Persist [sourcePaths] into documents; skips missing files.
   /// Returns durable paths in the same order as successfully copied sources.
-  static Future<List<String>> persistForOffline(List<String> sourcePaths) async {
+  static Future<List<String>> persistForOffline(
+      List<String> sourcePaths) async {
     if (sourcePaths.isEmpty) return const [];
     try {
       final dir = await _dir();

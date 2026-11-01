@@ -167,7 +167,8 @@ class _FleetFilterSheetState extends State<_FleetFilterSheet> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => setState(() => _draft = FleetVehicleFilters.empty),
+                  onPressed: () =>
+                      setState(() => _draft = FleetVehicleFilters.empty),
                   child: const Text('Clear all'),
                 ),
               ),

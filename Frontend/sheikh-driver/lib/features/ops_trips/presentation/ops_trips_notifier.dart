@@ -53,8 +53,8 @@ class OpsTripsState {
   }
 }
 
-final opsTripsProvider =
-    AsyncNotifierProvider<OpsTripsNotifier, OpsTripsState>(OpsTripsNotifier.new);
+final opsTripsProvider = AsyncNotifierProvider<OpsTripsNotifier, OpsTripsState>(
+    OpsTripsNotifier.new);
 
 class OpsTripsNotifier extends AsyncNotifier<OpsTripsState> {
   @override
@@ -68,8 +68,7 @@ class OpsTripsNotifier extends AsyncNotifier<OpsTripsState> {
     final api = ref.read(opsTripsApiProvider);
     final prev = state.valueOrNull;
     final useLive = liveOnly ?? prev?.liveOnly ?? false;
-    final useStatus =
-        clearStatus ? null : (status ?? prev?.statusFilter);
+    final useStatus = clearStatus ? null : (status ?? prev?.statusFilter);
 
     // Do not swallow failures — empty catch hid 401/403/parse errors as "No trips found".
     final results = await Future.wait([
@@ -115,7 +114,8 @@ class OpsTripsNotifier extends AsyncNotifier<OpsTripsState> {
 
   Future<void> setStatusFilter(String? status) async {
     final cur = state.valueOrNull;
-    final next = (status == null || cur?.statusFilter == status) ? null : status;
+    final next =
+        (status == null || cur?.statusFilter == status) ? null : status;
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => _load(

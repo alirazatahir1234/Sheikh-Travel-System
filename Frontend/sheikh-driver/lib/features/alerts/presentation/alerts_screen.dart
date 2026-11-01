@@ -67,8 +67,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     final company = session?.companyName?.trim().isNotEmpty == true
         ? session!.companyName!.trim()
         : 'Sheikh Travel';
-    final vehicleCount =
-        hub?.kpis.totalVehicles ?? hub?.locations.length ?? 0;
+    final vehicleCount = hub?.kpis.totalVehicles ?? hub?.locations.length ?? 0;
 
     // No nested Scaffold — AppShell already provides bottom navigation.
     return ColoredBox(
@@ -185,8 +184,7 @@ class _AlertsBody extends StatelessWidget {
                                       ? AlertEmptyKind.resolvedEmpty
                                       : AlertEmptyKind.allClear),
                               selectedFilters: state.severityFilters,
-                              onClearFilters:
-                                  filtered ? onClearFilters : null,
+                              onClearFilters: filtered ? onClearFilters : null,
                             ),
                           ),
                         ],
@@ -275,8 +273,7 @@ class _SoftTruckPainter extends CustomPainter {
       ..close();
     canvas.drawPath(path, ground);
 
-    final accent =
-        FleetAlertsColors.teal.withValues(alpha: 0.55);
+    final accent = FleetAlertsColors.teal.withValues(alpha: 0.55);
     final tree = Paint()..color = accent;
     void drawTree(double x, double h) {
       final top = size.height - h - 18;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../../fleet/data/fleet_api.dart';
 import '../../fleet/domain/fleet_models.dart';
@@ -15,9 +16,11 @@ class GeofenceOperatorScreen extends ConsumerStatefulWidget {
       _GeofenceOperatorScreenState();
 }
 
-class _GeofenceOperatorScreenState extends ConsumerState<GeofenceOperatorScreen> {
+class _GeofenceOperatorScreenState
+    extends ConsumerState<GeofenceOperatorScreen> {
   List<GpsGeofenceItem> _rows = const [];
   bool _loading = true;
+  String? _error;
   int? _vehicleId;
 
   @override
@@ -27,10 +30,19 @@ class _GeofenceOperatorScreenState extends ConsumerState<GeofenceOperatorScreen>
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final rows = await ref.read(fleetApiProvider).getGeofences();
-      if (mounted) setState(() => _rows = rows.where((g) => g.isActive).toList());
+      if (mounted) {
+        setState(() => _rows = rows.where((g) => g.isActive).toList());
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = ErrorHandler.message(e));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,7 +73,7 @@ class _GeofenceOperatorScreenState extends ConsumerState<GeofenceOperatorScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: DropdownButtonFormField<int?>(
-              value: _vehicleId,
+              initialValue: _vehicleId,
               decoration: const InputDecoration(
                 labelText: 'Vehicle position check',
                 border: OutlineInputBorder(),
@@ -92,46 +104,56 @@ class _GeofenceOperatorScreenState extends ConsumerState<GeofenceOperatorScreen>
           ],
           Expanded(
             child: _loading
-                ? Center(child: SgBrandLoader())
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _rows.length,
-                    itemBuilder: (_, i) {
-                      final g = _rows[i];
-                      String? status;
-                      if (selected != null &&
-                          selected.hasMapCoords &&
-                          g.isCircle &&
-                          g.radiusMeters > 0) {
-                        final n = nearestCircleGeofence(
-                          lat: selected.latitude!,
-                          lng: selected.longitude!,
-                          fences: [g],
-                        );
-                        status = n?.inside == true ? 'Inside' : 'Outside';
-                      }
-                      return Card(
-                        child: ListTile(
-                          title: Text(g.name),
-                          subtitle: Text(
-                            g.isCircle
-                                ? 'Circle · ${g.radiusMeters.toStringAsFixed(0)} m'
-                                : 'Polygon',
-                          ),
-                          trailing: status != null
-                              ? StatusBadge(status)
-                              : Icon(
-                                  g.isActive
-                                      ? Icons.check_circle
-                                      : Icons.remove_circle_outline,
-                                  color: g.isActive
-                                      ? AppColors.success
-                                      : AppColors.textMuted,
+                ? const Center(child: SgBrandLoader())
+                : _error != null
+                    ? SgErrorView(message: _error!, onRetry: _load)
+                    : _rows.isEmpty
+                        ? const SgEmptyState(
+                            icon: Icons.fence_outlined,
+                            title: 'No active geofences',
+                            subtitle:
+                                'Geofence zones configured in the ERP will appear here.',
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _rows.length,
+                            itemBuilder: (_, i) {
+                              final g = _rows[i];
+                              String? status;
+                              if (selected != null &&
+                                  selected.hasMapCoords &&
+                                  g.isCircle &&
+                                  g.radiusMeters > 0) {
+                                final n = nearestCircleGeofence(
+                                  lat: selected.latitude!,
+                                  lng: selected.longitude!,
+                                  fences: [g],
+                                );
+                                status =
+                                    n?.inside == true ? 'Inside' : 'Outside';
+                              }
+                              return Card(
+                                child: ListTile(
+                                  title: Text(g.name),
+                                  subtitle: Text(
+                                    g.isCircle
+                                        ? 'Circle · ${g.radiusMeters.toStringAsFixed(0)} m'
+                                        : 'Polygon',
+                                  ),
+                                  trailing: status != null
+                                      ? StatusBadge(status)
+                                      : Icon(
+                                          g.isActive
+                                              ? Icons.check_circle
+                                              : Icons.remove_circle_outline,
+                                          color: g.isActive
+                                              ? AppColors.success
+                                              : AppColors.textMuted,
+                                        ),
                                 ),
-                        ),
-                      );
-                    },
-                  ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),

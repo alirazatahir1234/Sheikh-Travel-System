@@ -80,11 +80,8 @@ String tripRangeSummaryLabel(List<GpsTrip> trips) {
 String shortPlaceLabel(String? address, {String fallback = ''}) {
   final raw = (address ?? '').trim();
   if (raw.isEmpty) return fallback;
-  final parts = raw
-      .split(',')
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toList();
+  final parts =
+      raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   if (parts.isEmpty) return fallback;
   if (parts.length >= 2 && parts.first.length <= 3) {
     return parts[1];
@@ -98,7 +95,8 @@ String _coordLabel(double? lat, double? lng) {
 }
 
 /// List-card route line: place names, round-trip, or GPS coords — never bare "Unknown".
-({String primary, String? secondary, bool addressMissing}) formatTripRoute(GpsTrip t) {
+({String primary, String? secondary, bool addressMissing}) formatTripRoute(
+    GpsTrip t) {
   final startName = shortPlaceLabel(t.startAddress);
   final endName = shortPlaceLabel(t.endAddress);
   final startCoord = _coordLabel(t.startLatitude, t.startLongitude);
@@ -107,12 +105,10 @@ String _coordLabel(double? lat, double? lng) {
   final start = startName.isNotEmpty
       ? startName
       : (startCoord.isNotEmpty ? startCoord : '');
-  final end = endName.isNotEmpty
-      ? endName
-      : (endCoord.isNotEmpty ? endCoord : '');
+  final end =
+      endName.isNotEmpty ? endName : (endCoord.isNotEmpty ? endCoord : '');
 
-  final addressMissing =
-      startName.isEmpty || endName.isEmpty;
+  final addressMissing = startName.isEmpty || endName.isEmpty;
 
   if (start.isEmpty && end.isEmpty) {
     return (
@@ -127,9 +123,8 @@ String _coordLabel(double? lat, double? lng) {
   if (isStopTrip(t)) {
     return (
       primary: start.isNotEmpty ? start : end,
-      secondary: addressMissing && startCoord.isNotEmpty
-          ? 'GPS: $startCoord'
-          : null,
+      secondary:
+          addressMissing && startCoord.isNotEmpty ? 'GPS: $startCoord' : null,
       addressMissing: addressMissing,
     );
   }
@@ -211,7 +206,10 @@ String tripStatusLabel(GpsTrip t) {
   // Prefer "Driven" over "Completed" so drivers don't confuse lifecycle
   // status with the Motion filter chip.
   if (s.isEmpty || s == 'completed' || s == 'done') return 'Driven';
-  if (s == 'active' || s == 'inprogress' || s == 'in progress' || s == 'ongoing') {
+  if (s == 'active' ||
+      s == 'inprogress' ||
+      s == 'in progress' ||
+      s == 'ongoing') {
     return 'In progress';
   }
   return (t.status ?? '').trim();

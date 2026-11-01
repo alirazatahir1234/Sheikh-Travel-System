@@ -137,7 +137,8 @@ void main() {
         type: DioExceptionType.badResponse,
         statusCode: 403,
         path: '/driver-app/attendance/history',
-        message: 'This exception was thrown because the response has a status code of 403',
+        message:
+            'This exception was thrown because the response has a status code of 403',
       );
       final ex = ErrorHandler.fromDio(e);
       expect(ex, same(ForbiddenException.attendance));
@@ -148,7 +149,8 @@ void main() {
       expect(ErrorHandler.message(e), isNot(contains('DioException')));
     });
 
-    test('400 response with message → ValidationException with that message', () {
+    test('400 response with message → ValidationException with that message',
+        () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,
         statusCode: 400,
@@ -159,12 +161,15 @@ void main() {
       expect(ex.message, 'Phone is required');
     });
 
-    test('422 response with errors map → ValidationException with first error', () {
+    test('422 response with errors map → ValidationException with first error',
+        () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,
         statusCode: 422,
         responseData: {
-          'errors': {'Phone': ['Phone is invalid']}
+          'errors': {
+            'Phone': ['Phone is invalid']
+          }
         },
       );
       final ex = ErrorHandler.fromDio(e);
@@ -241,7 +246,8 @@ void main() {
     });
 
     test('ValidationException is not transient', () {
-      expect(ErrorHandler.isTransient(const ValidationException('bad')), isFalse);
+      expect(
+          ErrorHandler.isTransient(const ValidationException('bad')), isFalse);
     });
   });
 }

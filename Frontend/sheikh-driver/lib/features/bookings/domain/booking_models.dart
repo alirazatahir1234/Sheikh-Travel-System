@@ -38,8 +38,7 @@ class BookingListItem {
   final DateTime createdAt;
 
   bool get needsDispatch =>
-      status.toLowerCase() == 'pending' ||
-      status.toLowerCase() == 'confirmed';
+      status.toLowerCase() == 'pending' || status.toLowerCase() == 'confirmed';
 
   bool get isUnassigned => driverId == null || vehicleId == null;
 
@@ -58,7 +57,8 @@ class BookingListItem {
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
       driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
       pickupTime: _date(json['pickupTime'] ?? json['PickupTime']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       dropoffTime: _date(json['dropoffTime'] ?? json['DropoffTime']),

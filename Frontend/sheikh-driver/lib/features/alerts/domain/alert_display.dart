@@ -12,7 +12,9 @@ String normalizeAlertEventType(String raw) {
     'geofence_entered' || 'geofenceenter' => 'geofence_enter',
     'geofence_exited' || 'geofenceexit' => 'geofence_exit',
     'harsh_brake' || 'hard_braking' || 'harshbraking' => 'harsh_braking',
-    'harsh_accel' || 'hard_acceleration' || 'harshacceleration' =>
+    'harsh_accel' ||
+    'hard_acceleration' ||
+    'harshacceleration' =>
       'harsh_acceleration',
     'battery' || 'battery_low' => 'low_battery',
     'maintenance' || 'maintenance_due' => 'maintenance_due',
@@ -239,7 +241,8 @@ class AlertIncident {
       kind != AlertIncidentKind.offline;
 
   bool get isOfflineIncident =>
-      kind == AlertIncidentKind.offline || isOfflineAlertType(primary.eventType);
+      kind == AlertIncidentKind.offline ||
+      isOfflineAlertType(primary.eventType);
 
   Duration? get duration {
     final end = endedAt ?? primary.resolvedAt ?? recovery?.timestamp;
@@ -254,10 +257,10 @@ class AlertIncident {
       primary.resolvedAt != null ||
       (isOfflineIncident && primary.isResolved);
 
-  bool get needsAcknowledge =>
-      allEvents.any((e) => e.canAcknowledge);
+  bool get needsAcknowledge => allEvents.any((e) => e.canAcknowledge);
 
-  bool get isAcknowledged => allEvents.every((e) => e.isAcknowledged || e.isResolved);
+  bool get isAcknowledged =>
+      allEvents.every((e) => e.isAcknowledged || e.isResolved);
 
   bool get isAssigned => allEvents.any((e) => e.isAssigned);
 
@@ -307,7 +310,8 @@ class AlertIncident {
           : 'GPS stopped reporting • $dur';
     }
     if (isGrouped) {
-      final sorted = [...allEvents]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      final sorted = [...allEvents]
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       final start = sorted.first.timestamp.toLocal();
       final end = sorted.last.timestamp.toLocal();
       final sh =
@@ -368,7 +372,8 @@ List<AlertIncident> groupAlertIncidents(List<GpsAlertEvent> events) {
     final seed = chronological[i];
     if (consumed.contains(seed.id)) continue;
     if (pairedOnlineIds.contains(seed.id)) continue;
-    if (isOfflineAlertType(seed.eventType) || isOnlineAlertType(seed.eventType)) {
+    if (isOfflineAlertType(seed.eventType) ||
+        isOnlineAlertType(seed.eventType)) {
       continue;
     }
 
@@ -522,7 +527,10 @@ AlertCategory alertCategoryFor(GpsAlertEvent event) {
     'geofence_enter' || 'geofence_exit' => AlertCategory.geofence,
     'harsh_braking' || 'harsh_acceleration' => AlertCategory.harsh,
     'sos' || 'alarm' || 'power_cut' || 'seatbelt' => AlertCategory.safetySos,
-    'maintenance_due' || 'engine_fault' || 'low_fuel' || 'low_battery' =>
+    'maintenance_due' ||
+    'engine_fault' ||
+    'low_fuel' ||
+    'low_battery' =>
       AlertCategory.maintenance,
     'fuel_theft' ||
     'tow' ||
@@ -712,10 +720,14 @@ double? parseSpeedLimitFromMessage(String message) {
     caseSensitive: false,
   ).firstMatch(message);
   if (m != null) return double.tryParse(m.group(1)!);
-  final m2 = RegExp(r'(\d{2,3})\s*km/?h', caseSensitive: false).allMatches(message);
+  final m2 =
+      RegExp(r'(\d{2,3})\s*km/?h', caseSensitive: false).allMatches(message);
   if (m2.length >= 2) {
     // Often "114 km/h ... 80 km/h" — take the smaller as limit.
-    final vals = m2.map((x) => double.tryParse(x.group(1)!)).whereType<double>().toList();
+    final vals = m2
+        .map((x) => double.tryParse(x.group(1)!))
+        .whereType<double>()
+        .toList();
     if (vals.length >= 2) {
       vals.sort();
       return vals.first;

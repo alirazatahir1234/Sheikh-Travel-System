@@ -69,8 +69,8 @@ class BookingsState {
   }
 }
 
-final bookingsProvider =
-    AsyncNotifierProvider<BookingsNotifier, BookingsState>(BookingsNotifier.new);
+final bookingsProvider = AsyncNotifierProvider<BookingsNotifier, BookingsState>(
+    BookingsNotifier.new);
 
 class BookingsNotifier extends AsyncNotifier<BookingsState> {
   @override

@@ -17,7 +17,8 @@ void main() {
 
     test('maps Play Services / SERVICE_NOT_AVAILABLE', () {
       final issue = classifyPushFailure(
-        Exception('FCM getToken failed: java.io.IOException: SERVICE_NOT_AVAILABLE'),
+        Exception(
+            'FCM getToken failed: java.io.IOException: SERVICE_NOT_AVAILABLE'),
         showSnackBar: true,
       );
       expect(issue.reason, PushSetupReason.playServicesUnavailable);

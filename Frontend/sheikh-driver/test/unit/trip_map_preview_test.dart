@@ -41,7 +41,8 @@ void main() {
       expect(t.hasMapPreviewCoords, isFalse);
     });
 
-    test('uses pickup and drop coords without inventing midpoints as markers', () {
+    test('uses pickup and drop coords without inventing midpoints as markers',
+        () {
       final t = _trip(
         pickupLat: 33.6844,
         pickupLng: 73.0479,
@@ -107,9 +108,11 @@ void main() {
       await tester.pump();
 
       expect(find.text('Map needs a location'), findsOneWidget);
-      expect(find.text('Navigate still works from the address.'), findsOneWidget);
+      expect(
+          find.text('Navigate still works from the address.'), findsOneWidget);
       expect(find.byType(GoogleMap), findsNothing);
-      expect(tester.getSize(find.byKey(const Key('trip-map-preview'))).height, 200);
+      expect(tester.getSize(find.byKey(const Key('trip-map-preview'))).height,
+          200);
     });
 
     testWidgets('placeholder without directions omits navigate hint',

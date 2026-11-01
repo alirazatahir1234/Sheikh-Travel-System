@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
 
 class GpsMileageDashboardScreen extends ConsumerStatefulWidget {
@@ -59,7 +60,7 @@ class _GpsMileageDashboardScreenState
         setState(() => _data = ApiResponseParser.dataMap(res.data));
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = ErrorHandler.message(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -111,22 +112,9 @@ class _GpsMileageDashboardScreenState
           ),
           Expanded(
             child: _loading
-                ? Center(child: SgBrandLoader())
+                ? const Center(child: SgBrandLoader())
                 : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
-                              FilledButton(
-                                  onPressed: _load, child: const Text('Retry')),
-                            ],
-                          ),
-                        ),
-                      )
+                    ? SgErrorView(message: _error!, onRetry: _load)
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: ListView(

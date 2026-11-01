@@ -4,7 +4,8 @@ import '../../auth/data/auth_repository.dart';
 import '../data/trips_api.dart';
 import '../domain/trip_model.dart';
 
-final tripsProvider = AsyncNotifierProvider.autoDispose<TripsNotifier, List<Trip>>(
+final tripsProvider =
+    AsyncNotifierProvider.autoDispose<TripsNotifier, List<Trip>>(
   TripsNotifier.new,
 );
 

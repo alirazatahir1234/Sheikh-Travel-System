@@ -87,11 +87,11 @@ class _TripMapPreviewCardState extends State<TripMapPreviewCard> {
     final dio = ProviderScope.containerOf(context).read(dioProvider);
     TripRouteLoader(dio)
         .load(
-          originLat: trip.pickupLatitude!,
-          originLng: trip.pickupLongitude!,
-          destLat: trip.dropLatitude!,
-          destLng: trip.dropLongitude!,
-        )
+      originLat: trip.pickupLatitude!,
+      originLng: trip.pickupLongitude!,
+      destLat: trip.dropLatitude!,
+      destLng: trip.dropLongitude!,
+    )
         .then((route) {
       if (!mounted || route == null || _routeKey != key) return;
       setState(() {

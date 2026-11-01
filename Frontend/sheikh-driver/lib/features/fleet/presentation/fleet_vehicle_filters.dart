@@ -125,8 +125,7 @@ class FleetVehicleFilters {
   }
 
   bool _matchesDriver(FleetVehicleLocation v) {
-    final assigned =
-        v.driverName != null && v.driverName!.trim().isNotEmpty;
+    final assigned = v.driverName != null && v.driverName!.trim().isNotEmpty;
     switch (driver) {
       case FleetDriverFilter.all:
         return true;

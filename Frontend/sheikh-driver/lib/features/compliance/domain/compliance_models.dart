@@ -22,15 +22,15 @@ class ComplianceDocument {
   final String? fileUrl;
 
   bool get isExpired => status.toLowerCase().contains('expired');
-  bool get isExpiring =>
-      status.toLowerCase().contains('expir') && !isExpired;
+  bool get isExpiring => status.toLowerCase().contains('expir') && !isExpired;
 
   factory ComplianceDocument.fromJson(Map<String, dynamic> json) {
     return ComplianceDocument(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       entityType:
           json['entityType'] as String? ?? json['EntityType'] as String? ?? '',
-      entityName: json['entityName'] as String? ?? json['EntityName'] as String?,
+      entityName:
+          json['entityName'] as String? ?? json['EntityName'] as String?,
       documentType: json['documentType'] as String? ??
           json['DocumentType'] as String? ??
           '',

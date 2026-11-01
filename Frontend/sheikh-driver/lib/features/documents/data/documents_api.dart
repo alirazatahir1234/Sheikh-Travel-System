@@ -31,7 +31,8 @@ class DocumentsApi {
           online: () async {
             final form = FormData.fromMap({
               'documentType': documentType,
-              if (expiryDate != null) 'expiryDate': expiryDate.toIso8601String(),
+              if (expiryDate != null)
+                'expiryDate': expiryDate.toIso8601String(),
               if (vehicleId != null) 'vehicleId': vehicleId,
               'file': await MultipartFile.fromFile(
                 file.path,
@@ -55,19 +56,19 @@ class DocumentsApi {
           },
           filePaths: [file.path],
           queuedValue: (_) => DriverDocument(
-                id: 0,
-                scope: 'Driver',
-                documentType: documentType,
-                title: '$documentType (pending sync)',
-                previewUrl: null,
-                expiryDate: expiryDate,
-                status: 'PendingSync',
-                isExpired: false,
-                isExpiringSoon: false,
-                daysUntilExpiry: null,
-                canUpload: true,
-                vehicleId: vehicleId,
-              ),
+            id: 0,
+            scope: 'Driver',
+            documentType: documentType,
+            title: '$documentType (pending sync)',
+            previewUrl: null,
+            expiryDate: expiryDate,
+            status: 'PendingSync',
+            isExpired: false,
+            isExpiringSoon: false,
+            daysUntilExpiry: null,
+            canUpload: true,
+            vehicleId: vehicleId,
+          ),
         );
   }
 }

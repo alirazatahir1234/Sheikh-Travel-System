@@ -56,7 +56,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
             paymentMethod: _method,
             referenceNumber:
                 _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
-            notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            notes:
+                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +89,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Collect Payment')),
       body: state.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (s) {
           if (!_seededAmount && _amountCtrl.text.isEmpty) {
@@ -130,14 +131,12 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _method,
-                decoration:
-                    const InputDecoration(labelText: 'Payment Method'),
+                decoration: const InputDecoration(labelText: 'Payment Method'),
                 items: const ['Cash', 'Card', 'JazzCash', 'EasyPaisa']
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                     .toList(),
-                onChanged: _busy
-                    ? null
-                    : (v) => setState(() => _method = v ?? 'Cash'),
+                onChanged:
+                    _busy ? null : (v) => setState(() => _method = v ?? 'Cash'),
               ),
               const SizedBox(height: 12),
               SgSheetTextFormField(

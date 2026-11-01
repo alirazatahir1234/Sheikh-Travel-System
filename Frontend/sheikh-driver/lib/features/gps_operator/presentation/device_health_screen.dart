@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
-import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../../fleet/presentation/vehicle_commands_sheet.dart';
 import '../../fleet/presentation/vehicle_detail_screen.dart';
@@ -16,6 +17,7 @@ class DeviceHealthScreen extends ConsumerWidget {
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicleId));
     final session = ref.watch(fleetSessionProvider);
     final canCommands = session?.canUseGpsCommands ?? false;
+    final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -31,78 +33,66 @@ class DeviceHealthScreen extends ConsumerWidget {
         ],
       ),
       body: gpsAsync.when(
-        loading: () => Center(child: SgBrandLoader()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('$e', textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () =>
-                      ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
-                  child: const Text('Retry'),
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => SgErrorView(
+          message: ErrorHandler.message(e),
+          onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
+        ),
+        data: (info) {
+          final seen = info.lastSeenAt ?? info.lastUpdate;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              const SgSectionTitle('Tracker'),
+              const SizedBox(height: 8),
+              SgCard(
+                child: Column(
+                  children: [
+                    _row('Device', info.deviceName ?? info.uniqueId ?? '—'),
+                    _row('IMEI / Unique ID', info.uniqueId ?? '—'),
+                    _row('Model', info.modelName ?? info.brandName ?? '—'),
+                    _row('Status', info.gpsOnline ? 'Online' : 'Offline'),
+                    _row(
+                      'Last seen',
+                      seen != null ? df.format(seen.toLocal()) : '—',
+                    ),
+                    _row(
+                      'Battery',
+                      info.batteryLevel != null
+                          ? '${info.batteryLevel!.toStringAsFixed(0)}%'
+                          : '—',
+                    ),
+                    _row('GSM signal', '${info.gsmSignal ?? '—'}'),
+                    _row(
+                      'Speed',
+                      '${info.speed?.toStringAsFixed(0) ?? '—'} km/h',
+                    ),
+                    _row(
+                      'Ignition',
+                      info.lastIgnition == null
+                          ? '—'
+                          : (info.lastIgnition! ? 'On' : 'Off'),
+                    ),
+                    _row(
+                      'Odometer',
+                      info.totalDistanceKm != null
+                          ? '${info.totalDistanceKm!.toStringAsFixed(1)} km'
+                          : '—',
+                    ),
+                    _row('Address', info.address ?? '—'),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-        data: (info) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            const SgSectionTitle('Tracker'),
-            const SizedBox(height: 8),
-            SgCard(
-              child: Column(
-                children: [
-                  _row('Device', info.deviceName ?? info.uniqueId ?? '—'),
-                  _row('IMEI / Unique ID', info.uniqueId ?? '—'),
-                  _row('Model', info.modelName ?? info.brandName ?? '—'),
-                  _row('Status', info.gpsOnline ? 'Online' : 'Offline'),
-                  _row(
-                    'Last seen',
-                    info.lastSeenAt?.toLocal().toString() ??
-                        info.lastUpdate?.toLocal().toString() ??
-                        '—',
-                  ),
-                  _row(
-                    'Battery',
-                    info.batteryLevel != null
-                        ? '${info.batteryLevel!.toStringAsFixed(0)}%'
-                        : '—',
-                  ),
-                  _row('GSM signal', '${info.gsmSignal ?? '—'}'),
-                  _row(
-                    'Speed',
-                    '${info.speed?.toStringAsFixed(0) ?? '—'} km/h',
-                  ),
-                  _row(
-                    'Ignition',
-                    info.lastIgnition == null
-                        ? '—'
-                        : (info.lastIgnition! ? 'On' : 'Off'),
-                  ),
-                  _row(
-                    'Odometer',
-                    info.totalDistanceKm != null
-                        ? '${info.totalDistanceKm!.toStringAsFixed(1)} km'
-                        : '—',
-                  ),
-                  _row('Address', info.address ?? '—'),
-                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            if (canCommands)
-              FilledButton.icon(
-                onPressed: () => showVehicleCommandsSheet(context, vehicleId),
-                icon: const Icon(Icons.terminal_rounded),
-                label: const Text('Device commands'),
-              ),
-          ],
-        ),
+              const SizedBox(height: 16),
+              if (canCommands)
+                FilledButton.icon(
+                  onPressed: () => showVehicleCommandsSheet(context, vehicleId),
+                  icon: const Icon(Icons.terminal_rounded),
+                  label: const Text('Device commands'),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -327,7 +327,8 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                               SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                               SizedBox(width: 8),
                               Expanded(
@@ -442,9 +443,8 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   runSpacing: 8,
                   children: [
                     _ActionChip(
-                      icon: follow
-                          ? Icons.location_disabled
-                          : Icons.my_location,
+                      icon:
+                          follow ? Icons.location_disabled : Icons.my_location,
                       label: follow ? 'Following' : 'Live track',
                       selected: follow,
                       onTap: () {
@@ -457,8 +457,7 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                       label: 'Playback',
                       onTap: () => context.push(
                         Uri(
-                          path:
-                              '/fleet/vehicles/${vehicle.vehicleId}/history',
+                          path: '/fleet/vehicles/${vehicle.vehicleId}/history',
                         ).toString(),
                       ),
                     ),
@@ -536,12 +535,13 @@ class VehicleLiveMapSheet extends ConsumerWidget {
             !liveMapAddressNeedsReverseGeocode(addr))
         ? '$addr\n'
         : '';
-    final text =
-        '${v.vehicleName} (${v.registrationNumber})\n'
+    final text = '${v.vehicleName} (${v.registrationNumber})\n'
         '$addrLine'
         '${formatLiveMapCoords(v.latitude!, v.longitude!)}\n'
         'https://www.google.com/maps/search/?api=1&query=${v.latitude},${v.longitude}';
-    await Share.share(text, subject: 'Vehicle location');
+    await SharePlus.instance.share(
+      ShareParams(text: text, subject: 'Vehicle location'),
+    );
   }
 
   static Future<void> _streetView(FleetVehicleLocation v) async {

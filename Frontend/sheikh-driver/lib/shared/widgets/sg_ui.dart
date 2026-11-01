@@ -99,8 +99,9 @@ class SgAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? AppColors.primary;
     final trimmed = label.trim();
-    final initial =
-        trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase();
+    final initial = trimmed.isEmpty
+        ? '?'
+        : String.fromCharCode(trimmed.runes.first).toUpperCase();
     return Container(
       width: size,
       height: size,
@@ -477,12 +478,80 @@ class SgErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cleaned = message.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
+    final safeMessage = cleaned.toLowerCase().contains('dioexception')
+        ? 'Could not complete the request. Please check your connection and try again.'
+        : (cleaned.isEmpty ? 'Please try again.' : cleaned);
     return SgEmptyState(
       icon: Icons.cloud_off_rounded,
       title: 'Something went wrong',
-      subtitle: message,
+      subtitle: safeMessage,
       actionLabel: onRetry == null ? null : 'Try again',
       onAction: onRetry,
+    );
+  }
+}
+
+/// Safe notification bell icon using [Stack] + [Opacity] instead of Material
+/// [Badge] (which can trigger parentDataDirty semantics assertions mid-frame).
+class SgNotificationBellIcon extends StatelessWidget {
+  const SgNotificationBellIcon({
+    super.key,
+    required this.unreadCount,
+    this.iconColor,
+    this.icon = Icons.notifications_none_rounded,
+  });
+
+  final int unreadCount;
+  final Color? iconColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final showBadge = unreadCount > 0;
+    final isOverflow = unreadCount > 99;
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Icon(icon, color: iconColor),
+          Positioned(
+            right: -4,
+            top: -4,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: showBadge ? 1 : 0,
+                child: Container(
+                  constraints: BoxConstraints(
+                    minWidth: isOverflow ? 20 : 15,
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isOverflow ? 3 : 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isOverflow ? '99+' : '$unreadCount',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isOverflow ? 8.5 : 9.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

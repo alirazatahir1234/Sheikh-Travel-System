@@ -28,7 +28,7 @@ class TimelineScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: () => ref.invalidate(_timelineProvider),
@@ -42,7 +42,8 @@ class TimelineScreen extends ConsumerWidget {
                   Icon(Icons.history, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 12),
                   Text('No activity yet',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 16)),
                 ],
               ),
             );
@@ -90,7 +91,8 @@ class _TimelineList extends StatelessWidget {
               ),
             ),
             ...dayEvents.asMap().entries.map((entry) {
-              final isLast = entry.key == dayEvents.length - 1 && i == dates.length - 1;
+              final isLast =
+                  entry.key == dayEvents.length - 1 && i == dates.length - 1;
               return _TimelineTile(
                 event: entry.value,
                 isLast: isLast,
@@ -224,8 +226,8 @@ class _TimelineTile extends StatelessWidget {
                   if (event.status != null) ...[
                     const SizedBox(height: 5),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
@@ -262,9 +264,11 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off, size: 48, color: AppColors.textSecondary),
+              const Icon(Icons.cloud_off,
+                  size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 12),
-              Text(message, textAlign: TextAlign.center,
+              Text(message,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 16),
               FilledButton.icon(

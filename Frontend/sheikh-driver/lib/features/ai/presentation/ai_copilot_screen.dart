@@ -171,8 +171,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
             pendingConfirmation: res.pendingConfirmation,
           ),
         ];
-        _pendingConfirmMessage =
-            res.pendingConfirmation ? text : null;
+        _pendingConfirmMessage = res.pendingConfirmation ? text : null;
       });
       await _refreshSessions();
       _scrollToBottom();
@@ -256,8 +255,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                               color: active
                                   ? AppColors.primary.withValues(alpha: 0.08)
                                   : ctx.sg.card,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.md),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                               child: ListTile(
                                 title: Text(
                                   s.title,
@@ -320,7 +318,7 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
         ],
       ),
       body: _bootLoading
-          ? Center(child: SgBrandLoader())
+          ? const Center(child: SgBrandLoader())
           : Column(
               children: [
                 if (_health != null) _ProviderStrip(health: _health!),
@@ -352,9 +350,11 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                   ),
                 Expanded(child: _buildMessages()),
                 if (_pendingConfirmMessage != null && !_sending)
-                  _ConfirmBar(onConfirm: _confirmWrite, onDismiss: () {
-                    setState(() => _pendingConfirmMessage = null);
-                  }),
+                  _ConfirmBar(
+                      onConfirm: _confirmWrite,
+                      onDismiss: () {
+                        setState(() => _pendingConfirmMessage = null);
+                      }),
                 if (!_sending && _suggestions.isNotEmpty) _buildSuggestions(),
                 _buildComposer(),
               ],

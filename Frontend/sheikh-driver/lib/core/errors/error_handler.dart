@@ -41,8 +41,7 @@ class ErrorHandler {
             );
           }
           if (sessionEnded == 'superseded' ||
-              (msg != null &&
-                  msg.toLowerCase().contains('another login'))) {
+              (msg != null && msg.toLowerCase().contains('another login'))) {
             // Legacy kick-oldest path (no longer issued on new logins).
             return AuthException(
               msg ?? 'Your session is no longer valid. Please log in again.',
@@ -84,8 +83,7 @@ class ErrorHandler {
         if (status == 429) {
           final msg = _bodyMessage(e.response?.data);
           return RateLimitException(
-            msg ??
-                'Too many attempts. Please wait a minute and try again.',
+            msg ?? 'Too many attempts. Please wait a minute and try again.',
           );
         }
         if (status == 400 || status == 422) {

@@ -23,8 +23,10 @@ abstract class ApiEndpoints {
   static String onboardTrip(int id) => '/driver-app/trips/$id/onboard';
   static String completeTrip(int id) => '/driver-app/trips/$id/complete';
   static String rejectTrip(int id) => '/driver-app/trips/$id/reject';
-  static String tripPaymentSummary(int id) => '/driver-app/trips/$id/payment-summary';
-  static String collectTripPayment(int id) => '/driver-app/trips/$id/collect-payment';
+  static String tripPaymentSummary(int id) =>
+      '/driver-app/trips/$id/payment-summary';
+  static String collectTripPayment(int id) =>
+      '/driver-app/trips/$id/collect-payment';
   static const tripLocation = '/driver-app/trips/location';
   static const tripLocationBatch = '/driver-app/location/batch';
 
@@ -34,6 +36,7 @@ abstract class ApiEndpoints {
   static const attendanceHistory = '/driver-app/attendance/history';
   static const attendanceCorrectionRequest =
       '/driver-app/attendance/correction-request';
+
   /// Fleet Manager / Admin team board (Driver.View).
   static const teamAttendance = '/drivers/attendance/team';
 
@@ -44,7 +47,8 @@ abstract class ApiEndpoints {
 
   // Notifications
   static const notifications = '/driver-app/notifications';
-  static const notificationsUnreadCount = '/driver-app/notifications/unread-count';
+  static const notificationsUnreadCount =
+      '/driver-app/notifications/unread-count';
   static const notificationsRead = '/driver-app/notifications/read';
   static const notificationsArchive = '/driver-app/notifications/archive';
   static const notificationsRestore = '/driver-app/notifications/restore';
@@ -87,8 +91,10 @@ abstract class ApiEndpoints {
   // Earnings
   static const earnings = '/driver-app/earnings';
   static const settlements = '/driver-app/settlements';
+
   /// Tenant-wide settlements (Owner / Settlement.View) — not driver-scoped.
   static const staffSettlements = '/settlements';
+
   /// Owner remaining share after driver share (Settlement.View).
   static const ownerEarnings = '/settlements/owner-earnings';
 
@@ -96,7 +102,8 @@ abstract class ApiEndpoints {
   static const deviceRegister = '/driver-app/devices/register';
 
   // GPS commands (device-level, anonymous)
-  static String pendingCommands(String uniqueId) => '/gps/commands/pending?uniqueId=$uniqueId';
+  static String pendingCommands(String uniqueId) =>
+      '/gps/commands/pending?uniqueId=$uniqueId';
   static String completeCommand(int id) => '/gps/commands/$id/complete';
 
   /// ERP GPS Tracking module — same endpoint used by live map ETA.
@@ -106,6 +113,7 @@ abstract class ApiEndpoints {
   /// One call per Trip Details view; the phone does not call Places or Geocoding.
   static const gpsPlannedRoute = '/gps/maps/planned-route';
   static const gpsLive = '/gps/live';
+
   /// Dedicated live-map roster (GPS.View + vehicle data-scope). Prefer over /Vehicles + /gps/live.
   static const gpsLiveFleet = '/gps/live/fleet';
   static const gpsFleetStatusLocal = '/gps/dashboard/fleet-status-local';
@@ -146,13 +154,16 @@ abstract class ApiEndpoints {
   static String driverById(int id) => '/drivers/$id';
   static String driverPatchStatus(int id) => '/drivers/$id/status';
   static String driverAssignVehicle(int id) => '/drivers/$id/assign-vehicle';
-  static String driverUnassignVehicle(int id) => '/drivers/$id/unassign-vehicle';
-  static String driverTransferVehicle(int id) => '/drivers/$id/transfer-vehicle';
+  static String driverUnassignVehicle(int id) =>
+      '/drivers/$id/unassign-vehicle';
+  static String driverTransferVehicle(int id) =>
+      '/drivers/$id/transfer-vehicle';
   static String driverAssignments(int id) => '/drivers/$id/assignments';
   static String driverPerformance(int id) => '/drivers/$id/performance/summary';
   static const driverAppPerformanceScore = '/driver-app/performance/score';
   static const driverEvStatus = '/driver-app/ev/status';
-  static const driverVehicleDocExpiries = '/driver-app/vehicle/documents/expiring';
+  static const driverVehicleDocExpiries =
+      '/driver-app/vehicle/documents/expiring';
   static String driverViolations(int id) => '/drivers/$id/violations';
   static String driverAttendance(int id) => '/drivers/$id/attendance';
   static String driverDocuments(int id) => '/drivers/$id/documents';
@@ -182,7 +193,8 @@ abstract class ApiEndpoints {
   static const gpsFuelAnalytics = '/gps/analytics/fuel';
   static String gpsAlertEventById(int id) => '/gps/alerts/events/$id';
   static String gpsAlertRead(int id) => '/gps/alerts/events/$id/read';
-  static String gpsAlertAcknowledge(int id) => '/gps/alerts/events/$id/acknowledge';
+  static String gpsAlertAcknowledge(int id) =>
+      '/gps/alerts/events/$id/acknowledge';
   static const gpsAlertBulkAcknowledge = '/gps/alerts/events/bulk-acknowledge';
   static String gpsAlertAssign(int id) => '/gps/alerts/events/$id/assign';
   static const gpsAlertBulkAssign = '/gps/alerts/events/bulk-assign';

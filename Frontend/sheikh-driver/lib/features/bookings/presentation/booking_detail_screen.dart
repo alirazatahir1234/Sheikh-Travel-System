@@ -30,7 +30,8 @@ class BookingDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -53,7 +54,8 @@ class BookingDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -72,7 +74,8 @@ class BookingDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -89,7 +92,8 @@ class BookingDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -103,7 +107,7 @@ class BookingDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Booking detail')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

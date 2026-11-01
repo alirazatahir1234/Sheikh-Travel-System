@@ -33,9 +33,8 @@ class OfflineQueueScreen extends ConsumerWidget {
             o.status == OfflineOpStatus.syncing)
         .toList();
     final exhausted = pending.where(isOfflineRetryExhausted).toList();
-    final conflicts = items
-        .where((o) => o.status == OfflineOpStatus.conflict)
-        .toList();
+    final conflicts =
+        items.where((o) => o.status == OfflineOpStatus.conflict).toList();
     final failedCount = pending
         .where((o) =>
             o.status == OfflineOpStatus.failed || isOfflineRetryExhausted(o))
@@ -51,8 +50,7 @@ class OfflineQueueScreen extends ConsumerWidget {
           TextButton(
             onPressed: online
                 ? () async {
-                    final n =
-                        await ref.read(offlineSyncProvider).syncNow();
+                    final n = await ref.read(offlineSyncProvider).syncNow();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(l10n.syncedItems(n))),
@@ -146,16 +144,14 @@ class OfflineQueueScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           if (pending.isEmpty)
-            Text(l10n.nothingPending,
-                style: TextStyle(color: p.textSecondary))
+            Text(l10n.nothingPending, style: TextStyle(color: p.textSecondary))
           else
             ...pending.map(
               (op) {
                 final stopped = isOfflineRetryExhausted(op);
                 return Card(
-                  color: stopped
-                      ? AppColors.error.withValues(alpha: 0.05)
-                      : null,
+                  color:
+                      stopped ? AppColors.error.withValues(alpha: 0.05) : null,
                   child: ListTile(
                     title: Text(op.label),
                     subtitle: Text(

@@ -44,35 +44,36 @@ class TripsApi {
 
   Future<void> advance(int id, String action, {String? reason}) async {
     await _ref.read(offlineSyncProvider).runOrQueue(
-          online: () async {
-            // Backend `/start` is a legacy Accept alias; keep Start distinct so
-            // callers never silently rewrite to Accept in app code.
-            final path = switch (action) {
-              'Accept' => ApiEndpoints.acceptTrip(id),
-              'Start' => ApiEndpoints.startTrip(id),
-              'Arrived' => ApiEndpoints.arrivedTrip(id),
-              'Onboard' => ApiEndpoints.onboardTrip(id),
-              'Complete' => ApiEndpoints.completeTrip(id),
-              'Reject' => ApiEndpoints.rejectTrip(id),
-              _ => throw ArgumentError('Unknown action: $action'),
-            };
-            if (action == 'Reject') {
-              final res = await _dio.post<Map<String, dynamic>>(path, data: reason ?? '');
-              ApiResponseParser.ensureSuccess(res.data);
-            } else {
-              final res = await _dio.post<Map<String, dynamic>>(path);
-              ApiResponseParser.ensureSuccess(res.data);
-            }
-            // ignore: unawaited_futures
-            AnalyticsService.instance.tripAction(action, tripId: id);
-          },
-          type: OfflineOpType.tripAdvance,
-          payload: {
-            'tripId': id,
-            'action': action,
-            if (reason != null) 'reason': reason,
-          },
-        );
+      online: () async {
+        // Backend `/start` is a legacy Accept alias; keep Start distinct so
+        // callers never silently rewrite to Accept in app code.
+        final path = switch (action) {
+          'Accept' => ApiEndpoints.acceptTrip(id),
+          'Start' => ApiEndpoints.startTrip(id),
+          'Arrived' => ApiEndpoints.arrivedTrip(id),
+          'Onboard' => ApiEndpoints.onboardTrip(id),
+          'Complete' => ApiEndpoints.completeTrip(id),
+          'Reject' => ApiEndpoints.rejectTrip(id),
+          _ => throw ArgumentError('Unknown action: $action'),
+        };
+        if (action == 'Reject') {
+          final res =
+              await _dio.post<Map<String, dynamic>>(path, data: reason ?? '');
+          ApiResponseParser.ensureSuccess(res.data);
+        } else {
+          final res = await _dio.post<Map<String, dynamic>>(path);
+          ApiResponseParser.ensureSuccess(res.data);
+        }
+        // ignore: unawaited_futures
+        AnalyticsService.instance.tripAction(action, tripId: id);
+      },
+      type: OfflineOpType.tripAdvance,
+      payload: {
+        'tripId': id,
+        'action': action,
+        if (reason != null) 'reason': reason,
+      },
+    );
   }
 
   Future<void> startTrip(int id) => advance(id, 'Start');

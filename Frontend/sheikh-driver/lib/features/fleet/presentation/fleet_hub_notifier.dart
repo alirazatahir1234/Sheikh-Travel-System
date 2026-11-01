@@ -28,14 +28,19 @@ class FleetHubState {
   final FleetVehicleFilters filters;
   final String search;
   final bool isRefreshing;
+
   /// SignalR status: connected | reconnecting | disconnected | no_token
   final String realtimeStatus;
+
   /// When vehicles/KPI HTTP load last succeeded (not GPS freshness).
   final DateTime? lastFleetRefreshAt;
+
   /// Freshest GPS timestamp across fleet (SignalR or live poll).
   final DateTime? lastGpsAt;
+
   /// Set when vehicles (or all fleet APIs) fail to load.
   final String? loadError;
+
   /// Soft warning when live positions failed but vehicle list still loaded.
   final String? liveFeedWarning;
 
@@ -101,8 +106,8 @@ class FleetHubState {
   }
 }
 
-final fleetHubProvider =
-    AsyncNotifierProvider<FleetHubNotifier, FleetHubState>(FleetHubNotifier.new);
+final fleetHubProvider = AsyncNotifierProvider<FleetHubNotifier, FleetHubState>(
+    FleetHubNotifier.new);
 
 class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
   StreamSubscription<GpsPosition>? _liveSub;
@@ -217,7 +222,8 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       );
     });
     _statusSub?.cancel();
-    _statusSub = FleetRealtimeService.instance.connectionStatus.listen((status) {
+    _statusSub =
+        FleetRealtimeService.instance.connectionStatus.listen((status) {
       final current = state.valueOrNull;
       if (current != null) {
         state = AsyncData(current.copyWith(realtimeStatus: status));
@@ -296,9 +302,8 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
   void setStatusFilter(FleetStatusFilterOption option) {
     final current = state.valueOrNull;
     if (current == null) return;
-    final next = current.filters.status == option
-        ? FleetStatusFilterOption.all
-        : option;
+    final next =
+        current.filters.status == option ? FleetStatusFilterOption.all : option;
     state = AsyncData(
       current.copyWith(filters: current.filters.copyWith(status: next)),
     );

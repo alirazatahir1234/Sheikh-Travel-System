@@ -6,7 +6,8 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/errors/app_exception.dart';
 import '../domain/auth_models.dart';
 
-final authApiProvider = Provider<AuthApi>((ref) => AuthApi(ref.read(dioProvider)));
+final authApiProvider =
+    Provider<AuthApi>((ref) => AuthApi(ref.read(dioProvider)));
 
 class AuthApi {
   AuthApi(this._dio);
@@ -43,7 +44,8 @@ class AuthApi {
 
   Future<void> logout(String refreshToken) async {
     try {
-      await _dio.post(ApiEndpoints.logout, data: {'refreshToken': refreshToken});
+      await _dio
+          .post(ApiEndpoints.logout, data: {'refreshToken': refreshToken});
     } catch (_) {
       // Ignore logout errors — local session is cleared regardless
     }
@@ -68,7 +70,8 @@ class AuthApi {
     return null;
   }
 
-  Future<void> resetPassword({required String token, required String newPassword}) async {
+  Future<void> resetPassword(
+      {required String token, required String newPassword}) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverResetPassword,
       data: {'token': token.trim(), 'newPassword': newPassword},
@@ -80,7 +83,8 @@ class AuthApi {
 
   Future<CompanyContext?> fetchCompanyContext() async {
     try {
-      final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.companyContext);
+      final res =
+          await _dio.get<Map<String, dynamic>>(ApiEndpoints.companyContext);
       final data = ApiResponseParser.requireDataMap(res.data);
       return CompanyContext.fromJson(data);
     } catch (_) {

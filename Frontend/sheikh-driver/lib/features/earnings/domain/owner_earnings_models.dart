@@ -83,10 +83,9 @@ class OwnerEarningsSummary {
           .whereType<Map>()
           .map((e) => OwnerEarningsDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      dailyDriverShareIsEstimate:
-          json['dailyDriverShareIsEstimate'] as bool? ??
-              json['DailyDriverShareIsEstimate'] as bool? ??
-              false,
+      dailyDriverShareIsEstimate: json['dailyDriverShareIsEstimate'] as bool? ??
+          json['DailyDriverShareIsEstimate'] as bool? ??
+          false,
     );
   }
 }

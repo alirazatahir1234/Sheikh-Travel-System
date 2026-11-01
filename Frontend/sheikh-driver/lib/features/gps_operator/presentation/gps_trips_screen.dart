@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
 
 class GpsTripSummary {
@@ -53,15 +53,13 @@ class GpsTripSummary {
       endAt: parseDt(json['endAt'] ?? json['EndAt'] ?? json['endTime']),
       distanceKm: (json['distanceKm'] as num? ?? json['DistanceKm'] as num?)
           ?.toDouble(),
-      maxSpeedKmh:
-          (json['maxSpeedKmh'] as num? ?? json['MaxSpeedKmh'] as num?)
-              ?.toDouble(),
-      avgSpeedKmh:
-          (json['avgSpeedKmh'] as num? ?? json['AvgSpeedKmh'] as num?)
-              ?.toDouble(),
-      durationMinutes: (json['durationMinutes'] as num? ??
-              json['DurationMinutes'] as num?)
-          ?.toInt(),
+      maxSpeedKmh: (json['maxSpeedKmh'] as num? ?? json['MaxSpeedKmh'] as num?)
+          ?.toDouble(),
+      avgSpeedKmh: (json['avgSpeedKmh'] as num? ?? json['AvgSpeedKmh'] as num?)
+          ?.toDouble(),
+      durationMinutes:
+          (json['durationMinutes'] as num? ?? json['DurationMinutes'] as num?)
+              ?.toInt(),
     );
   }
 }
@@ -128,9 +126,7 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
       if (mounted) setState(() => _trips = rows);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e is DioException
-            ? (e.message ?? e.toString())
-            : e.toString());
+        setState(() => _error = ErrorHandler.message(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -181,24 +177,16 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
           ),
           Expanded(
             child: _loading
-                ? Center(child: SgBrandLoader())
+                ? const Center(child: SgBrandLoader())
                 : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
-                              FilledButton(
-                                  onPressed: _load, child: const Text('Retry')),
-                            ],
-                          ),
-                        ),
-                      )
+                    ? SgErrorView(message: _error!, onRetry: _load)
                     : _trips.isEmpty
-                        ? const Center(child: Text('No GPS trips in this range'))
+                        ? const SgEmptyState(
+                            icon: Icons.route_outlined,
+                            title: 'No GPS trips in this range',
+                            subtitle:
+                                'Select another date range or pull to refresh.',
+                          )
                         : RefreshIndicator(
                             onRefresh: _load,
                             child: ListView.separated(

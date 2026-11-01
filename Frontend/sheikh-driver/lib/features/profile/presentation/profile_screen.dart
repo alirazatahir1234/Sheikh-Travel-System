@@ -374,18 +374,33 @@ class _ProfileAppHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
+    final canPop = Navigator.of(context).canPop();
     return Container(
       width: double.infinity,
       color: AppColors.navy,
-      padding: EdgeInsets.fromLTRB(20, top + 14, 20, 18),
-      child: const Text(
-        'Profile',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 22,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.2,
-        ),
+      padding: EdgeInsets.fromLTRB(canPop ? 8 : 20, top + 10, 20, 16),
+      child: Row(
+        children: [
+          if (canPop)
+            IconButton(
+              tooltip: 'Back',
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          const Text(
+            'Profile',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -414,8 +429,8 @@ class _ProfileHeaderCard extends StatelessWidget {
     final displayName = profile.fullName.isNotEmpty
         ? profile.fullName
         : (session?.displayName ?? 'User');
-    final photo = profile.photoUrl ??
-        session?.companyContext?.currentUser?.avatarUrl;
+    final photo =
+        profile.photoUrl ?? session?.companyContext?.currentUser?.avatarUrl;
     final hasPhoto = photo != null && photo.trim().isNotEmpty;
     final status = profile.statusName.trim();
 
@@ -1289,7 +1304,8 @@ class _SignOutButton extends StatelessWidget {
       height: 52,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+        icon:
+            const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
         label: const Text(
           'Sign Out',
           style: TextStyle(

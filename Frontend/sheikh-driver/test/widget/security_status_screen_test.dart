@@ -6,7 +6,8 @@ import 'package:sheikh_go_driver/features/security/presentation/security_status_
 import '../helpers/test_fixtures.dart';
 
 void main() {
-  testWidgets('Security status shows Device OK for clean report', (tester) async {
+  testWidgets('Security status shows Device OK for clean report',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [integrityOverride()],
@@ -15,7 +16,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Security status'), findsOneWidget);
+    expect(find.text('Security Diagnostics'), findsOneWidget);
     expect(find.text('Device OK'), findsOneWidget);
     expect(find.text('com.sheikhgo.fleet'), findsOneWidget);
     await tester.scrollUntilVisible(

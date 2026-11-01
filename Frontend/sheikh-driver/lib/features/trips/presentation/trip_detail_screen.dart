@@ -18,8 +18,7 @@ class TripDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tripsAsync = ref.watch(tripsProvider);
     return tripsAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: SgBrandLoader())),
+      loading: () => const Scaffold(body: Center(child: SgBrandLoader())),
       error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
       data: (trips) {
         final trip = trips.where((t) => t.matchesRouteId(tripId)).firstOrNull;
@@ -64,7 +63,9 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
           ),
         );
         if (action == 'Complete' && offlineMsg == null) {
-          final updated = ref.read(tripsProvider).valueOrNull
+          final updated = ref
+              .read(tripsProvider)
+              .valueOrNull
               ?.where((t) => t.matchesRouteId(trip.routeId))
               .firstOrNull;
           final paymentRequired = updated?.paymentRequired ?? false;
@@ -120,7 +121,9 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
 
   @override
   Widget build(BuildContext context) {
-    final latest = ref.watch(tripsProvider).valueOrNull
+    final latest = ref
+            .watch(tripsProvider)
+            .valueOrNull
             ?.where((t) => t.matchesRouteId(trip.routeId))
             .firstOrNull ??
         trip;
@@ -167,16 +170,12 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
       }
     }
 
-    final showNavigate = !latest.isCompleted &&
-        !latest.isCancelled &&
-        latest.canNavigate;
-    final showReject = !latest.isCompleted &&
-        !latest.isCancelled &&
-        latest.canReject;
-    final showSticky = _busy ||
-        primaryCta != null ||
-        showNavigate ||
-        showReject;
+    final showNavigate =
+        !latest.isCompleted && !latest.isCancelled && latest.canNavigate;
+    final showReject =
+        !latest.isCompleted && !latest.isCancelled && latest.canReject;
+    final showSticky =
+        _busy || primaryCta != null || showNavigate || showReject;
 
     return Scaffold(
       backgroundColor: context.sg.surface,
@@ -268,9 +267,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
           const SizedBox(height: 10),
           TripMapPreviewCard(
             trip: latest,
-            onTap: showNavigate && !_busy
-                ? () => _openNavigate(latest)
-                : null,
+            onTap: showNavigate && !_busy ? () => _openNavigate(latest) : null,
           ),
           if (latest.isCompleted) ...[
             const SizedBox(height: 16),

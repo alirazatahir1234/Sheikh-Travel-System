@@ -125,6 +125,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   TripDetailBundle? _tripDetail;
   List<TripStop> _allStops = const [];
   TripListFilter _tripFilter = TripListFilter.moving;
+
   /// Match web history: stop/parking markers on by default.
   bool _showStopMarkers = true;
   bool _playingFullRange = false;
@@ -672,7 +673,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             zoom: zoom < 14 ? 16 : zoom,
             bearing: _displayHeading ??
                 (_playbackPoints.isNotEmpty
-                    ? (_playbackPoints[_index.clamp(0, _playbackPoints.length - 1)]
+                    ? (_playbackPoints[
+                                _index.clamp(0, _playbackPoints.length - 1)]
                             .heading ??
                         0)
                     : 0),
@@ -1382,7 +1384,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               children: [
                 Text(
                   'Stops & parking (${stops.length})',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
                 for (var i = 0; i < stops.length; i++)
@@ -1416,17 +1419,17 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                           lng: stops[i].longitude,
                         ),
                         if (playbackNearbyLine(
-                              addresses != null && i < addresses.length
-                                  ? addresses[i]
-                                  : stops[i].address,
-                            )
+                          addresses != null && i < addresses.length
+                              ? addresses[i]
+                              : stops[i].address,
+                        )
                             case final nearby?)
                           nearby,
                         if (playbackAddressSecondary(
-                              addresses != null && i < addresses.length
-                                  ? addresses[i]
-                                  : stops[i].address,
-                            )
+                          addresses != null && i < addresses.length
+                              ? addresses[i]
+                              : stops[i].address,
+                        )
                             case final locality?)
                           locality,
                         formatStopWindow(
@@ -1524,7 +1527,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.pause_circle_outline),
                 title: Text('${_allStops.length} stops & parking'),
-                subtitle: const Text('Open list for address, time, and duration'),
+                subtitle:
+                    const Text('Open list for address, time, and duration'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -1800,8 +1804,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     final name = b.vehicle?.vehicleName ??
         vehicleAsync.valueOrNull?.name ??
         'Vehicle #${widget.vehicleId}';
-    final plate = b.vehicle?.plateNumber ??
-        vehicleAsync.valueOrNull?.registrationNumber;
+    final plate =
+        b.vehicle?.plateNumber ?? vehicleAsync.valueOrNull?.registrationNumber;
     final metrics = _tripMetrics;
     final dateLabel = DateFormat('dd MMM').format(metrics.startTime.toLocal());
     final canExport = _canExportReports;
@@ -2268,7 +2272,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 13,
               color: AppColors.primary,
@@ -2367,7 +2371,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     if (states.contains(WidgetState.selected)) {
                       return const BorderSide(color: AppColors.primary);
                     }
-                    return const BorderSide(color: AppColors.border, width: 1.2);
+                    return const BorderSide(
+                        color: AppColors.border, width: 1.2);
                   }),
                 ),
                 showSelectedIcon: false,
@@ -2498,8 +2503,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                         // Extra top padding so first card is not clipped under filters.
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                         itemCount: visibleTrips.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 6),
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
                         itemBuilder: (context, i) {
                           final t = visibleTrips[i];
                           return _TripListCard(
@@ -2723,8 +2727,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                   bottom: fabBottom,
                                   child: AnimatedOpacity(
                                     opacity: _chromeVisible ? 1 : 0,
-                                    duration:
-                                        const Duration(milliseconds: 220),
+                                    duration: const Duration(milliseconds: 220),
                                     child: IgnorePointer(
                                       ignoring: !_chromeVisible,
                                       child: const PlaybackLegend(),
@@ -2756,8 +2759,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                   mapType: _mapType,
                                   onZoomIn: () => unawaited(_zoomBy(1)),
                                   onZoomOut: () => unawaited(_zoomBy(-1)),
-                                  onCenter: () =>
-                                      unawaited(_centerOnVehicle()),
+                                  onCenter: () => unawaited(_centerOnVehicle()),
                                   onMapType: (t) {
                                     _bumpChromeInteraction();
                                     setState(() => _mapType = t);
@@ -2778,7 +2780,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                         color: palette.card
                                             .withValues(alpha: 0.94),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: palette.border),
+                                        border:
+                                            Border.all(color: palette.border),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -2948,9 +2951,8 @@ class _TripListCard extends StatelessWidget {
     final route = formatTripRoute(trip);
     final stop = isStopTrip(trip);
     final status = tripStatusLabel(trip);
-    final statusColor = stop
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF16A34A);
+    final statusColor =
+        stop ? const Color(0xFFF59E0B) : const Color(0xFF16A34A);
     final idLabel = tripIdLabel(trip);
     final plateText = plate.trim();
     final nameText = vehicleName.trim();

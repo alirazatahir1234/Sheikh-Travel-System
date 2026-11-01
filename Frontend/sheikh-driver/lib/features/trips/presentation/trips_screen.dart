@@ -97,7 +97,8 @@ class _TripsScreenState extends ConsumerState<TripsScreen> {
                 if (filtered.isEmpty) {
                   return SgEmptyState(
                     icon: Icons.route_outlined,
-                    title: _query.isEmpty ? 'No trips yet' : 'No matching trips',
+                    title:
+                        _query.isEmpty ? 'No trips yet' : 'No matching trips',
                     subtitle: _query.isEmpty
                         ? 'Assigned trips will show up here when dispatch sends them.'
                         : 'Try a different search.',
@@ -195,7 +196,10 @@ class _TripCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _LocRow(icon: Icons.radio_button_checked, text: pickup, color: AppColors.success),
+          _LocRow(
+              icon: Icons.radio_button_checked,
+              text: pickup,
+              color: AppColors.success),
           Padding(
             padding: const EdgeInsets.only(left: 7),
             child: Container(

@@ -31,8 +31,8 @@ class DriverSettlementItem {
 
     return DriverSettlementItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      periodStart:
-          parseDt(json['periodStart']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      periodStart: parseDt(json['periodStart']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
       periodEnd:
           parseDt(json['periodEnd']) ?? DateTime.fromMillisecondsSinceEpoch(0),
       payable: (json['payable'] as num?)?.toDouble() ?? 0,

@@ -9,8 +9,7 @@ import '../data/documents_api.dart';
 import '../domain/document_models.dart';
 import '../../../shared/widgets/sg_brand_loader.dart';
 
-final documentsProvider =
-    FutureProvider.autoDispose<DocumentsBundle>(
+final documentsProvider = FutureProvider.autoDispose<DocumentsBundle>(
   (ref) => ref.read(documentsApiProvider).getDocuments(),
 );
 
@@ -33,7 +32,7 @@ class DocumentsScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -53,7 +52,8 @@ class DocumentsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               _SummaryBar(bundle: bundle),
-              if (bundle.cnicNumber != null && bundle.cnicNumber!.isNotEmpty) ...[
+              if (bundle.cnicNumber != null &&
+                  bundle.cnicNumber!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('CNIC on file: ${bundle.cnicNumber}',
                     style: TextStyle(color: context.sg.textSecondary)),
@@ -89,11 +89,20 @@ class _SummaryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _Chip(label: 'Missing', value: bundle.missingCount, color: AppColors.warning),
+        _Chip(
+            label: 'Missing',
+            value: bundle.missingCount,
+            color: AppColors.warning),
         const SizedBox(width: 8),
-        _Chip(label: 'Expiring', value: bundle.expiringCount, color: AppColors.warning),
+        _Chip(
+            label: 'Expiring',
+            value: bundle.expiringCount,
+            color: AppColors.warning),
         const SizedBox(width: 8),
-        _Chip(label: 'Expired', value: bundle.expiredCount, color: AppColors.error),
+        _Chip(
+            label: 'Expired',
+            value: bundle.expiredCount,
+            color: AppColors.error),
       ],
     );
   }
@@ -120,7 +129,8 @@ class _Chip extends StatelessWidget {
                 style: TextStyle(
                     fontWeight: FontWeight.w800, color: color, fontSize: 18)),
             Text(label,
-                style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.9))),
+                style: TextStyle(
+                    fontSize: 11, color: color.withValues(alpha: 0.9))),
           ],
         ),
       ),
@@ -155,7 +165,7 @@ class _DocumentCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(doc.title,
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                       if (doc.vehicleName != null)
                         Text(doc.vehicleName!,
                             style: TextStyle(
@@ -283,7 +293,7 @@ class _DocumentCard extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(child: SgBrandLoader()),
+      builder: (_) => const Center(child: SgBrandLoader()),
     );
 
     try {

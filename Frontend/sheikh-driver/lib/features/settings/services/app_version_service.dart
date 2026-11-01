@@ -19,8 +19,7 @@ class AppVersionService {
   static String? _cachedVersion;
 
   /// Fallback when package_info is unavailable (tests).
-  static String get currentVersion =>
-      _cachedVersion ?? AppConfig.appVersion;
+  static String get currentVersion => _cachedVersion ?? AppConfig.appVersion;
 
   static Future<String> displayVersion() async {
     try {

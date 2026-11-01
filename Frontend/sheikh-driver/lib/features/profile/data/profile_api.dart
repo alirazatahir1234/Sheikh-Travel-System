@@ -29,7 +29,8 @@ class ProfileApi {
   }
 
   Future<DriverProfile> _getDriverProfile() async {
-    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverProfile);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverProfile);
     final body = res.data;
     if (body == null) throw Exception('No profile data');
     final data = (body['data'] as Map<String, dynamic>?) ?? body;

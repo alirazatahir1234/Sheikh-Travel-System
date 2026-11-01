@@ -108,8 +108,8 @@ class GpsAlertEvent {
           json['RegistrationNumber'] as String?,
       eventType:
           json['eventType'] as String? ?? json['EventType'] as String? ?? '',
-      latitude:
-          (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0).toDouble(),
+      latitude: (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0)
+          .toDouble(),
       longitude: (json['longitude'] as num? ?? json['Longitude'] as num? ?? 0)
           .toDouble(),
       speed: (json['speed'] as num? ?? json['Speed'] as num? ?? 0).toDouble(),
@@ -121,30 +121,35 @@ class GpsAlertEvent {
       isAcknowledged: json['isAcknowledged'] as bool? ??
           json['IsAcknowledged'] as bool? ??
           false,
-      severity: json['severity'] as String? ?? json['Severity'] as String? ?? '',
+      severity:
+          json['severity'] as String? ?? json['Severity'] as String? ?? '',
       status: json['status'] as String? ?? json['Status'] as String? ?? '',
       geofenceId: iOrNull(json['geofenceId'] ?? json['GeofenceId']),
       geofenceName:
           json['geofenceName'] as String? ?? json['GeofenceName'] as String?,
       driverId: iOrNull(json['driverId'] ?? json['DriverId']),
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
-      readAt: DateTime.tryParse((json['readAt'] ?? json['ReadAt'] ?? '').toString()),
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
+      readAt: DateTime.tryParse(
+          (json['readAt'] ?? json['ReadAt'] ?? '').toString()),
       readBy: json['readBy'] as String? ?? json['ReadBy'] as String?,
       acknowledgedAt: DateTime.tryParse(
         (json['acknowledgedAt'] ?? json['AcknowledgedAt'] ?? '').toString(),
       ),
-      acknowledgedBy:
-          json['acknowledgedBy'] as String? ?? json['AcknowledgedBy'] as String?,
+      acknowledgedBy: json['acknowledgedBy'] as String? ??
+          json['AcknowledgedBy'] as String?,
       resolvedAt: DateTime.tryParse(
         (json['resolvedAt'] ?? json['ResolvedAt'] ?? '').toString(),
       ),
-      resolvedBy: json['resolvedBy'] as String? ?? json['ResolvedBy'] as String?,
+      resolvedBy:
+          json['resolvedBy'] as String? ?? json['ResolvedBy'] as String?,
       resolutionNotes: json['resolutionNotes'] as String? ??
           json['ResolutionNotes'] as String?,
       archivedAt: DateTime.tryParse(
         (json['archivedAt'] ?? json['ArchivedAt'] ?? '').toString(),
       ),
-      archivedBy: json['archivedBy'] as String? ?? json['ArchivedBy'] as String?,
+      archivedBy:
+          json['archivedBy'] as String? ?? json['ArchivedBy'] as String?,
       assignedToUserId:
           iOrNull(json['assignedToUserId'] ?? json['AssignedToUserId']),
       assignedToName: json['assignedToName'] as String? ??
@@ -152,7 +157,8 @@ class GpsAlertEvent {
       assignedAt: DateTime.tryParse(
         (json['assignedAt'] ?? json['AssignedAt'] ?? '').toString(),
       ),
-      assignedBy: json['assignedBy'] as String? ?? json['AssignedBy'] as String?,
+      assignedBy:
+          json['assignedBy'] as String? ?? json['AssignedBy'] as String?,
       canAcknowledge: json['canAcknowledge'] as bool? ??
           json['CanAcknowledge'] as bool? ??
           false,
@@ -259,6 +265,7 @@ class GpsAlertStats {
       v ??= b != null ? json[b] as num? : null;
       return v?.toInt() ?? 0;
     }
+
     return GpsAlertStats(
       total: n('total', 'Total'),
       today: n('today', 'Today'),

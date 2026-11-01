@@ -8,7 +8,8 @@ const movingThresholdKmh = 10.0;
 
 const defaultSosAlarmValues = ['sos', 'panic'];
 
-bool isSosAlarm(String? alarmType, [List<String> sosValues = defaultSosAlarmValues]) {
+bool isSosAlarm(String? alarmType,
+    [List<String> sosValues = defaultSosAlarmValues]) {
   if (alarmType == null || alarmType.isEmpty) return false;
   final lower = alarmType.toLowerCase();
   return sosValues.any((v) => v.toLowerCase() == lower);
@@ -49,23 +50,24 @@ FleetTrackStatus resolveFleetStatus({
 
 /// Maps a `GET /gps/live/fleet` row (ERP GpsLiveFleetVehicleDto).
 FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
-  final lat = (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble();
+  final lat =
+      (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble();
   final lng =
       (json['longitude'] as num? ?? json['Longitude'] as num?)?.toDouble();
-  final lastUpdated = _parseOptionalDate(json['lastUpdated'] ?? json['LastUpdated']);
-  final speed = (json['speed'] as num? ?? json['Speed'] as num? ?? 0).toDouble();
+  final lastUpdated =
+      _parseOptionalDate(json['lastUpdated'] ?? json['LastUpdated']);
+  final speed =
+      (json['speed'] as num? ?? json['Speed'] as num? ?? 0).toDouble();
   final hasGpsDevice =
       json['hasGpsDevice'] as bool? ?? json['HasGpsDevice'] as bool? ?? false;
   final hasCoords = _validCoords(lat, lng);
   final alarmType =
       json['alarmType'] as String? ?? json['AlarmType'] as String?;
   final ignition = json['ignition'] as bool? ?? json['Ignition'] as bool?;
-  final vehicleId =
-      json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0;
-  final rawName = (json['vehicleName'] as String? ??
-          json['VehicleName'] as String? ??
-          '')
-      .trim();
+  final vehicleId = json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0;
+  final rawName =
+      (json['vehicleName'] as String? ?? json['VehicleName'] as String? ?? '')
+          .trim();
 
   // Online requires a live tracker — leftover coords without a device stay Offline.
   final FleetTrackStatus status;
@@ -100,9 +102,8 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
     hasGps: hasGpsDevice && hasCoords,
     ignition: ignition,
     heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
-    batteryLevel:
-        (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
-            ?.toDouble(),
+    batteryLevel: (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+        ?.toDouble(),
     gsmSignal: json['gsmSignal'] as int? ?? json['GsmSignal'] as int?,
     address: json['address'] as String? ?? json['Address'] as String?,
     alarmType: alarmType,

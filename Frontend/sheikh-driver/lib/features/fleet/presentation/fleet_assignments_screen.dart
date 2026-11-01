@@ -207,7 +207,7 @@ class _FleetAssignmentsScreenState
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: '$e',
           onRetry: () => ref.invalidate(fleetAssignmentsProvider),
@@ -299,8 +299,7 @@ class _FleetAssignmentsScreenState
                         final assignable = v.isAssignableForDriver;
                         return SgCard(
                           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                          onTap: () =>
-                              context.push('/fleet/vehicles/${v.id}'),
+                          onTap: () => context.push('/fleet/vehicles/${v.id}'),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

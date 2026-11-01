@@ -49,7 +49,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       _loadExisting();
     } else {
       _licenseExpiry = DateTime.now().toUtc().add(const Duration(days: 365));
-      _dateOfBirth = DateTime.now().toUtc().subtract(const Duration(days: 365 * 25));
+      _dateOfBirth =
+          DateTime.now().toUtc().subtract(const Duration(days: 365 * 25));
     }
   }
 
@@ -207,7 +208,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         title: Text(widget.isEdit ? 'Edit driver' : 'Add driver'),
       ),
       body: _loading
-          ? Center(child: SgBrandLoader())
+          ? const Center(child: SgBrandLoader())
           : _loadError != null
               ? Center(
                   child: Padding(
@@ -349,9 +350,12 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : Text(widget.isEdit ? 'Save changes' : 'Create driver'),
+                            : Text(widget.isEdit
+                                ? 'Save changes'
+                                : 'Create driver'),
                       ),
                     ],
                   ),

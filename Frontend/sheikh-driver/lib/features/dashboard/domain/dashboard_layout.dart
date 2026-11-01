@@ -48,6 +48,7 @@ class DashboardQuickAction {
   });
 
   final String label;
+
   /// Material icon name key resolved in UI.
   final String iconName;
   final String route;

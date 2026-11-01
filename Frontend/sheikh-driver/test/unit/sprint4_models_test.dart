@@ -62,7 +62,6 @@ void main() {
     expect(l.driverLabel, 'Driver #1');
   });
 
-
   test('ComplianceDocument flags expired status', () {
     final d = ComplianceDocument.fromJson({
       'id': 2,

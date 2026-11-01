@@ -40,8 +40,7 @@ class _MaintenanceRequestDetailScreenState
       ref.invalidate(maintenanceRequestProvider(widget.requestId));
       await ref.read(maintenanceHubProvider.notifier).refresh();
       if (mounted && ok != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(ok)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok)));
       }
     } catch (e) {
       if (mounted) {
@@ -100,7 +99,7 @@ class _MaintenanceRequestDetailScreenState
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Service request')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () =>
@@ -139,9 +138,7 @@ class _MaintenanceRequestDetailScreenState
                 children: [
                   _Row(
                     'Vehicle',
-                    r.vehicleName ??
-                        r.vehicleRegistration ??
-                        '#${r.vehicleId}',
+                    r.vehicleName ?? r.vehicleRegistration ?? '#${r.vehicleId}',
                   ),
                   _Row('Driver', r.driverName ?? '—'),
                   _Row('Type', r.requestType),
@@ -163,16 +160,14 @@ class _MaintenanceRequestDetailScreenState
                     ),
                   if (r.rejectionReason != null)
                     _Row('Rejection', r.rejectionReason!),
-                  if (r.rejectedBy != null)
-                    _Row('Rejected by', r.rejectedBy!),
+                  if (r.rejectedBy != null) _Row('Rejected by', r.rejectedBy!),
                 ],
               ),
             ),
             if (r.vehicleId > 0) ...[
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () =>
-                    context.push('/fleet/vehicles/${r.vehicleId}'),
+                onPressed: () => context.push('/fleet/vehicles/${r.vehicleId}'),
                 child: const Text('Open vehicle'),
               ),
             ],
@@ -215,7 +210,7 @@ class _MaintenanceRequestDetailScreenState
             ],
             if (_busy) ...[
               const SizedBox(height: 16),
-              Center(child: SgBrandLoader()),
+              const Center(child: SgBrandLoader()),
             ],
           ],
         ),
@@ -275,7 +270,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Work order')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () => ref.invalidate(workOrderProvider(widget.workOrderId)),
@@ -322,9 +317,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
                 children: [
                   _Row(
                     'Vehicle',
-                    w.vehicleName ??
-                        w.vehicleRegistration ??
-                        '#${w.vehicleId}',
+                    w.vehicleName ?? w.vehicleRegistration ?? '#${w.vehicleId}',
                   ),
                   if (w.driverName != null) _Row('Driver', w.driverName!),
                   _Row('Workshop', w.workshopName ?? '—'),
@@ -385,8 +378,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
             if (w.vehicleId > 0) ...[
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () =>
-                    context.push('/fleet/vehicles/${w.vehicleId}'),
+                onPressed: () => context.push('/fleet/vehicles/${w.vehicleId}'),
                 child: const Text('Open vehicle'),
               ),
             ],
@@ -423,7 +415,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
             ],
             if (_busy) ...[
               const SizedBox(height: 16),
-              Center(child: SgBrandLoader()),
+              const Center(child: SgBrandLoader()),
             ],
           ],
         ),

@@ -126,13 +126,12 @@ class ComplianceListScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () =>
-                ref.read(complianceHubProvider.notifier).refresh(),
+            onPressed: () => ref.read(complianceHubProvider.notifier).refresh(),
           ),
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -150,8 +149,7 @@ class ComplianceListScreen extends ConsumerWidget {
           final visible = state.visible;
           return RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () =>
-                ref.read(complianceHubProvider.notifier).refresh(),
+            onRefresh: () => ref.read(complianceHubProvider.notifier).refresh(),
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -200,9 +198,8 @@ class ComplianceListScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     child: SgSearchField(
                       hintText: 'Search entity, type, number…',
-                      onChanged: (v) => ref
-                          .read(complianceHubProvider.notifier)
-                          .setSearch(v),
+                      onChanged: (v) =>
+                          ref.read(complianceHubProvider.notifier).setSearch(v),
                     ),
                   ),
                 ),

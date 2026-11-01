@@ -235,7 +235,8 @@ class OpsKpiGridCard extends StatelessWidget {
             detail,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -407,48 +408,49 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.72,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: SgSearchField(
-                controller: _ctrl,
-                autofocus: true,
-                hintText: 'Plate, driver, trip, booking…',
-                onChanged: _onChanged,
+          height: MediaQuery.sizeOf(context).height * 0.72,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: SgSearchField(
+                  controller: _ctrl,
+                  autofocus: true,
+                  hintText: 'Plate, driver, trip, booking…',
+                  onChanged: _onChanged,
+                ),
               ),
-            ),
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
-            Expanded(
-              child: _hits.isEmpty
-                  ? Center(
-                      child: Text(
-                        _ctrl.text.trim().length < 2
-                            ? 'Type at least 2 characters'
-                            : 'No matches',
-                        style: const TextStyle(color: AppColors.textSecondary),
+              if (_loading) const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: _hits.isEmpty
+                    ? Center(
+                        child: Text(
+                          _ctrl.text.trim().length < 2
+                              ? 'Type at least 2 characters'
+                              : 'No matches',
+                          style:
+                              const TextStyle(color: AppColors.textSecondary),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _hits.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final h = _hits[i];
+                          return ListTile(
+                            leading: Icon(_iconFor(h.kind)),
+                            title: Text(h.title),
+                            subtitle: Text('${h.kind} · ${h.subtitle}'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.push(h.route);
+                            },
+                          );
+                        },
                       ),
-                    )
-                  : ListView.separated(
-                      itemCount: _hits.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final h = _hits[i];
-                        return ListTile(
-                          leading: Icon(_iconFor(h.kind)),
-                          title: Text(h.title),
-                          subtitle: Text('${h.kind} · ${h.subtitle}'),
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push(h.route);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -474,21 +476,19 @@ class AttentionVehiclesCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(
-                child: SgSectionTitle('Vehicles Needing Attention')),
+            const Expanded(child: SgSectionTitle('Vehicles Needing Attention')),
             TextButton(
               onPressed: () => context.push('/fleet'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('View fleet',
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   SizedBox(width: 2),
                   Icon(Icons.chevron_right_rounded, size: 16),
                 ],
@@ -498,10 +498,9 @@ class AttentionVehiclesCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          SgCard(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: const Text(
+          const SgCard(
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Text(
               'No vehicles flagged right now',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -516,8 +515,7 @@ class AttentionVehiclesCard extends StatelessWidget {
                   (v) => SgCard(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
-                    onTap: () =>
-                        context.push('/fleet/vehicles/${v.id}'),
+                    onTap: () => context.push('/fleet/vehicles/${v.id}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

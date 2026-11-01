@@ -134,7 +134,8 @@ class _CreateRequestSheetState extends ConsumerState<_CreateRequestSheet> {
     final desc = _desc.text.trim();
     if (desc.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Description needs at least 10 characters')),
+        const SnackBar(
+            content: Text('Description needs at least 10 characters')),
       );
       return;
     }
@@ -196,7 +197,7 @@ class _CreateRequestSheetState extends ConsumerState<_CreateRequestSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Request type'),
               items: _requestTypes
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -205,7 +206,7 @@ class _CreateRequestSheetState extends ConsumerState<_CreateRequestSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _priority,
+              initialValue: _priority,
               decoration: const InputDecoration(labelText: 'Priority'),
               items: _priorities
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -214,7 +215,7 @@ class _CreateRequestSheetState extends ConsumerState<_CreateRequestSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(labelText: 'Category'),
               items: _categories
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -353,7 +354,7 @@ class _CreateWorkOrderSheetState extends ConsumerState<_CreateWorkOrderSheet> {
                     },
             ),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Maintenance type'),
               items: _maintenanceTypes
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -362,7 +363,7 @@ class _CreateWorkOrderSheetState extends ConsumerState<_CreateWorkOrderSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _priority,
+              initialValue: _priority,
               decoration: const InputDecoration(labelText: 'Priority'),
               items: _priorities
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))

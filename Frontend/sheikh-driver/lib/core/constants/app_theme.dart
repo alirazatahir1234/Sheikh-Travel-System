@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// Prefer [SgPalette.of] / [BuildContext.sg] for surfaces and text in UI.
 abstract class AppColors {
   /// Brand — Deep Navy, Teal, Emerald (Settings / marketing parity).
-  static const navy = Color(0xFF071D2E);
+  static const navy = Color(0xFF0B253B);
   static const emerald = Color(0xFF14B8A6);
 
   static const primary = Color(0xFF0D9488);
@@ -14,9 +14,9 @@ abstract class AppColors {
   static const accent = Color(0xFF0D9488);
 
   /// Legacy light-mode aliases — prefer Theme / [SgPalette] in new code.
-  static const surface = Color(0xFFF2F6F8);
+  static const surface = Color(0xFFF3F7F9);
   static const cardBg = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF142536);
+  static const textPrimary = Color(0xFF0B253B);
   static const textSecondary = Color(0xFF64748B);
   static const textMuted = Color(0xFF8B97A5);
 
@@ -26,8 +26,8 @@ abstract class AppColors {
   static const info = Color(0xFF2563EB);
   static const cyan = Color(0xFF22D3EE);
 
-  static const divider = Color(0xFFE6EBF0);
-  static const border = Color(0xFFD5DEE7);
+  static const divider = Color(0xFFE5EDF2);
+  static const border = Color(0xFFE5EDF2);
   static const chipBg = Color(0xFFEEF3F6);
 
   static const splashNavyTop = Color(0xFF0A1628);
@@ -77,13 +77,13 @@ class SgPalette extends ThemeExtension<SgPalette> {
   final Color heroWash;
 
   static const light = SgPalette(
-    surface: Color(0xFFF2F6F8),
+    surface: Color(0xFFF3F7F9),
     card: Color(0xFFFFFFFF),
-    textPrimary: Color(0xFF142536),
+    textPrimary: Color(0xFF0B253B),
     textSecondary: Color(0xFF64748B),
     textMuted: Color(0xFF8B97A5),
-    border: Color(0xFFD5DEE7),
-    divider: Color(0xFFE6EBF0),
+    border: Color(0xFFE5EDF2),
+    divider: Color(0xFFE5EDF2),
     chipBg: Color(0xFFEEF3F6),
     navBar: Color(0xFFFFFFFF),
     heroWash: Color(0xFF0D9488),
@@ -199,11 +199,15 @@ abstract class AppRadii {
 
 abstract class AppTheme {
   static TextTheme _textTheme(Brightness brightness) {
-    final base = GoogleFonts.plusJakartaSansTextTheme();
-    final onSurface =
-        brightness == Brightness.dark ? SgPalette.dark.textPrimary : SgPalette.light.textPrimary;
-    final muted =
-        brightness == Brightness.dark ? SgPalette.dark.textSecondary : SgPalette.light.textSecondary;
+    final base = GoogleFonts.config.allowRuntimeFetching
+        ? GoogleFonts.plusJakartaSansTextTheme()
+        : ThemeData(brightness: brightness).textTheme;
+    final onSurface = brightness == Brightness.dark
+        ? SgPalette.dark.textPrimary
+        : SgPalette.light.textPrimary;
+    final muted = brightness == Brightness.dark
+        ? SgPalette.dark.textSecondary
+        : SgPalette.light.textSecondary;
     return base.copyWith(
       displaySmall: base.displaySmall?.copyWith(
         fontWeight: FontWeight.w800,
@@ -337,7 +341,8 @@ abstract class AppTheme {
           borderRadius: BorderRadius.circular(AppRadii.md),
           borderSide: BorderSide(color: primary, width: 1.6),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         labelStyle: TextStyle(color: palette.textSecondary),
         hintStyle: TextStyle(color: palette.textMuted),
       ),
@@ -347,10 +352,10 @@ abstract class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return text.labelLarge?.copyWith(
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? primary : palette.textMuted,
-              );
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? primary : palette.textMuted,
+          );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
@@ -366,7 +371,8 @@ abstract class AppTheme {
         backgroundColor: palette.navBar,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+        selectedLabelStyle:
+            const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
         unselectedLabelStyle: const TextStyle(fontSize: 11),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -377,7 +383,8 @@ abstract class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md)),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: palette.chipBg,

@@ -19,19 +19,19 @@ class AttendanceApi {
   Future<void> checkIn({double? lat, double? lng}) async {
     try {
       await _ref.read(offlineSyncProvider).runOrQueue(
-            online: () async {
-              final res = await _dio.post<Map<String, dynamic>>(
-                ApiEndpoints.attendanceCheckIn,
-                data: {
-                  'latitude': lat,
-                  'longitude': lng,
-                },
-              );
-              ApiResponseParser.ensureSuccess(res.data);
+        online: () async {
+          final res = await _dio.post<Map<String, dynamic>>(
+            ApiEndpoints.attendanceCheckIn,
+            data: {
+              'latitude': lat,
+              'longitude': lng,
             },
-            type: OfflineOpType.attendanceCheckIn,
-            payload: {'latitude': lat, 'longitude': lng},
           );
+          ApiResponseParser.ensureSuccess(res.data);
+        },
+        type: OfflineOpType.attendanceCheckIn,
+        payload: {'latitude': lat, 'longitude': lng},
+      );
     } on OfflineQueuedException {
       rethrow;
     } catch (e) {
@@ -42,19 +42,19 @@ class AttendanceApi {
   Future<void> checkOut({double? lat, double? lng}) async {
     try {
       await _ref.read(offlineSyncProvider).runOrQueue(
-            online: () async {
-              final res = await _dio.post<Map<String, dynamic>>(
-                ApiEndpoints.attendanceCheckOut,
-                data: {
-                  'latitude': lat,
-                  'longitude': lng,
-                },
-              );
-              ApiResponseParser.ensureSuccess(res.data);
+        online: () async {
+          final res = await _dio.post<Map<String, dynamic>>(
+            ApiEndpoints.attendanceCheckOut,
+            data: {
+              'latitude': lat,
+              'longitude': lng,
             },
-            type: OfflineOpType.attendanceCheckOut,
-            payload: {'latitude': lat, 'longitude': lng},
           );
+          ApiResponseParser.ensureSuccess(res.data);
+        },
+        type: OfflineOpType.attendanceCheckOut,
+        payload: {'latitude': lat, 'longitude': lng},
+      );
     } on OfflineQueuedException {
       rethrow;
     } catch (e) {

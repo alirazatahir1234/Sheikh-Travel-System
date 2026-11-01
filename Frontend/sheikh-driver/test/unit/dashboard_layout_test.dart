@@ -8,8 +8,10 @@ void main() {
   group('DashboardVisibility', () {
     test('owner-like roles see health and interactive live map', () {
       expect(DashboardVisibility.showFleetHealth(DashboardRole.owner), isTrue);
-      expect(DashboardVisibility.showFleetHealth(DashboardRole.tenantAdmin), isTrue);
-      expect(DashboardVisibility.showMapSummary(DashboardRole.superAdmin), isFalse);
+      expect(DashboardVisibility.showFleetHealth(DashboardRole.tenantAdmin),
+          isTrue);
+      expect(DashboardVisibility.showMapSummary(DashboardRole.superAdmin),
+          isFalse);
       expect(
         DashboardVisibility.showInteractiveMap(DashboardRole.owner),
         isTrue,
@@ -21,16 +23,19 @@ void main() {
     });
 
     test('fleet manager sees interactive map and health', () {
-      expect(DashboardVisibility.showFleetHealth(DashboardRole.fleetManager), isTrue);
+      expect(DashboardVisibility.showFleetHealth(DashboardRole.fleetManager),
+          isTrue);
       expect(
         DashboardVisibility.showInteractiveMap(DashboardRole.fleetManager),
         isTrue,
       );
-      expect(DashboardVisibility.showMapSummary(DashboardRole.fleetManager), isFalse);
+      expect(DashboardVisibility.showMapSummary(DashboardRole.fleetManager),
+          isFalse);
     });
 
     test('dispatcher hides health and AI attention role gate', () {
-      expect(DashboardVisibility.showFleetHealth(DashboardRole.dispatcher), isFalse);
+      expect(DashboardVisibility.showFleetHealth(DashboardRole.dispatcher),
+          isFalse);
       expect(
         DashboardVisibility.roleAllows(
           DashboardRole.dispatcher,
@@ -47,7 +52,8 @@ void main() {
 
   group('DashboardLayoutRegistry', () {
     test('fleet manager command order matches enterprise mockup', () {
-      final ids = DashboardLayoutRegistry.widgetsFor(DashboardRole.fleetManager);
+      final ids =
+          DashboardLayoutRegistry.widgetsFor(DashboardRole.fleetManager);
       expect(ids, contains(DashboardWidgetId.universalSearchBar));
       expect(ids, contains(DashboardWidgetId.primaryKpis));
       expect(ids, contains(DashboardWidgetId.fleetStatusStrip));
@@ -64,7 +70,8 @@ void main() {
       expect(ids, contains(DashboardWidgetId.primaryKpis));
       expect(ids, isNot(contains(DashboardWidgetId.quickActions)));
       expect(ids, isNot(contains(DashboardWidgetId.mapSummaryCard)));
-      final adminIds = DashboardLayoutRegistry.widgetsFor(DashboardRole.tenantAdmin);
+      final adminIds =
+          DashboardLayoutRegistry.widgetsFor(DashboardRole.tenantAdmin);
       expect(adminIds, contains(DashboardWidgetId.liveMapPreview));
     });
 

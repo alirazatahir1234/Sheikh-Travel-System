@@ -21,7 +21,8 @@ class TimelineEvent {
         id: json['id'] as int? ?? 0,
         eventType: json['eventType'] as String? ?? '',
         title: json['title'] as String? ?? '',
-        eventTime: DateTime.tryParse(json['eventTime']?.toString() ?? '') ?? DateTime.now(),
+        eventTime: DateTime.tryParse(json['eventTime']?.toString() ?? '') ??
+            DateTime.now(),
         description: json['description'] as String?,
         status: json['status'] as String?,
         referenceId: json['referenceId'] as int?,

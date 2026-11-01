@@ -76,7 +76,11 @@ void main() {
 
   testWidgets('alert card shows mockup fields', (tester) async {
     final incidents = groupAlertIncidents([
-      ev(id: 1, type: 'speed_exceeded', severity: 'critical', plate: 'LHR-4587'),
+      ev(
+          id: 1,
+          type: 'speed_exceeded',
+          severity: 'critical',
+          plate: 'LHR-4587'),
     ]);
 
     await tester.pumpWidget(

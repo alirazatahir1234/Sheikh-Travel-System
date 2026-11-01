@@ -40,8 +40,7 @@ class AiChatApi {
   }
 
   Future<List<AiChatMessage>> getMessages(String sessionId) async {
-    final res =
-        await _dio.get<dynamic>(ApiEndpoints.aiChatMessages(sessionId));
+    final res = await _dio.get<dynamic>(ApiEndpoints.aiChatMessages(sessionId));
     return _asList(res.data).map(AiChatMessage.fromJson).toList();
   }
 

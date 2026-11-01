@@ -73,7 +73,8 @@ class FcmService {
         final status = await Permission.notification.status;
         if (status.isGranted || status.isLimited) return true;
       }
-      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (e) {
@@ -101,7 +102,8 @@ class FcmService {
         if (!status.isGranted && !status.isLimited) {
           // On API < 33 permission_handler may return denied; still try FCM.
           if (status.isDenied) {
-            debugPrint('[FCM] Android notification status=$status — trying FCM');
+            debugPrint(
+                '[FCM] Android notification status=$status — trying FCM');
           }
         }
       }
@@ -111,8 +113,9 @@ class FcmService {
         badge: true,
         sound: true,
       );
-      final ok = settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+      final ok =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
       if (!ok && Platform.isAndroid) {
         // Android 13+: OS grant is enough even if FCM reports denied before init.
         return await Permission.notification.isGranted;

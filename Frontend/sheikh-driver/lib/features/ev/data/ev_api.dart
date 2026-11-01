@@ -13,7 +13,8 @@ class EvApi {
 
   Future<DriverEvStatus?> fetchStatus() async {
     try {
-      final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverEvStatus);
+      final res =
+          await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverEvStatus);
       if (res.data == null) return null;
       final data = ApiResponseParser.dataMap(res.data);
       if (data.isEmpty) return null;
@@ -25,7 +26,8 @@ class EvApi {
   }
 
   Future<List<VehicleDocExpiry>> fetchDocumentExpiries() async {
-    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.driverVehicleDocExpiries);
+    final res = await _dio
+        .get<Map<String, dynamic>>(ApiEndpoints.driverVehicleDocExpiries);
     return ApiResponseParser.dataList(res.data)
         .map(VehicleDocExpiry.fromJson)
         .toList();

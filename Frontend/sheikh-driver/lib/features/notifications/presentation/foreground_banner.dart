@@ -44,7 +44,8 @@ class ForegroundNotificationBanner extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.notifications_active, color: Colors.white, size: 22),
+                    const Icon(Icons.notifications_active,
+                        color: Colors.white, size: 22),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -76,7 +77,8 @@ class ForegroundNotificationBanner extends ConsumerWidget {
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                      icon: const Icon(Icons.close,
+                          color: Colors.white70, size: 18),
                       onPressed: () =>
                           ref.read(foregroundBannerProvider.notifier).dismiss(),
                     ),

@@ -71,7 +71,7 @@ class _OperatorAiScreenState extends ConsumerState<OperatorAiScreen> {
           ),
           if (_loading) ...[
             const SizedBox(height: 24),
-            Center(child: SgBrandLoader()),
+            const Center(child: SgBrandLoader()),
           ],
           if (_error != null) ...[
             const SizedBox(height: 16),

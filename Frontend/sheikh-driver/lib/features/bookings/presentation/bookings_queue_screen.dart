@@ -27,18 +27,10 @@ class BookingsQueueScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$e'),
-              FilledButton(
-                onPressed: () => ref.read(bookingsProvider.notifier).refresh(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => SgErrorView(
+          message: '$e',
+          onRetry: () => ref.read(bookingsProvider.notifier).refresh(),
         ),
         data: (state) {
           final visible = state.visible;
@@ -52,7 +44,8 @@ class BookingsQueueScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     child: Row(
                       children: [
-                        _Mini('Queue', '${state.pendingCount + state.confirmedCount}'),
+                        _Mini('Queue',
+                            '${state.pendingCount + state.confirmedCount}'),
                         _Mini('Pending', '${state.pendingCount}'),
                         _Mini('Confirmed', '${state.confirmedCount}'),
                         _Mini('Unassigned', '${state.unassignedCount}'),
@@ -111,7 +104,12 @@ class BookingsQueueScreen extends ConsumerWidget {
                 if (visible.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('No bookings in queue')),
+                    child: SgEmptyState(
+                      icon: Icons.event_note_outlined,
+                      title: 'No bookings in queue',
+                      subtitle:
+                          'New or filtered bookings will appear here when created.',
+                    ),
                   )
                 else
                   SliverPadding(

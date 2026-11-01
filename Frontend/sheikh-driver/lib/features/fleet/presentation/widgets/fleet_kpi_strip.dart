@@ -175,9 +175,8 @@ class _KpiChip extends StatelessWidget {
           color: active ? data.color.withValues(alpha: 0.14) : Colors.white,
           borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(
-            color: active
-                ? data.color.withValues(alpha: 0.45)
-                : AppColors.border,
+            color:
+                active ? data.color.withValues(alpha: 0.45) : AppColors.border,
           ),
         ),
         child: Column(

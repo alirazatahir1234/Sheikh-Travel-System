@@ -3,12 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../notifications/domain/notification_models.dart';
-import '../../notifications/presentation/notifications_notifier.dart';
 import '../data/gps_alerts_api.dart';
 import '../domain/alert_display.dart';
 import '../domain/gps_alert_models.dart';
-import 'alerts_simulator.dart';
 
 enum FleetAlertSort { newest, oldest }
 
@@ -284,9 +281,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
       pageSize: pageSize,
     );
 
-    final merged = append && prev != null
-        ? [...prev.events, ...events]
-        : events;
+    final merged =
+        append && prev != null ? [...prev.events, ...events] : events;
 
     return AlertsState(
       stats: stats,
@@ -312,7 +308,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
   Future<void> _run(Future<AlertsState> Function() loader) async {
     final previous = state.valueOrNull;
     state = previous != null
-        ? AsyncLoading<AlertsState>().copyWithPrevious(AsyncData(previous))
+        ? const AsyncLoading<AlertsState>()
+            .copyWithPrevious(AsyncData(previous))
         : const AsyncLoading();
     state = await AsyncValue.guard(loader);
   }
@@ -393,11 +390,10 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     );
   }
 
-  Future<void> setUnacknowledgedOnly(bool value) =>
-      _run(() => _load(
-            unacknowledgedOnly: value,
-            page: 1,
-          ));
+  Future<void> setUnacknowledgedOnly(bool value) => _run(() => _load(
+        unacknowledgedOnly: value,
+        page: 1,
+      ));
 
   Future<void> setDatePreset(String datePreset) =>
       _run(() => _load(datePreset: datePreset, page: 1));
@@ -429,9 +425,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
         chip: FleetAlertChip.all,
         unacknowledgedOnly: false,
         searchQuery: '',
-        datePreset: cur.statusTab == FleetAlertStatusTab.resolved
-            ? 'last30'
-            : 'today',
+        datePreset:
+            cur.statusTab == FleetAlertStatusTab.resolved ? 'last30' : 'today',
         sort: FleetAlertSort.newest,
         clearEventType: true,
         clearVehicleId: true,
@@ -475,22 +470,6 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     final cur = state.valueOrNull;
     if (cur == null) return;
     state = AsyncData(cur.copyWith(clearSelection: true));
-  }
-
-  void simulateIncident() {
-    final cur = state.valueOrNull;
-    if (cur == null) return;
-    final created = AlertsSimulator.createBatch(seed: cur.demoEvents.length);
-    final next = cur.copyWith(demoEvents: [...created, ...cur.demoEvents]);
-    state = AsyncData(next);
-    final first = created.first;
-    ref.read(foregroundBannerProvider.notifier).show(
-          ForegroundBannerEvent(
-            title: alertTitle(first),
-            body: alertDescription(first),
-            route: '/alerts',
-          ),
-        );
   }
 
   Future<void> acknowledge(int id) async {

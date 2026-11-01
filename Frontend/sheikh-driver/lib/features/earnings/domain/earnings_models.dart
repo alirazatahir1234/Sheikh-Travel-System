@@ -54,8 +54,10 @@ class EarningsSummary {
     return EarningsSummary(
       tripAllowances: (json['tripAllowances'] as num?)?.toDouble() ?? 0,
       completedTripCount: (json['completedTripCount'] as num?)?.toInt() ?? 0,
-      fromDate: DateTime.tryParse(json['fromDate']?.toString() ?? '') ?? DateTime.now(),
-      toDate: DateTime.tryParse(json['toDate']?.toString() ?? '') ?? DateTime.now(),
+      fromDate: DateTime.tryParse(json['fromDate']?.toString() ?? '') ??
+          DateTime.now(),
+      toDate:
+          DateTime.tryParse(json['toDate']?.toString() ?? '') ?? DateTime.now(),
       today: (json['today'] as num?)?.toDouble() ?? 0,
       thisWeek: (json['thisWeek'] as num?)?.toDouble() ?? 0,
       thisMonth: (json['thisMonth'] as num?)?.toDouble() ?? 0,

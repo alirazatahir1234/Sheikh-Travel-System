@@ -24,25 +24,31 @@ class DriverPerformanceScreen extends ConsumerWidget {
           children: [
             _ScoreHero(score: s),
             const SizedBox(height: AppSpacing.lg),
-            _MetricRow(label: 'Fleet rank', value: s.rank > 0 ? '#${s.rank} of ${s.totalDrivers}' : '—'),
+            _MetricRow(
+                label: 'Fleet rank',
+                value: s.rank > 0 ? '#${s.rank} of ${s.totalDrivers}' : '—'),
             _MetricRow(label: 'Safety', value: '${s.safetyScore}'),
-            _MetricRow(label: 'Fuel efficiency', value: '${s.fuelEfficiencyScore}'),
+            _MetricRow(
+                label: 'Fuel efficiency', value: '${s.fuelEfficiencyScore}'),
             _MetricRow(label: 'On-time delivery', value: '${s.onTimeScore}'),
             _MetricRow(label: 'Trips in period', value: '${s.tripCount}'),
             if (s.rewardEligible)
-              _NoteCard(
+              const _NoteCard(
                 color: AppColors.success,
-                text: 'Top performer — you qualify for fleet rewards this period.',
+                text:
+                    'Top performer — you qualify for fleet rewards this period.',
               ),
             if (s.needsTraining)
-              _NoteCard(
+              const _NoteCard(
                 color: AppColors.warning,
-                text: 'Coaching recommended — review safety and on-time targets with dispatch.',
+                text:
+                    'Coaching recommended — review safety and on-time targets with dispatch.',
               ),
             if (s.isPartial)
-              _NoteCard(
+              const _NoteCard(
                 color: AppColors.info,
-                text: 'Some telematics inputs were unavailable; score uses trips and alerts only.',
+                text:
+                    'Some telematics inputs were unavailable; score uses trips and alerts only.',
               ),
           ],
         ),
@@ -120,7 +126,9 @@ class _MetricRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+          Expanded(
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
           Text(value),
         ],
       ),

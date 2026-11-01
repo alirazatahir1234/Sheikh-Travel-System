@@ -46,28 +46,35 @@ class DriverListItem {
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       fullName: resolveDriverDisplayName(json),
       phone: json['phone'] as String? ?? json['Phone'] as String? ?? '',
-      licenseNumber:
-          json['licenseNumber'] as String? ?? json['LicenseNumber'] as String? ?? '',
+      licenseNumber: json['licenseNumber'] as String? ??
+          json['LicenseNumber'] as String? ??
+          '',
       status: (json['status'] ?? json['Status'] ?? '').toString(),
       isActive: json['isActive'] as bool? ?? json['IsActive'] as bool? ?? true,
-      driverCode: json['driverCode'] as String? ?? json['DriverCode'] as String?,
-      licenseExpiryDate: _date(json['licenseExpiryDate'] ?? json['LicenseExpiryDate']),
-      licenseExpired:
-          json['licenseExpired'] as bool? ?? json['LicenseExpired'] as bool? ?? false,
+      driverCode:
+          json['driverCode'] as String? ?? json['DriverCode'] as String?,
+      licenseExpiryDate:
+          _date(json['licenseExpiryDate'] ?? json['LicenseExpiryDate']),
+      licenseExpired: json['licenseExpired'] as bool? ??
+          json['LicenseExpired'] as bool? ??
+          false,
       licenseExpiringSoon: json['licenseExpiringSoon'] as bool? ??
           json['LicenseExpiringSoon'] as bool? ??
           false,
       verificationStatus: json['verificationStatus'] as String? ??
           json['VerificationStatus'] as String?,
-      branchName: json['branchName'] as String? ?? json['BranchName'] as String?,
-      assignedVehicleId:
-          json['assignedVehicleId'] as int? ?? json['AssignedVehicleId'] as int?,
-      assignedVehicleRegistration: json['assignedVehicleRegistration'] as String? ??
-          json['AssignedVehicleRegistration'] as String?,
+      branchName:
+          json['branchName'] as String? ?? json['BranchName'] as String?,
+      assignedVehicleId: json['assignedVehicleId'] as int? ??
+          json['AssignedVehicleId'] as int?,
+      assignedVehicleRegistration:
+          json['assignedVehicleRegistration'] as String? ??
+              json['AssignedVehicleRegistration'] as String?,
       assignedVehicleName: json['assignedVehicleName'] as String? ??
           json['AssignedVehicleName'] as String?,
       rating: (json['rating'] as num? ?? json['Rating'] as num?)?.toDouble(),
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
       availabilityBucket: json['availabilityBucket'] as String? ??
           json['AvailabilityBucket'] as String?,
       photoUrl: json['photoUrl'] as String? ?? json['PhotoUrl'] as String?,
@@ -149,11 +156,13 @@ class DriverDetail {
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       fullName: resolveDriverDisplayName(json),
       phone: json['phone'] as String? ?? json['Phone'] as String? ?? '',
-      licenseNumber:
-          json['licenseNumber'] as String? ?? json['LicenseNumber'] as String? ?? '',
+      licenseNumber: json['licenseNumber'] as String? ??
+          json['LicenseNumber'] as String? ??
+          '',
       status: (json['status'] ?? json['Status'] ?? '').toString(),
       isActive: json['isActive'] as bool? ?? json['IsActive'] as bool? ?? true,
-      driverCode: json['driverCode'] as String? ?? json['DriverCode'] as String?,
+      driverCode:
+          json['driverCode'] as String? ?? json['DriverCode'] as String?,
       firstName: json['firstName'] as String? ?? json['FirstName'] as String?,
       lastName: json['lastName'] as String? ?? json['LastName'] as String?,
       email: json['email'] as String? ?? json['Email'] as String?,
@@ -163,24 +172,29 @@ class DriverDetail {
           json['nationality'] as String? ?? json['Nationality'] as String?,
       gender: json['gender'] as String? ?? json['Gender'] as String?,
       dateOfBirth: _date(json['dateOfBirth'] ?? json['DateOfBirth']),
-      licenseExpiryDate: _date(json['licenseExpiryDate'] ?? json['LicenseExpiryDate']),
-      licenseExpired:
-          json['licenseExpired'] as bool? ?? json['LicenseExpired'] as bool? ?? false,
+      licenseExpiryDate:
+          _date(json['licenseExpiryDate'] ?? json['LicenseExpiryDate']),
+      licenseExpired: json['licenseExpired'] as bool? ??
+          json['LicenseExpired'] as bool? ??
+          false,
       licenseExpiringSoon: json['licenseExpiringSoon'] as bool? ??
           json['LicenseExpiringSoon'] as bool? ??
           false,
       verificationStatus: json['verificationStatus'] as String? ??
           json['VerificationStatus'] as String?,
       branchId: json['branchId'] as int? ?? json['BranchId'] as int?,
-      branchName: json['branchName'] as String? ?? json['BranchName'] as String?,
-      assignedVehicleId:
-          json['assignedVehicleId'] as int? ?? json['AssignedVehicleId'] as int?,
-      assignedVehicleRegistration: json['assignedVehicleRegistration'] as String? ??
-          json['AssignedVehicleRegistration'] as String?,
+      branchName:
+          json['branchName'] as String? ?? json['BranchName'] as String?,
+      assignedVehicleId: json['assignedVehicleId'] as int? ??
+          json['AssignedVehicleId'] as int?,
+      assignedVehicleRegistration:
+          json['assignedVehicleRegistration'] as String? ??
+              json['AssignedVehicleRegistration'] as String?,
       assignedVehicleName: json['assignedVehicleName'] as String? ??
           json['AssignedVehicleName'] as String?,
       rating: (json['rating'] as num? ?? json['Rating'] as num?)?.toDouble(),
-      gpsOnline: json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
+      gpsOnline:
+          json['gpsOnline'] as bool? ?? json['GpsOnline'] as bool? ?? false,
       availabilityBucket: json['availabilityBucket'] as String? ??
           json['AvailabilityBucket'] as String?,
       yearsExperience:
@@ -351,7 +365,8 @@ List<DriverRankItem> buildTopDriversFromList(
 String resolveDriverDisplayName(Map<String, dynamic> json) {
   final full = (json['fullName'] ?? json['FullName'])?.toString().trim();
   if (full != null && full.isNotEmpty) return full;
-  final first = (json['firstName'] ?? json['FirstName'])?.toString().trim() ?? '';
+  final first =
+      (json['firstName'] ?? json['FirstName'])?.toString().trim() ?? '';
   final last = (json['lastName'] ?? json['LastName'])?.toString().trim() ?? '';
   final combined = '$first $last'.trim();
   if (combined.isNotEmpty) return combined;
@@ -595,8 +610,8 @@ class DriverAssignment {
     return DriverAssignment(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
       vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
-      assignmentType: (json['assignmentType'] ?? json['AssignmentType'] ?? '')
-          .toString(),
+      assignmentType:
+          (json['assignmentType'] ?? json['AssignmentType'] ?? '').toString(),
       status: (json['status'] ?? json['Status'] ?? '').toString(),
       startAt: _date(json['startAt'] ?? json['StartAt']) ??
           DateTime.fromMillisecondsSinceEpoch(0),

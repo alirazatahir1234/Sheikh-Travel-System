@@ -150,7 +150,8 @@ class VehiclePulseIcons {
   }
 
   /// Paint ERP SVG glyphs in a 32×32 viewBox.
-  static void _paintErpGlyph(Canvas canvas, FleetTrackStatus status, Color fill) {
+  static void _paintErpGlyph(
+      Canvas canvas, FleetTrackStatus status, Color fill) {
     final fillPaint = Paint()
       ..color = fill
       ..style = PaintingStyle.fill;

@@ -665,8 +665,7 @@ abstract final class FleetNavConfig {
     return [
       for (final entry in entries)
         if (!_isMoreRouteOnBottomBar(entry.route, tabs) &&
-            !(entry.route == '/profile' &&
-                tabs.any((t) => t.id == 'profile')))
+            !(entry.route == '/profile' && tabs.any((t) => t.id == 'profile')))
           entry,
     ];
   }
@@ -763,11 +762,6 @@ abstract final class FleetNavConfig {
     '/users',
     '/ai',
     '/gps/',
-    '/gps/commands',
-    '/gps/incidents',
-    '/gps/geofences',
-    '/gps/operator-ai',
-    '/legal/',
     '/performance',
     '/sos',
     '/voice',
@@ -797,7 +791,8 @@ abstract final class FleetNavConfig {
   static bool _usersMenu(FleetSession s) => s.canSeeUsersTab;
   static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
   static bool _gpsOperatorOps(FleetSession s) =>
-      s.isGpsOperator || (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
+      s.isGpsOperator ||
+      (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
 
   /// Device command hub — platform SUPER_ADMIN only (not Owner / Fleet Manager).
   static bool _gpsCommandsMenu(FleetSession s) => s.canUseGpsCommands;

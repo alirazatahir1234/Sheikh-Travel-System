@@ -18,15 +18,20 @@ class InspectionApi {
   final Ref _ref;
 
   Future<InspectionTemplate> getTemplate() async {
-    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.inspectionTemplate);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.inspectionTemplate);
     final data = res.data?['data'] as Map<String, dynamic>? ?? {};
     return InspectionTemplate.fromJson(data);
   }
 
   Future<List<InspectionVehicle>> getVehicles() async {
-    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.inspectionVehicles);
+    final res =
+        await _dio.get<Map<String, dynamic>>(ApiEndpoints.inspectionVehicles);
     final list = (res.data?['data'] as List?) ?? [];
-    return list.cast<Map<String, dynamic>>().map(InspectionVehicle.fromJson).toList();
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(InspectionVehicle.fromJson)
+        .toList();
   }
 
   Future<List<InspectionSummary>> getHistory({int page = 1}) async {
@@ -35,7 +40,10 @@ class InspectionApi {
       queryParameters: {'page': page, 'pageSize': 30},
     );
     final list = (res.data?['data'] as List?) ?? [];
-    return list.cast<Map<String, dynamic>>().map(InspectionSummary.fromJson).toList();
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(InspectionSummary.fromJson)
+        .toList();
   }
 
   Future<int> submit({
@@ -66,21 +74,24 @@ class InspectionApi {
               'templateId': templateId,
               if (odometer != null) 'odometerReading': odometer,
               if (comments != null && comments.isNotEmpty) 'comments': comments,
-              'resultsJson': jsonEncode(results.map((e) => e.toJson()).toList()),
+              'resultsJson':
+                  jsonEncode(results.map((e) => e.toJson()).toList()),
             });
 
             for (final p in photoFiles.take(8)) {
               if (!await p.exists()) continue;
               form.files.add(MapEntry(
                 'photos',
-                await MultipartFile.fromFile(p.path, filename: p.uri.pathSegments.last),
+                await MultipartFile.fromFile(p.path,
+                    filename: p.uri.pathSegments.last),
               ));
             }
 
             if (sigFile != null && await sigFile.exists()) {
               form.files.add(MapEntry(
                 'signature',
-                await MultipartFile.fromFile(sigFile.path, filename: 'signature.png'),
+                await MultipartFile.fromFile(sigFile.path,
+                    filename: 'signature.png'),
               ));
             }
 

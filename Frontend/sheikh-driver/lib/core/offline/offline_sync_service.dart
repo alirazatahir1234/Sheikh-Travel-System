@@ -22,7 +22,8 @@ bool isOfflineRetryExhausted(OfflineOperation op) =>
 const lastSuccessfulSyncAtPrefsKey = 'lastSuccessfulSyncAt';
 const lifetimeSyncedCountPrefsKey = 'offlineLifetimeSyncedCount';
 
-final offlinePendingCountProvider = StateProvider<int>((ref) => OfflineOutbox.length);
+final offlinePendingCountProvider =
+    StateProvider<int>((ref) => OfflineOutbox.length);
 
 /// Bumped on every outbox mutation so queue UIs refresh even when pending count
 /// stays the same (e.g. pending → failed without removing the item).
@@ -119,7 +120,8 @@ class OfflineSyncService {
   }
 
   void _notifyCount() {
-    _ref.read(offlinePendingCountProvider.notifier).state = OfflineOutbox.length;
+    _ref.read(offlinePendingCountProvider.notifier).state =
+        OfflineOutbox.length;
     _ref.read(offlineOutboxRevisionProvider.notifier).state++;
   }
 
@@ -171,8 +173,7 @@ class OfflineSyncService {
       if (!isOfflineDioError(e)) rethrow;
       // Copy picker/camera files into documents before enqueue so sync still works
       // after OS clears cache/temp paths.
-      final durablePaths =
-          await OfflineFileStore.persistForOffline(filePaths);
+      final durablePaths = await OfflineFileStore.persistForOffline(filePaths);
       final durablePayload = OfflineFileStore.rewritePayloadPaths(
         payload,
         filePaths,
@@ -222,7 +223,8 @@ class OfflineSyncService {
             // Conflict resolution: treat as success (server already has the effect).
             await OfflineOutbox.remove(op.id);
             synced++;
-            debugPrint('[Offline] Conflict resolved (already applied): ${op.label}');
+            debugPrint(
+                '[Offline] Conflict resolved (already applied): ${op.label}');
           } else if (isOfflineDioError(e)) {
             op.status = OfflineOpStatus.pending;
             op.lastError = e.message;
@@ -233,7 +235,8 @@ class OfflineSyncService {
             op.status = OfflineOpStatus.conflict;
             op.lastError = _errorMessage(e);
             await OfflineOutbox.update(op);
-            debugPrint('[Offline] Conflict kept for review: ${op.label} — ${op.lastError}');
+            debugPrint(
+                '[Offline] Conflict kept for review: ${op.label} — ${op.lastError}');
           } else {
             op.status = OfflineOpStatus.failed;
             op.lastError = _errorMessage(e);
@@ -321,7 +324,8 @@ class OfflineSyncService {
           _ => throw StateError('Unknown trip action $action'),
         };
         if (action == 'Reject') {
-          await _dio.post(path, data: reason ?? '', options: Options(headers: headers));
+          await _dio.post(path,
+              data: reason ?? '', options: Options(headers: headers));
         } else {
           await _dio.post(path, options: Options(headers: headers));
         }
@@ -333,7 +337,8 @@ class OfflineSyncService {
           'odometerReading': op.payload['odometerReading'],
           'station': op.payload['station'],
           'fuelType': op.payload['fuelType'],
-          'fuelDate': op.payload['fuelDate'] ?? DateTime.now().toUtc().toIso8601String(),
+          'fuelDate': op.payload['fuelDate'] ??
+              DateTime.now().toUtc().toIso8601String(),
         });
         for (final path in op.filePaths) {
           if (!File(path).existsSync()) continue;
@@ -353,7 +358,8 @@ class OfflineSyncService {
           'templateId': op.payload['templateId'],
           if (op.payload['odometerReading'] != null)
             'odometerReading': op.payload['odometerReading'],
-          if (op.payload['comments'] != null) 'comments': op.payload['comments'],
+          if (op.payload['comments'] != null)
+            'comments': op.payload['comments'],
           'resultsJson': op.payload['resultsJson'] ?? '[]',
         });
         final photoPaths = (op.payload['photoPaths'] as List?)
@@ -424,8 +430,10 @@ class OfflineSyncService {
             'languageCode': op.payload['languageCode'],
             if (op.payload['intent'] != null) 'intent': op.payload['intent'],
             'clientOpId': op.id,
-            if (op.payload['latitude'] != null) 'latitude': op.payload['latitude'],
-            if (op.payload['longitude'] != null) 'longitude': op.payload['longitude'],
+            if (op.payload['latitude'] != null)
+              'latitude': op.payload['latitude'],
+            if (op.payload['longitude'] != null)
+              'longitude': op.payload['longitude'],
           },
           options: Options(headers: headers),
         );
@@ -450,7 +458,9 @@ class OfflineSyncService {
 
   static String _errorMessage(DioException e) {
     final data = e.response?.data;
-    if (data is Map && data['message'] != null) return data['message'].toString();
+    if (data is Map && data['message'] != null) {
+      return data['message'].toString();
+    }
     if (data is Map && data['error'] != null) return data['error'].toString();
     return e.message ?? e.toString();
   }

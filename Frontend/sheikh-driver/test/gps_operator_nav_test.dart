@@ -3,7 +3,7 @@ import 'package:sheikh_go_driver/features/auth/domain/auth_models.dart';
 import 'package:sheikh_go_driver/core/navigation/fleet_nav_config.dart';
 
 FleetSession _gpsOperatorSession() {
-  return FleetSession(
+  return const FleetSession(
     accessToken: 't',
     refreshToken: 'r',
     userId: 1,

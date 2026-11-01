@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations_en.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
@@ -14,11 +15,14 @@ class LegalDocumentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n =
+        Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+            AppLocalizationsEn();
     final isPrivacy = kind == LegalDocumentKind.privacy;
     final title = isPrivacy ? l10n.privacyPolicy : l10n.termsOfService;
-    final sections =
-        isPrivacy ? LegalDocuments.privacySections : LegalDocuments.termsSections;
+    final sections = isPrivacy
+        ? LegalDocuments.privacySections
+        : LegalDocuments.termsSections;
     final version =
         isPrivacy ? LegalDocuments.privacyVersion : LegalDocuments.termsVersion;
     final url =
@@ -81,9 +85,11 @@ class LegalDocumentScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  title,
+                                  isPrivacy
+                                      ? 'Data & Privacy Overview'
+                                      : 'User Agreement Overview',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                     color: context.sg.textPrimary,
                                     letterSpacing: -0.2,

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import '../../auth/data/auth_repository.dart';
 import 'fleet_hub_notifier.dart';
 import 'fleet_vehicle_filters.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/fleet_vehicle_filter_sheet.dart';
 import 'widgets/fleet_vehicle_tile.dart';
-import '../../../shared/widgets/sg_brand_loader.dart';
 
 class FleetHubScreen extends ConsumerWidget {
   const FleetHubScreen({super.key});
@@ -72,30 +73,10 @@ class FleetHubScreen extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_outlined,
-                    size: 48, color: AppColors.textMuted),
-                const SizedBox(height: 12),
-                Text(
-                  e.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () =>
-                      ref.read(fleetHubProvider.notifier).refresh(),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => SgErrorView(
+          message: ErrorHandler.message(e),
+          onRetry: () => ref.read(fleetHubProvider.notifier).refresh(),
         ),
         data: (hub) {
           final visible = hub.visible;
@@ -107,46 +88,12 @@ class FleetHubScreen extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Vehicles (${hub.kpis.totalVehicles})',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: () =>
-                                  context.push('/fleet/assignments'),
-                              icon: const Icon(
-                                Icons.event_available_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('Assignments'),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => context.push('/fleet/map'),
-                              icon: const Icon(Icons.map_rounded, size: 18),
-                              label: const Text('View live map'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        _LiveTrackingHeader(
-                          liveVehicleCount: hub.liveVehicleCount,
-                          lastFleetRefreshAt: hub.lastFleetRefreshAt,
-                          lastGpsAt: hub.lastGpsAt,
-                          realtimeStatus: hub.realtimeStatus,
-                        ),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                    child: _LiveTrackingHeader(
+                      liveVehicleCount: hub.liveVehicleCount,
+                      lastFleetRefreshAt: hub.lastFleetRefreshAt,
+                      lastGpsAt: hub.lastGpsAt,
+                      realtimeStatus: hub.realtimeStatus,
                     ),
                   ),
                 ),
@@ -175,45 +122,39 @@ class FleetHubScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Badge must not wrap a button under unbounded width —
-                        // that crashes layout (infinite width) and blanks the list.
-                        Badge(
-                          isLabelVisible: filterCount > 0,
-                          label: Text('$filterCount'),
-                          child: IntrinsicWidth(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final next = await showFleetVehicleFilterSheet(
-                                  context,
-                                  initial: hub.filters,
-                                );
-                                if (next == null) return;
-                                ref
-                                    .read(fleetHubProvider.notifier)
-                                    .setFilters(next);
-                              },
-                              icon: const Icon(Icons.tune_rounded, size: 18),
-                              label: Text(
-                                filterCount > 0
-                                    ? 'Filter $filterCount'
-                                    : 'Filter',
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: filterCount > 0
+                        IntrinsicWidth(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final next = await showFleetVehicleFilterSheet(
+                                context,
+                                initial: hub.filters,
+                              );
+                              if (next == null) return;
+                              ref
+                                  .read(fleetHubProvider.notifier)
+                                  .setFilters(next);
+                            },
+                            icon: const Icon(Icons.tune_rounded, size: 18),
+                            label: Text(
+                              filterCount > 0
+                                  ? 'Filter ($filterCount)'
+                                  : 'Filter',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: filterCount > 0
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                              side: BorderSide(
+                                color: filterCount > 0
                                     ? AppColors.primary
-                                    : AppColors.textPrimary,
-                                side: BorderSide(
-                                  color: filterCount > 0
-                                      ? AppColors.primary
-                                      : AppColors.border,
-                                ),
-                                backgroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    : AppColors.border,
                               ),
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
                         ),
@@ -287,7 +228,8 @@ class FleetHubScreen extends ConsumerWidget {
                   ),
                 if (visible.isEmpty)
                   _EmptyVehiclesSliver(
-                    hasFilters: !hub.filters.isDefault || hub.search.trim().isNotEmpty,
+                    hasFilters:
+                        !hub.filters.isDefault || hub.search.trim().isNotEmpty,
                     loadFailed: hub.loadError != null,
                   )
                 else
@@ -382,9 +324,7 @@ class _LiveTrackingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasLive = liveVehicleCount > 0;
-    final color = hasLive
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF64748B);
+    final color = hasLive ? const Color(0xFF16A34A) : const Color(0xFF64748B);
     final title = hasLive ? 'Live tracking' : 'No live vehicles';
     final subtitle = hasLive
         ? '$liveVehicleCount vehicle${liveVehicleCount == 1 ? '' : 's'} connected'

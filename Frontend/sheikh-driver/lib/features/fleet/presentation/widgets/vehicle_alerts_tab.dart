@@ -9,9 +9,8 @@ import '../../../alerts/data/gps_alerts_api.dart';
 import '../../../alerts/domain/alert_display.dart';
 import '../../../alerts/domain/gps_alert_models.dart';
 
-final vehicleAlertsTabProvider =
-    FutureProvider.family<List<GpsAlertEvent>, ({int vehicleId, String preset})>(
-        (ref, args) {
+final vehicleAlertsTabProvider = FutureProvider.family<List<GpsAlertEvent>,
+    ({int vehicleId, String preset})>((ref, args) {
   return ref.read(gpsAlertsApiProvider).listEvents(
         vehicleId: args.vehicleId,
         datePreset: args.preset,
@@ -36,7 +35,9 @@ class VehicleAlertsTab extends ConsumerStatefulWidget {
 }
 
 enum _SeverityFilter { all, critical, warning, info }
+
 enum _StatusFilter { all, unacknowledged, acknowledged }
+
 enum _TypeFilter { all, offline, overspeed, geofence, other }
 
 class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
@@ -68,9 +69,8 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
       if (_severity != _SeverityFilter.all) {
         final match = switch (_severity) {
           _SeverityFilter.critical => sev == AlertDisplaySeverity.critical,
-          _SeverityFilter.warning =>
-            sev == AlertDisplaySeverity.warning ||
-                sev == AlertDisplaySeverity.resolved,
+          _SeverityFilter.warning => sev == AlertDisplaySeverity.warning ||
+              sev == AlertDisplaySeverity.resolved,
           _SeverityFilter.info => sev == AlertDisplaySeverity.info,
           _SeverityFilter.all => true,
         };
@@ -89,17 +89,15 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
       final key = normalizeAlertEventType(inc.primary.eventType);
       if (_type != _TypeFilter.all) {
         final ok = switch (_type) {
-          _TypeFilter.offline =>
-            key == 'vehicle_offline' || key == 'online',
+          _TypeFilter.offline => key == 'vehicle_offline' || key == 'online',
           _TypeFilter.overspeed => key == 'speed_exceeded',
           _TypeFilter.geofence =>
             key == 'geofence_enter' || key == 'geofence_exit',
-          _TypeFilter.other =>
-            key != 'vehicle_offline' &&
-                key != 'online' &&
-                key != 'speed_exceeded' &&
-                key != 'geofence_enter' &&
-                key != 'geofence_exit',
+          _TypeFilter.other => key != 'vehicle_offline' &&
+              key != 'online' &&
+              key != 'speed_exceeded' &&
+              key != 'geofence_enter' &&
+              key != 'geofence_exit',
           _TypeFilter.all => true,
         };
         if (!ok) return false;
@@ -144,25 +142,15 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
     )));
 
     return async.when(
-      loading: () => Center(child: SgBrandLoader()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$e', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _invalidate, child: const Text('Retry')),
-            ],
-          ),
-        ),
+      loading: () => const Center(child: SgBrandLoader()),
+      error: (e, _) => SgErrorView(
+        message: '$e',
+        onRetry: _invalidate,
       ),
       data: (raw) {
         final incidents = groupAlertIncidents(raw);
         final filtered = _filter(incidents);
-        final unacked =
-            filtered.where((i) => !i.primary.isAcknowledged).length;
+        final unacked = filtered.where((i) => !i.primary.isAcknowledged).length;
         final visible = filtered.take(_visibleCount).toList();
         final hasMore = filtered.length > visible.length;
 
@@ -321,7 +309,10 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
                         ? () async {
                             final ids = inc.acknowledgeIds.isNotEmpty
                                 ? inc.acknowledgeIds
-                                : [if (inc.primary.canAcknowledge) inc.primary.id];
+                                : [
+                                    if (inc.primary.canAcknowledge)
+                                      inc.primary.id
+                                  ];
                             if (ids.isEmpty) return;
                             await _acknowledgeIds(ids);
                             if (context.mounted) {
@@ -579,8 +570,7 @@ class _AlertIncidentCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: sevColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),

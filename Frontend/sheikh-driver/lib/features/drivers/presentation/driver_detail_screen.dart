@@ -74,7 +74,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
           ],
         ),
       );
-      if (ok != true) return;
+      if (ok != true || !mounted) return;
     }
 
     final vehicleId = await pickVehicleId(
@@ -99,7 +99,8 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isReassign ? 'Vehicle transferred' : 'Vehicle assigned'),
+            content:
+                Text(isReassign ? 'Vehicle transferred' : 'Vehicle assigned'),
           ),
         );
       }
@@ -136,8 +137,10 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
     if (ok != true) return;
     setState(() => _assignInFlight = true);
     try {
-      final prevVehicleId =
-          ref.read(driverDetailProvider(driverId)).valueOrNull?.assignedVehicleId;
+      final prevVehicleId = ref
+          .read(driverDetailProvider(driverId))
+          .valueOrNull
+          ?.assignedVehicleId;
       await ref.read(driversApiProvider).unassignVehicle(driverId);
       _invalidate(vehicleId: prevVehicleId);
       if (mounted) {
@@ -191,19 +194,20 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
             PopupMenuButton<String>(
               tooltip: 'Update status',
               onSelected: (status) async {
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   await ref
                       .read(driversApiProvider)
                       .updateStatus(driverId, status);
                   _invalidate();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(content: Text('Status → $status')),
                     );
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(content: Text(ErrorHandler.message(e))),
                     );
                   }
@@ -235,7 +239,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
           ],
         ),
         error: (e, _) => SgErrorView(
-          message: '$e',
+          message: ErrorHandler.message(e),
           onRetry: () => ref.invalidate(driverDetailProvider(driverId)),
         ),
         data: (d) {
@@ -263,306 +267,308 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
               await ref.read(driverDetailProvider(driverId).future);
             },
             child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              28 + MediaQuery.of(context).padding.bottom,
-            ),
-            children: [
-              SgCard(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SgAvatar(label: displayName, size: 56),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                displayName,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.3,
-                                      color: p.textPrimary,
-                                    ),
-                              ),
-                              if (d.driverCode != null) ...[
-                                const SizedBox(height: 2),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                28 + MediaQuery.of(context).padding.bottom,
+              ),
+              children: [
+                SgCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SgAvatar(label: displayName, size: 56),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  d.driverCode!,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: p.textMuted,
+                                  displayName,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3,
+                                        color: p.textPrimary,
+                                      ),
+                                ),
+                                if (d.driverCode != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    d.driverCode!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: p.textMuted,
+                                    ),
                                   ),
+                                ],
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    StatusBadge(d.status),
+                                    if (d.verificationStatus != null &&
+                                        d.verificationStatus!.isNotEmpty)
+                                      StatusBadge(
+                                        d.verificationStatus!,
+                                        color: verified
+                                            ? AppColors.success
+                                            : AppColors.warning,
+                                      ),
+                                    if (d.gpsOnline)
+                                      const StatusBadge(
+                                        'GPS online',
+                                        color: AppColors.success,
+                                      ),
+                                  ],
                                 ),
                               ],
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  StatusBadge(d.status),
-                                  if (d.verificationStatus != null &&
-                                      d.verificationStatus!.isNotEmpty)
-                                    StatusBadge(
-                                      d.verificationStatus!,
-                                      color: verified
-                                          ? AppColors.success
-                                          : AppColors.warning,
-                                    ),
-                                  if (d.gpsOnline)
-                                    const StatusBadge(
-                                      'GPS online',
-                                      color: AppColors.success,
-                                    ),
-                                ],
-                              ),
-                            ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Divider(height: 1, color: p.divider),
+                      const SizedBox(height: 12),
+                      _ContactLine(
+                        icon: Icons.phone_outlined,
+                        value: d.phone,
+                      ),
+                      if (d.email != null && d.email!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _ContactLine(
+                          icon: Icons.mail_outline_rounded,
+                          value: d.email!,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const SgSectionTitle(
+                  'License & compliance',
+                  subtitle: 'Documents and verification',
+                ),
+                const SizedBox(height: 8),
+                SgCard(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Column(
+                    children: [
+                      SgDetailRow('License', d.licenseNumber,
+                          showDivider: true),
+                      SgDetailRow(
+                        'Expiry',
+                        d.licenseExpiryDate != null
+                            ? df.format(d.licenseExpiryDate!.toLocal())
+                            : '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'License status',
+                        d.licenseExpired
+                            ? 'Expired'
+                            : d.licenseExpiringSoon
+                                ? 'Expiring soon'
+                                : 'Valid',
+                        valueColor: licenseColor,
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Verification',
+                        d.verificationStatus ?? '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow('CNIC', d.cnic ?? '—'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const SgSectionTitle(
+                  'Assignment',
+                  subtitle: 'Vehicle, branch, availability',
+                ),
+                const SizedBox(height: 8),
+                SgCard(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  onTap: d.assignedVehicleId != null
+                      ? () =>
+                          context.push('/fleet/vehicles/${d.assignedVehicleId}')
+                      : null,
+                  child: Column(
+                    children: [
+                      SgDetailRow(
+                        'Vehicle',
+                        d.assignedVehicleName ??
+                            d.assignedVehicleRegistration ??
+                            'Unassigned',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Plate',
+                        d.assignedVehicleRegistration ?? '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Branch',
+                        d.branchName ?? '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'GPS',
+                        d.gpsOnline ? 'Online' : 'Offline',
+                        valueColor:
+                            d.gpsOnline ? AppColors.success : p.textMuted,
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Availability',
+                        d.availabilityBucket ?? '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Rating',
+                        d.rating != null ? d.rating!.toStringAsFixed(1) : '—',
+                      ),
+                    ],
+                  ),
+                ),
+                if (canAssign) ...[
+                  const SizedBox(height: 12),
+                  if (assignBlock != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                          border: Border.all(
+                            color: AppColors.warning.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: Text(
+                          assignBlock,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _assignInFlight || assignBlock != null
+                              ? null
+                              : () => _assignVehicle(d),
+                          icon: _assignInFlight
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.local_shipping_outlined),
+                          label: Text(
+                            d.assignedVehicleId != null ? 'Reassign' : 'Assign',
+                          ),
+                        ),
+                      ),
+                      if (d.assignedVehicleId != null) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                _assignInFlight ? null : _unassignVehicle,
+                            icon: const Icon(Icons.link_off_outlined),
+                            label: const Text('Unassign'),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-                    Divider(height: 1, color: p.divider),
-                    const SizedBox(height: 12),
-                    _ContactLine(
-                      icon: Icons.phone_outlined,
-                      value: d.phone,
-                    ),
-                    if (d.email != null && d.email!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _ContactLine(
-                        icon: Icons.mail_outline_rounded,
-                        value: d.email!,
-                      ),
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const SgSectionTitle(
-                'License & compliance',
-                subtitle: 'Documents and verification',
-              ),
-              const SizedBox(height: 8),
-              SgCard(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Column(
-                  children: [
-                    SgDetailRow('License', d.licenseNumber, showDivider: true),
-                    SgDetailRow(
-                      'Expiry',
-                      d.licenseExpiryDate != null
-                          ? df.format(d.licenseExpiryDate!.toLocal())
-                          : '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'License status',
-                      d.licenseExpired
-                          ? 'Expired'
-                          : d.licenseExpiringSoon
-                              ? 'Expiring soon'
-                              : 'Valid',
-                      valueColor: licenseColor,
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Verification',
-                      d.verificationStatus ?? '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow('CNIC', d.cnic ?? '—'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const SgSectionTitle(
-                'Assignment',
-                subtitle: 'Vehicle, branch, availability',
-              ),
-              const SizedBox(height: 8),
-              SgCard(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                onTap: d.assignedVehicleId != null
-                    ? () => context
-                        .push('/fleet/vehicles/${d.assignedVehicleId}')
-                    : null,
-                child: Column(
-                  children: [
-                    SgDetailRow(
-                      'Vehicle',
-                      d.assignedVehicleName ??
-                          d.assignedVehicleRegistration ??
-                          'Unassigned',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Plate',
-                      d.assignedVehicleRegistration ?? '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Branch',
-                      d.branchName ?? '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'GPS',
-                      d.gpsOnline ? 'Online' : 'Offline',
-                      valueColor:
-                          d.gpsOnline ? AppColors.success : p.textMuted,
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Availability',
-                      d.availabilityBucket ?? '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Rating',
-                      d.rating != null ? d.rating!.toStringAsFixed(1) : '—',
-                    ),
-                  ],
-                ),
-              ),
-              if (canAssign) ...[
-                const SizedBox(height: 12),
-                if (assignBlock != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                        border: Border.all(
-                          color: AppColors.warning.withValues(alpha: 0.28),
-                        ),
-                      ),
-                      child: Text(
-                        assignBlock,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _assignInFlight || assignBlock != null
-                            ? null
-                            : () => _assignVehicle(d),
-                        icon: _assignInFlight
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.local_shipping_outlined),
-                        label: Text(
-                          d.assignedVehicleId != null ? 'Reassign' : 'Assign',
-                        ),
+                ],
+                const SizedBox(height: 18),
+                const SgSectionTitle(
+                  'Assignment history',
+                  subtitle: 'Recent vehicle transfers',
+                ),
+                const SizedBox(height: 8),
+                _AssignmentsHistoryCard(driverId: driverId, df: df),
+                if (canPerf) ...[
+                  const SizedBox(height: 18),
+                  const SgSectionTitle('Performance'),
+                  const SizedBox(height: 8),
+                  _PerformanceCard(driverId: driverId),
+                  const SizedBox(height: 18),
+                  const SgSectionTitle('Violations'),
+                  const SizedBox(height: 8),
+                  _ViolationsCard(driverId: driverId, df: df),
+                  const SizedBox(height: 18),
+                  const SgSectionTitle('Attendance (30 days)'),
+                  const SizedBox(height: 8),
+                  _AttendanceCard(driverId: driverId, tf: tf),
+                ],
+                const SizedBox(height: 18),
+                const SgSectionTitle('Documents'),
+                const SizedBox(height: 8),
+                _DocumentsCard(driverId: driverId, df: df),
+                const SizedBox(height: 18),
+                const SgSectionTitle('Profile'),
+                const SizedBox(height: 8),
+                SgCard(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Column(
+                    children: [
+                      SgDetailRow('Address', d.address ?? '—',
+                          showDivider: true),
+                      SgDetailRow(
+                        'Hire date',
+                        d.hireDate != null
+                            ? df.format(d.hireDate!.toLocal())
+                            : '—',
+                        showDivider: true,
                       ),
-                    ),
-                    if (d.assignedVehicleId != null) ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed:
-                              _assignInFlight ? null : _unassignVehicle,
-                          icon: const Icon(Icons.link_off_outlined),
-                          label: const Text('Unassign'),
-                        ),
+                      SgDetailRow(
+                        'Experience',
+                        d.yearsExperience != null
+                            ? '${d.yearsExperience} yrs'
+                            : '—',
+                        showDivider: true,
+                      ),
+                      SgDetailRow(
+                        'Emergency',
+                        [
+                          d.emergencyContactName,
+                          d.emergencyContact,
+                        ]
+                            .whereType<String>()
+                            .where((s) => s.isNotEmpty)
+                            .join(' · ')
+                            .ifEmpty('—'),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ],
-              const SizedBox(height: 18),
-              const SgSectionTitle(
-                'Assignment history',
-                subtitle: 'Recent vehicle transfers',
-              ),
-              const SizedBox(height: 8),
-              _AssignmentsHistoryCard(driverId: driverId, df: df),
-              if (canPerf) ...[
-                const SizedBox(height: 18),
-                const SgSectionTitle('Performance'),
-                const SizedBox(height: 8),
-                _PerformanceCard(driverId: driverId),
-                const SizedBox(height: 18),
-                const SgSectionTitle('Violations'),
-                const SizedBox(height: 8),
-                _ViolationsCard(driverId: driverId, df: df),
-                const SizedBox(height: 18),
-                const SgSectionTitle('Attendance (30 days)'),
-                const SizedBox(height: 8),
-                _AttendanceCard(driverId: driverId, tf: tf),
-              ],
-              const SizedBox(height: 18),
-              const SgSectionTitle('Documents'),
-              const SizedBox(height: 8),
-              _DocumentsCard(driverId: driverId, df: df),
-              const SizedBox(height: 18),
-              const SgSectionTitle('Profile'),
-              const SizedBox(height: 8),
-              SgCard(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Column(
-                  children: [
-                    SgDetailRow('Address', d.address ?? '—', showDivider: true),
-                    SgDetailRow(
-                      'Hire date',
-                      d.hireDate != null
-                          ? df.format(d.hireDate!.toLocal())
-                          : '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Experience',
-                      d.yearsExperience != null
-                          ? '${d.yearsExperience} yrs'
-                          : '—',
-                      showDivider: true,
-                    ),
-                    SgDetailRow(
-                      'Emergency',
-                      [
-                        d.emergencyContactName,
-                        d.emergencyContact,
-                      ]
-                          .whereType<String>()
-                          .where((s) => s.isNotEmpty)
-                          .join(' · ')
-                          .ifEmpty('—'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
           );
         },
       ),

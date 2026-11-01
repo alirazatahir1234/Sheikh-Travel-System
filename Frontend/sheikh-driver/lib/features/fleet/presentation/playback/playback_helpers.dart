@@ -189,10 +189,7 @@ List<int> eventMarkerIndices(
   List<HistoryReplayPoint> playback,
   List<TripEvent> events,
 ) {
-  return events
-      .map((e) => indexForTimestamp(playback, e.time))
-      .toSet()
-      .toList()
+  return events.map((e) => indexForTimestamp(playback, e.time)).toSet().toList()
     ..sort();
 }
 
@@ -216,7 +213,8 @@ List<PlaybackPolylineSegment> buildSpeedSegments(
 
   bool nearStop(HistoryReplayPoint p) {
     for (final s in stops) {
-      if (p.timestamp.isAfter(s.startTime.subtract(const Duration(minutes: 2))) &&
+      if (p.timestamp
+              .isAfter(s.startTime.subtract(const Duration(minutes: 2))) &&
           p.timestamp.isBefore(s.endTime.add(const Duration(minutes: 2)))) {
         return true;
       }
@@ -243,7 +241,8 @@ List<PlaybackPolylineSegment> buildSpeedSegments(
       bucket.add(p);
     } else {
       if (bucket.length >= 2) {
-        segments.add(PlaybackPolylineSegment(points: List.of(bucket), kind: currentKind));
+        segments.add(PlaybackPolylineSegment(
+            points: List.of(bucket), kind: currentKind));
       }
       currentKind = kind;
       bucket = [points[i - 1], p];
@@ -441,9 +440,7 @@ String buildKml(List<HistoryReplayPoint> route, {String? name}) {
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;');
-  final coords = route
-      .map((p) => '${p.longitude},${p.latitude},0')
-      .join(' ');
+  final coords = route.map((p) => '${p.longitude},${p.latitude},0').join(' ');
   return '''<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
@@ -510,15 +507,14 @@ int effectiveDrivingMinutes(HistoryReplayBundle bundle) {
   final stats = bundle.statistics;
   final summary = bundle.summary;
   final serverMinutes = stats?.drivingMinutes ?? summary?.drivingMinutes ?? 0;
-  final points = bundle.trailPoints.isNotEmpty ? bundle.trailPoints : bundle.points;
+  final points =
+      bundle.trailPoints.isNotEmpty ? bundle.trailPoints : bundle.points;
   final derivedMinutes = _deriveDrivingMinutesFromPoints(points);
   if (derivedMinutes <= 0) return serverMinutes;
   if (serverMinutes <= 0) return derivedMinutes;
 
-  final distanceKm = bundle.mileageKm ??
-      stats?.distanceKm ??
-      summary?.distanceKm ??
-      0;
+  final distanceKm =
+      bundle.mileageKm ?? stats?.distanceKm ?? summary?.distanceKm ?? 0;
 
   // Guardrail: short-distance trips should not report near-day driving windows.
   if (distanceKm <= 10 && serverMinutes > (derivedMinutes * 3)) {
@@ -545,8 +541,7 @@ int _deriveDrivingMinutesFromPoints(List<HistoryReplayPoint> points) {
 
     final segKm = segmentDistanceKm(a, b);
     final movingBySpeed = a.speedKmh >= 3 || b.speedKmh >= 3;
-    final movingByIgnition =
-        (a.ignition == true || b.ignition == true) &&
+    final movingByIgnition = (a.ignition == true || b.ignition == true) &&
         (a.speedKmh > 0 || b.speedKmh > 0);
     final movingByDistance = segKm >= 0.03;
 
@@ -592,15 +587,12 @@ class PlaybackStats {
         bundle.stops.isNotEmpty ? bundle.stops.length : (stats?.stopCount ?? 0);
     final overspeed = stats?.overspeedCount ??
         events.where((e) => e.type.toLowerCase().contains('speed')).length;
-    final sos = events
-        .where((e) => e.type.toLowerCase().contains('sos'))
-        .length;
-    final fuel = events
-        .where((e) => e.type.toLowerCase().contains('fuel'))
-        .length;
-    final ignition = events
-        .where((e) => e.type.toLowerCase().contains('ignition'))
-        .length;
+    final sos =
+        events.where((e) => e.type.toLowerCase().contains('sos')).length;
+    final fuel =
+        events.where((e) => e.type.toLowerCase().contains('fuel')).length;
+    final ignition =
+        events.where((e) => e.type.toLowerCase().contains('ignition')).length;
     return PlaybackStats(
       distanceKm: effectiveDistanceKm(bundle),
       drivingMinutes: effectiveDrivingMinutes(bundle),
@@ -732,8 +724,7 @@ class PlaybackTripMetrics {
     );
   }
 
-  String get distanceLabel =>
-      hasDistance ? formatDistanceKm(distanceKm) : '—';
+  String get distanceLabel => hasDistance ? formatDistanceKm(distanceKm) : '—';
 
   String get movingLabel => formatDurationMinutes(movingMinutes);
 
@@ -772,8 +763,7 @@ double? _positiveOrNull(double? v) {
 final playbackTimeFmt = DateFormat('h:mm a');
 final playbackDateTimeFmt = DateFormat('dd MMM, h:mm a');
 
-String formatPlaybackClock(DateTime dt) =>
-    playbackTimeFmt.format(dt.toLocal());
+String formatPlaybackClock(DateTime dt) => playbackTimeFmt.format(dt.toLocal());
 
 String formatPlaybackDateTime(DateTime dt) =>
     playbackDateTimeFmt.format(dt.toLocal());

@@ -151,8 +151,7 @@ int parseGoogleDurationSeconds(String? duration) {
 TripDrivingRoute? parsePlannedRouteData(Map<String, dynamic> data) {
   final encoded = data['encodedPolyline'] as String?;
   final duration = (data['durationSeconds'] as num?)?.toInt() ?? 0;
-  final staticDuration =
-      (data['staticDurationSeconds'] as num?)?.toInt();
+  final staticDuration = (data['staticDurationSeconds'] as num?)?.toInt();
   return _routeFromEncoded(
     encoded,
     distanceMeters: (data['distanceMeters'] as num?)?.toInt() ?? 0,

@@ -93,8 +93,7 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
   }) async {
     final api = ref.read(driversApiProvider);
     final prev = state.valueOrNull;
-    final effectiveStatus =
-        clearStatus ? null : (status ?? prev?.statusFilter);
+    final effectiveStatus = clearStatus ? null : (status ?? prev?.statusFilter);
     final effectiveLicense =
         licenseAlert ?? prev?.licenseAlert ?? DriverLicenseAlertFilter.none;
     final licenseQuery = licenseExpiryQuery(effectiveLicense);
@@ -185,9 +184,8 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
   Future<void> setLicenseAlert(DriverLicenseAlertFilter filter) async {
     final cur = state.valueOrNull;
     if (cur == null) return;
-    final next = cur.licenseAlert == filter
-        ? DriverLicenseAlertFilter.none
-        : filter;
+    final next =
+        cur.licenseAlert == filter ? DriverLicenseAlertFilter.none : filter;
     await _softReload(
       () => _load(status: cur.statusFilter, licenseAlert: next),
     );

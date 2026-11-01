@@ -16,8 +16,8 @@ class PaymentsApi {
   final Ref _ref;
 
   Future<PaymentSummary> getSummary(int tripId) async {
-    final res =
-        await _dio.get<Map<String, dynamic>>(ApiEndpoints.tripPaymentSummary(tripId));
+    final res = await _dio
+        .get<Map<String, dynamic>>(ApiEndpoints.tripPaymentSummary(tripId));
     ApiResponseParser.ensureSuccess(res.data);
     final raw = res.data?['data'];
     final map = raw is Map
@@ -34,26 +34,26 @@ class PaymentsApi {
     String? notes,
   }) async {
     await _ref.read(offlineSyncProvider).runOrQueue(
-          online: () async {
-            final res = await _dio.post<Map<String, dynamic>>(
-              ApiEndpoints.collectTripPayment(tripId),
-              data: {
-                'amountReceived': amountReceived,
-                'paymentMethod': paymentMethod,
-                'referenceNumber': referenceNumber,
-                'notes': notes,
-              },
-            );
-            ApiResponseParser.ensureSuccess(res.data);
-          },
-          type: OfflineOpType.paymentCollect,
-          payload: {
-            'tripId': tripId,
+      online: () async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          ApiEndpoints.collectTripPayment(tripId),
+          data: {
             'amountReceived': amountReceived,
             'paymentMethod': paymentMethod,
-            if (referenceNumber != null) 'referenceNumber': referenceNumber,
-            if (notes != null) 'notes': notes,
+            'referenceNumber': referenceNumber,
+            'notes': notes,
           },
         );
+        ApiResponseParser.ensureSuccess(res.data);
+      },
+      type: OfflineOpType.paymentCollect,
+      payload: {
+        'tripId': tripId,
+        'amountReceived': amountReceived,
+        'paymentMethod': paymentMethod,
+        if (referenceNumber != null) 'referenceNumber': referenceNumber,
+        if (notes != null) 'notes': notes,
+      },
+    );
   }
 }

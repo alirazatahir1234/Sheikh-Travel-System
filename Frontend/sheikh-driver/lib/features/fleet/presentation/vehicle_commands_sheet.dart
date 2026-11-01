@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../data/fleet_api.dart';
@@ -96,7 +97,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = ErrorHandler.message(e);
       });
     }
   }
@@ -180,7 +181,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(content: Text(ErrorHandler.message(e))),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -223,7 +224,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(content: Text(ErrorHandler.message(e))),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -242,7 +243,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(content: Text(ErrorHandler.message(e))),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -268,8 +269,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     });
 
     try {
-      final detail =
-          await ref.read(fleetApiProvider).getCommandById(cmd.id);
+      final detail = await ref.read(fleetApiProvider).getCommandById(cmd.id);
       if (!mounted || _expandedCommandId != cmd.id) return;
       setState(() {
         _expandedDetail = detail;
@@ -278,7 +278,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     } catch (e) {
       if (!mounted || _expandedCommandId != cmd.id) return;
       setState(() {
-        _expandedError = e.toString();
+        _expandedError = ErrorHandler.message(e);
         _expandedLoading = false;
       });
     }
@@ -309,12 +309,10 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
         ),
       );
     }
-    final canSend =
-        session!.hasPermission(FleetPermissions.gpsCommandSend);
+    final canSend = session!.hasPermission(FleetPermissions.gpsCommandSend);
     final canApprove =
         session.hasPermission(FleetPermissions.gpsCommandApprove);
-    final canCancel =
-        session.hasPermission(FleetPermissions.gpsCommandCancel);
+    final canCancel = session.hasPermission(FleetPermissions.gpsCommandCancel);
 
     // Prefer API-supported + available commands only (model templates + capabilities).
     final preferred = _supported
@@ -436,8 +434,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
                                 ),
                               if (canCancel && r.isCancellable)
                                 TextButton(
-                                  onPressed:
-                                      _sending ? null : () => _cancel(r),
+                                  onPressed: _sending ? null : () => _cancel(r),
                                   child: const Text('Cancel'),
                                 ),
                             ],
@@ -502,9 +499,8 @@ class _CommandResponsePanel extends StatelessWidget {
             ? 'No response text yet. STATUS/CHECK replies appear here when the tracker answers.'
             : body,
         style: TextStyle(
-          color: body.isEmpty
-              ? const Color(0xFF94A3B8)
-              : const Color(0xFFE2E8F0),
+          color:
+              body.isEmpty ? const Color(0xFF94A3B8) : const Color(0xFFE2E8F0),
           fontFamily: 'monospace',
           fontSize: 12.5,
           height: 1.45,

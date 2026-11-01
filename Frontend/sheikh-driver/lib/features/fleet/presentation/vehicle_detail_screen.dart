@@ -115,23 +115,10 @@ class VehicleDetailScreen extends ConsumerWidget {
           ),
         ),
         body: async.when(
-          loading: () => Center(child: SgBrandLoader()),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('$e', textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () =>
-                        ref.invalidate(vehicleDetailProvider(vehicleId)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
+          loading: () => const Center(child: SgBrandLoader()),
+          error: (e, _) => SgErrorView(
+            message: ErrorHandler.message(e),
+            onRetry: () => ref.invalidate(vehicleDetailProvider(vehicleId)),
           ),
           data: (v) => TabBarView(
             physics: const NeverScrollableScrollPhysics(),
@@ -390,7 +377,7 @@ class _VehicleAssignmentActionsState
           ],
         ),
       );
-      if (ok != true) return;
+      if (ok != true || !mounted) return;
     }
 
     final driverId = await pickDriverId(
@@ -511,8 +498,6 @@ class _VehicleAssignmentActionsState
   }
 }
 
-
-
 class _FuelTab extends ConsumerWidget {
   const _FuelTab({required this.vehicleId});
   final int vehicleId;
@@ -523,7 +508,7 @@ class _FuelTab extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return async.when(
-      loading: () => Center(child: SgBrandLoader()),
+      loading: () => const Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleFuelProvider(vehicleId)),
@@ -641,18 +626,9 @@ class _ErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('$error', textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
+    return SgErrorView(
+      message: ErrorHandler.message(error),
+      onRetry: onRetry,
     );
   }
 }
@@ -705,8 +681,9 @@ class _DeviceTab extends ConsumerWidget {
     final session = ref.watch(fleetSessionProvider);
     final canCommands = session?.canUseGpsCommands ?? false;
 
+    final df = DateFormat('dd MMM yyyy, HH:mm');
     return async.when(
-      loading: () => Center(child: SgBrandLoader()),
+      loading: () => const Center(child: SgBrandLoader()),
       error: (e, _) => _ErrorRetry(
         error: e,
         onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
@@ -733,7 +710,9 @@ class _DeviceTab extends ConsumerWidget {
                 _Row('GSM signal', '${info.gsmSignal ?? '—'}'),
                 _Row(
                   'Last packet',
-                  info.lastUpdate?.toLocal().toString() ?? '—',
+                  info.lastUpdate != null
+                      ? df.format(info.lastUpdate!.toLocal())
+                      : '—',
                 ),
               ],
             ),
@@ -747,8 +726,7 @@ class _DeviceTab extends ConsumerWidget {
             ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () =>
-                context.push('/fleet/vehicles/$vehicleId/device'),
+            onPressed: () => context.push('/fleet/vehicles/$vehicleId/device'),
             icon: const Icon(Icons.sensors),
             label: const Text('Full device health screen'),
           ),

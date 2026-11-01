@@ -16,8 +16,7 @@ final staffFuelListProvider =
 
 class StaffFuelListNotifier extends AsyncNotifier<List<StaffFuelLog>> {
   @override
-  Future<List<StaffFuelLog>> build() =>
-      ref.read(staffFuelApiProvider).list();
+  Future<List<StaffFuelLog>> build() => ref.read(staffFuelApiProvider).list();
 
   Future<void> refresh() async {
     state = const AsyncLoading();
@@ -60,7 +59,7 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
         ],
       ),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -99,8 +98,7 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
 
           return RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () =>
-                ref.read(staffFuelListProvider.notifier).refresh(),
+            onRefresh: () => ref.read(staffFuelListProvider.notifier).refresh(),
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -181,7 +179,8 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.10),
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.10),
                                   borderRadius:
                                       BorderRadius.circular(AppRadii.sm),
                                 ),
@@ -239,7 +238,8 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.10),
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.10),
                                   borderRadius:
                                       BorderRadius.circular(AppRadii.pill),
                                   border: Border.all(
@@ -285,7 +285,7 @@ class StaffFuelDetailScreen extends ConsumerWidget {
       backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Fuel log')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
         data: (l) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -298,7 +298,8 @@ class StaffFuelDetailScreen extends ConsumerWidget {
                   _Row('Driver', l.driverLabel),
                   _Row('Liters', l.liters.toStringAsFixed(2)),
                   _Row('Price / L', l.pricePerLiter.toStringAsFixed(2)),
-                  _Row('Total', l.totalCost.toStringAsFixed(2), emphasize: true),
+                  _Row('Total', l.totalCost.toStringAsFixed(2),
+                      emphasize: true),
                   _Row('Odometer', l.odometerReading.toStringAsFixed(0)),
                   _Row('Fuel type', l.fuelType),
                   _Row('Station', l.station ?? '—'),
@@ -309,8 +310,7 @@ class StaffFuelDetailScreen extends ConsumerWidget {
             if (l.vehicleId > 0) ...[
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () =>
-                    context.push('/fleet/vehicles/${l.vehicleId}'),
+                onPressed: () => context.push('/fleet/vehicles/${l.vehicleId}'),
                 child: const Text(
                   'Open vehicle',
                   style: TextStyle(fontWeight: FontWeight.w700),

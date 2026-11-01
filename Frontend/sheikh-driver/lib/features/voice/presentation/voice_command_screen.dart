@@ -78,8 +78,10 @@ class _VoiceCommandScreenState extends ConsumerState<VoiceCommandScreen> {
     });
 
     await _speech.listen(
-      localeId: _locale.speechTag,
-      listenMode: ListenMode.confirmation,
+      listenOptions: SpeechListenOptions(
+        localeId: _locale.speechTag,
+        listenMode: ListenMode.confirmation,
+      ),
       onResult: (result) {
         setState(() {
           _partial = result.recognizedWords;
@@ -171,7 +173,8 @@ class _VoiceCommandScreenState extends ConsumerState<VoiceCommandScreen> {
                       .map(
                         (l) => ButtonSegment(
                           value: l,
-                          label: Text(l.label, style: const TextStyle(fontSize: 12)),
+                          label: Text(l.label,
+                              style: const TextStyle(fontSize: 12)),
                         ),
                       )
                       .toList(),
@@ -228,7 +231,9 @@ class _VoiceCommandScreenState extends ConsumerState<VoiceCommandScreen> {
                             child: Icon(
                               _listening ? Icons.mic : Icons.mic_none_rounded,
                               size: 44,
-                              color: _listening ? AppColors.error : AppColors.primary,
+                              color: _listening
+                                  ? AppColors.error
+                                  : AppColors.primary,
                             ),
                           ),
                         ),

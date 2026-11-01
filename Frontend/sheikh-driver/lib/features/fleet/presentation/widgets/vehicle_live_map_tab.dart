@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_theme.dart';
@@ -109,7 +108,8 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
     });
   }
 
-  Future<void> _animateTo(LatLng target, {double? zoom, double? bearing}) async {
+  Future<void> _animateTo(LatLng target,
+      {double? zoom, double? bearing}) async {
     final map = _map;
     if (map == null) return;
     _ignoreCameraMove = true;
@@ -191,9 +191,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
         )
         .valueOrNull;
     final line = info?.displayLine.trim();
-    if (line != null &&
-        line.isNotEmpty &&
-        !isLiveMapCoordsOnlyAddress(line)) {
+    if (line != null && line.isNotEmpty && !isLiveMapCoordsOnlyAddress(line)) {
       return line;
     }
     if (inline != null &&
@@ -266,7 +264,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
     final gpsError = widget.gpsAsync.hasError ? widget.gpsAsync.error : null;
 
     if (widget.gpsAsync.isLoading && gps == null && widget.live == null) {
-      return Center(child: SgBrandLoader());
+      return const Center(child: SgBrandLoader());
     }
 
     if (gpsError != null && gps == null && _position == null) {
@@ -298,7 +296,8 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
               SgCard(
                 child: Column(
                   children: [
-                    const Icon(Icons.gps_off, size: 40, color: AppColors.textMuted),
+                    const Icon(Icons.gps_off,
+                        size: 40, color: AppColors.textMuted),
                     const SizedBox(height: 10),
                     const Text(
                       'No live GPS position yet',
@@ -461,10 +460,9 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
                   _LiveActions(
                     vehicleId: widget.vehicleId,
                     hasDevice: gps?.gpsDeviceId != null,
-                    canCommands: ref
-                            .watch(fleetSessionProvider)
-                            ?.canUseGpsCommands ??
-                        false,
+                    canCommands:
+                        ref.watch(fleetSessionProvider)?.canUseGpsCommands ??
+                            false,
                   ),
                 ],
               ),
@@ -508,7 +506,8 @@ class _LiveStatusOverlay extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  decoration:
+                      BoxDecoration(color: color, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -545,7 +544,8 @@ class _LiveStatusOverlay extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               _formatLiveFreshness(lastUpdate),
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style:
+                  const TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -667,7 +667,8 @@ class _TelemetryCard extends ConsumerWidget {
     final ignition = live?.ignition ?? gps.lastIgnition;
     final battery = live?.batteryLevel ?? gps.batteryLevel;
     final last = live?.lastUpdated ?? gps.lastUpdate;
-    final online = gps.gpsOnline || vehicle.gpsOnline ||
+    final online = gps.gpsOnline ||
+        vehicle.gpsOnline ||
         (last != null && DateTime.now().difference(last).inMinutes <= 10);
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
@@ -687,8 +688,7 @@ class _TelemetryCard extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: (online ? AppColors.success : AppColors.textMuted)
                       .withValues(alpha: 0.12),
@@ -708,14 +708,17 @@ class _TelemetryCard extends ConsumerWidget {
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          _metric('Speed', speed != null ? '${speed.toStringAsFixed(0)} km/h' : '—'),
+          _metric('Speed',
+              speed != null ? '${speed.toStringAsFixed(0)} km/h' : '—'),
           _metric(
             'Ignition',
             ignition == null ? 'Not available' : (ignition ? 'ON' : 'OFF'),
           ),
           _metric(
             'Battery',
-            battery != null ? '${battery.toStringAsFixed(0)}%' : 'Not available',
+            battery != null
+                ? '${battery.toStringAsFixed(0)}%'
+                : 'Not available',
           ),
           _metric(
             'GPS',
@@ -769,9 +772,7 @@ class _TelemetryCard extends ConsumerWidget {
       )),
     );
     final line = async.valueOrNull?.displayLine.trim();
-    if (line != null &&
-        line.isNotEmpty &&
-        !isLiveMapCoordsOnlyAddress(line)) {
+    if (line != null && line.isNotEmpty && !isLiveMapCoordsOnlyAddress(line)) {
       return line;
     }
     if (inline != null &&
@@ -944,9 +945,7 @@ class _LiveMapFullscreenPageState
         )
         .valueOrNull;
     final line = info?.displayLine.trim();
-    if (line != null &&
-        line.isNotEmpty &&
-        !isLiveMapCoordsOnlyAddress(line)) {
+    if (line != null && line.isNotEmpty && !isLiveMapCoordsOnlyAddress(line)) {
       return line;
     }
     if (inline != null &&

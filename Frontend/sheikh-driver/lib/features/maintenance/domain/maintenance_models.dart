@@ -78,7 +78,8 @@ class MaintenanceAlertItem {
           json['VehicleRegistration'] as String?,
       alertType:
           json['alertType'] as String? ?? json['AlertType'] as String? ?? '',
-      severity: json['severity'] as String? ?? json['Severity'] as String? ?? '',
+      severity:
+          json['severity'] as String? ?? json['Severity'] as String? ?? '',
       title: json['title'] as String? ?? json['Title'] as String? ?? '',
       message: json['message'] as String? ?? json['Message'] as String? ?? '',
       createdAt:
@@ -112,8 +113,9 @@ class UpcomingServiceItem {
     return UpcomingServiceItem(
       scheduleId: json['scheduleId'] as int? ?? json['ScheduleId'] as int?,
       vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
-      vehicleName:
-          json['vehicleName'] as String? ?? json['VehicleName'] as String? ?? '',
+      vehicleName: json['vehicleName'] as String? ??
+          json['VehicleName'] as String? ??
+          '',
       vehicleRegistration: json['vehicleRegistration'] as String? ??
           json['VehicleRegistration'] as String?,
       serviceType: json['serviceType'] as String? ??
@@ -122,7 +124,8 @@ class UpcomingServiceItem {
       dueDate: _date(json['dueDate'] ?? json['DueDate']),
       dueMileage: (json['dueMileage'] as num? ?? json['DueMileage'] as num?)
           ?.toDouble(),
-      priority: json['priority'] as String? ?? json['Priority'] as String? ?? '',
+      priority:
+          json['priority'] as String? ?? json['Priority'] as String? ?? '',
     );
   }
 }
@@ -175,11 +178,10 @@ class PredictiveMaintenanceAlert {
           _date(json['predictedDueDate'] ?? json['PredictedDueDate']),
       dueMileage: (json['dueMileage'] as num? ?? json['DueMileage'] as num?)
           ?.toDouble(),
-      progressPercent: json['progressPercent'] as int? ??
-          json['ProgressPercent'] as int?,
-      remainingKm:
-          (json['remainingKm'] as num? ?? json['RemainingKm'] as num?)
-              ?.toDouble(),
+      progressPercent:
+          json['progressPercent'] as int? ?? json['ProgressPercent'] as int?,
+      remainingKm: (json['remainingKm'] as num? ?? json['RemainingKm'] as num?)
+          ?.toDouble(),
     );
   }
 
@@ -211,8 +213,7 @@ class MaintenanceDashboard {
     final alertsRaw = json['criticalAlerts'] ?? json['CriticalAlerts'];
     final recentRaw = json['recentWorkOrders'] ?? json['RecentWorkOrders'];
     final upcomingRaw = json['upcomingServices'] ?? json['UpcomingServices'];
-    final predictiveRaw =
-        json['predictiveAlerts'] ?? json['PredictiveAlerts'];
+    final predictiveRaw = json['predictiveAlerts'] ?? json['PredictiveAlerts'];
 
     return MaintenanceDashboard(
       kpis: kpisRaw is Map
@@ -356,21 +357,25 @@ class MaintenanceRequestItem {
       vehicleRegistration: json['vehicleRegistration'] as String? ??
           json['VehicleRegistration'] as String?,
       driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
-      requestDate: _date(json['requestDate'] ?? json['RequestDate']) ??
-          DateTime.now(),
-      requestType:
-          json['requestType'] as String? ?? json['RequestType'] as String? ?? '',
-      priority: json['priority'] as String? ?? json['Priority'] as String? ?? '',
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
+      requestDate:
+          _date(json['requestDate'] ?? json['RequestDate']) ?? DateTime.now(),
+      requestType: json['requestType'] as String? ??
+          json['RequestType'] as String? ??
+          '',
+      priority:
+          json['priority'] as String? ?? json['Priority'] as String? ?? '',
       issueCategory: json['issueCategory'] as String? ??
           json['IssueCategory'] as String? ??
           '',
-      description:
-          json['description'] as String? ?? json['Description'] as String? ?? '',
+      description: json['description'] as String? ??
+          json['Description'] as String? ??
+          '',
       breakdownLocation: json['breakdownLocation'] as String? ??
           json['BreakdownLocation'] as String?,
-      driverRemarks: json['driverRemarks'] as String? ??
-          json['DriverRemarks'] as String?,
+      driverRemarks:
+          json['driverRemarks'] as String? ?? json['DriverRemarks'] as String?,
       status: json['status'] as String? ?? json['Status'] as String? ?? '',
       workOrderId: json['workOrderId'] as int? ?? json['WorkOrderId'] as int?,
       createdAt:
@@ -388,8 +393,7 @@ class MaintenanceRequestItem {
     );
   }
 
-  bool get canApprove =>
-      status == 'Open' || status == 'PendingApproval';
+  bool get canApprove => status == 'Open' || status == 'PendingApproval';
   bool get canConvert =>
       status == 'Approved' || status == 'Open' || status == 'PendingApproval';
 }
@@ -415,11 +419,10 @@ class WorkOrderPartUsage {
       partName:
           json['partName'] as String? ?? json['PartName'] as String? ?? '',
       quantity: json['quantity'] as int? ?? json['Quantity'] as int? ?? 0,
-      unitCost:
-          (json['unitCost'] as num? ?? json['UnitCost'] as num? ?? 0).toDouble(),
-      totalCost:
-          (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
-              .toDouble(),
+      unitCost: (json['unitCost'] as num? ?? json['UnitCost'] as num? ?? 0)
+          .toDouble(),
+      totalCost: (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
+          .toDouble(),
     );
   }
 }
@@ -488,25 +491,24 @@ class WorkOrderItem {
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
       vehicleRegistration: json['vehicleRegistration'] as String? ??
           json['VehicleRegistration'] as String?,
-      driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
       serviceTypeName: json['serviceTypeName'] as String? ??
           json['ServiceTypeName'] as String?,
       status: json['status'] as String? ?? json['Status'] as String? ?? '',
       priority: json['priority'] as String? ?? json['Priority'] as String?,
       maintenanceType: json['maintenanceType'] as String? ??
           json['MaintenanceType'] as String?,
-      laborCost:
-          (json['laborCost'] as num? ?? json['LaborCost'] as num? ?? 0)
-              .toDouble(),
-      partsCost:
-          (json['partsCost'] as num? ?? json['PartsCost'] as num? ?? 0)
-              .toDouble(),
+      laborCost: (json['laborCost'] as num? ?? json['LaborCost'] as num? ?? 0)
+          .toDouble(),
+      partsCost: (json['partsCost'] as num? ?? json['PartsCost'] as num? ?? 0)
+          .toDouble(),
       totalCost: (json['totalCost'] as num? ?? json['TotalCost'] as num? ?? 0)
           .toDouble(),
       workshopName:
           json['workshopName'] as String? ?? json['WorkshopName'] as String?,
-      technicianName:
-          json['technicianName'] as String? ?? json['TechnicianName'] as String?,
+      technicianName: json['technicianName'] as String? ??
+          json['TechnicianName'] as String?,
       notes: json['notes'] as String? ?? json['Notes'] as String?,
       technicianNotes: json['technicianNotes'] as String? ??
           json['TechnicianNotes'] as String?,
@@ -521,9 +523,7 @@ class WorkOrderItem {
   }
 
   bool get canComplete =>
-      status != 'Completed' &&
-      status != 'Closed' &&
-      status != 'Cancelled';
+      status != 'Completed' && status != 'Closed' && status != 'Cancelled';
 }
 
 class MaintenanceScheduleItem {
@@ -584,7 +584,8 @@ class MaintenanceScheduleItem {
       intervalValue:
           json['intervalValue'] as int? ?? json['IntervalValue'] as int? ?? 0,
       status: json['status'] as String? ?? json['Status'] as String? ?? '',
-      priority: json['priority'] as String? ?? json['Priority'] as String? ?? '',
+      priority:
+          json['priority'] as String? ?? json['Priority'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? json['IsActive'] as bool? ?? true,
       lastServiceDate:
           _date(json['lastServiceDate'] ?? json['LastServiceDate']),

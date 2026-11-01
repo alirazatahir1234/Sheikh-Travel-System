@@ -36,7 +36,8 @@ class FuelSubmitState {
 }
 
 final fuelNotifierProvider =
-    AutoDisposeNotifierProvider<FuelNotifier, FuelSubmitState>(FuelNotifier.new);
+    AutoDisposeNotifierProvider<FuelNotifier, FuelSubmitState>(
+        FuelNotifier.new);
 
 final fuelHistoryProvider = FutureProvider.autoDispose<List<FuelLog>>(
   (ref) => ref.read(fuelApiProvider).getHistory(),

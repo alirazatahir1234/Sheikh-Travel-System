@@ -200,7 +200,8 @@ class _OnlineCard extends StatelessWidget {
                 color: badgeColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
-              child: Icon(Icons.navigation_rounded, color: badgeColor, size: 20),
+              child:
+                  Icon(Icons.navigation_rounded, color: badgeColor, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -303,7 +304,8 @@ class _MetricGrid extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _VehicleMetric(label: left.label, value: left.value)),
+              Expanded(
+                  child: _VehicleMetric(label: left.label, value: left.value)),
               const SizedBox(width: 16),
               Expanded(
                 child: right == null

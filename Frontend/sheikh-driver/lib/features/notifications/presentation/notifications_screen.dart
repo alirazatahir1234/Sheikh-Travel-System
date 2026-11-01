@@ -113,29 +113,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: async.when(
-              loading: () => Center(child: SgBrandLoader()),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('$e', textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    SgPrimaryButton(
-                      label: 'Retry',
-                      onPressed: () =>
-                          ref.invalidate(notificationsListProvider),
-                    ),
-                  ],
-                ),
+              loading: () => const Center(child: SgBrandLoader()),
+              error: (e, _) => SgErrorView(
+                message: '$e',
+                onRetry: () => ref.invalidate(notificationsListProvider),
               ),
               data: (items) {
                 final filtered = _applyTab(items);
                 if (filtered.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No notifications',
-                      style: TextStyle(color: context.sg.textSecondary),
-                    ),
+                  return const SgEmptyState(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'No notifications',
+                    subtitle: 'You are all caught up.',
                   );
                 }
                 return RefreshIndicator(
@@ -148,8 +137,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) => _AlertCard(
                       notification: filtered[i],
-                      archived:
-                          filter.mailbox == NotificationMailbox.archived,
+                      archived: filter.mailbox == NotificationMailbox.archived,
                     ),
                   ),
                 );
@@ -266,9 +254,8 @@ class _AlertCard extends ConsumerWidget {
                   display,
                   style: TextStyle(
                     color: context.sg.textPrimary,
-                    fontWeight: notification.isRead
-                        ? FontWeight.w500
-                        : FontWeight.w700,
+                    fontWeight:
+                        notification.isRead ? FontWeight.w500 : FontWeight.w700,
                     fontSize: 14,
                   ),
                 ),

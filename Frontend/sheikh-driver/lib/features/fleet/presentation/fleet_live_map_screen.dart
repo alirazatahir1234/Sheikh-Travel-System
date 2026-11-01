@@ -7,8 +7,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
-import '../../../features/auth/domain/auth_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import 'fleet_hub_notifier.dart';
@@ -18,7 +18,7 @@ import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/pulse_vehicle_overlay.dart';
 import 'widgets/vehicle_live_map_sheet.dart';
 import 'widgets/vehicle_pulse_icons.dart';
-import '../../../shared/widgets/sg_brand_loader.dart';
+import '../../../shared/widgets/sg_ui.dart';
 
 class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
@@ -152,7 +152,9 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           if (firstPoly is List && firstPoly.isNotEmpty) {
             ring = firstPoly.first is List ? firstPoly.first as List : null;
           }
-        } else if (coords is List && coords.isNotEmpty && coords.first is List) {
+        } else if (coords is List &&
+            coords.isNotEmpty &&
+            coords.first is List) {
           // Bare coordinates array fallback.
           ring = coords.first as List;
         }
@@ -188,26 +190,23 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   }
 
   Set<Marker> _markers(List<FleetVehicleLocation> locations) {
-    return locations
-        .where((v) => v.hasMapCoords)
-        .map(
-          (v) {
-            final selected = v.vehicleId == _selectedId;
-            final rotates = VehiclePulseIcons.rotatesWithHeading(v.status);
-            return Marker(
-              markerId: MarkerId('v${v.vehicleId}'),
-              position: LatLng(v.latitude!, v.longitude!),
-              rotation: rotates ? (v.heading ?? 0) : 0,
-              flat: true,
-              anchor: const Offset(0.5, 0.5),
-              zIndexInt: selected ? 10 : 1,
-              icon: _iconFor(v.status, selected: selected),
-              infoWindow: InfoWindow.noText,
-              onTap: () => _selectVehicle(v.vehicleId),
-            );
-          },
-        )
-        .toSet();
+    return locations.where((v) => v.hasMapCoords).map(
+      (v) {
+        final selected = v.vehicleId == _selectedId;
+        final rotates = VehiclePulseIcons.rotatesWithHeading(v.status);
+        return Marker(
+          markerId: MarkerId('v${v.vehicleId}'),
+          position: LatLng(v.latitude!, v.longitude!),
+          rotation: rotates ? (v.heading ?? 0) : 0,
+          flat: true,
+          anchor: const Offset(0.5, 0.5),
+          zIndexInt: selected ? 10 : 1,
+          icon: _iconFor(v.status, selected: selected),
+          infoWindow: InfoWindow.noText,
+          onTap: () => _selectVehicle(v.vehicleId),
+        );
+      },
+    ).toSet();
   }
 
   Future<void> _zoomBy(double delta) async {
@@ -509,8 +508,11 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                 async.requireValue,
                 canCommands: canCommands,
               )
-            : Center(child: SgBrandLoader()),
-        error: (e, _) => Center(child: Text('$e')),
+            : const Center(child: SgBrandLoader()),
+        error: (e, _) => SgErrorView(
+          message: ErrorHandler.message(e),
+          onRetry: () => unawaited(_manualRefresh(refit: true)),
+        ),
         data: (hub) => _buildMapBody(hub, canCommands: canCommands),
       ),
     );
@@ -693,12 +695,6 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                   icon: Icons.search_rounded,
                   tooltip: 'Search vehicle',
                   onPressed: () => _searchVehicle(visible),
-                ),
-                const SizedBox(height: 8),
-                _MapFab(
-                  icon: Icons.refresh_rounded,
-                  tooltip: 'Refresh',
-                  onPressed: () => unawaited(_manualRefresh()),
                 ),
               ],
             ),

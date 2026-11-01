@@ -79,8 +79,8 @@ class DashboardApi {
   ) async {
     final errors = <String, String>{};
     final results = await Future.wait([
-      _safeTagged(
-          'driver', () => _getDriverSummary(), DriverDashboardSummary.empty, errors),
+      _safeTagged('driver', () => _getDriverSummary(),
+          DriverDashboardSummary.empty, errors),
       _safeTagged(
           'timeline', () => _getDriverTimeline(), <ActivityItem>[], errors),
       _safeTagged('notifications', () => _getDriverNotifications(),
@@ -251,11 +251,8 @@ class DashboardApi {
   ) async {
     final errors = <String, String>{};
     final results = await Future.wait([
-      _safeTagged(
-          'operatorSummary',
-          () => _getOperatorSummary(),
-          GpsOperatorSummary.empty,
-          errors),
+      _safeTagged('operatorSummary', () => _getOperatorSummary(),
+          GpsOperatorSummary.empty, errors),
       _safeTagged(
           'liveTrips', () => _getLiveTrips(), <OpsTripListItem>[], errors),
       _safeTagged(
@@ -564,15 +561,14 @@ class DashboardApi {
     GpsFleetStatusKpis gps,
     FleetOpsDashboard fleet,
   ) {
-    final total = gps.totalVehicles > 0 ? gps.totalVehicles : fleet.totalVehicles;
+    final total =
+        gps.totalVehicles > 0 ? gps.totalVehicles : fleet.totalVehicles;
     final moving = gps.moving < 0 ? 0 : gps.moving;
     final idle = (gps.idle + gps.parked + gps.sos).clamp(0, 1 << 30);
     final neverSeen = gps.neverSeen < 0 ? 0 : gps.neverSeen;
     // Prefer API "online" (fresh GPS = moving+idle). Fall back to moving+idle if API omitted it.
     final onlineFromApi = gps.online;
-    final online = onlineFromApi > 0
-        ? onlineFromApi
-        : (moving + idle);
+    final online = onlineFromApi > 0 ? onlineFromApi : (moving + idle);
     var offline = total - online - neverSeen;
     if (offline < 0) {
       offline = gps.offline < 0 ? 0 : gps.offline;
@@ -672,12 +668,10 @@ class DashboardApi {
       'Fleet health is ${data.healthLabel.toLowerCase()}.',
     ];
     if (due > 0) {
-      parts.add(
-          '$due vehicle${due == 1 ? '' : 's'} require maintenance.');
+      parts.add('$due vehicle${due == 1 ? '' : 's'} require maintenance.');
     }
     if (offline > 0) {
-      parts.add(
-          '$offline vehicle${offline == 1 ? '' : 's'} offline.');
+      parts.add('$offline vehicle${offline == 1 ? '' : 's'} offline.');
     }
     if (critical > 0) {
       parts.add('$critical critical alert${critical == 1 ? '' : 's'}.');
@@ -798,8 +792,7 @@ class DashboardApi {
                 (raw['bookingNumber'] ?? raw['BookingNumber'] ?? '').toString();
             final c =
                 (raw['customerName'] ?? raw['CustomerName'] ?? '').toString();
-            return n.toLowerCase().contains(lq) ||
-                c.toLowerCase().contains(lq);
+            return n.toLowerCase().contains(lq) || c.toLowerCase().contains(lq);
           })
           .take(10)
           .map((raw) {
@@ -1027,7 +1020,8 @@ class DashboardApi {
   }
 
   String _activityKindFromNotification(AppNotification n) {
-    final t = '${n.type} ${n.module ?? ''} ${n.title} ${n.message}'.toLowerCase();
+    final t =
+        '${n.type} ${n.module ?? ''} ${n.title} ${n.message}'.toLowerCase();
     if (t.contains('check-in') ||
         t.contains('check in') ||
         t.contains('attendance') ||
@@ -1053,7 +1047,8 @@ class DashboardApi {
           DateTime.now();
       return ActivityItem(
         at: at,
-        title: json['title'] as String? ?? json['eventType'] as String? ?? 'Event',
+        title:
+            json['title'] as String? ?? json['eventType'] as String? ?? 'Event',
         subtitle: json['description'] as String? ?? '',
         kind: 'trip',
         route: '/timeline',
@@ -1086,8 +1081,7 @@ class DashboardApi {
   }
 
   List<KpiCell> _driverPrimaryKpis(DriverDashboardSummary d) {
-    final remaining =
-        (d.assignedTripsToday - d.completedToday).clamp(0, 999);
+    final remaining = (d.assignedTripsToday - d.completedToday).clamp(0, 999);
     return [
       KpiCell(
         label: "Today's Trips",
@@ -1212,7 +1206,8 @@ class DashboardApi {
     return [
       KpiCell(
         label: 'Fuel (mo)',
-        value: _shortMoney(fuel.totalCost > 0 ? fuel.totalCost : fleet.monthlyFuelCost),
+        value: _shortMoney(
+            fuel.totalCost > 0 ? fuel.totalCost : fleet.monthlyFuelCost),
         colorKey: 'warning',
         route: '/more/reports',
       ),
@@ -1323,9 +1318,8 @@ class DashboardApi {
         severity: 'critical',
       ));
     }
-    final due = maint.overdueServices > 0
-        ? maint.overdueServices
-        : maint.dueForService;
+    final due =
+        maint.overdueServices > 0 ? maint.overdueServices : maint.dueForService;
     if (due > 0) {
       items.add(AiAttentionItem(
         text: '$due maintenance due',
@@ -1416,8 +1410,7 @@ class DashboardApi {
         : (100.0 * gps.online / gps.totalVehicles).round();
     return [
       AiAttentionItem(
-        text:
-            'Platform overview (tenant scope) — fleet health $health%',
+        text: 'Platform overview (tenant scope) — fleet health $health%',
         route: '/fleet',
         suggestedPrompt: 'Summarize this tenant operational health',
         severity: health >= 80 ? 'success' : 'warning',

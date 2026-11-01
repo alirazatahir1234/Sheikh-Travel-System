@@ -62,7 +62,8 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     });
     _locationSub = SignalRService.instance.locationUpdates.listen((update) {
       if (!mounted) return;
-      if (_trackingVehicleId != null && update.vehicleId != _trackingVehicleId) {
+      if (_trackingVehicleId != null &&
+          update.vehicleId != _trackingVehicleId) {
         return;
       }
       setState(() {
@@ -103,7 +104,8 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
 
   Future<void> _pollVehicleGps(int vehicleId) async {
     try {
-      final res = await ref.read(dioProvider).get(ApiEndpoints.vehicleGps(vehicleId));
+      final res =
+          await ref.read(dioProvider).get(ApiEndpoints.vehicleGps(vehicleId));
       final data = res.data;
       if (data is! Map) return;
       final map = Map<String, dynamic>.from(data);
@@ -186,15 +188,15 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       _batteryHintShown = true;
       // No REQUEST_IGNORE_BATTERY_OPTIMIZATIONS — optional settings link only.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
+        const SnackBar(
+          content: Text(
             'For reliable tracking, allow unrestricted battery use in Settings.',
           ),
           action: SnackBarAction(
             label: 'Settings',
             onPressed: openAppSettings,
           ),
-          duration: const Duration(seconds: 6),
+          duration: Duration(seconds: 6),
         ),
       );
     }
@@ -365,8 +367,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
             const SizedBox(height: 16),
             SgPrimaryButton(
               label: gps.isTracking ? 'Stop sharing' : 'Start sharing',
-              icon:
-                  gps.isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded,
+              icon: gps.isTracking
+                  ? Icons.stop_rounded
+                  : Icons.play_arrow_rounded,
               onPressed: gps.isTracking ? _stopTracking : _startTracking,
             ),
             const SizedBox(height: 10),

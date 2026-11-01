@@ -17,11 +17,9 @@ class SecurityBlockScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isEmulatorBlock =
-        report.isEmulator && AppConfig.blockEmulators;
-    final title = isEmulatorBlock
-        ? 'Emulator not allowed'
-        : 'Device not allowed';
+    final isEmulatorBlock = report.isEmulator && AppConfig.blockEmulators;
+    final title =
+        isEmulatorBlock ? 'Emulator not allowed' : 'Device not allowed';
     final body = isEmulatorBlock
         ? 'Release builds block emulators for security. '
             'Use a debug build for QA on the emulator '
@@ -38,9 +36,7 @@ class SecurityBlockScreen extends ConsumerWidget {
             children: [
               const Spacer(),
               Icon(
-                isEmulatorBlock
-                    ? Icons.phone_android_outlined
-                    : Icons.security,
+                isEmulatorBlock ? Icons.phone_android_outlined : Icons.security,
                 size: 64,
                 color: AppColors.error,
               ),
@@ -89,8 +85,7 @@ class SecurityBlockScreen extends ConsumerWidget {
               ],
               const Spacer(),
               OutlinedButton(
-                onPressed: () =>
-                    ref.invalidate(deviceIntegrityProvider),
+                onPressed: () => ref.invalidate(deviceIntegrityProvider),
                 child: const Text('Recheck'),
               ),
             ],

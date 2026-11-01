@@ -21,8 +21,7 @@ class FleetRealtimeService {
   Stream<String> get connectionStatus => _status.stream;
   DateTime? get lastLocationAt => _lastLocationAt;
   String get currentStatus => _lastStatus;
-  bool get isConnected =>
-      _connection?.state == HubConnectionState.Connected;
+  bool get isConnected => _connection?.state == HubConnectionState.Connected;
 
   String get _hubUrl => AppConfig.hubBaseUrl;
 
@@ -53,14 +52,14 @@ class FleetRealtimeService {
       debugPrint('[FleetRealtime] connecting to $_hubUrl');
       _connection = HubConnectionBuilder()
           .withUrl(
-            '$_hubUrl?access_token=$token',
-            options: HttpConnectionOptions(
-              transport: HttpTransportType.WebSockets,
-              logMessageContent: kDebugMode,
-            ),
-          )
-          .withAutomaticReconnect(retryDelays: [0, 1000, 2000, 5000, 10000])
-          .build();
+        '$_hubUrl?access_token=$token',
+        options: HttpConnectionOptions(
+          transport: HttpTransportType.WebSockets,
+          logMessageContent: kDebugMode,
+        ),
+      )
+          .withAutomaticReconnect(
+              retryDelays: [0, 1000, 2000, 5000, 10000]).build();
 
       _connection!.on('ReceiveLocationUpdate', (args) {
         if (args == null || args.isEmpty) return;

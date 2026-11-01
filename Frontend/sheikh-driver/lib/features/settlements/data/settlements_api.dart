@@ -6,11 +6,10 @@ import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/auth_models.dart';
 import '../domain/settlement_models.dart';
 
-final settlementsApiProvider =
-    Provider<SettlementsApi>((ref) => SettlementsApi(
-          ref.read(dioProvider),
-          () => ref.read(fleetSessionProvider),
-        ));
+final settlementsApiProvider = Provider<SettlementsApi>((ref) => SettlementsApi(
+      ref.read(dioProvider),
+      () => ref.read(fleetSessionProvider),
+    ));
 
 class SettlementsApi {
   SettlementsApi(this._dio, this._session);

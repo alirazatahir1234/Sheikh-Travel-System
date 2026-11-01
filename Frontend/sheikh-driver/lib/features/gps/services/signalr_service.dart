@@ -97,14 +97,14 @@ class SignalRService {
 
       _connection = HubConnectionBuilder()
           .withUrl(
-            '$_hubUrl?access_token=$token',
-            options: HttpConnectionOptions(
-              transport: HttpTransportType.WebSockets,
-              logMessageContent: kDebugMode,
-            ),
-          )
-          .withAutomaticReconnect(retryDelays: [0, 1000, 2000, 5000, 10000])
-          .build();
+        '$_hubUrl?access_token=$token',
+        options: HttpConnectionOptions(
+          transport: HttpTransportType.WebSockets,
+          logMessageContent: kDebugMode,
+        ),
+      )
+          .withAutomaticReconnect(
+              retryDelays: [0, 1000, 2000, 5000, 10000]).build();
 
       _connection!.on('EngineCommand', (args) {
         if (args == null || args.isEmpty) return;
@@ -163,7 +163,8 @@ class SignalRService {
     try {
       final previous = _joinedVehicleId;
       if (previous != null && previous != vehicleId) {
-        await _connection!.invoke('LeaveVehicleGroup', args: <Object>[previous]);
+        await _connection!
+            .invoke('LeaveVehicleGroup', args: <Object>[previous]);
       }
       await _connection!.invoke('JoinVehicleGroup', args: <Object>[vehicleId]);
       _joinedVehicleId = vehicleId;
@@ -183,7 +184,8 @@ class SignalRService {
     try {
       if (_joinedVehicleId != null &&
           _connection?.state == HubConnectionState.Connected) {
-        await _connection!.invoke('LeaveVehicleGroup', args: <Object>[_joinedVehicleId!]);
+        await _connection!
+            .invoke('LeaveVehicleGroup', args: <Object>[_joinedVehicleId!]);
       }
     } catch (_) {}
     await _connection?.stop();
@@ -192,6 +194,5 @@ class SignalRService {
     _statusController.add('disconnected');
   }
 
-  bool get isConnected =>
-      _connection?.state == HubConnectionState.Connected;
+  bool get isConnected => _connection?.state == HubConnectionState.Connected;
 }

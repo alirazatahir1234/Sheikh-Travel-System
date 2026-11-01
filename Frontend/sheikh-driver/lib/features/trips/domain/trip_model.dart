@@ -59,6 +59,7 @@ class Trip {
   final int? tripId;
   final int? bookingId;
   final String source;
+
   /// ERP TripStatus int.
   final int lifecycleStatus;
   final String lifecycleStatusName;
@@ -69,17 +70,24 @@ class Trip {
   final String paymentStatus;
 
   // Legacy booking status helpers (kept for list filters)
-  bool get isConfirmed => status == 2 || lifecycleStatus == 2 ||
-      lifecycleStatus == 3 || lifecycleStatus == 4;
-  bool get isStarted => status == 3 ||
+  bool get isConfirmed =>
+      status == 2 ||
+      lifecycleStatus == 2 ||
+      lifecycleStatus == 3 ||
+      lifecycleStatus == 4;
+  bool get isStarted =>
+      status == 3 ||
       lifecycleStatus == 5 ||
       lifecycleStatus == 6 ||
       lifecycleStatus == 7 ||
       lifecycleStatus == 8;
   bool get isCompleted => status == 4 || lifecycleStatus == 9;
-  bool get isCancelled => status == 5 || lifecycleStatus == 10 || lifecycleStatus == 11;
+  bool get isCancelled =>
+      status == 5 || lifecycleStatus == 10 || lifecycleStatus == 11;
   bool get isActionable =>
-      !isCompleted && !isCancelled && (nextActions.isNotEmpty || isConfirmed || isStarted);
+      !isCompleted &&
+      !isCancelled &&
+      (nextActions.isNotEmpty || isConfirmed || isStarted);
 
   bool get canAccept => nextActions.contains('Accept');
   bool get canArrive => nextActions.contains('Arrived');
@@ -117,7 +125,8 @@ class Trip {
 
   /// True when [pickupTime] came from the API (not the missing-date sentinel).
   bool get hasScheduledPickup =>
-      pickupTime.millisecondsSinceEpoch != missingPickupTime.millisecondsSinceEpoch;
+      pickupTime.millisecondsSinceEpoch !=
+      missingPickupTime.millisecondsSinceEpoch;
 
   /// Pickup instant in the device local timezone (safe for UTC or local ISO).
   DateTime get pickupTimeLocal => pickupTime.toLocal();
@@ -149,6 +158,7 @@ class Trip {
   String get dropoffDateTimeLabel => dropoffTimeLocal != null
       ? DateFormat('h:mm a').format(dropoffTimeLocal!)
       : 'ETA pending';
+
   /// Id to use for lifecycle API calls (operational trip id preferred).
   int get actionId => tripId ?? id;
 
@@ -168,16 +178,13 @@ class Trip {
         : <String>[];
 
     return Trip(
-      id: (json['id'] as num?)?.toInt() ??
-          (json['Id'] as num?)?.toInt() ??
-          0,
+      id: (json['id'] as num?)?.toInt() ?? (json['Id'] as num?)?.toInt() ?? 0,
       bookingNumber: json['bookingNumber'] as String? ?? '',
       customerName: json['customerName'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
       pickupTime: _parseDateTime(json['pickupTime'] ?? json['PickupTime']) ??
           missingPickupTime,
-      dropoffTime:
-          _parseDateTime(json['dropoffTime'] ?? json['DropoffTime']),
+      dropoffTime: _parseDateTime(json['dropoffTime'] ?? json['DropoffTime']),
       status: json['status'] as int? ?? 0,
       statusName: json['statusName'] as String? ?? '',
       vehicleId: json['vehicleId'] as int?,

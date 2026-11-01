@@ -73,8 +73,7 @@ class TeamAttendanceState {
   final List<TeamAttendanceRow> rows;
   final String query;
 
-  TeamAttendanceOverview get overview =>
-      TeamAttendanceOverview.fromRows(rows);
+  TeamAttendanceOverview get overview => TeamAttendanceOverview.fromRows(rows);
 
   List<TeamAttendanceRow> get filtered {
     final q = query.trim().toLowerCase();

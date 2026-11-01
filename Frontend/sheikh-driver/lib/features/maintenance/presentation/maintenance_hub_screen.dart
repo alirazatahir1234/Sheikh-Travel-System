@@ -108,7 +108,7 @@ class _MaintenanceHubScreenState extends ConsumerState<MaintenanceHubScreen>
       floatingActionButton: _fab(canCreateRequest, canManageWo),
       body: async.when(
         skipLoadingOnReload: true,
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => SgErrorView(
           message: ErrorHandler.message(e),
           onRetry: () => ref.read(maintenanceHubProvider.notifier).refresh(),
@@ -255,8 +255,8 @@ class _DashboardTab extends ConsumerWidget {
                       ),
                       child: SgCard(
                         onTap: a.vehicleId > 0
-                            ? () => context
-                                .push('/fleet/vehicles/${a.vehicleId}')
+                            ? () =>
+                                context.push('/fleet/vehicles/${a.vehicleId}')
                             : null,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,8 +378,8 @@ class _DashboardTab extends ConsumerWidget {
                       ),
                       child: SgCard(
                         onTap: s.vehicleId > 0
-                            ? () => context
-                                .push('/fleet/vehicles/${s.vehicleId}')
+                            ? () =>
+                                context.push('/fleet/vehicles/${s.vehicleId}')
                             : null,
                         child: Row(
                           children: [
@@ -584,8 +584,8 @@ class _RequestsTab extends ConsumerWidget {
                   final r = items[i];
                   return SgCard(
                     margin: const EdgeInsets.only(bottom: 10),
-                    onTap: () => context
-                        .push('/fleet/maintenance/requests/${r.id}'),
+                    onTap: () =>
+                        context.push('/fleet/maintenance/requests/${r.id}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -751,8 +751,8 @@ class _WorkOrdersTab extends ConsumerWidget {
                   final w = items[i];
                   return SgCard(
                     margin: const EdgeInsets.only(bottom: 10),
-                    onTap: () => context
-                        .push('/fleet/maintenance/work-orders/${w.id}'),
+                    onTap: () =>
+                        context.push('/fleet/maintenance/work-orders/${w.id}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -901,8 +901,7 @@ class _SchedulesTab extends ConsumerWidget {
                   final s = items[i];
                   return SgCard(
                     margin: const EdgeInsets.only(bottom: 10),
-                    onTap: () =>
-                        context.push('/fleet/vehicles/${s.vehicleId}'),
+                    onTap: () => context.push('/fleet/vehicles/${s.vehicleId}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

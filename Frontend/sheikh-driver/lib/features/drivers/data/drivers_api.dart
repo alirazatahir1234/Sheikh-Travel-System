@@ -36,8 +36,7 @@ class DriversApi {
   }
 
   Future<DriverStats> stats() async {
-    final res =
-        await _dio.get<Map<String, dynamic>>(ApiEndpoints.driversStats);
+    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.driversStats);
     return DriverStats.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
@@ -97,7 +96,8 @@ class DriversApi {
     ApiResponseParser.ensureSuccess(res.data);
   }
 
-  Future<void> transferVehicle(int id, int newVehicleId, {String? remarks}) async {
+  Future<void> transferVehicle(int id, int newVehicleId,
+      {String? remarks}) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverTransferVehicle(id),
       data: {

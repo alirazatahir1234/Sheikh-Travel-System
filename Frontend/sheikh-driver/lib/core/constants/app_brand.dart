@@ -5,8 +5,7 @@ abstract final class AppBrand {
 
   /// Official teal/charcoal mark on white — use on light headers (owner dashboard).
   /// Source: Ali’s SheikhGoLogo_White_background asset (converted to PNG).
-  static const logoOnLightAsset =
-      'assets/branding/sheikhgo_logo_official.png';
+  static const logoOnLightAsset = 'assets/branding/sheikhgo_logo_official.png';
 
   static const productName = 'SheikhGo';
 }

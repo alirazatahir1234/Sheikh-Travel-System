@@ -245,18 +245,18 @@ class FleetApi {
         (data['placeName'] as String? ?? data['PlaceName'] as String?)?.trim();
     final placeType =
         (data['placeType'] as String? ?? data['PlaceType'] as String?)?.trim();
-    final primaryAddress = (data['primaryAddress'] as String? ??
-            data['PrimaryAddress'] as String?)
-        ?.trim();
+    final primaryAddress =
+        (data['primaryAddress'] as String? ?? data['PrimaryAddress'] as String?)
+            ?.trim();
     final nearbyPlaceName = (data['nearbyPlaceName'] as String? ??
             data['NearbyPlaceName'] as String?)
         ?.trim();
-    final localityLine = (data['localityLine'] as String? ??
-            data['LocalityLine'] as String?)
-        ?.trim();
-    final addressQuality = (data['addressQuality'] as String? ??
-            data['AddressQuality'] as String?)
-        ?.trim();
+    final localityLine =
+        (data['localityLine'] as String? ?? data['LocalityLine'] as String?)
+            ?.trim();
+    final addressQuality =
+        (data['addressQuality'] as String? ?? data['AddressQuality'] as String?)
+            ?.trim();
     final city = (data['city'] as String? ?? data['City'] as String?)?.trim();
     final state =
         (data['state'] as String? ?? data['State'] as String?)?.trim();
@@ -277,8 +277,7 @@ class FleetApi {
       road: road,
       city: city,
       state: state,
-      primaryAddress:
-          primaryAddress?.isEmpty == true ? null : primaryAddress,
+      primaryAddress: primaryAddress?.isEmpty == true ? null : primaryAddress,
       nearbyPlaceName:
           nearbyPlaceName?.isEmpty == true ? null : nearbyPlaceName,
       localityLine: localityLine?.isEmpty == true ? null : localityLine,

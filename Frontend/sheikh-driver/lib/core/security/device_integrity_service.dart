@@ -238,7 +238,8 @@ class DeviceIntegrityService {
     }
     // Can we write outside sandbox?
     try {
-      final f = File('/private/jailbreak_probe_${DateTime.now().millisecondsSinceEpoch}');
+      final f = File(
+          '/private/jailbreak_probe_${DateTime.now().millisecondsSinceEpoch}');
       await f.writeAsString('probe');
       await f.delete();
       return true;

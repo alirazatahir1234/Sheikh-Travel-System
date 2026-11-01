@@ -205,10 +205,9 @@ class AuthRepository extends ChangeNotifier {
     AnalyticsService.instance.loginSuccess();
     notifyListeners();
     // Register FCM after auth so Authorization header is available.
-    final appName =
-        session.authMode == AuthMode.driver || session.isDriverOnly
-            ? 'driver'
-            : 'fleet';
+    final appName = session.authMode == AuthMode.driver || session.isDriverOnly
+        ? 'driver'
+        : 'fleet';
     // ignore: unawaited_futures
     PushRegistrationService.instance.start(_dio, appName: appName);
     // ignore: unawaited_futures
@@ -230,14 +229,16 @@ class AuthRepository extends ChangeNotifier {
 
   void _setCrashlyticsIdentity(FleetSession session) {
     try {
-      final identifier = session.driverId?.toString() ?? session.userId.toString();
+      final identifier =
+          session.driverId?.toString() ?? session.userId.toString();
       FirebaseCrashlytics.instance
         ..setUserIdentifier(identifier)
         ..setCustomKey('user_id', session.userId)
         ..setCustomKey('tenant_id', session.tenantId)
         ..setCustomKey('env', AppConfig.environmentLabel);
       if (session.driverId != null) {
-        FirebaseCrashlytics.instance.setCustomKey('driver_id', session.driverId!);
+        FirebaseCrashlytics.instance
+            .setCustomKey('driver_id', session.driverId!);
       }
     } catch (_) {
       // Firebase may not be initialized in dev — ignore silently

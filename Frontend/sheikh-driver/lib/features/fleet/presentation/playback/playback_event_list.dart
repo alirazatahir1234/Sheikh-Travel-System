@@ -55,8 +55,7 @@ class PlaybackEventList extends StatelessWidget {
         ),
       );
     }
-    final visible =
-        maxItems == null ? items : items.take(maxItems!).toList();
+    final visible = maxItems == null ? items : items.take(maxItems!).toList();
 
     if (!vertical) {
       return SizedBox(
@@ -72,8 +71,7 @@ class PlaybackEventList extends StatelessWidget {
               label: Text(
                 '${formatPlaybackClock(item.time)} ${item.label}',
               ),
-              onPressed: () =>
-                  onJump(indexForTimestamp(playback, item.time)),
+              onPressed: () => onJump(indexForTimestamp(playback, item.time)),
               labelStyle: const TextStyle(fontSize: 11),
             );
           },
@@ -87,8 +85,7 @@ class PlaybackEventList extends StatelessWidget {
         for (var i = 0; i < visible.length; i++) ...[
           if (i > 0) Divider(height: 1, color: p.divider),
           InkWell(
-            onTap: () =>
-                onJump(indexForTimestamp(playback, visible[i].time)),
+            onTap: () => onJump(indexForTimestamp(playback, visible[i].time)),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -140,8 +137,7 @@ class PlaybackEventList extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.play_circle_outline,
-                      size: 20, color: p.textMuted),
+                  Icon(Icons.play_circle_outline, size: 20, color: p.textMuted),
                 ],
               ),
             ),
@@ -187,7 +183,9 @@ class PlaybackEventList extends StatelessWidget {
   static Color _colorForType(String type) {
     final t = type.toLowerCase();
     if (t.contains('sos') || t.contains('panic')) return AppColors.error;
-    if (t.contains('overspeed') || t.contains('speed')) return AppColors.warning;
+    if (t.contains('overspeed') || t.contains('speed')) {
+      return AppColors.warning;
+    }
     if (t.contains('fuel')) return const Color(0xFFD97706);
     if (t.contains('ignition')) return AppColors.info;
     if (t.contains('geofence')) return AppColors.primary;

@@ -35,10 +35,8 @@ class InspectionTemplate {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
-      items: raw
-          .cast<Map<String, dynamic>>()
-          .map(ChecklistItem.fromJson)
-          .toList(),
+      items:
+          raw.cast<Map<String, dynamic>>().map(ChecklistItem.fromJson).toList(),
     );
   }
 }

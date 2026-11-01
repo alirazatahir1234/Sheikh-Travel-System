@@ -60,7 +60,8 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
     });
   }
 
-  fleet.FleetTrackStatus _toFleetStatus(FleetTrackStatus status) => switch (status) {
+  fleet.FleetTrackStatus _toFleetStatus(FleetTrackStatus status) =>
+      switch (status) {
         FleetTrackStatus.moving => fleet.FleetTrackStatus.moving,
         FleetTrackStatus.idle => fleet.FleetTrackStatus.idle,
         FleetTrackStatus.parked => fleet.FleetTrackStatus.parked,
@@ -790,9 +791,7 @@ class _BottomPanel extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 _StatChip(
-                  icon: follow
-                      ? Icons.location_disabled
-                      : Icons.directions_run,
+                  icon: follow ? Icons.location_disabled : Icons.directions_run,
                   label: follow ? 'Follow' : 'Free',
                   onTap: onRecenter,
                 ),
@@ -876,13 +875,16 @@ class _StatChip extends StatelessWidget {
           Icon(icon, size: 14, color: AppColors.primary),
           const SizedBox(width: 4),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600)),
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
     return onTap == null
         ? child
-        : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(20), child: child);
+        : InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: child);
   }
 }

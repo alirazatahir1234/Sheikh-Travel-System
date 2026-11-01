@@ -218,14 +218,12 @@ class HelpSupportScreen extends ConsumerWidget {
     ),
   ];
 
-  static String _supportBody(String? name) =>
-      'Hello SheikhGo Support,\n\n'
+  static String _supportBody(String? name) => 'Hello SheikhGo Support,\n\n'
       'User: ${name ?? '—'}\n'
       'App: SheikhGo Tracking\n\n'
       'Please describe your question below:\n\n';
 
-  static String _problemBody(String? name) =>
-      'Hello SheikhGo Support,\n\n'
+  static String _problemBody(String? name) => 'Hello SheikhGo Support,\n\n'
       'I am reporting a problem.\n\n'
       'User: ${name ?? '—'}\n'
       'App: SheikhGo Tracking\n'

@@ -89,7 +89,7 @@ void main() {
 
   group('computeDriverScore', () {
     test('uses rating when present', () {
-      final d = DriverListItem(
+      const d = DriverListItem(
         id: 1,
         fullName: 'A',
         phone: '1',
@@ -103,7 +103,7 @@ void main() {
 
     test('builds top drivers from list', () {
       final top = buildTopDriversFromList([
-        DriverListItem(
+        const DriverListItem(
           id: 1,
           fullName: 'Low',
           phone: '1',
@@ -112,7 +112,7 @@ void main() {
           isActive: true,
           licenseExpired: true,
         ),
-        DriverListItem(
+        const DriverListItem(
           id: 2,
           fullName: 'High',
           phone: '2',
@@ -132,7 +132,7 @@ void main() {
       expect(blendDriverTopScore(100, 50), 70);
       final top = buildTopDriversFromList(
         [
-          DriverListItem(
+          const DriverListItem(
             id: 1,
             fullName: 'Mixed',
             phone: '1',
@@ -168,7 +168,7 @@ void main() {
   group('DriversHubState search', () {
     test('filters by search text', () {
       final drivers = [
-        DriverListItem(
+        const DriverListItem(
           id: 1,
           fullName: 'Ali',
           phone: '1',
@@ -176,7 +176,7 @@ void main() {
           status: 'Available',
           isActive: true,
         ),
-        DriverListItem(
+        const DriverListItem(
           id: 2,
           fullName: 'Sara',
           phone: '2',
@@ -196,9 +196,8 @@ void main() {
         'id': 1,
         'documentType': 'License',
         'status': 'Approved',
-        'expiryDate': DateTime.now()
-            .subtract(const Duration(days: 2))
-            .toIso8601String(),
+        'expiryDate':
+            DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
       });
       expect(expired.isExpired, isTrue);
 

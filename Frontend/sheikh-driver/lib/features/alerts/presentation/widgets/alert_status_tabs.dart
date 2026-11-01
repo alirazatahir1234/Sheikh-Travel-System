@@ -32,9 +32,7 @@ class AlertStatusTabs extends StatelessWidget {
           children: [
             Expanded(
               child: _TabButton(
-                label: activeCount == null
-                    ? 'Active'
-                    : 'Active ($activeCount)',
+                label: activeCount == null ? 'Active' : 'Active ($activeCount)',
                 selected: selected == FleetAlertStatusTab.active,
                 onTap: () => onChanged(FleetAlertStatusTab.active),
               ),

@@ -145,9 +145,8 @@ class DriverProfile {
       driverCode: 'U${session.userId}',
       licenseNumber: '—',
       status: active ? 1 : 0,
-      statusName: (userStatus != null && userStatus.isNotEmpty)
-          ? userStatus
-          : 'Active',
+      statusName:
+          (userStatus != null && userStatus.isNotEmpty) ? userStatus : 'Active',
       isActive: active,
       isStaffProfile: true,
       roleLabel: roleLabel,

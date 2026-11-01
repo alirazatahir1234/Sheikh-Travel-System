@@ -32,8 +32,8 @@ class _SgProgressLoaderState extends State<SgProgressLoader>
   @override
   void initState() {
     super.initState();
-    final reduceMotion =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.reduceMotion;
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.reduceMotion;
 
     _spin = AnimationController(
       vsync: this,

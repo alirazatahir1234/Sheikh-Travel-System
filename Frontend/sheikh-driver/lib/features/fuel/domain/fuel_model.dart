@@ -33,8 +33,8 @@ class FuelLog {
         liters: (json['liters'] as num?)?.toDouble() ?? 0,
         pricePerLiter: (json['pricePerLiter'] as num?)?.toDouble() ?? 0,
         totalCost: (json['totalCost'] as num?)?.toDouble() ?? 0,
-        fuelDate:
-            DateTime.tryParse(json['fuelDate']?.toString() ?? '') ?? DateTime.now(),
+        fuelDate: DateTime.tryParse(json['fuelDate']?.toString() ?? '') ??
+            DateTime.now(),
         odometerReading: (json['odometerReading'] as num?)?.toDouble(),
         station: json['station'] as String?,
         fuelType: (json['fuelTypeName'] ?? json['fuelType'])?.toString(),

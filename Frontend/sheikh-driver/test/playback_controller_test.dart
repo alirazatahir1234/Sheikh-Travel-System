@@ -21,7 +21,8 @@ HistoryReplayPoint _p(
 }
 
 void main() {
-  test('effectivePlaybackPoints prefers dense route when playback is sparse', () {
+  test('effectivePlaybackPoints prefers dense route when playback is sparse',
+      () {
     final sparsePlayback = [
       _p('2026-07-22T10:00:00Z', lat: 24.86, lng: 67.00),
       _p('2026-07-22T10:30:00Z', lat: 24.87, lng: 67.01),

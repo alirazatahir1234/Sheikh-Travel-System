@@ -10,7 +10,10 @@ void main() {
       ),
     );
     expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(find.textContaining('mobile app for authorized fleet'), findsOneWidget);
+    expect(
+      find.textContaining('fleet operations app for authorized drivers'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Terms screen shows title', (tester) async {

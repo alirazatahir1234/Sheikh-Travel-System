@@ -155,8 +155,8 @@ class BackgroundGpsTracker extends ChangeNotifier {
   void _watchConnectivity() {
     _connectivitySub?.cancel();
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final online =
-          results.isNotEmpty && !results.every((r) => r == ConnectivityResult.none);
+      final online = results.isNotEmpty &&
+          !results.every((r) => r == ConnectivityResult.none);
       _online = online;
       notifyListeners();
       if (online && LocationQueue.length > 0) {
@@ -196,7 +196,8 @@ class BackgroundGpsTracker extends ChangeNotifier {
           notificationTitle: 'SheikhGo Tracking',
           notificationText: 'Sharing live trip location with dispatch',
           notificationChannelName: 'Live Tracking',
-          notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+          notificationIcon:
+              AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
           enableWakeLock: true,
           enableWifiLock: true,
           setOngoing: true,
@@ -206,7 +207,9 @@ class BackgroundGpsTracker extends ChangeNotifier {
 
     if (Platform.isIOS) {
       return AppleSettings(
-        accuracy: powerSave ? LocationAccuracy.medium : LocationAccuracy.bestForNavigation,
+        accuracy: powerSave
+            ? LocationAccuracy.medium
+            : LocationAccuracy.bestForNavigation,
         distanceFilter: distance,
         activityType: ActivityType.automotiveNavigation,
         allowBackgroundLocationUpdates: true,
@@ -240,7 +243,8 @@ class BackgroundGpsTracker extends ChangeNotifier {
         _powerSave = wantSave;
         notifyListeners();
         await _startPositionStream();
-        debugPrint('[GPS] powerSave=$_powerSave (speed=${speedKmh.toStringAsFixed(1)} km/h)');
+        debugPrint(
+            '[GPS] powerSave=$_powerSave (speed=${speedKmh.toStringAsFixed(1)} km/h)');
       }
     });
   }
@@ -271,7 +275,8 @@ class BackgroundGpsTracker extends ChangeNotifier {
     );
 
     // Throttle posts when power-saving (still queue every fix).
-    final minGap = _powerSave ? const Duration(seconds: 20) : const Duration(seconds: 5);
+    final minGap =
+        _powerSave ? const Duration(seconds: 20) : const Duration(seconds: 5);
     final canPost = _lastPostedAt == null ||
         DateTime.now().difference(_lastPostedAt!) >= minGap;
 

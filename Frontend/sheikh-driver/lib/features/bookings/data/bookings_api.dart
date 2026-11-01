@@ -63,7 +63,8 @@ class BookingsApi {
       ApiEndpoints.bookingStatus(id),
       data: {
         'status': status,
-        if (cancellationReason != null) 'cancellationReason': cancellationReason,
+        if (cancellationReason != null)
+          'cancellationReason': cancellationReason,
       },
     );
     ApiResponseParser.ensureSuccess(res.data);

@@ -145,8 +145,7 @@ class PushRegistrationService {
         await _persistPreference(false);
         _reportIssue(
           const PushSetupIssue(
-            message:
-                'Notification permission was denied. Enable it in system '
+            message: 'Notification permission was denied. Enable it in system '
                 'Settings, then turn this toggle on again.',
             reason: PushSetupReason.permissionDenied,
           ),
@@ -161,8 +160,7 @@ class PushRegistrationService {
         await _persistPreference(false);
         _reportIssue(
           const PushSetupIssue(
-            message:
-                'Permission granted, but no FCM token. Confirm '
+            message: 'Permission granted, but no FCM token. Confirm '
                 'google-services.json matches package com.sheikhgo.fleet, '
                 'use a Google Play system-image emulator (or a device), '
                 'then rebuild and retry. See android/app/GOOGLE_SERVICES.md.',

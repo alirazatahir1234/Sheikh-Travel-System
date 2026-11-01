@@ -30,7 +30,8 @@ class OpsTripDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -53,7 +54,8 @@ class OpsTripDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -67,15 +69,14 @@ class OpsTripDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Trip detail')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('$e'),
               FilledButton(
-                onPressed: () =>
-                    ref.invalidate(opsTripDetailProvider(tripId)),
+                onPressed: () => ref.invalidate(opsTripDetailProvider(tripId)),
                 child: const Text('Retry'),
               ),
             ],
@@ -248,7 +249,8 @@ class _Row extends StatelessWidget {
               width: 110,
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                style:
+                    const TextStyle(fontSize: 13, color: AppColors.textMuted),
               ),
             ),
             Expanded(

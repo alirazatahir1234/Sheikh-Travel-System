@@ -122,7 +122,8 @@ class _DriverAttendanceViewState extends ConsumerState<_DriverAttendanceView> {
     } on OfflineQueuedException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: AppColors.warning),
+          SnackBar(
+              content: Text(e.message), backgroundColor: AppColors.warning),
         );
         ref.read(attendanceHistoryProvider.notifier).refresh();
       }
@@ -316,8 +317,9 @@ class _DriverAttendanceViewState extends ConsumerState<_DriverAttendanceView> {
                         width: double.infinity,
                         height: 52,
                         child: FilledButton.icon(
-                          onPressed:
-                              _actionLoading ? null : () => _handleAction(clockedIn),
+                          onPressed: _actionLoading
+                              ? null
+                              : () => _handleAction(clockedIn),
                           style: FilledButton.styleFrom(
                             backgroundColor:
                                 clockedIn ? AppColors.warning : _teal,
@@ -538,7 +540,7 @@ class _TeamAttendanceViewState extends ConsumerState<_TeamAttendanceView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: status,
+                initialValue: status,
                 items: const [
                   DropdownMenuItem(value: 'Present', child: Text('Present')),
                   DropdownMenuItem(value: 'Absent', child: Text('Absent')),
@@ -1078,7 +1080,8 @@ class _AttendanceErrorBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: context.sg.textSecondary),
+            Icon(Icons.error_outline,
+                size: 48, color: context.sg.textSecondary),
             const SizedBox(height: 12),
             Text(
               message,

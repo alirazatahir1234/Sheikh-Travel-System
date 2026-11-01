@@ -15,14 +15,15 @@ class SecurityStatusScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Security Diagnostics')),
       body: async.when(
-        loading: () => Center(child: SgBrandLoader()),
+        loading: () => const Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),
         data: (r) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _StatusCard(
               ok: !r.hasBlockingIssue,
-              title: r.hasBlockingIssue ? 'Blocked on this device' : 'Device OK',
+              title:
+                  r.hasBlockingIssue ? 'Blocked on this device' : 'Device OK',
               subtitle: r.hasBlockingIssue
                   ? 'Production policy prevents use until issues are resolved'
                   : 'Integrity checks passed for current policy',
@@ -32,7 +33,8 @@ class SecurityStatusScreen extends ConsumerWidget {
             _FlagTile('Rooted (Android)', r.isRooted),
             _FlagTile('Jailbroken (iOS)', r.isJailbroken),
             _FlagTile('Tamper signals', r.isTampered),
-            _FlagTile('TLS pinning configured', r.pinningConfigured, invert: true),
+            _FlagTile('TLS pinning configured', r.pinningConfigured,
+                invert: true),
             const SizedBox(height: 16),
             const Text('Device',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
@@ -53,7 +55,8 @@ class SecurityStatusScreen extends ConsumerWidget {
               ...r.issues.map(
                 (i) => ListTile(
                   dense: true,
-                  leading: const Icon(Icons.warning_amber, color: AppColors.warning),
+                  leading:
+                      const Icon(Icons.warning_amber, color: AppColors.warning),
                   title: Text(i, style: const TextStyle(fontSize: 13)),
                 ),
               ),
@@ -88,7 +91,8 @@ class _StatusCard extends StatelessWidget {
       color: color.withValues(alpha: 0.08),
       child: ListTile(
         leading: Icon(ok ? Icons.verified_user : Icons.gpp_bad, color: color),
-        title: Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+        title: Text(title,
+            style: TextStyle(fontWeight: FontWeight.w700, color: color)),
         subtitle: Text(subtitle),
       ),
     );
@@ -130,11 +134,13 @@ class _Info extends StatelessWidget {
           SizedBox(
             width: 100,
             child: Text(label,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ),
         ],
       ),

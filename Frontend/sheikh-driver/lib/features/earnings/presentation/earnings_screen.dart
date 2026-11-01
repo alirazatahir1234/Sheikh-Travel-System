@@ -14,8 +14,7 @@ final earningsProvider = FutureProvider.autoDispose<EarningsSummary>(
   (ref) => ref.read(earningsApiProvider).getEarnings(),
 );
 
-final ownerEarningsProvider =
-    FutureProvider.autoDispose<OwnerEarningsSummary>(
+final ownerEarningsProvider = FutureProvider.autoDispose<OwnerEarningsSummary>(
   (ref) => ref.read(earningsApiProvider).getOwnerEarnings(),
 );
 
@@ -353,10 +352,10 @@ class _SettlementsTeaser extends ConsumerWidget {
               );
             }
             final latest = items.first;
-            final name = ownerMode &&
-                    (latest.driverName?.trim().isNotEmpty ?? false)
-                ? '${latest.driverName} · '
-                : '';
+            final name =
+                ownerMode && (latest.driverName?.trim().isNotEmpty ?? false)
+                    ? '${latest.driverName} · '
+                    : '';
             return Text(
               '$name${latest.status} · PKR ${money.format(latest.payable)}',
             );

@@ -16,6 +16,7 @@ class PlaybackController {
   bool _playing = false;
   double _speed = 1;
   int _index = 0;
+
   /// When set, playback stops at this index (inclusive) instead of trip end.
   int? _playUntilIndex;
   DateTime? _virtualTime;
@@ -190,7 +191,8 @@ class PlaybackController {
     if (_virtualTime!.isBefore(first)) {
       _virtualTime = first;
       _index = 0;
-      _displayPosition = LatLng(_points.first.latitude, _points.first.longitude);
+      _displayPosition =
+          LatLng(_points.first.latitude, _points.first.longitude);
       _displayHeading = _points.first.heading;
       return;
     }
@@ -199,8 +201,8 @@ class PlaybackController {
       return;
     }
 
-    final right = lowerBoundPlaybackIndex(_points, _virtualTime!)
-        .clamp(0, endIndex);
+    final right =
+        lowerBoundPlaybackIndex(_points, _virtualTime!).clamp(0, endIndex);
     final left = (right - 1).clamp(0, endIndex);
     final from = _points[left];
     final to = _points[right];
@@ -210,7 +212,8 @@ class PlaybackController {
 
     final lat = from.latitude + (to.latitude - from.latitude) * t;
     final lng = from.longitude + (to.longitude - from.longitude) * t;
-    final heading = _lerpHeading(from.heading ?? 0, to.heading ?? from.heading ?? 0, t);
+    final heading =
+        _lerpHeading(from.heading ?? 0, to.heading ?? from.heading ?? 0, t);
 
     _index = left;
     _displayPosition = LatLng(lat, lng);

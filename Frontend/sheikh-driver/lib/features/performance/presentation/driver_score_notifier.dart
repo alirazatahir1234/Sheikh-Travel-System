@@ -7,7 +7,8 @@ final driverScoreApiProvider = Provider<DriverScoreApi>((ref) {
   return DriverScoreApi(ref.watch(dioProvider));
 });
 
-final myDriverGpsScoreProvider = FutureProvider.autoDispose<DriverGpsScore>((ref) async {
+final myDriverGpsScoreProvider =
+    FutureProvider.autoDispose<DriverGpsScore>((ref) async {
   final to = DateTime.now().toUtc();
   final from = to.subtract(const Duration(days: 30));
   return ref.watch(driverScoreApiProvider).myScore(from: from, to: to);

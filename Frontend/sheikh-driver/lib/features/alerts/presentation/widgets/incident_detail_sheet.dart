@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_theme.dart';
+import '../../../../core/errors/error_handler.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../domain/alert_display.dart';
 import '../alerts_notifier.dart';
-import 'in_cab_radio_modal.dart';
 
 Future<void> showIncidentDetailSheet(
   BuildContext context,
@@ -71,12 +71,10 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return async.when(
-      loading: () => Center(child: SgBrandLoader()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('$e', textAlign: TextAlign.center),
-        ),
+      loading: () => const Center(child: SgBrandLoader()),
+      error: (e, _) => SgErrorView(
+        message: ErrorHandler.message(e),
+        onRetry: () => ref.invalidate(alertDetailProvider(widget.alertId)),
       ),
       data: (a) {
         final sev = alertDisplaySeverity(a);
@@ -113,8 +111,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                     ),
                   ),
                 ),
-                if (isDemo)
-                  const StatusBadge('DEMO', color: AppColors.primary),
+                if (isDemo) const StatusBadge('DEMO', color: AppColors.primary),
               ],
             ),
             const SizedBox(height: 6),
@@ -175,7 +172,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                 ),
               )
             else
-              SgCard(
+              const SgCard(
                 child: Text(
                   'No GPS coordinates for this incident.',
                   style: TextStyle(color: AppColors.textMuted),
@@ -207,15 +204,13 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
               children: [
                 _MetricTile(
                   label: 'Speed recorded',
-                  value: a.speed > 0
-                      ? '${a.speed.toStringAsFixed(0)} km/h'
-                      : '—',
+                  value:
+                      a.speed > 0 ? '${a.speed.toStringAsFixed(0)} km/h' : '—',
                 ),
                 _MetricTile(
                   label: 'Speed limit',
-                  value: limit != null
-                      ? '${limit.toStringAsFixed(0)} km/h'
-                      : '—',
+                  value:
+                      limit != null ? '${limit.toStringAsFixed(0)} km/h' : '—',
                 ),
                 _MetricTile(
                   label: 'Coordinates',
@@ -245,16 +240,6 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                     Text(
                       a.driverName!,
                       style: const TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => showInCabRadioModal(
-                        context,
-                        driverName: a.driverName!,
-                        vehicleLabel: a.vehicleName,
-                      ),
-                      icon: const Icon(Icons.cell_tower_rounded, size: 18),
-                      label: const Text('In-cab radio (demo)'),
                     ),
                   ],
                 ],
@@ -344,9 +329,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                 if ((a.canAcknowledge || isDemo) && !a.isAcknowledged)
                   FilledButton(
                     onPressed: () async {
-                      await ref
-                          .read(alertsProvider.notifier)
-                          .acknowledge(a.id);
+                      await ref.read(alertsProvider.notifier).acknowledge(a.id);
                       if (context.mounted) Navigator.pop(context);
                     },
                     child: const Text('Acknowledge'),
@@ -388,9 +371,9 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                       controller.dispose();
                       if (name == null || name.isEmpty) return;
                       await ref.read(alertsProvider.notifier).assign(
-                            ids: [a.id],
-                            assignedToName: name,
-                          );
+                        ids: [a.id],
+                        assignedToName: name,
+                      );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Assigned to $name')),

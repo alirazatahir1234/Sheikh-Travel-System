@@ -24,8 +24,9 @@ class NotificationsApi {
   String get _unreadPath => _driver
       ? ApiEndpoints.notificationsUnreadCount
       : ApiEndpoints.staffNotificationsUnreadCount;
-  String get _readPath =>
-      _driver ? ApiEndpoints.notificationsRead : ApiEndpoints.staffNotificationsRead;
+  String get _readPath => _driver
+      ? ApiEndpoints.notificationsRead
+      : ApiEndpoints.staffNotificationsRead;
   String get _archivePath => _driver
       ? ApiEndpoints.notificationsArchive
       : ApiEndpoints.staffNotificationsArchive;
@@ -61,7 +62,10 @@ class NotificationsApi {
     } else {
       list = const [];
     }
-    return list.cast<Map<String, dynamic>>().map(AppNotification.fromJson).toList();
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(AppNotification.fromJson)
+        .toList();
   }
 
   Future<int> unreadCount() async {

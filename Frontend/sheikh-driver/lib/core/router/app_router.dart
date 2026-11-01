@@ -140,7 +140,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/more';
         }
         // Legacy More path → Fleet maintenance hub.
-        if (loc == '/more/maintenance' || loc.startsWith('/more/maintenance/')) {
+        if (loc == '/more/maintenance' ||
+            loc.startsWith('/more/maintenance/')) {
           return loc.replaceFirst('/more/maintenance', '/fleet/maintenance');
         }
         if (loc.startsWith('/more/reports') &&
@@ -151,6 +152,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/gps/') &&
             (session.isDriverOnly ||
                 !session.hasPermission(FleetPermissions.gpsView))) {
+          return '/dashboard';
+        }
+        if (loc == '/gps/commands' && !session.canUseGpsCommands) {
           return '/dashboard';
         }
         // Trip history / playback requires GPS.View (UI also gates the screen).
@@ -388,8 +392,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'edit',
                         builder: (_, state) => DriverFormScreen(
-                          driverId:
-                              int.parse(state.pathParameters['id']!),
+                          driverId: int.parse(state.pathParameters['id']!),
                         ),
                       ),
                     ],

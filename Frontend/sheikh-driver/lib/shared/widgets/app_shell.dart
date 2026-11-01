@@ -60,8 +60,7 @@ class _ShellBottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unread =
-        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
     final p = context.sg;
     return Container(

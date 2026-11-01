@@ -328,8 +328,7 @@ class SgSheetTextFormField extends StatelessWidget {
                   labelText: label,
                   hintText: hint ?? helperExample,
                   errorText: state.errorText,
-                  prefixIcon:
-                      prefixIcon != null ? Icon(prefixIcon) : null,
+                  prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
                   suffixIcon: Icon(
                     obscureText
                         ? Icons.lock_outline_rounded
@@ -575,9 +574,7 @@ class _SgAmountPadSheetState extends State<_SgAmountPadSheet> {
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.6,
-                      color: _value.isEmpty
-                          ? p.textMuted
-                          : p.textPrimary,
+                      color: _value.isEmpty ? p.textMuted : p.textPrimary,
                     ),
                   ),
                 ),
@@ -660,6 +657,7 @@ class SgSearchField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final String hintText;
   final String initialQuery;
+
   /// Optional external controller (e.g. parent clear-all). If null, owned here.
   final TextEditingController? controller;
   final bool autofocus;
@@ -677,8 +675,8 @@ class _SgSearchFieldState extends State<SgSearchField> {
   void initState() {
     super.initState();
     _ownsCtrl = widget.controller == null;
-    _ctrl = widget.controller ??
-        TextEditingController(text: widget.initialQuery);
+    _ctrl =
+        widget.controller ?? TextEditingController(text: widget.initialQuery);
   }
 
   @override
