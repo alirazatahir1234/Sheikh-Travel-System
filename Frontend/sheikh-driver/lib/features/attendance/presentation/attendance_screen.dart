@@ -6,19 +6,57 @@ import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/offline/offline_models.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/auth_models.dart';
 import '../domain/attendance_model.dart';
 import 'attendance_notifier.dart';
 import '../../../shared/widgets/sg_brand_loader.dart';
 
-class AttendanceScreen extends ConsumerStatefulWidget {
+const _bg = Color(0xFFF2F6F8);
+const _navy = Color(0xFF071D2E);
+const _teal = Color(0xFF0D9488);
+const _emerald = Color(0xFF14B8A6);
+
+class AttendanceScreen extends ConsumerWidget {
   const AttendanceScreen({super.key});
 
   @override
-  ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(fleetSessionProvider);
+    if (attendanceIsPersonalMode(session)) {
+      return const _DriverAttendanceView();
+    }
+    if (attendanceIsTeamMode(session)) {
+      return const _TeamAttendanceView();
+    }
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        title: const Text('Attendance'),
+        backgroundColor: Colors.white,
+        foregroundColor: _navy,
+      ),
+      body: _AttendanceErrorBody(
+        message: ForbiddenException.attendance.message,
+        onRetry: null,
+      ),
+    );
+  }
 }
 
-class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
+// ── Driver (personal) ───────────────────────────────────────────────────────
+
+class _DriverAttendanceView extends ConsumerStatefulWidget {
+  const _DriverAttendanceView();
+
+  @override
+  ConsumerState<_DriverAttendanceView> createState() =>
+      _DriverAttendanceViewState();
+}
+
+class _DriverAttendanceViewState extends ConsumerState<_DriverAttendanceView> {
   bool _actionLoading = false;
+  DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   bool _isClockedIn(List<AttendanceRecord> records) {
     if (records.isEmpty) return false;
@@ -30,6 +68,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     if (todayRecords.isEmpty) return false;
     return todayRecords.first.isCheckIn;
+  }
+
+  AttendanceDaySummary? _todaySummary(List<AttendanceDaySummary> days) {
+    final today = DateTime.now();
+    for (final d in days) {
+      if (d.date.year == today.year &&
+          d.date.month == today.month &&
+          d.date.day == today.day) {
+        return d;
+      }
+    }
+    return null;
   }
 
   Future<Position?> _getLocation() async {
@@ -74,14 +124,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: AppColors.warning),
         );
-        // Refresh so UI stays usable even if history fetch fails later.
         ref.read(attendanceHistoryProvider.notifier).refresh();
       }
     } catch (e) {
       if (mounted) {
-        final msg = e is AppException ? e.message : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(attendanceErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -89,51 +140,341 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
+  Future<void> _requestCorrection(DateTime day) async {
+    final controller = TextEditingController();
+    final notes = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request correction'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Describe the correction needed',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (notes == null || notes.isEmpty || !mounted) return;
+    try {
+      await ref.read(attendanceHistoryProvider.notifier).requestCorrection(
+            attendanceDate: day,
+            notes: notes,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Correction request submitted'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(attendanceErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final historyAsync = ref.watch(attendanceHistoryProvider);
+    final dateLabel = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
 
     return Scaffold(
-      backgroundColor: context.sg.surface,
+      backgroundColor: _bg,
       appBar: AppBar(
         title: Text(l10n.attendance),
+        backgroundColor: Colors.white,
+        foregroundColor: _navy,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_outlined),
             onPressed: () =>
                 ref.read(attendanceHistoryProvider.notifier).refresh(),
           ),
         ],
       ),
       body: historyAsync.when(
-        loading: () => Center(child: SgBrandLoader()),
-        error: (e, _) => _ErrorView(
-          message: e is AppException ? e.message : e.toString(),
-          onRetry: () => ref.read(attendanceHistoryProvider.notifier).refresh(),
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => _AttendanceErrorBody(
+          message: attendanceErrorMessage(e),
+          onRetry: attendanceCanRetry(e)
+              ? () => ref.read(attendanceHistoryProvider.notifier).refresh()
+              : null,
           retryLabel: l10n.retry,
         ),
         data: (records) {
+          final days = groupAttendanceByDay(records);
+          final overview = buildOverview(days);
+          final today = _todaySummary(days);
           final clockedIn = _isClockedIn(records);
-          return Column(
-            children: [
-              _ClockWidget(
-                clockedIn: clockedIn,
-                loading: _actionLoading,
-                onTap: () => _handleAction(clockedIn),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: records.isEmpty
-                    ? Center(
-                        child: Text(
-                          l10n.noAttendanceRecords,
-                          style: TextStyle(color: context.sg.textSecondary),
+          final timeFmt = DateFormat('HH:mm');
+
+          return RefreshIndicator(
+            color: _teal,
+            onRefresh: () =>
+                ref.read(attendanceHistoryProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+              children: [
+                Text(
+                  dateLabel,
+                  style: TextStyle(
+                    color: context.sg.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.today_outlined,
+                              color: _teal, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Today's Attendance",
+                            style: TextStyle(
+                              color: context.sg.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const Spacer(),
+                          _StatusChip(
+                            label: clockedIn
+                                ? 'Clocked in'
+                                : (today?.isPresent == true
+                                    ? 'Completed'
+                                    : 'Not checked in'),
+                            color: clockedIn
+                                ? _emerald
+                                : (today?.isPresent == true
+                                    ? AppColors.success
+                                    : AppColors.warning),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'In',
+                              value: today?.checkIn != null
+                                  ? timeFmt.format(
+                                      today!.checkIn!.recordedAt.toLocal())
+                                  : '—',
+                              icon: Icons.login_outlined,
+                            ),
+                          ),
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Out',
+                              value: today?.checkOut != null
+                                  ? timeFmt.format(
+                                      today!.checkOut!.recordedAt.toLocal())
+                                  : '—',
+                              icon: Icons.logout_outlined,
+                            ),
+                          ),
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Shift',
+                              value: today?.duration != null
+                                  ? _fmtDuration(today!.duration!)
+                                  : '—',
+                              icon: Icons.schedule_outlined,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: FilledButton.icon(
+                          onPressed:
+                              _actionLoading ? null : () => _handleAction(clockedIn),
+                          style: FilledButton.styleFrom(
+                            backgroundColor:
+                                clockedIn ? AppColors.warning : _teal,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: _actionLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  clockedIn
+                                      ? Icons.logout_outlined
+                                      : Icons.login_outlined,
+                                ),
+                          label: Text(
+                            clockedIn ? l10n.checkOutCaps : l10n.checkInCaps,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
-                      )
-                    : _HistoryList(records: records),
-              ),
-            ],
+                      ),
+                      if (today?.checkIn?.latitude != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 16, color: context.sg.textSecondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Location verified at clock-in',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.sg.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Overview',
+                        style: TextStyle(
+                          color: context.sg.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _OverviewStat(
+                              label: 'Present',
+                              value: '${overview.presentDays}',
+                              color: _emerald,
+                            ),
+                          ),
+                          Expanded(
+                            child: _OverviewStat(
+                              label: 'Absent',
+                              value: '${overview.absentDays}',
+                              color: AppColors.error,
+                            ),
+                          ),
+                          Expanded(
+                            child: _OverviewStat(
+                              label: 'Late',
+                              value: '${overview.lateDays}',
+                              color: AppColors.warning,
+                            ),
+                          ),
+                          Expanded(
+                            child: _OverviewStat(
+                              label: 'Hours',
+                              value: overview.totalHours.toStringAsFixed(1),
+                              color: _teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'History',
+                            style: TextStyle(
+                              color: context.sg.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => _requestCorrection(DateTime.now()),
+                            child: const Text('Request correction'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _MonthCalendar(
+                        month: _calendarMonth,
+                        days: days,
+                        onPrev: () => setState(() {
+                          _calendarMonth = DateTime(
+                            _calendarMonth.year,
+                            _calendarMonth.month - 1,
+                          );
+                        }),
+                        onNext: () => setState(() {
+                          _calendarMonth = DateTime(
+                            _calendarMonth.year,
+                            _calendarMonth.month + 1,
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      if (days.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              l10n.noAttendanceRecords,
+                              style: TextStyle(color: context.sg.textSecondary),
+                            ),
+                          ),
+                        )
+                      else
+                        ...days.take(14).map((d) => _HistoryTile(day: d)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -141,210 +482,627 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 }
 
-class _ClockWidget extends StatelessWidget {
-  const _ClockWidget({
-    required this.clockedIn,
-    required this.loading,
-    required this.onTap,
-  });
+// ── Team (manager / admin) ──────────────────────────────────────────────────
 
-  final bool clockedIn;
-  final bool loading;
-  final VoidCallback onTap;
+class _TeamAttendanceView extends ConsumerStatefulWidget {
+  const _TeamAttendanceView();
+
+  @override
+  ConsumerState<_TeamAttendanceView> createState() =>
+      _TeamAttendanceViewState();
+}
+
+class _TeamAttendanceViewState extends ConsumerState<_TeamAttendanceView> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final current =
+        ref.read(teamAttendanceProvider).valueOrNull?.date ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (picked != null) {
+      await ref.read(teamAttendanceProvider.notifier).setDate(picked);
+    }
+  }
+
+  Future<void> _correct(TeamAttendanceRow row) async {
+    final session = ref.read(fleetSessionProvider);
+    if (session == null ||
+        !session.hasPermission(FleetPermissions.driverUpdate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ForbiddenException.attendance.message),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    final notesCtrl = TextEditingController();
+    String status = row.isPresent ? 'Present' : 'Absent';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text('Correct · ${row.fullName}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: status,
+                items: const [
+                  DropdownMenuItem(value: 'Present', child: Text('Present')),
+                  DropdownMenuItem(value: 'Absent', child: Text('Absent')),
+                  DropdownMenuItem(value: 'Late', child: Text('Late')),
+                ],
+                onChanged: (v) => setLocal(() => status = v ?? status),
+                decoration: const InputDecoration(labelText: 'Status'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await ref.read(teamAttendanceProvider.notifier).applyCorrection(
+            driverId: row.driverId,
+            attendanceDate: row.attendanceDate,
+            status: status,
+            notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attendance updated'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(attendanceErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final now = DateTime.now();
+    final async = ref.watch(teamAttendanceProvider);
+    final dateFmt = DateFormat('EEE, d MMM yyyy');
     final timeFmt = DateFormat('HH:mm');
-    final dateFmt = DateFormat('EEEE, d MMMM');
-    final color = clockedIn ? AppColors.success : AppColors.primary;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        border: Border(bottom: BorderSide(color: color.withValues(alpha: 0.15))),
-      ),
-      child: Column(
-        children: [
-          Text(
-            timeFmt.format(now),
-            style: TextStyle(
-              fontSize: 52,
-              fontWeight: FontWeight.w700,
-              color: color,
-              height: 1,
-            ),
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        title: const Text('Team Attendance'),
+        backgroundColor: Colors.white,
+        foregroundColor: _navy,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today_outlined),
+            onPressed: _pickDate,
           ),
-          const SizedBox(height: 4),
-          Text(dateFmt.format(now),
-              style: TextStyle(color: context.sg.textSecondary, fontSize: 14)),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: 200,
-            height: 52,
-            child: FilledButton.icon(
-              onPressed: loading ? null : onTap,
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    clockedIn ? AppColors.warning : AppColors.success,
-              ),
-              icon: loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : Icon(clockedIn ? Icons.logout : Icons.login),
-              label: Text(
-                clockedIn ? l10n.checkOutCaps : l10n.checkInCaps,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  clockedIn ? l10n.checkedIn : l10n.notCheckedIn,
-                  style: TextStyle(
-                      color: color, fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined),
+            onPressed: () =>
+                ref.read(teamAttendanceProvider.notifier).refresh(),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.records});
-  final List<AttendanceRecord> records;
-
-  @override
-  Widget build(BuildContext context) {
-    final Map<String, List<AttendanceRecord>> grouped = {};
-    for (final r in records) {
-      final key =
-          DateFormat('EEEE, d MMMM yyyy').format(r.recordedAt.toLocal());
-      grouped.putIfAbsent(key, () => []).add(r);
-    }
-
-    final dates = grouped.keys.toList();
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: dates.length,
-      itemBuilder: (context, i) {
-        final date = dates[i];
-        final dayRecords = grouped[date]!;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Text(date,
+      body: async.when(
+        loading: () => const Center(child: SgBrandLoader()),
+        error: (e, _) => _AttendanceErrorBody(
+          message: attendanceErrorMessage(e),
+          onRetry: attendanceCanRetry(e)
+              ? () => ref.read(teamAttendanceProvider.notifier).refresh()
+              : null,
+        ),
+        data: (state) {
+          final overview = state.overview;
+          final rows = state.filtered;
+          return RefreshIndicator(
+            color: _teal,
+            onRefresh: () =>
+                ref.read(teamAttendanceProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+              children: [
+                Text(
+                  dateFmt.format(state.date),
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: context.sg.textSecondary)),
+                    color: context.sg.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _Card(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _OverviewStat(
+                          label: 'Total',
+                          value: '${overview.total}',
+                          color: _navy,
+                        ),
+                      ),
+                      Expanded(
+                        child: _OverviewStat(
+                          label: 'Present',
+                          value: '${overview.present}',
+                          color: _emerald,
+                        ),
+                      ),
+                      Expanded(
+                        child: _OverviewStat(
+                          label: 'Absent',
+                          value: '${overview.absent}',
+                          color: AppColors.error,
+                        ),
+                      ),
+                      Expanded(
+                        child: _OverviewStat(
+                          label: 'Late',
+                          value: '${overview.late}',
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _search,
+                  onChanged: (v) =>
+                      ref.read(teamAttendanceProvider.notifier).setQuery(v),
+                  onSubmitted: (v) =>
+                      ref.read(teamAttendanceProvider.notifier).searchRemote(v),
+                  decoration: InputDecoration(
+                    hintText: 'Search drivers',
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: const Icon(Icons.search_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (rows.isEmpty)
+                  _Card(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      child: Center(
+                        child: Text(
+                          'No drivers for this date',
+                          style: TextStyle(color: context.sg.textSecondary),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...rows.map((r) {
+                    final color = r.isLate
+                        ? AppColors.warning
+                        : (r.isPresent ? _emerald : AppColors.error);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _Card(
+                        child: InkWell(
+                          onTap: () => _correct(r),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: color.withValues(alpha: 0.12),
+                                child: Icon(Icons.person_outline, color: color),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      r.fullName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: _navy,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      [
+                                        if (r.branchName != null &&
+                                            r.branchName!.isNotEmpty)
+                                          r.branchName!,
+                                        if (r.checkInAt != null)
+                                          'In ${timeFmt.format(r.checkInAt!.toLocal())}',
+                                        if (r.checkOutAt != null)
+                                          'Out ${timeFmt.format(r.checkOutAt!.toLocal())}',
+                                        if (r.hoursWorked != null)
+                                          '${r.hoursWorked!.toStringAsFixed(1)}h',
+                                      ].join(' · '),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.sg.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              _StatusChip(
+                                label: r.attendanceStatus,
+                                color: color,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+              ],
             ),
-            ...dayRecords.map((r) => _RecordTile(record: r)),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-class _RecordTile extends StatelessWidget {
-  const _RecordTile({required this.record});
-  final AttendanceRecord record;
+// ── Shared widgets ──────────────────────────────────────────────────────────
+
+class _Card extends StatelessWidget {
+  const _Card({required this.child});
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final timeFmt = DateFormat('HH:mm');
-    final color = record.isCheckIn ? AppColors.success : AppColors.warning;
-    final icon = record.isCheckIn ? Icons.login : Icons.logout;
-    final label = record.isCheckIn ? l10n.checkIn : l10n.checkOut;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
 
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: _teal, size: 18),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+            color: _navy,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: context.sg.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+class _OverviewStat extends StatelessWidget {
+  const _OverviewStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: context.sg.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryTile extends StatelessWidget {
+  const _HistoryTile({required this.day});
+  final AttendanceDaySummary day;
+
+  @override
+  Widget build(BuildContext context) {
+    final timeFmt = DateFormat('HH:mm');
+    final dateFmt = DateFormat('EEE, d MMM');
+    final color = day.isPresent ? _emerald : AppColors.error;
     return ListTile(
+      contentPadding: EdgeInsets.zero,
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: color, size: 20),
+        child: Icon(
+          day.isPresent ? Icons.check_circle_outline : Icons.highlight_off,
+          color: color,
+          size: 20,
+        ),
       ),
-      title: Text(label,
-          style: TextStyle(
-              fontWeight: FontWeight.w600, color: context.sg.textPrimary)),
-      subtitle: record.latitude != null
-          ? Text(
-              'GPS: ${record.latitude!.toStringAsFixed(4)}, ${record.longitude!.toStringAsFixed(4)}',
-              style:
-                  TextStyle(fontSize: 12, color: context.sg.textSecondary))
-          : null,
-      trailing: Text(
-        timeFmt.format(record.recordedAt.toLocal()),
-        style: TextStyle(
-            color: color, fontWeight: FontWeight.w700, fontSize: 16),
+      title: Text(
+        dateFmt.format(day.date),
+        style: const TextStyle(fontWeight: FontWeight.w600, color: _navy),
+      ),
+      subtitle: Text(
+        [
+          if (day.checkIn != null)
+            'In ${timeFmt.format(day.checkIn!.recordedAt.toLocal())}',
+          if (day.checkOut != null)
+            'Out ${timeFmt.format(day.checkOut!.recordedAt.toLocal())}',
+          if (day.duration != null) _fmtDuration(day.duration!),
+        ].join(' · '),
+        style: TextStyle(fontSize: 12, color: context.sg.textSecondary),
+      ),
+      trailing: _StatusChip(label: day.status, color: color),
+    );
+  }
+}
+
+class _MonthCalendar extends StatelessWidget {
+  const _MonthCalendar({
+    required this.month,
+    required this.days,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  final DateTime month;
+  final List<AttendanceDaySummary> days;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = DateFormat('MMMM yyyy').format(month);
+    final byDay = {
+      for (final d in days)
+        if (d.date.year == month.year && d.date.month == month.month)
+          d.date.day: d,
+    };
+    final first = DateTime(month.year, month.month, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final startWeekday = first.weekday % 7; // Sunday-first feel
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: onPrev,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            Expanded(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _navy,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: onNext,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        Row(
+          children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+              .map(
+                (d) => Expanded(
+                  child: Center(
+                    child: Text(
+                      d,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.sg.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 6),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: startWeekday + daysInMonth,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+          ),
+          itemBuilder: (context, index) {
+            if (index < startWeekday) return const SizedBox.shrink();
+            final dayNum = index - startWeekday + 1;
+            final summary = byDay[dayNum];
+            Color? bg;
+            Color fg = _navy;
+            if (summary != null) {
+              if (summary.isPresent) {
+                bg = _emerald.withValues(alpha: 0.18);
+                fg = _emerald;
+              } else {
+                bg = AppColors.error.withValues(alpha: 0.12);
+                fg = AppColors.error;
+              }
+            }
+            return Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$dayNum',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _AttendanceErrorBody extends StatelessWidget {
+  const _AttendanceErrorBody({
+    required this.message,
+    required this.onRetry,
+    this.retryLabel = 'Retry',
+  });
+
+  final String message;
+  final VoidCallback? onRetry;
+  final String retryLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: context.sg.textSecondary),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.sg.textPrimary, height: 1.35),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(backgroundColor: _teal),
+                child: Text(retryLabel),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-    required this.retryLabel,
-  });
-  final String message;
-  final VoidCallback onRetry;
-  final String retryLabel;
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline,
-                  size: 48, color: context.sg.textSecondary),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.sg.textPrimary),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: onRetry, child: Text(retryLabel)),
-            ],
-          ),
-        ),
-      );
+String _fmtDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  if (h <= 0) return '${m}m';
+  return '${h}h ${m}m';
 }

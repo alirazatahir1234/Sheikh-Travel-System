@@ -640,7 +640,12 @@ public sealed partial class GpsDeviceRepository(
                 var safetyError = await commandSafetyChecker.CheckEngineCutoffPreconditionAsync(
                     row.VehicleId, cancellationToken);
                 if (safetyError is not null)
+                {
+                    logger.LogWarning(
+                        "Engine cut-off retry refused for command {CommandId} vehicle {VehicleId}: {Reason}",
+                        row.Id, row.VehicleId, safetyError);
                     return ApiResponse<bool>.FailResponse(safetyError);
+                }
             }
         }
 
@@ -854,11 +859,11 @@ public sealed partial class GpsDeviceRepository(
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"INSERT INTO GpsDevices (TenantId, VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor,
-              SupportsEngineCutoff, RelayOutput, SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
+              SupportsEngineCutoff, SupportsRelay, RelayOutput, SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
               TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
               VALUES (@TenantId, @VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor,
-              @SupportsEngineCutoff, @RelayOutput, @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
+              @SupportsEngineCutoff, @SupportsRelay, @RelayOutput, @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
               @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
@@ -871,6 +876,7 @@ public sealed partial class GpsDeviceRepository(
                 dto.SimNumber,
                 dto.Vendor,
                 dto.SupportsEngineCutoff,
+                SupportsRelay = dto.SupportsEngineCutoff,
                 RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
                 dto.SerialNumber,
                 dto.InstallationDate,
@@ -914,7 +920,7 @@ public sealed partial class GpsDeviceRepository(
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             $@"UPDATE d SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
-              SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
+              SupportsEngineCutoff = @SupportsEngineCutoff, SupportsRelay = @SupportsRelay, RelayOutput = @RelayOutput,
               SimNumber = @SimNumber, SerialNumber = @SerialNumber,
               InstallationDate = @InstallationDate, InstalledBy = @InstalledBy,
               InstallationNotes = @InstallationNotes, IsActive = @IsActive,
@@ -930,6 +936,7 @@ public sealed partial class GpsDeviceRepository(
                 dto.Name,
                 dto.Protocol,
                 dto.SupportsEngineCutoff,
+                SupportsRelay = dto.SupportsEngineCutoff,
                 RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
                 dto.SimNumber,
                 dto.SerialNumber,
@@ -1056,7 +1063,12 @@ public sealed partial class GpsDeviceRepository(
             {
                 var safetyError = await commandSafetyChecker.CheckEngineCutoffPreconditionAsync(device.VehicleId, cancellationToken);
                 if (safetyError is not null)
+                {
+                    logger.LogWarning(
+                        "Engine cut-off refused for device {DeviceId} vehicle {VehicleId}: {Reason}",
+                        device.Id, device.VehicleId, safetyError);
                     return ApiResponse<int>.FailResponse(safetyError);
+                }
             }
         }
 

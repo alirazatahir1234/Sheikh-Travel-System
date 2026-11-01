@@ -1,0 +1,17 @@
+---
+description: Standing Ali rule — run SheikhGo Security MCP before every git push
+alwaysApply: true
+---
+
+# MSP / SheikhGo Security MCP — pre-push gate
+
+Before **every** `git push` on this repo:
+
+1. Discover MCP namespace **`user-sheikhgo`** (config key `sheikhgo`) via `GetDynamicTools`. Auth with `mcp_auth` if `needsAuth`. If missing, use `.cursor/mcp.json` + reload MCP (see `docs/MSP-SECURITY-PRE-PUSH.md`).
+2. Call **`review_change`** (`{}` or `{ staged: true }`). Block on `fail` or any **high** finding.
+3. Call **`scan_secrets`** scoped with `pathPrefix` to changed areas; `flagSensitivePaths: true`.
+4. If Backend API changed, call **`audit_api_auth`** with `statusFilter: "unauthenticated"`.
+5. Fix findings → re-scan → push **only when clean** (`git push origin HEAD`). Ignore Azure pushurl auth noise; GitHub origin is the push target.
+6. Never push secrets / `.env` / `secrets/` / `docker-compose.db.env`.
+
+Full checklist: `docs/MSP-SECURITY-PRE-PUSH.md`.

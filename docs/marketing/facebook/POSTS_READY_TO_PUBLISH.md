@@ -11,13 +11,14 @@ Pricing (Ali confirmed):
 
 Do **not** create a new Page. Post as existing SheikhGo Technologies Page.
 
-Full captions: `SHEIKHGO_TRACKER_20K_POST.md` and `URGENT_ORDER_TODAY_CAPTIONS.md`
+Full captions: `SHEIKHGO_TRACKER_20K_POST.md` and `URGENT_ORDER_TODAY_CAPTIONS.md`  
+CDN media index: `MEDIA_CDN.md` (local binaries cleared after verify).
 
 ---
 
 ## Post 1 — Pricing (primary)
 
-**Asset:** `sheikhgo-tracker-pricing-20k-40k.jpg`
+**Asset:** https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg
 
 Use master caption from `URGENT_ORDER_TODAY_CAPTIONS.md`.
 
@@ -25,7 +26,7 @@ Use master caption from `URGENT_ORDER_TODAY_CAPTIONS.md`.
 
 ## Post 2 — Product hero (square)
 
-**Asset:** `sheikhgo-fb-product-ad-square.jpg`
+**Asset:** https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-ad-square.jpg
 
 **Caption:**
 ```
@@ -44,7 +45,7 @@ UAE/GCC: https://wa.me/971557701219
 
 ## Post 3 — Product photo (vertical)
 
-**Asset:** `sheikhgo-fb-product-photo-vertical.jpg`
+**Asset:** https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-photo-vertical.jpg
 
 **Caption:**
 ```

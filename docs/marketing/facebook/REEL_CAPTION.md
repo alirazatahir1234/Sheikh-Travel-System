@@ -1,6 +1,9 @@
 # SheikhGo Technologies — English Demo Reel (Narowal + Lahore)
 
-**Video file:** `sheikhgo-english-reel-narowal-lahore.mp4` (~14.5s, 9:16)
+**Video (CDN):** https://sheikhgo-media.sheikhgo.workers.dev/website-videos/marketing/facebook/sheikhgo-english-reel-narowal-lahore.mp4 (~14.5s, 9:16)
+
+Also: https://sheikhgo-media.sheikhgo.workers.dev/website-videos/marketing/facebook/sheikhgo-fb-demo-reel.mp4  
+Index: `MEDIA_CDN.md`
 
 **Overlay style (uniform):** Helvetica, white text on dark slate rounded bar, centered lower-third. Same format on every beat.
 

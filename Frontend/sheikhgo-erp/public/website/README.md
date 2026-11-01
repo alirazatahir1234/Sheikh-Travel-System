@@ -1,15 +1,15 @@
 # Optional marketing media for the public homepage
 
-**Production serving:** Azure Blob Storage account `sheikhtravelblob`.
+**Production serving:** Cloudflare Worker CDN → Azure Blob (`sheikhtravelblob`).  
+App base: `environment.websiteMediaBaseUrl` = `https://sheikhgo-media.sheikhgo.workers.dev` (no apex/www DNS change).
 
 | Kind | Container | Example URL |
 |------|-----------|-------------|
-| Images / captions | `website-images` | `https://sheikhtravelblob.blob.core.windows.net/website-images/gps-alerts/hero-bg.jpg` |
-| Videos | `website-videos` | `https://sheikhtravelblob.blob.core.windows.net/website-videos/demo/sheikhgo-nexus-promo-120s.mp4` |
+| Images / captions | `website-images` | `https://sheikhgo-media.sheikhgo.workers.dev/website-images/gps-alerts/hero-bg.jpg` |
+| Videos | `website-videos` | `https://sheikhgo-media.sheikhgo.workers.dev/website-videos/demo/sheikhgo-nexus-promo-120s.mp4` |
 
 Angular resolves logical `/website/...` paths via `websiteAssetUrl()` / `environment.websiteMediaBaseUrl`.
-Cloudflare Worker CDN (no sheikhgo.com DNS change): `https://sheikhgo-media.sheikhgo.workers.dev`.
-When ready, set `websiteMediaBaseUrl` to that origin only (same path shape; see `docs/deploy/cloudflare-media-cdn.md`).
+To retarget CDN host later (e.g. `media.sheikhgo.com`), change only `websiteMediaBaseUrl` + `$sg-website-images-base` (see `docs/deploy/cloudflare-media-cdn.md`).
 
 ## Upload convention (new site media)
 

@@ -114,6 +114,10 @@ public record DriverAttendanceRecordDto(
 
 public record DriverCheckInRequest(double? Latitude, double? Longitude);
 public record DriverCheckOutRequest(double? Latitude, double? Longitude);
+public record DriverAttendanceCorrectionRequest(
+    DateTime AttendanceDate,
+    string Notes,
+    string? RequestedStatus = null);
 
 public record DriverSosRequest(double? Latitude, double? Longitude, string? Message);
 

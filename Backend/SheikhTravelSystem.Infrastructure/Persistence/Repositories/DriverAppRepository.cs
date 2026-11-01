@@ -214,6 +214,22 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
+    public async Task<(bool HasOpenCheckIn, bool HasAnyCheckIn)> GetTodayAttendanceStateAsync(
+        int driverId, int tenantId, DateTime attendanceDate, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var row = await connection.QuerySingleOrDefaultAsync<(int OpenCount, int AnyCount)>(new CommandDefinition(
+            @"SELECT
+                SUM(CASE WHEN CheckInAt IS NOT NULL AND CheckOutAt IS NULL THEN 1 ELSE 0 END) AS OpenCount,
+                COUNT(*) AS AnyCount
+              FROM DriverAttendance
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
+                AND AttendanceDate = @AttendanceDate",
+            new { DriverId = driverId, TenantId = tenantId, AttendanceDate = attendanceDate },
+            cancellationToken: ct));
+        return (row.OpenCount > 0, row.AnyCount > 0);
+    }
+
     public async Task<int> UpdateCheckInAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -272,13 +288,30 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
 
     public async Task InsertCheckOutAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default)
     {
+        // Intentionally unused — clock-out must update an open check-in (no orphan check-out rows).
+        await Task.CompletedTask;
+        _ = (driverId, tenantId, attendanceDate, now, lat, lng);
+    }
+
+    public async Task<int> InsertCorrectionRequestAsync(
+        int driverId, int tenantId, DateTime attendanceDate, string notes, string? requestedStatus, DateTime now, CancellationToken ct = default)
+    {
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
+        var status = string.IsNullOrWhiteSpace(requestedStatus) ? "CorrectionRequested" : requestedStatus.Trim();
+        return await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO DriverAttendance
-                (DriverId, TenantId, AttendanceDate, Status, CheckOutAt, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted, CreatedAt)
+                (DriverId, TenantId, AttendanceDate, Status, AttendanceType, RecordedAt, Notes, IsDeleted, CreatedAt)
               VALUES
-                (@DriverId, @TenantId, @AttendanceDate, N'Present', @Now, N'CheckOut', @Now, @Lat, @Lng, 0, @Now)",
-            new { DriverId = driverId, TenantId = tenantId, AttendanceDate = attendanceDate, Now = now, Lat = lat, Lng = lng },
+                (@DriverId, @TenantId, @AttendanceDate, @Status, N'CorrectionRequest', @Now, @Notes, 0, @Now)",
+            new
+            {
+                DriverId = driverId,
+                TenantId = tenantId,
+                AttendanceDate = attendanceDate.Date,
+                Status = status,
+                Now = now,
+                Notes = notes.Trim()
+            },
             cancellationToken: ct));
     }
 

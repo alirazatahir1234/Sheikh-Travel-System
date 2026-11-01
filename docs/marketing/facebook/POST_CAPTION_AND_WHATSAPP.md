@@ -28,12 +28,14 @@ UAE/GCC: https://wa.me/971557701219
 #SheikhGo #GPSTracking #Pakistan #BookADemo
 ```
 
-## Assets to upload
+## Assets (CDN — download then upload to Meta)
 
-1. `sheikhgo-tracker-pricing-20k-40k.jpg` — primary pricing creative (20k / 40k / Book a Demo)
-2. `sheikhgo-fb-product-ad-square.jpg` — square product/ad creative
-3. `sheikhgo-fb-product-photo-vertical.jpg` — vertical product photo
-4. Optional brand: `sheikhgo-logo.png`, `sheikhgo-nexus-logo.png`
+CDN index: `MEDIA_CDN.md`
+
+1. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg — primary pricing
+2. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-ad-square.jpg — square product/ad
+3. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-photo-vertical.jpg — vertical product photo
+4. Optional brand: `…/sheikhgo-logo.png`, `…/sheikhgo-nexus-logo.png`
 5. Full pack: `SHEIKHGO_TRACKER_20K_POST.md`, `URGENT_ORDER_TODAY_CAPTIONS.md`
 
 ## Add WhatsApp contact button on EXISTING Page (do not create a new page)

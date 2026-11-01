@@ -5,10 +5,30 @@ namespace SheikhTravelSystem.Tests.GpsTracking;
 public class GpsTelemetryNormalizerTests
 {
     [Fact]
-    public void Motion_false_at_rest_forces_ignition_off()
+    public void Acc_on_at_rest_stays_on_even_when_motion_false()
     {
+        // Idle with key ON: ACC true must not be cleared by motion=false.
         var ignition = GpsTelemetryNormalizer.ResolveIgnition(
             ignition: true,
+            motion: false,
+            speedKmh: 0);
+
+        Assert.True(ignition);
+    }
+
+    [Fact]
+    public void Acc_off_stays_off()
+    {
+        Assert.False(GpsTelemetryNormalizer.ResolveIgnition(false, false, 0));
+        Assert.False(GpsTelemetryNormalizer.ResolveIgnition(false, true, 5));
+    }
+
+    [Fact]
+    public void Acc_omitted_with_motion_false_at_rest_is_off()
+    {
+        // Command-result / sparse packets omit ignition — do not leave sticky ON.
+        var ignition = GpsTelemetryNormalizer.ResolveIgnition(
+            ignition: null,
             motion: false,
             speedKmh: 0);
 
@@ -16,32 +36,16 @@ public class GpsTelemetryNormalizerTests
     }
 
     [Fact]
-    public void Motion_true_keeps_reported_ignition_on()
+    public void Acc_omitted_without_motion_stays_unknown()
     {
-        var ignition = GpsTelemetryNormalizer.ResolveIgnition(
-            ignition: true,
-            motion: true,
-            speedKmh: 0);
-
-        Assert.True(ignition);
-    }
-
-    [Fact]
-    public void Motion_null_keeps_reported_ignition()
-    {
-        Assert.True(GpsTelemetryNormalizer.ResolveIgnition(true, null, 0));
-        Assert.False(GpsTelemetryNormalizer.ResolveIgnition(false, null, 0));
         Assert.Null(GpsTelemetryNormalizer.ResolveIgnition(null, null, 0));
+        Assert.Null(GpsTelemetryNormalizer.ResolveIgnition(null, true, 0));
     }
 
     [Fact]
-    public void Motion_false_while_moving_does_not_clear_ignition()
+    public void Acc_on_while_moving_stays_on()
     {
-        var ignition = GpsTelemetryNormalizer.ResolveIgnition(
-            ignition: true,
-            motion: false,
-            speedKmh: 40);
-
-        Assert.True(ignition);
+        Assert.True(GpsTelemetryNormalizer.ResolveIgnition(true, true, 40));
+        Assert.True(GpsTelemetryNormalizer.ResolveIgnition(true, false, 40));
     }
 }

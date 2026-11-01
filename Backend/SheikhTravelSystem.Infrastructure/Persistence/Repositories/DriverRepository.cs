@@ -1235,6 +1235,53 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                 cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<IReadOnlyList<TeamAttendanceRowDto>> GetTeamAttendanceAsync(
+        int tenantId, DateTime date, string? search, int? branchId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var q = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+        return (await connection.QueryAsync<TeamAttendanceRowDto>(
+            new CommandDefinition(
+                @"SELECT
+                    d.Id AS DriverId,
+                    d.FullName,
+                    d.Phone,
+                    b.Name AS BranchName,
+                    CASE d.Status
+                      WHEN 1 THEN 'Available' WHEN 2 THEN 'On Trip' WHEN 3 THEN 'Off Duty'
+                      WHEN 4 THEN 'Suspended' WHEN 5 THEN 'On Leave' ELSE 'Unknown' END AS DriverStatus,
+                    a.Id AS AttendanceId,
+                    @Date AS AttendanceDate,
+                    COALESCE(a.Status,
+                      CASE WHEN a.CheckInAt IS NOT NULL THEN N'Present' ELSE N'Absent' END,
+                      N'Absent') AS AttendanceStatus,
+                    a.CheckInAt,
+                    a.CheckOutAt,
+                    a.Notes,
+                    CASE
+                      WHEN a.CheckInAt IS NOT NULL AND a.CheckOutAt IS NOT NULL
+                        THEN CAST(DATEDIFF(MINUTE, a.CheckInAt, a.CheckOutAt) AS DECIMAL(10,2)) / 60.0
+                      ELSE NULL
+                    END AS HoursWorked
+                  FROM Drivers d
+                  LEFT JOIN Branches b ON b.Id = d.BranchId
+                  OUTER APPLY (
+                      SELECT TOP 1 Id, Status, CheckInAt, CheckOutAt, Notes
+                      FROM DriverAttendance
+                      WHERE DriverId = d.Id AND TenantId = d.TenantId AND IsDeleted = 0
+                        AND AttendanceDate = @Date
+                      ORDER BY COALESCE(CheckInAt, RecordedAt, CreatedAt) DESC
+                  ) a
+                  WHERE d.TenantId = @TenantId AND d.IsDeleted = 0
+                    AND (@BranchId IS NULL OR d.BranchId = @BranchId)
+                    AND (@Q IS NULL OR d.FullName LIKE @Q OR d.Phone LIKE @Q OR d.DriverCode LIKE @Q)
+                  ORDER BY
+                    CASE WHEN a.CheckInAt IS NULL THEN 1 ELSE 0 END,
+                    d.FullName",
+                new { TenantId = tenantId, Date = date.Date, BranchId = branchId, Q = q },
+                cancellationToken: cancellationToken))).ToList();
+    }
+
     public async Task<DriverLocationDto?> GetLocationAsync(
         int tenantId, int driverId, CancellationToken cancellationToken = default)
     {

@@ -85,11 +85,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dashboard'), findsWidgets);
+    expect(find.text('Live Map'), findsWidgets);
     expect(find.text('Vehicles'), findsWidgets);
-    expect(find.text('Trips'), findsWidgets);
+    expect(find.text('Drivers'), findsWidgets);
     expect(find.text('More'), findsWidgets);
     expect(find.text('AI'), findsNothing);
-    expect(find.text('Live'), findsNothing);
   });
 
   testWidgets('App shell hides fleet tab for driver-only session', (tester) async {
@@ -112,12 +112,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('Trips'), findsWidgets);
-    expect(find.text('GPS'), findsWidgets);
-    expect(find.text('Inbox'), findsWidgets);
-    expect(find.text('Profile'), findsWidgets);
+    expect(find.text('My Trips'), findsWidgets);
+    expect(find.text('Attendance'), findsWidgets);
+    expect(find.text('Fuel'), findsWidgets);
+    expect(find.text('More'), findsWidgets);
     expect(find.text('Vehicles'), findsNothing);
-    expect(find.text('More'), findsNothing);
     expect(find.text('AI'), findsNothing);
   });
 
@@ -132,8 +131,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Live Map + Drivers are bottom tabs — omitted from More grid.
     expect(find.text('Fleet live map'), findsNothing);
-    expect(find.text('Drivers'), findsOneWidget);
+    expect(find.text('Drivers'), findsNothing);
+    expect(find.text('Trips'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Attendance'), findsNothing);
   });

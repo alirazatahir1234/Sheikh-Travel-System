@@ -57,6 +57,22 @@ public class GetDriverAttendanceQueryHandler(IDriverRepository driverRepository,
     }
 }
 
+public record GetTeamAttendanceQuery(DateTime? Date = null, string? Q = null, int? BranchId = null)
+    : IRequest<ApiResponse<List<TeamAttendanceRowDto>>>;
+
+public class GetTeamAttendanceQueryHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
+    : IRequestHandler<GetTeamAttendanceQuery, ApiResponse<List<TeamAttendanceRowDto>>>
+{
+    public async Task<ApiResponse<List<TeamAttendanceRowDto>>> Handle(
+        GetTeamAttendanceQuery request, CancellationToken cancellationToken)
+    {
+        var day = (request.Date ?? DateTime.UtcNow).Date;
+        var rows = await driverRepository.GetTeamAttendanceAsync(
+            tenantContext.GetRequiredTenantId(), day, request.Q, request.BranchId, cancellationToken);
+        return ApiResponse<List<TeamAttendanceRowDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
 public record GetDriverLocationQuery(int DriverId) : IRequest<ApiResponse<DriverLocationDto>>;
 
 public class GetDriverLocationQueryHandler(IDriverRepository driverRepository, ITenantContext tenantContext)

@@ -115,7 +115,24 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
         this.commandCards = [...this.allCommandCards];
       }
     });
-    this.refreshTimer = setInterval(() => this.loadCommands(), 15_000);
+    this.refreshTimer = setInterval(() => {
+      this.refreshSelectedDeviceTelemetry();
+      this.loadCommands();
+    }, 15_000);
+  }
+
+  /** Keep Ignition / Relay badges in sync — devices were previously loaded once and went stale. */
+  private refreshSelectedDeviceTelemetry(): void {
+    if (!this.selectedDeviceId) return;
+    this.gps.getDevices().pipe(catchError(() => of([] as GpsDevice[]))).subscribe(devices => {
+      const active = (devices || []).filter(x => x.isActive);
+      if (!active.length) return;
+      this.devices = active;
+      if (!this.devices.some(d => d.id === this.selectedDeviceId)) {
+        this.selectedDeviceId = this.devices[0].id;
+        this.refreshDeviceCommandCards();
+      }
+    });
   }
 
   private tryApplyDeepLinkCommand(): void {

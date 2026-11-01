@@ -47,8 +47,10 @@ WhatsApp UAE: https://wa.me/971557701219
 SheikhGo Technologies — live GPS + fleet operations.
 ```
 
-## Assets
+## Assets (CDN)
 
-1. `sheikhgo-tracker-pricing-20k-40k.jpg` — primary
-2. `sheikhgo-fb-product-ad-square.jpg`
-3. `sheikhgo-fb-product-photo-vertical.jpg`
+1. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg — primary
+2. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-ad-square.jpg
+3. https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-photo-vertical.jpg
+
+Full list: `MEDIA_CDN.md`

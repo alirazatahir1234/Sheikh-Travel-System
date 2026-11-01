@@ -195,8 +195,9 @@ void main() {
       final tabs = FleetNavConfig.visibleTabs(_session());
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'trips', 'tracking', 'notifications', 'profile'],
+        ['dashboard', 'trips', 'attendance', 'fuel', 'more'],
       );
+      expect(tabs.map((t) => t.label).toList(), contains('My Trips'));
     });
 
     test('fleet manager shell', () {
@@ -207,6 +208,7 @@ void main() {
             FleetPermissions.tripView,
             FleetPermissions.gpsView,
             FleetPermissions.vehicleView,
+            FleetPermissions.driverView,
           ],
           authMode: AuthMode.staff,
           driverId: null,
@@ -214,7 +216,7 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'map', 'fleet', 'trips', 'more'],
+        ['dashboard', 'map', 'fleet', 'drivers', 'more'],
       );
     });
 
@@ -226,6 +228,7 @@ void main() {
             FleetPermissions.bookingView,
             FleetPermissions.tripView,
             FleetPermissions.gpsView,
+            FleetPermissions.driverView,
           ],
           authMode: AuthMode.staff,
           driverId: null,
@@ -233,7 +236,7 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'bookings', 'trips', 'map', 'more'],
+        ['dashboard', 'map', 'trips', 'drivers', 'more'],
       );
     });
 
@@ -362,19 +365,26 @@ void main() {
       final routes =
           FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
       expect(routes, isNot(contains('/fleet/map')));
-      expect(routes, isNot(contains('/trips')));
+      expect(routes, isNot(contains('/more/drivers')));
+      // Trips moved off the FM bottom bar — available from More.
+      expect(routes, contains('/trips'));
     });
 
     test('index prefers longest path match for map tab', () {
       final tabs = FleetNavConfig.visibleTabs(
         _session(
           roles: const [FleetRole.dispatcher],
-          permissions: const [FleetPermissions.bookingView],
+          permissions: const [
+            FleetPermissions.bookingView,
+            FleetPermissions.driverView,
+            FleetPermissions.gpsView,
+          ],
           authMode: AuthMode.staff,
           driverId: null,
         ),
       );
-      expect(FleetNavConfig.indexForLocation(tabs, '/fleet/map'), 3);
+      // dashboard, map, trips, drivers, more → Live Map is index 1
+      expect(FleetNavConfig.indexForLocation(tabs, '/fleet/map'), 1);
     });
 
     test('vehicle history never highlights Live Map tab', () {
@@ -409,8 +419,8 @@ void main() {
       );
       final fmHistoryIdx =
           FleetNavConfig.indexForLocation(fmTabs, '/fleet/vehicles/7/history');
-      // Fleet managers with Trips tab prefer Trips for history/playback.
-      expect(fmTabs[fmHistoryIdx].id, anyOf('trips', 'fleet'));
+      // Fleet managers without Trips tab prefer Vehicles (fleet) for history.
+      expect(fmTabs[fmHistoryIdx].id, anyOf('fleet', 'more'));
       expect(fmTabs[fmHistoryIdx].id, isNot('map'));
     });
   });

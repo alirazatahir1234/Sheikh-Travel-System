@@ -55,6 +55,9 @@ class ErrorHandler {
           if (isAuthPath && msg != null) {
             return ValidationException(msg);
           }
+          if (path.contains('attendance')) {
+            return ForbiddenException.attendance;
+          }
           return const ForbiddenException();
         }
         if (status == 404) {

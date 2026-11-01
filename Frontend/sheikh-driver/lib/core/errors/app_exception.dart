@@ -40,6 +40,11 @@ class ForbiddenException extends AppException {
   const ForbiddenException([
     super.message = 'You do not have permission to perform this action.',
   ]);
+
+  /// Attendance-specific copy required by product (never show raw Dio 403).
+  static const attendance = ForbiddenException(
+    "You don't have permission to access this attendance information. Please contact your company administrator.",
+  );
 }
 
 class ValidationException extends AppException {

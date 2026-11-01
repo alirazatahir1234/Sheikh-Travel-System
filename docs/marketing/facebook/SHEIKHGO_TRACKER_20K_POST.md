@@ -52,18 +52,21 @@ WhatsApp PK: https://wa.me/923177368305
 WhatsApp UAE: https://wa.me/971557701219
 ```
 
-## Creative
+## Creative (CDN)
 
-- Primary: `sheikhgo-tracker-pricing-20k-40k.jpg`
-- Also: `sheikhgo-fb-product-ad-square.jpg`, `sheikhgo-fb-product-photo-vertical.jpg`
+See `MEDIA_CDN.md`.
+
+- Primary: https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg
+- Also: https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-ad-square.jpg
+- Also: https://sheikhgo-media.sheikhgo.workers.dev/website-images/marketing/facebook/sheikhgo-fb-product-photo-vertical.jpg
 
 ## Publish steps (agent blocked — Ali do this)
 
 ### Facebook (Brave — recommended)
 1. Open https://www.facebook.com/profile.php?id=61593609047248 while **logged in** as a Page admin.
 2. Switch identity to **SheikhGo Technologies** Page (not personal profile).
-3. Create post → upload `docs/marketing/facebook/sheikhgo-tracker-pricing-20k-40k.jpg` → paste Roman Urdu caption above → **Publish**.
-4. Optional 2nd/3rd posts: `sheikhgo-fb-product-ad-square.jpg`, `sheikhgo-fb-product-photo-vertical.jpg` with same pricing lines.
+3. Create post → download/upload CDN pricing JPG above → paste Roman Urdu caption above → **Publish**.
+4. Optional 2nd/3rd posts: square + vertical product JPGs (CDN URLs above) with same pricing lines.
 5. Copy each post URL (click post timestamp → copy link) and save.
 
 ### Instagram

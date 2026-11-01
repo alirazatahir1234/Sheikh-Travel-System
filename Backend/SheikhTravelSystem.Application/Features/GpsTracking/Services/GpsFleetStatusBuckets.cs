@@ -15,9 +15,8 @@ public static class GpsFleetStatusBuckets
     /// </summary>
     /// <param name="motion">
     /// Optional Traccar <c>attributes.motion</c>. When false at low speed, classify as
-    /// Parked even if ignition is stuck ON (common on Jimi/GT06 with ACC miswired).
-    /// Prefer normalizing ignition via <see cref="GpsTelemetryNormalizer"/> at ingest;
-    /// this parameter covers callers that still have raw motion.
+    /// Parked for fleet KPIs even if ACC/ignition is ON (idle engine, key on).
+    /// Does not change stored/display ignition — only the status bucket.
     /// </param>
     public static string Classify(
         bool hasGpsDevice,
@@ -47,21 +46,23 @@ public static class GpsFleetStatusBuckets
             return "sos";
 
         var speed = speedKmh ?? 0m;
-        var effectiveIgnition = GpsTelemetryNormalizer.ResolveIgnition(
-            ignition, motion, speed, movingThresholdKmh);
+
+        // Settled (no motion) at low speed → Parked for KPIs; ACC may still be ON in UI.
+        if (motion == false && speed < movingThresholdKmh)
+            return "parked";
 
         // Ignition OFF + below moving threshold → parked (speed 0 and low GPS drift).
-        if (effectiveIgnition == false && speed < movingThresholdKmh)
+        if (ignition == false && speed < movingThresholdKmh)
             return "parked";
 
         // Ignition OFF + high speed → contradictory.
-        if (effectiveIgnition == false && speed >= movingThresholdKmh)
+        if (ignition == false && speed >= movingThresholdKmh)
             return "unknown";
 
         if (speed >= movingThresholdKmh)
             return "moving";
 
-        if (effectiveIgnition == true)
+        if (ignition == true)
             return "idle";
 
         // Ignition null / unwired with low speed — treat as parked (stationary), not Idle.

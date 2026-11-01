@@ -19,7 +19,7 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
         return connection.ExecuteAsync(new CommandDefinition(
             @"UPDATE GpsDevices SET
                 LastSeenAt = @Timestamp,
-                LastIgnition = @Ignition,
+                LastIgnition = COALESCE(@Ignition, LastIgnition),
                 LastSpeed = COALESCE(@Speed, LastSpeed),
                 LastBatteryLevel = COALESCE(@BatteryLevel, LastBatteryLevel),
                 LastRssi = COALESCE(@Rssi, LastRssi),

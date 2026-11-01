@@ -162,7 +162,17 @@ public class DriversController : BaseApiController
     public async Task<IActionResult> CreateViolation(int id, [FromBody] CreateDriverViolationRequest body)
         => Ok(await Mediator.Send(new CreateDriverViolationCommand(id, body)));
 
-    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    /// <summary>Team attendance for a single day (Fleet Manager / Admin). Tenant-scoped.</summary>
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("attendance/team")]
+    public async Task<IActionResult> GetTeamAttendance(
+        [FromQuery] DateTime? date,
+        [FromQuery] string? q,
+        [FromQuery] int? branchId)
+        => Ok(await Mediator.Send(new GetTeamAttendanceQuery(date, q, branchId)));
+
+    /// <summary>Per-driver attendance history. View-level — not performance-only.</summary>
+    [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("{id:int}/attendance")]
     public async Task<IActionResult> GetAttendance(int id, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         => Ok(await Mediator.Send(new GetDriverAttendanceQuery(id, fromDate, toDate)));

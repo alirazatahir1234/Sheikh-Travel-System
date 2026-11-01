@@ -55,7 +55,7 @@ internal static class TrackerSql
                d.Protocol, d.TrackerModelKey, d.TrackerModelId,
                b.Id AS TrackerBrandId, b.Name AS TrackerBrandName, m.Name AS ModelName,
                d.Model, d.Vendor,
-               d.SupportsEngineCutoff, d.RelayOutput, d.RelayPurpose, d.LastIgnition, d.LastSeenAt, d.IsActive,
+               d.SupportsEngineCutoff, d.SupportsRelay, d.RelayOutput, d.RelayPurpose, d.LastIgnition, d.LastSeenAt, d.IsActive,
                CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())
                     THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsOnline,
                COALESCE(d.LastSpeed, vcl.Speed) AS LastSpeed,

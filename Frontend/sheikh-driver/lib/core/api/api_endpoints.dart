@@ -32,6 +32,10 @@ abstract class ApiEndpoints {
   static const attendanceCheckIn = '/driver-app/attendance/check-in';
   static const attendanceCheckOut = '/driver-app/attendance/check-out';
   static const attendanceHistory = '/driver-app/attendance/history';
+  static const attendanceCorrectionRequest =
+      '/driver-app/attendance/correction-request';
+  /// Fleet Manager / Admin team board (Driver.View).
+  static const teamAttendance = '/drivers/attendance/team';
 
   // Fuel
   static const fuelReceipts = '/driver-app/fuel-receipts';

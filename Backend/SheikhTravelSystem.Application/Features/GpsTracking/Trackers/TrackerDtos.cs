@@ -177,6 +177,7 @@ public record TrackerDetailDto(
     string? Model,
     string? Vendor,
     bool SupportsEngineCutoff,
+    bool SupportsRelay,
     string? RelayOutput,
     string? RelayPurpose,
     bool? LastIgnition,

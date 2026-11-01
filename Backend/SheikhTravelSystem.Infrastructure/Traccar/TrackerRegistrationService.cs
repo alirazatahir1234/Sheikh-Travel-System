@@ -80,7 +80,8 @@ public sealed class TrackerRegistrationService(
             var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 @"INSERT INTO GpsDevices (
                     TenantId, VehicleId, DriverId, UniqueId, Name, Category, Phone, Contact, SosNumber, Disabled,
-                    Protocol, Model, Vendor, TrackerModelKey, TrackerModelId, SupportsEngineCutoff, RelayOutput, RelayPurpose,
+                    Protocol, Model, Vendor, TrackerModelKey, TrackerModelId,
+                    SupportsEngineCutoff, SupportsRelay, RelayOutput, RelayPurpose,
                     SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
                     CountryCode, SIMProvider, SIMPackage, MonthlySIMCost,
                     WarrantyStart, WarrantyEnd, PurchaseDate, PurchasePrice, CurrentStatus,
@@ -88,7 +89,8 @@ public sealed class TrackerRegistrationService(
                   OUTPUT INSERTED.Id
                   VALUES (
                     @TenantId, @VehicleId, @DriverId, @UniqueId, @Name, @Category, @Phone, @Contact, @SosNumber, @Disabled,
-                    @Protocol, @Model, @Vendor, @TrackerModelKey, @TrackerModelId, @SupportsEngineCutoff, @RelayOutput, @RelayPurpose,
+                    @Protocol, @Model, @Vendor, @TrackerModelKey, @TrackerModelId,
+                    @SupportsEngineCutoff, @SupportsRelay, @RelayOutput, @RelayPurpose,
                     @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
                     @CountryCode, @SIMProvider, @SIMPackage, @MonthlySIMCost,
                     @WarrantyStart, @WarrantyEnd, @PurchaseDate, @PurchasePrice, @CurrentStatus,
@@ -189,7 +191,8 @@ public sealed class TrackerRegistrationService(
                     Category = @Category, Phone = @Phone, Contact = @Contact, SosNumber = @SosNumber, Disabled = @Disabled,
                     Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
                     TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
-                    SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput, RelayPurpose = @RelayPurpose,
+                    SupportsEngineCutoff = @SupportsEngineCutoff, SupportsRelay = @SupportsRelay,
+                    RelayOutput = @RelayOutput, RelayPurpose = @RelayPurpose,
                     SerialNumber = @SerialNumber,
                     CountryCode = @CountryCode, SIMProvider = @SIMProvider, SIMPackage = @SIMPackage,
                     MonthlySIMCost = @MonthlySIMCost, WarrantyStart = @WarrantyStart, WarrantyEnd = @WarrantyEnd,
@@ -213,6 +216,7 @@ public sealed class TrackerRegistrationService(
                     TrackerModelKey = model.CatalogKey,
                     TrackerModelId = model.Id,
                     dto.SupportsEngineCutoff,
+                    SupportsRelay = dto.SupportsEngineCutoff,
                     RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
                     RelayPurpose = dto.SupportsEngineCutoff ? (dto.RelayPurpose ?? "EngineImmobilizer") : null,
                     dto.SerialNumber,
@@ -565,6 +569,7 @@ public sealed class TrackerRegistrationService(
         TrackerModelKey = model.CatalogKey,
         TrackerModelId = model.Id,
         dto.SupportsEngineCutoff,
+        SupportsRelay = dto.SupportsEngineCutoff,
         RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
         RelayPurpose = dto.SupportsEngineCutoff ? (dto.RelayPurpose ?? "EngineImmobilizer") : null,
         dto.SerialNumber,

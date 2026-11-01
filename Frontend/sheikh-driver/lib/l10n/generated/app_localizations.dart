@@ -227,14 +227,248 @@ abstract class AppLocalizations {
   /// No description provided for @offlineQueue.
   ///
   /// In en, this message translates to:
-  /// **'Offline queue'**
+  /// **'Sync & Connectivity'**
   String get offlineQueue;
 
   /// No description provided for @offlineQueueSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Pending sync & conflicts'**
+  /// **'Pending, synced & failed items'**
   String get offlineQueueSubtitle;
+
+  /// No description provided for @syncConnectivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync & Connectivity'**
+  String get syncConnectivity;
+
+  /// No description provided for @syncConnectivitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending, synced & failed items'**
+  String get syncConnectivitySubtitle;
+
+  /// No description provided for @syncPendingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending action(s)'**
+  String syncPendingSubtitle(int count);
+
+  /// No description provided for @notificationsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsSection;
+
+  /// No description provided for @securityPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Security & Privacy'**
+  String get securityPrivacy;
+
+  /// No description provided for @securityPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Security & Permissions'**
+  String get securityPermissions;
+
+  /// No description provided for @securityPermissionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles and access for your account'**
+  String get securityPermissionsSubtitle;
+
+  /// No description provided for @securityPermissionsFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Access is granted by your company administrator. The server enforces permissions on every request.'**
+  String get securityPermissionsFootnote;
+
+  /// No description provided for @securityLevelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Access level: {level}'**
+  String securityLevelHint(String level);
+
+  /// No description provided for @rolesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles'**
+  String get rolesSection;
+
+  /// No description provided for @permissionCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission categories'**
+  String get permissionCategories;
+
+  /// No description provided for @securityDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Diagnostics'**
+  String get securityDiagnostics;
+
+  /// No description provided for @securityDiagnosticsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Root, jailbreak, emulator, pinning'**
+  String get securityDiagnosticsSubtitle;
+
+  /// No description provided for @locationTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Location & Tracking'**
+  String get locationTracking;
+
+  /// No description provided for @locationTrackingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions, status & battery guidance'**
+  String get locationTrackingSubtitle;
+
+  /// No description provided for @locationTrackingActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live tracking is active'**
+  String get locationTrackingActive;
+
+  /// No description provided for @locationTrackingIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking is not active on this device'**
+  String get locationTrackingIdle;
+
+  /// No description provided for @locationPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get locationPermissions;
+
+  /// No description provided for @locationWhenInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'When in use'**
+  String get locationWhenInUse;
+
+  /// No description provided for @locationAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always (background)'**
+  String get locationAlways;
+
+  /// No description provided for @locationServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Device location'**
+  String get locationServices;
+
+  /// No description provided for @onLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get onLabel;
+
+  /// No description provided for @offLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get offLabel;
+
+  /// No description provided for @openSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open system Settings'**
+  String get openSystemSettings;
+
+  /// No description provided for @trackingStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking status'**
+  String get trackingStatus;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @inactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get inactive;
+
+  /// No description provided for @lastUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Last update'**
+  String get lastUpdate;
+
+  /// No description provided for @notAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get notAvailable;
+
+  /// No description provided for @vehicleIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle'**
+  String get vehicleIdLabel;
+
+  /// No description provided for @queuedPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued GPS points'**
+  String get queuedPoints;
+
+  /// No description provided for @batteryGuidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery guidance'**
+  String get batteryGuidance;
+
+  /// No description provided for @batteryGuidanceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep location set to Always while on duty. Avoid aggressive battery savers for SheikhGo. Use Low Power modes only when dispatch confirms tracking may pause.'**
+  String get batteryGuidanceBody;
+
+  /// No description provided for @openLiveMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Open live map'**
+  String get openLiveMap;
+
+  /// No description provided for @trackingMandatoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Live tracking is required for active trips. Contact dispatch if you need to pause company tracking.'**
+  String get trackingMandatoryHint;
+
+  /// No description provided for @stopTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop tracking'**
+  String get stopTracking;
+
+  /// No description provided for @profileAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'PROFILE & ACCOUNT'**
+  String get profileAccount;
+
+  /// No description provided for @appInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'App Information'**
+  String get appInformation;
 
   /// No description provided for @offlineBannerOffline.
   ///
@@ -401,7 +635,7 @@ abstract class AppLocalizations {
   /// No description provided for @securityStatus.
   ///
   /// In en, this message translates to:
-  /// **'Security status'**
+  /// **'Security Diagnostics'**
   String get securityStatus;
 
   /// No description provided for @securityStatusSubtitle.
@@ -413,13 +647,13 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundGps.
   ///
   /// In en, this message translates to:
-  /// **'Background GPS'**
+  /// **'Location & Tracking'**
   String get backgroundGps;
 
   /// No description provided for @backgroundGpsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Stop live tracking / open live map'**
+  /// **'Permissions, status & battery guidance'**
   String get backgroundGpsSubtitle;
 
   /// No description provided for @backgroundGpsStopped.
@@ -467,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @version.
   ///
   /// In en, this message translates to:
-  /// **'Version'**
+  /// **'App Version'**
   String get version;
 
   /// No description provided for @checkForUpdates.

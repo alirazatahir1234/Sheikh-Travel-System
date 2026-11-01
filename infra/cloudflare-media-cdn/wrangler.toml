@@ -21,3 +21,5 @@ ALLOWED_CONTAINERS = "website-images,website-videos"
 EDGE_TTL_IMAGES = "2592000"
 EDGE_TTL_VIDEOS = "2592000"
 BROWSER_TTL = "604800"
+# Allow direct/app/privacy clients with no Referer/Origin. Set "false" to require allowlisted Referer/Origin.
+HOTLINK_ALLOW_EMPTY_REFERRER = "true"

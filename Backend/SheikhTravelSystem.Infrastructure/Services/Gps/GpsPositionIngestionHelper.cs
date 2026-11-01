@@ -98,7 +98,7 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
             WHEN MATCHED THEN
               UPDATE SET GpsDeviceId = @GpsDeviceId, DriverId = @DriverId, BookingId = @BookingId,
                 Latitude = @Latitude, Longitude = @Longitude, Speed = @Speed, Heading = @Heading,
-                Ignition = @Ignition, LastUpdate = @LastUpdate,
+                Ignition = COALESCE(@Ignition, target.Ignition), LastUpdate = @LastUpdate,
                 FuelLevel = @FuelLevel, BatteryLevel = @BatteryLevel, GsmSignal = @GsmSignal,
                 TotalDistanceKm = @TotalDistanceKm,
                 Address = COALESCE(@Address, Address),

@@ -7,6 +7,8 @@ import '../../../core/offline/offline_models.dart';
 import '../../../core/offline/offline_outbox.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../core/offline/connectivity_provider.dart';
+import '../../../features/auth/data/auth_repository.dart';
+import '../../settings/domain/settings_access.dart';
 
 final offlineQueueProvider = Provider<List<OfflineOperation>>((ref) {
   ref.watch(offlinePendingCountProvider);
@@ -22,6 +24,8 @@ class OfflineQueueScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final online = ref.watch(isOnlineProvider);
     final items = ref.watch(offlineQueueProvider);
+    final session = ref.watch(fleetSessionProvider);
+    final canClear = SettingsAccess.canClearOfflineQueue(session);
     final pending = items
         .where((o) =>
             o.status == OfflineOpStatus.pending ||
@@ -32,13 +36,17 @@ class OfflineQueueScreen extends ConsumerWidget {
     final conflicts = items
         .where((o) => o.status == OfflineOpStatus.conflict)
         .toList();
+    final failedCount = pending
+        .where((o) =>
+            o.status == OfflineOpStatus.failed || isOfflineRetryExhausted(o))
+        .length;
     final fmt = DateFormat('dd MMM, HH:mm');
     final p = context.sg;
 
     return Scaffold(
       backgroundColor: p.surface,
       appBar: AppBar(
-        title: Text(l10n.offlineQueue),
+        title: Text(l10n.syncConnectivity),
         actions: [
           TextButton(
             onPressed: online
@@ -70,8 +78,12 @@ class OfflineQueueScreen extends ConsumerWidget {
               ),
               title: Text(online ? l10n.online : l10n.offline),
               subtitle: Text(
-                online ? l10n.offlineOnlineHint : l10n.offlineOfflineHint,
+                online
+                    ? '${l10n.offlineOnlineHint}\n'
+                        'Pending ${pending.length} · Failed $failedCount'
+                    : l10n.offlineOfflineHint,
               ),
+              isThreeLine: online,
             ),
           ),
           if (exhausted.isNotEmpty) ...[
@@ -170,18 +182,19 @@ class OfflineQueueScreen extends ConsumerWidget {
                                   }
                                 : null,
                           ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () async {
-                            await OfflineOutbox.remove(op.id);
-                            ref
-                                .read(offlinePendingCountProvider.notifier)
-                                .state = OfflineOutbox.length;
-                            ref
-                                .read(offlineOutboxRevisionProvider.notifier)
-                                .state++;
-                          },
-                        ),
+                        if (canClear)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await OfflineOutbox.remove(op.id);
+                              ref
+                                  .read(offlinePendingCountProvider.notifier)
+                                  .state = OfflineOutbox.length;
+                              ref
+                                  .read(offlineOutboxRevisionProvider.notifier)
+                                  .state++;
+                            },
+                          ),
                       ],
                     ),
                   ),
@@ -220,18 +233,19 @@ class OfflineQueueScreen extends ConsumerWidget {
                               }
                             : null,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () async {
-                          await OfflineOutbox.remove(op.id);
-                          ref
-                              .read(offlinePendingCountProvider.notifier)
-                              .state = OfflineOutbox.length;
-                          ref
-                              .read(offlineOutboxRevisionProvider.notifier)
-                              .state++;
-                        },
-                      ),
+                      if (canClear)
+                        IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () async {
+                            await OfflineOutbox.remove(op.id);
+                            ref
+                                .read(offlinePendingCountProvider.notifier)
+                                .state = OfflineOutbox.length;
+                            ref
+                                .read(offlineOutboxRevisionProvider.notifier)
+                                .state++;
+                          },
+                        ),
                     ],
                   ),
                 ),

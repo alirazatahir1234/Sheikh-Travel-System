@@ -4,13 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 /// Brand + semantic colors (mode-independent).
 /// Prefer [SgPalette.of] / [BuildContext.sg] for surfaces and text in UI.
 abstract class AppColors {
-  static const primary = Color(0xFF1D836C);
-  static const primaryLight = Color(0xFF2A9B82);
-  static const primaryDark = Color(0xFF146652);
+  /// Brand — Deep Navy, Teal, Emerald (Settings / marketing parity).
+  static const navy = Color(0xFF071D2E);
+  static const emerald = Color(0xFF14B8A6);
+
+  static const primary = Color(0xFF0D9488);
+  static const primaryLight = Color(0xFF14B8A6);
+  static const primaryDark = Color(0xFF0F766E);
   static const accent = Color(0xFF0D9488);
 
   /// Legacy light-mode aliases — prefer Theme / [SgPalette] in new code.
-  static const surface = Color(0xFFF3F6F8);
+  static const surface = Color(0xFFF4F8FA);
   static const cardBg = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF0F1C27);
   static const textSecondary = Color(0xFF5B6B7C);
@@ -73,7 +77,7 @@ class SgPalette extends ThemeExtension<SgPalette> {
   final Color heroWash;
 
   static const light = SgPalette(
-    surface: Color(0xFFF3F6F8),
+    surface: Color(0xFFF4F8FA),
     card: Color(0xFFFFFFFF),
     textPrimary: Color(0xFF0F1C27),
     textSecondary: Color(0xFF5B6B7C),
@@ -82,7 +86,7 @@ class SgPalette extends ThemeExtension<SgPalette> {
     divider: Color(0xFFE6EBF0),
     chipBg: Color(0xFFEEF3F6),
     navBar: Color(0xFFFFFFFF),
-    heroWash: Color(0xFF1D836C),
+    heroWash: Color(0xFF0D9488),
   );
 
   static const dark = SgPalette(

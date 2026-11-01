@@ -116,7 +116,8 @@ public record TraccarEvent(
     [property: JsonPropertyName("attributes")] TraccarEventAttributes? Attributes = null);
 
 public record TraccarEventAttributes(
-    [property: JsonPropertyName("alarm")] string? Alarm = null);
+    [property: JsonPropertyName("alarm")] string? Alarm = null,
+    [property: JsonPropertyName("result")] string? Result = null);
 
 public record TraccarSummary(
     [property: JsonPropertyName("deviceId")] int DeviceId,

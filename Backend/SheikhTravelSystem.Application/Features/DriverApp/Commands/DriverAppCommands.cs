@@ -281,6 +281,11 @@ public class DriverCheckInCommandHandler(
 
         var now = DateTime.UtcNow;
         var tenantId = tenantContext.GetRequiredTenantId();
+        var state = await repository.GetTodayAttendanceStateAsync(
+            driverId.Value, tenantId, now.Date, cancellationToken);
+        if (state.HasOpenCheckIn)
+            return ApiResponse<bool>.FailResponse("Already checked in for today.", code: "ATTENDANCE_DUPLICATE_CHECKIN");
+
         var updated = await repository.UpdateCheckInAsync(
             driverId.Value, tenantId, now.Date, now, request.Latitude, request.Longitude, cancellationToken);
         if (updated == 0)
@@ -304,13 +309,55 @@ public class DriverCheckOutCommandHandler(
 
         var now = DateTime.UtcNow;
         var tenantId = tenantContext.GetRequiredTenantId();
+        var state = await repository.GetTodayAttendanceStateAsync(
+            driverId.Value, tenantId, now.Date, cancellationToken);
+        if (!state.HasOpenCheckIn)
+            return ApiResponse<bool>.FailResponse("Check in before checking out.", code: "ATTENDANCE_CHECKOUT_WITHOUT_CHECKIN");
+
         var updated = await repository.UpdateCheckOutAsync(
             driverId.Value, tenantId, now.Date, now, request.Latitude, request.Longitude, cancellationToken);
         if (updated == 0)
-            await repository.InsertCheckOutAsync(
-                driverId.Value, tenantId, now.Date, now, request.Latitude, request.Longitude, cancellationToken);
+            return ApiResponse<bool>.FailResponse("Check in before checking out.", code: "ATTENDANCE_CHECKOUT_WITHOUT_CHECKIN");
 
         return ApiResponse<bool>.SuccessResponse(true, "Checked out successfully.");
+    }
+}
+
+public record DriverAttendanceCorrectionCommand(DateTime AttendanceDate, string Notes, string? RequestedStatus)
+    : IRequest<ApiResponse<bool>>;
+
+public class DriverAttendanceCorrectionCommandValidator : AbstractValidator<DriverAttendanceCorrectionCommand>
+{
+    public DriverAttendanceCorrectionCommandValidator()
+    {
+        RuleFor(x => x.AttendanceDate).NotEmpty();
+        RuleFor(x => x.Notes).NotEmpty().MaximumLength(500);
+        RuleFor(x => x.RequestedStatus).MaximumLength(40).When(x => !string.IsNullOrWhiteSpace(x.RequestedStatus));
+    }
+}
+
+public class DriverAttendanceCorrectionCommandHandler(
+    IDriverAppRepository repository,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<DriverAttendanceCorrectionCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(
+        DriverAttendanceCorrectionCommand request, CancellationToken cancellationToken)
+    {
+        var driverId = currentUser.DriverId;
+        if (!driverId.HasValue) return ApiResponse<bool>.FailResponse("Driver identity required.");
+
+        var now = DateTime.UtcNow;
+        await repository.InsertCorrectionRequestAsync(
+            driverId.Value,
+            tenantContext.GetRequiredTenantId(),
+            request.AttendanceDate,
+            request.Notes,
+            request.RequestedStatus,
+            now,
+            cancellationToken);
+        return ApiResponse<bool>.SuccessResponse(true, "Correction request submitted.");
     }
 }
 

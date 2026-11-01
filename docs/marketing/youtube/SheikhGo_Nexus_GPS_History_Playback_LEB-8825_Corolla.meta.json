@@ -1,0 +1,20 @@
+{
+  "vehicle": "Toyota Corolla",
+  "plate": "LEB-8825",
+  "vehicleId": 2,
+  "matchNote": "BW2217 / BWY 2217 not in fleet. Closest plate BWY 217 (Suzuki Every / Ali, Id 2005) has parked-only history (408 pts, 0 km movement). Used Toyota Corolla LEB-8825 Id 2 for route playback.",
+  "day": "2026-09-25",
+  "sourcePointCountDay": 5793,
+  "sampledWaypoints": 36,
+  "pathKmApprox": 117.68,
+  "odoDeltaKm": 146.33,
+  "maxSpeedKmh": 73.0,
+  "dateRange": [
+    "2026-09-25T00:46:30.213Z",
+    "2026-09-25T18:08:21.220Z"
+  ],
+  "output": "/Users/alirazatahir/Projects/Sheikh-Travel-System/docs/marketing/youtube/SheikhGo_Nexus_GPS_History_Playback_LEB-8825_Corolla.mp4",
+  "durationSec": 25.0,
+  "frameCount": 750,
+  "logo": "/Users/alirazatahir/.cursor/projects/Users-alirazatahir-Projects-Sheikh-Travel-System/assets/SheikhGoLogo_White_background-b4cfd7ff-f3e4-4ce3-ae54-874ec36ef9cf.png"
+}

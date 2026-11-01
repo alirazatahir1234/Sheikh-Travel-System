@@ -74,10 +74,135 @@ class AppLocalizationsAr extends AppLocalizations {
   String get unlockSignOut => 'تسجيل الخروج';
 
   @override
-  String get offlineQueue => 'قائمة دون اتصال';
+  String get offlineQueue => 'المزامنة والاتصال';
 
   @override
-  String get offlineQueueSubtitle => 'المزامنة المعلقة والتعارضات';
+  String get offlineQueueSubtitle => 'العناصر المعلقة والمزامنة والفاشلة';
+
+  @override
+  String get syncConnectivity => 'المزامنة والاتصال';
+
+  @override
+  String get syncConnectivitySubtitle => 'العناصر المعلقة والمزامنة والفاشلة';
+
+  @override
+  String syncPendingSubtitle(int count) {
+    return '$count إجراء معلق';
+  }
+
+  @override
+  String get notificationsSection => 'الإشعارات';
+
+  @override
+  String get securityPrivacy => 'الأمان والخصوصية';
+
+  @override
+  String get securityPermissions => 'الأمان والصلاحيات';
+
+  @override
+  String get securityPermissionsSubtitle => 'الأدوار والوصول لحسابك';
+
+  @override
+  String get securityPermissionsFootnote =>
+      'تُمنح الصلاحيات بواسطة مسؤول شركتك. يفرض الخادم الصلاحيات على كل طلب.';
+
+  @override
+  String securityLevelHint(String level) {
+    return 'مستوى الوصول: $level';
+  }
+
+  @override
+  String get rolesSection => 'الأدوار';
+
+  @override
+  String get permissionCategories => 'فئات الصلاحيات';
+
+  @override
+  String get securityDiagnostics => 'تشخيصات الأمان';
+
+  @override
+  String get securityDiagnosticsSubtitle =>
+      'الجذر، كسر الحماية، المحاكي، التثبيت';
+
+  @override
+  String get locationTracking => 'الموقع والتتبع';
+
+  @override
+  String get locationTrackingSubtitle => 'الصلاحيات والحالة وإرشادات البطارية';
+
+  @override
+  String get locationTrackingActive => 'التتبع المباشر نشط';
+
+  @override
+  String get locationTrackingIdle => 'التتبع غير نشط على هذا الجهاز';
+
+  @override
+  String get locationPermissions => 'الصلاحيات';
+
+  @override
+  String get locationWhenInUse => 'أثناء الاستخدام';
+
+  @override
+  String get locationAlways => 'دائماً (الخلفية)';
+
+  @override
+  String get locationServices => 'موقع الجهاز';
+
+  @override
+  String get onLabel => 'تشغيل';
+
+  @override
+  String get offLabel => 'إيقاف';
+
+  @override
+  String get openSystemSettings => 'فتح إعدادات النظام';
+
+  @override
+  String get trackingStatus => 'حالة التتبع';
+
+  @override
+  String get status => 'الحالة';
+
+  @override
+  String get active => 'نشط';
+
+  @override
+  String get inactive => 'غير نشط';
+
+  @override
+  String get lastUpdate => 'آخر تحديث';
+
+  @override
+  String get notAvailable => 'غير متاح';
+
+  @override
+  String get vehicleIdLabel => 'المركبة';
+
+  @override
+  String get queuedPoints => 'نقاط GPS في الانتظار';
+
+  @override
+  String get batteryGuidance => 'إرشادات البطارية';
+
+  @override
+  String get batteryGuidanceBody =>
+      'أبقِ الموقع على دائماً أثناء العمل. تجنب توفير البطارية العدواني لـ SheikhGo. استخدم وضع الطاقة المنخفضة فقط عندما يؤكد الإرسال إمكانية إيقاف التتبع.';
+
+  @override
+  String get openLiveMap => 'فتح الخريطة المباشرة';
+
+  @override
+  String get trackingMandatoryHint =>
+      'التتبع المباشر مطلوب للرحلات النشطة. تواصل مع الإرسال إذا احتجت لإيقاف تتبع الشركة.';
+
+  @override
+  String get stopTracking => 'إيقاف التتبع';
+
+  @override
+  String get profileAccount => 'الملف والحساب';
+
+  @override
+  String get appInformation => 'معلومات التطبيق';
 
   @override
   String get offlineBannerOffline => 'أنت غير متصل';
@@ -172,17 +297,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dismissWarning => 'تجاهل التحذير';
 
   @override
-  String get securityStatus => 'حالة الأمان';
+  String get securityStatus => 'تشخيصات الأمان';
 
   @override
   String get securityStatusSubtitle => 'الجذر، كسر الحماية، المحاكي، التثبيت';
 
   @override
-  String get backgroundGps => 'GPS في الخلفية';
+  String get backgroundGps => 'الموقع والتتبع';
 
   @override
-  String get backgroundGpsSubtitle =>
-      'إيقاف التتبع المباشر / فتح الخريطة المباشرة';
+  String get backgroundGpsSubtitle => 'الصلاحيات والحالة وإرشادات البطارية';
 
   @override
   String get backgroundGpsStopped => 'تم إيقاف GPS في الخلفية';
@@ -206,7 +330,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get termsOfService => 'شروط الخدمة';
 
   @override
-  String get version => 'الإصدار';
+  String get version => 'إصدار التطبيق';
 
   @override
   String get checkForUpdates => 'التحقق من التحديثات';

@@ -74,10 +74,136 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unlockSignOut => 'Sign out';
 
   @override
-  String get offlineQueue => 'Offline queue';
+  String get offlineQueue => 'Sync & Connectivity';
 
   @override
-  String get offlineQueueSubtitle => 'Pending sync & conflicts';
+  String get offlineQueueSubtitle => 'Pending, synced & failed items';
+
+  @override
+  String get syncConnectivity => 'Sync & Connectivity';
+
+  @override
+  String get syncConnectivitySubtitle => 'Pending, synced & failed items';
+
+  @override
+  String syncPendingSubtitle(int count) {
+    return '$count pending action(s)';
+  }
+
+  @override
+  String get notificationsSection => 'Notifications';
+
+  @override
+  String get securityPrivacy => 'Security & Privacy';
+
+  @override
+  String get securityPermissions => 'Security & Permissions';
+
+  @override
+  String get securityPermissionsSubtitle => 'Roles and access for your account';
+
+  @override
+  String get securityPermissionsFootnote =>
+      'Access is granted by your company administrator. The server enforces permissions on every request.';
+
+  @override
+  String securityLevelHint(String level) {
+    return 'Access level: $level';
+  }
+
+  @override
+  String get rolesSection => 'Roles';
+
+  @override
+  String get permissionCategories => 'Permission categories';
+
+  @override
+  String get securityDiagnostics => 'Security Diagnostics';
+
+  @override
+  String get securityDiagnosticsSubtitle =>
+      'Root, jailbreak, emulator, pinning';
+
+  @override
+  String get locationTracking => 'Location & Tracking';
+
+  @override
+  String get locationTrackingSubtitle =>
+      'Permissions, status & battery guidance';
+
+  @override
+  String get locationTrackingActive => 'Live tracking is active';
+
+  @override
+  String get locationTrackingIdle => 'Tracking is not active on this device';
+
+  @override
+  String get locationPermissions => 'Permissions';
+
+  @override
+  String get locationWhenInUse => 'When in use';
+
+  @override
+  String get locationAlways => 'Always (background)';
+
+  @override
+  String get locationServices => 'Device location';
+
+  @override
+  String get onLabel => 'On';
+
+  @override
+  String get offLabel => 'Off';
+
+  @override
+  String get openSystemSettings => 'Open system Settings';
+
+  @override
+  String get trackingStatus => 'Tracking status';
+
+  @override
+  String get status => 'Status';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get inactive => 'Inactive';
+
+  @override
+  String get lastUpdate => 'Last update';
+
+  @override
+  String get notAvailable => 'Not available';
+
+  @override
+  String get vehicleIdLabel => 'Vehicle';
+
+  @override
+  String get queuedPoints => 'Queued GPS points';
+
+  @override
+  String get batteryGuidance => 'Battery guidance';
+
+  @override
+  String get batteryGuidanceBody =>
+      'Keep location set to Always while on duty. Avoid aggressive battery savers for SheikhGo. Use Low Power modes only when dispatch confirms tracking may pause.';
+
+  @override
+  String get openLiveMap => 'Open live map';
+
+  @override
+  String get trackingMandatoryHint =>
+      'Live tracking is required for active trips. Contact dispatch if you need to pause company tracking.';
+
+  @override
+  String get stopTracking => 'Stop tracking';
+
+  @override
+  String get profileAccount => 'PROFILE & ACCOUNT';
+
+  @override
+  String get appInformation => 'App Information';
 
   @override
   String get offlineBannerOffline => 'You are offline';
@@ -174,16 +300,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dismissWarning => 'Dismiss warning';
 
   @override
-  String get securityStatus => 'Security status';
+  String get securityStatus => 'Security Diagnostics';
 
   @override
   String get securityStatusSubtitle => 'Root, jailbreak, emulator, pinning';
 
   @override
-  String get backgroundGps => 'Background GPS';
+  String get backgroundGps => 'Location & Tracking';
 
   @override
-  String get backgroundGpsSubtitle => 'Stop live tracking / open live map';
+  String get backgroundGpsSubtitle => 'Permissions, status & battery guidance';
 
   @override
   String get backgroundGpsStopped => 'Background GPS stopped';
@@ -208,7 +334,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get termsOfService => 'Terms of Service';
 
   @override
-  String get version => 'Version';
+  String get version => 'App Version';
 
   @override
   String get checkForUpdates => 'Check for Updates';

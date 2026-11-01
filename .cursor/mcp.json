@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sheikhgo": {
+      "command": "npx",
+      "args": ["tsx", "/Users/alirazatahir/Projects/SheikhGo-MCP/src/index.ts"],
+      "env": {
+        "SHEIKHGO_REPOSITORY": "/Users/alirazatahir/Projects/Sheikh-Travel-System"
+      }
+    }
+  }
+}

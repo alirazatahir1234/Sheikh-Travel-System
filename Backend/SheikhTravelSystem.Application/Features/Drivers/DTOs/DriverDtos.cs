@@ -247,6 +247,21 @@ public record DriverAttendanceDto(
     string? Notes,
     DateTime CreatedAt);
 
+/// <summary>One driver row for team attendance board (tenant-scoped).</summary>
+public record TeamAttendanceRowDto(
+    int DriverId,
+    string FullName,
+    string? Phone,
+    string? BranchName,
+    string? DriverStatus,
+    int? AttendanceId,
+    DateTime AttendanceDate,
+    string AttendanceStatus,
+    DateTime? CheckInAt,
+    DateTime? CheckOutAt,
+    string? Notes,
+    decimal? HoursWorked);
+
 public class DriverLocationDto
 {
     public double? Latitude { get; set; }

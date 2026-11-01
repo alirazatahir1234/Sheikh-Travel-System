@@ -153,6 +153,27 @@ class AppConfig {
     defaultValue: '',
   );
 
+  /// Support inbox for Help & Support / legal contact (override per tenant build).
+  static const String supportEmail = String.fromEnvironment(
+    'SUPPORT_EMAIL',
+    defaultValue: 'support@sheikhgo.local',
+  );
+
+  /// Optional support phone (`tel:`) — omit from UI when empty.
+  static const String supportPhone = String.fromEnvironment(
+    'SUPPORT_PHONE',
+    defaultValue: '',
+  );
+
+  /// Privacy contact from approved store copy (override before store submission).
+  static const String privacyEmail = String.fromEnvironment(
+    'PRIVACY_EMAIL',
+    defaultValue: 'privacy@sheikhgo.local',
+  );
+
+  static bool get hasSupportPhone => supportPhone.trim().isNotEmpty;
+  static bool get hasSupportEmail => supportEmail.trim().isNotEmpty;
+
   static bool get isDev => environment == AppEnvironment.dev;
   static bool get isUat => environment == AppEnvironment.uat;
   static bool get isProd => environment == AppEnvironment.prod;

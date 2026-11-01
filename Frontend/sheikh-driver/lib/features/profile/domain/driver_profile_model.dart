@@ -21,6 +21,7 @@ class DriverProfile {
     this.verificationStatus,
     this.isStaffProfile = false,
     this.roleLabel,
+    this.lastLoginAt,
   });
 
   final int id;
@@ -42,6 +43,9 @@ class DriverProfile {
   final String? verificationStatus;
   final bool isStaffProfile;
   final String? roleLabel;
+
+  /// From auth `/auth/me` when present — never invented client-side.
+  final DateTime? lastLoginAt;
 
   bool get isLicenseExpiringSoon {
     if (licenseExpiryDate == null) return false;
@@ -69,6 +73,7 @@ class DriverProfile {
       rating: (json['rating'] as num?)?.toDouble(),
       yearsExperience: json['yearsExperience'] as int?,
       verificationStatus: json['verificationStatus'] as String?,
+      lastLoginAt: _parseDate(json['lastLoginAt'] ?? json['LastLoginAt']),
     );
   }
 
@@ -93,7 +98,14 @@ class DriverProfile {
       roleFromApi ??
           (session.roles.isNotEmpty ? session.primaryNavRole : 'Staff'),
     );
-    final active = json['isActive'] as bool? ?? true;
+    final statusRaw = (json['status'] as String?)?.trim();
+    final active = json['isActive'] as bool? ??
+        (statusRaw == null || statusRaw.isEmpty
+            ? true
+            : statusRaw.toLowerCase() == 'active');
+    final statusName = (statusRaw != null && statusRaw.isNotEmpty)
+        ? statusRaw
+        : (active ? 'Active' : 'Inactive');
 
     return DriverProfile(
       id: json['id'] as int? ?? session.userId,
@@ -102,13 +114,17 @@ class DriverProfile {
           ? json['phone'] as String
           : (session.phone ?? ''),
       email: json['email'] as String? ?? session.email,
+      photoUrl: json['avatarUrl'] as String? ??
+          json['AvatarUrl'] as String? ??
+          json['photoUrl'] as String?,
       driverCode: 'U${json['id'] as int? ?? session.userId}',
       licenseNumber: '—',
       status: active ? 1 : 0,
-      statusName: active ? 'Active' : 'Inactive',
+      statusName: statusName,
       isActive: active,
       isStaffProfile: true,
       roleLabel: roleLabel,
+      lastLoginAt: _parseDate(json['lastLoginAt'] ?? json['LastLoginAt']),
     );
   }
 
@@ -116,19 +132,31 @@ class DriverProfile {
     final roleLabel = _prettyRole(
       session.roles.isNotEmpty ? session.primaryNavRole : 'Staff',
     );
+    final userStatus = session.companyContext?.currentUser?.status?.trim();
+    final active = userStatus == null ||
+        userStatus.isEmpty ||
+        userStatus.toLowerCase() == 'active';
     return DriverProfile(
       id: session.userId,
       fullName: session.displayName,
       phone: session.phone ?? '',
       email: session.email,
+      photoUrl: session.companyContext?.currentUser?.avatarUrl,
       driverCode: 'U${session.userId}',
       licenseNumber: '—',
-      status: 1,
-      statusName: 'Active',
-      isActive: true,
+      status: active ? 1 : 0,
+      statusName: (userStatus != null && userStatus.isNotEmpty)
+          ? userStatus
+          : 'Active',
+      isActive: active,
       isStaffProfile: true,
       roleLabel: roleLabel,
     );
+  }
+
+  static DateTime? _parseDate(Object? raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
   }
 
   static String _prettyRole(String raw) {

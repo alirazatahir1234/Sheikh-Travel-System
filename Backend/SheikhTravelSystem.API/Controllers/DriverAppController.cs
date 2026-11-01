@@ -133,18 +133,19 @@ public class DriverAppController : BaseApiController
         => Ok(await Mediator.Send(new DriverPostLocationBatchCommand(batch.Positions)));
 
     // ── Attendance ───────────────────────────────────────────────────────────
+    // Roles include legacy enum "Driver" and RBAC code "DRIVER" (case-sensitive role checks).
 
-    [Authorize(Roles = "Driver")]
+    [Authorize(Roles = "Driver,DRIVER")]
     [HttpPost("attendance/check-in")]
     public async Task<IActionResult> CheckIn([FromBody] DriverCheckInRequest request)
         => Ok(await Mediator.Send(new DriverCheckInCommand(request.Latitude, request.Longitude)));
 
-    [Authorize(Roles = "Driver")]
+    [Authorize(Roles = "Driver,DRIVER")]
     [HttpPost("attendance/check-out")]
     public async Task<IActionResult> CheckOut([FromBody] DriverCheckOutRequest request)
         => Ok(await Mediator.Send(new DriverCheckOutCommand(request.Latitude, request.Longitude)));
 
-    [Authorize(Roles = "Driver")]
+    [Authorize(Roles = "Driver,DRIVER")]
     [HttpGet("attendance/history")]
     public async Task<IActionResult> GetAttendanceHistory(
         [FromQuery] DateTime? from,
@@ -152,6 +153,13 @@ public class DriverAppController : BaseApiController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 30)
         => Ok(await Mediator.Send(new GetDriverAttendanceHistoryQuery(from, to, page, pageSize)));
+
+    [Authorize(Roles = "Driver,DRIVER")]
+    [HttpPost("attendance/correction-request")]
+    public async Task<IActionResult> RequestAttendanceCorrection(
+        [FromBody] DriverAttendanceCorrectionRequest request)
+        => Ok(await Mediator.Send(new DriverAttendanceCorrectionCommand(
+            request.AttendanceDate, request.Notes, request.RequestedStatus)));
 
     // ── Fuel ─────────────────────────────────────────────────────────────────
 

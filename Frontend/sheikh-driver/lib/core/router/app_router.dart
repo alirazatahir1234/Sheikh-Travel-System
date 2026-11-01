@@ -24,6 +24,10 @@ import '../../features/gps/presentation/live_map_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/help_support_screen.dart';
+import '../../features/settings/presentation/location_tracking_screen.dart';
+import '../../features/settings/presentation/security_permissions_screen.dart';
+import '../../features/settings/domain/settings_access.dart';
 import '../../features/earnings/presentation/earnings_screen.dart';
 import '../../features/settlements/presentation/settlements_screen.dart';
 import '../../features/inspection/presentation/inspection_screen.dart';
@@ -150,6 +154,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
         if (loc == '/live' && !session.isDriverSession) {
           return '/dashboard';
+        }
+        if (loc == '/security' &&
+            !SettingsAccess.canSeeSecurityDiagnostics(session)) {
+          return '/settings/security-permissions';
+        }
+        if (loc == '/settings/location' &&
+            !SettingsAccess.canSeeLocationTracking(session)) {
+          return '/settings';
         }
       }
 
@@ -452,6 +464,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const SettingsScreen(),
           ),
           GoRoute(
+            path: '/settings/location',
+            builder: (_, __) => const LocationTrackingScreen(),
+          ),
+          GoRoute(
+            path: '/settings/security-permissions',
+            builder: (_, __) => const SecurityPermissionsScreen(),
+          ),
+          GoRoute(
             path: '/offline-queue',
             builder: (_, __) => const OfflineQueueScreen(),
           ),
@@ -470,6 +490,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/security',
             builder: (_, __) => const SecurityStatusScreen(),
+          ),
+          GoRoute(
+            path: '/help-support',
+            builder: (_, __) => const HelpSupportScreen(),
           ),
           GoRoute(
             path: '/legal/privacy',

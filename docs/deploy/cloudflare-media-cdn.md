@@ -80,9 +80,27 @@ Smoke tests:
 CDN=https://sheikhgo-media.sheikhgo.workers.dev
 curl -sI "$CDN/health"
 curl -sI "$CDN/website-images/demo/sheikhgo-nexus-mobile-promo-poster.jpg"   # expect 200 + Cache-Control
+curl -sI "$CDN/website-videos/demo/sheikhgo-nexus-promo-120s.mp4"            # expect 200
 curl -sI "$CDN/gps-playbacks/anything"                                      # expect 403
 curl -sI "$CDN/sheikhtravelcontainer/anything"                              # expect 403
+# Hotlink: bad Referer → 403 + X-SheikhGo-Hotlink: blocked; good Referer → 200
+curl -sI -H 'Referer: https://evil.example/' "$CDN/website-images/demo/sheikhgo-nexus-mobile-promo-poster.jpg"
+curl -sI -H 'Referer: https://www.sheikhgo.com/' "$CDN/website-images/demo/sheikhgo-nexus-mobile-promo-poster.jpg"
 ```
+
+## Hotlink protection (active on Worker)
+
+Cloudflare **Scrape Shield → Hotlink Protection** is a **zone** feature and does **not** cover `*.workers.dev` Workers. Protection is implemented in `infra/cloudflare-media-cdn/src/index.js`:
+
+| Request | Result |
+|---------|--------|
+| Referer/Origin from `sheikhgo.com`, `*.sheikhgo.com`, `localhost`, `127.0.0.1`, `*.vercel.app`, or this Worker host | Allowed |
+| Referer or Origin from any other site | **403** `Hotlink forbidden` (`X-SheikhGo-Hotlink: blocked`) |
+| Empty Referer **and** empty Origin | **Allowed** (default) — direct URL, apps, privacy browsers that strip Referer |
+
+Toggle: `HOTLINK_ALLOW_EMPTY_REFERRER` (`true` default). Set `false` to require an allowlisted Referer or Origin on every media path (`/health` stays open).
+
+**Waiting for Ali’s folder name** — do not act on any Azure/media folder move yet.
 
 ### Alternative: `wrangler login` (browser OAuth)
 
@@ -106,6 +124,7 @@ Approve in the browser for account `05cf981da1f681f3ee10789fd63ff04a`.
 | `EDGE_TTL_IMAGES` | `2592000` |
 | `EDGE_TTL_VIDEOS` | `2592000` |
 | `BROWSER_TTL` | `604800` |
+| `HOTLINK_ALLOW_EMPTY_REFERRER` | `true` |
 
 5. Copy the `*.workers.dev` URL for review.
 
@@ -142,17 +161,19 @@ Later options:
 1. **Full zone move to Cloudflare** (affects apex/www — schedule cutover), then Workers → Custom Domains → `media.sheikhgo.com`.
 2. Keep apex at Spaceship; only possible with CF partial CNAME (Business) or a separate CF-managed domain — not free/simple.
 
-Until then, use `https://sheikhgo-media.sheikhgo.workers.dev` after switching `websiteMediaBaseUrl`.
+Until custom host: keep `websiteMediaBaseUrl` on `https://sheikhgo-media.sheikhgo.workers.dev`.
 
 ## Checklist
 
 - [x] Worker deployed — `https://sheikhgo-media.sheikhgo.workers.dev`
 - [ ] Revoke any chat-exposed API token; new token shell-only (Ali)
-- [ ] `GET /health` OK
-- [ ] Image + video 200 via CDN
-- [ ] `/gps-playbacks/*` → 403
+- [x] `GET /health` OK
+- [x] Image + video 200 via CDN
+- [x] `/gps-playbacks/*` → 403
+- [x] Hotlink: bad Referer → 403; allowlisted Referer → 200; empty Referer allowed
 - [ ] Azure container ACL: `gps-playbacks` still private
 - [x] `websiteMediaBaseUrl` → workers.dev (app config; no DNS)
 - [ ] Review before any `media.sheikhgo.com` DNS
-- [ ] No Azure CDN profile created
-- [ ] **No** `sheikhgo.com` DNS changes
+- [x] No Azure CDN profile created
+- [x] **No** `sheikhgo.com` DNS changes
+- [ ] **Waiting for Ali’s folder name** — no folder move yet

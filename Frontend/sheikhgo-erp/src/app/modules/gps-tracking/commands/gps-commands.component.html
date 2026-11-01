@@ -34,19 +34,19 @@
       <span class="strip-label">IMEI</span>
       <span class="strip-val mono">{{ dev.uniqueId }}</span>
     </div>
-    <div class="device-strip-item">
+    <div class="device-strip-item" title="Device ACC/ignition from GPS. Cut Engine is not blocked when Off.">
       <span class="strip-label">Ignition</span>
       <span class="badge" [class.badge-green]="dev.lastIgnition" [class.badge-gray]="dev.lastIgnition == null" [class.badge-red]="dev.lastIgnition === false">
         {{ dev.lastIgnition == null ? 'Unknown' : (dev.lastIgnition ? 'On' : 'Off') }}
       </span>
     </div>
-    <div class="device-strip-item">
+    <div class="device-strip-item" title="Required for Cut Engine / Engine Resume (RELAY,1# / RELAY,0# on VG03).">
       <span class="strip-label">Cut-off</span>
       <span class="badge" [class.badge-green]="dev.supportsEngineCutoff" [class.badge-gray]="!dev.supportsEngineCutoff">
         {{ dev.supportsEngineCutoff ? 'Supported' : 'Not supported' }}
       </span>
     </div>
-    <div class="device-strip-item">
+    <div class="device-strip-item" title="Immobilizer relay capability (RELAY,1# / RELAY,0#). Should be Supported on VG03 cut-off devices.">
       <span class="strip-label">Relay</span>
       <span class="badge" [class.badge-green]="dev.supportsRelay" [class.badge-gray]="!dev.supportsRelay">
         {{ dev.supportsRelay ? 'Supported' : 'Not supported' }}

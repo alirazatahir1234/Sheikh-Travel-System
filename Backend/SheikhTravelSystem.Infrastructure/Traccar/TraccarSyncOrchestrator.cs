@@ -101,7 +101,7 @@ public sealed class TraccarSyncOrchestrator(
             var movingThreshold = options.Value.MovingSpeedKmh > 0
                 ? options.Value.MovingSpeedKmh
                 : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
-            // Jimi/GT06: ACC often stuck ON while parked — trust Traccar motion=false.
+            // Prefer device ACC/ignition; motion must not force Ignition Off for UI/VCL.
             var ignition = GpsTelemetryNormalizer.ResolveIgnition(
                 pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
             var battery = pos.Attributes.BatteryLevel;
@@ -295,7 +295,7 @@ public sealed class TraccarSyncOrchestrator(
                 var movingThreshold = options.Value.MovingSpeedKmh > 0
                     ? options.Value.MovingSpeedKmh
                     : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
-                // Jimi/GT06: ACC often stuck ON while parked — trust Traccar motion=false.
+                // Prefer device ACC/ignition; motion must not force Ignition Off for UI/VCL.
                 var ignition = GpsTelemetryNormalizer.ResolveIgnition(
                     pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
                 adaptiveSamples.Add(new TraccarAdaptiveInterval.Sample(speedKmh, ignition, pos.Attributes.Alarm));
@@ -468,7 +468,7 @@ public sealed class TraccarSyncOrchestrator(
                     continue;
                 }
 
-                foreach (var ev in events)
+                foreach (var ev in events.OrderBy(e => e.EventTime))
                 {
                     var externalId = $"traccar:{ev.Id}";
                     var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
@@ -478,10 +478,98 @@ public sealed class TraccarSyncOrchestrator(
                         new { ExternalEventId = externalId },
                         cancellationToken: ct));
 
+                    // Device ACK for engineStop/Resume — clear false timeouts (noise for alert table).
+                    if (string.Equals(ev.Type, "commandResult", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!exists)
+                        {
+                            var resultText = ev.Attributes?.Result;
+                            var cmdId = await connection.QueryFirstOrDefaultAsync<int?>(new CommandDefinition(
+                                """
+                                SELECT TOP 1 c.Id
+                                FROM GpsDeviceCommands c
+                                INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId AND d.IsDeleted = 0
+                                WHERE d.TraccarDeviceId = @TraccarDeviceId
+                                  AND c.IsDeleted = 0
+                                  AND c.Status IN (N'sent', N'pending', N'timeout')
+                                  AND c.CommandType IN (N'engineStop', N'engineResume', N'restart', N'positionSingle', N'relayOn', N'relayOff')
+                                ORDER BY c.RequestedAt DESC
+                                """,
+                                new { TraccarDeviceId = device.TraccarDeviceId },
+                                cancellationToken: ct));
+
+                            if (cmdId is > 0)
+                            {
+                                await connection.ExecuteAsync(new CommandDefinition(
+                                    """
+                                    UPDATE GpsDeviceCommands
+                                    SET Status = N'acknowledged',
+                                        CompletedAt = SYSUTCDATETIME(),
+                                        ErrorMessage = NULL,
+                                        UpdatedAt = SYSUTCDATETIME()
+                                    WHERE Id = @Id;
+
+                                    INSERT INTO GpsCommandResponses (CommandId, Source, ResponseText, ReceivedAt, CreatedAt)
+                                    VALUES (@Id, N'traccar', @ResultText, @EventTime, SYSUTCDATETIME());
+                                    """,
+                                    new
+                                    {
+                                        Id = cmdId.Value,
+                                        ResultText = resultText ?? "(commandResult)",
+                                        EventTime = ev.EventTime.ToUniversalTime()
+                                    },
+                                    cancellationToken: ct));
+                            }
+
+                            // Marker row so we do not re-apply this commandResult.
+                            await alertWriter.InsertAsync(
+                                connection,
+                                device.VehicleId,
+                                ev.Latitude ?? 0,
+                                ev.Longitude ?? 0,
+                                0,
+                                "command_result",
+                                resultText ?? "commandResult",
+                                ev.EventTime.ToUniversalTime(),
+                                externalEventId: externalId,
+                                cancellationToken: ct);
+                        }
+
+                        skipped++;
+                        continue;
+                    }
+
                     if (exists)
                     {
                         skipped++;
                         continue;
+                    }
+
+                    // ACC edge — update display ignition once per event (before alert insert).
+                    if (string.Equals(ev.Type, "ignitionOn", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(ev.Type, "ignitionOff", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var accOn = string.Equals(ev.Type, "ignitionOn", StringComparison.OrdinalIgnoreCase);
+                        await connection.ExecuteAsync(new CommandDefinition(
+                            """
+                            UPDATE d SET
+                                LastIgnition = @Ignition,
+                                UpdatedAt = SYSUTCDATETIME()
+                            FROM GpsDevices d
+                            WHERE d.TraccarDeviceId = @TraccarDeviceId AND d.IsDeleted = 0;
+
+                            UPDATE vcl SET
+                                Ignition = @Ignition
+                            FROM VehicleCurrentLocation vcl
+                            INNER JOIN GpsDevices d ON d.VehicleId = vcl.VehicleId AND d.IsDeleted = 0
+                            WHERE d.TraccarDeviceId = @TraccarDeviceId;
+                            """,
+                            new
+                            {
+                                TraccarDeviceId = device.TraccarDeviceId,
+                                Ignition = accOn
+                            },
+                            cancellationToken: ct));
                     }
 
                     var eventType = TraccarAlertEventMapper.MapEventType(ev.Type, ev.Attributes?.Alarm);

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_endpoints.dart';
 import '../api/dio_client.dart';
+import '../providers/theme_provider.dart';
 import 'connectivity_provider.dart';
 import 'offline_file_store.dart';
 import 'offline_models.dart';
@@ -18,11 +19,75 @@ bool isOfflineRetryExhausted(OfflineOperation op) =>
     (op.attempts >= 8 ||
         (op.lastError?.toLowerCase().contains('max retries') ?? false));
 
+const lastSuccessfulSyncAtPrefsKey = 'lastSuccessfulSyncAt';
+const lifetimeSyncedCountPrefsKey = 'offlineLifetimeSyncedCount';
+
 final offlinePendingCountProvider = StateProvider<int>((ref) => OfflineOutbox.length);
 
 /// Bumped on every outbox mutation so queue UIs refresh even when pending count
 /// stays the same (e.g. pending → failed without removing the item).
 final offlineOutboxRevisionProvider = StateProvider<int>((ref) => 0);
+
+/// Wall-clock of last successful offline drain (or empty-queue sync while online).
+final lastSuccessfulSyncAtProvider = StateProvider<DateTime?>((ref) {
+  final raw = ref.read(prefsBoxProvider).get(lastSuccessfulSyncAtPrefsKey);
+  if (raw is String) return DateTime.tryParse(raw)?.toLocal();
+  return null;
+});
+
+/// Lifetime count of operations successfully drained from the outbox.
+final lifetimeSyncedCountProvider = StateProvider<int>((ref) {
+  final raw = ref.read(prefsBoxProvider).get(lifetimeSyncedCountPrefsKey);
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return 0;
+});
+
+/// Live outbox snapshot for Settings / connectivity cards (no dummy figures).
+final offlineSyncStatsProvider = Provider<OfflineSyncStats>((ref) {
+  ref.watch(offlinePendingCountProvider);
+  ref.watch(offlineOutboxRevisionProvider);
+  final lifetimeSynced = ref.watch(lifetimeSyncedCountProvider);
+  final items = OfflineOutbox.all();
+  var pending = 0;
+  var failed = 0;
+  var syncing = false;
+  for (final op in items) {
+    switch (op.status) {
+      case OfflineOpStatus.pending:
+        pending++;
+      case OfflineOpStatus.syncing:
+        pending++;
+        syncing = true;
+      case OfflineOpStatus.failed:
+        failed++;
+      case OfflineOpStatus.conflict:
+        failed++;
+    }
+  }
+  return OfflineSyncStats(
+    pending: pending,
+    failed: failed,
+    syncedLifetime: lifetimeSynced,
+    isSyncing: syncing,
+  );
+});
+
+class OfflineSyncStats {
+  const OfflineSyncStats({
+    required this.pending,
+    required this.failed,
+    required this.syncedLifetime,
+    required this.isSyncing,
+  });
+
+  final int pending;
+  final int failed;
+  final int syncedLifetime;
+  final bool isSyncing;
+
+  bool get showProgress => isSyncing || pending > 0;
+}
 
 final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
   final service = OfflineSyncService(ref.read(dioProvider), ref);
@@ -56,6 +121,26 @@ class OfflineSyncService {
   void _notifyCount() {
     _ref.read(offlinePendingCountProvider.notifier).state = OfflineOutbox.length;
     _ref.read(offlineOutboxRevisionProvider.notifier).state++;
+  }
+
+  void _markLastSuccessfulSync() {
+    final now = DateTime.now();
+    _ref.read(lastSuccessfulSyncAtProvider.notifier).state = now;
+    unawaited(
+      _ref.read(prefsBoxProvider).put(
+            lastSuccessfulSyncAtPrefsKey,
+            now.toUtc().toIso8601String(),
+          ),
+    );
+  }
+
+  void _recordSuccessfulSyncs(int count) {
+    if (count <= 0) return;
+    final next = _ref.read(lifetimeSyncedCountProvider) + count;
+    _ref.read(lifetimeSyncedCountProvider.notifier).state = next;
+    unawaited(
+      _ref.read(prefsBoxProvider).put(lifetimeSyncedCountPrefsKey, next),
+    );
   }
 
   Future<OfflineOperation> enqueue({
@@ -113,6 +198,7 @@ class OfflineSyncService {
     if (_syncing) return 0;
     _syncing = true;
     var synced = 0;
+    final startedEmpty = OfflineOutbox.pending().isEmpty;
     try {
       final pending = OfflineOutbox.pending();
       for (final op in pending) {
@@ -162,6 +248,13 @@ class OfflineSyncService {
     } finally {
       _syncing = false;
       _notifyCount();
+      if (synced > 0) {
+        _recordSuccessfulSyncs(synced);
+      }
+      final online = _ref.read(isOnlineProvider);
+      if (synced > 0 || (startedEmpty && online)) {
+        _markLastSuccessfulSync();
+      }
     }
     return synced;
   }

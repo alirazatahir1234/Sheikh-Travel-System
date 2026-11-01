@@ -70,6 +70,23 @@ abstract final class FleetNavConfig {
     path: '/trips',
   );
 
+  /// Driver bottom-nav label for the shared trips route.
+  static const myTrips = FleetNavTab(
+    id: 'trips',
+    label: 'My Trips',
+    icon: Icons.route_outlined,
+    activeIcon: Icons.route_rounded,
+    path: '/trips',
+  );
+
+  static const attendance = FleetNavTab(
+    id: 'attendance',
+    label: 'Attendance',
+    icon: Icons.access_time_outlined,
+    activeIcon: Icons.access_time_filled_rounded,
+    path: '/attendance',
+  );
+
   static const ai = FleetNavTab(
     id: 'ai',
     label: 'AI',
@@ -183,6 +200,8 @@ abstract final class FleetNavConfig {
     dashboard,
     fleet,
     trips,
+    myTrips,
+    attendance,
     ai,
     more,
     tracking,
@@ -313,6 +332,18 @@ abstract final class FleetNavConfig {
       isVisible: _fleetLiveMap,
     ),
     MoreMenuEntry(
+      label: 'Trips',
+      icon: Icons.route_outlined,
+      route: '/trips',
+      isVisible: _tripsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Bookings',
+      icon: Icons.event_note_outlined,
+      route: '/bookings',
+      isVisible: _bookingsMenu,
+    ),
+    MoreMenuEntry(
       label: 'My tracking',
       icon: Icons.my_location_outlined,
       route: '/live',
@@ -395,12 +426,6 @@ abstract final class FleetNavConfig {
       icon: Icons.notifications_outlined,
       route: '/notifications',
       isVisible: _alwaysEntry,
-    ),
-    MoreMenuEntry(
-      label: 'Bookings',
-      icon: Icons.event_note_outlined,
-      route: '/bookings',
-      isVisible: _bookingsMenu,
     ),
     MoreMenuEntry(
       label: 'Finance',
@@ -547,7 +572,7 @@ abstract final class FleetNavConfig {
     MoreMenuEntry(
       label: 'Support',
       icon: Icons.support_agent_outlined,
-      route: '/settings',
+      route: '/help-support',
       isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
@@ -572,22 +597,27 @@ abstract final class FleetNavConfig {
     }
     switch (session.primaryNavRole) {
       case FleetRole.driver:
-        return const [dashboard, trips, tracking, notifications, profile];
+        // Dashboard · My Trips · Attendance · Fuel · More
+        return const [dashboard, myTrips, attendance, fuelOps, more];
       case FleetRole.driverManager:
         return const [dashboard, drivers, trips, more];
       case FleetRole.gpsOperator:
         return const [dashboard, map, fleet, alertsTab, more];
       case FleetRole.dispatcher:
-        return const [dashboard, bookings, trips, map, more];
+        // Dashboard · Live Map · Trips · Drivers · More (bookings stay in More)
+        return const [dashboard, map, trips, drivers, more];
       case FleetRole.accountant:
         return const [dashboard, finance, reports, notifications, more];
       case FleetRole.owner:
         return const [dashboard, map, drivers, fuelOps, more];
+      case FleetRole.fleetManager:
+        // Dashboard · Live Map · Vehicles · Drivers · More
+        return const [dashboard, map, fleet, drivers, more];
       case FleetRole.superAdmin:
       case FleetRole.tenantAdmin:
-      case FleetRole.fleetManager:
       default:
-        // Live map as a first-class tab for fleet managers (parity with ERP Live Map).
+        // Owner Tracking / admin shells stay map-first; Tenants/Monitoring/Platform
+        // tabs are a follow-up (routes not yet first-class on mobile).
         return const [dashboard, map, fleet, trips, more];
     }
   }
@@ -699,6 +729,9 @@ abstract final class FleetNavConfig {
     '/earnings',
     '/timeline',
     '/settings',
+    '/settings/location',
+    '/settings/security-permissions',
+    '/help-support',
     '/offline-queue',
     '/security',
     '/legal/',

@@ -13,7 +13,7 @@ class SecurityStatusScreen extends ConsumerWidget {
     final async = ref.watch(deviceIntegrityProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Security status')),
+      appBar: AppBar(title: const Text('Security Diagnostics')),
       body: async.when(
         loading: () => Center(child: SgBrandLoader()),
         error: (e, _) => Center(child: Text('$e')),

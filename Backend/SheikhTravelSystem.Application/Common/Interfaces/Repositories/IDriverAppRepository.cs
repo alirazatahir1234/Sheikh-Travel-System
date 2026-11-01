@@ -29,11 +29,13 @@ public interface IDriverAppRepository
     Task<(int VehicleId, int? BookingId)?> GetActiveBookingVehicleAsync(int driverId, int tenantId, CancellationToken ct = default);
 
     // Attendance
+    Task<(bool HasOpenCheckIn, bool HasAnyCheckIn)> GetTodayAttendanceStateAsync(int driverId, int tenantId, DateTime attendanceDate, CancellationToken ct = default);
     Task<int> UpdateCheckInAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task InsertCheckInAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task<int> UpdateCheckOutAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task InsertCheckOutAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task<IReadOnlyList<DriverAttendanceRecordDto>> GetAttendanceHistoryAsync(int driverId, int tenantId, DateTime from, DateTime to, int offset, int size, CancellationToken ct = default);
+    Task<int> InsertCorrectionRequestAsync(int driverId, int tenantId, DateTime attendanceDate, string notes, string? requestedStatus, DateTime now, CancellationToken ct = default);
 
     // SOS
     Task<(string FullName, string Phone)?> GetDriverNamePhoneAsync(int driverId, int tenantId, CancellationToken ct = default);

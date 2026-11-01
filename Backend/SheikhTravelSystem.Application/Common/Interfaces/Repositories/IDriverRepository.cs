@@ -309,6 +309,13 @@ public interface IDriverRepository
         DateTime to,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<TeamAttendanceRowDto>> GetTeamAttendanceAsync(
+        int tenantId,
+        DateTime date,
+        string? search,
+        int? branchId,
+        CancellationToken cancellationToken = default);
+
     Task<DriverLocationDto?> GetLocationAsync(
         int tenantId,
         int driverId,
