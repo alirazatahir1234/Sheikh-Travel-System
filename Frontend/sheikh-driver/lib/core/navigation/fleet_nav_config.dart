@@ -242,7 +242,7 @@ abstract final class FleetNavConfig {
       label: 'Assignments',
       icon: Icons.event_available_outlined,
       route: '/fleet/assignments',
-      isVisible: _fleetLiveMap,
+      isVisible: _fleetAssignmentsMenu,
     ),
     MoreMenuEntry(
       label: 'Bookings',
@@ -377,7 +377,7 @@ abstract final class FleetNavConfig {
       label: 'Assignments',
       icon: Icons.event_available_outlined,
       route: '/fleet/assignments',
-      isVisible: _fleetLiveMap,
+      isVisible: _fleetAssignmentsMenu,
     ),
     MoreMenuEntry(
       label: 'Fleet live map',
@@ -525,7 +525,7 @@ abstract final class FleetNavConfig {
     ),
   ];
 
-  /// GPS Operator — ops-focused More grid (no fleet-admin chrome).
+  /// GPS Operator — ops-focused More grid (no fleet-admin chrome, no non-GPS reports/documents, no SuperAdmin GPS commands).
   static const operatorMoreEntries = [
     MoreMenuEntry(
       label: 'Profile',
@@ -538,18 +538,6 @@ abstract final class FleetNavConfig {
       icon: Icons.notifications_outlined,
       route: '/notifications',
       isVisible: _alwaysEntry,
-    ),
-    MoreMenuEntry(
-      label: 'Documents',
-      icon: Icons.folder_outlined,
-      route: '/documents',
-      isVisible: _documentsMenu,
-    ),
-    MoreMenuEntry(
-      label: 'GPS commands',
-      icon: Icons.power_settings_new_outlined,
-      route: '/gps/commands',
-      isVisible: _gpsCommandsMenu,
     ),
     MoreMenuEntry(
       label: 'Incident center',
@@ -580,12 +568,6 @@ abstract final class FleetNavConfig {
       icon: Icons.speed_outlined,
       route: '/gps/mileage',
       isVisible: _gpsOperatorOps,
-    ),
-    MoreMenuEntry(
-      label: 'Reports',
-      icon: Icons.bar_chart_outlined,
-      route: '/more/reports',
-      isVisible: _reportsMenu,
     ),
     MoreMenuEntry(
       label: 'AI insights',
@@ -619,29 +601,33 @@ abstract final class FleetNavConfig {
   static List<FleetNavTab> visibleTabs(FleetSession? session) {
     if (session == null) return const [];
     // Owner / Company Admin — Fuel moved to More > Operations.
-    if (session.isOwnerTracking) {
-      return fleetManagementTabs;
-    }
-    switch (session.primaryNavRole) {
-      case FleetRole.driver:
-        // Overview · My Trips · Attendance · Fuel · More
-        return const [dashboard, myTrips, attendance, fuelOps, more];
-      case FleetRole.driverManager:
-        return const [dashboard, drivers, trips, more];
-      case FleetRole.gpsOperator:
-        return const [dashboard, map, fleet, alertsTab, more];
-      case FleetRole.dispatcher:
-        // Bookings stay in More; Vehicles replaces Trips on the bar.
-        return fleetManagementTabs;
-      case FleetRole.accountant:
-        return const [dashboard, finance, reports, notifications, more];
-      case FleetRole.owner:
-      case FleetRole.fleetManager:
-      case FleetRole.superAdmin:
-      case FleetRole.tenantAdmin:
-      default:
-        return fleetManagementTabs;
-    }
+    final List<FleetNavTab> tabs = session.isOwnerTracking
+        ? fleetManagementTabs
+        : switch (session.primaryNavRole) {
+            FleetRole.driver =>
+              // Overview · My Trips · Attendance · Fuel · More
+              const [dashboard, myTrips, attendance, fuelOps, more],
+            FleetRole.driverManager =>
+              const [dashboard, drivers, trips, more],
+            FleetRole.gpsOperator =>
+              const [dashboard, map, fleet, alertsTab, more],
+            // Bookings stay in More; Vehicles replaces Trips on the bar.
+            FleetRole.dispatcher => fleetManagementTabs,
+            FleetRole.accountant =>
+              const [dashboard, finance, reports, notifications, more],
+            FleetRole.owner ||
+            FleetRole.fleetManager ||
+            FleetRole.superAdmin ||
+            FleetRole.tenantAdmin ||
+            _ =>
+              fleetManagementTabs,
+          };
+    // Drivers tab requires Driver.View — otherwise the router redirects
+    // `/more/drivers*` → `/more`, which felt like "driver tap opens More".
+    return [
+      for (final tab in tabs)
+        if (tab.id != 'drivers' || session.canSeeDriversTab) tab,
+    ];
   }
 
   static List<MoreMenuEntry> visibleMoreEntries(FleetSession session) {
@@ -694,6 +680,16 @@ abstract final class FleetNavConfig {
 
   /// Picks the best bottom-nav index for [loc] (longest path match wins).
   static int indexForLocation(List<FleetNavTab> tabs, String loc) {
+    // Drivers list/detail must never highlight the More hub. `/more` is a
+    // prefix of `/more/drivers/:id`; without an explicit drivers-tab hit the
+    // fallback below selected More and iOS ShellRoute showed the More screen.
+    if (loc == '/more/drivers' || loc.startsWith('/more/drivers/')) {
+      final driversIdx = tabs.indexWhere((t) => t.id == 'drivers');
+      if (driversIdx >= 0) return driversIdx;
+      final moreIdx = tabs.indexWhere((t) => t.id == 'more');
+      if (moreIdx >= 0) return moreIdx;
+    }
+
     // GPS trip history/playback lives under /fleet/vehicles/:id/history.
     // Never highlight Live Map (/fleet/map) for that path — Owner Tracking's
     // primary tab is Live Map, and a longest-prefix mistake felt like a redirect.
@@ -771,19 +767,28 @@ abstract final class FleetNavConfig {
 
   static bool _alwaysEntry(FleetSession _) => true;
   static bool _fleetLiveMap(FleetSession s) => s.canSeeFleetTab;
-  static bool _tripsMenu(FleetSession s) => s.canSeeTripsTab;
+  static bool _fleetAssignmentsMenu(FleetSession s) => s.canSeeFleetAssignments;
+  static bool _tripsMenu(FleetSession s) =>
+      !s.isGpsOperator && s.canSeeTripsTab;
   static bool _driverTracking(FleetSession s) => s.isDriverSession;
-  static bool _driversMenu(FleetSession s) => s.canSeeDriversTab;
+  static bool _driversMenu(FleetSession s) =>
+      !s.isGpsOperator && s.canSeeDriversTab;
   static bool _alertsMenu(FleetSession s) =>
       !s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView);
   static bool _maintenanceMenu(FleetSession s) =>
-      !s.isDriverOnly && s.hasPermission(FleetPermissions.maintenanceView);
+      !s.isDriverOnly &&
+      !s.isGpsOperator &&
+      s.hasPermission(FleetPermissions.maintenanceView);
   static bool _fuelMenu(FleetSession s) =>
-      s.hasPermission(FleetPermissions.fuelView) || s.isDriverSession;
+      !s.isGpsOperator &&
+      (s.hasPermission(FleetPermissions.fuelView) || s.isDriverSession);
   static bool _reportsMenu(FleetSession s) =>
-      !s.isDriverOnly && s.hasPermission(FleetPermissions.reportView);
+      !s.isDriverOnly &&
+      !s.isGpsOperator &&
+      s.hasPermission(FleetPermissions.reportView);
   static bool _documentsMenu(FleetSession s) =>
-      s.isDriverSession || s.hasPermission(FleetPermissions.vehicleView);
+      !s.isGpsOperator &&
+      (s.isDriverSession || s.hasPermission(FleetPermissions.vehicleView));
   static bool _driverWorkflow(FleetSession s) => s.isDriverSession;
   static bool _bookingsMenu(FleetSession s) => s.canSeeBookingsTab;
   static bool _financeMenu(FleetSession s) => s.canSeeFinanceTab;
@@ -791,8 +796,7 @@ abstract final class FleetNavConfig {
   static bool _usersMenu(FleetSession s) => s.canSeeUsersTab;
   static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
   static bool _gpsOperatorOps(FleetSession s) =>
-      s.isGpsOperator ||
-      (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
+      s.isGpsOperator || s.hasRole(FleetRole.superAdmin);
 
   /// Device command hub — platform SUPER_ADMIN only (not Owner / Fleet Manager).
   static bool _gpsCommandsMenu(FleetSession s) => s.canUseGpsCommands;

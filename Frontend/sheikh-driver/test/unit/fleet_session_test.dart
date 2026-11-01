@@ -416,6 +416,14 @@ void main() {
       expect(routes, isNot(contains('/more/drivers')));
       // Trips moved off the FM bottom bar — available from More.
       expect(routes, contains('/trips'));
+      // Fleet Manager must not see GPS Operator tracker screens or Commands.
+      expect(routes, isNot(contains('/gps/geofences')));
+      expect(routes, isNot(contains('/gps/trips')));
+      expect(routes, isNot(contains('/gps/incidents')));
+      expect(routes, isNot(contains('/gps/fuel')));
+      expect(routes, isNot(contains('/gps/mileage')));
+      expect(routes, isNot(contains('/gps/commands')));
+      expect(session.canSeeTrackerHardware, isFalse);
     });
 
     test('index prefers longest path match for map tab', () {
@@ -433,6 +441,44 @@ void main() {
       );
       // Overview, Map, Vehicles, Drivers, More → Map is index 1
       expect(FleetNavConfig.indexForLocation(tabs, '/fleet/map'), 1);
+    });
+
+    test('driver detail highlights Drivers tab not More', () {
+      final tabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.owner],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.driverView,
+            FleetPermissions.fuelView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      final detailIdx =
+          FleetNavConfig.indexForLocation(tabs, '/more/drivers/42');
+      expect(tabs[detailIdx].id, 'drivers');
+      expect(tabs[detailIdx].id, isNot('more'));
+      final listIdx =
+          FleetNavConfig.indexForLocation(tabs, '/more/drivers');
+      expect(tabs[listIdx].id, 'drivers');
+    });
+
+    test('drivers tab hidden without Driver.View', () {
+      final tabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.owner],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.fuelView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      expect(tabs.any((t) => t.id == 'drivers'), isFalse);
+      expect(tabs.map((t) => t.id).toList(), contains('more'));
     });
 
     test('vehicle history never highlights Live Map tab', () {

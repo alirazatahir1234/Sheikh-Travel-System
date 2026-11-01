@@ -74,7 +74,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final session = authNotifier.session;
       final isLoggedIn = authNotifier.isLoggedIn;
-      final loc = state.matchedLocation;
+      // Prefer the full URI path over matchedLocation so nested pushes like
+      // `/more/drivers/:id` are permission-checked on the real destination
+      // (matchedLocation can lag/parent-match during ShellRoute transitions).
+      final loc = state.uri.path.isNotEmpty
+          ? state.uri.path
+          : state.matchedLocation;
       final onLogin = loc == '/login';
       final onSplash = loc == '/splash';
       final onAuthFlow = onLogin ||
@@ -97,11 +102,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/dashboard';
       }
 
+      if (session != null &&
+          (loc.startsWith('/trips/') &&
+              (loc.endsWith('/navigate') ||
+                  loc.endsWith('/collect-payment')))) {
+        if (!session.isDriverSession && !session.canSeeTripsTab) {
+          return '/dashboard';
+        }
+      }
+
       if (session != null && FleetNavConfig.isShellRoute(loc)) {
         if (loc.startsWith('/fleet') && !session.canSeeFleetTab) {
           return '/dashboard';
         }
-        if (loc.startsWith('/trips') && !session.canSeeTripsTab) {
+        if (loc.startsWith('/fleet/assignments') &&
+            !session.canSeeFleetAssignments) {
+          return '/dashboard';
+        }
+        if (RegExp(r'^/fleet/vehicles/\d+/device').hasMatch(loc) &&
+            !session.canSeeTrackerHardware) {
+          return '/fleet';
+        }
+        if (loc.startsWith('/trips') &&
+            (session.isGpsOperator || !session.canSeeTripsTab)) {
           return '/dashboard';
         }
         if (loc.startsWith('/ai') && !session.canSeeAiTab) {
@@ -130,12 +153,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
         if (loc.startsWith('/more/drivers') &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.driverView))) {
           return '/more';
         }
         if ((loc.startsWith('/fleet/maintenance') ||
                 loc.startsWith('/more/maintenance')) &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.maintenanceView))) {
           return '/more';
         }
@@ -146,20 +171,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
         if (loc.startsWith('/more/reports') &&
             (session.isDriverOnly ||
+                session.isGpsOperator ||
                 !session.hasPermission(FleetPermissions.reportView))) {
           return '/more';
-        }
-        if (loc.startsWith('/gps/') &&
-            (session.isDriverOnly ||
-                !session.hasPermission(FleetPermissions.gpsView))) {
-          return '/dashboard';
         }
         if (loc == '/gps/commands' && !session.canUseGpsCommands) {
           return '/dashboard';
         }
+        if (loc.startsWith('/gps/') &&
+            loc != '/gps/commands' &&
+            !session.canSeeGpsOperatorScreens) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/fuel') &&
+            (session.isGpsOperator ||
+                (!session.isDriverSession &&
+                    !session.hasPermission(FleetPermissions.fuelView)))) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/documents') &&
+            (session.isGpsOperator ||
+                (!session.isDriverSession &&
+                    !session.hasPermission(FleetPermissions.vehicleView)))) {
+          return '/dashboard';
+        }
+        if (loc == '/attendance' && !SettingsAccess.canSeeAttendance(session)) {
+          return '/dashboard';
+        }
+        if ((loc == '/inspection' ||
+                loc == '/sos' ||
+                loc == '/voice' ||
+                loc == '/performance' ||
+                loc.startsWith('/fatigue/')) &&
+            !session.isDriverSession) {
+          return '/dashboard';
+        }
         // Trip history / playback requires GPS.View (UI also gates the screen).
         if (RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc) &&
-            !session.hasPermission(FleetPermissions.gpsView)) {
+            (session.isDriverOnly ||
+                !session.hasPermission(FleetPermissions.gpsView))) {
           return '/fleet';
         }
         if (loc == '/live' && !session.isDriverSession) {
@@ -371,34 +421,37 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Drivers are shell siblings of `/more` (not nested under MoreScreen).
+          // Nesting under `/more` made detail pushes resolve to the More hub on
+          // iOS ShellRoute transitions — same class of bug as vehicle history.
+          GoRoute(
+            path: '/more/drivers',
+            builder: (_, __) => const DriversListScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (_, __) => const DriverFormScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => DriverDetailScreen(
+                  driverId: int.parse(state.pathParameters['id']!),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (_, state) => DriverFormScreen(
+                      driverId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           GoRoute(
             path: '/more',
             builder: (_, __) => const MoreScreen(),
             routes: [
-              GoRoute(
-                path: 'drivers',
-                builder: (_, __) => const DriversListScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'new',
-                    builder: (_, __) => const DriverFormScreen(),
-                  ),
-                  GoRoute(
-                    path: ':id',
-                    builder: (_, state) => DriverDetailScreen(
-                      driverId: int.parse(state.pathParameters['id']!),
-                    ),
-                    routes: [
-                      GoRoute(
-                        path: 'edit',
-                        builder: (_, state) => DriverFormScreen(
-                          driverId: int.parse(state.pathParameters['id']!),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
               // Legacy: redirect handled in top-level redirect above.
               GoRoute(
                 path: 'maintenance',

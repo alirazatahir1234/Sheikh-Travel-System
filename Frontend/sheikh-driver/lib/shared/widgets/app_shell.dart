@@ -74,7 +74,18 @@ class _ShellBottomBar extends ConsumerWidget {
           currentIndex: currentIndex,
           type: BottomNavigationBarType.fixed,
           backgroundColor: p.navBar,
-          onTap: (i) => context.go(tabs[i].path),
+          onTap: (i) {
+            final target = tabs[i].path;
+            final loc = GoRouterState.of(context).uri.path;
+            // Re-tapping the active tab pops to its root (e.g. driver detail →
+            // drivers list). Never use a bare `go` that can bounce nested
+            // `/more/drivers/:id` routes onto the More hub.
+            if (loc == target || loc.startsWith('$target/')) {
+              if (loc != target) context.go(target);
+              return;
+            }
+            context.go(target);
+          },
           items: [
             for (final tab in tabs)
               BottomNavigationBarItem(
