@@ -1,7 +1,8 @@
 :host {
   display: block;
   position: relative;
-  z-index: 100;
+  /* Above hero mockups / page sections so mega-menus never paint underneath */
+  z-index: 1200;
 }
 
 .site-header {
@@ -10,7 +11,8 @@
   left: 0;
   right: 0;
   width: 100%;
-  z-index: 100;
+  z-index: 1200;
+  isolation: isolate;
   transition: background 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   background: #ffffff;
   backdrop-filter: blur(14px);
@@ -118,11 +120,10 @@
     justify-content: safe center;
     gap: 0.15rem;
     min-width: 0;
-    /* Do not clip mega-menus — panels are position:absolute below the bar */
+    /* Do not clip mega-menus — panels position against .bar */
     overflow: visible;
-    position: relative;
-    /* Below brand + language actions so hover “shade” never covers logo / EN·AR·DE */
-    z-index: 10;
+    /* static so mega-panels use .bar as containing block (centered in header) */
+    position: static;
   }
 
   .nav-link {
@@ -159,11 +160,8 @@
   }
 
   .dropdown {
-    position: relative;
-  }
-
-  .dropdown.open {
-    z-index: 20;
+    /* static: mega panel containing block is .bar, not the narrow trigger */
+    position: static;
   }
 
   .drop-btn {
@@ -183,17 +181,27 @@
   .dropdown-panel {
     display: none;
     position: absolute;
-    top: calc(100% + 10px);
+    /* Below the full header bar (.bar is position:relative + container-type) */
+    top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    /* Prefer % over 100vw to avoid horizontal scrollbar from scrollbar gutter. */
-    width: min(660px, calc(100% - 2rem));
+    /*
+      Width MUST use the header bar / viewport, never 100% of .dropdown.
+      Percentage width resolves against the trigger button and collapses the
+      mega-menu into a narrow icon strip with overflowing/overlapping labels.
+      Prefer cqi (from .bar container-type) to avoid 100vw scrollbar gutter issues.
+    */
+    width: min(660px, calc(100vw - 2rem));
+    width: min(660px, calc(100cqi - 2rem));
+    max-width: calc(100vw - 2rem);
+    max-width: calc(100cqi - 2rem);
     padding: 0.75rem;
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 20px 48px rgba(4, 31, 36, 0.18);
     border: 1px solid var(--sg-border, rgba(2, 47, 50, 0.12));
-    z-index: 30;
+    z-index: 50;
+    overflow: hidden;
   }
 
   .dropdown.open .dropdown-panel {
@@ -224,6 +232,16 @@
   .mega-item:hover,
   .mega-item.active {
     background: var(--sg-mint, #e9faf4);
+  }
+
+  /* Non-navigating industry labels (e.g. Logistics & Fleet) */
+  .mega-item--static {
+    cursor: default;
+    color: inherit;
+
+    &:hover {
+      background: transparent;
+    }
   }
 
   .mega-icon {
@@ -463,17 +481,23 @@
       z-index: 20;
     }
 
+    .dropdown {
+      position: relative;
+    }
+
     .dropdown-panel,
     .dropdown:hover .dropdown-panel {
       position: static;
       display: none;
       width: auto;
+      max-width: none;
       transform: none;
       box-shadow: none;
       background: #f5f9fc;
       margin-top: 0.35rem;
       padding: 0.35rem;
       border: 0;
+      overflow: visible;
     }
 
     .dropdown.open .dropdown-panel {

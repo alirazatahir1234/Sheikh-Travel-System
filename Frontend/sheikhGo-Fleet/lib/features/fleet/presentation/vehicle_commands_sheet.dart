@@ -94,8 +94,13 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     final deviceId = _deviceId;
     if (deviceId == null) return;
     final session = ref.read(fleetSessionProvider);
-    if (session == null ||
-        !session.hasPermission(FleetPermissions.gpsCommandSend)) {
+    if (session == null || !session.canUseGpsCommands) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Device commands require Super Admin')),
+      );
+      return;
+    }
+    if (!session.hasPermission(FleetPermissions.gpsCommandSend)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Missing Gps.CommandSend permission')),
       );
@@ -157,8 +162,30 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(fleetSessionProvider);
+    final isSuperAdmin = session?.canUseGpsCommands ?? false;
+    if (!isSuperAdmin) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Device commands are restricted to Super Admin.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final canSend =
-        session?.hasPermission(FleetPermissions.gpsCommandSend) ?? false;
+        session!.hasPermission(FleetPermissions.gpsCommandSend);
 
     final preferred = _supported
         .where((c) => _preferred.contains(c.type))

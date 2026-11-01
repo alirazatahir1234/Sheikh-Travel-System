@@ -5,6 +5,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../auth/data/auth_repository.dart';
 import 'fleet_hub_notifier.dart';
+import 'fleet_vehicle_filters.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/fleet_vehicle_filter_sheet.dart';
 import 'widgets/fleet_vehicle_tile.dart';
@@ -13,9 +14,36 @@ import '../../../shared/widgets/sg_brand_loader.dart';
 class FleetHubScreen extends ConsumerWidget {
   const FleetHubScreen({super.key});
 
+  static FleetStatusFilterOption? _statusFromQuery(String? raw) {
+    switch ((raw ?? '').toLowerCase().trim()) {
+      case 'moving':
+        return FleetStatusFilterOption.moving;
+      case 'idle':
+        return FleetStatusFilterOption.idle;
+      case 'offline':
+        return FleetStatusFilterOption.offline;
+      case 'parked':
+        return FleetStatusFilterOption.parked;
+      case 'online':
+        return FleetStatusFilterOption.online;
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(fleetHubProvider);
+    final statusQ = GoRouterState.of(context).uri.queryParameters['status'];
+    final deepLinkStatus = _statusFromQuery(statusQ);
+    if (deepLinkStatus != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final hub = ref.read(fleetHubProvider).valueOrNull;
+        if (hub == null) return;
+        if (hub.filters.status == deepLinkStatus) return;
+        ref.read(fleetHubProvider.notifier).applyStatusFilter(deepLinkStatus);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.surface,

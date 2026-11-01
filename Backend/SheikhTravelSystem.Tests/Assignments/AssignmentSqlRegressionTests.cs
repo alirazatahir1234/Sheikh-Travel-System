@@ -27,6 +27,28 @@ public class AssignmentSqlRegressionTests
     }
 
     [Fact]
+    public void AssignmentValidation_TreatsDriverAndVehicleConflictsAsWarnings()
+    {
+        // Create/transfer complete prior Active rows — conflicts must not hard-block canProceed.
+        var repo = ReadInfrastructureRepository("AssignmentRepository.cs");
+        var sql = ReadInfrastructureSql("AssignmentValidationSql.cs");
+        foreach (var source in new[] { repo, sql })
+        {
+            Assert.Contains("DriverConflict", source);
+            Assert.Contains("VehicleConflict", source);
+            Assert.Contains(
+                "Driver already has another active assignment. Continuing will complete it and transfer the driver.",
+                source);
+            Assert.DoesNotContain(
+                """issues.Add(new("DriverConflict", "Driver already has another active assignment.", "Error"));""",
+                source);
+            Assert.DoesNotContain(
+                """issues.Add(new("VehicleConflict", ex.Message, "Error"));""",
+                source);
+        }
+    }
+
+    [Fact]
     public void MaintenanceReportQueries_DoesNotReferenceScheduleName()
     {
         var source = ReadApplicationSource("MaintenanceModule", "MaintenanceReportQueries.cs");

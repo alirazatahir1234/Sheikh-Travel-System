@@ -16,12 +16,15 @@ class PlaybackMarkerTap {
     this.eventType,
     this.eventLabel,
     this.stopDurationMinutes,
+    this.stopIndex,
   });
 
   final int playbackIndex;
   final String? eventType;
   final String? eventLabel;
   final int? stopDurationMinutes;
+  /// Index into the stops list when [eventType] is Stop.
+  final int? stopIndex;
 }
 
 typedef PlaybackMarkerTapCallback = void Function(PlaybackMarkerTap tap);
@@ -197,7 +200,8 @@ class PlaybackMapAssets {
       case PlaybackMarkerKind.finish:
         return const Color(0xFFEF4444);
       case PlaybackMarkerKind.stop:
-        return const Color(0xFFF59E0B);
+        // Default / legend fallback — prefer visited/upcoming overrides on map.
+        return kPlaybackStopUpcomingColor;
       case PlaybackMarkerKind.overspeed:
       case PlaybackMarkerKind.sos:
         return const Color(0xFFDC2626);
@@ -272,19 +276,22 @@ class PlaybackMapAssets {
   static Future<BitmapDescriptor> markerForKind(
     PlaybackMarkerKind kind, {
     double devicePixelRatio = 2,
+    Color? colorOverride,
   }) async {
-    final key = '$_cacheEpoch:$kind:${devicePixelRatio.toStringAsFixed(1)}';
+    final color = colorOverride ?? colorForKind(kind);
+    final key =
+        '$_cacheEpoch:$kind:${color.toARGB32()}:${devicePixelRatio.toStringAsFixed(1)}';
     final cached = _iconCache[key];
     if (cached != null) return cached;
 
     try {
       final bytes = kind == PlaybackMarkerKind.vehicle
           ? await _vehicleArrowBytes(
-              colorForKind(kind),
+              color,
               devicePixelRatio: devicePixelRatio,
             )
           : await _glyphPinBytes(
-              background: colorForKind(kind),
+              background: color,
               glyph: glyphForKind(kind),
               devicePixelRatio: devicePixelRatio,
             );
@@ -295,13 +302,23 @@ class PlaybackMapAssets {
       _iconCache[key] = icon;
       return icon;
     } catch (_) {
-      final fallback = _fallbackMarker(kind);
+      final fallback = _fallbackMarker(kind, colorOverride: colorOverride);
       _iconCache[key] = fallback;
       return fallback;
     }
   }
 
-  static BitmapDescriptor _fallbackMarker(PlaybackMarkerKind kind) {
+  static BitmapDescriptor _fallbackMarker(
+    PlaybackMarkerKind kind, {
+    Color? colorOverride,
+  }) {
+    if (kind == PlaybackMarkerKind.stop && colorOverride != null) {
+      final visited =
+          colorOverride.toARGB32() == kPlaybackStopVisitedColor.toARGB32();
+      return BitmapDescriptor.defaultMarkerWithHue(
+        visited ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueAzure,
+      );
+    }
     switch (kind) {
       case PlaybackMarkerKind.start:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
@@ -310,6 +327,7 @@ class PlaybackMapAssets {
       case PlaybackMarkerKind.sos:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
       case PlaybackMarkerKind.stop:
+        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
       case PlaybackMarkerKind.fuel:
         return BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueOrange);
@@ -617,6 +635,12 @@ int displayIndexForTrailIndex(
 const Color kPlaybackRemainingColor = Color(0xFF22C55E);
 const Color kPlaybackTravelledColor = Color(0xFF1D4ED8);
 
+/// Stop already reached at the current playback playhead.
+const Color kPlaybackStopVisitedColor = Color(0xFF16A34A);
+
+/// Stop not yet reached at the current playback playhead.
+const Color kPlaybackStopUpcomingColor = Color(0xFF2563EB);
+
 Set<Polyline> buildPlaybackPolylines({
   required List<HistoryReplayPoint> trail,
   required int trailIndex,
@@ -714,6 +738,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
   required List<TripEvent> events,
   double devicePixelRatio = 2,
   HistoryReplayPoint? vehiclePoint,
+  DateTime? playbackTime,
   PlaybackMarkerTapCallback? onMarkerTap,
 }) async {
   final markers = <Marker>{};
@@ -727,9 +752,15 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
     PlaybackMarkerKind.finish,
     devicePixelRatio: devicePixelRatio,
   );
-  final stopIcon = await PlaybackMapAssets.markerForKind(
+  final stopVisitedIcon = await PlaybackMapAssets.markerForKind(
     PlaybackMarkerKind.stop,
     devicePixelRatio: devicePixelRatio,
+    colorOverride: kPlaybackStopVisitedColor,
+  );
+  final stopUpcomingIcon = await PlaybackMapAssets.markerForKind(
+    PlaybackMarkerKind.stop,
+    devicePixelRatio: devicePixelRatio,
+    colorOverride: kPlaybackStopUpcomingColor,
   );
 
   bool nearVehicle(double lat, double lng) {
@@ -795,11 +826,12 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
     if (nearVehicle(s.latitude, s.longitude)) continue;
     final stopIdx =
         playback.isEmpty ? 0 : indexForTimestamp(playback, s.startTime);
+    final visited = isStopVisited(s, playbackTime);
     markers.add(
       Marker(
         markerId: MarkerId('stop_$i'),
         position: LatLng(s.latitude, s.longitude),
-        icon: stopIcon,
+        icon: visited ? stopVisitedIcon : stopUpcomingIcon,
         infoWindow: InfoWindow(
           title: s.durationMinutes >= 120 ? 'Parking' : 'Stop',
           // Compact pin callout — full address/time lives in the stops list.
@@ -817,6 +849,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
           playbackIndex: stopIdx,
           eventType: 'Stop',
           stopDurationMinutes: s.durationMinutes,
+          stopIndex: i,
         )),
       ),
     );
@@ -860,6 +893,7 @@ Future<Set<Marker>> buildPlaybackMarkers({
   required List<TripEvent> events,
   required BitmapDescriptor vehicleIcon,
   double devicePixelRatio = 2,
+  DateTime? playbackTime,
   PlaybackMarkerTapCallback? onMarkerTap,
 }) async {
   HistoryReplayPoint? vehiclePoint;
@@ -873,6 +907,7 @@ Future<Set<Marker>> buildPlaybackMarkers({
     events: events,
     devicePixelRatio: devicePixelRatio,
     vehiclePoint: vehiclePoint,
+    playbackTime: playbackTime ?? vehiclePoint?.timestamp,
     onMarkerTap: onMarkerTap,
   );
   if (vehiclePoint != null) {

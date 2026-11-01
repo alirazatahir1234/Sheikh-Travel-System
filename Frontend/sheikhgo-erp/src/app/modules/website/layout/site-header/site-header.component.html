@@ -59,18 +59,28 @@
         <div class="dropdown-panel mega" id="industries-menu">
           <div class="mega-grid">
             @for (i of industryLinks; track i.i18nKey) {
-              <a
-                class="mega-item"
-                [routerLink]="i.link"
-                [fragment]="i.fragment ?? undefined"
-                (click)="closeMenu()"
-              >
-                <span class="mega-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
-                <span class="mega-copy">
-                  <span class="mega-title">{{ i18n.industryField(i.i18nKey, 'title') }}</span>
-                  <span class="mega-text">{{ i18n.industryField(i.i18nKey, 'text') }}</span>
-                </span>
-              </a>
+              @if (i.link) {
+                <a
+                  class="mega-item"
+                  [routerLink]="i.link"
+                  [fragment]="i.fragment || undefined"
+                  (click)="closeMenu()"
+                >
+                  <span class="mega-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
+                  <span class="mega-copy">
+                    <span class="mega-title">{{ i18n.industryField(i.i18nKey, 'title') }}</span>
+                    <span class="mega-text">{{ i18n.industryField(i.i18nKey, 'text') }}</span>
+                  </span>
+                </a>
+              } @else {
+                <div class="mega-item mega-item--static" role="listitem">
+                  <span class="mega-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
+                  <span class="mega-copy">
+                    <span class="mega-title">{{ i18n.industryField(i.i18nKey, 'title') }}</span>
+                    <span class="mega-text">{{ i18n.industryField(i.i18nKey, 'text') }}</span>
+                  </span>
+                </div>
+              }
             }
           </div>
           <div class="mega-foot">
@@ -88,13 +98,11 @@
           {{ 'nav.requestDemo' | wsTranslate }}
           <mat-icon aria-hidden="true">arrow_forward</mat-icon>
         </a>
-        <a class="mobile-login" [routerLink]="brand.loginPath" (click)="closeMenu()">{{ 'common.signIn' | wsTranslate }}</a>
       </div>
     </nav>
 
     <div class="actions">
       <app-website-language-switcher class="lang-switch-desktop" />
-      <a class="login" [routerLink]="brand.loginPath">{{ 'common.signIn' | wsTranslate }}</a>
       <a routerLink="/request-demo" class="btn btn-primary header-cta">
         {{ 'nav.requestDemo' | wsTranslate }}
         <mat-icon aria-hidden="true">arrow_forward</mat-icon>

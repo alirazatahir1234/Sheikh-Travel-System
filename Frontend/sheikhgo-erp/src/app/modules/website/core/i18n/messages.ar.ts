@@ -116,7 +116,8 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'catalog.platform-modules.text': 'أربعة عشر وحدة من التطبيق المباشر.',
 
   'industry.logistics-fleet.title': 'اللوجستيات والأسطول',
-  'industry.logistics-fleet.text': 'أسطول وتتبع GPS وعمليات الرحلات في منصة واحدة.',
+  'industry.logistics-fleet.text':
+    'مركبات وسائقون وGPS ووقود وصيانة وامتثال في منصة تشغيل واحدة.',
   'industry.travel-tourism.title': 'السفر والسياحة',
   'industry.travel-tourism.text': 'حجوزات ومركبات وعمليات ركاب من البداية للنهاية.',
   'industry.healthcare.title': 'الرعاية الصحية',

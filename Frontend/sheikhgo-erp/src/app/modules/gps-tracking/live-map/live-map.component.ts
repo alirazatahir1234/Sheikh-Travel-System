@@ -1213,6 +1213,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Device Commands UI — platform SUPER_ADMIN only (not fleet owner / manager). */
+  get canUseGpsCommands(): boolean {
+    return this.scopeFilter.isSuperAdmin;
+  }
+
   setMobileNav(tab: 'map' | 'vehicles' | 'nearby' | 'commands'): void {
     this.mobileNav = tab;
     if (tab === 'vehicles') {
@@ -1221,7 +1226,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (tab === 'nearby') {
       if (!this.nearbyExpanded) this.toggleNearbyPlaces();
     } else if (tab === 'commands') {
-      this.goToCommands();
+      if (this.canUseGpsCommands) this.goToCommands();
     } else {
       this.listSheetOpen = false;
     }
@@ -2163,6 +2168,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   goToCommands(): void {
+    if (!this.canUseGpsCommands) return;
     this.router.navigate(['/gps-tracking/commands']);
   }
 

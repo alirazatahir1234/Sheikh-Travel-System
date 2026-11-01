@@ -22,11 +22,17 @@ public static class GpsPermissions
     public const string CommandRetry = "Gps.CommandRetry";
     public const string CommandCancel = "Gps.CommandCancel";
 
+    /// <summary>All device-command RBAC codes — reserved for SUPER_ADMIN (not tenant Owner/Fleet Manager).</summary>
+    public static readonly string[] CommandAll =
+    [
+        CommandSend, CommandView, CommandEngineCutoff, CommandApprove, CommandPositionRequest,
+        CommandRestart, CommandRelay, CommandBuzzer, CommandCustomSms, CommandRetry, CommandCancel
+    ];
+
     public static readonly string[] All =
     [
         AlertView, AlertAcknowledge, AlertResolve, AlertArchive, AlertDelete,
         DeviceManage,
-        CommandSend, CommandView, CommandEngineCutoff, CommandApprove, CommandPositionRequest,
-        CommandRestart, CommandRelay, CommandBuzzer, CommandCustomSms, CommandRetry, CommandCancel
+        ..CommandAll
     ];
 }

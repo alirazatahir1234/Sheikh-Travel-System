@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_theme.dart';
-import '../../domain/alert_display.dart';
 import '../alerts_notifier.dart';
 import '../../../../shared/widgets/sg_brand_loader.dart';
 
@@ -50,7 +49,7 @@ class AlertsFilterSheet extends ConsumerWidget {
                 children: [
                   const Expanded(
                     child: Text(
-                      'Advanced filters',
+                      'Filters',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -67,59 +66,28 @@ class AlertsFilterSheet extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              const Text('Severity',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final s in const ['critical', 'high', 'medium', 'low'])
-                    ChoiceChip(
-                      label: Text(s[0].toUpperCase() + s.substring(1)),
-                      selected: state.severityFilter == s,
-                      onSelected: (on) =>
-                          notifier.setSeverity(on ? s : null),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text('Status',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final s in const [
-                    'unread',
-                    'read',
-                    'acknowledged',
-                    'resolved',
-                    'archived',
-                  ])
-                    ChoiceChip(
-                      label: Text(s[0].toUpperCase() + s.substring(1)),
-                      selected: (s == 'unread' &&
-                              state.readStateFilter == 'unread') ||
-                          (s == 'read' && state.readStateFilter == 'read') ||
-                          state.statusFilter == s,
-                      onSelected: (on) =>
-                          notifier.setLifecycle(on ? s : null),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text('Category',
+              const Text('Alert type',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final c in AlertCategoryX.pillOrder)
+                  for (final e in const [
+                    (null, 'Any'),
+                    ('vehicle_offline', 'Offline'),
+                    ('ignition_on', 'Ignition'),
+                    ('speed_exceeded', 'Overspeed'),
+                    ('low_battery', 'Low battery'),
+                    ('power_cut', 'Device'),
+                    ('sos', 'SOS'),
+                    ('geofence_enter', 'Geofence'),
+                  ])
                     ChoiceChip(
-                      label: Text(c.label),
-                      selected: state.categoryFilter == c,
-                      onSelected: (_) => notifier.setCategoryFilter(c),
+                      label: Text(e.$2),
+                      selected: state.eventTypeFilter == e.$1 ||
+                          (e.$1 == null && state.eventTypeFilter == null),
+                      onSelected: (_) => notifier.setEventType(e.$1),
                     ),
                 ],
               ),
@@ -144,10 +112,42 @@ class AlertsFilterSheet extends ConsumerWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              const Text('Sort',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Newest first'),
+                    selected: state.sort == FleetAlertSort.newest,
+                    onSelected: (_) =>
+                        notifier.setSort(FleetAlertSort.newest),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Oldest first'),
+                    selected: state.sort == FleetAlertSort.oldest,
+                    onSelected: (_) =>
+                        notifier.setSort(FleetAlertSort.oldest),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Unacknowledged only'),
+                value: state.unacknowledgedOnly,
+                activeTrackColor: AppColors.primary,
+                onChanged: (v) => notifier.setUnacknowledgedOnly(v),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Apply'),
                 ),

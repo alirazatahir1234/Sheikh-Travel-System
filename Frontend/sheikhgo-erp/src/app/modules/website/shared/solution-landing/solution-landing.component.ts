@@ -100,6 +100,56 @@ import { WebsitePlausibleAnalyticsService } from '../../core/website-plausible-a
       </div>
     </section>
 
+    @if (page.useCases?.length) {
+      <section class="section section-band-alt">
+        <div class="container">
+          <div class="section-head">
+            <span class="section-kicker">Use cases</span>
+            <h2 class="section-title">{{ page.useCasesTitle || 'Use cases' }}</h2>
+            @if (page.useCasesLead) {
+              <p class="section-lead">{{ page.useCasesLead }}</p>
+            }
+          </div>
+          <div class="feature-grid">
+            @for (u of page.useCases!; track u.title) {
+              <article class="feature-card">
+                @if (u.icon) {
+                  <mat-icon aria-hidden="true">{{ u.icon }}</mat-icon>
+                }
+                <h3>{{ u.title }}</h3>
+                <p>{{ u.text }}</p>
+              </article>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
+    @if (page.benefits?.length) {
+      <section class="section section-band-white">
+        <div class="container">
+          <div class="section-head">
+            <span class="section-kicker">Benefits</span>
+            <h2 class="section-title">{{ page.benefitsTitle || 'Benefits' }}</h2>
+            @if (page.benefitsLead) {
+              <p class="section-lead">{{ page.benefitsLead }}</p>
+            }
+          </div>
+          <div class="feature-grid">
+            @for (b of page.benefits!; track b.title) {
+              <article class="feature-card">
+                @if (b.icon) {
+                  <mat-icon aria-hidden="true">{{ b.icon }}</mat-icon>
+                }
+                <h3>{{ b.title }}</h3>
+                <p>{{ b.text }}</p>
+              </article>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
     @if (page.shots?.length) {
       <section class="section tour">
         <div class="container">

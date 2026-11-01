@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
 import 'playback_helpers.dart';
@@ -16,6 +17,7 @@ class PlaybackTimeline extends StatelessWidget {
     this.onScrubStart,
     this.onScrubEnd,
     this.filteredEvents = const [],
+    this.showEventJumpChips = false,
   });
 
   final List<HistoryReplayPoint> playback;
@@ -31,18 +33,22 @@ class PlaybackTimeline extends StatelessWidget {
   final ValueChanged<DateTime>? onVirtualTimeChanged;
   final VoidCallback? onScrubStart;
   final VoidCallback? onScrubEnd;
+  final bool showEventJumpChips;
 
   @override
   Widget build(BuildContext context) {
     if (playback.isEmpty) return const SizedBox.shrink();
+    final p = context.sg;
     final max = playback.length - 1;
     final displayEvents =
         filteredEvents.isNotEmpty ? filteredEvents : events;
-    final markerIndices = timelineMarkerIndices(
-      playback: playback,
-      stops: stops,
-      events: displayEvents,
-    );
+    final markerIndices = showEventJumpChips
+        ? timelineMarkerIndices(
+            playback: playback,
+            stops: stops,
+            events: displayEvents,
+          )
+        : const <int>[];
     final clampedIndex = index.clamp(0, max);
     final firstTs = playback.first.timestamp;
     final lastTs = playback.last.timestamp;
@@ -50,7 +56,8 @@ class PlaybackTimeline extends StatelessWidget {
     final elapsed = clock.difference(firstTs);
     final total = lastTs.difference(firstTs);
     final totalMs = total.inMilliseconds;
-    final elapsedMs = elapsed.inMilliseconds.clamp(0, totalMs < 0 ? 0 : totalMs);
+    final elapsedMs =
+        elapsed.inMilliseconds.clamp(0, totalMs < 0 ? 0 : totalMs);
     final progress =
         totalMs <= 0 ? 0 : ((elapsedMs / totalMs) * 100).round();
     final sliderValue = max <= 0 || totalMs <= 0
@@ -64,18 +71,27 @@ class PlaybackTimeline extends StatelessWidget {
           children: [
             Text(
               '${_formatElapsed(elapsed)} / ${_formatElapsed(total)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                color: p.textSecondary,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const Spacer(),
             Text(
+              formatPlaybackClock(clock),
+              style: TextStyle(
+                fontSize: 11,
+                color: p.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
               '$progress%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: AppColors.textMuted,
+                color: p.textMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -85,25 +101,24 @@ class PlaybackTimeline extends StatelessWidget {
         Row(
           children: [
             Text(
-              _shortTime(firstTs),
-              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+              formatPlaybackClock(firstTs),
+              style: TextStyle(fontSize: 10, color: p.textMuted),
             ),
             const Spacer(),
             Text(
-              _shortTime(clock),
-              style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-            ),
-            const Spacer(),
-            Text(
-              _shortTime(lastTs),
-              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+              formatPlaybackClock(lastTs),
+              style: TextStyle(fontSize: 10, color: p.textMuted),
             ),
           ],
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 6,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: p.border,
+            thumbColor: AppColors.navy,
+            overlayColor: AppColors.primary.withValues(alpha: 0.15),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 11),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
           ),
           child: Slider(
@@ -138,7 +153,7 @@ class PlaybackTimeline extends StatelessWidget {
                     size: 14,
                     color: AppColors.warning,
                   ),
-                  label: Text(_shortTime(playback[mi].timestamp)),
+                  label: Text(formatPlaybackClock(playback[mi].timestamp)),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -172,11 +187,6 @@ class PlaybackTimeline extends StatelessWidget {
       }
     }
     return Icons.circle;
-  }
-
-  String _shortTime(DateTime dt) {
-    final l = dt.toLocal();
-    return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatElapsed(Duration d) {

@@ -1,21 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_theme.dart';
-import '../domain/alert_display.dart';
-import 'alerts_notifier.dart';
-import 'widgets/alerts_app_bar.dart';
-import 'widgets/alerts_feed_header.dart';
-import 'widgets/alerts_filter_sheet.dart';
-import 'widgets/in_cab_radio_modal.dart';
-import 'widgets/incident_detail_sheet.dart';
-import 'widgets/telematics_alert_card.dart';
 import '../../../shared/widgets/sg_brand_loader.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/auth_models.dart';
+import '../../fleet/presentation/fleet_hub_notifier.dart';
+import '../../notifications/presentation/notifications_notifier.dart';
+import 'alerts_notifier.dart';
+import 'widgets/alerts_filter_sheet.dart';
+import 'widgets/fleet_alert_row.dart';
+import 'widgets/fleet_alerts_header.dart';
+import 'widgets/incident_detail_sheet.dart';
 
 export 'widgets/incident_detail_sheet.dart' show AlertDetailScreen;
 
 class AlertsScreen extends ConsumerStatefulWidget {
-  const AlertsScreen({super.key});
+  const AlertsScreen({super.key, this.vehicleId});
+
+  /// Optional deep-link / vehicle-detail entry filter.
+  final int? vehicleId;
 
   @override
   ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
@@ -24,11 +31,26 @@ class AlertsScreen extends ConsumerStatefulWidget {
 class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   final _search = TextEditingController();
   bool _refreshing = false;
+  bool _selectMode = false;
+  final Set<String> _expandedGroups = {};
+  bool _appliedVehicleFilter = false;
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedVehicleFilter) return;
+    final id = widget.vehicleId;
+    if (id == null) return;
+    _appliedVehicleFilter = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(alertsProvider.notifier).setVehicleFilter(id);
+    });
   }
 
   Future<void> _refresh() async {
@@ -40,186 +62,328 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final cur = ref.read(alertsProvider).valueOrNull?.datePreset ?? 'today';
+    final next = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final e in const [
+              ('today', 'Today'),
+              ('last7', 'Last 7 days'),
+              ('last30', 'Last 30 days'),
+              ('all', 'All time'),
+            ])
+              ListTile(
+                title: Text(e.$2),
+                trailing: cur == e.$1
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(ctx, e.$1),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (next != null) {
+      await ref.read(alertsProvider.notifier).setDatePreset(next);
+    }
+  }
+
+  Future<void> _toggleSort() async {
+    final cur = ref.read(alertsProvider).valueOrNull?.sort ?? FleetAlertSort.newest;
+    await ref.read(alertsProvider.notifier).setSort(
+          cur == FleetAlertSort.newest
+              ? FleetAlertSort.oldest
+              : FleetAlertSort.newest,
+        );
+  }
+
+  Future<void> _showAssignSheet(List<int> ids) async {
+    if (ids.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select alerts to assign')),
+      );
+      return;
+    }
+    final session = ref.read(fleetSessionProvider);
+    final selfName = (session?.fullName.trim().isNotEmpty == true)
+        ? session!.fullName.trim()
+        : (session?.email?.trim() ?? '');
+    final controller = TextEditingController(text: selfName);
+    final result = await showModalBottomSheet<({String name, int? userId})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final kb = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + kb),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Assign alerts',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${ids.length} alert(s) — acknowledgement stays separate from assignment.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Assignee name',
+                  hintText: 'e.g. Sara',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              if (session != null)
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, (
+                    name: selfName.isNotEmpty ? selfName : 'Me',
+                    userId: session.userId,
+                  )),
+                  child: const Text('Assign to me'),
+                ),
+              const SizedBox(height: 8),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                onPressed: () {
+                  final name = controller.text.trim();
+                  if (name.isEmpty) return;
+                  Navigator.pop(ctx, (name: name, userId: null));
+                },
+                child: const Text('Assign'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    if (result == null) return;
+    await ref.read(alertsProvider.notifier).assign(
+          ids: ids,
+          assignedToUserId: result.userId,
+          assignedToName: result.name,
+        );
+    if (mounted) {
+      setState(() => _selectMode = false);
+      ref.read(alertsProvider.notifier).clearSelection();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Assigned to ${result.name}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(alertsProvider);
+    final session = ref.watch(fleetSessionProvider);
+    final hub = ref.watch(fleetHubProvider).valueOrNull;
+    final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final company = session?.companyName?.trim().isNotEmpty == true
+        ? session!.companyName!.trim()
+        : 'Sheikh Travel';
+    final vehicleCount =
+        hub?.kpis.totalVehicles ?? hub?.locations.length ?? 0;
+    final canAck = session?.hasPermission(FleetPermissions.gpsAlertAcknowledge) ??
+        session?.hasPermission('Gps.AlertAcknowledge') ??
+        false;
+    final canAssign = canAck;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AlertsAppBar(
-        activeFilterCount: async.valueOrNull?.activeFilterCount ?? 0,
-        refreshing: _refreshing || async.isLoading,
-        onFilter: () => showAlertsFilterSheet(context, ref),
-        onRefresh: _refresh,
-      ),
-      body: async.when(
-        skipLoadingOnReload: true,
-        skipLoadingOnRefresh: true,
-        loading: () => const Center(
-          child: SgBrandLoader(message: 'Loading alerts…'),
-        ),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 40, color: AppColors.error),
-                const SizedBox(height: 12),
-                Text('$e', textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _refresh,
-                  child: const Text('Retry'),
-                ),
-              ],
+    // Prefer server Can* flags when events loaded.
+    final sample = async.valueOrNull?.events;
+    final showAck = canAck ||
+        (sample?.any((e) => e.canAcknowledge) ?? false);
+    final showAssign = canAssign ||
+        (sample?.any((e) => e.canAssign) ?? false);
+
+    // No nested Scaffold — AppShell already provides one. A nested Scaffold
+    // here left the body Expanded with empty paint while the header still
+    // drew (chrome-only blank page).
+    return ColoredBox(
+      color: const Color(0xFFF3F7F8),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            FleetAlertsHeader(
+              companyName: company,
+              vehicleCount: vehicleCount,
+              unreadNotifications: unread,
+              onBell: () => context.push('/notifications'),
             ),
-          ),
-        ),
-        data: (state) {
-          final visible = state.visible;
-          final summary = state.feedSummary;
-          final counts = state.categoryCounts;
-
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: _refresh,
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: AlertsSearchBar(
-                    controller: _search,
-                    onChanged: (q) =>
-                        ref.read(alertsProvider.notifier).setSearchQuery(q),
+            Expanded(
+              child: async.when(
+                skipLoadingOnReload: true,
+                skipLoadingOnRefresh: true,
+                loading: () => const ColoredBox(
+                  color: Color(0xFFFFE4E6),
+                  child: Center(
+                    child: SgBrandLoader(message: 'Loading fleet alerts…'),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: CriticalAttentionBanner(
-                    count: summary.critical,
-                    onReview: () => ref
-                        .read(alertsProvider.notifier)
-                        .setCategoryFilter(AlertCategory.critical),
-                  ),
-                ),
-                if (state.loadError != null)
-                  const SliverToBoxAdapter(
+                error: (e, _) => ColoredBox(
+                  color: const Color(0xFFFFEDD5),
+                  child: Center(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: Text(
-                        'Stats unavailable — showing alert list.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.warning,
-                        ),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 40, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text('$e', textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _refresh,
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                SliverToBoxAdapter(
-                  child: AlertsSummaryChips(summary: summary),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                SliverToBoxAdapter(
-                  child: AlertsCategoryPills(
-                    selected: state.categoryFilter,
-                    counts: counts,
-                    onSelected: (c) => ref
-                        .read(alertsProvider.notifier)
-                        .setCategoryFilter(c),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: AlertsQuickActions(
-                    // Never show fake cross-fleet demo incidents in owner builds.
-                    onSimulate: kDebugMode
-                        ? () => ref
-                            .read(alertsProvider.notifier)
-                            .simulateIncident()
-                        : null,
-                    onAcknowledgeAll: () async {
-                      await ref
-                          .read(alertsProvider.notifier)
-                          .acknowledgeAllVisible();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Acknowledged visible alerts'),
+                data: (state) {
+                  final summary = state.feedSummary;
+                  final needs = state.needsAttention;
+                  final grouped = state.groupedIncidents;
+                  final selected = state.selectedIds;
+
+                  return ColoredBox(
+                    color: const Color(0xFFCCFBF1),
+                    child: Column(
+                    children: [
+                      Material(
+                        color: Colors.amber,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            'DEBUG alerts loaded: ${state.events.length} '
+                            'needs=${needs.length} grouped=${grouped.length}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'ACTIVE TELEMATICS FEED',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'Showing ${visible.length} incidents',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (visible.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 240,
-                      child: Center(
-                        child: Text(
-                          'No alerts match these filters',
-                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                    sliver: SliverList.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (_, i) {
-                        final a = visible[i];
-                        final demo = state.isDemo(a.id);
-                        return TelematicsAlertCard(
-                          alert: a,
-                          isDemo: demo,
-                          onOpen: () =>
-                              showIncidentDetailSheet(context, ref, a.id),
-                          onAck: () => ref
-                              .read(alertsProvider.notifier)
-                              .acknowledge(a.id),
-                          onCall: a.driverName == null
-                              ? null
-                              : () => showInCabRadioModal(
-                                    context,
-                                    driverName: a.driverName!,
-                                    vehicleLabel: a.vehicleName,
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            Text(
+                              'STEP1 plain list — events=${state.events.length} '
+                              'visible=${state.visibleIncidents.length} '
+                              'needs=${needs.length} grouped=${grouped.length}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            for (final inc in state.visibleIncidents.take(20))
+                              Card(
+                                child: ListTile(
+                                  title: Text(inc.groupTitle),
+                                  subtitle: Text(
+                                    '${inc.kind.name} · ${inc.allEvents.length} evt · '
+                                    '${inc.primary.status} · ${inc.primary.severity}',
                                   ),
-                        );
-                      },
-                    ),
+                                  dense: true,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (showAck || showAssign)
+                        FleetAlertsBulkBar(
+                          selectMode: _selectMode,
+                          selectedCount: selected.length,
+                          canAcknowledge: showAck,
+                          canAssign: showAssign,
+                          onToggleSelectMode: () {
+                            setState(() {
+                              _selectMode = !_selectMode;
+                              if (!_selectMode) {
+                                ref
+                                    .read(alertsProvider.notifier)
+                                    .clearSelection();
+                              } else {
+                                ref
+                                    .read(alertsProvider.notifier)
+                                    .selectAllVisible();
+                              }
+                            });
+                          },
+                          onAcknowledge: showAck
+                              ? () async {
+                                  final ids = selected.isEmpty
+                                      ? state.needsAttention
+                                          .expand((i) => i.acknowledgeIds)
+                                          .toList()
+                                      : selected.toList();
+                                  if (ids.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Nothing to acknowledge'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  await ref
+                                      .read(alertsProvider.notifier)
+                                      .acknowledgeIds(ids);
+                                  if (mounted) {
+                                    setState(() => _selectMode = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Alerts acknowledged'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              : null,
+                          onAssign: showAssign
+                              ? () => _showAssignSheet(
+                                    selected.isEmpty
+                                        ? state.visibleIncidents
+                                            .expand((i) => i.allIds)
+                                            .toList()
+                                        : selected.toList(),
+                                  )
+                              : null,
+                        ),
+                    ],
                   ),
-              ],
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

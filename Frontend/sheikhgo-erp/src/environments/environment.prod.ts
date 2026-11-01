@@ -1,13 +1,13 @@
 export const environment = {
   production: true,
   /**
-   * HTTPS API via Cloudflare quick tunnel → Kestrel :5082 on Azure VM.
-   * Source of truth on VM: /var/lib/sheikhgo/cloudflared-quick-url.txt
-   * After tunnel restart the hostname changes — update this + redeploy ERP.
+   * Production API host.
    * Preferred after DNS: https://api.sheikhgo.com/api
-   * Backup (may be unreachable from some networks): https://20-174-1-230.sslip.io/api
+   * Cloudflare quick tunnels die when the process restarts — do not ship a stale
+   * *.trycloudflare.com URL here (ERP assign/update calls fail with opaque toasts).
+   * Current reachable Azure HTTPS endpoint:
    */
-  apiUrl: 'https://joke-rebates-titans-duties.trycloudflare.com/api',
+  apiUrl: 'https://20-174-1-230.sslip.io/api',
   /** Same host as SPA; absolute API origin used for /uploads when filesBaseUrl is empty. */
   filesBaseUrl: '',
   /**

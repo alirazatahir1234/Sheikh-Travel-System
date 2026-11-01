@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../domain/fleet_models.dart';
 import '../../domain/fleet_status.dart';
 import '../../domain/gps_freshness.dart';
@@ -334,6 +335,8 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
               _LiveActions(
                 vehicleId: widget.vehicleId,
                 hasDevice: gps?.gpsDeviceId != null,
+                canCommands:
+                    ref.watch(fleetSessionProvider)?.canUseGpsCommands ?? false,
               ),
             ],
           );
@@ -458,6 +461,10 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
                   _LiveActions(
                     vehicleId: widget.vehicleId,
                     hasDevice: gps?.gpsDeviceId != null,
+                    canCommands: ref
+                            .watch(fleetSessionProvider)
+                            ?.canUseGpsCommands ??
+                        false,
                   ),
                 ],
               ),
@@ -814,14 +821,19 @@ class _TelemetryCard extends ConsumerWidget {
 }
 
 class _LiveActions extends StatelessWidget {
-  const _LiveActions({required this.vehicleId, required this.hasDevice});
+  const _LiveActions({
+    required this.vehicleId,
+    required this.hasDevice,
+    required this.canCommands,
+  });
 
   final int vehicleId;
   final bool hasDevice;
+  final bool canCommands;
 
   @override
   Widget build(BuildContext context) {
-    if (!hasDevice) {
+    if (!hasDevice || !canCommands) {
       return const SizedBox.shrink();
     }
     return SizedBox(

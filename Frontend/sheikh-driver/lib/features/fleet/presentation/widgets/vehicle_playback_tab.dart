@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_theme.dart';
+import '../../../../features/auth/data/auth_repository.dart';
+import '../../../../features/auth/domain/auth_models.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../data/fleet_api.dart';
 import '../../domain/fleet_models.dart';
@@ -69,9 +71,9 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
   List<GpsTrip> _trips = const [];
 
   final _dayFmt = DateFormat('dd MMM yyyy');
-  final _rangeFmt = DateFormat('dd MMM yyyy HH:mm');
-  final _lastActFmt = DateFormat('dd MMM yyyy • HH:mm');
-  final _timeFmt = DateFormat('HH:mm');
+  final _rangeFmt = DateFormat('dd MMM yyyy, h:mm a');
+  final _lastActFmt = DateFormat('dd MMM yyyy • h:mm a');
+  final _timeFmt = DateFormat('h:mm a');
 
   @override
   void initState() {
@@ -250,6 +252,19 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
 
   @override
   Widget build(BuildContext context) {
+    final canView = ref.watch(fleetSessionProvider)?.hasPermission(
+              FleetPermissions.gpsView,
+            ) ??
+        false;
+    if (!canView) {
+      return const SgEmptyState(
+        icon: Icons.lock_outline_rounded,
+        title: 'GPS access required',
+        subtitle:
+            'You do not have permission to view playback history. Ask an admin for GPS.View.',
+      );
+    }
+
     final moving = filterTrips(_trips, TripListFilter.moving);
     final stops = filterTrips(_trips, TripListFilter.stops);
     final totalKm = moving.fold<double>(0, (s, t) => s + t.distanceKm);
@@ -417,8 +432,8 @@ class _RangeChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: selected ? 1.5 : 1,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              width: selected ? 1.5 : 1.2,
             ),
           ),
           child: Text(

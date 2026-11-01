@@ -239,7 +239,8 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
   }
 
   canView(): boolean {
-    return this.auth.hasPermission('Gps.CommandView');
+    // Device Commands page is platform SUPER_ADMIN only (fleet owners must not use it).
+    return this.auth.hasRole('SUPER_ADMIN');
   }
 
   isCardDisabled(card: CommandCard): boolean {

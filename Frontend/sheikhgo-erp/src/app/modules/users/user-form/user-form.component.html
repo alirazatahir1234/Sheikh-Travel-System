@@ -259,9 +259,9 @@
                     <input id="license-expiry" class="stb-input" type="date" formControlName="licenseExpiry" />
                   </div>
                   <div class="stb-field">
-                    <label for="assigned-vehicle">Assigned vehicle</label>
+                    <label for="assigned-vehicle">Preferred vehicle (optional note)</label>
                     <input id="assigned-vehicle" class="stb-input" formControlName="assignedVehicleNote"
-                           placeholder="Plate or vehicle ID" />
+                           placeholder="Optional — plate or code" />
                   </div>
                   <div class="stb-field">
                     <label for="gps-device">GPS device</label>
@@ -272,7 +272,7 @@
                     <input id="shift" class="stb-input" formControlName="shiftPattern" placeholder="e.g. Morning / Night" />
                   </div>
                 </div>
-                <p class="hint">Operational fields are saved to the driver profile after user creation.</p>
+                <p class="hint">Role access is independent of fleet vehicle assignment. Link a vehicle later from Vehicles → Assign Driver (not required to save this user/role).</p>
               </div>
 
               <div class="role-fields span-2" *ngIf="isAccountantPrimary">
@@ -284,12 +284,13 @@
               </div>
 
               <div class="role-fields span-2" *ngIf="isFleetManagerPrimary">
-                <h3>Fleet assignment</h3>
+                <h3>Fleet scope (optional)</h3>
                 <div class="stb-field">
                   <label for="fleet-groups">Vehicle groups</label>
                   <input id="fleet-groups" class="stb-input" formControlName="fleetGroupNote"
                          placeholder="Group names or IDs" />
                 </div>
+                <p class="hint">Optional org note only — does not assign vehicles to drivers. Use Fleet → Assignments or Vehicles → Assign Driver for vehicle↔driver links.</p>
               </div>
             </div>
           </mat-step>
@@ -308,6 +309,8 @@
                   </span>
                 </div>
               </section>
+
+              <p class="hint span-2">Assign any additional roles to this person here. Role→person access is separate from vehicle→driver fleet assignment.</p>
 
               <section class="role-group" *ngIf="systemAccessRoles.length">
                 <h3>Additional system roles</h3>

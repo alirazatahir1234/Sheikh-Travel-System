@@ -279,9 +279,15 @@ public partial class GpsTrackingController : BaseApiController
         [FromQuery] string? status,
         [FromQuery] string? readState,
         [FromQuery] string? datePreset,
-        [FromQuery] int? geofenceId)
+        [FromQuery] int? geofenceId,
+        [FromQuery] string? search,
+        [FromQuery] string? severityGroup,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? sort)
         => Ok(await Mediator.Send(new GetGpsAlertEventsQuery(
-            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status, readState, datePreset, geofenceId)));
+            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status, readState, datePreset, geofenceId,
+            search, severityGroup, page, pageSize, sort)));
 
     [HttpGet("alerts/events/{id:int}")]
     [RequirePermission(GpsPermissions.AlertView)]
@@ -297,6 +303,21 @@ public partial class GpsTrackingController : BaseApiController
     [RequirePermission(GpsPermissions.AlertAcknowledge)]
     public async Task<IActionResult> AcknowledgeAlert(int id)
         => Ok(await Mediator.Send(new AcknowledgeGpsAlertCommand(id)));
+
+    [HttpPost("alerts/events/bulk-acknowledge")]
+    [RequirePermission(GpsPermissions.AlertAcknowledge)]
+    public async Task<IActionResult> BulkAcknowledgeAlerts([FromBody] BulkGpsAlertIdsDto body)
+        => Ok(await Mediator.Send(new BulkAcknowledgeGpsAlertsCommand(body)));
+
+    [HttpPost("alerts/events/{id:int}/assign")]
+    [RequirePermission(GpsPermissions.AlertAcknowledge)]
+    public async Task<IActionResult> AssignAlert(int id, [FromBody] AssignGpsAlertDto assignment)
+        => Ok(await Mediator.Send(new AssignGpsAlertCommand(id, assignment)));
+
+    [HttpPost("alerts/events/bulk-assign")]
+    [RequirePermission(GpsPermissions.AlertAcknowledge)]
+    public async Task<IActionResult> BulkAssignAlerts([FromBody] BulkAssignGpsAlertsDto body)
+        => Ok(await Mediator.Send(new BulkAssignGpsAlertsCommand(body)));
 
     [HttpPost("alerts/events/{id:int}/read")]
     [RequirePermission(GpsPermissions.AlertView)]

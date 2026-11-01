@@ -30,6 +30,10 @@ class AppShell extends ConsumerWidget {
     ref.listen(offlineSyncProvider, (_, __) {});
     ref.listen(offlinePendingCountProvider, (_, __) {});
 
+    final loc = GoRouterState.of(context).uri.path;
+    // Immersive GPS trip history / playback — hide shell tab bar.
+    final hideBottomNav = RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc);
+
     return Scaffold(
       body: Column(
         children: [
@@ -37,7 +41,7 @@ class AppShell extends ConsumerWidget {
           Expanded(child: child),
         ],
       ),
-      bottomNavigationBar: tabs.isEmpty
+      bottomNavigationBar: tabs.isEmpty || hideBottomNav
           ? null
           : _ShellBottomBar(tabs: tabs, currentIndex: idx),
     );
@@ -99,41 +103,60 @@ class _TabIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = Icon(active ? tab.activeIcon : tab.icon);
     final showBadge =
         unread > 0 && (tab.id == 'more' || tab.id == 'notifications');
+    final icon = Icon(
+      active ? tab.activeIcon : tab.icon,
+      size: 22,
+      color: active ? Colors.white : null,
+    );
 
     // Stack + Opacity (not Material Badge / conditional Positioned) — toggling
     // Badge widgets mid-frame dirties ParentData and loops
     // semantics.parentDataDirty assertions.
+    final isOverflowCount = unread > 99;
     return SizedBox(
-      width: 28,
-      height: 28,
+      width: 40,
+      height: 32,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
+          if (active)
+            Container(
+              width: 36,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           icon,
           Positioned(
-            right: -8,
-            top: -4,
+            // Sit outside the glyph so "99+" never covers the More icon.
+            right: -6,
+            top: -6,
             child: IgnorePointer(
               child: Opacity(
                 opacity: showBadge ? 1 : 0,
                 child: Container(
-                  constraints: const BoxConstraints(minWidth: 16),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  constraints: BoxConstraints(
+                    minWidth: isOverflowCount ? 22 : 16,
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isOverflowCount ? 3 : 4,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    unread > 99 ? '99+' : '$unread',
+                    isOverflowCount ? '99+' : '$unread',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: isOverflowCount ? 9 : 10,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                     ),

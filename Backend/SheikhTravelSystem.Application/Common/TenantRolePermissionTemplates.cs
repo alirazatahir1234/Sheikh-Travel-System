@@ -25,8 +25,6 @@ public static class TenantRolePermissionTemplates
         "Customer.View", "Customer.Create", "Customer.Update", "Customer.Delete",
         "Payment.View", "Payment.Create", "Payment.Update",
         "Invoice.View", "Invoice.Manage", "Settlement.View", "Settlement.Manage", "Report.View",
-        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandApprove", "Gps.CommandPositionRequest",
-        "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
         "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
@@ -38,7 +36,8 @@ public static class TenantRolePermissionTemplates
 
     /// <summary>
     /// Company owner (mobile SheikhGo Tracking) — full tracker parity:
-    /// live map, routes/playback/stops, alerts, vehicle control, drivers, fuel.
+    /// live map, routes/playback/stops, alerts, drivers, fuel.
+    /// Device Commands (Gps.Command*) are SUPER_ADMIN-only — not granted here.
     /// Narrower than TENANT_ADMIN (no platform user/role admin).
     /// Includes driver create/update/delete so Owner can manage the fleet roster.
     /// </summary>
@@ -52,9 +51,6 @@ public static class TenantRolePermissionTemplates
         "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
         "Gps.DeviceManage",
-        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandApprove", "Gps.CommandPositionRequest",
-        "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms",
-        "Gps.CommandRetry", "Gps.CommandCancel",
         "Maintenance.View", "Maintenance.Report.View",
         "Settlement.View", "Payment.View", "Invoice.View",
         "Ai.View", "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
@@ -70,8 +66,6 @@ public static class TenantRolePermissionTemplates
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
         "Gps.DeviceManage",
         "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve", "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View", "Report.View",
-        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandApprove", "Gps.CommandPositionRequest",
-        "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
         "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
@@ -99,7 +93,6 @@ public static class TenantRolePermissionTemplates
         "Route.View", "Route.Create", "Route.Update", "Route.Delete",
         "Vehicle.View", "Driver.View", "GPS.View", "Customer.View", "Customer.Create", "Customer.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge",
-        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
         "Ai.View",
         "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
         "Notification.View",
@@ -108,6 +101,7 @@ public static class TenantRolePermissionTemplates
 
     /// <summary>
     /// GPS monitoring operator — live map, alerts, telemetry, playback, reports (no bookings/finance).
+    /// Device Commands are SUPER_ADMIN-only (not GPS_OPERATOR).
     /// </summary>
     public static readonly string[] GpsOperator =
     [
@@ -115,8 +109,6 @@ public static class TenantRolePermissionTemplates
         "Vehicle.View", "Driver.View",
         "GPS.View", "Report.View", "Fuel.View",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
-        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
-        "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandRetry", "Gps.CommandCancel",
         "Trip.View",
         "Notification.View"
     ];
@@ -134,7 +126,6 @@ public static class TenantRolePermissionTemplates
     [
         "Trip.View", "GPS.View", "Fuel.View", "Fuel.Create", "Maintenance.Request.Create", "Maintenance.View",
         "Gps.AlertView", "Gps.AlertAcknowledge",
-        "Gps.CommandView",
         "Notification.View"
     ];
 

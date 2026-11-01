@@ -79,7 +79,10 @@ internal static class AssignmentValidationSql
         }
         catch (Application.Common.Exceptions.ConflictException ex)
         {
-            issues.Add(new("VehicleConflict", ex.Message, "Error"));
+            // Create/transfer complete the vehicle's prior assignment — warn, don't hard-block.
+            issues.Add(new("VehicleConflict",
+                $"{ex.Message} Continuing will complete that assignment and transfer the vehicle.",
+                "Warning"));
         }
 
         var driverAssigned = await connection.ExecuteScalarAsync<bool>(
@@ -94,8 +97,11 @@ internal static class AssignmentValidationSql
                 new { request.DriverId, TenantId = tenantId, request.VehicleId, ExcludeId = excludeAssignmentId },
                 cancellationToken: cancellationToken));
 
+        // Matches Vehicles assign-driver: prior Active/Scheduled rows are completed on create/transfer.
         if (driverAssigned)
-            issues.Add(new("DriverConflict", "Driver already has another active assignment.", "Error"));
+            issues.Add(new("DriverConflict",
+                "Driver already has another active assignment. Continuing will complete it and transfer the driver.",
+                "Warning"));
 
         if (!request.SkipSoftWarnings)
         {

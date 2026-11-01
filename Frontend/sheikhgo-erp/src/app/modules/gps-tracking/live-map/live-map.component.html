@@ -483,6 +483,7 @@
       [eta]="selectedEta"
       [followSelected]="followSelected"
       [activeTab]="detailTab"
+      [canCommands]="canUseGpsCommands"
       (tabChange)="setDetailTab($event)"
       (track)="focusVehicle(selectedLocation)"
       (follow)="toggleFollowSelected()"
@@ -613,7 +614,8 @@
             (click)="setMobileNav('nearby')">
       <mat-icon>near_me</mat-icon><span>Nearby</span>
     </button>
-    <button type="button" class="live-mobile-nav__btn stb-touch"
+    <button *ngIf="canUseGpsCommands"
+            type="button" class="live-mobile-nav__btn stb-touch"
             [class.live-mobile-nav__btn--active]="mobileNav === 'commands'"
             (click)="setMobileNav('commands')">
       <mat-icon>settings_remote</mat-icon><span>Commands</span>

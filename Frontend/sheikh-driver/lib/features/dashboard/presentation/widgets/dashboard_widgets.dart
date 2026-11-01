@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/constants/app_brand.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../alerts/domain/gps_alert_models.dart';
 import '../../../fleet/domain/fleet_models.dart';
 import '../../../fleet/domain/fleet_status.dart';
 import '../../../fleet/presentation/widgets/vehicle_pulse_icons.dart';
+import '../../../notifications/presentation/notifications_notifier.dart';
 import '../../../ops_trips/domain/ops_trip_models.dart';
 import '../../domain/dashboard_layout.dart';
 import '../../domain/dashboard_models.dart';
@@ -80,81 +83,276 @@ String _money(double v) {
   return 'PKR ${v.toStringAsFixed(0)}';
 }
 
-/// Ops command-center header: greeting, role · tenant, date, last sync.
-class OpsHeaderCard extends StatelessWidget {
+/// Compact enterprise header matching Ali’s mockup.
+class OpsHeaderCard extends ConsumerWidget {
   const OpsHeaderCard({
     super.key,
     required this.name,
     required this.role,
     this.tenantId,
     this.lastSyncedAt,
+    this.companyName,
+    this.branchName,
   });
 
   final String name;
   final DashboardRole role;
   final int? tenantId;
   final DateTime? lastSyncedAt;
+  final String? companyName;
+  final String? branchName;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = context.sg;
     final first = name.trim().split(RegExp(r'\s+')).first;
     final greeting = dashboardGreeting();
-    final dateLabel = DateFormat('EEEE, d MMM').format(DateTime.now());
     final syncLabel = lastSyncedAt == null
-        ? null
+        ? 'Synced just now'
         : 'Synced ${_relativeTime(lastSyncedAt!)}';
+    final tenantLabel = (companyName != null && companyName!.trim().isNotEmpty)
+        ? companyName!.trim()
+        : (tenantId != null ? 'Tenant $tenantId' : AppBrand.productName);
+    final unread =
+        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Text(
-          dateLabel,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: p.textMuted,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
+        Positioned(
+          right: -24,
+          top: -28,
+          child: IgnorePointer(
+            child: CustomPaint(
+              size: const Size(180, 120),
+              painter: _HeaderWavePainter(
+                color: AppColors.primary.withValues(alpha: 0.14),
+                accent: AppColors.cyan.withValues(alpha: 0.18),
               ),
+            ),
+          ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          '$greeting, $first',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: p.textPrimary,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-                height: 1.15,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          role == DashboardRole.driver
-              ? 'Here’s what’s on your schedule'
-              : 'Fleet command overview',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: p.textSecondary,
-              ),
-        ),
-        if (syncLabel != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.sync_rounded, size: 14, color: p.textMuted),
-              const SizedBox(width: 5),
-              Text(
-                syncLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: p.textMuted,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Mockup: official mark + dark navy wordmark on light header.
+                Image.asset(
+                  AppBrand.logoOnLightAsset,
+                  height: 36,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Image.asset(
+                    AppBrand.logoAsset,
+                    height: 36,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  AppBrand.productName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    letterSpacing: -0.3,
+                    color: p.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Settings',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => context.push('/settings'),
+                  icon: Icon(Icons.settings_outlined, color: p.textPrimary),
+                ),
+                IconButton(
+                  tooltip: 'Notifications',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => context.go('/notifications'),
+                  icon: Badge(
+                    isLabelVisible: unread > 0,
+                    label: Text(unread > 99 ? '99+' : '$unread'),
+                    child: Icon(
+                      Icons.notifications_none_rounded,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => _showTenantSheet(context, tenantLabel),
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: p.card,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: p.border.withValues(alpha: 0.85)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.apartment_rounded,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        tenantLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: p.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18, color: p.textMuted),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$greeting, $first',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.15,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              role == DashboardRole.driver
+                  ? "Here's what's on your schedule"
+                  : 'Fleet command overview.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: p.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle_rounded,
+                    size: 14, color: AppColors.success),
+                const SizedBox(width: 5),
+                Text(
+                  syncLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }
+
+  void _showTenantSheet(BuildContext context, String tenantLabel) {
+    final p = context.sg;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Active company',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: p.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tenantLabel,
+              style: TextStyle(fontSize: 15, color: p.textPrimary),
+            ),
+            if (branchName != null && branchName!.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Branch · ${branchName!.trim()}',
+                style: TextStyle(fontSize: 13, color: p.textSecondary),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              'Company switching is managed from your organization settings.',
+              style: TextStyle(fontSize: 12, color: p.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderWavePainter extends CustomPainter {
+  _HeaderWavePainter({required this.color, required this.accent});
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    paint.color = color;
+    final path = Path()
+      ..moveTo(size.width * 0.15, size.height)
+      ..quadraticBezierTo(
+        size.width * 0.35,
+        size.height * 0.15,
+        size.width * 0.7,
+        size.height * 0.45,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.92,
+        size.height * 0.7,
+        size.width,
+        0,
+      )
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+    paint.color = accent;
+    final path2 = Path()
+      ..moveTo(size.width * 0.4, size.height)
+      ..quadraticBezierTo(
+        size.width * 0.55,
+        size.height * 0.35,
+        size.width,
+        size.height * 0.2,
+      )
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path2, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeaderWavePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.accent != accent;
 }
 
 class DashboardGreetingCard extends StatelessWidget {
@@ -203,18 +401,11 @@ class PrimaryKpiStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cells.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SgSectionTitle('Overview'),
-        const SizedBox(height: AppSpacing.sm),
-        ChunkedGrid(
-          crossAxisCount: 2,
-          mainAxisSpacing: AppSpacing.sm,
-          crossAxisSpacing: AppSpacing.sm,
-          children: [for (final c in cells) _PrimaryKpiTile(cell: c)],
-        ),
-      ],
+    return ChunkedGrid(
+      crossAxisCount: 2,
+      mainAxisSpacing: AppSpacing.sm,
+      crossAxisSpacing: AppSpacing.sm,
+      children: [for (final c in cells) _PrimaryKpiTile(cell: c)],
     );
   }
 }
@@ -223,9 +414,13 @@ class _PrimaryKpiTile extends StatelessWidget {
   const _PrimaryKpiTile({required this.cell});
   final KpiCell cell;
 
+  /// Mockup icons: Vehicles car · Moving play · Idle pause · Offline power.
   IconData _icon(String label) {
     final l = label.toLowerCase();
-    if (l.contains('vehicle')) return Icons.local_shipping_rounded;
+    if (l.contains('vehicle')) return Icons.directions_car_filled_rounded;
+    if (l.contains('moving')) return Icons.play_arrow_rounded;
+    if (l.contains('idle')) return Icons.pause_rounded;
+    if (l.contains('offline')) return Icons.power_settings_new_rounded;
     if (l.contains('driver')) return Icons.person_rounded;
     if (l.contains('trip')) return Icons.route_rounded;
     if (l.contains('alert')) return Icons.shield_outlined;
@@ -238,51 +433,225 @@ class _PrimaryKpiTile extends StatelessWidget {
     final p = context.sg;
     final color = _colorKey(cell.colorKey);
     return SgCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
       onTap: cell.route == null ? null : () => context.push(cell.route!),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SgIconWell(icon: _icon(cell.label), color: color, size: 36),
-          const SizedBox(height: 10),
-          Text(
-            cell.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: p.textSecondary,
+      child: SizedBox(
+        // Owner/fleet mockup: tall enough for icon + label + value (~tappable).
+        height: 128,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(_icon(cell.label), color: color, size: 20),
+                ),
+                const Spacer(),
+                Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
+              ],
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            cell.value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              color: p.textPrimary,
-              height: 1.1,
-            ),
-          ),
-          if (cell.subtitle != null && cell.subtitle!.isNotEmpty)
+            const Spacer(),
             Text(
-              cell.subtitle!,
+              cell.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: p.textSecondary,
               ),
             ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              cell.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: p.textPrimary,
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Horizontal Moving / Idle / Offline / Never Seen distribution (mockup).
+class FleetActivityDistributionCard extends StatelessWidget {
+  const FleetActivityDistributionCard({
+    super.key,
+    required this.moving,
+    required this.idle,
+    required this.offline,
+    required this.neverSeen,
+  });
+
+  final int moving;
+  final int idle;
+  final int offline;
+  final int neverSeen;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    final items = [
+      _DistItem('Moving', moving < 0 ? 0 : moving, AppColors.primary,
+          '/fleet?status=moving'),
+      _DistItem(
+          'Idle', idle < 0 ? 0 : idle, AppColors.warning, '/fleet?status=idle'),
+      _DistItem('Offline', offline < 0 ? 0 : offline, AppColors.error,
+          '/fleet?status=offline'),
+      _DistItem('Never Seen', neverSeen < 0 ? 0 : neverSeen, p.textMuted,
+          '/fleet'),
+    ];
+    final total = items.fold<int>(0, (s, e) => s + e.count);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Fleet Activity',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.push('/more/reports'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View Report',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 16, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SgCard(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          child: Column(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 10,
+                  child: total <= 0
+                      ? ColoredBox(color: p.border)
+                      : Row(
+                          children: [
+                            for (final it in items)
+                              if (it.count > 0)
+                                Expanded(
+                                  flex: it.count,
+                                  child: ColoredBox(color: it.color),
+                                ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Mockup: 2×2 legend (Moving / Idle / Offline / Never Seen).
+              ChunkedGrid(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 8,
+                children: [
+                  for (final it in items)
+                    InkWell(
+                      onTap: () => context.push(it.route),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: it.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                it.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: p.textSecondary,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${it.count}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: p.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              total <= 0
+                                  ? '(0%)'
+                                  : '(${(it.count * 100 / total).round()}%)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: it.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DistItem {
+  const _DistItem(this.label, this.count, this.color, this.route);
+  final String label;
+  final int count;
+  final Color color;
+  final String route;
 }
 
 class FleetHealthCard extends StatelessWidget {
@@ -542,8 +911,13 @@ class _HealthStatRow extends StatelessWidget {
 
 /// Compact non-interactive Google Map snapshot for the home feed.
 class LiveMapPreviewCard extends StatefulWidget {
-  const LiveMapPreviewCard({super.key, required this.positions});
+  const LiveMapPreviewCard({
+    super.key,
+    required this.positions,
+    this.movingCount = 0,
+  });
   final List<GpsPosition> positions;
+  final int movingCount;
 
   @override
   State<LiveMapPreviewCard> createState() => _LiveMapPreviewCardState();
@@ -663,25 +1037,51 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
+    final moving = widget.movingCount < 0 ? 0 : widget.movingCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Expanded(child: SgSectionTitle('Live Fleet Map')),
-            TextButton(
-              onPressed: () => context.push('/fleet/map'),
-              child: const Text('View full map'),
+            Expanded(
+              child: Text(
+                'Live Fleet Map',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.push('/fleet/map'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Open Map',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 16, color: AppColors.primary),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         SgCard(
           padding: EdgeInsets.zero,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: SizedBox(
-              height: 200,
+              height: 168,
               child: Stack(
                 children: [
                   IgnorePointer(
@@ -712,27 +1112,44 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
                     ),
                   ),
                   Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: Material(
-                      color: Colors.white,
-                      elevation: 2,
-                      borderRadius: BorderRadius.circular(8),
-                      child: IconButton(
-                        tooltip: 'Open full map',
-                        icon: const Icon(Icons.fullscreen_rounded, size: 20),
-                        onPressed: () => context.push('/fleet/map'),
+                    left: 12,
+                    bottom: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sensors_rounded,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$moving vehicle${moving == 1 ? '' : 's'} moving',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   if (widget.positions.isEmpty)
-                    const Positioned.fill(
+                    Positioned.fill(
                       child: ColoredBox(
-                        color: Color(0xAAFFFFFF),
+                        color: p.card.withValues(alpha: 0.72),
                         child: Center(
                           child: Text(
                             'No live positions yet',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(color: p.textSecondary),
                           ),
                         ),
                       ),
@@ -841,15 +1258,20 @@ class CriticalAlertsCard extends StatelessWidget {
     super.key,
     required this.events,
     this.criticalCount = 0,
+    this.activeCount = 0,
   });
 
   final List<GpsAlertEvent> events;
   final int criticalCount;
+  final int activeCount;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final grouped = _groupAlerts(events);
-    final badge = criticalCount > 0 ? criticalCount : events.length;
+    final badge = activeCount > 0
+        ? activeCount
+        : (criticalCount > 0 ? criticalCount : events.length);
     final visible = grouped.take(3).toList();
 
     return Column(
@@ -857,40 +1279,31 @@ class CriticalAlertsCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: SgSectionTitle('Critical Alerts')),
-            if (badge > 0)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$badge',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+            Expanded(
+              child: Text(
+                'Alerts Requiring Attention',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: p.textPrimary,
                 ),
               ),
-            const SizedBox(width: 8),
+            ),
             GestureDetector(
               onTap: () => context.push('/alerts'),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'View all alerts',
-                    style: TextStyle(
+                    badge > 0 ? 'View All ($badge)' : 'View All',
+                    style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                     ),
                   ),
-                  SizedBox(width: 2),
-                  Icon(Icons.chevron_right_rounded,
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right_rounded,
                       size: 16, color: AppColors.primary),
                 ],
               ),
@@ -899,39 +1312,19 @@ class CriticalAlertsCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SgCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: events.isEmpty
               ? const SgInlineEmpty(
-                  message: 'No open critical alerts',
+                  message: 'No open alerts requiring attention',
                   icon: Icons.shield_outlined,
                 )
               : Column(
                   children: [
                     for (var i = 0; i < visible.length; i++) ...[
                       if (i > 0)
-                        const Divider(height: 1, color: AppColors.divider),
+                        Divider(height: 1, color: p.divider),
                       _AlertRow(alert: visible[i]),
                     ],
-                    const Divider(height: 1, color: AppColors.divider),
-                    InkWell(
-                      onTap: () => context.push('/alerts'),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'View all $badge alerts →',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
         ),
@@ -969,16 +1362,37 @@ class _AlertRow extends StatelessWidget {
     return eventType
         .replaceAll('_', ' ')
         .split(' ')
-        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .map((w) =>
+            w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
         .join(' ');
+  }
+
+  static IconData _iconFor(String eventType) {
+    final t = eventType.toLowerCase();
+    if (t.contains('battery') || t.contains('power')) {
+      return Icons.battery_alert_rounded;
+    }
+    if (t.contains('speed') || t.contains('overspeed')) {
+      return Icons.speed_rounded;
+    }
+    if (t.contains('geofence') || t.contains('fence')) {
+      return Icons.fence_outlined;
+    }
+    if (t.contains('sos') || t.contains('panic')) {
+      return Icons.sos_rounded;
+    }
+    if (t.contains('ignition')) return Icons.key_rounded;
+    return Icons.warning_amber_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final event = alert.event;
     final color = _severityColor(event.severity);
-    final vehicleName =
-        (event.vehicleName?.isNotEmpty == true) ? event.vehicleName! : 'VH-${event.vehicleId}';
+    final vehicleName = (event.vehicleName?.isNotEmpty == true)
+        ? event.vehicleName!
+        : 'VH-${event.vehicleId}';
 
     return InkWell(
       onTap: () => context.push('/alerts'),
@@ -988,12 +1402,13 @@ class _AlertRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 8,
-              height: 8,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: Icon(_iconFor(event.eventType), color: color, size: 18),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1004,20 +1419,22 @@ class _AlertRow extends StatelessWidget {
                     _humanize(event.eventType),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      color: p.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    alert.count > 1 ? '$vehicleName · x${alert.count}' : vehicleName,
+                    alert.count > 1
+                        ? '$vehicleName · x${alert.count}'
+                        : vehicleName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: p.textSecondary,
                     ),
                   ),
                 ],
@@ -1026,14 +1443,13 @@ class _AlertRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               _relativeTime(event.timestamp),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                color: p.textSecondary,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded,
-                size: 16, color: AppColors.textMuted),
+            Icon(Icons.chevron_right_rounded, size: 16, color: p.textMuted),
           ],
         ),
       ),
@@ -1232,88 +1648,142 @@ class _MiniKpi extends StatelessWidget {
 }
 
 class RecentActivitiesCard extends StatelessWidget {
-  const RecentActivitiesCard({super.key, required this.items});
+  const RecentActivitiesCard({
+    super.key,
+    required this.items,
+    this.totalCount,
+  });
   final List<ActivityItem> items;
+
+  /// Optional badge count for View All (parity with Alerts Requiring Attention).
+  final int? totalCount;
 
   IconData _icon(String kind) => switch (kind) {
         'alert' => Icons.warning_amber_rounded,
-        'trip' => Icons.check_circle_outline,
+        'trip' => Icons.location_on_outlined,
+        'attendance' => Icons.person_outline_rounded,
         'maintenance' => Icons.build_outlined,
         _ => Icons.notifications_none_rounded,
       };
 
   Color _color(String kind) => switch (kind) {
         'alert' => AppColors.error,
-        'trip' => AppColors.success,
+        'trip' => AppColors.primary,
+        'attendance' => AppColors.primary,
         'maintenance' => AppColors.warning,
         _ => AppColors.info,
       };
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
+    // Mockup shows 2–3 rows; View All opens the full activities list screen.
+    final visible = items.take(3).toList();
+    final badge = totalCount ?? items.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SgSectionTitle('Recent Activities'),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Recent Activity',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.push('/activities'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    badge > 0 ? 'View All ($badge)' : 'View All',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 16, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         SgCard(
-          child: items.isEmpty
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: visible.isEmpty
               ? const SgInlineEmpty(
                   message: 'No recent activity yet',
                   icon: Icons.timeline_outlined,
                 )
               : Column(
                   children: [
-                    for (var i = 0; i < items.length; i++) ...[
-                      if (i > 0) const Divider(height: 18),
+                    for (var i = 0; i < visible.length; i++) ...[
+                      if (i > 0) Divider(height: 1, color: p.divider),
                       InkWell(
-                        onTap: items[i].route == null
+                        onTap: visible[i].route == null
                             ? null
-                            : () => context.push(items[i].route!),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              DateFormat('hh:mm a')
-                                  .format(items[i].at.toLocal()),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
+                            : () => context.push(visible[i].route!),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: _color(visible[i].kind)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  _icon(visible[i].kind),
+                                  size: 18,
+                                  color: _color(visible[i].kind),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Icon(
-                              _icon(items[i].kind),
-                              size: 18,
-                              color: _color(items[i].kind),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    items[i].title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  if (items[i].subtitle.isNotEmpty)
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      items[i].subtitle,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
+                                      visible[i].title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: p.textPrimary,
                                       ),
                                     ),
-                                ],
+                                    if (visible[i].subtitle.isNotEmpty)
+                                      Text(
+                                        visible[i].subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: p.textSecondary,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                _relativeTime(visible[i].at),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: p.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -1355,7 +1825,10 @@ class LiveFleetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LiveMapPreviewCard(positions: data.livePositions);
+    return LiveMapPreviewCard(
+      positions: data.livePositions,
+      movingCount: data.gps?.moving ?? 0,
+    );
   }
 }
 

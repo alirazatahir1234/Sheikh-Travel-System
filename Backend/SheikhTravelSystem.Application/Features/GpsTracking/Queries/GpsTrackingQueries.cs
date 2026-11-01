@@ -89,7 +89,12 @@ public record GetGpsAlertEventsQuery(
     string? Status = null,
     string? ReadState = null,
     string? DatePreset = null,
-    int? GeofenceId = null)
+    int? GeofenceId = null,
+    string? Search = null,
+    string? SeverityGroup = null,
+    int? Page = null,
+    int? PageSize = null,
+    string? Sort = null)
     : IRequest<ApiResponse<List<GpsAlertEventDto>>>;
 
 public class GetGpsAlertEventsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
@@ -127,6 +132,7 @@ public static class GpsAlertQueryProjection
         // Surface catalog spellings so UI chips (offline / ignition_on / …) match stored synonyms.
         row.EventType = GpsEventTypeNormalizer.Normalize(row.EventType);
         row.CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser);
+        row.CanAssign = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAssign(currentUser);
         row.CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser);
         row.CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser);
         row.CanDelete = GpsAlertAccess.CanDelete(currentUser);

@@ -197,6 +197,17 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: AppColors.primary,
+                          ),
+                          onPressed: () => context.push(
+                            '/alerts?vehicleId=${widget.vehicleId}',
+                          ),
+                          child: const Text('Open in Fleet Alerts'),
+                        ),
                       ],
                     ),
                   ),

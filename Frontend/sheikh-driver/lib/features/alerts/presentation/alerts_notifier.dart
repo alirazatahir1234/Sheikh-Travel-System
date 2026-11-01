@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
@@ -8,35 +10,41 @@ import '../domain/alert_display.dart';
 import '../domain/gps_alert_models.dart';
 import 'alerts_simulator.dart';
 
+enum FleetAlertSort { newest, oldest }
+
 class AlertsState {
   const AlertsState({
     this.stats = GpsAlertStats.empty,
     this.events = const [],
     this.demoEvents = const [],
-    this.statusFilter,
-    this.readStateFilter,
-    this.severityFilter,
-    this.eventTypeFilter,
-    this.categoryFilter = AlertCategory.all,
+    this.chip = FleetAlertChip.all,
+    this.unacknowledgedOnly = false,
     this.searchQuery = '',
-    this.datePreset = 'last7',
+    this.datePreset = 'today',
+    this.sort = FleetAlertSort.newest,
+    this.eventTypeFilter,
+    this.vehicleIdFilter,
+    this.selectedIds = const {},
+    this.page = 1,
+    this.pageSize = 50,
+    this.hasMore = false,
     this.loadError,
   });
 
   final GpsAlertStats stats;
   final List<GpsAlertEvent> events;
   final List<GpsAlertEvent> demoEvents;
-  final String? statusFilter;
-  final String? readStateFilter;
-  final String? severityFilter;
-  final String? eventTypeFilter;
-  final AlertCategory categoryFilter;
+  final FleetAlertChip chip;
+  final bool unacknowledgedOnly;
   final String searchQuery;
-
-  /// `all` = no date filter; otherwise API datePreset (`today`, `last7`, …).
   final String datePreset;
-
-  /// Soft error (e.g. stats failed) while events may still be present.
+  final FleetAlertSort sort;
+  final String? eventTypeFilter;
+  final int? vehicleIdFilter;
+  final Set<int> selectedIds;
+  final int page;
+  final int pageSize;
+  final bool hasMore;
   final String? loadError;
 
   List<GpsAlertEvent> get mergedEvents {
@@ -47,81 +55,136 @@ class AlertsState {
     for (final e in demoEvents) {
       byId[e.id] = e;
     }
-    final list = byId.values.toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    final list = byId.values.toList();
+    list.sort((a, b) => sort == FleetAlertSort.newest
+        ? b.timestamp.compareTo(a.timestamp)
+        : a.timestamp.compareTo(b.timestamp));
     return list;
   }
 
-  List<GpsAlertEvent> get visible {
-    return mergedEvents
-        .where((e) => matchesAlertCategory(e, categoryFilter))
-        .where((e) => alertMatchesSearch(e, searchQuery))
+  List<AlertIncident> get incidents => groupAlertIncidents(mergedEvents);
+
+  List<AlertIncident> get visibleIncidents {
+    return incidents
+        .where(_matchesChip)
+        .where(_matchesUnacked)
+        .where(_matchesSearch)
         .toList();
   }
 
-  AlertsFeedSummary get feedSummary =>
-      AlertsFeedSummary.fromEvents(mergedEvents);
+  List<AlertIncident> get needsAttention =>
+      visibleIncidents.where((i) => !i.isGrouped && i.primary.isOpen).toList();
 
-  Map<AlertCategory, int> get categoryCounts {
-    final counts = {for (final c in AlertCategoryX.pillOrder) c: 0};
-    for (final e in mergedEvents) {
-      counts[AlertCategory.all] = (counts[AlertCategory.all] ?? 0) + 1;
-      if (matchesAlertCategory(e, AlertCategory.critical)) {
-        counts[AlertCategory.critical] =
-            (counts[AlertCategory.critical] ?? 0) + 1;
-      }
-      final cat = alertCategoryFor(e);
-      if (cat != AlertCategory.other && counts.containsKey(cat)) {
-        counts[cat] = (counts[cat] ?? 0) + 1;
-      }
+  List<AlertIncident> get groupedIncidents =>
+      visibleIncidents.where((i) => i.isGrouped).toList();
+
+  AlertsFeedSummary get feedSummary {
+    if (stats.total > 0 ||
+        stats.critical > 0 ||
+        stats.warning > 0 ||
+        stats.unacknowledged > 0) {
+      return AlertsFeedSummary.fromStats(stats);
     }
-    return counts;
+    return AlertsFeedSummary.fromEvents(mergedEvents);
   }
 
   int get activeFilterCount {
     var n = 0;
-    if (statusFilter != null || readStateFilter != null) n++;
-    if (severityFilter != null) n++;
-    if (categoryFilter != AlertCategory.all) n++;
-    if (datePreset != 'last7') n++;
+    if (chip != FleetAlertChip.all) n++;
+    if (datePreset != 'today') n++;
+    if (sort != FleetAlertSort.newest) n++;
     if (searchQuery.trim().isNotEmpty) n++;
+    if (eventTypeFilter != null) n++;
+    if (vehicleIdFilter != null) n++;
     return n;
   }
 
   bool isDemo(int id) => demoEvents.any((e) => e.id == id);
 
+  bool _matchesChip(AlertIncident inc) {
+    final e = inc.primary;
+    return switch (chip) {
+      FleetAlertChip.all => true,
+      FleetAlertChip.critical =>
+        alertDisplaySeverity(e) == AlertDisplaySeverity.critical ||
+            e.severity.toLowerCase() == 'critical',
+      FleetAlertChip.warning =>
+        alertDisplaySeverity(e) == AlertDisplaySeverity.warning ||
+            e.severity.toLowerCase() == 'high' ||
+            e.severity.toLowerCase() == 'medium',
+      FleetAlertChip.info =>
+        alertDisplaySeverity(e) == AlertDisplaySeverity.info ||
+            e.severity.toLowerCase() == 'low',
+      FleetAlertChip.acknowledged => e.isAcknowledged && !e.isResolved,
+      FleetAlertChip.resolved => e.isResolved || e.isArchived,
+    };
+  }
+
+  bool _matchesUnacked(AlertIncident inc) {
+    if (!unacknowledgedOnly) return true;
+    return !inc.isAcknowledged && inc.primary.isOpen;
+  }
+
+  bool _matchesSearch(AlertIncident inc) {
+    final q = searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return inc.allEvents.any((e) => alertMatchesSearch(e, q));
+  }
+
+  String? get apiSeverityGroup => switch (chip) {
+        FleetAlertChip.critical => 'critical',
+        FleetAlertChip.warning => 'warning',
+        FleetAlertChip.info => 'info',
+        _ => null,
+      };
+
+  String? get apiStatus => switch (chip) {
+        FleetAlertChip.acknowledged => 'acknowledged',
+        FleetAlertChip.resolved => 'resolved',
+        _ => null,
+      };
+
+  bool? get apiUnacknowledgedOnly =>
+      chip == FleetAlertChip.all ? null : null;
+
   AlertsState copyWith({
     GpsAlertStats? stats,
     List<GpsAlertEvent>? events,
     List<GpsAlertEvent>? demoEvents,
-    String? statusFilter,
-    String? readStateFilter,
-    String? severityFilter,
-    String? eventTypeFilter,
-    AlertCategory? categoryFilter,
+    FleetAlertChip? chip,
+    bool? unacknowledgedOnly,
     String? searchQuery,
     String? datePreset,
+    FleetAlertSort? sort,
+    String? eventTypeFilter,
+    int? vehicleIdFilter,
+    Set<int>? selectedIds,
+    int? page,
+    int? pageSize,
+    bool? hasMore,
     String? loadError,
-    bool clearStatus = false,
-    bool clearReadState = false,
-    bool clearSeverity = false,
     bool clearEventType = false,
+    bool clearVehicleId = false,
     bool clearLoadError = false,
+    bool clearSelection = false,
   }) {
     return AlertsState(
       stats: stats ?? this.stats,
       events: events ?? this.events,
       demoEvents: demoEvents ?? this.demoEvents,
-      statusFilter: clearStatus ? null : (statusFilter ?? this.statusFilter),
-      readStateFilter:
-          clearReadState ? null : (readStateFilter ?? this.readStateFilter),
-      severityFilter:
-          clearSeverity ? null : (severityFilter ?? this.severityFilter),
-      eventTypeFilter:
-          clearEventType ? null : (eventTypeFilter ?? this.eventTypeFilter),
-      categoryFilter: categoryFilter ?? this.categoryFilter,
+      chip: chip ?? this.chip,
+      unacknowledgedOnly: unacknowledgedOnly ?? this.unacknowledgedOnly,
       searchQuery: searchQuery ?? this.searchQuery,
       datePreset: datePreset ?? this.datePreset,
+      sort: sort ?? this.sort,
+      eventTypeFilter:
+          clearEventType ? null : (eventTypeFilter ?? this.eventTypeFilter),
+      vehicleIdFilter:
+          clearVehicleId ? null : (vehicleIdFilter ?? this.vehicleIdFilter),
+      selectedIds: clearSelection ? {} : (selectedIds ?? this.selectedIds),
+      page: page ?? this.page,
+      pageSize: pageSize ?? this.pageSize,
+      hasMore: hasMore ?? this.hasMore,
       loadError: clearLoadError ? null : (loadError ?? this.loadError),
     );
   }
@@ -131,36 +194,56 @@ final alertsProvider =
     AsyncNotifierProvider<AlertsNotifier, AlertsState>(AlertsNotifier.new);
 
 class AlertsNotifier extends AsyncNotifier<AlertsState> {
+  Timer? _searchDebounce;
+
   @override
-  Future<AlertsState> build() => _load();
+  Future<AlertsState> build() {
+    ref.onDispose(() => _searchDebounce?.cancel());
+    return _load();
+  }
 
   Future<AlertsState> _load({
-    String? statusFilter,
-    String? readStateFilter,
-    String? severityFilter,
-    String? eventTypeFilter,
+    FleetAlertChip? chip,
+    bool? unacknowledgedOnly,
     String? datePreset,
-    bool clearStatus = false,
-    bool clearReadState = false,
-    bool clearSeverity = false,
+    FleetAlertSort? sort,
+    String? searchQuery,
+    String? eventTypeFilter,
+    int? vehicleIdFilter,
+    int page = 1,
+    bool append = false,
     bool clearEventType = false,
+    bool clearVehicleId = false,
   }) async {
     if (!ref.read(authRepositoryProvider).isLoggedIn) {
       return const AlertsState();
     }
     final api = ref.read(gpsAlertsApiProvider);
     final prev = state.valueOrNull;
-    final selectedStatus =
-        clearStatus ? null : (statusFilter ?? prev?.statusFilter);
-    final selectedReadState =
-        clearReadState ? null : (readStateFilter ?? prev?.readStateFilter);
-    final selectedSeverity =
-        clearSeverity ? null : (severityFilter ?? prev?.severityFilter);
+    final selectedChip = chip ?? prev?.chip ?? FleetAlertChip.all;
+    final selectedUnacked =
+        unacknowledgedOnly ?? prev?.unacknowledgedOnly ?? false;
+    final selectedDate = datePreset ?? prev?.datePreset ?? 'today';
+    final selectedSort = sort ?? prev?.sort ?? FleetAlertSort.newest;
+    final selectedSearch = searchQuery ?? prev?.searchQuery ?? '';
     final selectedEventType =
         clearEventType ? null : (eventTypeFilter ?? prev?.eventTypeFilter);
-    final selectedDatePreset = datePreset ?? prev?.datePreset ?? 'last7';
-    final apiDatePreset =
-        selectedDatePreset == 'all' ? null : selectedDatePreset;
+    final selectedVehicleId =
+        clearVehicleId ? null : (vehicleIdFilter ?? prev?.vehicleIdFilter);
+    final pageSize = prev?.pageSize ?? 50;
+    final apiDatePreset = selectedDate == 'all' ? null : selectedDate;
+
+    final draft = AlertsState(
+      chip: selectedChip,
+      unacknowledgedOnly: selectedUnacked,
+      datePreset: selectedDate,
+      sort: selectedSort,
+      searchQuery: selectedSearch,
+      eventTypeFilter: selectedEventType,
+      vehicleIdFilter: selectedVehicleId,
+      page: page,
+      pageSize: pageSize,
+    );
 
     GpsAlertStats stats = prev?.stats ?? GpsAlertStats.empty;
     String? softError;
@@ -171,25 +254,37 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     }
 
     final events = await api.listEvents(
-      status: selectedStatus,
-      readState: selectedReadState,
-      severity: selectedSeverity,
-      eventType: selectedEventType,
+      status: draft.apiStatus,
+      severityGroup: draft.apiSeverityGroup,
+      unacknowledgedOnly: selectedUnacked ? true : null,
       datePreset: apiDatePreset,
+      search: selectedSearch.trim().isEmpty ? null : selectedSearch,
+      sort: selectedSort == FleetAlertSort.oldest ? 'oldest' : 'newest',
+      eventType: selectedEventType,
+      vehicleId: selectedVehicleId,
+      page: page,
+      pageSize: pageSize,
     );
+
+    final merged = append && prev != null
+        ? [...prev.events, ...events]
+        : events;
 
     return AlertsState(
       stats: stats,
-      events: events,
-      // Keep in-memory demo only while debugging; never mix into refresh from API.
+      events: merged,
       demoEvents: kDebugMode ? (prev?.demoEvents ?? const []) : const [],
-      statusFilter: selectedStatus,
-      readStateFilter: selectedReadState,
-      severityFilter: selectedSeverity,
+      chip: selectedChip,
+      unacknowledgedOnly: selectedUnacked,
+      searchQuery: selectedSearch,
+      datePreset: selectedDate,
+      sort: selectedSort,
       eventTypeFilter: selectedEventType,
-      categoryFilter: prev?.categoryFilter ?? AlertCategory.all,
-      searchQuery: prev?.searchQuery ?? '',
-      datePreset: selectedDatePreset,
+      vehicleIdFilter: selectedVehicleId,
+      selectedIds: append ? (prev?.selectedIds ?? {}) : {},
+      page: page,
+      pageSize: pageSize,
+      hasMore: events.length >= pageSize,
       loadError: softError,
     );
   }
@@ -202,84 +297,105 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     state = await AsyncValue.guard(loader);
   }
 
-  Future<void> refresh() => _run(_load);
+  Future<void> refresh() => _run(() => _load(page: 1));
+
+  Future<void> loadMore() async {
+    final cur = state.valueOrNull;
+    if (cur == null || !cur.hasMore || state.isLoading) return;
+    await _run(() => _load(page: cur.page + 1, append: true));
+  }
 
   void setSearchQuery(String query) {
     final cur = state.valueOrNull;
     if (cur == null) return;
     state = AsyncData(cur.copyWith(searchQuery: query));
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      _run(() => _load(searchQuery: query, page: 1));
+    });
   }
 
-  void setCategoryFilter(AlertCategory category) {
-    final cur = state.valueOrNull;
-    if (cur == null) return;
-    state = AsyncData(cur.copyWith(categoryFilter: category));
-  }
+  Future<void> setChip(FleetAlertChip chip) =>
+      _run(() => _load(chip: chip, unacknowledgedOnly: false, page: 1));
 
-  Future<void> setLifecycle(String? lifecycle) {
-    final readState = switch (lifecycle) {
-      'unread' => 'unread',
-      'read' => 'read',
-      _ => null,
-    };
-    final status = switch (lifecycle) {
-      'acknowledged' => 'acknowledged',
-      'resolved' => 'resolved',
-      'archived' => 'archived',
-      _ => null,
-    };
-    final clearing = lifecycle == null;
-    return _run(
-      () => _load(
-        statusFilter: status,
-        readStateFilter: readState,
-        clearStatus: clearing,
-        clearReadState: clearing,
-      ),
-    );
-  }
-
-  Future<void> setSeverity(String? severity) {
-    return _run(
-      () => _load(
-        severityFilter: severity,
-        clearSeverity: severity == null,
-      ),
-    );
-  }
+  Future<void> setUnacknowledgedOnly(bool value) =>
+      _run(() => _load(
+            chip: FleetAlertChip.all,
+            unacknowledgedOnly: value,
+            page: 1,
+          ));
 
   Future<void> setDatePreset(String datePreset) =>
-      _run(() => _load(datePreset: datePreset));
+      _run(() => _load(datePreset: datePreset, page: 1));
 
-  Future<void> setEventType(String? eventType) {
-    return _run(
-      () => _load(
-        eventTypeFilter: eventType,
-        clearEventType: eventType == null,
-      ),
-    );
-  }
+  Future<void> setSort(FleetAlertSort sort) =>
+      _run(() => _load(sort: sort, page: 1));
+
+  Future<void> setEventType(String? eventType) => _run(
+        () => _load(
+          eventTypeFilter: eventType,
+          clearEventType: eventType == null,
+          page: 1,
+        ),
+      );
+
+  Future<void> setVehicleFilter(int? vehicleId) => _run(
+        () => _load(
+          vehicleIdFilter: vehicleId,
+          clearVehicleId: vehicleId == null,
+          page: 1,
+        ),
+      );
 
   Future<void> clearAdvancedFilters() async {
     final cur = state.valueOrNull;
     if (cur == null) return;
     state = AsyncData(
       cur.copyWith(
-        categoryFilter: AlertCategory.all,
+        chip: FleetAlertChip.all,
+        unacknowledgedOnly: false,
         searchQuery: '',
-        clearStatus: true,
-        clearReadState: true,
-        clearSeverity: true,
+        datePreset: 'today',
+        sort: FleetAlertSort.newest,
         clearEventType: true,
+        clearVehicleId: true,
+        clearSelection: true,
       ),
     );
     await _run(() => _load(
-          clearStatus: true,
-          clearReadState: true,
-          clearSeverity: true,
+          chip: FleetAlertChip.all,
+          unacknowledgedOnly: false,
+          datePreset: 'today',
+          sort: FleetAlertSort.newest,
+          searchQuery: '',
           clearEventType: true,
-          datePreset: 'last7',
+          clearVehicleId: true,
+          page: 1,
         ));
+  }
+
+  void toggleSelect(int id) {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    final next = {...cur.selectedIds};
+    if (!next.add(id)) next.remove(id);
+    state = AsyncData(cur.copyWith(selectedIds: next));
+  }
+
+  void selectAllVisible() {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    final ids = <int>{};
+    for (final inc in cur.visibleIncidents) {
+      ids.addAll(inc.allIds);
+    }
+    state = AsyncData(cur.copyWith(selectedIds: ids));
+  }
+
+  void clearSelection() {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    state = AsyncData(cur.copyWith(clearSelection: true));
   }
 
   void simulateIncident() {
@@ -305,27 +421,12 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
         cur.copyWith(
           demoEvents: cur.demoEvents
               .map((e) => e.id == id
-                  ? GpsAlertEvent(
-                      id: e.id,
-                      vehicleId: e.vehicleId,
-                      eventType: e.eventType,
-                      latitude: e.latitude,
-                      longitude: e.longitude,
-                      speed: e.speed,
-                      message: e.message,
-                      timestamp: e.timestamp,
+                  ? e.copyWith(
                       isAcknowledged: true,
-                      severity: e.severity,
                       status: 'acknowledged',
-                      vehicleName: e.vehicleName,
-                      geofenceId: e.geofenceId,
-                      geofenceName: e.geofenceName,
-                      driverId: e.driverId,
-                      driverName: e.driverName,
                       acknowledgedAt: DateTime.now().toUtc(),
                       canAcknowledge: false,
                       canResolve: true,
-                      canArchive: false,
                     )
                   : e)
               .toList(),
@@ -337,21 +438,94 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     await refresh();
   }
 
-  Future<void> acknowledgeAllVisible() async {
+  Future<void> acknowledgeIds(List<int> ids) async {
     final cur = state.valueOrNull;
-    if (cur == null) return;
-    final targets =
-        cur.visible.where((e) => e.canAcknowledge || cur.isDemo(e.id)).toList();
-    for (final e in targets) {
-      if (cur.isDemo(e.id) || e.id < 0) {
-        await acknowledge(e.id);
-      } else if (e.canAcknowledge) {
-        try {
-          await ref.read(gpsAlertsApiProvider).acknowledge(e.id);
-        } catch (_) {}
+    if (cur == null || ids.isEmpty) return;
+    final real = ids.where((id) => id > 0 && !cur.isDemo(id)).toList();
+    final demo = ids.where(cur.isDemo).toList();
+    for (final id in demo) {
+      await acknowledge(id);
+    }
+    if (real.isNotEmpty) {
+      try {
+        await ref.read(gpsAlertsApiProvider).bulkAcknowledge(real);
+      } catch (_) {
+        for (final id in real) {
+          try {
+            await ref.read(gpsAlertsApiProvider).acknowledge(id);
+          } catch (_) {}
+        }
       }
     }
     await refresh();
+  }
+
+  Future<void> acknowledgeSelected() async {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    await acknowledgeIds(cur.selectedIds.toList());
+  }
+
+  Future<void> assign({
+    required List<int> ids,
+    int? assignedToUserId,
+    required String assignedToName,
+  }) async {
+    final cur = state.valueOrNull;
+    if (cur == null || ids.isEmpty) return;
+    final name = assignedToName.trim();
+    if (name.isEmpty && assignedToUserId == null) return;
+
+    final real = ids.where((id) => id > 0 && !cur.isDemo(id)).toList();
+    final demo = ids.where(cur.isDemo).toList();
+    if (demo.isNotEmpty) {
+      state = AsyncData(
+        cur.copyWith(
+          demoEvents: cur.demoEvents
+              .map((e) => demo.contains(e.id)
+                  ? e.copyWith(
+                      assignedToUserId: assignedToUserId,
+                      assignedToName: name,
+                      assignedAt: DateTime.now().toUtc(),
+                    )
+                  : e)
+              .toList(),
+        ),
+      );
+    }
+    if (real.isNotEmpty) {
+      try {
+        await ref.read(gpsAlertsApiProvider).bulkAssign(
+              real,
+              assignedToUserId: assignedToUserId,
+              assignedToName: name,
+            );
+      } catch (_) {
+        for (final id in real) {
+          try {
+            await ref.read(gpsAlertsApiProvider).assign(
+                  id,
+                  assignedToUserId: assignedToUserId,
+                  assignedToName: name,
+                );
+          } catch (_) {}
+        }
+      }
+    }
+    await refresh();
+  }
+
+  Future<void> assignSelected({
+    int? assignedToUserId,
+    required String assignedToName,
+  }) async {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    await assign(
+      ids: cur.selectedIds.toList(),
+      assignedToUserId: assignedToUserId,
+      assignedToName: assignedToName,
+    );
   }
 
   Future<void> markRead(int id) async {
@@ -366,9 +540,7 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     if (cur != null && cur.isDemo(id)) {
       state = AsyncData(
         cur.copyWith(
-          demoEvents: cur.demoEvents
-              .where((e) => e.id != id)
-              .toList(),
+          demoEvents: cur.demoEvents.where((e) => e.id != id).toList(),
         ),
       );
       return;

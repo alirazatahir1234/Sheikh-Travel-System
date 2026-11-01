@@ -108,9 +108,16 @@ public class AccessManagementPermissionCatalogTests
         TenantRolePermissionTemplates.Driver.Should().NotContain(OperationsPermissions.BookingCreate);
 
         TenantRolePermissionTemplates.FleetManager.Should().Contain(AiPermissions.ExecuteWrite);
-        TenantRolePermissionTemplates.FleetManager.Should().Contain(GpsPermissions.CommandApprove);
-        TenantRolePermissionTemplates.Owner.Should().Contain(GpsPermissions.CommandApprove);
-        TenantRolePermissionTemplates.TenantAdmin.Should().Contain(GpsPermissions.CommandApprove);
+        // Device Commands (Gps.Command*) are SUPER_ADMIN-only — not tenant Owner / Fleet Manager / Admin.
+        TenantRolePermissionTemplates.FleetManager.Should().NotContain(GpsPermissions.CommandApprove);
+        TenantRolePermissionTemplates.FleetManager.Should().NotContain(GpsPermissions.CommandSend);
+        TenantRolePermissionTemplates.Owner.Should().NotContain(GpsPermissions.CommandApprove);
+        TenantRolePermissionTemplates.Owner.Should().NotContain(GpsPermissions.CommandView);
+        TenantRolePermissionTemplates.TenantAdmin.Should().NotContain(GpsPermissions.CommandApprove);
+        TenantRolePermissionTemplates.TenantAdmin.Should().NotContain(GpsPermissions.CommandSend);
+        TenantRolePermissionTemplates.GpsOperator.Should().NotContain(GpsPermissions.CommandSend);
+        TenantRolePermissionTemplates.Dispatcher.Should().NotContain(GpsPermissions.CommandSend);
+        TenantRolePermissionTemplates.Driver.Should().NotContain(GpsPermissions.CommandView);
         TenantRolePermissionTemplates.TenantAdmin.Should().Contain(PlatformPermissions.SettingsView);
         TenantRolePermissionTemplates.TenantAdmin.Should().Contain(AiPermissions.Manage);
         TenantRolePermissionTemplates.Dispatcher.Should().NotContain(GpsPermissions.CommandApprove);

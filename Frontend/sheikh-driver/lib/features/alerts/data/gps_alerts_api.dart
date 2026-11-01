@@ -15,24 +15,36 @@ class GpsAlertsApi {
   Future<List<GpsAlertEvent>> listEvents({
     String? eventType,
     String? severity,
+    String? severityGroup,
     String? status,
     String? readState,
     String? datePreset,
+    String? search,
+    String? sort,
     int? vehicleId,
     int? driverId,
     int? geofenceId,
+    bool? unacknowledgedOnly,
+    int? page,
+    int? pageSize,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.gpsAlertEvents,
       queryParameters: {
         if (eventType != null) 'eventType': eventType,
         if (severity != null) 'severity': severity,
+        if (severityGroup != null) 'severityGroup': severityGroup,
         if (status != null) 'status': status,
         if (readState != null) 'readState': readState,
         if (datePreset != null) 'datePreset': datePreset,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (sort != null) 'sort': sort,
         if (vehicleId != null) 'vehicleId': vehicleId,
         if (driverId != null) 'driverId': driverId,
         if (geofenceId != null) 'geofenceId': geofenceId,
+        if (unacknowledgedOnly == true) 'unacknowledgedOnly': true,
+        if (page != null) 'page': page,
+        if (pageSize != null) 'pageSize': pageSize,
       },
     );
     final body = res.data;
@@ -64,6 +76,51 @@ class GpsAlertsApi {
       ApiEndpoints.gpsAlertAcknowledge(id),
     );
     ApiResponseParser.ensureSuccess(res.data);
+  }
+
+  Future<int> bulkAcknowledge(List<int> ids) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsAlertBulkAcknowledge,
+      data: {'ids': ids},
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+    final data = res.data?['data'] ?? res.data?['Data'];
+    if (data is num) return data.toInt();
+    return ids.length;
+  }
+
+  Future<void> assign(
+    int id, {
+    int? assignedToUserId,
+    String? assignedToName,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsAlertAssign(id),
+      data: {
+        'assignedToUserId': assignedToUserId,
+        'assignedToName': assignedToName,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+  }
+
+  Future<int> bulkAssign(
+    List<int> ids, {
+    int? assignedToUserId,
+    String? assignedToName,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsAlertBulkAssign,
+      data: {
+        'ids': ids,
+        'assignedToUserId': assignedToUserId,
+        'assignedToName': assignedToName,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+    final data = res.data?['data'] ?? res.data?['Data'];
+    if (data is num) return data.toInt();
+    return ids.length;
   }
 
   Future<void> markRead(int id) async {

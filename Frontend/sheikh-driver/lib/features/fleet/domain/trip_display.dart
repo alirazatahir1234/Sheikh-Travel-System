@@ -39,6 +39,43 @@ String tripFilterCountLabel({
   return 'Showing $visible of $total ($kind)';
 }
 
+/// Plain-language helper under Motion | Stops | All (driver-friendly).
+String tripFilterHelperText(TripListFilter filter) {
+  switch (filter) {
+    case TripListFilter.moving:
+      return 'Trips where the vehicle moved. “Driven” means finished — not the same as this filter.';
+    case TripListFilter.stops:
+      return 'Parked or idle segments with little or no movement.';
+    case TripListFilter.all:
+      return 'All moving trips and stops in this date range.';
+  }
+}
+
+String tripFilterTooltip(TripListFilter filter) {
+  switch (filter) {
+    case TripListFilter.moving:
+      return 'Motion: distance ≥ 0.2 km. Status “Driven” only means the trip ended.';
+    case TripListFilter.stops:
+      return 'Stops: idle / near-zero distance segments.';
+    case TripListFilter.all:
+      return 'Show every trip and stop in the selected range.';
+  }
+}
+
+/// Compact range KPIs for the trip list header.
+String tripRangeSummaryLabel(List<GpsTrip> trips) {
+  if (trips.isEmpty) return '';
+  final moving = filterTrips(trips, TripListFilter.moving);
+  final stops = filterTrips(trips, TripListFilter.stops);
+  final km = moving.fold<double>(0, (s, t) => s + t.distanceKm);
+  final parts = <String>[
+    '${moving.length} motion',
+    '${stops.length} ${stops.length == 1 ? 'stop' : 'stops'}',
+    if (km > 0) '${km.toStringAsFixed(1)} km',
+  ];
+  return parts.join(' · ');
+}
+
 /// Short place label from a reverse-geocoded address (first meaningful segment).
 String shortPlaceLabel(String? address, {String fallback = ''}) {
   final raw = (address ?? '').trim();
@@ -170,17 +207,31 @@ double displayMaxSpeedKmh(GpsTrip t) {
 
 String tripStatusLabel(GpsTrip t) {
   if (isStopTrip(t)) return 'Stop';
-  final s = (t.status ?? '').trim();
-  if (s.isEmpty || s.toLowerCase() == 'completed') return 'Completed';
-  return s;
+  final s = (t.status ?? '').trim().toLowerCase();
+  // Prefer "Driven" over "Completed" so drivers don't confuse lifecycle
+  // status with the Motion filter chip.
+  if (s.isEmpty || s == 'completed' || s == 'done') return 'Driven';
+  if (s == 'active' || s == 'inprogress' || s == 'in progress' || s == 'ongoing') {
+    return 'In progress';
+  }
+  return (t.status ?? '').trim();
 }
 
-/// Short trip id for cards (last segment of composite tripKey).
+/// Human-readable trip id for cards — hide opaque / base64 tokens (e.g. MDAwMDBa).
 String tripIdLabel(GpsTrip t) {
   final key = (t.tripKey ?? '').trim();
   if (key.isEmpty) return '';
   final parts = key.split(RegExp(r'[:|_-]'));
   final tail = parts.isNotEmpty ? parts.last : key;
+  if (!_isHumanReadableTripId(tail)) return '';
   if (tail.length <= 10) return 'Trip $tail';
   return 'Trip ${tail.substring(tail.length - 8)}';
+}
+
+bool _isHumanReadableTripId(String s) {
+  if (s.isEmpty || s.length > 12) return false;
+  // Numeric ids (Traccar / internal) are fine to show.
+  if (RegExp(r'^\d+$').hasMatch(s)) return true;
+  // Short codes that include a digit (e.g. T1024) — reject pure letter blobs.
+  return RegExp(r'^[A-Za-z0-9-]+$').hasMatch(s) && RegExp(r'\d').hasMatch(s);
 }

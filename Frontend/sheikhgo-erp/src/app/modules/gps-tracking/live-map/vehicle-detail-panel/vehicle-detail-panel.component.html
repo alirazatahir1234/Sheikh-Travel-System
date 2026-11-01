@@ -233,7 +233,7 @@
           <button type="button" class="vdp__more-btn stb-touch" (click)="history.emit()">
             <mat-icon>history</mat-icon> Open history
           </button>
-          <button type="button" class="vdp__more-btn stb-touch" (click)="command.emit()">
+          <button *ngIf="canCommands" type="button" class="vdp__more-btn stb-touch" (click)="command.emit()">
             <mat-icon>settings_remote</mat-icon> Device commands
           </button>
           <button type="button" class="vdp__more-btn stb-touch" (click)="profile.emit(v.vehicleId)">
@@ -255,7 +255,7 @@
         <mat-icon>{{ followSelected ? 'location_disabled' : 'directions_run' }}</mat-icon>
         Follow
       </button>
-      <button type="button" class="vdp__secondary stb-touch" (click)="command.emit()">
+      <button *ngIf="canCommands" type="button" class="vdp__secondary stb-touch" (click)="command.emit()">
         <mat-icon>settings_remote</mat-icon> Command
       </button>
       <button type="button" class="vdp__ghost stb-touch" (click)="profile.emit(v.vehicleId)" aria-label="More">

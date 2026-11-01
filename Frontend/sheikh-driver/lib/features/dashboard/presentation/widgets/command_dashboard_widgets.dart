@@ -306,49 +306,40 @@ class UniversalSearchBarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppRadii.xl),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadii.md),
       elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.xl),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         onTap: () => showUniversalSearchSheet(context),
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          height: 44,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: p.chipBg,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: p.border.withValues(alpha: 0.85)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.search_rounded,
-                  color: AppColors.textMuted, size: 20),
+              Icon(Icons.search_rounded, color: p.textMuted, size: 20),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Search vehicle, driver, trip, booking, or location...',
-                  style:
-                      TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  'Search vehicles, drivers, trips, bookings...',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: p.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Icon(Icons.tune_rounded,
-                    size: 16, color: AppColors.textSecondary),
-              ),
+              Icon(Icons.tune_rounded, size: 18, color: p.textSecondary),
             ],
           ),
         ),

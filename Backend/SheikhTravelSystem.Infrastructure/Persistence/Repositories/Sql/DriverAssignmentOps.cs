@@ -104,28 +104,60 @@ internal static class DriverAssignmentOps
         CancellationToken cancellationToken,
         IDbTransaction? transaction = null)
     {
-        var onTrip = await connection.ExecuteScalarAsync<bool>(
+        // Use live bookings/trips only — Drivers.Status=OnTrip can be stale after incomplete
+        // lifecycle updates and falsely blocks fleet reassignment.
+        var blockingBooking = await connection.QuerySingleOrDefaultAsync<(int Id, string? BookingNumber)>(
             new CommandDefinition(
-                @"SELECT CASE WHEN EXISTS(
-                    SELECT 1 FROM Drivers d
-                    WHERE d.Id = @DriverId AND d.TenantId = @TenantId AND d.IsDeleted = 0 AND d.Status = @OnTrip
-                  ) OR EXISTS(
-                    SELECT 1 FROM Bookings b
-                    WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND b.IsDeleted = 0
-                      AND b.Status = @Started
-                  ) THEN 1 ELSE 0 END",
+                @"SELECT TOP 1 b.Id, b.BookingNumber
+                  FROM Bookings b
+                  WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND b.IsDeleted = 0
+                    AND b.Status = @Started
+                  ORDER BY b.Id DESC",
                 new
                 {
                     DriverId = driverId,
                     TenantId = tenantId,
-                    OnTrip = (int)DriverStatus.OnTrip,
                     Started = (int)BookingStatus.Started
                 },
                 transaction: transaction,
                 cancellationToken: cancellationToken));
 
-        if (onTrip)
-            throw new ConflictException("Driver is currently on an active trip and cannot be reassigned.");
+        if (blockingBooking.Id > 0)
+        {
+            var label = string.IsNullOrWhiteSpace(blockingBooking.BookingNumber)
+                ? $"#{blockingBooking.Id}"
+                : blockingBooking.BookingNumber;
+            throw new ConflictException(
+                $"Driver is on started booking {label}. Complete or cancel that booking before reassigning.");
+        }
+
+        var blockingTrip = await connection.QuerySingleOrDefaultAsync<(int Id, string? TripNumber)>(
+            new CommandDefinition(
+                @"SELECT TOP 1 t.Id, t.TripNumber
+                  FROM Trips t
+                  WHERE t.DriverId = @DriverId AND t.TenantId = @TenantId AND t.IsDeleted = 0
+                    AND t.Status IN (@TripStarted, @AtPickup, @Enroute, @Delayed)
+                  ORDER BY t.Id DESC",
+                new
+                {
+                    DriverId = driverId,
+                    TenantId = tenantId,
+                    TripStarted = (int)TripStatus.Started,
+                    AtPickup = (int)TripStatus.AtPickup,
+                    Enroute = (int)TripStatus.Enroute,
+                    Delayed = (int)TripStatus.Delayed
+                },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
+
+        if (blockingTrip.Id > 0)
+        {
+            var label = string.IsNullOrWhiteSpace(blockingTrip.TripNumber)
+                ? $"#{blockingTrip.Id}"
+                : blockingTrip.TripNumber;
+            throw new ConflictException(
+                $"Driver is on active trip {label} and cannot be reassigned.");
+        }
     }
 
     public static async Task EnsureVehicleAssignableAsync(

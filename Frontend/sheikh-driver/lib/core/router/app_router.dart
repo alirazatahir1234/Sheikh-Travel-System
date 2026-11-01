@@ -9,6 +9,7 @@ import '../../features/auth/presentation/session_expired_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/dashboard/presentation/activities_screen.dart';
 import '../../features/gps_operator/presentation/gps_trips_screen.dart';
 import '../../features/gps_operator/presentation/gps_fuel_dashboard_screen.dart';
 import '../../features/gps_operator/presentation/gps_mileage_dashboard_screen.dart';
@@ -151,6 +152,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             (session.isDriverOnly ||
                 !session.hasPermission(FleetPermissions.gpsView))) {
           return '/dashboard';
+        }
+        // Trip history / playback requires GPS.View (UI also gates the screen).
+        if (RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc) &&
+            !session.hasPermission(FleetPermissions.gpsView)) {
+          return '/fleet';
         }
         if (loc == '/live' && !session.isDriverSession) {
           return '/dashboard';
@@ -347,7 +353,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/alerts',
-            builder: (_, __) => const AlertsScreen(),
+            builder: (_, state) {
+              final raw = state.uri.queryParameters['vehicleId'];
+              final vehicleId = raw == null ? null : int.tryParse(raw);
+              return AlertsScreen(vehicleId: vehicleId);
+            },
             routes: [
               GoRoute(
                 path: ':id',
@@ -458,6 +468,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/timeline',
             builder: (_, __) => const TimelineScreen(),
+          ),
+          GoRoute(
+            path: '/activities',
+            builder: (_, __) => const ActivitiesScreen(),
           ),
           GoRoute(
             path: '/settings',

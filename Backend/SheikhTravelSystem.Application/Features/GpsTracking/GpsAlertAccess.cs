@@ -65,6 +65,10 @@ internal static class GpsAlertAccess
     public static bool CanAcknowledge(ICurrentUserService currentUser) =>
         currentUser.HasPermission(GpsPermissions.AlertAcknowledge);
 
+    /// <summary>Assign reuses acknowledge permission — operators who can ack can route work.</summary>
+    public static bool CanAssign(ICurrentUserService currentUser) =>
+        currentUser.HasPermission(GpsPermissions.AlertAcknowledge);
+
     public static bool CanResolve(ICurrentUserService currentUser) =>
         currentUser.HasPermission(GpsPermissions.AlertResolve);
 

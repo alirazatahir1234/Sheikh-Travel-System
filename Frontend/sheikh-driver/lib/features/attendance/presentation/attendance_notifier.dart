@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/dio_client.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../auth/data/auth_repository.dart';

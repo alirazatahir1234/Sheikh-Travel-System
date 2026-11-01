@@ -222,10 +222,15 @@ public class GpsAlertEventDto
     public string? ResolutionNotes { get; set; }
     public DateTime? ArchivedAt { get; set; }
     public string? ArchivedBy { get; set; }
+    public int? AssignedToUserId { get; set; }
+    public string? AssignedToName { get; set; }
+    public DateTime? AssignedAt { get; set; }
+    public string? AssignedBy { get; set; }
     public bool CanAcknowledge { get; set; }
     public bool CanResolve { get; set; }
     public bool CanArchive { get; set; }
     public bool CanDelete { get; set; }
+    public bool CanAssign { get; set; }
 }
 
 public record GpsAlertStatsDto(
@@ -235,10 +240,16 @@ public record GpsAlertStatsDto(
     int Active,
     int Resolved,
     int Critical,
-    int Archived);
+    int Archived,
+    int Warning = 0,
+    int Info = 0,
+    int Unacknowledged = 0);
 
 public record ResolveGpsAlertDto(string? ResolutionNotes);
 public record ArchiveGpsAlertDto(string? ArchiveReason);
+public record AssignGpsAlertDto(int? AssignedToUserId, string? AssignedToName);
+public record BulkGpsAlertIdsDto(IReadOnlyList<int> Ids);
+public record BulkAssignGpsAlertsDto(IReadOnlyList<int> Ids, int? AssignedToUserId, string? AssignedToName);
 
 public record AlertSettingDto(
     string AlertType,

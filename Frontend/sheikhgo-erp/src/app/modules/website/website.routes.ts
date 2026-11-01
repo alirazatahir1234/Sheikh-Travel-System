@@ -11,6 +11,11 @@ export const WEBSITE_ROUTES: Routes = [
         loadComponent: () => import('./pages/home/home.page').then(m => m.HomePage),
       },
       {
+        path: 'logistics-fleet',
+        loadComponent: () =>
+          import('./pages/logistics-fleet/logistics-fleet.page').then(m => m.LogisticsFleetPage),
+      },
+      {
         path: 'fleet-management',
         loadComponent: () => import('./pages/fleet/fleet.page').then(m => m.FleetPage),
       },

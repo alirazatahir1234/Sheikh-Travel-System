@@ -43,14 +43,21 @@ class VehicleDetailScreen extends ConsumerWidget {
     final hubLoc =
         hubLocations.where((v) => v.vehicleId == vehicleId).firstOrNull;
     final session = ref.watch(fleetSessionProvider);
-    final canCommands = session != null &&
-        session.hasAnyPermission(const [
-          FleetPermissions.gpsCommandSend,
-          FleetPermissions.gpsCommandView,
-        ]);
+    final canCommands = session?.canUseGpsCommands ?? false;
+    final canPlayback =
+        session?.hasPermission(FleetPermissions.gpsView) ?? false;
+
+    final tabs = <Tab>[
+      const Tab(text: 'Overview'),
+      const Tab(text: 'Live'),
+      if (canPlayback) const Tab(text: 'Playback'),
+      const Tab(text: 'Alerts'),
+      const Tab(text: 'Fuel'),
+      const Tab(text: 'Device'),
+    ];
 
     return DefaultTabController(
-      length: 6,
+      length: tabs.length,
       child: Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(
@@ -60,7 +67,10 @@ class VehicleDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  v.name,
+                  // Plate primary for fleet ops; name secondary in subtitle.
+                  v.registrationNumber.trim().isNotEmpty
+                      ? v.registrationNumber
+                      : v.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -68,16 +78,18 @@ class VehicleDetailScreen extends ConsumerWidget {
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  v.registrationNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+                if (v.registrationNumber.trim().isNotEmpty &&
+                    v.name.trim().isNotEmpty)
+                  Text(
+                    v.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
               ],
             ),
             loading: () => const Text('Vehicle'),
@@ -97,16 +109,9 @@ class VehicleDetailScreen extends ConsumerWidget {
                 onPressed: () => showVehicleCommandsSheet(context, vehicleId),
               ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
-            tabs: [
-              Tab(text: 'Overview'),
-              Tab(text: 'Live'),
-              Tab(text: 'Playback'),
-              Tab(text: 'Alerts'),
-              Tab(text: 'Fuel'),
-              Tab(text: 'Device'),
-            ],
+            tabs: tabs,
           ),
         ),
         body: async.when(
@@ -140,7 +145,7 @@ class VehicleDetailScreen extends ConsumerWidget {
                 onRetryGps: () =>
                     ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
               ),
-              VehiclePlaybackTab(vehicleId: vehicleId),
+              if (canPlayback) VehiclePlaybackTab(vehicleId: vehicleId),
               VehicleAlertsTab(
                 vehicleId: vehicleId,
                 vehicleName: v.name,
@@ -697,11 +702,7 @@ class _DeviceTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(vehicleGpsInfoProvider(vehicleId));
     final session = ref.watch(fleetSessionProvider);
-    final canCommands = session != null &&
-        session.hasAnyPermission(const [
-          FleetPermissions.gpsCommandSend,
-          FleetPermissions.gpsCommandView,
-        ]);
+    final canCommands = session?.canUseGpsCommands ?? false;
 
     return async.when(
       loading: () => Center(child: SgBrandLoader()),

@@ -3,6 +3,10 @@ import { VEHICLE_UPLOAD_SIZE_ERROR } from './upload-url.util';
 
 export function apiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
   if (error instanceof HttpErrorResponse) {
+    if (error.status === 0) {
+      return 'API unreachable. Check network or that the backend / Cloudflare tunnel is running.';
+    }
+
     const payload = error.error as {
       message?: string;
       title?: string;

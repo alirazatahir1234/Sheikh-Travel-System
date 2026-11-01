@@ -6,7 +6,7 @@
       <h2 class="page-title">Remote Commands</h2>
       <p class="page-sub">Send control commands to GPS-linked vehicles</p>
     </div>
-    <div class="device-selector">
+    <div class="device-selector" *ngIf="canView()">
       <label class="selector-label">Device</label>
       <mat-form-field appearance="outline" class="device-field">
         <mat-select [(value)]="selectedDeviceId" (selectionChange)="onDeviceChange()">
@@ -18,11 +18,18 @@
     </div>
   </div>
 
-  <div *ngIf="devices.length === 0" class="empty-state">
+  <div *ngIf="!canView()" class="empty-state">
+    <mat-icon>lock</mat-icon>
+    <p>Device commands are restricted to Super Admin.</p>
+  </div>
+
+  <div *ngIf="canView() && devices.length === 0" class="empty-state">
     <mat-icon>sensors_off</mat-icon>
     <p>No active GPS devices.</p>
     <p class="sub">Register and activate a device in the Devices section first.</p>
   </div>
+
+  <ng-container *ngIf="canView()">
 
   <!-- Device info strip -->
   <div *ngIf="selectedDevice() as dev" class="device-strip">
@@ -183,5 +190,7 @@
       </table>
     </div>
   </div>
+
+  </ng-container>
 
 </div>

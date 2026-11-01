@@ -175,8 +175,10 @@ public static class DatabaseMigrationRegistry
             M("DriverPerformanceScoringMigration", DriverPerformanceScoringMigration.ApplyAsync),
             M("DriverStatsPerformanceIndexesMigration", DriverStatsPerformanceIndexesMigration.ApplyAsync),
             M("GpsAlertEventTypeNormalizeMigration", GpsAlertEventTypeNormalizeMigration.ApplyAsync),
+            M("GpsAlertAssignmentMigration", GpsAlertAssignmentMigration.ApplyAsync),
             M("VehicleRentalModuleMigration", VehicleRentalModuleMigration.ApplyAsync),
             M("Vg03EngineRelayCapabilityMigration", Vg03EngineRelayCapabilityMigration.ApplyAsync),
+            M("GpsCommandsSuperAdminOnlyMigration", GpsCommandsSuperAdminOnlyMigration.ApplyAsync),
         ];
     }
 }

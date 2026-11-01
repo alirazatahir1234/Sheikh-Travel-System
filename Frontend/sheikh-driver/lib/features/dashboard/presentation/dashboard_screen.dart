@@ -7,27 +7,24 @@ import '../../../core/offline/offline_sync_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
-import '../../notifications/presentation/notifications_notifier.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../domain/dashboard_layout.dart';
 import '../domain/dashboard_models.dart';
 import '../domain/dashboard_role.dart';
-import 'dashboard_layout_registry.dart';
 import 'dashboard_notifier.dart';
 import 'widgets/command_dashboard_widgets.dart';
 import 'widgets/dashboard_widgets.dart';
 import '../../performance/presentation/driver_performance_card.dart';
 
-// Enforced order for command/fleet roles.
+/// Enterprise fleet command order — matches Ali’s mockup (no Quick Actions).
 const _commandOrder = [
   DashboardWidgetId.opsHeader,
   DashboardWidgetId.universalSearchBar,
   DashboardWidgetId.primaryKpis,
   DashboardWidgetId.fleetStatusStrip,
+  DashboardWidgetId.liveMapPreview,
   DashboardWidgetId.criticalAlertsList,
-  DashboardWidgetId.attentionVehicles,
-  DashboardWidgetId.quickActions,
-  DashboardWidgetId.aiAttention,
+  DashboardWidgetId.recentActivities,
 ];
 
 // Enforced order for driver role.
@@ -38,7 +35,6 @@ const _driverOrder = [
   DashboardWidgetId.driverPerformance,
   DashboardWidgetId.earnings,
   DashboardWidgetId.recentActivities,
-  DashboardWidgetId.quickActions,
   DashboardWidgetId.aiAttention,
 ];
 
@@ -54,139 +50,113 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: context.sg.surface,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.settings_outlined),
-          tooltip: 'Settings',
-          onPressed: () => context.push('/settings'),
-        ),
-        title: Text(
-          session?.companyName?.isNotEmpty == true
-              ? session!.companyName!
-              : 'SheikhGo Tracking',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        centerTitle: false,
-        actions: [
-          if (forceDriver)
-            PopupMenuButton<String>(
-              tooltip: 'Set availability',
-              onSelected: (v) =>
-                  ref.read(dashboardProvider.notifier).setStatus(v),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'Online', child: Text('Online')),
-                PopupMenuItem(value: 'Busy', child: Text('Busy (On Trip)')),
-                PopupMenuItem(value: 'Break', child: Text('Break')),
-                PopupMenuItem(
-                    value: 'Unavailable', child: Text('Unavailable')),
-              ],
-              icon: const Icon(Icons.toggle_on_outlined),
-            ),
-          _InboxBellButton(
-            onPressed: () => context.go('/notifications'),
+      // Header is composed inside OpsHeaderCard (logo / tenant / bell).
+      body: SafeArea(
+        bottom: false,
+        child: dashAsync.when(
+          loading: () => ListView(
+            padding: AppSpacing.screen,
+            children: const [
+              SgSkeleton(height: 120, radius: AppRadii.md),
+              SizedBox(height: 14),
+              SgSkeleton(height: 48, radius: AppRadii.lg),
+              SizedBox(height: 12),
+              SgSkeleton(height: 160, radius: AppRadii.lg),
+              SizedBox(height: 12),
+              SgSkeleton(height: 88, radius: AppRadii.lg),
+              SizedBox(height: 12),
+              SgSkeleton(height: 140, radius: AppRadii.lg),
+            ],
           ),
-        ],
-      ),
-      body: dashAsync.when(
-        loading: () => ListView(
-          padding: AppSpacing.screen,
-          children: const [
-            SgSkeleton(height: 56, radius: AppRadii.md),
-            SizedBox(height: 14),
-            SgSkeleton(height: 110, radius: AppRadii.lg),
-            SizedBox(height: 12),
-            SgSkeleton(height: 88, radius: AppRadii.lg),
-            SizedBox(height: 12),
-            SgSkeleton(height: 80, radius: AppRadii.lg),
-            SizedBox(height: 12),
-            SgSkeleton(height: 140, radius: AppRadii.lg),
-          ],
-        ),
-        error: (e, _) => SgErrorView(
-          message: formatDioError(e),
-          onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
-        ),
-        data: (data) {
-          // Stale fleet payload while session is driver-only — refetch once.
-          if (forceDriver && !data.isDriver) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ref.read(dashboardProvider.notifier).refresh();
-            });
-            return ListView(
-              padding: AppSpacing.screen,
-              children: const [
-                SgSkeleton(height: 56, radius: AppRadii.md),
-                SizedBox(height: 14),
-                SgSkeleton(height: 110, radius: AppRadii.lg),
-                SizedBox(height: 12),
-                SgSkeleton(height: 80, radius: AppRadii.lg),
-              ],
-            );
-          }
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async {
-              await ref.read(dashboardProvider.notifier).refresh();
-              await ref.read(offlineSyncProvider).syncNow();
-              ref.invalidate(tripsProvider);
-            },
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                100 + MediaQuery.of(context).padding.bottom,
-              ),
-              children: [
-                ..._buildOrdered(
-                  context,
-                  data,
-                  session?.canSeeAiTab ?? false,
-                  forceDriver: forceDriver,
+          error: (e, _) => SgErrorView(
+            message: formatDioError(e),
+            onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
+          ),
+          data: (data) {
+            if (forceDriver && !data.isDriver) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(dashboardProvider.notifier).refresh();
+              });
+              return ListView(
+                padding: AppSpacing.screen,
+                children: const [
+                  SgSkeleton(height: 120, radius: AppRadii.md),
+                  SizedBox(height: 14),
+                  SgSkeleton(height: 110, radius: AppRadii.lg),
+                  SizedBox(height: 12),
+                  SgSkeleton(height: 80, radius: AppRadii.lg),
+                ],
+              );
+            }
+            return RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                await ref.read(dashboardProvider.notifier).refresh();
+                await ref.read(offlineSyncProvider).syncNow();
+                ref.invalidate(tripsProvider);
+              },
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  100 + MediaQuery.of(context).padding.bottom,
                 ),
-                if (data.sectionErrors.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xs),
-                    child: SectionErrorHint(
-                      message: _sectionErrorMessage(data),
-                    ),
+                children: [
+                  ..._buildOrdered(
+                    context,
+                    ref,
+                    data,
+                    session,
+                    forceDriver: forceDriver,
                   ),
-                if (_fleetDataMissing(data, forceDriver: forceDriver))
-                  const Padding(
-                    padding: EdgeInsets.only(top: AppSpacing.sm),
-                    child: SectionErrorHint(
-                      message:
-                          'Fleet data could not be loaded. Check that the API is reachable '
-                          'Pull to refresh, or check your connection.',
+                  if (data.sectionErrors.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: SectionErrorHint(
+                        message: _sectionErrorMessage(data),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          );
-        },
+                  if (_fleetDataMissing(data, forceDriver: forceDriver))
+                    const Padding(
+                      padding: EdgeInsets.only(top: AppSpacing.sm),
+                      child: SectionErrorHint(
+                        message:
+                            'Fleet data could not be loaded. Check that the API is reachable. '
+                            'Pull to refresh, or check your connection.',
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   List<Widget> _buildOrdered(
     BuildContext context,
+    WidgetRef ref,
     RoleDashboardData data,
-    bool canOpenAi, {
+    FleetSession? session, {
     required bool forceDriver,
   }) {
     final isDriverLayout = forceDriver || data.isDriver;
     final order = isDriverLayout ? _driverOrder : _commandOrder;
+    final canOpenAi = session?.canSeeAiTab ?? false;
 
-    // Only include items that have data (skip if driver info missing for driver items).
     final active = order.where((id) {
       if (id == DashboardWidgetId.myVehicle ||
           id == DashboardWidgetId.driverTripKpis ||
           id == DashboardWidgetId.earnings) {
         return data.driver != null;
       }
-      // Drivers without AI access must not see a dead Copilot teaser.
       if (id == DashboardWidgetId.aiAttention) {
         return canOpenAi;
+      }
+      if (id == DashboardWidgetId.liveMapPreview) {
+        return !isDriverLayout;
       }
       return true;
     }).toList();
@@ -195,22 +165,29 @@ class DashboardScreen extends ConsumerWidget {
     for (final id in active) {
       final w = _buildWidget(
         context,
+        ref,
         data,
         id,
-        canOpenAi,
+        session,
+        canOpenAi: canOpenAi,
         forceDriver: forceDriver,
       );
       out.add(w);
-      out.add(const SizedBox(height: AppSpacing.lg));
+      out.add(const SizedBox(height: AppSpacing.md));
     }
+
+    // Mockup has no Create Trip / Assign Vehicle strip on Overview.
+    // Keep ContextualOpsActions available for other shells; do not append here.
     return out;
   }
 
   Widget _buildWidget(
     BuildContext context,
+    WidgetRef ref,
     RoleDashboardData data,
     DashboardWidgetId id,
-    bool canOpenAi, {
+    FleetSession? session, {
+    required bool canOpenAi,
     required bool forceDriver,
   }) {
     final displayRole =
@@ -223,46 +200,80 @@ class DashboardScreen extends ConsumerWidget {
           role: displayRole,
           tenantId: data.tenantId,
           lastSyncedAt: data.lastSyncedAt,
+          companyName: session?.companyName ??
+              session?.companyContext?.companyName,
+          branchName: session?.companyContext?.branchName,
         );
       case DashboardWidgetId.universalSearchBar:
         return const UniversalSearchBarCard();
       case DashboardWidgetId.primaryKpis:
         return PrimaryKpiStrip(cells: data.primaryKpis);
       case DashboardWidgetId.fleetStatusStrip:
-        return KpiStrip(
-          title: 'Fleet Status Overview',
-          viewAllLabel: 'View full report',
-          viewAllRoute: '/fleet/map',
-          items: [
-            // Mutually exclusive buckets (online KPI elsewhere = moving + idle).
-            ('Moving', '${data.gps?.moving ?? 0}', AppColors.success),
-            ('Idle', '${data.gps?.idle ?? 0}', AppColors.warning),
-            ('Offline', '${data.gps?.offline ?? 0}', AppColors.error),
-            (
-              'Never Seen',
-              '${data.gps?.neverSeen ?? 0}',
-              AppColors.textMuted
-            ),
-          ],
+        final gps = data.gps;
+        final moving = gps?.moving ?? 0;
+        final idle = gps?.idle ?? 0;
+        final offline = gps?.offline ?? 0;
+        final neverSeen = gps?.neverSeen ?? 0;
+        return FleetActivityDistributionCard(
+          moving: moving,
+          idle: idle,
+          offline: offline,
+          neverSeen: neverSeen,
+        );
+      case DashboardWidgetId.liveMapPreview:
+      case DashboardWidgetId.liveFleetCard:
+        return LiveMapPreviewCard(
+          positions: data.livePositions,
+          movingCount: data.gps?.moving ?? 0,
         );
       case DashboardWidgetId.criticalAlertsList:
       case DashboardWidgetId.recentAlerts:
         return CriticalAlertsCard(
           events: data.alertEvents,
           criticalCount: data.alerts?.critical ?? 0,
+          activeCount: data.alerts?.active ?? data.alertEvents.length,
         );
-      case DashboardWidgetId.attentionVehicles:
-        return AttentionVehiclesCard(data: data);
-      case DashboardWidgetId.quickActions:
-        final actions = forceDriver && !data.isDriver
-            ? DashboardLayoutRegistry.quickActionsFor(DashboardRole.driver)
-            : data.quickActions;
-        final isDriverLayout = forceDriver || data.isDriver;
-        return QuickActionsGrid(
-          actions: actions,
-          // Drivers should not land on staff /more hub from this CTA.
-          viewAllRoute: isDriverLayout ? '/profile' : '/more',
-        );
+      case DashboardWidgetId.recentActivities:
+        if (data.activities.isNotEmpty) {
+          return RecentActivitiesCard(
+            items: data.activities.take(3).toList(),
+            totalCount: data.activities.length,
+          );
+        }
+        if (forceDriver || data.isDriver) {
+          return SgCard(
+            onTap: () => context.push('/timeline'),
+            child: Row(
+              children: [
+                const SgIconWell(icon: Icons.timeline_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Activity',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: context.sg.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'View your trip and attendance timeline',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.sg.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: context.sg.textMuted),
+              ],
+            ),
+          );
+        }
+        return RecentActivitiesCard(items: const []);
       case DashboardWidgetId.aiAttention:
         return AiCopilotSummaryCard(
           items: data.aiItems,
@@ -289,43 +300,7 @@ class DashboardScreen extends ConsumerWidget {
         return const DriverPerformanceCard();
       case DashboardWidgetId.earnings:
         return EarningsCard(driver: data.driver!);
-      case DashboardWidgetId.recentActivities:
-        if (data.activities.isNotEmpty) {
-          return RecentActivitiesCard(items: data.activities.take(5).toList());
-        }
-        return SgCard(
-          onTap: () => context.push('/timeline'),
-          child: Row(
-            children: [
-              const SgIconWell(icon: Icons.timeline_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Activity',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: context.sg.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'View your trip and attendance timeline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.sg.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: context.sg.textMuted),
-            ],
-          ),
-        );
 
-      // Everything else is suppressed — return nothing.
       default:
         return const SizedBox.shrink();
     }
@@ -353,23 +328,56 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _InboxBellButton extends ConsumerWidget {
-  const _InboxBellButton({required this.onPressed});
-  final VoidCallback onPressed;
+/// Compact Create Trip / Assign Vehicle — only when permissioned.
+class ContextualOpsActions extends StatelessWidget {
+  const ContextualOpsActions({super.key, required this.session});
+  final FleetSession? session;
+
+  bool get canCreateTrip =>
+      session != null &&
+      !session!.isDriverOnly &&
+      session!.hasPermission(FleetPermissions.tripView) &&
+      (session!.hasAnyRole(const [
+            FleetRole.dispatcher,
+            FleetRole.fleetManager,
+            FleetRole.tenantAdmin,
+            FleetRole.superAdmin,
+            FleetRole.owner,
+          ]) ||
+          session!.hasPermission(FleetPermissions.bookingView));
+
+  bool get canAssignVehicle =>
+      session != null &&
+      !session!.isDriverOnly &&
+      (session!.hasPermission(FleetPermissions.driverAssign) ||
+          session!.hasPermission(FleetPermissions.vehicleUpdate) ||
+          session!.canSeeFleetTab);
+
+  bool get hasAny => canCreateTrip || canAssignVehicle;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unread =
-        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
-    return IconButton(
-      tooltip: 'Inbox',
-      onPressed: onPressed,
-      icon: Badge(
-        isLabelVisible: unread > 0,
-        label: Text(unread > 99 ? '99+' : '$unread'),
-        child: const Icon(Icons.notifications_none_rounded),
-      ),
+  Widget build(BuildContext context) {
+    if (!hasAny) return const SizedBox.shrink();
+    return Row(
+      children: [
+        if (canCreateTrip)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/trips'),
+              icon: const Icon(Icons.add_road_rounded, size: 18),
+              label: const Text('Create Trip'),
+            ),
+          ),
+        if (canCreateTrip && canAssignVehicle) const SizedBox(width: 10),
+        if (canAssignVehicle)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/fleet/assignments'),
+              icon: const Icon(Icons.event_available_outlined, size: 18),
+              label: const Text('Assign Vehicle'),
+            ),
+          ),
+      ],
     );
   }
 }
-

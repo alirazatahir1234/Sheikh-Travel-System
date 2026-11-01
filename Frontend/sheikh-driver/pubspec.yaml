@@ -86,6 +86,7 @@ flutter:
   assets:
     - assets/icon/app_icon.png
     - assets/branding/sheikhgo_nexus_logo.png
+    - assets/branding/sheikhgo_logo_official.png
     - assets/icons/playback/
 
 # Native layer: solid brand navy only (no bitmap — avoids black-matte logo artifacts).

@@ -44,10 +44,18 @@ class SgCard extends StatelessWidget {
 }
 
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.label, {super.key, this.color});
+  const StatusBadge(
+    this.label, {
+    super.key,
+    this.color,
+    this.radius = AppRadii.pill,
+  });
 
   final String label;
   final Color? color;
+
+  /// Defaults to pill; use [AppRadii.md] on cards for radius consistency.
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +64,7 @@ class StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadii.pill),
+        borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: c.withValues(alpha: 0.22)),
       ),
       child: Text(

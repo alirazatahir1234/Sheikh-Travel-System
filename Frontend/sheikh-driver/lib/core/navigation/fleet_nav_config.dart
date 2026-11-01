@@ -57,8 +57,9 @@ abstract final class FleetNavConfig {
   static const fleet = FleetNavTab(
     id: 'fleet',
     label: 'Vehicles',
-    icon: Icons.local_shipping_outlined,
-    activeIcon: Icons.local_shipping_rounded,
+    // Mockup owner shell: car icon (not truck).
+    icon: Icons.directions_car_outlined,
+    activeIcon: Icons.directions_car_filled_rounded,
     path: '/fleet',
   );
 
@@ -165,8 +166,8 @@ abstract final class FleetNavConfig {
   static const alertsTab = FleetNavTab(
     id: 'alerts',
     label: 'Alerts',
-    icon: Icons.warning_amber_outlined,
-    activeIcon: Icons.warning_amber_rounded,
+    icon: Icons.notifications_active_outlined,
+    activeIcon: Icons.notifications_active_rounded,
     path: '/alerts',
     matchPaths: ['/alerts'],
   );
@@ -217,13 +218,25 @@ abstract final class FleetNavConfig {
     users,
   ];
 
-  /// Owner Tracking More menu — tracker parity (routes, stops, vehicle control).
+  /// Owner Tracking More — Fuel/ops live here (not on bottom nav).
   static const ownerMoreEntries = [
     MoreMenuEntry(
-      label: 'Vehicles',
-      icon: Icons.local_shipping_outlined,
-      route: '/fleet',
-      isVisible: _fleetLiveMap,
+      label: 'Fuel',
+      icon: Icons.local_gas_station_outlined,
+      route: '/fuel',
+      isVisible: _fuelMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Fuel analytics',
+      icon: Icons.local_gas_station_outlined,
+      route: '/gps/fuel',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'Trips',
+      icon: Icons.route_outlined,
+      route: '/trips',
+      isVisible: _tripsMenu,
     ),
     MoreMenuEntry(
       label: 'Assignments',
@@ -232,10 +245,28 @@ abstract final class FleetNavConfig {
       isVisible: _fleetLiveMap,
     ),
     MoreMenuEntry(
-      label: 'Trips',
-      icon: Icons.route_outlined,
-      route: '/trips',
-      isVisible: _tripsMenu,
+      label: 'Bookings',
+      icon: Icons.event_note_outlined,
+      route: '/bookings',
+      isVisible: _bookingsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Maintenance',
+      icon: Icons.build_outlined,
+      route: '/fleet/maintenance',
+      isVisible: _maintenanceMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Reports',
+      icon: Icons.bar_chart_outlined,
+      route: '/more/reports',
+      isVisible: _reportsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Geofences',
+      icon: Icons.fence_outlined,
+      route: '/gps/geofences',
+      isVisible: _ownerTrackerOps,
     ),
     MoreMenuEntry(
       label: 'GPS trips',
@@ -247,7 +278,7 @@ abstract final class FleetNavConfig {
       label: 'GPS commands',
       icon: Icons.power_settings_new_outlined,
       route: '/gps/commands',
-      isVisible: _ownerTrackerOps,
+      isVisible: _gpsCommandsMenu,
     ),
     MoreMenuEntry(
       label: 'Incident center',
@@ -256,28 +287,16 @@ abstract final class FleetNavConfig {
       isVisible: _ownerTrackerOps,
     ),
     MoreMenuEntry(
-      label: 'Geofences',
-      icon: Icons.fence_outlined,
-      route: '/gps/geofences',
-      isVisible: _ownerTrackerOps,
-    ),
-    MoreMenuEntry(
-      label: 'Alerts',
-      icon: Icons.warning_amber_outlined,
-      route: '/alerts',
-      isVisible: _alertsMenu,
-    ),
-    MoreMenuEntry(
-      label: 'Fuel analytics',
-      icon: Icons.local_gas_station_outlined,
-      route: '/gps/fuel',
-      isVisible: _ownerTrackerOps,
-    ),
-    MoreMenuEntry(
       label: 'Mileage',
       icon: Icons.speed_outlined,
       route: '/gps/mileage',
       isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
+      label: 'Fleet Alerts',
+      icon: Icons.notifications_active_outlined,
+      route: '/alerts',
+      isVisible: _alertsMenu,
     ),
     MoreMenuEntry(
       label: 'My earnings',
@@ -292,22 +311,9 @@ abstract final class FleetNavConfig {
       isVisible: _ownerFinance,
     ),
     MoreMenuEntry(
-      label: 'Reports',
-      icon: Icons.bar_chart_outlined,
-      route: '/more/reports',
-      isVisible: _reportsMenu,
-    ),
-    MoreMenuEntry(
       label: 'Notifications',
       icon: Icons.notifications_outlined,
       route: '/notifications',
-      isVisible: _alwaysEntry,
-    ),
-    // Co-pilot is Admin/FM — omitted from Owner Tracking More (see FleetSession.canSeeAiTab).
-    MoreMenuEntry(
-      label: 'Profile',
-      icon: Icons.person_outline_rounded,
-      route: '/profile',
       isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
@@ -316,20 +322,26 @@ abstract final class FleetNavConfig {
       route: '/settings',
       isVisible: _alwaysEntry,
     ),
+    MoreMenuEntry(
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      route: '/profile',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Help',
+      icon: Icons.help_outline_rounded,
+      route: '/help-support',
+      isVisible: _alwaysEntry,
+    ),
   ];
 
   static const moreEntries = [
     MoreMenuEntry(
-      label: 'Fleet live map',
-      icon: Icons.map_outlined,
-      route: '/fleet/map',
-      isVisible: _fleetLiveMap,
-    ),
-    MoreMenuEntry(
-      label: 'Assignments',
-      icon: Icons.event_available_outlined,
-      route: '/fleet/assignments',
-      isVisible: _fleetLiveMap,
+      label: 'Fuel',
+      icon: Icons.local_gas_station_outlined,
+      route: '/fuel',
+      isVisible: _fuelMenu,
     ),
     MoreMenuEntry(
       label: 'Trips',
@@ -344,6 +356,36 @@ abstract final class FleetNavConfig {
       isVisible: _bookingsMenu,
     ),
     MoreMenuEntry(
+      label: 'Maintenance',
+      icon: Icons.build_outlined,
+      route: '/fleet/maintenance',
+      isVisible: _maintenanceMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Reports',
+      icon: Icons.bar_chart_outlined,
+      route: '/more/reports',
+      isVisible: _reportsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Geofences',
+      icon: Icons.fence_outlined,
+      route: '/gps/geofences',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Assignments',
+      icon: Icons.event_available_outlined,
+      route: '/fleet/assignments',
+      isVisible: _fleetLiveMap,
+    ),
+    MoreMenuEntry(
+      label: 'Fleet live map',
+      icon: Icons.map_outlined,
+      route: '/fleet/map',
+      isVisible: _fleetLiveMap,
+    ),
+    MoreMenuEntry(
       label: 'My tracking',
       icon: Icons.my_location_outlined,
       route: '/live',
@@ -356,8 +398,8 @@ abstract final class FleetNavConfig {
       isVisible: _driversMenu,
     ),
     MoreMenuEntry(
-      label: 'Alerts',
-      icon: Icons.warning_amber_outlined,
+      label: 'Fleet Alerts',
+      icon: Icons.notifications_active_outlined,
       route: '/alerts',
       isVisible: _alertsMenu,
     ),
@@ -371,13 +413,7 @@ abstract final class FleetNavConfig {
       label: 'GPS commands',
       icon: Icons.power_settings_new_outlined,
       route: '/gps/commands',
-      isVisible: _gpsOperatorOps,
-    ),
-    MoreMenuEntry(
-      label: 'Geofences',
-      icon: Icons.fence_outlined,
-      route: '/gps/geofences',
-      isVisible: _gpsOperatorOps,
+      isVisible: _gpsCommandsMenu,
     ),
     MoreMenuEntry(
       label: 'Incident center',
@@ -398,34 +434,10 @@ abstract final class FleetNavConfig {
       isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(
-      label: 'Maintenance',
-      icon: Icons.build_outlined,
-      route: '/fleet/maintenance',
-      isVisible: _maintenanceMenu,
-    ),
-    MoreMenuEntry(
-      label: 'Fuel',
-      icon: Icons.local_gas_station_outlined,
-      route: '/fuel',
-      isVisible: _fuelMenu,
-    ),
-    MoreMenuEntry(
-      label: 'Reports',
-      icon: Icons.bar_chart_outlined,
-      route: '/more/reports',
-      isVisible: _reportsMenu,
-    ),
-    MoreMenuEntry(
       label: 'Documents',
       icon: Icons.folder_outlined,
       route: '/documents',
       isVisible: _documentsMenu,
-    ),
-    MoreMenuEntry(
-      label: 'Notifications',
-      icon: Icons.notifications_outlined,
-      route: '/notifications',
-      isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
       label: 'Finance',
@@ -488,15 +500,27 @@ abstract final class FleetNavConfig {
       isVisible: _aiMenu,
     ),
     MoreMenuEntry(
-      label: 'Profile',
-      icon: Icons.person_outline_rounded,
-      route: '/profile',
+      label: 'Notifications',
+      icon: Icons.notifications_outlined,
+      route: '/notifications',
       isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
       label: 'Settings',
       icon: Icons.settings_outlined,
       route: '/settings',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      route: '/profile',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Help',
+      icon: Icons.help_outline_rounded,
+      route: '/help-support',
       isVisible: _alwaysEntry,
     ),
   ];
@@ -525,7 +549,7 @@ abstract final class FleetNavConfig {
       label: 'GPS commands',
       icon: Icons.power_settings_new_outlined,
       route: '/gps/commands',
-      isVisible: _gpsOperatorOps,
+      isVisible: _gpsCommandsMenu,
     ),
     MoreMenuEntry(
       label: 'Incident center',
@@ -589,36 +613,34 @@ abstract final class FleetNavConfig {
     ),
   ];
 
+  /// Fleet-management shell: Overview | Map | Vehicles | Drivers | More.
+  static const fleetManagementTabs = [dashboard, map, fleet, drivers, more];
+
   static List<FleetNavTab> visibleTabs(FleetSession? session) {
     if (session == null) return const [];
-    // Owner Tracking: live map + drivers + fuel as first-class tabs.
+    // Owner / Company Admin — Fuel moved to More > Operations.
     if (session.isOwnerTracking) {
-      return const [dashboard, map, drivers, fuelOps, more];
+      return fleetManagementTabs;
     }
     switch (session.primaryNavRole) {
       case FleetRole.driver:
-        // Dashboard · My Trips · Attendance · Fuel · More
+        // Overview · My Trips · Attendance · Fuel · More
         return const [dashboard, myTrips, attendance, fuelOps, more];
       case FleetRole.driverManager:
         return const [dashboard, drivers, trips, more];
       case FleetRole.gpsOperator:
         return const [dashboard, map, fleet, alertsTab, more];
       case FleetRole.dispatcher:
-        // Dashboard · Live Map · Trips · Drivers · More (bookings stay in More)
-        return const [dashboard, map, trips, drivers, more];
+        // Bookings stay in More; Vehicles replaces Trips on the bar.
+        return fleetManagementTabs;
       case FleetRole.accountant:
         return const [dashboard, finance, reports, notifications, more];
       case FleetRole.owner:
-        return const [dashboard, map, drivers, fuelOps, more];
       case FleetRole.fleetManager:
-        // Dashboard · Live Map · Vehicles · Drivers · More
-        return const [dashboard, map, fleet, drivers, more];
       case FleetRole.superAdmin:
       case FleetRole.tenantAdmin:
       default:
-        // Owner Tracking / admin shells stay map-first; Tenants/Monitoring/Platform
-        // tabs are a follow-up (routes not yet first-class on mobile).
-        return const [dashboard, map, fleet, trips, more];
+        return fleetManagementTabs;
     }
   }
 
@@ -728,6 +750,7 @@ abstract final class FleetNavConfig {
     '/documents',
     '/earnings',
     '/timeline',
+    '/activities',
     '/settings',
     '/settings/location',
     '/settings/security-permissions',
@@ -776,7 +799,10 @@ abstract final class FleetNavConfig {
   static bool _gpsOperatorOps(FleetSession s) =>
       s.isGpsOperator || (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
 
-  /// Owner Tracking — GPS tracker surfaces (commands, playback, geofences).
+  /// Device command hub — platform SUPER_ADMIN only (not Owner / Fleet Manager).
+  static bool _gpsCommandsMenu(FleetSession s) => s.canUseGpsCommands;
+
+  /// Owner Tracking — GPS tracker surfaces (playback, geofences).
   /// Require GPS.View so More entries are not dead links (router redirects otherwise).
   static bool _ownerTrackerOps(FleetSession s) =>
       s.isOwnerTracking && s.hasPermission(FleetPermissions.gpsView);

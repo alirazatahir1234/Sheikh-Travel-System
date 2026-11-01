@@ -3,7 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/constants/app_theme.dart';
 
-/// Always-visible map controls: Zoom+, Zoom−, Center, Layers.
+/// Always-visible map controls: Zoom+, Zoom−, Center, Layers / Fit.
 class PlaybackMapFabs extends StatelessWidget {
   const PlaybackMapFabs({
     super.key,
@@ -40,17 +40,27 @@ class PlaybackMapFabs extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _MapFab(icon: Icons.add, tooltip: 'Zoom in', onPressed: onZoomIn),
-              const SizedBox(height: 12),
-              _MapFab(icon: Icons.remove, tooltip: 'Zoom out', onPressed: onZoomOut),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              _MapFab(
+                icon: Icons.remove,
+                tooltip: 'Zoom out',
+                onPressed: onZoomOut,
+              ),
+              const SizedBox(height: 10),
               _MapFab(
                 icon: Icons.my_location,
-                tooltip: 'Center vehicle',
+                tooltip: 'Recenter vehicle',
                 onPressed: onCenter,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              _MapFab(
+                icon: Icons.fit_screen_rounded,
+                tooltip: 'Fit route',
+                onPressed: onFitRoute,
+              ),
+              const SizedBox(height: 10),
               PopupMenuButton<String>(
-                tooltip: 'Layers',
+                tooltip: 'Map layers',
                 offset: const Offset(-8, 0),
                 position: PopupMenuPosition.under,
                 onSelected: (v) {
@@ -59,8 +69,6 @@ class PlaybackMapFabs extends StatelessWidget {
                       onMapType(MapType.normal);
                     case 'satellite':
                       onMapType(MapType.hybrid);
-                    case 'fit':
-                      onFitRoute();
                   }
                 },
                 itemBuilder: (_) => [
@@ -71,18 +79,9 @@ class PlaybackMapFabs extends StatelessWidget {
                   ),
                   CheckedPopupMenuItem(
                     value: 'satellite',
-                    checked: mapType == MapType.hybrid || mapType == MapType.satellite,
+                    checked: mapType == MapType.hybrid ||
+                        mapType == MapType.satellite,
                     child: const Text('Satellite'),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'fit',
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.fit_screen, size: 20),
-                      title: Text('Fit route'),
-                    ),
                   ),
                 ],
                 child: const _MapFabChrome(icon: Icons.layers_outlined),
@@ -108,13 +107,14 @@ class _MapFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Semantics(
       button: true,
       label: tooltip,
       child: Tooltip(
         message: tooltip,
         child: Material(
-          color: Colors.white,
+          color: p.card,
           elevation: 3,
           shadowColor: Colors.black26,
           shape: const CircleBorder(),
@@ -124,7 +124,7 @@ class _MapFab extends StatelessWidget {
             child: SizedBox(
               width: 44,
               height: 44,
-              child: Icon(icon, size: 22, color: AppColors.textPrimary),
+              child: Icon(icon, size: 22, color: p.textPrimary),
             ),
           ),
         ),
@@ -140,15 +140,16 @@ class _MapFabChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Material(
-      color: Colors.white,
+      color: p.card,
       elevation: 3,
       shadowColor: Colors.black26,
       shape: const CircleBorder(),
       child: SizedBox(
         width: 44,
         height: 44,
-        child: Icon(icon, size: 22, color: AppColors.textPrimary),
+        child: Icon(icon, size: 22, color: p.textPrimary),
       ),
     );
   }

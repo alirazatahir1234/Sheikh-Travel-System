@@ -44,20 +44,17 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.myVehicle,
           DashboardWidgetId.driverTripKpis,
           DashboardWidgetId.earnings,
-          DashboardWidgetId.quickActions,
+          DashboardWidgetId.recentActivities,
         ];
       case DashboardRole.fleetManager:
         return const [
           DashboardWidgetId.opsHeader,
           DashboardWidgetId.universalSearchBar,
-          DashboardWidgetId.fleetHealthHeader,
-          DashboardWidgetId.fleetStatsStrip,
-          DashboardWidgetId.opsKpiGrid,
+          DashboardWidgetId.primaryKpis,
+          DashboardWidgetId.fleetStatusStrip,
           DashboardWidgetId.liveMapPreview,
-          DashboardWidgetId.aiAttention,
           DashboardWidgetId.criticalAlertsList,
-          DashboardWidgetId.attentionVehicles,
-          DashboardWidgetId.quickActions,
+          DashboardWidgetId.recentActivities,
         ];
       case DashboardRole.gpsOperator:
         return const [
@@ -67,7 +64,6 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.liveTripsPreview,
           DashboardWidgetId.trackerHealthCard,
           DashboardWidgetId.liveMapPreview,
-          DashboardWidgetId.quickActions,
         ];
       case DashboardRole.owner:
       case DashboardRole.tenantAdmin:
@@ -75,27 +71,21 @@ abstract final class DashboardLayoutRegistry {
         return const [
           DashboardWidgetId.opsHeader,
           DashboardWidgetId.universalSearchBar,
-          DashboardWidgetId.fleetHealthHeader,
-          DashboardWidgetId.fleetStatsStrip,
-          DashboardWidgetId.opsKpiGrid,
+          DashboardWidgetId.primaryKpis,
+          DashboardWidgetId.fleetStatusStrip,
           DashboardWidgetId.liveMapPreview,
-          DashboardWidgetId.fuelSummary,
-          DashboardWidgetId.aiAttention,
           DashboardWidgetId.criticalAlertsList,
-          DashboardWidgetId.attentionVehicles,
-          DashboardWidgetId.quickActions,
+          DashboardWidgetId.recentActivities,
         ];
       case DashboardRole.dispatcher:
         return const [
           DashboardWidgetId.opsHeader,
           DashboardWidgetId.universalSearchBar,
-          DashboardWidgetId.fleetStatsStrip,
-          DashboardWidgetId.opsKpiGrid,
+          DashboardWidgetId.primaryKpis,
+          DashboardWidgetId.fleetStatusStrip,
           DashboardWidgetId.liveMapPreview,
-          DashboardWidgetId.liveTripsPreview,
-          DashboardWidgetId.pendingAssignments,
           DashboardWidgetId.criticalAlertsList,
-          DashboardWidgetId.quickActions,
+          DashboardWidgetId.recentActivities,
         ];
       case DashboardRole.driverManager:
         return const [
@@ -105,9 +95,7 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.driverKpis,
           DashboardWidgetId.driverPerformance,
           DashboardWidgetId.complianceDocs,
-          DashboardWidgetId.aiAttention,
           DashboardWidgetId.recentActivities,
-          DashboardWidgetId.quickActions,
         ];
       case DashboardRole.accountant:
         return const [
@@ -115,8 +103,7 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.financeKpis,
           DashboardWidgetId.fuelSummary,
           DashboardWidgetId.maintenanceCost,
-          DashboardWidgetId.aiAttention,
-          DashboardWidgetId.quickActions,
+          DashboardWidgetId.recentActivities,
         ];
     }
   }

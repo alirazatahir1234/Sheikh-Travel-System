@@ -15,11 +15,7 @@ class DeviceHealthScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicleId));
     final session = ref.watch(fleetSessionProvider);
-    final canCommands = session != null &&
-        session.hasAnyPermission(const [
-          FleetPermissions.gpsCommandSend,
-          FleetPermissions.gpsCommandView,
-        ]);
+    final canCommands = session?.canUseGpsCommands ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.surface,

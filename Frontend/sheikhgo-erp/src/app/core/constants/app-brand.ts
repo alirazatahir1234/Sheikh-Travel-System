@@ -6,7 +6,8 @@ export const COMPANY_NAME = 'Sheikh Travel Group';
 /** Corporate office — shown on report letterheads and the public marketing site. */
 export const COMPANY_ADDRESS = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
 export const APP_LOGO_PATH = '/brand/sheikhgo-logo.png';
-export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-logo-white.png';
+/** ERP shell / fleet sidebar mark — transparent Nexus lockup for dark navy rail. */
+export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-nexus-logo.png';
 /** Login page only (`/auth/login`) — do not reuse elsewhere. */
 export const APP_LOGIN_LOGO_PATH = '/brand/sheikhgo-logo-login-v8.png';
 

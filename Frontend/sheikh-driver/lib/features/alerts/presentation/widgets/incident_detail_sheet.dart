@@ -326,6 +326,17 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 12),
+            if (a.isAssigned) ...[
+              const SizedBox(height: 8),
+              SgCard(
+                child: Text(
+                  'Assigned to ${a.assignedToName ?? 'operator'}'
+                  '${a.assignedAt != null ? ' · ${df.format(a.assignedAt!.toLocal())}' : ''}'
+                  ' — assignment is independent of acknowledgement.',
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -339,6 +350,55 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                       if (context.mounted) Navigator.pop(context);
                     },
                     child: const Text('Acknowledge'),
+                  ),
+                if ((a.canAssign || isDemo) && a.isOpen)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final controller = TextEditingController(
+                        text: a.assignedToName ?? '',
+                      );
+                      final name = await showDialog<String>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Assign alert'),
+                          content: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              labelText: 'Assignee name',
+                              hintText: 'e.g. Sara',
+                            ),
+                            textCapitalization: TextCapitalization.words,
+                            autofocus: true,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(
+                                ctx,
+                                controller.text.trim(),
+                              ),
+                              child: const Text('Assign'),
+                            ),
+                          ],
+                        ),
+                      );
+                      controller.dispose();
+                      if (name == null || name.isEmpty) return;
+                      await ref.read(alertsProvider.notifier).assign(
+                            ids: [a.id],
+                            assignedToName: name,
+                          );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Assigned to $name')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                    label: const Text('Assign'),
                   ),
                 if (a.canResolve || isDemo)
                   FilledButton.tonal(

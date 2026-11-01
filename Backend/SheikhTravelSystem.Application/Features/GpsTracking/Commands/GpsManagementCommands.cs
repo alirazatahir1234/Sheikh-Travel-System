@@ -32,6 +32,33 @@ public class AcknowledgeGpsAlertCommandHandler(IGpsTrackingRepository gpsTrackin
         => gpsTrackingRepository.AcknowledgeGpsAlertAsync(request, cancellationToken);
 }
 
+public record BulkAcknowledgeGpsAlertsCommand(BulkGpsAlertIdsDto Body) : IRequest<ApiResponse<int>>;
+
+public class BulkAcknowledgeGpsAlertsCommandHandler(IGpsTrackingRepository gpsTrackingRepository)
+    : IRequestHandler<BulkAcknowledgeGpsAlertsCommand, ApiResponse<int>>
+{
+    public Task<ApiResponse<int>> Handle(BulkAcknowledgeGpsAlertsCommand request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.BulkAcknowledgeGpsAlertsAsync(request, cancellationToken);
+}
+
+public record AssignGpsAlertCommand(int Id, AssignGpsAlertDto Assignment) : IRequest<ApiResponse<bool>>;
+
+public class AssignGpsAlertCommandHandler(IGpsTrackingRepository gpsTrackingRepository)
+    : IRequestHandler<AssignGpsAlertCommand, ApiResponse<bool>>
+{
+    public Task<ApiResponse<bool>> Handle(AssignGpsAlertCommand request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.AssignGpsAlertAsync(request, cancellationToken);
+}
+
+public record BulkAssignGpsAlertsCommand(BulkAssignGpsAlertsDto Body) : IRequest<ApiResponse<int>>;
+
+public class BulkAssignGpsAlertsCommandHandler(IGpsTrackingRepository gpsTrackingRepository)
+    : IRequestHandler<BulkAssignGpsAlertsCommand, ApiResponse<int>>
+{
+    public Task<ApiResponse<int>> Handle(BulkAssignGpsAlertsCommand request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.BulkAssignGpsAlertsAsync(request, cancellationToken);
+}
+
 public record MarkGpsAlertReadCommand(int Id) : IRequest<ApiResponse<bool>>;
 
 public class MarkGpsAlertReadCommandHandler(IGpsTrackingRepository gpsTrackingRepository)

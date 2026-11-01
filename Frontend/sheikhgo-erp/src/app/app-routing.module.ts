@@ -168,6 +168,13 @@ const routes: Routes = [
         loadComponent: () => import('./modules/website/pages/home/home.page').then(m => m.HomePage),
       },
       {
+        path: 'logistics-fleet',
+        loadComponent: () =>
+          import('./modules/website/pages/logistics-fleet/logistics-fleet.page').then(
+            m => m.LogisticsFleetPage,
+          ),
+      },
+      {
         path: 'fleet-management',
         loadComponent: () => import('./modules/website/pages/fleet/fleet.page').then(m => m.FleetPage),
       },

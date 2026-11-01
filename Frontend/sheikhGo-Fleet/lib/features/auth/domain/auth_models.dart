@@ -176,6 +176,9 @@ class FleetSession {
     return FleetRole.driver;
   }
 
+  /// Live Map / vehicle Device Commands — platform SUPER_ADMIN only.
+  bool get canUseGpsCommands => hasRole(FleetRole.superAdmin);
+
   bool get canSeeFleetTab =>
       !isDriverOnly &&
       (hasAnyRole(const [

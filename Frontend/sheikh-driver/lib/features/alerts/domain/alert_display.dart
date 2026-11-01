@@ -185,20 +185,61 @@ String alertSeverityLabel(AlertDisplaySeverity s) => switch (s) {
       AlertDisplaySeverity.resolved => 'RESOLVED',
     };
 
-/// List/detail row after pairing Offline → Online into one incident.
+/// Presentation grouping family (never discards underlying GPS events).
+enum AlertIncidentKind {
+  single,
+  offline,
+  ignition,
+  overspeed,
+  lowBattery,
+  device,
+}
+
+AlertIncidentKind incidentKindForEventType(String eventType) {
+  final key = normalizeAlertEventType(eventType);
+  return switch (key) {
+    'vehicle_offline' || 'online' => AlertIncidentKind.offline,
+    'ignition_on' || 'ignition_off' => AlertIncidentKind.ignition,
+    'speed_exceeded' => AlertIncidentKind.overspeed,
+    'low_battery' => AlertIncidentKind.lowBattery,
+    'power_cut' || 'gps_lost' => AlertIncidentKind.device,
+    _ => AlertIncidentKind.single,
+  };
+}
+
+/// List/detail row after pairing Offline → Online / clustering related events.
 class AlertIncident {
   const AlertIncident({
     required this.primary,
     this.recovery,
     this.endedAt,
+    this.kind = AlertIncidentKind.single,
+    this.events = const [],
   });
 
   /// Alert opened for detail / acknowledge (offline row for incidents).
   final GpsAlertEvent primary;
   final GpsAlertEvent? recovery;
   final DateTime? endedAt;
+  final AlertIncidentKind kind;
 
-  bool get isOfflineIncident => isOfflineAlertType(primary.eventType);
+  /// All original GPS events in this presentation row (never discarded).
+  final List<GpsAlertEvent> events;
+
+  List<GpsAlertEvent> get allEvents {
+    if (events.isNotEmpty) return events;
+    if (recovery != null) return [primary, recovery!];
+    return [primary];
+  }
+
+  /// Multi-event clusters shown under "Grouped incidents" (not offline pairing).
+  bool get isGrouped =>
+      allEvents.length > 1 &&
+      kind != AlertIncidentKind.single &&
+      kind != AlertIncidentKind.offline;
+
+  bool get isOfflineIncident =>
+      kind == AlertIncidentKind.offline || isOfflineAlertType(primary.eventType);
 
   Duration? get duration {
     final end = endedAt ?? primary.resolvedAt ?? recovery?.timestamp;
@@ -214,25 +255,75 @@ class AlertIncident {
       (isOfflineIncident && primary.isResolved);
 
   bool get needsAcknowledge =>
-      primary.canAcknowledge || (recovery?.canAcknowledge ?? false);
+      allEvents.any((e) => e.canAcknowledge);
 
-  bool get isAcknowledged =>
-      primary.isAcknowledged &&
-      (recovery == null || recovery!.isAcknowledged || !recovery!.canAcknowledge);
+  bool get isAcknowledged => allEvents.every((e) => e.isAcknowledged || e.isResolved);
+
+  bool get isAssigned => allEvents.any((e) => e.isAssigned);
+
+  String? get assignedToName {
+    for (final e in allEvents) {
+      final n = e.assignedToName?.trim();
+      if (n != null && n.isNotEmpty) return n;
+    }
+    return null;
+  }
 
   DateTime? get acknowledgedAt =>
       primary.acknowledgedAt ?? recovery?.acknowledgedAt;
 
   List<int> get acknowledgeIds {
     final ids = <int>[];
-    if (primary.canAcknowledge) ids.add(primary.id);
-    final r = recovery;
-    if (r != null && r.canAcknowledge) ids.add(r.id);
+    for (final e in allEvents) {
+      if (e.canAcknowledge) ids.add(e.id);
+    }
     return ids;
+  }
+
+  List<int> get allIds => allEvents.map((e) => e.id).toList();
+
+  String get groupTitle {
+    final plate = primary.vehicleLabel;
+    return switch (kind) {
+      AlertIncidentKind.ignition => 'Ignition activity • $plate',
+      AlertIncidentKind.overspeed => 'Overspeed burst • $plate',
+      AlertIncidentKind.lowBattery => 'Low battery • $plate',
+      AlertIncidentKind.device => 'Device health • $plate',
+      AlertIncidentKind.offline => alertTitle(primary),
+      AlertIncidentKind.single => alertTitle(primary),
+    };
+  }
+
+  String get groupSubtitle {
+    if (kind == AlertIncidentKind.offline) {
+      final dur = formatAlertDuration(duration);
+      if (recovered) {
+        return dur.isEmpty
+            ? 'GPS reporting resumed'
+            : 'Offline for $dur then recovered';
+      }
+      return dur.isEmpty
+          ? 'GPS stopped reporting'
+          : 'GPS stopped reporting • $dur';
+    }
+    if (isGrouped) {
+      final sorted = [...allEvents]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      final start = sorted.first.timestamp.toLocal();
+      final end = sorted.last.timestamp.toLocal();
+      final sh =
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+      final eh =
+          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+      return '${allEvents.length} events • $sh - $eh';
+    }
+    final msg = primary.message.trim();
+    if (msg.isNotEmpty) return msg;
+    return alertDescription(primary);
   }
 }
 
-/// Pair Offline → next Online; hide paired Online rows from the main list.
+/// Pair Offline → next Online; cluster ignition/overspeed/battery/device bursts.
+/// Original GPS events are retained on each [AlertIncident.events] list.
 List<AlertIncident> groupAlertIncidents(List<GpsAlertEvent> events) {
   if (events.isEmpty) return const [];
 
@@ -241,6 +332,7 @@ List<AlertIncident> groupAlertIncidents(List<GpsAlertEvent> events) {
 
   final pairedOnlineIds = <int>{};
   final offlineToRecovery = <int, GpsAlertEvent>{};
+  final consumed = <int>{};
 
   for (var i = 0; i < chronological.length; i++) {
     final e = chronological[i];
@@ -249,12 +341,13 @@ List<AlertIncident> groupAlertIncidents(List<GpsAlertEvent> events) {
     GpsAlertEvent? recovery;
     for (var j = i + 1; j < chronological.length; j++) {
       final n = chronological[j];
+      if (n.vehicleId != e.vehicleId) continue;
       if (isOnlineAlertType(n.eventType) && !pairedOnlineIds.contains(n.id)) {
         recovery = n;
         pairedOnlineIds.add(n.id);
         break;
       }
-      if (isOfflineAlertType(n.eventType)) break;
+      if (isOfflineAlertType(n.eventType) && n.vehicleId == e.vehicleId) break;
     }
 
     if (recovery != null) {
@@ -262,25 +355,88 @@ List<AlertIncident> groupAlertIncidents(List<GpsAlertEvent> events) {
     }
   }
 
+  const window = Duration(hours: 2);
+  final clusterKinds = {
+    AlertIncidentKind.ignition,
+    AlertIncidentKind.overspeed,
+    AlertIncidentKind.lowBattery,
+    AlertIncidentKind.device,
+  };
+
+  final clusters = <AlertIncident>[];
+  for (var i = 0; i < chronological.length; i++) {
+    final seed = chronological[i];
+    if (consumed.contains(seed.id)) continue;
+    if (pairedOnlineIds.contains(seed.id)) continue;
+    if (isOfflineAlertType(seed.eventType) || isOnlineAlertType(seed.eventType)) {
+      continue;
+    }
+
+    final kind = incidentKindForEventType(seed.eventType);
+    if (!clusterKinds.contains(kind)) continue;
+
+    final group = <GpsAlertEvent>[seed];
+    consumed.add(seed.id);
+    var lastTs = seed.timestamp;
+
+    for (var j = i + 1; j < chronological.length; j++) {
+      final n = chronological[j];
+      if (consumed.contains(n.id) || pairedOnlineIds.contains(n.id)) continue;
+      if (n.vehicleId != seed.vehicleId) continue;
+      if (incidentKindForEventType(n.eventType) != kind) continue;
+      if (n.timestamp.difference(lastTs) > window) break;
+      group.add(n);
+      consumed.add(n.id);
+      lastTs = n.timestamp;
+    }
+
+    if (group.length >= 2) {
+      group.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      clusters.add(AlertIncident(
+        primary: group.first,
+        kind: kind,
+        events: group,
+        endedAt: group.map((e) => e.timestamp).reduce(
+              (a, b) => a.isAfter(b) ? a : b,
+            ),
+      ));
+    } else {
+      // Singleton — release so it becomes a normal row below.
+      consumed.remove(seed.id);
+    }
+  }
+
   final newestFirst = [...events]
     ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-  final out = <AlertIncident>[];
+  final out = <AlertIncident>[...clusters];
   for (final e in newestFirst) {
     if (pairedOnlineIds.contains(e.id)) continue;
+    if (consumed.contains(e.id)) continue;
 
     if (isOfflineAlertType(e.eventType)) {
       final recovery = offlineToRecovery[e.id];
       final ended = recovery?.timestamp ?? e.resolvedAt;
+      final members = <GpsAlertEvent>[e];
+      if (recovery != null) members.add(recovery);
       out.add(AlertIncident(
         primary: e,
         recovery: recovery,
         endedAt: ended,
+        kind: AlertIncidentKind.offline,
+        events: members,
       ));
-    } else {
-      out.add(AlertIncident(primary: e));
+      if (recovery != null) consumed.add(recovery.id);
+    } else if (!isOnlineAlertType(e.eventType)) {
+      out.add(AlertIncident(
+        primary: e,
+        kind: incidentKindForEventType(e.eventType),
+        events: [e],
+      ));
     }
   }
+
+  out.sort((a, b) => b.primary.timestamp.compareTo(a.primary.timestamp));
   return out;
 }
 
@@ -422,19 +578,37 @@ class AlertsFeedSummary {
     required this.total,
     required this.critical,
     required this.warning,
+    required this.info,
+    required this.unacknowledged,
     required this.closed,
   });
 
   final int total;
   final int critical;
   final int warning;
+  final int info;
+  final int unacknowledged;
   final int closed;
+
+  factory AlertsFeedSummary.fromStats(GpsAlertStats stats) {
+    return AlertsFeedSummary(
+      total: stats.total,
+      critical: stats.critical,
+      warning: stats.warning,
+      info: stats.info,
+      unacknowledged: stats.unacknowledged,
+      closed: stats.resolved + stats.archived,
+    );
+  }
 
   static AlertsFeedSummary fromEvents(List<GpsAlertEvent> events) {
     var critical = 0;
     var warning = 0;
+    var info = 0;
+    var unacked = 0;
     var closed = 0;
     for (final e in events) {
+      if (!e.isAcknowledged && e.isOpen) unacked++;
       if (e.isResolved || e.isArchived) {
         closed++;
         continue;
@@ -447,15 +621,77 @@ class AlertsFeedSummary {
           e.severity.toLowerCase() == 'high' ||
           e.severity.toLowerCase() == 'medium') {
         warning++;
+      } else {
+        info++;
       }
     }
     return AlertsFeedSummary(
       total: events.length,
       critical: critical,
       warning: warning,
+      info: info,
+      unacknowledged: unacked,
       closed: closed,
     );
   }
+}
+
+/// Fleet feed chip filters (mockup).
+enum FleetAlertChip {
+  all,
+  critical,
+  warning,
+  info,
+  acknowledged,
+  resolved,
+}
+
+extension FleetAlertChipX on FleetAlertChip {
+  String get label => switch (this) {
+        FleetAlertChip.all => 'All',
+        FleetAlertChip.critical => 'Critical',
+        FleetAlertChip.warning => 'Warning',
+        FleetAlertChip.info => 'Info',
+        FleetAlertChip.acknowledged => 'Acknowledged',
+        FleetAlertChip.resolved => 'Resolved',
+      };
+}
+
+IconData alertTypeSquareIcon(String eventType) {
+  final key = normalizeAlertEventType(eventType);
+  return switch (key) {
+    'vehicle_offline' || 'gps_lost' => Icons.power_settings_new_rounded,
+    'online' => Icons.wifi_rounded,
+    'speed_exceeded' => Icons.speed_rounded,
+    'low_battery' => Icons.battery_alert_rounded,
+    'power_cut' => Icons.power_off_rounded,
+    'ignition_on' || 'ignition_off' => Icons.vpn_key_rounded,
+    'sos' || 'alarm' => Icons.sos_outlined,
+    'geofence_enter' || 'geofence_exit' => Icons.gps_fixed_rounded,
+    _ => Icons.notifications_active_outlined,
+  };
+}
+
+String formatAlertClock(DateTime utcOrLocal) {
+  final local = utcOrLocal.toLocal();
+  return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+String alertAckStatusLabel(GpsAlertEvent e) {
+  if (e.isResolved) return 'Resolved';
+  if (e.isAssigned && !e.isAcknowledged) {
+    final n = e.assignedToName?.trim();
+    return n == null || n.isEmpty ? 'Assigned' : 'Assigned • $n';
+  }
+  if (e.isAcknowledged) return 'Acknowledged';
+  return 'Unacknowledged';
+}
+
+Color alertAckStatusColor(GpsAlertEvent e) {
+  if (e.isResolved) return const Color(0xFF10B981);
+  if (e.isAssigned && !e.isAcknowledged) return const Color(0xFFF59E0B);
+  if (e.isAcknowledged) return const Color(0xFF10B981);
+  return const Color(0xFFEF4444);
 }
 
 IconData alertCategoryIcon(GpsAlertEvent event) {

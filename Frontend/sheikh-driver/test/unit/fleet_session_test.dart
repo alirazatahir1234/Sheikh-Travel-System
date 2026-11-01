@@ -218,6 +218,8 @@ void main() {
         tabs.map((t) => t.id).toList(),
         ['dashboard', 'map', 'fleet', 'drivers', 'more'],
       );
+      expect(tabs.first.label, 'Overview');
+      expect(tabs[1].label, 'Map');
     });
 
     test('dispatcher shell', () {
@@ -236,8 +238,15 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'map', 'trips', 'drivers', 'more'],
+        ['dashboard', 'map', 'fleet', 'drivers', 'more'],
       );
+      expect(tabs.map((t) => t.label).toList(), [
+        'Overview',
+        'Map',
+        'Vehicles',
+        'Drivers',
+        'More',
+      ]);
     });
 
     test('driver manager shell', () {
@@ -277,7 +286,7 @@ void main() {
       );
     });
 
-    test('owner tracking shell — live map, drivers, fuel', () {
+    test('owner tracking shell — Overview|Map|Vehicles|Drivers|More', () {
       final tabs = FleetNavConfig.visibleTabs(
         _session(
           roles: const [FleetRole.owner],
@@ -294,11 +303,18 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'map', 'drivers', 'fuel', 'more'],
+        ['dashboard', 'map', 'fleet', 'drivers', 'more'],
       );
+      expect(tabs.map((t) => t.label).toList(), [
+        'Overview',
+        'Map',
+        'Vehicles',
+        'Drivers',
+        'More',
+      ]);
     });
 
-    test('owner more menu includes tracker surfaces', () {
+    test('owner more menu includes tracker surfaces but not Commands', () {
       final session = _session(
         roles: const [FleetRole.owner],
         permissions: const [
@@ -318,16 +334,35 @@ void main() {
       final routes =
           FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
       expect(routes, contains('/gps/trips'));
-      expect(routes, contains('/gps/commands'));
+      expect(routes, isNot(contains('/gps/commands')));
+      expect(session.canUseGpsCommands, isFalse);
       expect(routes, contains('/gps/geofences'));
       expect(routes, contains('/gps/incidents'));
       expect(routes, contains('/gps/mileage'));
-      expect(routes, contains('/fleet'));
       expect(routes, isNot(contains('/ai')));
       expect(routes, contains('/earnings'));
-      // Bottom tab already exposes Drivers and Fuel — no duplicate tiles in More.
+      // Bottom tab already exposes Vehicles + Drivers — no duplicates in More.
+      expect(routes, isNot(contains('/fleet')));
       expect(routes, isNot(contains('/more/drivers')));
-      expect(routes, isNot(contains('/gps/fuel')));
+      // Fuel moved off bottom nav into More.
+      expect(routes, contains('/fuel'));
+    });
+
+    test('super admin can use GPS commands', () {
+      final session = _session(
+        roles: const [FleetRole.superAdmin],
+        permissions: const [
+          FleetPermissions.gpsView,
+          FleetPermissions.gpsCommandView,
+          FleetPermissions.gpsCommandSend,
+        ],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      expect(session.canUseGpsCommands, isTrue);
+      final routes =
+          FleetNavConfig.visibleMoreEntries(session).map((e) => e.route).toList();
+      expect(routes, contains('/gps/commands'));
     });
 
     test('tenant admin uses owner tracking shell', () {
@@ -345,7 +380,7 @@ void main() {
       );
       expect(
         tabs.map((t) => t.id).toList(),
-        ['dashboard', 'map', 'drivers', 'fuel', 'more'],
+        ['dashboard', 'map', 'fleet', 'drivers', 'more'],
       );
     });
 
@@ -383,7 +418,7 @@ void main() {
           driverId: null,
         ),
       );
-      // dashboard, map, trips, drivers, more → Live Map is index 1
+      // Overview, Map, Vehicles, Drivers, More → Map is index 1
       expect(FleetNavConfig.indexForLocation(tabs, '/fleet/map'), 1);
     });
 
@@ -403,7 +438,8 @@ void main() {
       final historyIdx =
           FleetNavConfig.indexForLocation(ownerTabs, '/fleet/vehicles/42/history');
       expect(ownerTabs[historyIdx].id, isNot('map'));
-      expect(ownerTabs[historyIdx].id, 'more');
+      // Owner shell now includes Vehicles — history highlights fleet, not Map.
+      expect(ownerTabs[historyIdx].id, 'fleet');
 
       final fmTabs = FleetNavConfig.visibleTabs(
         _session(

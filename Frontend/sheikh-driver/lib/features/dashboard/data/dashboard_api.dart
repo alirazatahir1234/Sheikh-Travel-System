@@ -374,7 +374,7 @@ class DashboardApi {
       lastSyncedAt: DateTime.now(),
       widgets: List.from(widgets),
       quickActions: List.from(quickActions),
-      primaryKpis: _dispatcherPrimaryKpis(trips, pending),
+      primaryKpis: _fleetStatusPrimaryKpis(fleet, gps),
       trips: trips,
       liveTrips: liveTrips.take(5).toList(),
       pendingTrips: pending.take(5).toList(),
@@ -896,12 +896,14 @@ class DashboardApi {
     }
   }
 
-  Future<List<AppNotification>> _getRecentNotifications() async {
+  Future<List<AppNotification>> _getRecentNotifications({
+    int pageSize = 15,
+  }) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.staffNotifications,
       queryParameters: {
         'page': 1,
-        'pageSize': 15,
+        'pageSize': pageSize,
         'archived': false,
       },
     );
@@ -938,10 +940,63 @@ class DashboardApi {
     return 0;
   }
 
+  /// Full recent-activity feed for the dedicated Activities screen (and dashboard).
+  /// Merges staff notifications + GPS alert events (or driver timeline + notifs).
+  Future<List<ActivityItem>> listActivities({int limit = 50}) async {
+    final session = _session();
+    final role = session == null
+        ? DashboardRole.driver
+        : DashboardRoleX.fromNavRole(session.primaryNavRole);
+
+    if (session == null ||
+        session.isDriverOnly ||
+        role == DashboardRole.driver) {
+      try {
+        final results = await Future.wait([
+          _getDriverTimeline(pageSize: limit.clamp(10, 50)),
+          _getDriverNotifications(),
+        ]);
+        final timeline = results[0] as List<ActivityItem>;
+        final notifs = results[1] as List<AppNotification>;
+        final fromNotifs = notifs
+            .map(
+              (n) => ActivityItem(
+                at: n.createdAt,
+                title: n.title.isNotEmpty ? n.title : n.type,
+                subtitle: n.message,
+                kind: _activityKindFromNotification(n),
+                route: '/notifications',
+              ),
+            )
+            .toList();
+        final activities = [...timeline, ...fromNotifs]
+          ..sort((a, b) => b.at.compareTo(a.at));
+        return activities.take(limit).toList();
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    try {
+      final results = await Future.wait([
+        _getRecentNotifications(pageSize: limit.clamp(15, 50)),
+        _getAlertEvents(),
+      ]);
+      return _mergeActivities(
+        results[0] as List<AppNotification>,
+        results[1] as List<GpsAlertEvent>,
+        limit: limit,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
   List<ActivityItem> _mergeActivities(
     List<AppNotification> notifs,
-    List<GpsAlertEvent> alerts,
-  ) {
+    List<GpsAlertEvent> alerts, {
+    int limit = 6,
+  }) {
     final items = <ActivityItem>[
       ...notifs.map(
         (n) => ActivityItem(
@@ -952,7 +1007,7 @@ class DashboardApi {
           route: '/notifications',
         ),
       ),
-      ...alerts.take(10).map(
+      ...alerts.take(limit).map(
             (a) => ActivityItem(
               at: a.timestamp,
               title: a.eventType.isNotEmpty ? a.eventType : 'GPS Alert',
@@ -963,26 +1018,32 @@ class DashboardApi {
                 if (a.geofenceName != null) a.geofenceName!,
               ].where((s) => s.isNotEmpty).join(' · '),
               kind: 'alert',
-              route: '/alerts',
+              route: a.id > 0 ? '/alerts/${a.id}' : '/alerts',
             ),
           ),
     ];
     items.sort((a, b) => b.at.compareTo(a.at));
-    return items.take(6).toList();
+    return items.take(limit).toList();
   }
 
   String _activityKindFromNotification(AppNotification n) {
-    final t = '${n.type} ${n.module ?? ''}'.toLowerCase();
+    final t = '${n.type} ${n.module ?? ''} ${n.title} ${n.message}'.toLowerCase();
+    if (t.contains('check-in') ||
+        t.contains('check in') ||
+        t.contains('attendance') ||
+        t.contains('on duty')) {
+      return 'attendance';
+    }
     if (t.contains('trip') || t.contains('booking')) return 'trip';
     if (t.contains('maint') || t.contains('work')) return 'maintenance';
     if (t.contains('alert') || t.contains('gps')) return 'alert';
     return 'notification';
   }
 
-  Future<List<ActivityItem>> _getDriverTimeline() async {
+  Future<List<ActivityItem>> _getDriverTimeline({int pageSize = 10}) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.timeline,
-      queryParameters: {'page': 1, 'pageSize': 10},
+      queryParameters: {'page': 1, 'pageSize': pageSize},
     );
     final body = res.data;
     final list = (body?['data'] as List?) ?? (body?['items'] as List?) ?? [];
@@ -1057,115 +1118,54 @@ class DashboardApi {
     ];
   }
 
-  List<KpiCell> _fleetManagerPrimaryKpis(
+  /// Mockup 2×2 KPIs — Vehicles / Moving / Idle / Offline from GPS status API.
+  List<KpiCell> _fleetStatusPrimaryKpis(
     FleetOpsDashboard fleet,
     GpsFleetStatusKpis gps,
-    GpsAlertStats alerts,
   ) {
-    final total = gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
-    final onlinePct = total <= 0 ? 0 : (100.0 * gps.online / total).round();
+    final total =
+        gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
     return [
       KpiCell(
         label: 'Vehicles',
         value: '${total < 0 ? 0 : total}',
         colorKey: 'primary',
         route: '/fleet',
-        subtitle: '${gps.online} Online',
       ),
       KpiCell(
-        label: 'Drivers',
-        value: '${fleet.driversOnDuty}',
+        label: 'Moving',
+        value: '${gps.moving < 0 ? 0 : gps.moving}',
         colorKey: 'success',
-        route: '/more/drivers',
-        subtitle: '${fleet.driversOnDuty} On Duty',
+        route: '/fleet?status=moving',
       ),
       KpiCell(
-        label: 'Online',
-        value: '${gps.online}',
-        colorKey: 'info',
-        route: '/fleet/map',
-        subtitle: '$onlinePct% vs total',
+        label: 'Idle',
+        value: '${gps.idle < 0 ? 0 : gps.idle}',
+        colorKey: 'warning',
+        route: '/fleet?status=idle',
       ),
       KpiCell(
-        label: 'Active Alerts',
-        value: '${alerts.critical > 0 ? alerts.critical : alerts.active}',
+        label: 'Offline',
+        value: '${gps.offline < 0 ? 0 : gps.offline}',
         colorKey: 'error',
-        route: '/alerts',
-        subtitle: 'Requires attention',
+        route: '/fleet?status=offline',
       ),
     ];
   }
+
+  List<KpiCell> _fleetManagerPrimaryKpis(
+    FleetOpsDashboard fleet,
+    GpsFleetStatusKpis gps,
+    GpsAlertStats _,
+  ) =>
+      _fleetStatusPrimaryKpis(fleet, gps);
 
   List<KpiCell> _tenantAdminPrimaryKpis(
     FleetOpsDashboard fleet,
     GpsFleetStatusKpis gps,
-    GpsAlertStats alerts,
-  ) {
-    final total = gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
-    final onlinePct = total <= 0 ? 0 : (100.0 * gps.online / total).round();
-    return [
-      KpiCell(
-        label: 'Vehicles',
-        value: '${total < 0 ? 0 : total}',
-        colorKey: 'primary',
-        route: '/fleet',
-        subtitle: '${gps.online} Online',
-      ),
-      KpiCell(
-        label: 'Drivers',
-        value: '${fleet.driversOnDuty}',
-        colorKey: 'success',
-        route: '/more/drivers',
-        subtitle: '${fleet.driversOnDuty} On Duty',
-      ),
-      KpiCell(
-        label: 'Online',
-        value: '${gps.online}',
-        colorKey: 'info',
-        route: '/fleet/map',
-        subtitle: '$onlinePct% vs total',
-      ),
-      KpiCell(
-        label: 'Active Alerts',
-        value: '${alerts.critical > 0 ? alerts.critical : alerts.active}',
-        colorKey: 'error',
-        route: '/alerts',
-        subtitle: 'Requires attention',
-      ),
-    ];
-  }
-
-  List<KpiCell> _dispatcherPrimaryKpis(
-    OpsTripsDashboard trips,
-    List<OpsTripListItem> pending,
-  ) {
-    return [
-      KpiCell(
-        label: "Today's Trips",
-        value: '${trips.total}',
-        colorKey: 'primary',
-        route: '/trips',
-      ),
-      KpiCell(
-        label: 'In Progress',
-        value: '${trips.inProgress}',
-        colorKey: 'info',
-        route: '/trips',
-      ),
-      KpiCell(
-        label: 'Pending',
-        value: '${pending.length}',
-        colorKey: 'error',
-        route: '/trips',
-      ),
-      KpiCell(
-        label: 'Completed',
-        value: '${trips.completed}',
-        colorKey: 'success',
-        route: '/trips',
-      ),
-    ];
-  }
+    GpsAlertStats _,
+  ) =>
+      _fleetStatusPrimaryKpis(fleet, gps);
 
   List<KpiCell> _driverManagerPrimaryKpis(DriverStats stats) {
     final absent = (stats.totalDrivers - stats.active).clamp(0, 9999);

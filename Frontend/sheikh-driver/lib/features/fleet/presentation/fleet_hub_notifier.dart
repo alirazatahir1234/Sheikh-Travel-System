@@ -304,6 +304,15 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
     );
   }
 
+  /// Apply an absolute status filter (e.g. deep-link from dashboard KPIs).
+  void applyStatusFilter(FleetStatusFilterOption option) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(
+      current.copyWith(filters: current.filters.copyWith(status: option)),
+    );
+  }
+
   void setFilters(FleetVehicleFilters filters) {
     final current = state.valueOrNull;
     if (current == null) return;

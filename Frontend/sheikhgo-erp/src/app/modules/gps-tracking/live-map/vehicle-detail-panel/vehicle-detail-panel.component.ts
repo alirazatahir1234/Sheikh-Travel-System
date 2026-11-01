@@ -35,6 +35,8 @@ export class VehicleDetailPanelComponent {
   @Input() eta: GpsEta | null = null;
   @Input() followSelected = false;
   @Input() activeTab: DetailTab = 'overview';
+  /** SUPER_ADMIN only — hide device command actions for fleet owners/managers. */
+  @Input() canCommands = false;
 
   @Output() tabChange = new EventEmitter<DetailTab>();
   @Output() track = new EventEmitter<void>();

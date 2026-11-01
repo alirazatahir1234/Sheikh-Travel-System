@@ -40,7 +40,7 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
         @case (1) {
           <ui-select label="Select driver" placeholder="Search driver…" [searchable]="true"
             [options]="driverOptions()" [(ngModel)]="form().driverIdStr" [required]="true" />
-          <p class="hint">Suspended and on-leave drivers are hidden. Only verified, active drivers with a valid license can be assigned.</p>
+          <p class="hint">Suspended and on-leave drivers are hidden. Only verified, active drivers with a valid license can be assigned. An existing vehicle assignment is a transfer warning, not a hard block.</p>
           @if (driverStepError(); as err) {
             <div class="alert alert--error">{{ err }}</div>
           }

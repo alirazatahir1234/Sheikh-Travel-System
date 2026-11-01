@@ -90,15 +90,6 @@
                       <div class="text-[10px] text-fleet-text-muted">Updated {{ row.locationLastUpdate | date:'short' }}</div>
                     }
                   </div>
-                  @if (canTrack(row)) {
-                    <button
-                      type="button"
-                      class="action-btn shrink-0 text-fleet-primary"
-                      title="Live track"
-                      (click)="$event.stopPropagation(); track.emit(row)">
-                      <mat-icon>my_location</mat-icon>
-                    </button>
-                  }
                 </div>
               </td>
               <td class="px-4 py-3" (click)="$event.stopPropagation()">

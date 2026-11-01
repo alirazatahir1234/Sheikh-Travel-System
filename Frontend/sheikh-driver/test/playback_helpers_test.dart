@@ -98,6 +98,69 @@ void main() {
     expect(idx, 1);
   });
 
+  test('stopSegmentRange is stop N → next stop (last → trip end)', () {
+    final playback = [
+      for (var m = 0; m <= 40; m += 10)
+        HistoryReplayPoint(
+          timestamp: DateTime.parse('2026-07-22T10:${m.toString().padLeft(2, '0')}:00Z'),
+          latitude: m.toDouble(),
+          longitude: 0,
+          speedKmh: 0,
+        ),
+    ];
+    final stops = [
+      TripStop(
+        startTime: DateTime.parse('2026-07-22T10:00:00Z'),
+        endTime: DateTime.parse('2026-07-22T10:05:00Z'),
+        latitude: 0,
+        longitude: 0,
+        durationMinutes: 5,
+      ),
+      TripStop(
+        startTime: DateTime.parse('2026-07-22T10:20:00Z'),
+        endTime: DateTime.parse('2026-07-22T10:25:00Z'),
+        latitude: 20,
+        longitude: 0,
+        durationMinutes: 5,
+      ),
+      TripStop(
+        startTime: DateTime.parse('2026-07-22T10:30:00Z'),
+        endTime: DateTime.parse('2026-07-22T10:35:00Z'),
+        latitude: 30,
+        longitude: 0,
+        durationMinutes: 5,
+      ),
+    ];
+    final first = stopSegmentRange(
+      playback: playback,
+      stops: stops,
+      stopIndex: 0,
+    )!;
+    expect(first.startIndex, 0);
+    expect(first.endIndex, indexForTimestamp(playback, stops[1].startTime));
+
+    final last = stopSegmentRange(
+      playback: playback,
+      stops: stops,
+      stopIndex: 2,
+    )!;
+    expect(last.startIndex, indexForTimestamp(playback, stops[2].startTime));
+    expect(last.endIndex, playback.length - 1);
+  });
+
+  test('isStopVisited turns true at/after stop start', () {
+    final stop = TripStop(
+      startTime: DateTime.parse('2026-07-22T10:10:00Z'),
+      endTime: DateTime.parse('2026-07-22T10:15:00Z'),
+      latitude: 1,
+      longitude: 1,
+      durationMinutes: 5,
+    );
+    expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:09:00Z')), isFalse);
+    expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:10:00Z')), isTrue);
+    expect(isStopVisited(stop, DateTime.parse('2026-07-22T10:20:00Z')), isTrue);
+  });
+
   test('lowerBoundPlaybackIndex finds first index not before time', () {
     final playback = [
       HistoryReplayPoint(
@@ -165,6 +228,88 @@ void main() {
     ]);
     expect(csv.contains('timestamp,latitude,longitude'), isTrue);
     expect(csv.contains('Karachi'), isTrue);
+  });
+
+  test('PlaybackTripMetrics prefers selected trip window and distance', () {
+    final start = DateTime.parse('2026-07-22T09:00:00Z');
+    final end = DateTime.parse('2026-07-22T10:00:00Z');
+    final trip = GpsTrip(
+      vehicleId: 1,
+      startTime: start,
+      endTime: end,
+      distanceKm: 12.5,
+      avgSpeedKmh: 40,
+      maxSpeedKmh: 70,
+      durationMinutes: 55,
+      startAddress: 'Depot',
+      endAddress: 'Yard',
+    );
+    final bundle = HistoryReplayBundle(
+      route: [
+        HistoryReplayPoint(
+          timestamp: start,
+          latitude: 24.86,
+          longitude: 67.0,
+          speedKmh: 10,
+        ),
+        HistoryReplayPoint(
+          timestamp: end,
+          latitude: 24.9,
+          longitude: 67.05,
+          speedKmh: 20,
+        ),
+      ],
+      playback: const [],
+      mileageKm: 99,
+      summary: const TripReplaySummary(
+        distanceKm: 99,
+        drivingMinutes: 200,
+        avgSpeedKmh: 10,
+        maxSpeedKmh: 10,
+      ),
+      stops: [
+        TripStop(
+          startTime: start.add(const Duration(minutes: 20)),
+          endTime: start.add(const Duration(minutes: 25)),
+          latitude: 24.87,
+          longitude: 67.01,
+          durationMinutes: 5,
+        ),
+      ],
+    );
+
+    final metrics = PlaybackTripMetrics.resolve(
+      bundle: bundle,
+      selectedTrip: trip,
+      stops: bundle.stops,
+      rangeFrom: DateTime.parse('2026-07-01T00:00:00Z'),
+      rangeTo: DateTime.parse('2026-07-31T00:00:00Z'),
+    );
+
+    expect(metrics.startTime, start);
+    expect(metrics.endTime, end);
+    expect(metrics.distanceKm, 12.5);
+    expect(metrics.stopCount, 1);
+    expect(metrics.hasDistance, isTrue);
+    expect(metrics.distanceLabel, isNot(contains('99')));
+  });
+
+  test('PlaybackTripMetrics uses placeholders when speeds missing', () {
+    final metrics = PlaybackTripMetrics.resolve(
+      bundle: const HistoryReplayBundle(route: [], playback: []),
+      selectedTrip: GpsTrip(
+        vehicleId: 1,
+        startTime: DateTime.parse('2026-07-22T09:00:00Z'),
+        endTime: DateTime.parse('2026-07-22T09:30:00Z'),
+        distanceKm: 0.05,
+        avgSpeedKmh: 0,
+        maxSpeedKmh: 0,
+        durationMinutes: 30,
+        status: 'Stop',
+      ),
+    );
+    expect(metrics.avgSpeedLabel, '—');
+    expect(metrics.maxSpeedLabel, '—');
   });
 
   test('PlaybackStats resolves from bundle and events', () {

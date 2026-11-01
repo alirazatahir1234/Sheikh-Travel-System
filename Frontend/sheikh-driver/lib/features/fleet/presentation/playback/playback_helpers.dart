@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:intl/intl.dart';
 
 import '../../domain/fleet_models.dart';
+import '../../domain/trip_display.dart';
 
 const defaultOverspeedKmh = 90.0;
 
@@ -145,6 +146,43 @@ List<int> timelineMarkerIndices({
   }
   final sorted = indices.toList()..sort();
   return sorted;
+}
+
+/// Playback index range for stop N → next stop (last stop → trip end).
+/// Returns null when [playback] is empty or [stopIndex] is out of range.
+({int startIndex, int endIndex})? stopSegmentRange({
+  required List<HistoryReplayPoint> playback,
+  required List<TripStop> stops,
+  required int stopIndex,
+}) {
+  if (playback.isEmpty || stopIndex < 0 || stopIndex >= stops.length) {
+    return null;
+  }
+  final startIndex = indexForTimestamp(playback, stops[stopIndex].startTime);
+  final endIndex = stopIndex + 1 < stops.length
+      ? indexForTimestamp(playback, stops[stopIndex + 1].startTime)
+      : playback.length - 1;
+  return (
+    startIndex: startIndex,
+    endIndex: endIndex < startIndex ? startIndex : endIndex,
+  );
+}
+
+/// Signature of which stops are visited at [playbackTime] (for marker refresh).
+int stopVisitSignature(List<TripStop> stops, DateTime? playbackTime) {
+  if (playbackTime == null || stops.isEmpty) return 0;
+  var sig = 0;
+  for (var i = 0; i < stops.length; i++) {
+    if (!stops[i].startTime.isAfter(playbackTime)) {
+      sig = sig * 31 + (i + 1);
+    }
+  }
+  return sig;
+}
+
+bool isStopVisited(TripStop stop, DateTime? playbackTime) {
+  if (playbackTime == null) return false;
+  return !stop.startTime.isAfter(playbackTime);
 }
 
 List<int> eventMarkerIndices(
@@ -549,7 +587,9 @@ class PlaybackStats {
     final summary = bundle.summary;
     final stats = bundle.statistics;
     final events = bundle.events;
-    final stopCount = stats?.stopCount ?? bundle.stops.length;
+    // Prefer concrete stop list over possibly-stale statistics.stopCount.
+    final stopCount =
+        bundle.stops.isNotEmpty ? bundle.stops.length : (stats?.stopCount ?? 0);
     final overspeed = stats?.overspeedCount ??
         events.where((e) => e.type.toLowerCase().contains('speed')).length;
     final sos = events
@@ -562,7 +602,7 @@ class PlaybackStats {
         .where((e) => e.type.toLowerCase().contains('ignition'))
         .length;
     return PlaybackStats(
-      distanceKm: bundle.mileageKm ?? stats?.distanceKm ?? summary?.distanceKm ?? 0,
+      distanceKm: effectiveDistanceKm(bundle),
       drivingMinutes: effectiveDrivingMinutes(bundle),
       idleMinutes: stats?.idleMinutes ?? 0,
       stopCount: stopCount,
@@ -574,4 +614,171 @@ class PlaybackStats {
       ignitionEvents: ignition,
     );
   }
+}
+
+/// Unified trip metrics for playback UI — selected trip is the source of truth.
+///
+/// Never silently mixes values from another trip or the list date-range.
+class PlaybackTripMetrics {
+  const PlaybackTripMetrics({
+    required this.startTime,
+    required this.endTime,
+    required this.distanceKm,
+    required this.movingMinutes,
+    required this.totalMinutes,
+    required this.idleMinutes,
+    required this.stopCount,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    required this.hasDistance,
+    required this.hasAvgSpeed,
+    required this.hasMaxSpeed,
+    this.startAddress,
+    this.endAddress,
+  });
+
+  final DateTime startTime;
+  final DateTime endTime;
+  final double distanceKm;
+  final int movingMinutes;
+  final int totalMinutes;
+  final int idleMinutes;
+  final int stopCount;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final bool hasDistance;
+  final bool hasAvgSpeed;
+  final bool hasMaxSpeed;
+  final String? startAddress;
+  final String? endAddress;
+
+  factory PlaybackTripMetrics.resolve({
+    HistoryReplayBundle? bundle,
+    GpsTrip? selectedTrip,
+    List<TripStop> stops = const [],
+    DateTime? rangeFrom,
+    DateTime? rangeTo,
+  }) {
+    final trip = selectedTrip;
+    final points = bundle == null
+        ? const <HistoryReplayPoint>[]
+        : (bundle.trailPoints.isNotEmpty ? bundle.trailPoints : bundle.points);
+    final stopList = stops.isNotEmpty ? stops : (bundle?.stops ?? const []);
+
+    final start = trip?.startTime ??
+        (points.isNotEmpty ? points.first.timestamp : rangeFrom) ??
+        DateTime.now();
+    final end = trip?.endTime ??
+        (points.length >= 2
+            ? points.last.timestamp
+            : (points.isNotEmpty ? points.first.timestamp : rangeTo)) ??
+        start;
+
+    final wallMinutes = end.difference(start).inMinutes.clamp(0, 24 * 60 * 14);
+
+    double? distance;
+    if (trip != null && trip.distanceKm > 0) {
+      distance = trip.distanceKm;
+    } else if (bundle != null) {
+      final d = effectiveDistanceKm(bundle);
+      if (d > 0) distance = d;
+    } else if (trip != null) {
+      distance = trip.distanceKm;
+    }
+
+    final moving = bundle != null
+        ? effectiveDrivingMinutes(bundle)
+        : (trip?.durationMinutes ?? 0);
+
+    final total = trip != null && trip.durationMinutes > 0
+        ? trip.durationMinutes
+        : (wallMinutes > 0 ? wallMinutes : moving);
+
+    final idle = bundle?.statistics?.idleMinutes ??
+        (total > moving ? total - moving : 0);
+
+    double? avg;
+    double? max;
+    if (trip != null) {
+      avg = displayAvgSpeedKmh(trip);
+      max = displayMaxSpeedKmh(trip);
+      if (avg <= 0) avg = null;
+      if (max <= 0) max = null;
+    }
+    avg ??= _positiveOrNull(
+      bundle?.statistics?.avgSpeedKmh ?? bundle?.summary?.avgSpeedKmh,
+    );
+    max ??= _positiveOrNull(
+      bundle?.statistics?.maxSpeedKmh ?? bundle?.summary?.maxSpeedKmh,
+    );
+
+    return PlaybackTripMetrics(
+      startTime: start,
+      endTime: end,
+      distanceKm: distance ?? 0,
+      movingMinutes: moving,
+      totalMinutes: total,
+      idleMinutes: idle < 0 ? 0 : idle,
+      stopCount: stopList.length,
+      avgSpeedKmh: avg ?? 0,
+      maxSpeedKmh: max ?? 0,
+      hasDistance: distance != null,
+      hasAvgSpeed: avg != null,
+      hasMaxSpeed: max != null,
+      startAddress: trip?.startAddress ??
+          (points.isNotEmpty ? points.first.address : null),
+      endAddress:
+          trip?.endAddress ?? (points.isNotEmpty ? points.last.address : null),
+    );
+  }
+
+  String get distanceLabel =>
+      hasDistance ? formatDistanceKm(distanceKm) : '—';
+
+  String get movingLabel => formatDurationMinutes(movingMinutes);
+
+  String get totalLabel => formatDurationMinutes(totalMinutes);
+
+  String get idleLabel => formatDurationMinutes(idleMinutes);
+
+  String get avgSpeedLabel =>
+      hasAvgSpeed ? '${avgSpeedKmh.toStringAsFixed(0)} km/h' : '—';
+
+  String get maxSpeedLabel =>
+      hasMaxSpeed ? '${maxSpeedKmh.toStringAsFixed(0)} km/h' : '—';
+
+  String get stopCountLabel => '$stopCount';
+
+  /// Compact window for collapsed panel: `9:14 AM → 10:02 AM`.
+  String timeRangeLabel({DateFormat? timeFmt}) {
+    final fmt = timeFmt ?? DateFormat('h:mm a');
+    final a = startTime.toLocal();
+    final b = endTime.toLocal();
+    final sameDay = a.year == b.year && a.month == b.month && a.day == b.day;
+    if (sameDay) {
+      return '${fmt.format(a)} → ${fmt.format(b)}';
+    }
+    final dayFmt = DateFormat('dd MMM, h:mm a');
+    return '${dayFmt.format(a)} → ${dayFmt.format(b)}';
+  }
+}
+
+double? _positiveOrNull(double? v) {
+  if (v == null || v <= 0) return null;
+  return v;
+}
+
+/// 12h clock used across trip history / playback (matches trip list).
+final playbackTimeFmt = DateFormat('h:mm a');
+final playbackDateTimeFmt = DateFormat('dd MMM, h:mm a');
+
+String formatPlaybackClock(DateTime dt) =>
+    playbackTimeFmt.format(dt.toLocal());
+
+String formatPlaybackDateTime(DateTime dt) =>
+    playbackDateTimeFmt.format(dt.toLocal());
+
+String formatOptionalSpeedKmh(double? speedKmh) {
+  if (speedKmh == null) return '—';
+  return '${speedKmh.toStringAsFixed(0)} km/h';
 }

@@ -418,11 +418,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(fleetHubProvider);
     final session = ref.watch(fleetSessionProvider);
-    final canCommands = session != null &&
-        session.hasAnyPermission(const [
-          FleetPermissions.gpsCommandSend,
-          FleetPermissions.gpsCommandView,
-        ]);
+    final canCommands = session?.canUseGpsCommands ?? false;
 
     ref.listen<AsyncValue<FleetHubState>>(fleetHubProvider, (prev, next) {
       final hub = next.valueOrNull;

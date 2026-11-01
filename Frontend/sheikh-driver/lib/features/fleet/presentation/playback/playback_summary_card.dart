@@ -1,57 +1,68 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_theme.dart';
-import '../../../../shared/widgets/sg_ui.dart';
 import '../../domain/fleet_models.dart';
-import 'package:intl/intl.dart';
 import 'playback_helpers.dart';
 
 class PlaybackSummaryCard extends StatelessWidget {
-  const PlaybackSummaryCard({super.key, required this.bundle});
+  const PlaybackSummaryCard({
+    super.key,
+    required this.bundle,
+    this.selectedTrip,
+    this.stops = const [],
+  });
 
   final HistoryReplayBundle bundle;
+  final GpsTrip? selectedTrip;
+  final List<TripStop> stops;
 
   @override
   Widget build(BuildContext context) {
-    final stats = bundle.statistics;
-    final summary = bundle.summary;
-    final dist =
-        bundle.mileageKm ?? stats?.distanceKm ?? summary?.distanceKm ?? 0;
-    final driveMin = effectiveDrivingMinutes(bundle);
-    final idle = stats?.idleMinutes ?? 0;
+    final p = context.sg;
+    final metrics = PlaybackTripMetrics.resolve(
+      bundle: bundle,
+      selectedTrip: selectedTrip,
+      stops: stops.isNotEmpty ? stops : bundle.stops,
+    );
+    final stats = PlaybackStats.fromBundle(bundle);
     final parkingCount =
-        bundle.stops.where((s) => s.durationMinutes >= 120).length;
-    final avg = stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? 0;
-    final max = stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? 0;
-    final stops =
-        bundle.stops.isNotEmpty ? bundle.stops.length : stats?.stopCount ?? 0;
-    final points =
-        bundle.points.isNotEmpty ? bundle.points : bundle.trailPoints;
-    final tf = DateFormat('dd MMM, HH:mm');
-    final tripDurationMin = points.length >= 2
-        ? points.last.timestamp.difference(points.first.timestamp).inMinutes
-        : driveMin + idle;
-    final fuel = summary?.fuelLiters ?? stats?.fuelLiters;
-    final engineHours = summary?.engineHours ?? stats?.engineHours;
-    final overspeed = stats?.overspeedCount ?? 0;
-    final harshBrake = stats?.harshBrakeCount ?? 0;
-    final harshAccel = stats?.harshAccelCount ?? 0;
+        (stops.isNotEmpty ? stops : bundle.stops)
+            .where((s) => s.durationMinutes >= 120)
+            .length;
+    final fuel = bundle.summary?.fuelLiters ?? bundle.statistics?.fuelLiters;
+    final engineHours =
+        bundle.summary?.engineHours ?? bundle.statistics?.engineHours;
 
-    return SgCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: p.border),
+        boxShadow: AppShadows.card,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            metrics.timeRangeLabel(),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              color: p.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _primaryCell('Distance', formatDistanceKm(dist)),
+                child: _primaryCell(context, 'Distance', metrics.distanceLabel),
               ),
               Expanded(
-                child: _primaryCell('Driving', formatDurationMinutes(driveMin)),
+                child: _primaryCell(context, 'Moving', metrics.movingLabel),
               ),
               Expanded(
-                child: _primaryCell(
-                    'Trip', formatDurationMinutes(tripDurationMin)),
+                child: _primaryCell(context, 'Total', metrics.totalLabel),
               ),
             ],
           ),
@@ -60,18 +71,27 @@ class PlaybackSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _secondaryCell(
-                  '',
-                  formatNonMovingStandingEnglish(idle),
-                  valueColor: nonMovingExceedsAlertThreshold(idle)
-                      ? const Color(0xFFDC2626)
+                  context,
+                  'Idle',
+                  metrics.idleLabel,
+                  valueColor: nonMovingExceedsAlertThreshold(metrics.idleMinutes)
+                      ? AppColors.error
                       : null,
                 ),
               ),
               Expanded(
-                child: _secondaryCell('Parking', '$parkingCount'),
+                child: _secondaryCell(
+                  context,
+                  'Stops',
+                  metrics.stopCountLabel,
+                ),
               ),
               Expanded(
-                child: _secondaryCell('Stops', '$stops'),
+                child: _secondaryCell(
+                  context,
+                  'Parking',
+                  parkingCount > 0 ? '$parkingCount' : '—',
+                ),
               ),
             ],
           ),
@@ -80,19 +100,22 @@ class PlaybackSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _secondaryCell(
+                  context,
                   'Avg speed',
-                  '${avg.toStringAsFixed(0)} km/h',
+                  metrics.avgSpeedLabel,
                 ),
               ),
               Expanded(
                 child: _secondaryCell(
+                  context,
                   'Max speed',
-                  '${max.toStringAsFixed(0)} km/h',
+                  metrics.maxSpeedLabel,
                 ),
               ),
               if (fuel != null)
                 Expanded(
                   child: _secondaryCell(
+                    context,
                     'Fuel',
                     '${fuel.toStringAsFixed(1)} L',
                   ),
@@ -100,6 +123,7 @@ class PlaybackSummaryCard extends StatelessWidget {
               else if (engineHours != null)
                 Expanded(
                   child: _secondaryCell(
+                    context,
                     'Engine',
                     '${engineHours.toStringAsFixed(1)} h',
                   ),
@@ -108,54 +132,62 @@ class PlaybackSummaryCard extends StatelessWidget {
                 const Expanded(child: SizedBox.shrink()),
             ],
           ),
-          if (overspeed > 0 || harshBrake > 0 || harshAccel > 0) ...[
+          if (stats.overspeedCount > 0 ||
+              (bundle.statistics?.harshBrakeCount ?? 0) > 0 ||
+              (bundle.statistics?.harshAccelCount ?? 0) > 0) ...[
             const SizedBox(height: 10),
             Row(
               children: [
-                if (overspeed > 0)
-                  Expanded(child: _secondaryCell('Overspeed', '$overspeed')),
-                if (harshBrake > 0)
-                  Expanded(child: _secondaryCell('Harsh brake', '$harshBrake')),
-                if (harshAccel > 0)
-                  Expanded(child: _secondaryCell('Harsh accel', '$harshAccel')),
+                if (stats.overspeedCount > 0)
+                  Expanded(
+                    child: _secondaryCell(
+                      context,
+                      'Overspeed',
+                      '${stats.overspeedCount}',
+                    ),
+                  ),
+                if ((bundle.statistics?.harshBrakeCount ?? 0) > 0)
+                  Expanded(
+                    child: _secondaryCell(
+                      context,
+                      'Harsh brake',
+                      '${bundle.statistics!.harshBrakeCount}',
+                    ),
+                  ),
+                if ((bundle.statistics?.harshAccelCount ?? 0) > 0)
+                  Expanded(
+                    child: _secondaryCell(
+                      context,
+                      'Harsh accel',
+                      '${bundle.statistics!.harshAccelCount}',
+                    ),
+                  ),
               ],
             ),
           ],
-          if (points.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _windowCell(
-                    'Start',
-                    tf.format(points.first.timestamp.toLocal()),
-                  ),
-                ),
-                Expanded(
-                  child: _windowCell(
-                    'End',
-                    tf.format(points.last.timestamp.toLocal()),
-                  ),
-                ),
-              ],
-            ),
-            if ((points.first.address ?? '').trim().isNotEmpty ||
-                (points.last.address ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              if ((points.first.address ?? '').trim().isNotEmpty)
-                _windowCell('From', points.first.address!.trim()),
-              if ((points.last.address ?? '').trim().isNotEmpty)
-                _windowCell('To', points.last.address!.trim()),
-            ],
-          ],
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          _windowCell(
+            context,
+            'Start',
+            formatPlaybackDateTime(metrics.startTime),
+          ),
+          _windowCell(
+            context,
+            'End',
+            formatPlaybackDateTime(metrics.endTime),
+          ),
+          if ((metrics.startAddress ?? '').trim().isNotEmpty)
+            _windowCell(context, 'From', metrics.startAddress!.trim()),
+          if ((metrics.endAddress ?? '').trim().isNotEmpty)
+            _windowCell(context, 'To', metrics.endAddress!.trim()),
         ],
       ),
     );
   }
 
-  Widget _primaryCell(String label, String value) {
+  Widget _primaryCell(BuildContext context, String label, String value) {
     return Column(
       children: [
         Text(
@@ -169,9 +201,9 @@ class PlaybackSummaryCard extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: AppColors.textSecondary,
+            color: context.sg.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -180,10 +212,12 @@ class PlaybackSummaryCard extends StatelessWidget {
   }
 
   Widget _secondaryCell(
+    BuildContext context,
     String label,
     String value, {
     Color? valueColor,
   }) {
+    final p = context.sg;
     return Column(
       children: [
         Text(
@@ -195,28 +229,29 @@ class PlaybackSummaryCard extends StatelessWidget {
             fontWeight: FontWeight.w700,
             fontSize: 12,
             height: 1.25,
-            color: valueColor ?? AppColors.textPrimary,
+            color: valueColor ?? p.textPrimary,
           ),
         ),
-        if (label.isNotEmpty)
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-          ),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 10, color: p.textMuted),
+        ),
       ],
     );
   }
 
-  Widget _windowCell(String label, String value) {
+  Widget _windowCell(BuildContext context, String label, String value) {
+    final p = context.sg;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$label: ',
-            style: const TextStyle(
-              color: AppColors.textMuted,
+            style: TextStyle(
+              color: p.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -224,9 +259,8 @@ class PlaybackSummaryCard extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: p.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),

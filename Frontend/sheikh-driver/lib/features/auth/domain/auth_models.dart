@@ -93,6 +93,9 @@ abstract final class FleetPermissions {
   static const paymentView = 'Payment.View';
   static const invoiceView = 'Invoice.View';
   static const platformUsersView = 'Platform.Users.View';
+  static const gpsAlertView = 'Gps.AlertView';
+  static const gpsAlertAcknowledge = 'Gps.AlertAcknowledge';
+  static const gpsAlertResolve = 'Gps.AlertResolve';
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
@@ -237,6 +240,10 @@ class FleetSession {
       !isDriverOnly &&
       (primaryNavRole == FleetRole.owner ||
           hasAnyRole(FleetRole.ownerTrackingRoles));
+
+  /// Live Map / vehicle Device Commands — platform SUPER_ADMIN only.
+  /// Fleet owners, managers, and GPS operators must not see or run Commands.
+  bool get canUseGpsCommands => hasRole(FleetRole.superAdmin);
 
   bool get canSeeFleetTab =>
       !isDriverOnly &&

@@ -145,27 +145,43 @@ export class VehicleAssignDialogComponent {
     this.submitting.set(true);
     const driverId = Number(this.selectedDriverId);
     let failed = 0;
+    const errorMessages: string[] = [];
 
     for (const id of ids) {
-      const ok = await new Promise<boolean>(resolve => {
+      const result = await new Promise<{ ok: true } | { ok: false; message: string }>(resolve => {
         this.vehicleService.assignDriver(id, { driverId, bookingId }).subscribe({
-          next: () => resolve(true),
-          error: () => resolve(false)
+          next: () => resolve({ ok: true }),
+          error: (err) => resolve({
+            ok: false,
+            message: apiErrorMessage(err, 'Driver assignment failed')
+          })
         });
       });
-      if (!ok) failed++;
+      if (!result.ok) {
+        failed++;
+        if (!errorMessages.includes(result.message)) {
+          errorMessages.push(result.message);
+        }
+      }
     }
 
     this.submitting.set(false);
-    this.open.set(false);
 
     if (failed === 0) {
+      this.open.set(false);
       this.toast.success(ids.length > 1 ? `Driver assigned to ${ids.length} vehicles` : 'Driver assigned successfully');
-    } else if (failed === ids.length) {
-      this.toast.error('Driver assignment failed');
-    } else {
-      this.toast.success(`Assigned with ${failed} failure(s)`);
+      this.assigned.emit();
+      return;
     }
+
+    const detail = errorMessages.join(' · ');
+    if (failed === ids.length) {
+      this.toast.error(detail || 'Driver assignment failed');
+      return;
+    }
+
+    this.open.set(false);
+    this.toast.error(`Assigned with ${failed} failure(s): ${detail}`);
     this.assigned.emit();
   }
 }

@@ -1,4 +1,3 @@
-import { WEBSITE_BRAND } from './brand';
 import { websiteAssetUrl } from './website-media';
 
 /** Anchor targets on /services — SheikhGo Nexus portfolio navigation. */
@@ -21,7 +20,8 @@ export interface IndustryItem {
   title: string;
   text: string;
   icon: string;
-  link: string;
+  /** Optional — omit / null for a non-navigating mega-menu label. Never use login. */
+  link: string | null;
   fragment: string | null;
 }
 
@@ -436,7 +436,7 @@ export const INDUSTRY_SERVE_CARDS: readonly IndustryServeCardDef[] = [
   {
     id: 'logistics',
     icon: 'local_shipping',
-    link: '/fleet-management',
+    link: '/logistics-fleet',
     titleKey: 'home.industriesServe.card.logistics.title',
     textKey: 'home.industriesServe.card.logistics.text',
   },
@@ -497,9 +497,9 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
   {
     i18nKey: 'logistics-fleet',
     title: 'Logistics & Fleet',
-    text: 'Fleet, GPS tracking and trip operations in one platform.',
+    text: 'Vehicles, drivers, GPS, fuel, maintenance and compliance in one ops platform.',
     icon: 'local_shipping',
-    link: WEBSITE_BRAND.loginPath,
+    link: '/logistics-fleet',
     fragment: null,
   },
   {
@@ -507,7 +507,7 @@ export const INDUSTRY_ITEMS: readonly IndustryItem[] = [
     title: 'Travel & Tourism',
     text: 'Bookings, vehicles and passenger operations end to end.',
     icon: 'flight_takeoff',
-    link: WEBSITE_BRAND.loginPath,
+    link: '/transportation-operations',
     fragment: null,
   },
   {

@@ -9,6 +9,8 @@ export interface GpsNavItem {
   route: string;
   /** Optional permission — omit means GPS.View (module gate) is enough. */
   permission?: string;
+  /** When true, only platform SUPER_ADMIN sees the item (device Commands). */
+  superAdminOnly?: boolean;
 }
 
 @Component({
@@ -32,7 +34,7 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     { label: 'Trips', icon: 'route', route: 'trips' },
     { label: 'Trip Mode', icon: 'settings', route: 'trip-mode', permission: 'Gps.DeviceManage' },
     { label: 'History', icon: 'history', route: 'history' },
-    { label: 'Commands', icon: 'power_settings_new', route: 'commands', permission: 'Gps.CommandView' },
+    { label: 'Commands', icon: 'power_settings_new', route: 'commands', superAdminOnly: true },
     // Keep scoring next to Analytics so it is not buried at the far end of the scrollable tab strip.
     { label: 'Analytics', icon: 'insights', route: 'analytics' },
     { label: 'Driver Performance', icon: 'speed', route: 'driver-performance' },
@@ -41,9 +43,10 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
   ];
 
   get navItems(): GpsNavItem[] {
-    return this.allNavItems.filter(item =>
-      !item.permission || this.auth.hasPermission(item.permission)
-    );
+    return this.allNavItems.filter(item => {
+      if (item.superAdminOnly) return this.auth.hasRole('SUPER_ADMIN');
+      return !item.permission || this.auth.hasPermission(item.permission);
+    });
   }
 
   get isAlertsRoute(): boolean {

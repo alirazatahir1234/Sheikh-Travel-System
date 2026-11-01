@@ -183,6 +183,9 @@ abstract class ApiEndpoints {
   static String gpsAlertEventById(int id) => '/gps/alerts/events/$id';
   static String gpsAlertRead(int id) => '/gps/alerts/events/$id/read';
   static String gpsAlertAcknowledge(int id) => '/gps/alerts/events/$id/acknowledge';
+  static const gpsAlertBulkAcknowledge = '/gps/alerts/events/bulk-acknowledge';
+  static String gpsAlertAssign(int id) => '/gps/alerts/events/$id/assign';
+  static const gpsAlertBulkAssign = '/gps/alerts/events/bulk-assign';
   static String gpsAlertResolve(int id) => '/gps/alerts/events/$id/resolve';
   static String gpsAlertArchive(int id) => '/gps/alerts/events/$id/archive';
 

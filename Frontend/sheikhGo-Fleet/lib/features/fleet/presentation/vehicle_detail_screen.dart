@@ -46,11 +46,7 @@ class VehicleDetailScreen extends ConsumerWidget {
     final hubLoc =
         hubLocations.where((v) => v.vehicleId == vehicleId).firstOrNull;
     final session = ref.watch(fleetSessionProvider);
-    final canCommands = session != null &&
-        session.hasAnyPermission(const [
-          FleetPermissions.gpsCommandSend,
-          FleetPermissions.gpsCommandView,
-        ]);
+    final canCommands = session?.canUseGpsCommands ?? false;
 
     return DefaultTabController(
       length: 5,
@@ -255,6 +251,8 @@ class _GpsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(vehicleGpsInfoProvider(vehicleId));
+    final canCommands =
+        ref.watch(fleetSessionProvider)?.canUseGpsCommands ?? false;
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return async.when(
@@ -338,7 +336,7 @@ class _GpsTab extends ConsumerWidget {
               icon: const Icon(Icons.play_circle_outline),
               label: const Text('Open history playback'),
             ),
-            if (gps.gpsDeviceId != null) ...[
+            if (canCommands && gps.gpsDeviceId != null) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => showVehicleCommandsSheet(context, vehicleId),

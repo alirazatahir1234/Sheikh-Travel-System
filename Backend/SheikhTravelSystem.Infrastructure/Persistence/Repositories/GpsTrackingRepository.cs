@@ -587,6 +587,133 @@ public sealed partial class GpsTrackingRepository(
             : ApiResponse<bool>.FailResponse("Alert not found or already processed.");
         }
 
+    public async Task<ApiResponse<int>> BulkAcknowledgeGpsAlertsAsync(
+        BulkAcknowledgeGpsAlertsCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!GpsAlertAccess.CanAcknowledge(currentUser))
+            return ApiResponse<int>.FailResponse("Insufficient permission to acknowledge alerts.");
+
+        var ids = request.Body.Ids?.Where(id => id > 0).Distinct().Take(200).ToList() ?? [];
+        if (ids.Count == 0)
+            return ApiResponse<int>.FailResponse("No alert ids provided.");
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE e
+            SET e.IsAcknowledged = 1,
+                e.Status = CASE WHEN e.Status = 'active' THEN 'acknowledged' ELSE e.Status END,
+                e.AcknowledgedAt = COALESCE(e.AcknowledgedAt, GETUTCDATE()),
+                e.AcknowledgedBy = COALESCE(e.AcknowledgedBy, @AcknowledgedBy),
+                e.ReadAt = COALESCE(e.ReadAt, GETUTCDATE()),
+                e.ReadBy = COALESCE(e.ReadBy, @AcknowledgedBy)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id IN @Ids
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status IN ('active', 'acknowledged')
+              AND e.IsAcknowledged = 0
+            """,
+            new
+            {
+                Ids = ids,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AcknowledgedBy = currentUser.UserId?.ToString()
+            },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<int>.SuccessResponse(rows, $"Acknowledged {rows} alert(s).");
+    }
+
+    public async Task<ApiResponse<bool>> AssignGpsAlertAsync(
+        AssignGpsAlertCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!GpsAlertAccess.CanAssign(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to assign alerts.");
+
+        var name = request.Assignment.AssignedToName?.Trim();
+        if (string.IsNullOrWhiteSpace(name) && request.Assignment.AssignedToUserId is null)
+            return ApiResponse<bool>.FailResponse("Assignee name or user id is required.");
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE e
+            SET e.AssignedToUserId = @AssignedToUserId,
+                e.AssignedToName = @AssignedToName,
+                e.AssignedAt = GETUTCDATE(),
+                e.AssignedBy = @AssignedBy
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status NOT IN ('resolved', 'archived')
+            """,
+            new
+            {
+                request.Id,
+                request.Assignment.AssignedToUserId,
+                AssignedToName = string.IsNullOrWhiteSpace(name) ? null : name,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AssignedBy = currentUser.UserId?.ToString()
+            },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Alert assigned.")
+            : ApiResponse<bool>.FailResponse("Alert not found or already closed.");
+    }
+
+    public async Task<ApiResponse<int>> BulkAssignGpsAlertsAsync(
+        BulkAssignGpsAlertsCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!GpsAlertAccess.CanAssign(currentUser))
+            return ApiResponse<int>.FailResponse("Insufficient permission to assign alerts.");
+
+        var ids = request.Body.Ids?.Where(id => id > 0).Distinct().Take(200).ToList() ?? [];
+        if (ids.Count == 0)
+            return ApiResponse<int>.FailResponse("No alert ids provided.");
+
+        var name = request.Body.AssignedToName?.Trim();
+        if (string.IsNullOrWhiteSpace(name) && request.Body.AssignedToUserId is null)
+            return ApiResponse<int>.FailResponse("Assignee name or user id is required.");
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE e
+            SET e.AssignedToUserId = @AssignedToUserId,
+                e.AssignedToName = @AssignedToName,
+                e.AssignedAt = GETUTCDATE(),
+                e.AssignedBy = @AssignedBy
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id IN @Ids
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status NOT IN ('resolved', 'archived')
+            """,
+            new
+            {
+                Ids = ids,
+                request.Body.AssignedToUserId,
+                AssignedToName = string.IsNullOrWhiteSpace(name) ? null : name,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AssignedBy = currentUser.UserId?.ToString()
+            },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<int>.SuccessResponse(rows, $"Assigned {rows} alert(s).");
+    }
+
     public async Task<ApiResponse<bool>> MarkGpsAlertReadAsync(MarkGpsAlertReadCommand request, CancellationToken cancellationToken = default)
     {
         if (!GpsAlertAccess.CanView(currentUser))
@@ -1373,6 +1500,22 @@ public sealed partial class GpsTrackingRepository(
             parameters.Add("Severity", request.Severity);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.SeverityGroup))
+        {
+            switch (request.SeverityGroup.Trim().ToLowerInvariant())
+            {
+                case "critical":
+                    clauses.Add("e.Severity = 'critical'");
+                    break;
+                case "warning":
+                    clauses.Add("e.Severity IN ('high', 'medium')");
+                    break;
+                case "info":
+                    clauses.Add("e.Severity = 'low'");
+                    break;
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
             var normalizedStatus = request.Status.Trim().ToLowerInvariant();
@@ -1404,10 +1547,42 @@ public sealed partial class GpsTrackingRepository(
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            clauses.Add("""
+                (
+                    v.Name LIKE @Search
+                    OR v.RegistrationNumber LIKE @Search
+                    OR d.FullName LIKE @Search
+                    OR e.Message LIKE @Search
+                    OR e.EventType LIKE @Search
+                    OR e.AssignedToName LIKE @Search
+                )
+                """);
+            parameters.Add("Search", $"%{request.Search.Trim()}%");
+        }
+
         if (allowedEventTypes is not null)
         {
             clauses.Add("LOWER(e.EventType) IN @AllowedEventTypes");
             parameters.Add("AllowedEventTypes", allowedEventTypes);
+        }
+
+        var ascending = string.Equals(request.Sort, "oldest", StringComparison.OrdinalIgnoreCase);
+        var orderBy = ascending ? "e.Timestamp ASC" : "e.Timestamp DESC";
+
+        var pageSize = request.PageSize is > 0 and <= 200 ? request.PageSize.Value : (int?)null;
+        var page = request.Page is > 0 ? request.Page.Value : 1;
+        var pagingSql = pageSize is null
+            ? ""
+            : """
+              
+              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+              """;
+        if (pageSize is not null)
+        {
+            parameters.Add("Offset", (page - 1) * pageSize.Value);
+            parameters.Add("PageSize", pageSize.Value);
         }
 
         var sql = $"""
@@ -1417,7 +1592,7 @@ public sealed partial class GpsTrackingRepository(
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
             LEFT JOIN Drivers d ON d.Id = e.DriverId
             WHERE {string.Join(" AND ", clauses)}
-            ORDER BY e.Timestamp DESC
+            ORDER BY {orderBy}{pagingSql}
             """;
 
         var rows = await connection.QueryAsync<GpsAlertEventDto>(new CommandDefinition(
@@ -1447,7 +1622,8 @@ public sealed partial class GpsTrackingRepository(
                    e.GeofenceId, g.Name AS GeofenceName,
                    e.DriverId, d.FullName AS DriverName,
                    e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
-                   e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+                   e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy,
+                   e.AssignedToUserId, e.AssignedToName, e.AssignedAt, e.AssignedBy
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
@@ -1508,7 +1684,10 @@ public sealed partial class GpsTrackingRepository(
                 SUM(CASE WHEN e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Active,
                 SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
                 SUM(CASE WHEN e.Severity = 'critical' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Critical,
-                SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived
+                SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived,
+                SUM(CASE WHEN e.Severity IN ('high', 'medium') AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Warning,
+                SUM(CASE WHEN e.Severity = 'low' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Info,
+                SUM(CASE WHEN e.IsAcknowledged = 0 AND e.Status NOT IN ('resolved', 'archived') THEN 1 ELSE 0 END) AS Unacknowledged
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId
             WHERE {string.Join(" AND ", clauses)}
@@ -1681,7 +1860,10 @@ public sealed partial class GpsTrackingRepository(
                 SUM(CASE WHEN e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Active,
                 SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
                 SUM(CASE WHEN e.Severity = 'critical' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Critical,
-                SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived
+                SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived,
+                SUM(CASE WHEN e.Severity IN ('high', 'medium') AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Warning,
+                SUM(CASE WHEN e.Severity = 'low' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Info,
+                SUM(CASE WHEN e.IsAcknowledged = 0 AND e.Status NOT IN ('resolved', 'archived') THEN 1 ELSE 0 END) AS Unacknowledged
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId
             WHERE {string.Join(" AND ", clauses)}

@@ -29,7 +29,8 @@ public sealed partial class GpsTrackingRepository
             e.GeofenceId, g.Name AS GeofenceName,
             e.DriverId, d.FullName AS DriverName,
             e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
-            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy,
+            e.AssignedToUserId, e.AssignedToName, e.AssignedAt, e.AssignedBy
         """;
 
     private const string AlertSelectColumns = """
@@ -42,7 +43,8 @@ public sealed partial class GpsTrackingRepository
             e.GeofenceId, g.Name AS GeofenceName,
             e.DriverId, d.FullName AS DriverName,
             e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
-            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy,
+            e.AssignedToUserId, e.AssignedToName, e.AssignedAt, e.AssignedBy
         """;
 
     private static string LabelFor(decimal percent) => percent switch

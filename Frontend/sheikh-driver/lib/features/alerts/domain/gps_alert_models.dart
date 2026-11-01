@@ -13,6 +13,7 @@ class GpsAlertEvent {
     required this.status,
     this.ruleId,
     this.vehicleName,
+    this.registrationNumber,
     this.geofenceId,
     this.geofenceName,
     this.driverId,
@@ -26,16 +27,22 @@ class GpsAlertEvent {
     this.resolutionNotes,
     this.archivedAt,
     this.archivedBy,
+    this.assignedToUserId,
+    this.assignedToName,
+    this.assignedAt,
+    this.assignedBy,
     this.canAcknowledge = false,
     this.canResolve = false,
     this.canArchive = false,
     this.canDelete = false,
+    this.canAssign = false,
   });
 
   final int id;
   final int? ruleId;
   final int vehicleId;
   final String? vehicleName;
+  final String? registrationNumber;
   final String eventType;
   final double latitude;
   final double longitude;
@@ -58,18 +65,35 @@ class GpsAlertEvent {
   final String? resolutionNotes;
   final DateTime? archivedAt;
   final String? archivedBy;
+  final int? assignedToUserId;
+  final String? assignedToName;
+  final DateTime? assignedAt;
+  final String? assignedBy;
   final bool canAcknowledge;
   final bool canResolve;
   final bool canArchive;
   final bool canDelete;
+  final bool canAssign;
 
   bool get isUnread => readAt == null && !isArchived;
   bool get isArchived => status.toLowerCase() == 'archived';
   bool get isResolved => status.toLowerCase() == 'resolved';
+
   /// True when the alert is still actionable (not resolved/archived).
   bool get isOpen => !isResolved && !isArchived;
   bool get isRead => readAt != null;
   bool get canMarkRead => isUnread && !isArchived;
+  bool get isAssigned =>
+      assignedToUserId != null ||
+      (assignedToName != null && assignedToName!.trim().isNotEmpty);
+
+  String get vehicleLabel {
+    final plate = registrationNumber?.trim();
+    if (plate != null && plate.isNotEmpty) return plate;
+    final name = vehicleName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    return 'Vehicle #$vehicleId';
+  }
 
   factory GpsAlertEvent.fromJson(Map<String, dynamic> json) {
     int i(dynamic v) => (v as num?)?.toInt() ?? 0;
@@ -80,6 +104,8 @@ class GpsAlertEvent {
       vehicleId: i(json['vehicleId'] ?? json['VehicleId']),
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
+      registrationNumber: json['registrationNumber'] as String? ??
+          json['RegistrationNumber'] as String?,
       eventType:
           json['eventType'] as String? ?? json['EventType'] as String? ?? '',
       latitude:
@@ -119,6 +145,14 @@ class GpsAlertEvent {
         (json['archivedAt'] ?? json['ArchivedAt'] ?? '').toString(),
       ),
       archivedBy: json['archivedBy'] as String? ?? json['ArchivedBy'] as String?,
+      assignedToUserId:
+          iOrNull(json['assignedToUserId'] ?? json['AssignedToUserId']),
+      assignedToName: json['assignedToName'] as String? ??
+          json['AssignedToName'] as String?,
+      assignedAt: DateTime.tryParse(
+        (json['assignedAt'] ?? json['AssignedAt'] ?? '').toString(),
+      ),
+      assignedBy: json['assignedBy'] as String? ?? json['AssignedBy'] as String?,
       canAcknowledge: json['canAcknowledge'] as bool? ??
           json['CanAcknowledge'] as bool? ??
           false,
@@ -128,6 +162,68 @@ class GpsAlertEvent {
           json['canArchive'] as bool? ?? json['CanArchive'] as bool? ?? false,
       canDelete:
           json['canDelete'] as bool? ?? json['CanDelete'] as bool? ?? false,
+      canAssign:
+          json['canAssign'] as bool? ?? json['CanAssign'] as bool? ?? false,
+    );
+  }
+
+  GpsAlertEvent copyWith({
+    bool? isAcknowledged,
+    String? status,
+    DateTime? acknowledgedAt,
+    String? acknowledgedBy,
+    DateTime? resolvedAt,
+    String? resolvedBy,
+    String? resolutionNotes,
+    int? assignedToUserId,
+    String? assignedToName,
+    DateTime? assignedAt,
+    String? assignedBy,
+    bool? canAcknowledge,
+    bool? canResolve,
+    bool? canArchive,
+    bool? canAssign,
+    bool clearAssignee = false,
+  }) {
+    return GpsAlertEvent(
+      id: id,
+      ruleId: ruleId,
+      vehicleId: vehicleId,
+      vehicleName: vehicleName,
+      registrationNumber: registrationNumber,
+      eventType: eventType,
+      latitude: latitude,
+      longitude: longitude,
+      speed: speed,
+      message: message,
+      timestamp: timestamp,
+      isAcknowledged: isAcknowledged ?? this.isAcknowledged,
+      severity: severity,
+      status: status ?? this.status,
+      geofenceId: geofenceId,
+      geofenceName: geofenceName,
+      driverId: driverId,
+      driverName: driverName,
+      readAt: readAt,
+      readBy: readBy,
+      acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+      acknowledgedBy: acknowledgedBy ?? this.acknowledgedBy,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      resolvedBy: resolvedBy ?? this.resolvedBy,
+      resolutionNotes: resolutionNotes ?? this.resolutionNotes,
+      archivedAt: archivedAt,
+      archivedBy: archivedBy,
+      assignedToUserId:
+          clearAssignee ? null : (assignedToUserId ?? this.assignedToUserId),
+      assignedToName:
+          clearAssignee ? null : (assignedToName ?? this.assignedToName),
+      assignedAt: clearAssignee ? null : (assignedAt ?? this.assignedAt),
+      assignedBy: clearAssignee ? null : (assignedBy ?? this.assignedBy),
+      canAcknowledge: canAcknowledge ?? this.canAcknowledge,
+      canResolve: canResolve ?? this.canResolve,
+      canArchive: canArchive ?? this.canArchive,
+      canDelete: canDelete,
+      canAssign: canAssign ?? this.canAssign,
     );
   }
 }
@@ -141,6 +237,9 @@ class GpsAlertStats {
     required this.resolved,
     required this.critical,
     required this.archived,
+    this.warning = 0,
+    this.info = 0,
+    this.unacknowledged = 0,
   });
 
   final int total;
@@ -150,6 +249,9 @@ class GpsAlertStats {
   final int resolved;
   final int critical;
   final int archived;
+  final int warning;
+  final int info;
+  final int unacknowledged;
 
   factory GpsAlertStats.fromJson(Map<String, dynamic> json) {
     int n(String a, [String? b]) {
@@ -165,6 +267,9 @@ class GpsAlertStats {
       resolved: n('resolved', 'Resolved'),
       critical: n('critical', 'Critical'),
       archived: n('archived', 'Archived'),
+      warning: n('warning', 'Warning'),
+      info: n('info', 'Info'),
+      unacknowledged: n('unacknowledged', 'Unacknowledged'),
     );
   }
 

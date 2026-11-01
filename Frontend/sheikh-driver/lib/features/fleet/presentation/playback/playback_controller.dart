@@ -16,6 +16,8 @@ class PlaybackController {
   bool _playing = false;
   double _speed = 1;
   int _index = 0;
+  /// When set, playback stops at this index (inclusive) instead of trip end.
+  int? _playUntilIndex;
   DateTime? _virtualTime;
   Duration? _lastElapsed;
   LatLng? _displayPosition;
@@ -24,6 +26,7 @@ class PlaybackController {
   bool get playing => _playing;
   double get speed => _speed;
   int get index => _index;
+  int? get playUntilIndex => _playUntilIndex;
   DateTime? get virtualTime => _virtualTime;
   LatLng? get displayPosition => _displayPosition;
   double? get displayHeading => _displayHeading;
@@ -35,6 +38,7 @@ class PlaybackController {
   void setPoints(List<HistoryReplayPoint> points) {
     _points = points;
     _index = 0;
+    _playUntilIndex = null;
     _virtualTime = points.isEmpty ? null : points.first.timestamp;
     _displayPosition = points.isEmpty
         ? null
@@ -42,6 +46,17 @@ class PlaybackController {
     _displayHeading = points.isEmpty ? null : points.first.heading;
     _emitChanged();
   }
+
+  /// Restrict upcoming play to `[current … untilIndex]` (inclusive). Null = full trip.
+  void setPlayUntilIndex(int? untilIndex) {
+    if (untilIndex == null || _points.isEmpty) {
+      _playUntilIndex = null;
+      return;
+    }
+    _playUntilIndex = untilIndex.clamp(0, _points.length - 1);
+  }
+
+  void clearPlayUntil() => _playUntilIndex = null;
 
   void setSpeed(double speed) {
     _speed = speed;
@@ -58,7 +73,8 @@ class PlaybackController {
   }
 
   /// Starts the ticker. Returns false when there are fewer than 2 points.
-  bool play() {
+  /// Pass [untilIndex] to play a segment that ends at that index (inclusive).
+  bool play({int? untilIndex}) {
     if (_points.length < 2) {
       developer.log(
         'playback_start_rejected',
@@ -67,13 +83,25 @@ class PlaybackController {
       );
       return false;
     }
-    if (_index >= _points.length - 1) {
+    if (untilIndex != null) {
+      setPlayUntilIndex(untilIndex);
+    }
+    final endBound = _effectiveEndIndex();
+    if (_index >= endBound) {
+      if (_playUntilIndex != null) {
+        // Segment already at/past end — do not restart full trip.
+        return false;
+      }
       seekToIndex(0);
     }
     _playing = true;
     _lastElapsed = null;
     _ticker.start();
-    developer.log('playback_start', name: 'playback');
+    developer.log(
+      'playback_start',
+      name: 'playback',
+      error: _playUntilIndex == null ? 'full' : 'until_$_playUntilIndex',
+    );
     _emitChanged();
     return true;
   }
@@ -91,8 +119,27 @@ class PlaybackController {
     _playing = false;
     _ticker.stop();
     _lastElapsed = null;
+    _playUntilIndex = null;
     developer.log('playback_stop', name: 'playback');
     seekToIndex(0);
+  }
+
+  int _effectiveEndIndex() {
+    final until = _playUntilIndex;
+    if (until == null) return _points.length - 1;
+    return until.clamp(0, _points.length - 1);
+  }
+
+  void _finishAtBound(int endIndex) {
+    final p = _points[endIndex];
+    _virtualTime = p.timestamp;
+    _index = endIndex;
+    _displayPosition = LatLng(p.latitude, p.longitude);
+    _displayHeading = p.heading;
+    _playing = false;
+    _ticker.stop();
+    _lastElapsed = null;
+    onFinished?.call();
   }
 
   void seekToIndex(int index) {
@@ -138,7 +185,8 @@ class PlaybackController {
   void _applyVirtualTimeState() {
     if (_points.isEmpty || _virtualTime == null) return;
     final first = _points.first.timestamp;
-    final last = _points.last.timestamp;
+    final endIndex = _effectiveEndIndex();
+    final last = _points[endIndex].timestamp;
     if (_virtualTime!.isBefore(first)) {
       _virtualTime = first;
       _index = 0;
@@ -147,19 +195,13 @@ class PlaybackController {
       return;
     }
     if (_virtualTime!.isAtSameMomentAs(last) || _virtualTime!.isAfter(last)) {
-      _virtualTime = last;
-      _index = _points.length - 1;
-      _displayPosition = LatLng(_points.last.latitude, _points.last.longitude);
-      _displayHeading = _points.last.heading;
-      _playing = false;
-      _ticker.stop();
-      _lastElapsed = null;
-      onFinished?.call();
+      _finishAtBound(endIndex);
       return;
     }
 
-    final right = lowerBoundPlaybackIndex(_points, _virtualTime!);
-    final left = (right - 1).clamp(0, _points.length - 1);
+    final right = lowerBoundPlaybackIndex(_points, _virtualTime!)
+        .clamp(0, endIndex);
+    final left = (right - 1).clamp(0, endIndex);
     final from = _points[left];
     final to = _points[right];
     final totalUs = to.timestamp.difference(from.timestamp).inMicroseconds;

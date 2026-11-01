@@ -115,7 +115,8 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'catalog.platform-modules.text': 'Fourteen modules captured from the live app.',
 
   'industry.logistics-fleet.title': 'Logistics & Fleet',
-  'industry.logistics-fleet.text': 'Fleet, GPS tracking and trip operations in one platform.',
+  'industry.logistics-fleet.text':
+    'Vehicles, drivers, GPS, fuel, maintenance and compliance in one ops platform.',
   'industry.travel-tourism.title': 'Travel & Tourism',
   'industry.travel-tourism.text': 'Bookings, vehicles and passenger operations end to end.',
   'industry.healthcare.title': 'Healthcare',

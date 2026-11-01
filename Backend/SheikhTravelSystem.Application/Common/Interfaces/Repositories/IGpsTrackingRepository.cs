@@ -24,6 +24,9 @@ public interface IGpsTrackingRepository
     Task<ApiResponse<bool>> DeleteGeofenceAssignmentAsync(DeleteGeofenceAssignmentCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<int>> CreateGpsAlertRuleAsync(CreateGpsAlertRuleCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> AcknowledgeGpsAlertAsync(AcknowledgeGpsAlertCommand request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<int>> BulkAcknowledgeGpsAlertsAsync(BulkAcknowledgeGpsAlertsCommand request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<bool>> AssignGpsAlertAsync(AssignGpsAlertCommand request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<int>> BulkAssignGpsAlertsAsync(BulkAssignGpsAlertsCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> MarkGpsAlertReadAsync(MarkGpsAlertReadCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> ResolveGpsAlertAsync(ResolveGpsAlertCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> ArchiveGpsAlertAsync(ArchiveGpsAlertCommand request, CancellationToken cancellationToken = default);

@@ -290,9 +290,14 @@ export class AssignmentBoardComponent implements OnInit {
     }
 
     const currentAssignee = this.vehicleAssignees()[String(vehicleId)];
-    if (currentAssignee) {
+    const transferWarnings = this.validationIssues().filter(i =>
+      i.severity === 'Warning' && (i.code === 'DriverConflict' || i.code === 'VehicleConflict'));
+    if (currentAssignee || transferWarnings.length) {
+      const detail = currentAssignee
+        ? `This vehicle is assigned to ${currentAssignee}.`
+        : transferWarnings.map(i => i.message).join(' ');
       const proceed = window.confirm(
-        `This vehicle is assigned to ${currentAssignee}. Reassigning will transfer the vehicle. Continue?`
+        `${detail} Reassigning will transfer the active assignment. Continue?`
       );
       if (!proceed) return;
     }
