@@ -29,17 +29,17 @@ export function buildDriverAssignOptions(
   opts?: { includeBlocked?: boolean }
 ): UiSelectOption[] {
   const includeBlocked = opts?.includeBlocked ?? true;
-  return drivers
-    .map(driver => {
-      const block = driverAssignBlockReason(driver);
-      if (block && !includeBlocked) return null;
-      return {
-        value: String(driver.id),
-        label: block
-          ? `${driver.fullName} (${driver.phone}) — ${block}`
-          : `${driver.fullName} (${driver.phone})`,
-        disabled: !!block
-      } satisfies UiSelectOption;
-    })
-    .filter((option): option is UiSelectOption => option != null);
+  // flatMap avoids (T | null)[] + type-predicate mismatch with UiSelectOption.disabled?: boolean
+  return drivers.flatMap(driver => {
+    const block = driverAssignBlockReason(driver);
+    if (block && !includeBlocked) return [];
+    const option: UiSelectOption = {
+      value: String(driver.id),
+      label: block
+        ? `${driver.fullName} (${driver.phone}) — ${block}`
+        : `${driver.fullName} (${driver.phone})`,
+      disabled: !!block
+    };
+    return [option];
+  });
 }
