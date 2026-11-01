@@ -77,6 +77,34 @@ public class GpsFleetStatusBucketsTests
     }
 
     [Fact]
+    public void No_tracker_is_offline_even_with_fresh_orphan_location()
+    {
+        var bucket = GpsFleetStatusBuckets.Classify(
+            hasGpsDevice: false,
+            lastUpdateUtc: Now.AddMinutes(-1),
+            speedKmh: 55,
+            ignition: true,
+            alarmType: null,
+            utcNow: Now);
+
+        Assert.Equal("offline", bucket);
+    }
+
+    [Fact]
+    public void No_tracker_and_no_location_is_offline()
+    {
+        var bucket = GpsFleetStatusBuckets.Classify(
+            hasGpsDevice: false,
+            lastUpdateUtc: null,
+            speedKmh: null,
+            ignition: null,
+            alarmType: null,
+            utcNow: Now);
+
+        Assert.Equal("offline", bucket);
+    }
+
+    [Fact]
     public void Ignition_off_low_drift_is_parked()
     {
         var bucket = GpsFleetStatusBuckets.Classify(

@@ -14,7 +14,8 @@ namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 /// <summary>
 /// Local fleet KPI buckets aligned with frontend <c>resolveFleetStatus</c> /
 /// <see cref="GpsFleetStatusBuckets"/>.
-/// Online = Moving + Idle + Parked + Sos + Unknown.
+/// Online = Moving + Idle + Parked + Sos + Unknown for vehicles with a live GpsDevice only.
+/// Vehicles without an assigned (non-deleted) tracker are Offline — never Online via orphan VCL.
 /// Ignition uses COALESCE(vcl.Ignition, gd.LastIgnition) — same as live fleet.
 /// </summary>
 public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
@@ -27,10 +28,11 @@ public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
             : string.Join(", ", sosAlarmValues.Select((_, i) => $"@Sos{i}"));
 
         // Ignition matches live fleet: COALESCE(VCL, device LastIgnition).
+        // gd join is IsDeleted=0 — no live device means Offline (not Online via orphan VCL).
         return $"""
             CASE
-              WHEN vcl.VehicleId IS NULL THEN
-                CASE WHEN v.GpsDeviceId IS NOT NULL THEN 'never_seen' ELSE 'offline' END
+              WHEN gd.Id IS NULL THEN 'offline'
+              WHEN vcl.VehicleId IS NULL THEN 'never_seen'
               WHEN DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) > @OfflineStaleMinutes THEN 'offline'
               WHEN LOWER(LTRIM(RTRIM(ISNULL(vcl.AlarmType, '')))) IN ({sosIn}) THEN 'sos'
               WHEN COALESCE(vcl.Ignition, gd.LastIgnition) = 0

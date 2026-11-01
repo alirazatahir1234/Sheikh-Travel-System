@@ -25,9 +25,12 @@ FleetTrackStatus resolveFleetStatus({
   String? alarmType,
   DateTime? now,
 }) {
+  // No tracker assigned — never Online (orphan VCL coords must not inflate KPIs).
+  if (!hasGps) return FleetTrackStatus.offline;
+
   if (isSosAlarm(alarmType)) return FleetTrackStatus.sos;
 
-  if (!hasGps || lastUpdated == null) return FleetTrackStatus.neverSeen;
+  if (lastUpdated == null) return FleetTrackStatus.neverSeen;
 
   final ageMs = (now ?? DateTime.now()).difference(lastUpdated).inMilliseconds;
   if (ageMs.isNaN || ageMs > offlineStaleMs) return FleetTrackStatus.offline;
@@ -64,17 +67,21 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
           '')
       .trim();
 
-  final status = hasCoords
-      ? resolveFleetStatus(
-          speed: speed,
-          ignition: ignition,
-          lastUpdated: lastUpdated,
-          hasGps: true,
-          alarmType: alarmType,
-        )
-      : (hasGpsDevice
-          ? FleetTrackStatus.neverSeen
-          : FleetTrackStatus.offline);
+  // Online requires a live tracker — leftover coords without a device stay Offline.
+  final FleetTrackStatus status;
+  if (!hasGpsDevice) {
+    status = FleetTrackStatus.offline;
+  } else if (hasCoords) {
+    status = resolveFleetStatus(
+      speed: speed,
+      ignition: ignition,
+      lastUpdated: lastUpdated,
+      hasGps: true,
+      alarmType: alarmType,
+    );
+  } else {
+    status = FleetTrackStatus.neverSeen;
+  }
 
   return FleetVehicleLocation(
     vehicleId: vehicleId,
@@ -90,7 +97,7 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
     driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
     driverPhone:
         json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
-    hasGps: hasCoords || hasGpsDevice,
+    hasGps: hasGpsDevice && hasCoords,
     ignition: ignition,
     heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
     batteryLevel:
@@ -118,7 +125,9 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
 
   return vehicles.where((v) => !v.isRetired).map((v) {
     final livePos = liveByVehicle[v.id];
-    if (livePos != null && _validCoords(livePos.latitude, livePos.longitude)) {
+    if (v.hasGpsDevice &&
+        livePos != null &&
+        _validCoords(livePos.latitude, livePos.longitude)) {
       final status = resolveFleetStatus(
         speed: livePos.speed,
         ignition: livePos.ignition,
@@ -151,7 +160,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
 
     final lat = v.locationLatitude;
     final lng = v.locationLongitude;
-    if (_validCoords(lat, lng)) {
+    if (v.hasGpsDevice && _validCoords(lat, lng)) {
       final lastUpdated = v.locationLastUpdate;
       final status = lastUpdated != null
           ? resolveFleetStatus(
@@ -209,11 +218,14 @@ List<FleetVehicleLocation> applyLiveUpdate(
   }
   if (!_validCoords(update.latitude, update.longitude)) return current;
 
+  // Do not promote tracker-less vehicles to Online via SignalR.
+  final hasTracker =
+      existing.hasGps || existing.status == FleetTrackStatus.neverSeen;
   final status = resolveFleetStatus(
     speed: update.speed,
     ignition: update.ignition,
     lastUpdated: update.timestamp,
-    hasGps: true,
+    hasGps: hasTracker,
     alarmType: update.alarmType,
   );
   final next = List<FleetVehicleLocation>.from(current);
@@ -223,6 +235,7 @@ List<FleetVehicleLocation> applyLiveUpdate(
     lastUpdated: update.timestamp,
     speed: update.speed,
     status: status,
+    hasGps: hasTracker,
     ignition: update.ignition,
     heading: update.heading,
     batteryLevel: update.batteryLevel,

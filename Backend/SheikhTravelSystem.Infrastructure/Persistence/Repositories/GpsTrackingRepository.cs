@@ -1371,7 +1371,7 @@ public sealed partial class GpsTrackingRepository(
               COALESCE(assignDrv.DriverId, vcl.DriverId) AS DriverId,
               dr.FullName AS DriverName,
               dr.Phone AS DriverPhone,
-              CASE WHEN v.GpsDeviceId IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS HasGpsDevice,
+              CASE WHEN gd.Id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS HasGpsDevice,
               vcl.Latitude,
               vcl.Longitude,
               vcl.LastUpdate AS LastUpdated,

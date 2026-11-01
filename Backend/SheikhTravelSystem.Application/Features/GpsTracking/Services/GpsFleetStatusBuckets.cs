@@ -11,7 +11,9 @@ public static class GpsFleetStatusBuckets
 
     /// <summary>
     /// Connectivity first, then operational when online:
-    /// never_seen → offline → sos → parked → unknown → moving → idle → parked.
+    /// no tracker → offline; never_seen → offline → sos → parked → unknown → moving → idle → parked.
+    /// Online buckets require an assigned live GPS device — orphan VehicleCurrentLocation
+    /// rows must not inflate Online KPIs.
     /// </summary>
     /// <param name="motion">
     /// Optional Traccar <c>attributes.motion</c>. When false at low speed, classify as
@@ -34,8 +36,13 @@ public static class GpsFleetStatusBuckets
             ? sosAlarmValues
             : (IReadOnlyCollection<string>)["sos", "panic"];
 
+        // No tracker installed (or device row missing/deleted) — never Online,
+        // even when leftover VCL coordinates exist.
+        if (!hasGpsDevice)
+            return "offline";
+
         if (lastUpdateUtc is null)
-            return hasGpsDevice ? "never_seen" : "offline";
+            return "never_seen";
 
         var ageMinutes = (utcNow - lastUpdateUtc.Value).TotalMinutes;
         if (ageMinutes > offlineStaleMinutes)

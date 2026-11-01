@@ -16,6 +16,7 @@ bool isSosAlarm(String? alarmType, [List<String> sosValues = defaultSosAlarmValu
 
 /// Single source of truth for deriving a live-map vehicle status from telemetry.
 /// Priority when online: SOS → Moving (>5) → Parked (ignition off) → Idle.
+/// Online requires an assigned tracker — orphan locations must not count as Online.
 FleetTrackStatus resolveFleetStatus({
   double? speed,
   bool? ignition,
@@ -24,9 +25,11 @@ FleetTrackStatus resolveFleetStatus({
   String? alarmType,
   DateTime? now,
 }) {
+  if (!hasGps) return FleetTrackStatus.offline;
+
   if (isSosAlarm(alarmType)) return FleetTrackStatus.sos;
 
-  if (!hasGps || lastUpdated == null) return FleetTrackStatus.neverSeen;
+  if (lastUpdated == null) return FleetTrackStatus.neverSeen;
 
   final ageMs = (now ?? DateTime.now()).difference(lastUpdated).inMilliseconds;
   if (ageMs.isNaN || ageMs > offlineStaleMs) return FleetTrackStatus.offline;
@@ -45,7 +48,9 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
 
   return vehicles.where((v) => !v.isRetired).map((v) {
     final livePos = liveByVehicle[v.id];
-    if (livePos != null && _validCoords(livePos.latitude, livePos.longitude)) {
+    if (v.hasGpsDevice &&
+        livePos != null &&
+        _validCoords(livePos.latitude, livePos.longitude)) {
       final status = resolveFleetStatus(
         speed: livePos.speed,
         ignition: livePos.ignition,
@@ -77,7 +82,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
 
     final lat = v.locationLatitude;
     final lng = v.locationLongitude;
-    if (_validCoords(lat, lng)) {
+    if (v.hasGpsDevice && _validCoords(lat, lng)) {
       final lastUpdated = v.locationLastUpdate;
       final status = lastUpdated != null
           ? resolveFleetStatus(
@@ -133,11 +138,14 @@ List<FleetVehicleLocation> applyLiveUpdate(
   }
   if (!_validCoords(update.latitude, update.longitude)) return current;
 
+  // Do not promote tracker-less vehicles to Online via SignalR.
+  final hasTracker =
+      existing.hasGps || existing.status == FleetTrackStatus.neverSeen;
   final status = resolveFleetStatus(
     speed: update.speed,
     ignition: update.ignition,
     lastUpdated: update.timestamp,
-    hasGps: true,
+    hasGps: hasTracker,
     alarmType: update.alarmType,
   );
   final next = List<FleetVehicleLocation>.from(current);
@@ -147,6 +155,7 @@ List<FleetVehicleLocation> applyLiveUpdate(
     lastUpdated: update.timestamp,
     speed: update.speed,
     status: status,
+    hasGps: hasTracker,
     ignition: update.ignition,
     heading: update.heading,
     batteryLevel: update.batteryLevel,

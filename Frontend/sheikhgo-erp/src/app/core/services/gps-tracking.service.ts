@@ -238,6 +238,33 @@ export class GpsTrackingService {
       trackerName: row.trackerName ?? undefined,
       relayOutput: row.relayOutput ?? undefined
     };
+    const base = {
+      vehicleId: row.vehicleId,
+      vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
+      registrationNumber: row.registrationNumber ?? '',
+      driverName: row.driverName ?? undefined,
+      vehicleType: row.vehicleType ?? undefined,
+      ...trackerFields
+    };
+
+    // No live tracker assigned — never Online, even if orphan VCL coords exist (e.g. MG ZS EV).
+    if (!row.hasGpsDevice) {
+      return {
+        ...base,
+        latitude: hasCoords ? lat! : 0,
+        longitude: hasCoords ? lng! : 0,
+        lastUpdated: hasCoords ? lastUpdated : '',
+        speed: hasCoords ? speed : 0,
+        status: (row.vehicleStatus === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus,
+        hasGps: false,
+        routeHint: 'No GPS signal',
+        ignition: row.ignition ?? undefined,
+        heading: row.heading ?? undefined,
+        address: row.address ?? undefined,
+        driverPhone: row.driverPhone ?? undefined,
+        bookingId: row.bookingId ?? undefined
+      };
+    }
 
     if (hasCoords) {
       const status = lastUpdated
@@ -250,15 +277,12 @@ export class GpsTrackingService {
           })
         : 'offline';
       return {
-        vehicleId: row.vehicleId,
-        vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
-        registrationNumber: row.registrationNumber ?? '',
+        ...base,
         latitude: lat!,
         longitude: lng!,
         lastUpdated,
         speed,
         status,
-        driverName: row.driverName ?? undefined,
         hasGps: true,
         isLive: this.isRecentTelemetry(lastUpdated),
         routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, speed),
@@ -271,32 +295,21 @@ export class GpsTrackingService {
         address: row.address ?? undefined,
         alarmType: row.alarmType ?? undefined,
         temperature: row.temperature ?? undefined,
-        vehicleType: row.vehicleType ?? undefined,
         driverPhone: row.driverPhone ?? undefined,
-        bookingId: row.bookingId ?? undefined,
-        ...trackerFields
+        bookingId: row.bookingId ?? undefined
       };
     }
 
-    const status: FleetTrackStatus = row.hasGpsDevice
-      ? 'never_seen'
-      : ((row.vehicleStatus === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus);
-
+    // Tracker assigned but no fix yet — Never Seen (grid only; map markers need coords).
     return {
-      vehicleId: row.vehicleId,
-      vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
-      registrationNumber: row.registrationNumber ?? '',
+      ...base,
       latitude: 0,
       longitude: 0,
       lastUpdated: '',
       speed: 0,
-      status,
-      driverName: row.driverName ?? undefined,
-      // No fix yet — grid shows Never Seen / Offline; map markers require coords + hasGps.
+      status: 'never_seen',
       hasGps: false,
-      routeHint: row.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal',
-      vehicleType: row.vehicleType ?? undefined,
-      ...trackerFields
+      routeHint: 'Awaiting GPS signal'
     };
   }
 
@@ -333,7 +346,8 @@ export class GpsTrackingService {
             };
 
             const live = liveByVehicle.get(v.id);
-            if (live && this.hasValidCoords(live.latitude, live.longitude)) {
+            const hasTracker = !!v.hasGpsDevice || !!tracker;
+            if (live && this.hasValidCoords(live.latitude, live.longitude) && hasTracker) {
               const status = resolveFleetStatus({
                 speed: Number(live.speed) || 0,
                 ignition: live.ignition,
@@ -372,7 +386,7 @@ export class GpsTrackingService {
 
             const lat = this.toCoord(v.locationLatitude);
             const lng = this.toCoord(v.locationLongitude);
-            if (this.hasValidCoords(lat, lng)) {
+            if (this.hasValidCoords(lat, lng) && hasTracker) {
               const lastUpdated = v.locationLastUpdate ?? '';
               // A snapshot position exists, so this vehicle has a marker — never fall through to
               // resolveFleetStatus's "never_seen" (that's reserved for vehicles with no fix at all).
@@ -398,13 +412,25 @@ export class GpsTrackingService {
               };
             }
 
-            // No live cache row and no last-known snapshot: a tracker that's assigned but has
-            // never reported a fix is "Never Seen" (appears in the grid, no map marker); a
-            // vehicle with no tracker at all keeps the previous scheduled/offline hint.
-            const status: FleetTrackStatus = v.hasGpsDevice
-              ? 'never_seen'
-              : ((v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus);
+            if (!hasTracker) {
+              return {
+                vehicleId: v.id,
+                vehicleName: v.name ?? `Vehicle #${v.id}`,
+                registrationNumber: v.registrationNumber ?? '',
+                latitude: 0,
+                longitude: 0,
+                lastUpdated: '',
+                speed: 0,
+                status: (v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus,
+                driverName: v.driverName ?? undefined,
+                hasGps: false,
+                routeHint: 'No GPS signal',
+                vehicleType: v.vehicleType,
+                ...trackerFields
+              };
+            }
 
+            // Tracker assigned but no live cache / snapshot fix yet.
             return {
               vehicleId: v.id,
               vehicleName: v.name ?? `Vehicle #${v.id}`,
@@ -413,10 +439,10 @@ export class GpsTrackingService {
               longitude: 0,
               lastUpdated: '',
               speed: 0,
-              status,
+              status: 'never_seen' as FleetTrackStatus,
               driverName: v.driverName ?? undefined,
               hasGps: false,
-              routeHint: v.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal',
+              routeHint: 'Awaiting GPS signal',
               vehicleType: v.vehicleType,
               ...trackerFields
             };

@@ -3073,15 +3073,22 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return false;
     }
 
+    const prev = this.locations[idx];
+    // Vehicles without an assigned tracker must never be promoted to Online by SignalR.
+    // never_seen already implies a live device was assigned (awaiting first fix).
+    const hasTracker =
+      !!prev.hasGps ||
+      !!prev.imei ||
+      !!prev.trackerName ||
+      prev.status === 'never_seen';
     const speed = Number(update.speed) || 0;
     const status = resolveFleetStatus({
       speed,
       ignition: update.ignition,
       lastUpdated: update.timestamp,
-      hasGps: true,
+      hasGps: hasTracker,
       alarmType: update.alarmType
     });
-    const prev = this.locations[idx];
     // Skip no-op updates — do not touch lastSyncAt or trigger CD.
     if (
       prev.latitude === update.latitude &&
@@ -3104,8 +3111,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       speed,
       lastUpdated: update.timestamp,
       status,
-      hasGps: true,
-      isLive: true,
+      hasGps: hasTracker,
+      isLive: hasTracker,
       ignition: update.ignition,
       heading: update.heading,
       fuelLevel: update.fuelLevel,

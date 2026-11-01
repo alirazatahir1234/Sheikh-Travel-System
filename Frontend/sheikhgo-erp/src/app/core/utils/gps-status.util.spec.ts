@@ -45,10 +45,19 @@ describe('resolveFleetStatus', () => {
     ).toBe('offline');
   });
 
-  it('no GPS ever → never_seen', () => {
+  it('no tracker assigned → offline (even with leftover coords/timestamp)', () => {
     expect(
       resolveFleetStatus({ hasGps: false, lastUpdated: null, speed: 0 }, nowMs)
-    ).toBe('never_seen');
+    ).toBe('offline');
+    expect(
+      resolveFleetStatus(
+        { hasGps: false, lastUpdated: fresh, speed: 55, ignition: true },
+        nowMs
+      )
+    ).toBe('offline');
+  });
+
+  it('tracker assigned but no fix yet → never_seen', () => {
     expect(
       resolveFleetStatus({ hasGps: true, lastUpdated: null, speed: 0 }, nowMs)
     ).toBe('never_seen');

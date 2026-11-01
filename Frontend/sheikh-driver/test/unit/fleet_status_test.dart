@@ -26,6 +26,19 @@ void main() {
       );
     });
 
+    test('offline when no tracker even with fresh coords', () {
+      expect(
+        resolveFleetStatus(
+          speed: 55,
+          ignition: true,
+          lastUpdated: now,
+          hasGps: false,
+          now: now,
+        ),
+        FleetTrackStatus.offline,
+      );
+    });
+
     test('offline when stale', () {
       expect(
         resolveFleetStatus(
@@ -107,6 +120,24 @@ void main() {
         ),
         FleetTrackStatus.parked,
       );
+    });
+  });
+
+  group('mapLiveFleetRow', () {
+    test('vehicle without tracker stays offline despite coords', () {
+      final row = mapLiveFleetRow({
+        'vehicleId': 2004,
+        'vehicleName': 'MG ZS EV',
+        'registrationNumber': 'EV-DEMO-002',
+        'hasGpsDevice': false,
+        'latitude': 25.5,
+        'longitude': 68.0,
+        'lastUpdated': '2026-07-21T12:00:00Z',
+        'speed': 55,
+        'ignition': true,
+      });
+      expect(row.status, FleetTrackStatus.offline);
+      expect(row.hasGps, isFalse);
     });
   });
 

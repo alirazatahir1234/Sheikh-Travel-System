@@ -6,7 +6,11 @@ export interface GpsStatusInput {
   ignition?: boolean | null;
   /** ISO timestamp of the most recent telemetry ever received for this vehicle, if any. */
   lastUpdated?: string | null;
-  /** False when the vehicle has no GPS-capable tracker assigned at all. */
+  /**
+   * False when the vehicle has no GPS-capable tracker assigned at all.
+   * Must be false for tracker-less vehicles even if leftover lat/lng exist —
+   * otherwise Online KPIs include cars like MG ZS EV with no tracker installed.
+   */
   hasGps?: boolean;
   alarmType?: string | null;
 }
@@ -59,7 +63,12 @@ export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFA
  * Backend also forces ignition OFF when Traccar motion=false (stuck ACC on Jimi/GT06).
  */
 export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.now()): FleetTrackStatus {
-  if (!input.hasGps || !input.lastUpdated) {
+  // No tracker assigned — never Online (orphan VCL coords must not inflate KPIs).
+  if (input.hasGps === false) {
+    return 'offline';
+  }
+
+  if (!input.lastUpdated) {
     return 'never_seen';
   }
 
