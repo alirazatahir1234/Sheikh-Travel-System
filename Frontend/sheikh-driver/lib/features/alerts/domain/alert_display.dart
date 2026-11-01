@@ -609,17 +609,12 @@ class AlertsFeedSummary {
     var closed = 0;
     for (final e in events) {
       if (!e.isAcknowledged && e.isOpen) unacked++;
-      if (e.isResolved || e.isArchived) {
-        closed++;
-        continue;
-      }
-      final d = alertDisplaySeverity(e);
-      if (d == AlertDisplaySeverity.critical ||
-          e.severity.toLowerCase() == 'critical') {
+      if (e.isResolved || e.isArchived) closed++;
+      // Always bucket by underlying severity so Resolved-tab chips stay useful.
+      final d = alertSeverityBucket(e);
+      if (d == AlertDisplaySeverity.critical) {
         critical++;
-      } else if (d == AlertDisplaySeverity.warning ||
-          e.severity.toLowerCase() == 'high' ||
-          e.severity.toLowerCase() == 'medium') {
+      } else if (d == AlertDisplaySeverity.warning) {
         warning++;
       } else {
         info++;
@@ -737,6 +732,55 @@ String formatAlertRelativeTime(DateTime utcOrLocal) {
   if (d.inHours < 24) return '${d.inHours}h ago';
   if (d.inDays < 7) return '${d.inDays}d ago';
   return '${local.day}/${local.month}';
+}
+
+/// Verbose relative time for Fleet Alerts cards (mockup copy).
+String formatAlertRelativeTimeVerbose(DateTime utcOrLocal) {
+  final local = utcOrLocal.toLocal();
+  final d = DateTime.now().difference(local);
+  if (d.inSeconds < 60) return 'Just now';
+  if (d.inMinutes == 1) return '1 minute ago';
+  if (d.inMinutes < 60) return '${d.inMinutes} minutes ago';
+  if (d.inHours == 1) return '1 hour ago';
+  if (d.inHours < 24) return '${d.inHours} hours ago';
+  if (d.inDays == 1) return '1 day ago';
+  if (d.inDays < 7) return '${d.inDays} days ago';
+  return '${local.day}/${local.month}/${local.year}';
+}
+
+/// Severity bucket for Critical / Warning / Info filter chips.
+AlertDisplaySeverity alertSeverityBucket(GpsAlertEvent event) {
+  final meta = alertTypeMeta(event.eventType);
+  if (meta.severity == AlertDisplaySeverity.critical) {
+    return AlertDisplaySeverity.critical;
+  }
+  final api = event.severity.toLowerCase();
+  if (api == 'critical') return AlertDisplaySeverity.critical;
+  if (api == 'high' ||
+      api == 'medium' ||
+      meta.severity == AlertDisplaySeverity.warning) {
+    return AlertDisplaySeverity.warning;
+  }
+  if (api == 'low' || meta.severity == AlertDisplaySeverity.info) {
+    return AlertDisplaySeverity.info;
+  }
+  return _severityFromApiBucket(event.severity);
+}
+
+String alertLocationLabel(GpsAlertEvent event) {
+  final geofence = event.geofenceName?.trim();
+  if (geofence != null && geofence.isNotEmpty) return geofence;
+  if (event.latitude != 0 || event.longitude != 0) {
+    return '${event.latitude.toStringAsFixed(3)}, '
+        '${event.longitude.toStringAsFixed(3)}';
+  }
+  return 'Location unavailable';
+}
+
+/// True when the incident belongs on the Resolved tab.
+bool alertIncidentIsResolved(AlertIncident incident) {
+  final e = incident.primary;
+  return e.isResolved || e.isArchived || incident.recovered;
 }
 
 List<({String label, DateTime at, AlertDisplaySeverity severity})>

@@ -12,11 +12,15 @@ import 'alerts_simulator.dart';
 
 enum FleetAlertSort { newest, oldest }
 
+enum FleetAlertStatusTab { active, resolved }
+
 class AlertsState {
   const AlertsState({
     this.stats = GpsAlertStats.empty,
     this.events = const [],
     this.demoEvents = const [],
+    this.statusTab = FleetAlertStatusTab.active,
+    this.severityFilters = const {},
     this.chip = FleetAlertChip.all,
     this.unacknowledgedOnly = false,
     this.searchQuery = '',
@@ -34,6 +38,8 @@ class AlertsState {
   final GpsAlertStats stats;
   final List<GpsAlertEvent> events;
   final List<GpsAlertEvent> demoEvents;
+  final FleetAlertStatusTab statusTab;
+  final Set<AlertDisplaySeverity> severityFilters;
   final FleetAlertChip chip;
   final bool unacknowledgedOnly;
   final String searchQuery;
@@ -64,9 +70,17 @@ class AlertsState {
 
   List<AlertIncident> get incidents => groupAlertIncidents(mergedEvents);
 
+  /// Incidents for the Active / Resolved tab (before severity filter).
+  List<AlertIncident> get statusScopedIncidents {
+    return incidents.where((inc) {
+      final resolved = alertIncidentIsResolved(inc);
+      return statusTab == FleetAlertStatusTab.resolved ? resolved : !resolved;
+    }).toList();
+  }
+
   List<AlertIncident> get visibleIncidents {
-    return incidents
-        .where(_matchesChip)
+    return statusScopedIncidents
+        .where(_matchesSeverityFilters)
         .where(_matchesUnacked)
         .where(_matchesSearch)
         .toList();
@@ -77,6 +91,13 @@ class AlertsState {
 
   List<AlertIncident> get groupedIncidents =>
       visibleIncidents.where((i) => i.isGrouped).toList();
+
+  /// Severity counts for the current status tab (ignores selected filters).
+  AlertsFeedSummary get tabSeveritySummary {
+    return AlertsFeedSummary.fromEvents(
+      statusScopedIncidents.map((i) => i.primary).toList(),
+    );
+  }
 
   AlertsFeedSummary get feedSummary {
     if (stats.total > 0 ||
@@ -90,7 +111,7 @@ class AlertsState {
 
   int get activeFilterCount {
     var n = 0;
-    if (chip != FleetAlertChip.all) n++;
+    if (severityFilters.isNotEmpty) n++;
     if (datePreset != 'today') n++;
     if (sort != FleetAlertSort.newest) n++;
     if (searchQuery.trim().isNotEmpty) n++;
@@ -99,25 +120,14 @@ class AlertsState {
     return n;
   }
 
+  bool get hasSeverityFilters => severityFilters.isNotEmpty;
+
   bool isDemo(int id) => demoEvents.any((e) => e.id == id);
 
-  bool _matchesChip(AlertIncident inc) {
-    final e = inc.primary;
-    return switch (chip) {
-      FleetAlertChip.all => true,
-      FleetAlertChip.critical =>
-        alertDisplaySeverity(e) == AlertDisplaySeverity.critical ||
-            e.severity.toLowerCase() == 'critical',
-      FleetAlertChip.warning =>
-        alertDisplaySeverity(e) == AlertDisplaySeverity.warning ||
-            e.severity.toLowerCase() == 'high' ||
-            e.severity.toLowerCase() == 'medium',
-      FleetAlertChip.info =>
-        alertDisplaySeverity(e) == AlertDisplaySeverity.info ||
-            e.severity.toLowerCase() == 'low',
-      FleetAlertChip.acknowledged => e.isAcknowledged && !e.isResolved,
-      FleetAlertChip.resolved => e.isResolved || e.isArchived,
-    };
+  bool _matchesSeverityFilters(AlertIncident inc) {
+    if (severityFilters.isEmpty) return true;
+    final bucket = alertSeverityBucket(inc.primary);
+    return severityFilters.contains(bucket);
   }
 
   bool _matchesUnacked(AlertIncident inc) {
@@ -131,26 +141,17 @@ class AlertsState {
     return inc.allEvents.any((e) => alertMatchesSearch(e, q));
   }
 
-  String? get apiSeverityGroup => switch (chip) {
-        FleetAlertChip.critical => 'critical',
-        FleetAlertChip.warning => 'warning',
-        FleetAlertChip.info => 'info',
-        _ => null,
+  String? get apiStatus => switch (statusTab) {
+        FleetAlertStatusTab.resolved => 'resolved',
+        FleetAlertStatusTab.active => null,
       };
-
-  String? get apiStatus => switch (chip) {
-        FleetAlertChip.acknowledged => 'acknowledged',
-        FleetAlertChip.resolved => 'resolved',
-        _ => null,
-      };
-
-  bool? get apiUnacknowledgedOnly =>
-      chip == FleetAlertChip.all ? null : null;
 
   AlertsState copyWith({
     GpsAlertStats? stats,
     List<GpsAlertEvent>? events,
     List<GpsAlertEvent>? demoEvents,
+    FleetAlertStatusTab? statusTab,
+    Set<AlertDisplaySeverity>? severityFilters,
     FleetAlertChip? chip,
     bool? unacknowledgedOnly,
     String? searchQuery,
@@ -167,11 +168,16 @@ class AlertsState {
     bool clearVehicleId = false,
     bool clearLoadError = false,
     bool clearSelection = false,
+    bool clearSeverityFilters = false,
   }) {
     return AlertsState(
       stats: stats ?? this.stats,
       events: events ?? this.events,
       demoEvents: demoEvents ?? this.demoEvents,
+      statusTab: statusTab ?? this.statusTab,
+      severityFilters: clearSeverityFilters
+          ? const {}
+          : (severityFilters ?? this.severityFilters),
       chip: chip ?? this.chip,
       unacknowledgedOnly: unacknowledgedOnly ?? this.unacknowledgedOnly,
       searchQuery: searchQuery ?? this.searchQuery,
@@ -203,6 +209,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
   }
 
   Future<AlertsState> _load({
+    FleetAlertStatusTab? statusTab,
+    Set<AlertDisplaySeverity>? severityFilters,
     FleetAlertChip? chip,
     bool? unacknowledgedOnly,
     String? datePreset,
@@ -214,16 +222,25 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     bool append = false,
     bool clearEventType = false,
     bool clearVehicleId = false,
+    bool clearSeverityFilters = false,
   }) async {
     if (!ref.read(authRepositoryProvider).isLoggedIn) {
       return const AlertsState();
     }
     final api = ref.read(gpsAlertsApiProvider);
     final prev = state.valueOrNull;
+    final selectedTab =
+        statusTab ?? prev?.statusTab ?? FleetAlertStatusTab.active;
+    final selectedFilters = clearSeverityFilters
+        ? <AlertDisplaySeverity>{}
+        : (severityFilters ?? prev?.severityFilters ?? const {});
     final selectedChip = chip ?? prev?.chip ?? FleetAlertChip.all;
     final selectedUnacked =
         unacknowledgedOnly ?? prev?.unacknowledgedOnly ?? false;
-    final selectedDate = datePreset ?? prev?.datePreset ?? 'today';
+    // Resolved history often needs a wider window than "today".
+    final selectedDate = datePreset ??
+        prev?.datePreset ??
+        (selectedTab == FleetAlertStatusTab.resolved ? 'last30' : 'today');
     final selectedSort = sort ?? prev?.sort ?? FleetAlertSort.newest;
     final selectedSearch = searchQuery ?? prev?.searchQuery ?? '';
     final selectedEventType =
@@ -234,6 +251,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     final apiDatePreset = selectedDate == 'all' ? null : selectedDate;
 
     final draft = AlertsState(
+      statusTab: selectedTab,
+      severityFilters: selectedFilters,
       chip: selectedChip,
       unacknowledgedOnly: selectedUnacked,
       datePreset: selectedDate,
@@ -255,7 +274,6 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
 
     final events = await api.listEvents(
       status: draft.apiStatus,
-      severityGroup: draft.apiSeverityGroup,
       unacknowledgedOnly: selectedUnacked ? true : null,
       datePreset: apiDatePreset,
       search: selectedSearch.trim().isEmpty ? null : selectedSearch,
@@ -274,6 +292,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
       stats: stats,
       events: merged,
       demoEvents: kDebugMode ? (prev?.demoEvents ?? const []) : const [],
+      statusTab: selectedTab,
+      severityFilters: selectedFilters,
       chip: selectedChip,
       unacknowledgedOnly: selectedUnacked,
       searchQuery: selectedSearch,
@@ -315,12 +335,66 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     });
   }
 
-  Future<void> setChip(FleetAlertChip chip) =>
-      _run(() => _load(chip: chip, unacknowledgedOnly: false, page: 1));
+  /// Switch Active / Resolved — reloads from API; keeps severity filters.
+  Future<void> setStatusTab(FleetAlertStatusTab tab) async {
+    final cur = state.valueOrNull;
+    if (cur != null && cur.statusTab == tab) return;
+    final datePreset = tab == FleetAlertStatusTab.resolved &&
+            (cur?.datePreset == 'today' || cur == null)
+        ? 'last30'
+        : null;
+    await _run(() => _load(
+          statusTab: tab,
+          datePreset: datePreset,
+          page: 1,
+        ));
+  }
+
+  /// Local-only severity filter toggle (no API round-trip).
+  void toggleSeverityFilter(AlertDisplaySeverity severity) {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    if (severity == AlertDisplaySeverity.resolved) return;
+    final next = {...cur.severityFilters};
+    if (!next.add(severity)) next.remove(severity);
+    state = AsyncData(cur.copyWith(severityFilters: next));
+  }
+
+  void clearSeverityFilters() {
+    final cur = state.valueOrNull;
+    if (cur == null || cur.severityFilters.isEmpty) return;
+    state = AsyncData(cur.copyWith(clearSeverityFilters: true));
+  }
+
+  Future<void> setChip(FleetAlertChip chip) async {
+    // Legacy path — map chip to status / severity filters.
+    if (chip == FleetAlertChip.resolved) {
+      await setStatusTab(FleetAlertStatusTab.resolved);
+      return;
+    }
+    final cur = state.valueOrNull;
+    if (cur != null && cur.statusTab != FleetAlertStatusTab.active) {
+      await setStatusTab(FleetAlertStatusTab.active);
+    }
+    final mapped = switch (chip) {
+      FleetAlertChip.critical => {AlertDisplaySeverity.critical},
+      FleetAlertChip.warning => {AlertDisplaySeverity.warning},
+      FleetAlertChip.info => {AlertDisplaySeverity.info},
+      _ => <AlertDisplaySeverity>{},
+    };
+    final latest = state.valueOrNull;
+    if (latest == null) return;
+    state = AsyncData(
+      latest.copyWith(
+        chip: chip,
+        severityFilters: mapped,
+        unacknowledgedOnly: false,
+      ),
+    );
+  }
 
   Future<void> setUnacknowledgedOnly(bool value) =>
       _run(() => _load(
-            chip: FleetAlertChip.all,
             unacknowledgedOnly: value,
             page: 1,
           ));
@@ -355,21 +429,26 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
         chip: FleetAlertChip.all,
         unacknowledgedOnly: false,
         searchQuery: '',
-        datePreset: 'today',
+        datePreset: cur.statusTab == FleetAlertStatusTab.resolved
+            ? 'last30'
+            : 'today',
         sort: FleetAlertSort.newest,
         clearEventType: true,
         clearVehicleId: true,
         clearSelection: true,
+        clearSeverityFilters: true,
       ),
     );
     await _run(() => _load(
-          chip: FleetAlertChip.all,
           unacknowledgedOnly: false,
-          datePreset: 'today',
+          datePreset: cur.statusTab == FleetAlertStatusTab.resolved
+              ? 'last30'
+              : 'today',
           sort: FleetAlertSort.newest,
           searchQuery: '',
           clearEventType: true,
           clearVehicleId: true,
+          clearSeverityFilters: true,
           page: 1,
         ));
   }
