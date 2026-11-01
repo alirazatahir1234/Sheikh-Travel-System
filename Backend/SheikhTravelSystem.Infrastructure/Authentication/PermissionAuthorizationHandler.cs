@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using SheikhTravelSystem.Application.Common;
 
@@ -67,7 +68,31 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
+        // Attendance / driver roster: management roles match mobile SettingsAccess gates when
+        // JWT permission claims lag RolePermissions seed (do not strip RequirePermission).
+        if (IsDriverOpsRoleBypass(context.User, requirement.Permission))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// TENANT_ADMIN / OWNER / FLEET_MANAGER / DRIVER_MANAGER may view or correct attendance
+    /// when they hold the matching management role even if Driver.View / Driver.Update claims
+    /// were omitted from an older token.
+    /// </summary>
+    private static bool IsDriverOpsRoleBypass(ClaimsPrincipal user, string permission)
+    {
+        if (permission is not (DriverPermissions.DriverView or DriverPermissions.DriverUpdate))
+            return false;
+
+        return PlatformRoleClaims.HasRole(user, PlatformRoles.TenantAdmin)
+            || PlatformRoleClaims.HasRole(user, "OWNER")
+            || PlatformRoleClaims.HasRole(user, "FLEET_MANAGER")
+            || PlatformRoleClaims.HasRole(user, "DRIVER_MANAGER");
     }
 }
 
@@ -93,5 +118,19 @@ public static class PermissionPolicyRegistration
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));
         }
+
+        // Personal driver-app attendance: require authenticated driver identity.
+        // Uses PlatformRoleClaims (role / ClaimTypes.Role / primary_role, case-insensitive)
+        // instead of Authorize(Roles=…) which only checks RoleClaimType via IsInRole.
+        options.AddPolicy(AttendanceAuthPolicies.DriverSelf, policy =>
+            policy.RequireAuthenticatedUser()
+                .RequireAssertion(ctx =>
+                {
+                    var user = ctx.User;
+                    if (!PlatformRoleClaims.IsDriver(user))
+                        return false;
+                    var driverId = user.FindFirst("driver_id")?.Value;
+                    return !string.IsNullOrWhiteSpace(driverId);
+                }));
     }
 }

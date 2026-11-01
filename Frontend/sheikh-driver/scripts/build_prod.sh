@@ -20,13 +20,14 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-# Stable Azure VM HTTPS (Caddy). Do NOT default to trycloudflare quick tunnels
-# or the retired Railway host (returns HTTP 404 "Application not found").
-DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
+# Cloudflare quick tunnel HTTPS (VM: /var/lib/sheikhgo/cloudflared-quick-url.txt).
+# Do NOT default to retired Railway (HTTP 404 "Application not found") or
+# unreachable sslip.io from some client networks.
+DEFAULT_PROD_API='https://joke-rebates-titans-duties.trycloudflare.com/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 case "$API_BASE_URL" in
-  *railway.app*|*trycloudflare.com*)
-    echo "ERROR: Refusing dead/ephemeral API host: $API_BASE_URL"
+  *railway.app*|*sslip.io*)
+    echo "ERROR: Refusing retired/unreachable API host: $API_BASE_URL"
     echo "  Use: $DEFAULT_PROD_API"
     exit 1
     ;;

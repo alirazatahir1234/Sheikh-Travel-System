@@ -207,7 +207,8 @@ EOF
       fi
       TUNNEL_HOST="$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' \
         "$ENV_PROD" 2>/dev/null | head -1 || true)"
-      REWRITE_TO="${TUNNEL_HOST:-https://20-174-1-230.sslip.io}"
+      # Prefer tunnel baked into environment.prod.ts; fallback matches VM quick-url.
+      REWRITE_TO="${TUNNEL_HOST:-https://joke-rebates-titans-duties.trycloudflare.com}"
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "Rewriting baked http://20.174.1.230:5082 → ${REWRITE_TO} in build output"
         find .vercel/output/static -type f -name '*.js' -print0 \

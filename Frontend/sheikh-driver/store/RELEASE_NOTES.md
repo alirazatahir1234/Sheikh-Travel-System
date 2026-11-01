@@ -14,7 +14,7 @@
 ## 1.0.3 (build 23) — 2026-10-22
 
 ### Fixes
-- Stable production API `https://20-174-1-230.sslip.io/api` (fixes Owner login 404 from retired Railway / dead tunnel)
+- Production API `https://joke-rebates-titans-duties.trycloudflare.com/api` (Cloudflare quick tunnel; replaces unreachable sslip / retired Railway)
 - `build_prod.sh` refuses `railway.app` and `trycloudflare.com` bake-ins
 - Auth-path 404 → “Cannot reach login API…” (not generic “resource not found”)
 - Login footer shows API host for support screenshots
@@ -25,7 +25,7 @@
 
 ### Fixes
 - Login FailResponse (`success:false` + HTTP 200) no longer treated as success
-- Default production API → stable `https://20-174-1-230.sslip.io/api` (not trycloudflare)
+- Default production API → `https://joke-rebates-titans-duties.trycloudflare.com/api` (live VM quick-tunnel)
 - Release build script injects Maps key from `android/maps.properties`
 - Clearer 401 (auth paths) / 429 rate-limit messages; emulator block copy for testers
 

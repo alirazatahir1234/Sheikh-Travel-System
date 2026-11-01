@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/providers/locale_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../features/auth/data/auth_repository.dart';
@@ -56,7 +57,7 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        e.toString(),
+                        ErrorHandler.message(e),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: context.sg.textSecondary),
                       ),
@@ -81,7 +82,7 @@ class ProfileScreen extends ConsumerWidget {
             slivers: [
               const SliverToBoxAdapter(child: _ProfileAppHeader()),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _ProfileHeaderCard(
@@ -94,14 +95,14 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     if (ProfileAccess.canSeeActiveOrganization(session)) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _ActiveOrganizationCard(
                         session: session!,
                         canSwitch: ProfileAccess.canSwitchOrganization(session),
                       ),
                     ],
                     if (_hasAccountOverviewRows(profile, session)) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _AccountOverviewCard(
                         profile: profile,
                         session: session,
@@ -109,10 +110,10 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                     if (ProfileAccess.canSeeAssignedVehicle(session) &&
                         _hasAssignedVehicle(profile)) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _AssignedVehicleCard(profile: profile),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _AccountPreferencesCard(
                       session: session,
                       onPersonalInfo: () => _showPersonalInformation(
@@ -128,10 +129,10 @@ class ProfileScreen extends ConsumerWidget {
                           _showLanguageAppearanceSheet(context, ref),
                     ),
                     if (ProfileAccess.canSeeDriverOperations(session)) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _DriverOperationsCard(session: session),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _SupportAboutCard(
                       onHelp: () => context.push('/help-support'),
                       onPrivacy: () => context.push('/legal/privacy'),
@@ -143,9 +144,12 @@ class ProfileScreen extends ConsumerWidget {
                       showEnvironment:
                           SettingsAccess.canSeeEnvironmentLabel(session),
                     ),
-                    const SizedBox(height: 20),
-                    _SignOutButton(
-                      onPressed: () => _signOut(context, ref),
+                    const SizedBox(height: 16),
+                    SafeArea(
+                      top: false,
+                      child: _SignOutButton(
+                        onPressed: () => _signOut(context, ref),
+                      ),
                     ),
                   ]),
                 ),
@@ -404,116 +408,122 @@ class _ProfileHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.sg;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Platform role only in this card — org role lives under Active Organization.
     final platformRole = ProfileAccess.platformRoleLabel(session);
     final email = profile.email?.trim();
+    final displayName = profile.fullName.isNotEmpty
+        ? profile.fullName
+        : (session?.displayName ?? 'User');
     final photo = profile.photoUrl ??
         session?.companyContext?.currentUser?.avatarUrl;
+    final hasPhoto = photo != null && photo.trim().isNotEmpty;
+    final status = profile.statusName.trim();
 
-    return _ProfileCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 34,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.14),
-                backgroundImage:
-                    photo != null && photo.trim().isNotEmpty
-                        ? NetworkImage(photo)
+    return Semantics(
+      container: true,
+      label: 'Profile header for $displayName'
+          '${platformRole != null ? ', platform role $platformRole' : ''}',
+      child: _ProfileCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  label: hasPhoto
+                      ? 'Profile photo'
+                      : 'Avatar initials ${_initials(displayName)}',
+                  child: CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.14),
+                    backgroundImage:
+                        hasPhoto ? NetworkImage(photo.trim()) : null,
+                    child: !hasPhoto
+                        ? Text(
+                            _initials(displayName),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          )
                         : null,
-                child: photo == null || photo.trim().isEmpty
-                    ? Text(
-                        _initials(profile.fullName),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profile.fullName.isNotEmpty
-                          ? profile.fullName
-                          : (session?.displayName ?? 'User'),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                    if (email != null && email.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        email,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: p.textSecondary,
-                        ),
-                      ),
-                    ] else if (profile.phone.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        profile.phone,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: p.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        _StatusPill(profile.statusName),
-                        if (platformRole != null)
-                          StatusBadge(
-                            platformRole,
-                            color: AppColors.navy,
-                          ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: p.textPrimary,
+                          height: 1.25,
+                        ),
+                      ),
+                      if (email != null && email.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          email,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: p.textSecondary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ] else if (profile.phone.trim().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          profile.phone,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: p.textSecondary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      if (status.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _StatusPill(status),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (platformRole != null) ...[
+              const SizedBox(height: 10),
+              _MetaRow(
+                label: 'Platform role',
+                value: platformRole,
+                isDark: isDark,
               ),
             ],
-          ),
-          if (platformRole != null) ...[
             const SizedBox(height: 12),
-            _MetaRow(
-              label: 'Platform role',
-              value: platformRole,
-              isDark: isDark,
-            ),
-          ],
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: OutlinedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Edit profile'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(
-                  color: AppColors.primary.withValues(alpha: 0.45),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.md),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit Profile'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.45),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -667,6 +677,7 @@ class _ActiveOrganizationCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           color: context.sg.textSecondary,
+                          height: 1.3,
                         ),
                       ),
                     ],
@@ -682,6 +693,7 @@ class _ActiveOrganizationCard extends StatelessWidget {
               ),
             ],
           ),
+          // Hidden unless ProfileAccess.canSwitchOrganization is true (mobile API).
           if (canSwitch) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -1145,7 +1157,7 @@ class _ProfileCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
       decoration: BoxDecoration(
         color: context.sg.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),

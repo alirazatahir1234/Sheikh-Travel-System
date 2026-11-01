@@ -11,11 +11,12 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
-  /// Stable Azure VM HTTPS (Caddy → Kestrel). Used by release APKs / AABs when
-  /// `API_BASE_URL` is omitted. Prefer this over ephemeral trycloudflare tunnels.
+  /// Cloudflare quick tunnel → Kestrel on Azure VM. Used by release APKs / AABs
+  /// when `API_BASE_URL` is omitted. Host comes from VM
+  /// `/var/lib/sheikhgo/cloudflared-quick-url.txt` — update after tunnel restart.
   /// Override anytime with `--dart-define=API_BASE_URL=...`.
   static const String defaultProductionApiBaseUrl =
-      'https://20-174-1-230.sslip.io/api';
+      'https://joke-rebates-titans-duties.trycloudflare.com/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

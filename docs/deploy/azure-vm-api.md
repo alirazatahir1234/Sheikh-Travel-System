@@ -6,12 +6,12 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 
 | Item | Value |
 |------|--------|
-| **HTTPS API (clients, current)** | Cloudflare quick tunnel `https://<random>.trycloudflare.com` (see `/var/lib/sheikhgo/cloudflared-quick-url.txt` on VM) |
-| **HTTPS backup (Caddy)** | `https://20-174-1-230.sslip.io` (Let’s Encrypt; kept) |
+| **HTTPS API (clients, current)** | `https://joke-rebates-titans-duties.trycloudflare.com` (Cloudflare quick tunnel; live value also in `/var/lib/sheikhgo/cloudflared-quick-url.txt` on VM) |
+| **HTTPS backup (Caddy)** | `https://20-174-1-230.sslip.io` (Let’s Encrypt; kept — some client networks see `ERR_ADDRESS_UNREACHABLE`) |
 | **Preferred HTTPS host later** | `https://api.sheikhgo.com` — add DNS A `api` → `20.174.1.230`, then flip frontend env URLs (paid/custom domain — not required for tunnel) |
 | HTTP API (Kestrel, kept for mobile/LAN) | `http://20.174.1.230:5082` |
-| API base (HTTPS clients) | `https://<tunnel-host>/api` |
-| Health (tunnel) | `https://<tunnel-host>/health` |
+| API base (HTTPS clients) | `https://joke-rebates-titans-duties.trycloudflare.com/api` |
+| Health (tunnel) | `https://joke-rebates-titans-duties.trycloudflare.com/health` |
 | Health (Caddy) | `https://20-174-1-230.sslip.io/health` |
 | Health (HTTP) | `http://20.174.1.230:5082/health` |
 | systemd units | `sheikhgo-api` (Kestrel), `caddy` (TLS proxy), `sheikhgo-cloudflared` (free quick tunnel) |
@@ -46,7 +46,23 @@ cat /var/lib/sheikhgo/cloudflared-quick-url.txt
 curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"
 ```
 
-**Caveat:** quick-tunnel URLs usually change whenever `sheikhgo-cloudflared` restarts. After a restart, update ERP + Flutter prod URLs to the new host and redeploy. Caddy/sslip.io remains as backup.
+**Caveat:** quick-tunnel URLs usually change whenever `sheikhgo-cloudflared` restarts. After a restart, update ERP + Flutter prod URLs to the new host and redeploy. Caddy/sslip.io remains as backup (some networks get `ERR_ADDRESS_UNREACHABLE` to the Azure public IP).
+
+### How Ali updates the API URL after a tunnel restart
+
+1. SSH to the VM and read the live host:
+   ```bash
+   ssh -i ~/.ssh/sheikhgo_vm_cicd azureuser@20.174.1.230 \
+     'cat /var/lib/sheikhgo/cloudflared-quick-url.txt'
+   curl -sS "$(cat that-url)/health"   # expect Healthy
+   ```
+2. Set the same origin (plus `/api`) in:
+   - `Frontend/sheikhgo-erp/src/environments/environment.prod.ts` → `apiUrl`
+   - `Frontend/sheikh-travel-customer-hub/src/environments/environment.prod.ts` → `apiRoot` / `hubRoot`
+   - `Frontend/sheikh-driver/lib/core/config/app_config.dart` → `defaultProductionApiBaseUrl`
+   - `Frontend/sheikh-driver/scripts/build_prod.sh` → `DEFAULT_PROD_API`
+3. Redeploy ERP/Hub to Vercel (`deploy/vercel/deploy-frontends.sh` or ADO frontend job) and rebuild mobile release APKs.
+4. Local `ng serve` (`environment.ts` → `/api` proxy to `:5082`) is unchanged — do not point localhost ERP at the tunnel unless testing prod.
 
 Named Cloudflare tunnels with a stable hostname require a zone in a Cloudflare account (still free plan possible) — not configured here.
 

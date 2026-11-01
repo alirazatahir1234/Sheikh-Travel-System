@@ -182,6 +182,30 @@ public class PermissionAuthorizationHandlerTests
     }
 
     [Fact]
+    public async Task Fleet_manager_role_satisfies_Driver_View_for_team_attendance()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("role", "FLEET_MANAGER")
+        ], "test"));
+
+        (await EvaluateAsync(user, DriverPermissions.DriverView)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, DriverPermissions.DriverUpdate)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, DriverPermissions.DriverDelete)).HasSucceeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TenantAdmin_role_satisfies_Driver_View_without_permission_claim()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("role", PlatformRoles.TenantAdmin)
+        ], "test"));
+
+        (await EvaluateAsync(user, DriverPermissions.DriverView)).HasSucceeded.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Ai_View_satisfies_fine_grained_read_operations()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(

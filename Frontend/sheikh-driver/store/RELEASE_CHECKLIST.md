@@ -6,7 +6,7 @@
 - [ ] `flutter analyze` clean enough for release
 - [ ] Version bumped in `pubspec.yaml` (`x.y.z+build`)
 - [ ] `store/RELEASE_NOTES.md` updated for this build
-- [ ] Prod API: `ENV=prod` — default is **stable** `https://20-174-1-230.sslip.io/api` (`AppConfig.defaultProductionApiBaseUrl` / `scripts/build_prod.sh`). Do **not** bake trycloudflare quick tunnels into store builds.
+- [ ] Prod API: `ENV=prod` — default is Cloudflare quick tunnel `https://joke-rebates-titans-duties.trycloudflare.com/api` (`AppConfig.defaultProductionApiBaseUrl` / `scripts/build_prod.sh`). Confirm host still matches VM `/var/lib/sheikhgo/cloudflared-quick-url.txt` before store upload.
 - [ ] Cert pins set: `CERT_PIN_1` / `CERT_PIN_2` (recommended for store; without pins HTTPS still works)
 - [ ] Maps: `android/maps.properties` (or `GOOGLE_MAPS_API_KEY` env) present before `./scripts/build_prod.sh` — blank map otherwise
 - [ ] `GOOGLE_MAPS_KEY` / Maps key restricted to app package / bundle id + release SHA-1
@@ -31,7 +31,7 @@ cd Frontend/sheikh-driver
 # Or:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=API_BASE_URL=https://joke-rebates-titans-duties.trycloudflare.com/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
@@ -60,7 +60,7 @@ flutter build appbundle --release \
 # Or:
 flutter build ipa --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=API_BASE_URL=https://joke-rebates-titans-duties.trycloudflare.com/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \

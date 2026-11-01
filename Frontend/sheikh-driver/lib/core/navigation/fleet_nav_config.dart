@@ -48,9 +48,9 @@ class MoreMenuEntry {
 abstract final class FleetNavConfig {
   static const dashboard = FleetNavTab(
     id: 'dashboard',
-    label: 'Dashboard',
-    icon: Icons.dashboard_outlined,
-    activeIcon: Icons.dashboard_rounded,
+    label: 'Overview',
+    icon: Icons.grid_view_outlined,
+    activeIcon: Icons.grid_view_rounded,
     path: '/dashboard',
   );
 
@@ -145,7 +145,7 @@ abstract final class FleetNavConfig {
 
   static const map = FleetNavTab(
     id: 'map',
-    label: 'Live Map',
+    label: 'Map',
     icon: Icons.map_outlined,
     activeIcon: Icons.map_rounded,
     path: '/fleet/map',

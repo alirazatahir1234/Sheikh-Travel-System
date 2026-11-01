@@ -1,12 +1,13 @@
 export const environment = {
   production: true,
   /**
-   * Stable HTTPS API via Caddy → Kestrel on Azure VM (sslip.io).
-   * Do NOT point production at ephemeral trycloudflare.com tunnels — they die on restart
-   * and break login from https://www.sheikhgo.com (Mixed Content / dead origin).
+   * HTTPS API via Cloudflare quick tunnel → Kestrel :5082 on Azure VM.
+   * Source of truth on VM: /var/lib/sheikhgo/cloudflared-quick-url.txt
+   * After tunnel restart the hostname changes — update this + redeploy ERP.
    * Preferred after DNS: https://api.sheikhgo.com/api
+   * Backup (may be unreachable from some networks): https://20-174-1-230.sslip.io/api
    */
-  apiUrl: 'https://20-174-1-230.sslip.io/api',
+  apiUrl: 'https://joke-rebates-titans-duties.trycloudflare.com/api',
   /** Same host as SPA; absolute API origin used for /uploads when filesBaseUrl is empty. */
   filesBaseUrl: '',
   /**

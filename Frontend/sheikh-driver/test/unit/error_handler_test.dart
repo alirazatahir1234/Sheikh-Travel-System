@@ -9,16 +9,17 @@ DioException _makeDioException({
   dynamic responseData,
   String? message,
   Object? error,
+  String path = '/test',
 }) {
   final response = statusCode != null
       ? Response(
-          requestOptions: RequestOptions(path: '/test'),
+          requestOptions: RequestOptions(path: path),
           statusCode: statusCode,
           data: responseData,
         )
       : null;
   return DioException(
-    requestOptions: RequestOptions(path: '/test'),
+    requestOptions: RequestOptions(path: path),
     type: type,
     response: response,
     message: message,
@@ -129,6 +130,22 @@ void main() {
         statusCode: 403,
       );
       expect(ErrorHandler.fromDio(e), isA<ForbiddenException>());
+    });
+
+    test('403 on attendance → product copy, never raw DioException', () {
+      final e = _makeDioException(
+        type: DioExceptionType.badResponse,
+        statusCode: 403,
+        path: '/driver-app/attendance/history',
+        message: 'This exception was thrown because the response has a status code of 403',
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, same(ForbiddenException.attendance));
+      expect(
+        ex.message,
+        "You don't have permission to access this attendance information. Please contact your company administrator.",
+      );
+      expect(ErrorHandler.message(e), isNot(contains('DioException')));
     });
 
     test('400 response with message → ValidationException with that message', () {

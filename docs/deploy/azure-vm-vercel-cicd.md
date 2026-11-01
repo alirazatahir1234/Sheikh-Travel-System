@@ -11,7 +11,7 @@ Org **Alirazatahir** · Project **SheikhGo** · Repo **SheikhGo** · Pipeline fi
 
 Trigger branches: **main** and **master**.
 
-Live API HTTPS: `https://20-174-1-230.sslip.io` (Caddy → Kestrel) · HTTP kept: `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy` · health: `/health`  
+Live API HTTPS: `https://joke-rebates-titans-duties.trycloudflare.com` (Cloudflare quick tunnel → Kestrel) · Caddy backup: `https://20-174-1-230.sslip.io` · HTTP kept: `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy`, `sheikhgo-cloudflared` · health: `/health`  
 Preferred host after DNS: `https://api.sheikhgo.com` — see [azure-vm-api.md](./azure-vm-api.md).
 
 ---
@@ -81,7 +81,8 @@ Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pip
 
 ## Verify
 
-- Backend HTTPS: `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
+- Backend HTTPS (tunnel): `curl -s https://joke-rebates-titans-duties.trycloudflare.com/health` → plain text `Healthy`
+- Backend HTTPS (Caddy backup): `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
 - Backend HTTP (kept): `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
 - Detail JSON: `curl -s http://20.174.1.230:5082/health/detail` → `"status":"Healthy"`
 - Readiness: `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (503 if deps degraded)

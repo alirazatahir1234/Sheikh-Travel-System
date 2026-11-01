@@ -24,13 +24,14 @@ void main() {
       expect(AppConfig.appVersion, isNotEmpty);
     });
 
-    test('default production API is stable sslip.io HTTPS', () {
+    test('default production API is Cloudflare quick tunnel HTTPS', () {
       expect(
         AppConfig.defaultProductionApiBaseUrl,
-        'https://20-174-1-230.sslip.io/api',
+        'https://joke-rebates-titans-duties.trycloudflare.com/api',
       );
       final url = AppConfig.defaultProductionApiBaseUrl.toLowerCase();
-      expect(url.contains('trycloudflare'), isFalse);
+      expect(url.contains('trycloudflare.com'), isTrue);
+      expect(url.contains('sslip.io'), isFalse);
       expect(url.contains('railway.app'), isFalse);
       expect(url.startsWith('https://'), isTrue);
       expect(url.endsWith('/api'), isTrue);

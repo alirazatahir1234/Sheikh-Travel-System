@@ -2,7 +2,7 @@ const { createReadStream, existsSync, statSync } = require('node:fs');
 const path = require('node:path');
 
 const VIDEO_REL = path.join('public', 'website', 'demo', 'sheikhgo-nexus-erp-walkthrough.mp4');
-const DEFAULT_API_BASE = 'https://20-174-1-230.sslip.io/api';
+const DEFAULT_API_BASE = 'https://joke-rebates-titans-duties.trycloudflare.com/api';
 
 function resolveVideoPath() {
   const candidates = [

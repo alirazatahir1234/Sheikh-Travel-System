@@ -18,6 +18,6 @@ This is not DRM. A determined user can still capture the stream (devtools Networ
 | Variable | Purpose |
 |----------|---------|
 | `DEMO_VIDEO_DOWNLOAD_EMAILS` | Comma-separated emails allowed to download (Vercel env) |
-| `SHEIKHGO_API_URL` | API base for auth check (default: production sslip.io `/api`) |
+| `SHEIKHGO_API_URL` | API base for auth check (default: Cloudflare quick tunnel `/api`) |
 
 Local `ng serve` uses the static MP4 path in dev only (`environment.production === false`).
