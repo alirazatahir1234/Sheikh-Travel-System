@@ -2,39 +2,43 @@
 
 ## Quality constraint (applied)
 
-- **No AI redraw** of the card artwork. Masters are **byte-identical** extracts from Ali’s print PDF (`SheikhGo_Business_Card_Print.pdf`).
+- **No AI redraw** of the card artwork. Masters are **byte-identical** embeds extracted from Ali’s **second** print PDF.
 - **No JPEG recompression** of print faces. Front/back deliverables are **lossless PNG** at native **1121×671** (~**300 DPI** for the PDF mediabox ≈ **94.9 × 56.8 mm**).
 - Chat attachments (359×215) are kept only as low-res references — **not** used for print.
-- Logo reuse: `logo-sheikhgo-source-v8.png` / `logo-sheikh-source.svg` from `Frontend/sheikhgo-erp/public/brand/`.
-- AI cue is an **additive SVG overlay only** (`sheikhgo-business-card-front-ai-cue.svg`) — does not alter the master PNG.
+- Logo / vector companions from the Codex export are included for print shops that prefer SVG.
 
-## Primary print set (same-to-same with sources 1 & 2 / PDF)
+## Canonical source (second PDF)
 
 | File | Role |
 |------|------|
-| `SheikhGo_Business_Card_Print.pdf` | Original 2-page print PDF (canonical) |
-| `sheikhgo-business-card-front.png` | Front — contact + dual QR (PDF page 1, native) |
-| `sheikhgo-business-card-back.png` | Back — Solutions / Fleet & Software (PDF page 2, native) |
+| `SheikhGo_Business_Card_Print.pdf` | **Second** print PDF (Codex export 2026-11-01 12:21, MD5 `117005fd…`) — **canonical** |
+| `SheikhGo_Business_Card_Print_first.pdf` | First print PDF (Downloads 12:11) — archived for comparison only; **do not print** |
+
+## Primary print set (exact second-PDF extract)
+
+| File | Role |
+|------|------|
+| `sheikhgo-business-card-front.png` | Front — photo + contact + dual QR (PDF page 1 embed, byte-identical) |
+| `sheikhgo-business-card-back.png` | Back — Solutions / navy sidebar (PDF page 2 embed, byte-identical) |
 | `sheikhgo-business-card-front.svg` | Print wrapper embedding front PNG 1:1 |
 | `sheikhgo-business-card-back.svg` | Print wrapper embedding back PNG 1:1 |
+| `SheikhGo_Business_Card_Front_Vector.svg` / `…_Back_Vector.svg` | Vector companions from the same export |
+| `SheikhGo_Business_Card_Front_300dpi.png` / `…_Back_300dpi.png` | Companion 300 DPI renders from the same export |
 
 ## Optional: validated QR overlay
 
 | File | Role |
 |------|------|
-| `sheikhgo-business-card-front-real-qr.png` | Same front artwork; QR modules replaced with scannable codes (NEAREST resize — no blur) |
+| `sheikhgo-business-card-front-real-qr.png` | Same second-PDF front; QR modules replaced with scannable codes (NEAREST — no blur) |
 | `qr-website-sheikhgo.com.png` | Encodes `https://sheikhgo.com` |
 | `qr-whatsapp-923177368305.png` | Encodes `https://wa.me/923177368305` |
-| `qr-website-with-logo.png` / `qr-whatsapp-with-icon.png` | Same payloads + center brand/WA mark |
 
 Use the **PDF / front.png / back.png** for print fidelity. Use **front-real-qr** when you need confirmed scan targets.
 
-## Source mapping
+## What changed vs the first PDF
 
-1. **Contact/QR front** (chat `image-b4d0d50c…`) → matches PDF page 1 / `sheikhgo-business-card-front.png` (chat was downscaled; PDF native is the quality master).
-2. **Solutions back** (chat `image-6dcad21a…`) → matches PDF page 2 / `sheikhgo-business-card-back.png`.
-3. **Front+back mockup** (chat `image-a9ed2fa2…` / Downloads `SheikhGo Technologies Business Cards.png`) → `source-mockup-front-back-1536x1024.png` + `*-mockup-variant.png` halves (alternate photographic/glow layout; not the flat print PDF set).
+The first PDF was a flat dual-QR teal card (`SMART FLEET. SMARTER OPERATIONS.`, full-bleed solutions back). The **second** PDF is a different layout: front has highway bus/car photo + `TRACK • MANAGE • MOVE` + icon service row; back is light panels + navy “CONNECTED MOBILITY” sidebar with map pins.
 
-## Subtle AI cue
+## Subtle AI cue (optional)
 
 `sheikhgo-business-card-front-ai-cue.svg` — embeds the untouched front PNG and adds a small teal **AI-POWERED** micro-label. Toggle by choosing SVG vs plain PNG.

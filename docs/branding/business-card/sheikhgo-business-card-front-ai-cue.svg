@@ -6,9 +6,9 @@
   <image x="0" y="0" width="1121" height="671"
          xlink:href="sheikhgo-business-card-front.png" href="sheikhgo-business-card-front.png"
          image-rendering="optimizeQuality" />
-  <!-- Additive AI cue: tiny teal micro-label near services line; does not redraw artwork -->
+  <!-- Additive AI cue only; master PNG is untouched byte-extract from second print PDF -->
   <g font-family="Montserrat, Helvetica, Arial, sans-serif" font-size="9" font-weight="600" letter-spacing="1.2">
-    <rect x="48" y="612" rx="6" ry="6" width="78" height="16" fill="#0B3A3A" fill-opacity="0.55" stroke="#2EC4B6" stroke-width="0.75" stroke-opacity="0.7"/>
-    <text x="87" y="623.5" text-anchor="middle" fill="#7FE7DB">AI-POWERED</text>
+    <rect x="48" y="548" rx="6" ry="6" width="78" height="16" fill="#0B3A3A" fill-opacity="0.55" stroke="#2EC4B6" stroke-width="0.75" stroke-opacity="0.7"/>
+    <text x="87" y="559.5" text-anchor="middle" fill="#7FE7DB">AI-POWERED</text>
   </g>
 </svg>
