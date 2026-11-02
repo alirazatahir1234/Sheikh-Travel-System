@@ -549,13 +549,20 @@
 
   @media (max-width: 768px) {
     .bar {
-      min-height: 64px;
+      min-height: 58px;
+      padding-block: 6px;
+    }
+
+    .burger {
+      width: 40px;
+      height: 40px;
+      padding: 10px;
     }
   }
 
   @media (max-width: 480px) {
     .bar {
-      min-height: 56px;
+      min-height: 54px;
     }
   }
 }

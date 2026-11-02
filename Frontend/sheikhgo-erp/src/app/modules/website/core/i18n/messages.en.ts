@@ -457,7 +457,33 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
     'From first GPS fix to ERP records, playback, and AI-assisted decisions. Each capability links to a product page with clear scope.',
   'home.trust.title': 'Built for operators, described honestly',
   'home.trust.body':
-    'Fleet intelligence scores and digests are heuristic and rule-based on your signals. AI assistants call SheikhGo tools (GPS, trips, alerts, ERP). WhatsApp AI never auto-sends. LLM features need a provider you configure.',
+    'Fleet intelligence scores and digests are heuristic and rule-based on your signals. AI assistants call SheikhGo tools (GPS, trips, alerts, ERP), WhatsApp AI never auto-sends, and natural-language LLM responses use a provider you configure (such as Google Gemini, Ollama, or DeepInfra) when enabled.',
+  'home.highlights.gps.title': 'Live GPS & Geofencing',
+  'home.highlights.gps.text':
+    'Real-time map positions, speed, ignition status, geofence zones, and route playback.',
+  'home.highlights.gps.linkLabel': 'Live tracking',
+  'home.highlights.alerts.title': 'GPS & Safety Alerts',
+  'home.highlights.alerts.text':
+    'Instant overspeed, geofence, device health, fatigue, and one-tap SOS dispatch alerts.',
+  'home.highlights.alerts.linkLabel': 'GPS alerts',
+  'home.highlights.dispatch.title': 'Smart Dispatch & Traffic',
+  'home.highlights.dispatch.text':
+    'AI-weighted trip assignment, traffic-aware ETAs, and offline-resilient driver sync.',
+  'home.highlights.dispatch.linkLabel': 'Fleet platform',
+  'home.highlights.fuel.title': 'Fuel & OBD Telemetry',
+  'home.highlights.fuel.text':
+    'OBD tank levels, station-stop alerts, km/L efficiency reports, and fuel fraud checks.',
+  'home.highlights.fuel.linkLabel': 'Fuel management',
+  'home.highlights.drivers.title': 'Driver Scoring & KYC',
+  'home.highlights.drivers.text':
+    'Safety and on-time rankings, post-trip client ratings, and digital document verification.',
+  'home.highlights.drivers.linkLabel': 'Driver performance',
+  'home.highlights.maintenance.title': 'Maintenance, Risk & EV',
+  'home.highlights.maintenance.text':
+    'Mileage-based service scheduling, route risk scores, and electric fleet battery tracking.',
+  'home.highlights.maintenance.linkLabel': 'Predictive maintenance',
+  'home.highlights.viewAll': 'Explore all platform features →',
+  'home.highlights.viewPortfolio': 'SheikhGo Nexus portfolio →',
   'home.pill.mobileApp': 'Mobile app',
   'mobileApp.kicker': 'Driver & fleet mobile',
   'mobileApp.title': 'SheikhGo on your phone',
@@ -474,7 +500,7 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'home.ai.kicker': 'AI Solutions',
   'home.ai.title': 'Fleet AI that answers from your data',
   'home.ai.lead':
-    'Assistants, copilot chat, health scores, morning digests, and WhatsApp drafting — tool-first, optionally powered by LLMs you configure.',
+    'Assistants, copilot chat, health scores, morning digests, and human-approved WhatsApp drafting — tool-first on live Nexus data, and able to use a configured LLM provider such as Google Gemini, Ollama, or DeepInfra when enabled.',
   'home.final.title': "Let's build something great together",
   'home.final.lead': 'See NEXUS live, talk through your fleet workflow, or scope custom software with our team.',
 

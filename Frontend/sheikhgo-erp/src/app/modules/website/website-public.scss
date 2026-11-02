@@ -113,11 +113,16 @@
     box-sizing: border-box;
   }
 
+  @media (max-width: 768px) {
+    --section-pad: clamp(2.25rem, 5vw, 3.25rem);
+    --header-h: 60px;
+  }
+
   @media (max-width: 640px) {
     .container,
     .sg-container {
-      padding-left: 20px;
-      padding-right: 20px;
+      padding-left: 16px;
+      padding-right: 16px;
     }
   }
 

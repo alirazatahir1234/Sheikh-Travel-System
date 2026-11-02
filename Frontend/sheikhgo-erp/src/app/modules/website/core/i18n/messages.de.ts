@@ -394,7 +394,33 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
     'Vom ersten GPS-Fix bis ERP-Daten, Wiedergabe und KI-gestützte Entscheidungen. Jede Funktion verlinkt auf eine klare Produktseite.',
   'home.trust.title': 'Für Betreiber gebaut, ehrlich beschrieben',
   'home.trust.body':
-    'Flotten-Scores und Digests sind heuristisch und regelbasiert. KI-Assistenten rufen SheikhGo-Tools auf. WhatsApp-KI sendet nie automatisch. LLM-Funktionen brauchen Ihren konfigurierten Provider.',
+    'Flotten-Scores und Digests sind heuristisch und regelbasiert. KI-Assistenten rufen SheikhGo-Tools auf, WhatsApp-KI sendet nie automatisch, und LLM-Funktionen nutzen bei Aktivierung Ihren konfigurierten Provider (z. B. Google Gemini, Ollama oder DeepInfra).',
+  'home.highlights.gps.title': 'Live-GPS & Geofencing',
+  'home.highlights.gps.text':
+    'Echtzeit-Kartenpositionen, Geschwindigkeit, Zündstatus, Geofence-Zonen und Routenwiedergabe.',
+  'home.highlights.gps.linkLabel': 'Live-Tracking',
+  'home.highlights.alerts.title': 'GPS- & Sicherheitsalarme',
+  'home.highlights.alerts.text':
+    'Sofortige Alarme bei Tempo, Geofence, Gerätezustand, Müdigkeit und SOS-Auto-Dispatch.',
+  'home.highlights.alerts.linkLabel': 'GPS-Alarme',
+  'home.highlights.dispatch.title': 'Smart Dispatch & Verkehr',
+  'home.highlights.dispatch.text':
+    'KI-gewichtete Fahrtzuweisung, verkehrsabhängige ETAs und ausfallsicherer Fahrer-Offline-Sync.',
+  'home.highlights.dispatch.linkLabel': 'Flottenplattform',
+  'home.highlights.fuel.title': 'Kraftstoff & OBD-Telemetrie',
+  'home.highlights.fuel.text':
+    'OBD-Tankfüllstand, Tankstellen-Stopp-Alerts, km/L-Berichte und Betrugserkennung.',
+  'home.highlights.fuel.linkLabel': 'Kraftstoffmanagement',
+  'home.highlights.drivers.title': 'Fahrer-Scoring & KYC',
+  'home.highlights.drivers.text':
+    'Sicherheits- und Pünktlichkeits-Rankings, Kundenbewertungen und digitale Dokumentenprüfung.',
+  'home.highlights.drivers.linkLabel': 'Fahrerleistung',
+  'home.highlights.maintenance.title': 'Wartung, Risiko & E-Flotte',
+  'home.highlights.maintenance.text':
+    'Kilometerbasierte Wartungsplanung, Routen-Risikoscores und EV-Batterieüberwachung.',
+  'home.highlights.maintenance.linkLabel': 'Vorausschauende Wartung',
+  'home.highlights.viewAll': 'Alle Plattformfunktionen entdecken →',
+  'home.highlights.viewPortfolio': 'SheikhGo Nexus Portfolio →',
   'home.pill.mobileApp': 'Mobile App',
   'mobileApp.kicker': 'Fahrer- & Flotten-App',
   'mobileApp.title': 'SheikhGo auf dem Handy',
@@ -411,7 +437,7 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'home.ai.kicker': 'KI-Lösungen',
   'home.ai.title': 'Flotten-KI aus Ihren Daten',
   'home.ai.lead':
-    'Assistenten, Copilot-Chat, Health-Scores, Morning Digests und WhatsApp-Entwürfe — tool-first, optional mit Ihren LLMs.',
+    'Assistenten, Copilot-Chat, Health-Scores, Morning Digests und WhatsApp-Entwürfe mit menschlicher Freigabe — tool-first auf Nexus-Daten, optional mit einem konfigurierten LLM-Provider wie Google Gemini, Ollama oder DeepInfra.',
   'home.final.title': 'Lassen Sie uns Großes bauen',
   'home.final.lead': 'NEXUS live sehen, Flotten-Workflow besprechen oder Custom Software mit uns scopen.',
 
