@@ -28,11 +28,8 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> GetCompanyUsers([FromQuery] GetUsersQuery query)
         => Ok(await Mediator.Send(query));
 
-    /// <summary>Self-service profile read.</summary>
-    [HttpGet("profile")]
-    [Authorize]
-    public async Task<IActionResult> GetProfile()
-        => Ok(await Mediator.Send(new GetCurrentUserProfileQuery()));
+    // GET/PUT api/users/profile and change-password live on ProfileController only —
+    // a second GetProfile here caused AmbiguousMatchException on live ERP bootstrap.
 
     /// <summary>Company user counts for company detail strip.</summary>
     [HttpGet("company/summary")]

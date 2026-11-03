@@ -402,7 +402,8 @@ public static class DependencyInjection
         });
         services.AddHostedService<TraccarSyncService>();
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
-        services.AddScoped<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
+        // Singleton: FixTime watermark (_lastIngested) must survive each scoped poll tick.
+        services.AddSingleton<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
         services.AddScoped<ITrackerRegistrationService, TrackerRegistrationService>();
 
         // Stage 16 — GPS Device Control Center

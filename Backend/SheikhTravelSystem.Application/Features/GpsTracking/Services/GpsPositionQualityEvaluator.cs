@@ -176,13 +176,13 @@ public static class GpsPositionQualityEvaluator
         if (!valid)
             return true;
 
+        // Explicit zero satellites = cell/LBS. Null sat is common on Jimi keepalives
+        // (parked, accuracy often 0) and must not force IsGpsValid=false / offline UX.
         if (satelliteCount is 0)
             return true;
 
-        // Traccar often reports accuracy 0 for cell/LBS fixes on Jimi.
-        if (accuracyMeters <= 0 && satelliteCount is null or 0)
-            return true;
-
+        // Only treat accuracy 0 as LBS when sat count is explicitly zero (handled above).
+        _ = accuracyMeters;
         return false;
     }
 

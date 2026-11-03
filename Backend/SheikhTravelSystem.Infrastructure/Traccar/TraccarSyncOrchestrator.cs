@@ -328,6 +328,7 @@ public sealed class TraccarSyncOrchestrator(
 
             int ingested = 0;
             int telemetryOnly = 0;
+            int heartbeats = 0;
             var adaptiveSamples = new List<TraccarAdaptiveInterval.Sample>(positions.Count);
 
             foreach (var pos in positions)
@@ -346,10 +347,21 @@ public sealed class TraccarSyncOrchestrator(
                     pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
                 adaptiveSamples.Add(new TraccarAdaptiveInterval.Sample(speedKmh, ignition, pos.Attributes.Alarm));
 
-                if (_lastIngested.TryGetValue(pos.DeviceId, out var last) && pos.FixTime <= last)
-                    continue;
+                // Jimi parked keepalives advance serverTime/deviceTime while fixTime stays frozen.
+                // Online badge uses VCL.LastUpdate / GpsDevices.LastSeenAt — must follow connectivity, not only GNSS fix.
+                var seenAt = MaxUtc(pos.ServerTime, pos.DeviceTime, pos.FixTime);
 
-                var recordedAt = pos.FixTime.ToUniversalTime();
+                if (_lastIngested.TryGetValue(pos.DeviceId, out var last) && pos.FixTime <= last)
+                {
+                    int? heartbeatVehicleId = linkedDevices.TryGetValue(pos.DeviceId, out var linkedHb)
+                        ? linkedHb.VehicleId
+                        : null;
+                    await RefreshConnectivityAsync(
+                        connection, device.GpsDeviceId, heartbeatVehicleId, seenAt, ct);
+                    heartbeats++;
+                    continue;
+                }
+
                 var battery = pos.Attributes.BatteryLevel;
                 var rssi = pos.Attributes.Rssi;
 
@@ -379,6 +391,8 @@ public sealed class TraccarSyncOrchestrator(
                     {
                         var source = TraccarPositionIngestMapper.ToSourceContext(pos, movingThreshold);
                         await mediator.Send(new IngestPositionCommand(dto, source), ct);
+                        await RefreshConnectivityAsync(
+                            connection, linked.GpsDeviceId, linked.VehicleId, seenAt, ct);
                         ingested++;
                     }
                     catch (Exception ex)
@@ -396,7 +410,7 @@ public sealed class TraccarSyncOrchestrator(
                     try
                     {
                         await telemetryUpdater.UpdateAsync(
-                            connection, device.GpsDeviceId, recordedAt, ignition,
+                            connection, device.GpsDeviceId, seenAt, ignition,
                             speedKmh, battery, rssi,
                             clearStickyIgnition: clearSticky, cancellationToken: ct);
                         _lastIngested[pos.DeviceId] = pos.FixTime;
@@ -412,12 +426,13 @@ public sealed class TraccarSyncOrchestrator(
             ApplyAdaptiveInterval(adaptiveSamples);
 
             var result = new TraccarSyncRunResult(DateTime.UtcNow, [
-                new TraccarSyncJobResult("positions", positions.Count, ingested, telemetryOnly, 0)
+                new TraccarSyncJobResult("positions", positions.Count, ingested, telemetryOnly + heartbeats, 0)
             ]);
             syncState.RecordJobComplete("positions", result.Jobs[0]);
-            if (ingested > 0 || telemetryOnly > 0)
-                logger.LogDebug("Traccar position sync: ingested {Ingested}, telemetry-only {TelemetryOnly}",
-                    ingested, telemetryOnly);
+            if (ingested > 0 || telemetryOnly > 0 || heartbeats > 0)
+                logger.LogDebug(
+                    "Traccar position sync: ingested {Ingested}, telemetry-only {TelemetryOnly}, heartbeats {Heartbeats}",
+                    ingested, telemetryOnly, heartbeats);
             return result;
         }
         catch (Exception ex)
@@ -757,6 +772,66 @@ public sealed class TraccarSyncOrchestrator(
             """,
             new { TraccarDeviceId = traccarDeviceId, KeepId = keepGpsDeviceId },
             cancellationToken: ct));
+
+    /// <summary>
+    /// Advances LastSeenAt / VCL.LastUpdate from Traccar server/device time so parked
+    /// keepalives (frozen fixTime) stay Online. Does not move lat/lng.
+    /// </summary>
+    private static async Task RefreshConnectivityAsync(
+        IDbConnection connection,
+        int gpsDeviceId,
+        int? vehicleId,
+        DateTime seenAtUtc,
+        CancellationToken ct)
+    {
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices
+            SET LastSeenAt = CASE
+                    WHEN LastSeenAt IS NULL OR LastSeenAt < @SeenAt THEN @SeenAt
+                    ELSE LastSeenAt
+                END,
+                UpdatedAt = GETUTCDATE()
+            WHERE Id = @GpsDeviceId AND IsDeleted = 0
+            """,
+            new { GpsDeviceId = gpsDeviceId, SeenAt = seenAtUtc },
+            cancellationToken: ct));
+
+        if (!vehicleId.HasValue)
+            return;
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE VehicleCurrentLocation
+            SET LastUpdate = CASE
+                    WHEN LastUpdate < @SeenAt THEN @SeenAt
+                    ELSE LastUpdate
+                END,
+                -- Parked Jimi keepalives often lack sat/accuracy; clear sticky invalid from prior LBS heuristic.
+                IsGpsValid = CASE
+                    WHEN IsGpsValid = 0 AND ISNULL(Speed, 0) < 10 THEN CAST(1 AS BIT)
+                    ELSE IsGpsValid
+                END
+            WHERE VehicleId = @VehicleId
+            """,
+            new { VehicleId = vehicleId.Value, SeenAt = seenAtUtc },
+            cancellationToken: ct));
+    }
+
+    private static DateTime MaxUtc(params DateTime[] values)
+    {
+        var max = DateTime.MinValue;
+        foreach (var v in values)
+        {
+            var utc = v.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(v, DateTimeKind.Utc)
+                : v.ToUniversalTime();
+            if (utc > max)
+                max = utc;
+        }
+
+        return max;
+    }
 
     private static TraccarSyncRunResult SingleJob(
         string job, int processed, int imported, int updated, int skipped, string? error = null) =>

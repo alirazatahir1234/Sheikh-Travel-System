@@ -91,6 +91,9 @@ public class GpsPositionQualityEvaluatorTests
     {
         GpsPositionQualityEvaluator.IsLbsOnlyFromTraccar(true, 0, 50).Should().BeTrue();
         GpsPositionQualityEvaluator.IsLbsOnlyFromTraccar(true, 8, 12).Should().BeFalse();
+        // Jimi parked keepalives: accuracy 0 + sat omitted must NOT be treated as LBS.
+        GpsPositionQualityEvaluator.IsLbsOnlyFromTraccar(true, null, 0).Should().BeFalse();
+        GpsPositionQualityEvaluator.IsLbsOnlyFromTraccar(false, null, 0).Should().BeTrue();
     }
 
     [Fact]
