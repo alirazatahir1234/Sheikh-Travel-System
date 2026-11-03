@@ -13,7 +13,9 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 
-public record IngestPositionCommand(IngestPositionDto Position) : IRequest<ApiResponse<bool>>;
+public record IngestPositionCommand(
+    IngestPositionDto Position,
+    PositionIngestSourceContext? Source = null) : IRequest<ApiResponse<bool>>;
 
 public class IngestPositionCommandValidator : AbstractValidator<IngestPositionCommand>
 {

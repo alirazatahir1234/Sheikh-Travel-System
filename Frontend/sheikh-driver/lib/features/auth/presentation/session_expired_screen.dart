@@ -10,7 +10,7 @@ class SessionExpiredScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -23,19 +23,19 @@ class SessionExpiredScreen extends ConsumerWidget {
                 color: AppColors.warning,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Session expired',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: context.sg.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Your sign-in expired or is no longer valid. Sign in again to continue monitoring the fleet.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+                style: TextStyle(color: context.sg.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 28),
               SizedBox(

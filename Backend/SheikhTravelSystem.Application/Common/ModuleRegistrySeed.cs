@@ -32,14 +32,15 @@ public static class ModuleRegistrySeed
             [], true, true, false, false, "Active", ["dashboard"]),
         E("FLEET", "Fleet Management", "Fleet", "Vehicles, drivers, fuel, and maintenance", "Fleet", "directions_car", "/vehicles", 20,
             ["DASHBOARD"], true, true, false, true, "Active", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
-        E("GPS", "Fleet Tracking", "GPS", "Live tracking and GPS telemetry", "Fleet", "my_location", "/gps-tracking", 30,
+        E("GPS", "Fleet Tracking", "Fleet Tracking", "Live tracking and GPS telemetry", "Fleet", "my_location", "/gps-tracking", 30,
             ["FLEET"], true, true, false, true, "Active", ["gps-tracking"]),
         // Major Alerts module (parent) + per-type children — Category "Alerts"
         E(AlertModuleCatalog.AlertsModuleCode, "Fleet Alerts", "Fleet Alerts",
             "Fleet alert types — enable the parent and toggle individual alert capabilities per company",
             AlertModuleCatalog.AlertsCategory, "notifications_active", "/gps-tracking/alerts", 200,
             ["GPS"], true, true, false, true, "Active", ["alerts"]),
-        ..AlertModuleCatalog.Types.Select(t => E(
+        // Module-governed alert children only — geofence/speed types are GpsAddOnFeatureCatalog TenantFeatures.
+        ..AlertModuleCatalog.ModuleGovernedTypes.Select(t => E(
             t.ModuleCode, t.Name, t.DisplayName, t.Description,
             AlertModuleCatalog.AlertsCategory, t.Icon, "/gps-tracking/alerts", t.SortOrder,
             [AlertModuleCatalog.AlertsModuleCode], true, true, false, true, "Active", [t.LegacyKey])),
@@ -52,7 +53,7 @@ public static class ModuleRegistrySeed
             [], true, false, false, false, "Active", ["customers"]),
         E("FINANCE", "Finance", "Finance", "Payments and financial operations", "Finance", "payments", "/payments", 70,
             [], true, false, false, false, "Active", ["payments"]),
-        E("ANALYTICS", "Analytics Pro", "Reports", "Analytics, reports, and audit logs", "Analytics", "bar_chart", "/reports", 90,
+        E("ANALYTICS", "Analytics Pro", "Analytics Pro", "Analytics, reports, and audit logs", "Analytics", "bar_chart", "/reports", 90,
             ["DASHBOARD"], true, true, true, false, "Active", ["reports", "audit-logs"]),
         E("ACCESS", "Access Control", "Access", "Users, roles, and allowance rules", "Platform", "admin_panel_settings", "/platform/access-control", 100,
             ["DASHBOARD"], true, false, false, false, "Active", ["users", "driver-allowance-rules"]),
@@ -128,11 +129,13 @@ public static class ModuleRegistrySeed
             string.Equals(m.Code, code, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Whether a registry entry can be toggled for a tenant (Active + in <see cref="TenantModuleCatalog"/>).
+    /// Whether a registry entry can be toggled for a tenant
+    /// (Active + in <see cref="TenantModuleCatalog"/> + not a core always-on module).
     /// </summary>
     public static bool IsToggleable(Entry entry)
         => IsEnableable(entry.Code)
-           && string.Equals(entry.Status, "Active", StringComparison.OrdinalIgnoreCase);
+           && string.Equals(entry.Status, "Active", StringComparison.OrdinalIgnoreCase)
+           && !TenantModuleCatalog.IsCore(entry.Code);
 
     /// <summary>
     /// Expands requested enableable codes with transitive Active-catalog dependencies
@@ -148,7 +151,11 @@ public static class ModuleRegistrySeed
 
         void Add(string code)
         {
-            if (!byCode.TryGetValue(code, out var entry) || !IsToggleable(entry) || !result.Add(entry.Code))
+            if (!byCode.TryGetValue(code, out var entry))
+                return;
+            // Core always-on modules (GPS) are included even though they are not toggleable.
+            var include = IsToggleable(entry) || TenantModuleCatalog.IsCore(entry.Code);
+            if (!include || !result.Add(entry.Code))
                 return;
             foreach (var dep in entry.Dependencies)
                 Add(dep);

@@ -431,9 +431,9 @@ class _MoneyTile extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
             const Spacer(),
@@ -525,9 +525,9 @@ class _StatusAmountCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.sg.textSecondary,
                     ),
                   ),
                   Text(
@@ -568,8 +568,8 @@ class _ChartCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'PKR ${fmt.format(summary.thisWeek)} this week',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.sg.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -588,9 +588,9 @@ class _ChartCard extends StatelessWidget {
                   .map(
                     (d) => Text(
                       DateFormat('E').format(d.date).substring(0, 1),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: context.sg.textSecondary,
                       ),
                     ),
                   )

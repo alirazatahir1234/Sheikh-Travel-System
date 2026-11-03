@@ -9,8 +9,6 @@ public record GetTenantBrandingQuery : IRequest<ApiResponse<TenantBrandingDto>>;
 
 public record UpdateTenantBrandingCommand(
     int TenantId,
-    string? LogoUrl,
-    string? PrimaryColor,
     string? Website,
     string? SupportEmail,
     string? Country,
@@ -21,8 +19,6 @@ public record TenantBrandingDto(
     int Id,
     string Name,
     string Slug,
-    string? LogoUrl,
-    string? PrimaryColor,
     IReadOnlyList<string> EnabledModules,
     string? TimeZone = null)
 {
@@ -48,7 +44,7 @@ public class GetTenantBrandingQueryHandler(
 
         var modules = await tenantModuleService.GetLegacyModuleKeysAsync(tenantId, cancellationToken);
         return ApiResponse<TenantBrandingDto>.SuccessResponse(
-            new TenantBrandingDto(row.Id, row.Name, row.Slug, row.LogoUrl, row.PrimaryColor, modules, row.TimeZone));
+            new TenantBrandingDto(row.Id, row.Name, row.Slug, modules, row.TimeZone));
     }
 }
 
@@ -63,8 +59,6 @@ public class UpdateTenantBrandingCommandHandler(
 
         await tenantRepository.UpdateBrandingAsync(
             request.TenantId,
-            request.LogoUrl,
-            request.PrimaryColor,
             request.Website,
             request.SupportEmail,
             request.Country,
@@ -72,6 +66,6 @@ public class UpdateTenantBrandingCommandHandler(
             request.TimeZone,
             cancellationToken);
 
-        return ApiResponse<bool>.SuccessResponse(true, "Tenant branding updated.");
+        return ApiResponse<bool>.SuccessResponse(true, "Company contact & locale updated.");
     }
 }

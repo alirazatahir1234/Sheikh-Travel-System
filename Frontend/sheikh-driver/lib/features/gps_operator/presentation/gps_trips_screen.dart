@@ -137,7 +137,7 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
   Widget build(BuildContext context) {
     final df = DateFormat('dd MMM HH:mm');
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('GPS trips'),
         actions: [
@@ -232,9 +232,9 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
                                           if (t.endAt != null)
                                             '→ ${df.format(t.endAt!.toLocal())}',
                                         ].join(' '),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
-                                          color: AppColors.textSecondary,
+                                          color: context.sg.textSecondary,
                                         ),
                                       ),
                                       const SizedBox(height: 8),

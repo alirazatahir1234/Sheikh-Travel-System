@@ -1,9 +1,11 @@
 using System.Data;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Infrastructure.Services.Gps;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -158,95 +160,249 @@ public sealed partial class GpsTrackingRepository
         DateTime timestamp,
         CancellationToken cancellationToken)
     {
-        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId)>(
-            new CommandDefinition(
-                "SELECT TenantId, BranchId, DepartmentId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.VehicleId },
-                cancellationToken: cancellationToken));
-
-        if (vehicle.TenantId is null or <= 0)
-            return;
-
-        var assigned = (await connection.QueryAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
+        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId, bool GeofencingEnabled)>(
             new CommandDefinition(
                 """
-                SELECT DISTINCT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson
-                FROM Geofences g
-                INNER JOIN GeofenceAssignments a ON a.GeofenceId = g.Id AND a.IsDeleted = 0
-                WHERE g.IsActive = 1 AND g.IsDeleted = 0 AND g.TenantId = @TenantId
-                  AND (
-                    a.VehicleId = @VehicleId
-                    OR (@BranchId IS NOT NULL AND a.BranchId = @BranchId)
-                    OR (@DepartmentId IS NOT NULL AND a.DepartmentId = @DepartmentId)
-                  )
+                SELECT v.TenantId, v.BranchId, v.DepartmentId,
+                       CAST(CASE WHEN EXISTS (
+                           SELECT 1 FROM TenantFeatures tf
+                           WHERE tf.TenantId = v.TenantId AND tf.FeatureKey = @FeatureKey AND tf.IsEnabled = 1
+                       ) THEN 1 ELSE 0 END AS BIT) AS GeofencingEnabled
+                FROM Vehicles v
+                WHERE v.Id = @Id AND v.IsDeleted = 0
                 """,
-                new { dto.VehicleId, vehicle.TenantId, vehicle.BranchId, vehicle.DepartmentId },
-                cancellationToken: cancellationToken))).ToList();
-
-        // Assignment = who is watched. GpsAlertRules = Entry/Exit checkboxes (do not force true/true).
-        var watch = new Dictionary<int, (string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson, bool OnEnter, bool OnExit, int? RuleId)>();
-
-        foreach (var g in assigned)
-        {
-            var rule = rules
-                .Where(r => r.GeofenceId == g.Id)
-                .OrderByDescending(r => r.VehicleId.HasValue)
-                .FirstOrDefault();
-
-            if (rule.Id == 0 || (!rule.AlertOnEnter && !rule.AlertOnExit))
-                continue;
-
-            watch[g.Id] = (g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson,
-                rule.AlertOnEnter, rule.AlertOnExit, rule.Id);
-        }
-
-        // Rules without an assignment still monitor that geofence (vehicle-specific or fleet-wide).
-        foreach (var rule in rules.Where(r => r.GeofenceId.HasValue))
-        {
-            var gid = rule.GeofenceId!.Value;
-            if (watch.ContainsKey(gid))
-                continue;
-            if (!rule.AlertOnEnter && !rule.AlertOnExit)
-                continue;
-
-            var geofence = await connection.QueryFirstOrDefaultAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
-                new CommandDefinition(
-                    @"SELECT Id, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson
-                      FROM Geofences WHERE Id = @Id AND IsActive = 1 AND IsDeleted = 0 AND TenantId = @TenantId",
-                    new { Id = gid, TenantId = vehicle.TenantId },
-                    cancellationToken: cancellationToken));
-
-            if (geofence.Id == 0) continue;
-
-            watch[gid] = (geofence.Name, geofence.AreaType, geofence.CenterLat, geofence.CenterLng,
-                geofence.RadiusMeters, geofence.GeoJson, rule.AlertOnEnter, rule.AlertOnExit, rule.Id);
-        }
-
-        foreach (var (geofenceId, g) in watch)
-        {
-            var inside = GpsGeoHelper.IsInsideGeofence(
-                dto.Latitude, dto.Longitude, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson);
-
-            var lastEvent = await connection.QueryFirstOrDefaultAsync<string?>(new CommandDefinition(
-                @"SELECT TOP 1 EventType FROM GpsAlertEvents
-                  WHERE VehicleId = @VehicleId AND GeofenceId = @GeofenceId AND IsDeleted = 0
-                    AND EventType IN ('geofence_enter', 'geofence_exit')
-                  ORDER BY Timestamp DESC",
-                new { dto.VehicleId, GeofenceId = geofenceId },
+                new { Id = dto.VehicleId, FeatureKey = GpsAddOnFeatureCatalog.Geofencing },
                 cancellationToken: cancellationToken));
 
-            var wasInside = lastEvent == "geofence_enter";
+        if (vehicle.TenantId is null or <= 0 || !vehicle.GeofencingEnabled)
+            return;
 
-            if (inside && !wasInside && g.OnEnter)
+        var ruleZoneIds = rules
+            .Where(r => r.GeofenceId.HasValue)
+            .Select(r => r.GeofenceId!.Value)
+            .Distinct()
+            .ToArray();
+
+        // Watched = assigned (vehicle / branch / department) OR referenced by a rule. State is tracked for every
+        // watched zone on every position, independent of which Entry/Exit checkboxes are on.
+        var zones = (await connection.QueryAsync<WatchedZoneRow>(
+            new CommandDefinition(
+                """
+                SELECT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson,
+                       s.IsInside AS StateIsInside, s.SinceUtc AS StateSinceUtc,
+                       s.PendingInside, s.PendingCount, s.PendingSinceUtc
+                FROM Geofences g
+                LEFT JOIN VehicleGeofenceState s ON s.VehicleId = @VehicleId AND s.GeofenceId = g.Id
+                WHERE g.IsActive = 1 AND g.IsDeleted = 0 AND g.TenantId = @TenantId
+                  AND (
+                    g.Id IN @RuleZoneIds
+                    OR EXISTS (
+                      SELECT 1 FROM GeofenceAssignments a
+                      WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0
+                        AND (
+                          a.VehicleId = @VehicleId
+                          OR (@BranchId IS NOT NULL AND a.BranchId = @BranchId)
+                          OR (@DepartmentId IS NOT NULL AND a.DepartmentId = @DepartmentId)
+                        )
+                    )
+                  )
+                """,
+                new
+                {
+                    dto.VehicleId,
+                    vehicle.TenantId,
+                    vehicle.BranchId,
+                    vehicle.DepartmentId,
+                    RuleZoneIds = ruleZoneIds.Length == 0 ? new[] { -1 } : ruleZoneIds
+                },
+                cancellationToken: cancellationToken))).ToList();
+
+        var evaluatedIds = new List<int>(zones.Count);
+        foreach (var zone in zones)
+        {
+            if (!GpsGeoHelper.TryEvaluateGeofence(
+                    dto.Latitude, dto.Longitude, zone.AreaType, zone.CenterLat, zone.CenterLng,
+                    zone.RadiusMeters, zone.GeoJson, out var inside, out var boundaryDistance))
             {
-                await InsertAlertAsync(connection, g.RuleId, dto, geofenceId, "geofence_enter",
-                    $"Entered geofence: {g.Name}", timestamp, cancellationToken);
+                logger.LogDebug("Skipping geofence {GeofenceId}: invalid geometry", zone.Id);
+                continue;
             }
-            else if (!inside && wasInside && g.OnExit)
+
+            evaluatedIds.Add(zone.Id);
+
+            var previous = zone.StateIsInside.HasValue
+                ? new GeofenceZoneState(zone.StateIsInside.Value, zone.StateSinceUtc ?? timestamp,
+                    zone.PendingInside, zone.PendingCount ?? 0, zone.PendingSinceUtc)
+                : null;
+
+            var result = GeofenceStateEvaluator.Evaluate(previous, inside, boundaryDistance, timestamp);
+            if (result.StateChanged)
             {
-                await InsertAlertAsync(connection, g.RuleId, dto, geofenceId, "geofence_exit",
-                    $"Exited geofence: {g.Name}", timestamp, cancellationToken);
+                await connection.ExecuteAsync(new CommandDefinition(
+                    """
+                    MERGE VehicleGeofenceState WITH (HOLDLOCK) AS t
+                    USING (SELECT @VehicleId AS VehicleId, @GeofenceId AS GeofenceId) AS src
+                      ON t.VehicleId = src.VehicleId AND t.GeofenceId = src.GeofenceId
+                    WHEN MATCHED THEN UPDATE SET
+                        IsInside = @IsInside, SinceUtc = @SinceUtc, PendingInside = @PendingInside,
+                        PendingCount = @PendingCount, PendingSinceUtc = @PendingSinceUtc,
+                        LastEvaluatedUtc = @Now, LastLatitude = @Lat, LastLongitude = @Lng
+                    WHEN NOT MATCHED THEN INSERT
+                        (TenantId, VehicleId, GeofenceId, IsInside, SinceUtc, PendingInside, PendingCount,
+                         PendingSinceUtc, LastEvaluatedUtc, LastLatitude, LastLongitude)
+                      VALUES (@TenantId, @VehicleId, @GeofenceId, @IsInside, @SinceUtc, @PendingInside, @PendingCount,
+                         @PendingSinceUtc, @Now, @Lat, @Lng);
+                    """,
+                    new
+                    {
+                        vehicle.TenantId,
+                        dto.VehicleId,
+                        GeofenceId = zone.Id,
+                        result.State.IsInside,
+                        result.State.SinceUtc,
+                        result.State.PendingInside,
+                        result.State.PendingCount,
+                        result.State.PendingSinceUtc,
+                        Now = timestamp,
+                        Lat = dto.Latitude,
+                        Lng = dto.Longitude
+                    },
+                    cancellationToken: cancellationToken));
             }
+
+            if (result.Transition == GeofenceTransition.None)
+                continue;
+
+            var rule = rules
+                .Where(r => r.GeofenceId == zone.Id)
+                .OrderByDescending(r => r.VehicleId.HasValue)
+                .FirstOrDefault();
+            if (rule.Id == 0 || !GeofenceStateEvaluator.ShouldAlert(result.Transition, rule.AlertOnEnter, rule.AlertOnExit))
+                continue;
+
+            var eventType = GeofenceStateEvaluator.EventType(result.Transition);
+            var lastSame = await connection.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
+                """
+                SELECT MAX(Timestamp) FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND GeofenceId = @GeofenceId AND EventType = @EventType AND IsDeleted = 0
+                  AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                """,
+                new
+                {
+                    dto.VehicleId,
+                    GeofenceId = zone.Id,
+                    EventType = eventType,
+                    Minutes = GeofenceStateEvaluator.AlertDedupMinutes,
+                    Timestamp = timestamp
+                },
+                cancellationToken: cancellationToken));
+            if (GeofenceStateEvaluator.IsWithinDedupWindow(lastSame, timestamp))
+                continue;
+
+            var verb = result.Transition == GeofenceTransition.Enter ? "Entered" : "Exited";
+            var alertId = await InsertAlertAsync(connection, rule.Id, dto, zone.Id, eventType,
+                $"{verb} geofence: {zone.Name}", timestamp, cancellationToken);
+            if (alertId <= 0)
+                continue;
+
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                eventType,
+                result.Transition == GeofenceTransition.Enter ? "Geofence entered" : "Geofence exited",
+                $"Vehicle #{dto.VehicleId} {verb.ToLowerInvariant()} {zone.Name}.",
+                NotificationType.TripDelayed,
+                ReferenceId: dto.VehicleId,
+                AlertEventId: alertId,
+                TenantId: vehicle.TenantId,
+                SuggestedPriority: 2,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Push
+                ]), cancellationToken);
+        }
+
+        // One round-trip: freshness for unchanged zones + drop state for zones no longer watched.
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE VehicleGeofenceState SET LastEvaluatedUtc = @Now, LastLatitude = @Lat, LastLongitude = @Lng
+            WHERE VehicleId = @VehicleId AND GeofenceId IN @Ids AND LastEvaluatedUtc < @Now;
+            DELETE FROM VehicleGeofenceState WHERE VehicleId = @VehicleId AND GeofenceId NOT IN @Ids;
+            """,
+            new
+            {
+                dto.VehicleId,
+                Ids = evaluatedIds.Count == 0 ? new[] { -1 } : evaluatedIds.ToArray(),
+                Now = timestamp,
+                Lat = dto.Latitude,
+                Lng = dto.Longitude
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    private sealed class WatchedZoneRow
+    {
+        public int Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string AreaType { get; init; } = "circle";
+        public double CenterLat { get; init; }
+        public double CenterLng { get; init; }
+        public double RadiusMeters { get; init; }
+        public string? GeoJson { get; init; }
+        public bool? StateIsInside { get; init; }
+        public DateTime? StateSinceUtc { get; init; }
+        public bool? PendingInside { get; init; }
+        public int? PendingCount { get; init; }
+        public DateTime? PendingSinceUtc { get; init; }
+    }
+
+    /// <summary>
+    /// Position AlarmType (e.g. VG03 G-sensor <c>accident</c>) and Traccar harsh events deduped before alert insert.
+    /// </summary>
+    private async Task EvaluateHarshBrakingFromPositionAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        var canonical = TraccarHarshEventMapper.TryMapCanonical("alarm", dto.AlarmType)
+                        ?? TraccarHarshEventMapper.TryMapCanonical(dto.AlarmType, null);
+        if (!string.Equals(canonical, TraccarHarshEventMapper.HarshBraking, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = @EventType AND IsDeleted = 0
+                  AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new
+            {
+                dto.VehicleId,
+                EventType = TraccarHarshEventMapper.HarshBraking,
+                Minutes = GpsHarshBrakingAlertDispatch.DedupMinutes,
+                Timestamp = timestamp
+            },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+            return;
+
+        var message = TraccarAlertEventMapper.FormatMessage(TraccarHarshEventMapper.HarshBraking);
+        var alertId = await InsertAlertAsync(connection, null, dto, null,
+            TraccarHarshEventMapper.HarshBraking, message, timestamp, cancellationToken);
+        if (alertId <= 0)
+            return;
+
+        var tenantId = await ResolveVehicleTenantIdAsync(connection, dto.VehicleId, cancellationToken);
+        await GpsHarshBrakingAlertDispatch.DispatchIfAllowedAsync(
+            decisionEngine, connection, dto.VehicleId, alertId, dto.Speed, tenantId, cancellationToken);
+
+        try
+        {
+            await _telematicsEnforcement.ProcessAlertAsync(connection, alertId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Telematics enforcement failed for harsh braking alert {AlertId}", alertId);
         }
     }
 
@@ -441,6 +597,45 @@ public sealed partial class GpsTrackingRepository
 
     private static readonly string[] GpsLostAlarmValues = ["gpsantennacut", "gpslost", "nofix", "gpsjamming"];
     private const int GpsLostDedupMinutes = 5;
+
+    private async Task EvaluateGpsUnreliableAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        GpsPositionIngestPlan plan,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        var dedup = gpsSettings.Value.PositionQuality.GpsUnreliableAlertDedupMinutes;
+        if (dedup <= 0)
+            dedup = 30;
+
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'gps_unreliable' AND IsDeleted = 0
+                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Minutes = dedup, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+            return;
+
+        var detail = plan.QualityCode switch
+        {
+            GpsPositionQualityEvaluator.QualityFrozenCoordinates =>
+                "GPS coordinates unchanged while the tracker reports movement — location may be stale.",
+            GpsPositionQualityEvaluator.QualityImpossibleTeleport =>
+                "GPS reported an implausible jump — location may be wrong.",
+            GpsPositionQualityEvaluator.QualityLbsOnly =>
+                "Cell-tower (LBS) fix — GPS accuracy is limited.",
+            GpsPositionQualityEvaluator.QualityTraccarOutdated =>
+                "Tracker fix is outdated — location may not reflect current position.",
+            _ => "GPS fix quality is unreliable — verify on map before dispatch decisions."
+        };
+
+        await InsertAlertAsync(connection, null, dto, null, "gps_unreliable", detail, timestamp, cancellationToken);
+    }
 
     private async Task EvaluateGpsLostAsync(
         System.Data.IDbConnection connection,

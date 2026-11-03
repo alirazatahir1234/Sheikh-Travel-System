@@ -5,6 +5,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../core/navigation/fleet_nav_config.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/notifications/presentation/notifications_notifier.dart';
+import '../../../features/ai/presentation/widgets/ai_assistant_fab.dart';
 import '../../../features/offline/presentation/offline_status_banner.dart';
 import '../../../core/offline/offline_sync_service.dart';
 
@@ -33,6 +34,10 @@ class AppShell extends ConsumerWidget {
     final loc = GoRouterState.of(context).uri.path;
     // Immersive GPS trip history / playback — hide shell tab bar.
     final hideBottomNav = RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc);
+    final showAiFab =
+        (session?.canSeeAiTab ?? false) &&
+            !loc.startsWith('/ai') &&
+            !hideBottomNav;
 
     return Scaffold(
       body: Column(
@@ -41,6 +46,8 @@ class AppShell extends ConsumerWidget {
           Expanded(child: child),
         ],
       ),
+      floatingActionButton: showAiFab ? const AiAssistantFab() : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: tabs.isEmpty || hideBottomNav
           ? null
           : _ShellBottomBar(tabs: tabs, currentIndex: idx),

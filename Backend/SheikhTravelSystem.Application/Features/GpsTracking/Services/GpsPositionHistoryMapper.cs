@@ -47,6 +47,8 @@ public sealed class LivePositionRow
     public string? AlarmType { get; set; }
     public string? DriverPhone { get; set; }
     public decimal? Temperature { get; set; }
+    public bool IsGpsValid { get; set; } = true;
+    public string? GpsQualityCode { get; set; }
 }
 
 public static class GpsPositionHistoryMapper
@@ -91,7 +93,9 @@ public static class GpsPositionHistoryMapper
             Address: row.Address,
             AlarmType: row.AlarmType,
             DriverPhone: row.DriverPhone,
-            Temperature: row.Temperature);
+            Temperature: row.Temperature,
+            IsGpsValid: row.IsGpsValid,
+            GpsQualityCode: row.GpsQualityCode);
 
     public static PositionDto FromTraccar(
         Traccar.TraccarPosition position,

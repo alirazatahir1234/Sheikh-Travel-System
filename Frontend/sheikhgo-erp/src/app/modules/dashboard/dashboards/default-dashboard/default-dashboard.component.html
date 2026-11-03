@@ -1,32 +1,45 @@
 <div class="dash stb-page" [class.dash--loading]="loading">
 
-  <div *ngIf="error" class="error-message" role="alert">
-    <mat-icon>warning</mat-icon> {{ error }}
+  <div *ngIf="error" class="dash-error" role="alert">
+    <mat-icon>warning</mat-icon>
+    <span>{{ error }}</span>
+    <button type="button" class="dash-retry" (click)="retryDashboard()">Retry</button>
   </div>
 
-  <!-- Header -->
+  <!-- Greeting + notifications -->
   <section class="dash-section dash-header">
     <div class="dash-greeting-wrap">
-      <nav class="dash-breadcrumb" aria-label="Breadcrumb">
-        <span class="bc-root">Dashboard</span>
-        <mat-icon>chevron_right</mat-icon>
-        <span class="bc-current">Operations overview</span>
-      </nav>
-      <stb-greeting-banner
-        class="dash-greeting"
-        [compact]="true"
-        [userName]="userName"
-        [notificationsCount]="(unreadCount$ | async) ?? 0"
-        subject="notifications"
-        notificationsLink="/notifications">
-      </stb-greeting-banner>
-      <div class="ops-status" [class.ops-status--warn]="!opsHealthy" aria-live="polite">
-        <span class="ops-status-dot"></span>
-        <span>{{ opsHealthy ? 'System operational' : (summaryFailed ? 'Summary unavailable' : 'Attention needed') }}</span>
+      <div class="dash-greeting-row">
+        <div class="dash-greeting-copy">
+          <stb-greeting-banner
+            class="dash-greeting"
+            [compact]="true"
+            [userName]="userName"
+            [notificationsCount]="(unreadCount$ | async) ?? 0"
+            subject="notifications"
+            notificationsLink="/notifications">
+          </stb-greeting-banner>
+          <div class="ops-status" [class.ops-status--warn]="!opsHealthy" aria-live="polite">
+            <span class="ops-status-dot"></span>
+            <span>{{ opsHealthy ? 'System operational' : (summaryFailed ? 'Summary unavailable' : 'Attention needed') }}</span>
+          </div>
+        </div>
+        <div class="dash-greeting-art" aria-hidden="true">
+          <mat-icon class="dash-greeting-art__bus">directions_bus</mat-icon>
+          <mat-icon class="dash-greeting-art__car">directions_car</mat-icon>
+        </div>
       </div>
     </div>
 
-    <a class="notif-widget" routerLink="/notifications" *ngIf="notifStats as ns">
+    <div class="notif-widget notif-widget--skeleton" *ngIf="loading" aria-busy="true" aria-label="Loading notifications">
+      <div class="stb-shimmer-block notif-sk-title"></div>
+      <div class="stb-shimmer-block notif-sk-line"></div>
+      <div class="notif-sk-chips">
+        <span class="stb-shimmer-block" *ngFor="let _ of [1,2,3,4,5,6]"></span>
+      </div>
+    </div>
+
+    <a class="notif-widget" routerLink="/notifications" *ngIf="!loading && notifStats as ns">
       <div class="notif-widget-title">
         <mat-icon>notifications</mat-icon>
         <span>Notifications</span>
@@ -44,12 +57,21 @@
         <span class="failed" *ngIf="ns.failed > 0">Failed {{ ns.failed }}</span>
       </div>
     </a>
+
+    <div class="notif-widget notif-widget--empty" *ngIf="!loading && !notifStats">
+      <div class="notif-widget-title">
+        <mat-icon>notifications_off</mat-icon>
+        <span>Notifications</span>
+      </div>
+      <p class="notif-widget-fallback">Could not load notification stats.</p>
+      <button type="button" class="dash-retry dash-retry--inline" (click)="retryDashboard()">Retry</button>
+    </div>
   </section>
 
-  <!-- Live vehicle tracking snapshot -->
+  <!-- Vehicle tracking strip -->
   <section
     class="dash-section gps-strip"
-    *ngIf="gpsFleet as g"
+    *ngIf="!loading && gpsFleet as g"
     role="button"
     tabindex="0"
     (click)="onGpsStripClick()"
@@ -62,10 +84,10 @@
         <span class="gps-title">Vehicle tracking</span>
         <span class="gps-sub">Live fleet status · tap to open map</span>
       </div>
-      <a class="gps-link" routerLink="/gps-tracking/live" (click)="$event.stopPropagation()">Open map</a>
+      <a class="gps-link-btn" routerLink="/gps-tracking/live" (click)="$event.stopPropagation()">Open map</a>
     </div>
     <div class="gps-metrics">
-      <div class="gps-metric">
+      <div class="gps-metric gps-metric--online">
         <span class="gps-val">{{ g.online }}</span>
         <span class="gps-lbl">Online</span>
       </div>
@@ -73,15 +95,15 @@
         <span class="gps-val">{{ g.offline }}</span>
         <span class="gps-lbl">Offline</span>
       </div>
-      <div class="gps-metric">
+      <div class="gps-metric gps-metric--moving">
         <span class="gps-val">{{ g.moving }}</span>
         <span class="gps-lbl">Moving</span>
       </div>
-      <div class="gps-metric">
+      <div class="gps-metric gps-metric--idle">
         <span class="gps-val">{{ g.idle }}</span>
         <span class="gps-lbl">Idle</span>
       </div>
-      <div class="gps-metric">
+      <div class="gps-metric gps-metric--parked">
         <span class="gps-val">{{ g.parked }}</span>
         <span class="gps-lbl">Parked</span>
       </div>
@@ -94,6 +116,22 @@
         <span class="gps-lbl">SOS</span>
       </div>
     </div>
+  </section>
+
+  <section class="dash-section gps-strip gps-strip--skeleton" *ngIf="loading" aria-busy="true" aria-label="Loading fleet status">
+    <div class="stb-shimmer-block gps-sk-head"></div>
+    <div class="gps-sk-metrics">
+      <span class="stb-shimmer-block" *ngFor="let _ of [1,2,3,4,5,6]"></span>
+    </div>
+  </section>
+
+  <section class="dash-section gps-strip gps-strip--empty" *ngIf="!loading && gpsLoadFailed">
+    <mat-icon>sensors_off</mat-icon>
+    <div>
+      <span class="gps-title">Vehicle tracking unavailable</span>
+      <span class="gps-sub">Live fleet status could not be loaded.</span>
+    </div>
+    <button type="button" class="dash-retry dash-retry--inline" (click)="retryDashboard()">Retry</button>
   </section>
 
   <!-- Smart Operations alerts -->
@@ -127,34 +165,43 @@
     </ul>
   </section>
 
-  <!-- KPIs -->
-  <section class="dash-section stats-row">
-    <stb-stat-tile
-      *ngFor="let s of stats"
-      [label]="s.label"
-      [value]="s.value"
-      [hint]="s.hint"
-      [icon]="s.icon"
-      [color]="s.color"
-      [trend]="s.trend"
-      [trendUp]="s.trendUp"
-      [trendDetail]="s.trendDetail"
-      [sparkline]="s.sparkline"
-      [variant]="s.variant || 'default'"
-      [loading]="loading"
-      (click)="onStatClick(s.key)"
-      class="clickable-tile">
-    </stb-stat-tile>
-  </section>
-
-  <!-- Transport operations -->
-  <section class="dash-section ops-strip" *ngIf="summary">
-    <div class="ops-item" *ngFor="let k of transportKpis">
-      <mat-icon>{{ k.icon }}</mat-icon>
-      <div>
-        <span class="ops-val">{{ k.value }}</span>
-        <span class="ops-lbl">{{ k.label }}</span>
-      </div>
+  <!-- KPI grid -->
+  <section class="dash-section stats-block" aria-label="Key metrics">
+    <div class="stats-row stats-row--primary">
+      <stb-stat-tile
+        *ngFor="let s of kpiRowPrimary"
+        [label]="s.label"
+        [value]="s.value"
+        [hint]="s.hint"
+        [icon]="s.icon"
+        [color]="s.color"
+        [trend]="s.trend"
+        [trendUp]="s.trendUp"
+        [trendDetail]="s.trendDetail"
+        [sparkline]="s.sparkline"
+        [variant]="s.variant || 'default'"
+        [loading]="loading"
+        (click)="onStatClick(s.key)"
+        class="clickable-tile">
+      </stb-stat-tile>
+    </div>
+    <div class="stats-row stats-row--secondary" *ngIf="kpiRowSecondary.length">
+      <stb-stat-tile
+        *ngFor="let s of kpiRowSecondary"
+        [label]="s.label"
+        [value]="s.value"
+        [hint]="s.hint"
+        [icon]="s.icon"
+        [color]="s.color"
+        [trend]="s.trend"
+        [trendUp]="s.trendUp"
+        [trendDetail]="s.trendDetail"
+        [sparkline]="s.sparkline"
+        [variant]="s.variant || 'default'"
+        [loading]="loading"
+        (click)="onStatClick(s.key)"
+        class="clickable-tile">
+      </stb-stat-tile>
     </div>
   </section>
 
@@ -168,21 +215,27 @@
     </stb-quick-launch-grid>
   </section>
 
-  <!-- Analytics: deferred so Chart.js does not block first paint -->
   @defer (on idle) {
     <app-dashboard-analytics
       [loading]="loading"
       [revenueLabels]="revenueChartLabels"
       [revenueValues]="revenueChartValues"
       [revenueTotal]="revenueWeekTotal"
+      [revenueTrend]="revenueWeekTrend"
+      [revenueTrendUp]="revenueWeekTrendUp"
       [bookingLabels]="bookingChartLabels"
       [bookingValues]="bookingChartValues"
+      [bookingTotal]="bookingChartTotal"
       [fleetLabels]="fleetChartLabels"
       [fleetValues]="fleetChartValues">
     </app-dashboard-analytics>
   } @placeholder {
     <section class="dash-section analytics-placeholder" aria-busy="true" aria-label="Loading analytics">
-      <div class="stb-shimmer-block" style="height: 220px; border-radius: 12px;"></div>
+      <div class="analytics-placeholder-grid">
+        <div class="stb-shimmer-block analytics-ph analytics-ph--wide"></div>
+        <div class="stb-shimmer-block analytics-ph"></div>
+        <div class="stb-shimmer-block analytics-ph"></div>
+      </div>
     </section>
   }
 
@@ -194,7 +247,7 @@
       icon="task_alt"
       [tasks]="todoTasks"
       (toggle)="onTaskToggle($event)"
-      emptyMessage="No pending or confirmed bookings needing action.">
+      emptyMessage="No pending actions — you're caught up.">
     </stb-task-list-card>
 
     <stb-task-list-card

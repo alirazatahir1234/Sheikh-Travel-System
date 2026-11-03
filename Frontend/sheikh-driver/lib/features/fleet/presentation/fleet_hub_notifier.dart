@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
@@ -53,7 +54,8 @@ class FleetHubState {
             v.status == FleetTrackStatus.moving ||
             v.status == FleetTrackStatus.idle ||
             v.status == FleetTrackStatus.parked ||
-            v.status == FleetTrackStatus.sos,
+            v.status == FleetTrackStatus.sos ||
+            v.status == FleetTrackStatus.unknown,
       )
       .length;
 
@@ -175,19 +177,22 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
             final live = await api.getLivePositions(pageSize: 500);
             locations = mergeVehiclesWithLive(vehicles: vehicles, live: live);
             liveFeedWarning =
-                'Using legacy fleet join (live/fleet unavailable). ($fleetErr)';
+                'Using legacy fleet join (live/fleet unavailable: ${ErrorHandler.message(fleetErr)})';
           } catch (e) {
-            loadError = 'Fleet roster failed. Pull to refresh. ($e)';
+            loadError = ErrorHandler.message(e);
           }
         }
       }(),
     ]);
 
-    // Always derive strip counts from the same rows the list renders.
-    final kpis = deriveFleetKpisFromLocations(
-      locations,
-      alertsToday: apiKpis.alertsToday,
-    );
+    // Prefer counts derived from the same rows the list renders.
+    // If the live roster failed/empty but fleet-status-local succeeded, show API KPIs.
+    final kpis = locations.isEmpty && apiKpis.totalVehicles > 0
+        ? apiKpis
+        : deriveFleetKpisFromLocations(
+            locations,
+            alertsToday: apiKpis.alertsToday,
+          );
     final now = DateTime.now();
     return FleetHubState(
       kpis: kpis,

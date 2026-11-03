@@ -66,7 +66,7 @@ class OpsTripDetailScreen extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Trip detail')),
       body: async.when(
         loading: () => const Center(child: SgBrandLoader()),
@@ -110,16 +110,16 @@ class OpsTripDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     t.customerName ?? 'Customer',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      color: context.sg.textSecondary,
                     ),
                   ),
                   Text(
                     df.format(t.plannedStart.toLocal()),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMuted,
+                      color: context.sg.textMuted,
                     ),
                   ),
                 ],
@@ -250,7 +250,7 @@ class _Row extends StatelessWidget {
               child: Text(
                 label,
                 style:
-                    const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    TextStyle(fontSize: 13, color: context.sg.textMuted),
               ),
             ),
             Expanded(

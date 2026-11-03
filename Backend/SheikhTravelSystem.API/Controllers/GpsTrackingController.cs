@@ -205,6 +205,7 @@ public partial class GpsTrackingController : BaseApiController
         [FromQuery] int? driverId)
         => Ok(await Mediator.Send(new GetFleetTripSummaryQuery(from, to, branchId, departmentId, driverId)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpGet("geofences")]
     public async Task<IActionResult> GetGeofences(
         [FromQuery] string? search,
@@ -213,50 +214,64 @@ public partial class GpsTrackingController : BaseApiController
         [FromQuery] int? vehicleId)
         => Ok(await Mediator.Send(new GetGeofencesQuery(search, areaType, isActive, vehicleId)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpGet("geofences/stats")]
     public async Task<IActionResult> GetGeofenceStats()
         => Ok(await Mediator.Send(new GetGeofenceStatsQuery()));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpPost("geofences")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> CreateGeofence([FromBody] CreateGeofenceDto geofence)
     {
         var result = await Mediator.Send(new CreateGeofenceCommand(geofence));
         return Created(string.Empty, result);
     }
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpPut("geofences/{id:int}")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> UpdateGeofence(int id, [FromBody] UpdateGeofenceDto geofence)
         => Ok(await Mediator.Send(new UpdateGeofenceCommand(id, geofence)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpDelete("geofences/{id:int}")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> DeleteGeofence(int id)
         => Ok(await Mediator.Send(new DeleteGeofenceCommand(id)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpPost("geofences/{id:int}/duplicate")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> DuplicateGeofence(int id)
     {
         var result = await Mediator.Send(new DuplicateGeofenceCommand(id));
         return Created(string.Empty, result);
     }
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpGet("geofences/{id:int}/assignments")]
     public async Task<IActionResult> GetGeofenceAssignments(int id)
         => Ok(await Mediator.Send(new GetGeofenceAssignmentsQuery(id)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpPost("geofences/{id:int}/assignments")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> UpsertGeofenceAssignments(int id, [FromBody] UpsertGeofenceAssignmentsDto body)
         => Ok(await Mediator.Send(new UpsertGeofenceAssignmentsCommand(id, body)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpDelete("geofences/{id:int}/assignments/{assignmentId:int}")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> DeleteGeofenceAssignment(int id, int assignmentId)
         => Ok(await Mediator.Send(new DeleteGeofenceAssignmentCommand(id, assignmentId)));
 
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
+    [HttpGet("geofences/states")]
+    public async Task<IActionResult> GetGeofenceVehicleStates([FromQuery] int? geofenceId, [FromQuery] int? vehicleId)
+        => Ok(await Mediator.Send(new GetGeofenceVehicleStatesQuery(geofenceId, vehicleId)));
+
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpGet("geofences/{id:int}/events")]
     public async Task<IActionResult> GetGeofenceEvents(int id, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetGeofenceEventsQuery(id, from, to)));

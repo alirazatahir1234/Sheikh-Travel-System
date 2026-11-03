@@ -213,10 +213,10 @@ class OpsKpiGridCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
+              color: context.sg.textMuted,
             ),
           ),
           const Spacer(),
@@ -236,7 +236,7 @@ class OpsKpiGridCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style:
-                const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                TextStyle(fontSize: 11, color: context.sg.textSecondary),
           ),
         ],
       ),
@@ -284,16 +284,16 @@ class MapSummaryCard extends StatelessWidget {
                     ),
                     Text(
                       '$online online · tap to open map',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: context.sg.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textMuted),
+              Icon(Icons.chevron_right_rounded,
+                  color: context.sg.textMuted),
             ],
           ),
         ),
@@ -429,7 +429,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                               ? 'Type at least 2 characters'
                               : 'No matches',
                           style:
-                              const TextStyle(color: AppColors.textSecondary),
+                              TextStyle(color: context.sg.textSecondary),
                         ),
                       )
                     : ListView.separated(
@@ -498,11 +498,11 @@ class AttentionVehiclesCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          const SgCard(
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          SgCard(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Text(
               'No vehicles flagged right now',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
           )
         else
@@ -526,15 +526,15 @@ class AttentionVehiclesCard extends StatelessWidget {
                                 v.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: context.sg.textPrimary,
                                 ),
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded,
-                                size: 14, color: AppColors.textMuted),
+                            Icon(Icons.chevron_right_rounded,
+                                size: 14, color: context.sg.textMuted),
                           ],
                         ),
                         const SizedBox(height: 3),
@@ -542,9 +542,9 @@ class AttentionVehiclesCard extends StatelessWidget {
                           v.registrationNumber,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: context.sg.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 6),

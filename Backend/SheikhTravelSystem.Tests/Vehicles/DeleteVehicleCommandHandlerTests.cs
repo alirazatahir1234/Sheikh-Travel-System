@@ -64,17 +64,24 @@ public class DeleteVehicleCommandHandlerTests
     [Fact]
     public void DeleteVehicleHandlerSource_ShouldScopeVehicleDeleteByTenant()
     {
-        var sourcePath = Path.GetFullPath(Path.Combine(
+        var handlerPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..",
             "SheikhTravelSystem.Application",
             "Features", "Vehicles", "Commands", "DeleteVehicleCommand.cs"));
+        var repoPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..",
+            "SheikhTravelSystem.Infrastructure",
+            "Persistence", "Repositories", "VehicleRepository.cs"));
 
-        var source = File.ReadAllText(sourcePath);
+        File.ReadAllText(handlerPath).Should().Contain("vehicleRepository.SoftDeleteAsync");
+        File.ReadAllText(handlerPath).Should().Contain("tenantContext.GetRequiredTenantId()");
+        File.ReadAllText(handlerPath).Should().Contain("logger.LogWarning");
 
-        source.Should().Contain("UPDATE Vehicles SET IsDeleted = 1");
-        source.Should().Contain("WHERE Id = @Id AND TenantId = @TenantId");
-        source.Should().Contain("logger.LogWarning");
+        var repoSource = File.ReadAllText(repoPath);
+        repoSource.Should().Contain("UPDATE Vehicles SET IsDeleted = 1");
+        repoSource.Should().Contain("WHERE Id = @Id AND TenantId = @TenantId");
     }
 
     [Fact]

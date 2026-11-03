@@ -13,6 +13,7 @@ public class GpsGt06CommandMapTests
     [InlineData("engineStop", "RELAY,1#", "engineStop", null)]
     [InlineData("engineResume", "RELAY,0#", "engineResume", null)]
     [InlineData("status", "STATUS#", "custom", null)]
+    [InlineData("version", "VERSION#", "custom", null)]
     [InlineData("check", "CHECK#", "custom", null)]
     [InlineData("iccid", "ICCID#", "custom", null)]
     [InlineData("imsi", "IMSI#", "custom", null)]
@@ -39,7 +40,7 @@ public class GpsGt06CommandMapTests
     {
         GpsGt06CommandMap.Vg03PanelCommandKeys.Should().Contain(new[]
         {
-            "engineStop", "engineResume", "positionSingle", "restart", "status", "gprsset", "server"
+            "engineStop", "engineResume", "positionSingle", "restart", "status", "version", "gprsset", "server"
         });
         GpsGt06CommandMap.Vg03PanelCommandKeys.Should().NotContain(new[]
         {

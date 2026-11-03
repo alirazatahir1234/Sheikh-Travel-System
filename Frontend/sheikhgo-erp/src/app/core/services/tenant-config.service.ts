@@ -9,8 +9,6 @@ export interface TenantBranding {
   id: number;
   name: string;
   slug: string;
-  logoUrl: string | null;
-  primaryColor: string | null;
   enabledModules: string[];
   /** Company IANA timezone from TenantBranding.TimeZone when set. */
   timeZone?: string | null;

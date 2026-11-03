@@ -17,6 +17,8 @@ export class RentalRatesComponent implements OnInit {
   displayedColumns = ['vehicle', 'rateType', 'amount', 'depositAmount', 'currency', 'isActive', 'actions'];
   dataSource = new MatTableDataSource<RentalRate>();
   loading = true;
+  saving = false;
+  error: string | null = null;
   form: FormGroup;
   vehicles: Array<{ id: number; name?: string; registrationNumber?: string }> = [];
   rateTypes = ['Hourly', 'Daily', 'Weekly', 'Monthly'];
@@ -52,14 +54,30 @@ export class RentalRatesComponent implements OnInit {
 
   load(): void {
     this.loading = true;
+    this.error = null;
     this.rentalService.getRates().subscribe({
       next: r => { this.dataSource.data = r.items; this.loading = false; },
-      error: () => { this.loading = false; this.toast.error('Failed to load rates'); }
+      error: () => {
+        this.loading = false;
+        this.error = 'Unable to load rental rates';
+        this.toast.error('Failed to load rates');
+      }
     });
   }
 
+  retryLoad(): void { this.load(); }
+
+  trackById(_index: number, row: RentalRate): number {
+    return row.id;
+  }
+
+  activeStatusClass(isActive: boolean): string {
+    return isActive ? 'ops-status--green' : 'ops-status--cancelled';
+  }
+
   create(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.saving) return;
+    this.saving = true;
     const v = this.form.value;
     this.rentalService.createRate({
       vehicleId: v.vehicleId || null,
@@ -69,8 +87,16 @@ export class RentalRatesComponent implements OnInit {
       currency: v.currency || 'PKR',
       notes: v.notes || null
     }).subscribe({
-      next: () => { this.toast.success('Rate created'); this.form.patchValue({ amount: 0, depositAmount: 0, notes: '' }); this.load(); },
-      error: e => this.toast.error(e?.error?.message || 'Create failed')
+      next: () => {
+        this.saving = false;
+        this.toast.success('Rate created');
+        this.form.patchValue({ amount: 0, depositAmount: 0, notes: '' });
+        this.load();
+      },
+      error: e => {
+        this.saving = false;
+        this.toast.error(e?.error?.message || 'Create failed');
+      }
     });
   }
 

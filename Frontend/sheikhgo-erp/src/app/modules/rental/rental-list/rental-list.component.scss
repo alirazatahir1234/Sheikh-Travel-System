@@ -1,26 +1,13 @@
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-  h2 { margin: 0; }
+@use '../rental-subpage';
+
+.rental-page {
+  .ops-btn--primary {
+    background: var(--rental-teal);
+    border-color: var(--rental-teal);
+
+    &:hover:not(:disabled) {
+      background: var(--rental-teal-bright);
+      border-color: var(--rental-teal-bright);
+    }
+  }
 }
-.page-lead { margin: 4px 0 0; color: #666; }
-.filter-card { margin-bottom: 16px; }
-.filter-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-}
-.quote { margin-top: 12px; color: #1565c0; font-size: 13px; }
-.status-chip {
-  color: #fff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.full-width { width: 100%; }
-.empty { padding: 24px; text-align: center; color: #666; }
-.error-message { color: #c62828; padding: 12px; }

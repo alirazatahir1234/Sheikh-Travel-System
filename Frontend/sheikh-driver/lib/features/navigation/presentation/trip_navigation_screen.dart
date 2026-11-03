@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -16,7 +18,6 @@ import '../data/navigation_api.dart';
 import '../domain/gps_eta.dart';
 import '../utils/external_maps.dart';
 import '../utils/gps_geo.dart';
-import '../../../shared/widgets/sg_brand_loader.dart';
 
 class TripNavigationScreen extends ConsumerStatefulWidget {
   const TripNavigationScreen({super.key, required this.tripId});
@@ -502,7 +503,10 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       },
       error: (e, _) {
         if (cached != null) return _buildScaffold(cached);
-        return Scaffold(body: Center(child: Text('$e')));
+        return Scaffold(
+          appBar: AppBar(),
+          body: SgErrorView(message: ErrorHandler.message(e)),
+        );
       },
       data: (trips) {
         final trip = _findTrip(trips) ?? cached;
@@ -722,9 +726,9 @@ class _BottomPanel extends StatelessWidget {
                 const Spacer(),
                 Text(
                   '${speedKmh.toStringAsFixed(0)} km/h',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
                 IconButton(
@@ -738,10 +742,10 @@ class _BottomPanel extends StatelessWidget {
               trip.routeName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: AppColors.textPrimary,
+                color: context.sg.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
@@ -749,9 +753,9 @@ class _BottomPanel extends StatelessWidget {
               '$destLabel · ${trip.isStarted ? (trip.dropoffAddress ?? 'Destination') : (trip.pickupAddress ?? 'Pickup')}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
             if (routeSummary != null && routeSummary!.isNotEmpty) ...[
@@ -769,9 +773,9 @@ class _BottomPanel extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Live traffic: $trafficLabel',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                 ),
               ),
             ],
@@ -865,9 +869,9 @@ class _StatChip extends StatelessWidget {
     final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.7),
+        color: context.sg.surface.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: context.sg.divider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

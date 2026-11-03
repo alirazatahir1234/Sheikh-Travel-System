@@ -62,7 +62,7 @@ class VehicleDetailScreen extends ConsumerWidget {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.sg.surface,
         appBar: AppBar(
           title: async.when(
             data: (v) => Column(
@@ -87,10 +87,10 @@ class VehicleDetailScreen extends ConsumerWidget {
                     v.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: context.sg.textSecondary,
                     ),
                   ),
               ],
@@ -193,10 +193,10 @@ class _OverviewTab extends StatelessWidget {
                   Expanded(
                     child: Text(
                       vehicle.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        color: context.sg.textPrimary,
                       ),
                     ),
                   ),
@@ -206,9 +206,9 @@ class _OverviewTab extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 vehicle.registrationNumber,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -220,9 +220,9 @@ class _OverviewTab extends StatelessWidget {
                     vehicle.model,
                     if (vehicle.year != null) '${vehicle.year}',
                   ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textMuted,
+                    color: context.sg.textMuted,
                   ),
                 ),
               ],
@@ -567,16 +567,16 @@ class _FuelTab extends ConsumerWidget {
                           const SizedBox(height: 6),
                           LinearProgressIndicator(
                             value: frac.toDouble(),
-                            backgroundColor: AppColors.border,
+                            backgroundColor: context.sg.border,
                             color: AppColors.warning,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${df.format(f.fuelDate.toLocal())}'
                             '${f.station != null ? ' · ${f.station}' : ''}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: context.sg.textSecondary,
                             ),
                           ),
                         ],
@@ -615,7 +615,7 @@ class _Kpi extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          style: TextStyle(fontSize: 12, color: context.sg.textMuted),
         ),
       ],
     );
@@ -652,19 +652,19 @@ class _Row extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.sg.textPrimary,
               ),
             ),
           ),

@@ -289,21 +289,21 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Select a period, review trips, then open the map player.',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               height: 1.35,
               fontSize: 13,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Select a period',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
             ),
           ),
           const SizedBox(height: 10),
@@ -379,7 +379,7 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
                   stops.isNotEmpty
                       ? 'Only stops in this period — open View all to see them.'
                       : 'No motion trips in this period.',
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: context.sg.textSecondary),
                 ),
               )
             else
@@ -432,7 +432,7 @@ class _RangeChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? AppColors.primary : context.sg.textSecondary,
               width: selected ? 1.5 : 1.2,
             ),
           ),
@@ -441,7 +441,7 @@ class _RangeChip extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
-              color: selected ? Colors.white : AppColors.textPrimary,
+              color: selected ? Colors.white : context.sg.textPrimary,
             ),
           ),
         ),
@@ -466,7 +466,7 @@ class _CustomRangeCard extends StatelessWidget {
     return Material(
       color: selected
           ? AppColors.primary.withValues(alpha: 0.08)
-          : AppColors.cardBg,
+          : context.sg.card,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -477,7 +477,7 @@ class _CustomRangeCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
+              color: selected ? AppColors.primary : context.sg.border,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -485,7 +485,7 @@ class _CustomRangeCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.calendar_month_rounded,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+                color: selected ? AppColors.primary : context.sg.textSecondary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -499,23 +499,23 @@ class _CustomRangeCard extends StatelessWidget {
                         fontSize: 14,
                         color: selected
                             ? AppColors.primary
-                            : AppColors.textPrimary,
+                            : context.sg.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: context.sg.textSecondary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textMuted),
+              Icon(Icons.chevron_right_rounded,
+                  color: context.sg.textMuted),
             ],
           ),
         ),
@@ -573,9 +573,9 @@ class _SummaryCard extends StatelessWidget {
           Text(
             '${distanceKm.toStringAsFixed(1)} km travelled · '
             '${formatDurationMinutes(driveMinutes)} driving',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -593,12 +593,12 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 14),
             const Divider(height: 1),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Last activity',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
               ),
             ),
             const SizedBox(height: 4),
@@ -611,18 +611,18 @@ class _SummaryCard extends StatelessWidget {
               lastActivity!.place,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               '${lastActivity!.distanceKm.toStringAsFixed(1)} km · '
               '${formatDurationMinutesCompact(lastActivity!.minutes)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -711,9 +711,9 @@ class _PlaybackTripCard extends StatelessWidget {
                   route.primary,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -722,16 +722,16 @@ class _PlaybackTripCard extends StatelessWidget {
                   '${trip.distanceKm.toStringAsFixed(1)} km · '
                   '${formatDurationMinutesCompact(trip.durationMinutes)} · '
                   'Avg ${formatTripAvgSpeed(trip)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textMuted,
+                    color: context.sg.textMuted,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          Icon(Icons.chevron_right_rounded, color: context.sg.textMuted),
         ],
       ),
     );
@@ -771,11 +771,11 @@ class _EmptyGpsBlock extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'No GPS positions were recorded for this vehicle during the selected period.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               height: 1.4,
               fontSize: 13,
             ),
@@ -811,8 +811,8 @@ class _ErrorBlock extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.sg.textSecondary,
               fontSize: 12,
             ),
           ),

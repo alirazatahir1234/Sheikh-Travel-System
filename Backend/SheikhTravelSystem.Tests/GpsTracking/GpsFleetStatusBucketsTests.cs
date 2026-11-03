@@ -133,7 +133,7 @@ public class GpsFleetStatusBucketsTests
     }
 
     [Fact]
-    public void Ignition_null_low_speed_is_parked()
+    public void Ignition_null_low_speed_is_unknown()
     {
         var bucket = GpsFleetStatusBuckets.Classify(
             hasGpsDevice: true,
@@ -143,7 +143,22 @@ public class GpsFleetStatusBucketsTests
             alarmType: null,
             utcNow: Now);
 
-        Assert.Equal("parked", bucket);
+        Assert.Equal("unknown", bucket);
+    }
+
+    [Fact]
+    public void Invalid_gps_at_rest_is_unknown_even_with_ignition_off()
+    {
+        var bucket = GpsFleetStatusBuckets.Classify(
+            hasGpsDevice: true,
+            lastUpdateUtc: Now.AddMinutes(-1),
+            speedKmh: 0,
+            ignition: false,
+            alarmType: null,
+            utcNow: Now,
+            isGpsValid: false);
+
+        Assert.Equal("unknown", bucket);
     }
 
     [Fact]

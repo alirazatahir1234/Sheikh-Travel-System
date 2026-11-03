@@ -70,7 +70,7 @@ class _LocationTrackingScreenState
   }
 
   Color _statusColor(PermissionStatus? s) {
-    if (s == null) return AppColors.textMuted;
+    if (s == null) return context.sg.textMuted;
     if (s.isGranted) return AppColors.success;
     if (s.isPermanentlyDenied || s.isDenied) return AppColors.error;
     return AppColors.warning;

@@ -126,10 +126,13 @@ internal static class ModuleRegistryQueries
     public static ModuleStatusDto ToStatusDto(ModuleRegistryDto m, bool enabled, bool licensed)
     {
         var premium = m.IsPremiumAddOn || SubscriptionAddOnCatalog.IsPremiumAddOn(m.Code);
+        var isCore = TenantModuleCatalog.IsCore(m.Code);
+        // Core modules are always entitled / shown on; not subscription toggles.
+        var effectiveEnabled = enabled || isCore;
         return new(
             m.Code,
             m.Name,
-            enabled,
+            effectiveEnabled,
             m.DisplayName,
             m.Description,
             m.Category,
@@ -144,10 +147,11 @@ internal static class ModuleRegistryQueries
             m.IsGPSSupported,
             m.Status,
             m.DocumentationUrl,
-            IsInstalled: enabled,
-            IsLicensed: licensed || (premium && enabled),
-            CanToggle: m.IsEnableable,
-            IsPremiumAddOn: premium);
+            IsInstalled: effectiveEnabled,
+            IsLicensed: licensed || (premium && effectiveEnabled) || isCore,
+            CanToggle: m.IsEnableable && !isCore,
+            IsPremiumAddOn: premium,
+            IsCoreAlwaysOn: isCore);
     }
 
 }

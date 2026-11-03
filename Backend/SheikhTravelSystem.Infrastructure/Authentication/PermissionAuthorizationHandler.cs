@@ -43,6 +43,14 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
+        // Gps.DeviceManage previously gated zone writes; keep it accepted for Gps.GeofenceManage.
+        if (requirement.Permission == GpsPermissions.GeofenceManage &&
+            context.User.HasClaim("permission", GpsPermissions.DeviceManage))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
         // Legacy Ai.View / Ai.Manage satisfy finer AI Operations codes (backward compatible).
         if (AiPermissions.ImpliedByView.Contains(requirement.Permission) &&
             context.User.HasClaim("permission", AiPermissions.View))

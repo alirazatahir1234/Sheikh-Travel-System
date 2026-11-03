@@ -120,7 +120,7 @@ class ComplianceListScreen extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Documents'),
         actions: [
@@ -235,17 +235,17 @@ class ComplianceListScreen extends ConsumerWidget {
                                     const SizedBox(height: 2),
                                     Text(
                                       '${d.entityType}${d.entityName != null ? ' · ${d.entityName}' : ''}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
-                                        color: AppColors.textSecondary,
+                                        color: context.sg.textSecondary,
                                       ),
                                     ),
                                     if (d.expiryDate != null)
                                       Text(
                                         'Expires ${df.format(d.expiryDate!.toLocal())}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
-                                          color: AppColors.textMuted,
+                                          color: context.sg.textMuted,
                                         ),
                                       ),
                                   ],
@@ -301,12 +301,12 @@ class _Stat extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: warn ? AppColors.error : AppColors.textPrimary,
+              color: warn ? AppColors.error : context.sg.textPrimary,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 11, color: context.sg.textMuted),
           ),
         ],
       ),

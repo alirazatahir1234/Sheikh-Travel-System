@@ -21,9 +21,6 @@ public class Tenant
     public string? SubscriptionPlan { get; set; }
     public string? PlanId { get; set; }
 
-    public string? LogoUrl { get; set; }
-    public string? PrimaryColor { get; set; }
-
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 }

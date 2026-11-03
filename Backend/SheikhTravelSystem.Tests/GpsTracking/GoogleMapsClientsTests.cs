@@ -79,9 +79,9 @@ public class GoogleMapsClientsTests
 
         url.Should().NotBeNull();
         url.Should().StartWith("https://maps.googleapis.com/maps/api/staticmap?");
-        url.Should().Contain("center=31.52,74.35");
+        url.Should().Contain("center=31.5200,74.3500");
         url.Should().Contain("size=640x480");
-        url.Should().Contain("markers=31.52,74.35");
+        url.Should().Contain("markers=31.5200,74.3500");
         url.Should().Contain("path=color:0x0000ff|weight:3");
         url.Should().Contain("key=" + placeholder);
     }

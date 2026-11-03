@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,7 +11,6 @@ import '../../../core/constants/app_theme.dart';
 import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../data/inspection_api.dart';
 import '../domain/inspection_models.dart';
-import '../../../shared/widgets/sg_brand_loader.dart';
 
 final _templateProvider = FutureProvider.autoDispose<InspectionTemplate>(
   (ref) => ref.read(inspectionApiProvider).getTemplate(),
@@ -207,7 +208,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
 
     return templateAsync.when(
       loading: () => const Center(child: SgBrandLoader()),
-      error: (e, _) => Center(child: Text('$e')),
+      error: (e, _) => SgErrorView(message: ErrorHandler.message(e)),
       data: (template) {
         _ensureResults(template);
         return ListView(
@@ -320,7 +321,7 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
             Container(
               height: 140,
               decoration: BoxDecoration(
-                border: Border.all(color: AppColors.divider),
+                border: Border.all(color: context.sg.divider),
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.white,
               ),

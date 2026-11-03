@@ -8,8 +8,6 @@ public class TraccarAlertEventMapperTests
     [Theory]
     [InlineData("ignitionOn", "ignition_on")]
     [InlineData("ignitionOff", "ignition_off")]
-    [InlineData("geofenceEnter", "geofence_enter")]
-    [InlineData("geofenceExit", "geofence_exit")]
     [InlineData("deviceOnline", "online")]
     [InlineData("deviceOffline", "vehicle_offline")]
     [InlineData("ignitionon", "ignition_on")]
@@ -22,6 +20,8 @@ public class TraccarAlertEventMapperTests
     [InlineData("deviceStopped")]
     [InlineData("queuedCommandSent")]
     [InlineData("commandResult")]
+    [InlineData("geofenceEnter")]
+    [InlineData("geofenceExit")]
     public void MapEventType_SkipsNoise(string input)
         => TraccarAlertEventMapper.MapEventType(input).Should().BeNull();
 
@@ -51,4 +51,20 @@ public class TraccarAlertEventMapperTests
     [Fact]
     public void GpsEventTypeNormalizer_CollapsesOfflineFamily()
         => GpsEventTypeNormalizer.Normalize("vehicle_offline").Should().Be("offline");
+
+    [Theory]
+    [InlineData("alarm", "accident", "harsh_braking")]
+    [InlineData("alarm", "crash", "harsh_braking")]
+    [InlineData("alarm", "collision", "harsh_braking")]
+    [InlineData("accident", null, "harsh_braking")]
+    [InlineData("hardBraking", null, "harsh_braking")]
+    public void MapEventType_GsensorAccident_MapsToHarshBraking(string type, string? alarm, string expected)
+        => TraccarAlertEventMapper.MapEventType(type, alarm).Should().Be(expected);
+
+    [Fact]
+    public void MapEventType_GenericAlarm_DoesNotMapToCollision()
+    {
+        TraccarAlertEventMapper.MapEventType("alarm", "unknownSensor").Should().Be("alarm");
+        TraccarAlertEventMapper.MapEventType("alarm", "accident").Should().NotBe("collision");
+    }
 }

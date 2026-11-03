@@ -41,8 +41,16 @@ void main() {
       'updatedAt': '2026-07-21T10:05:00Z',
       'messageCount': 4,
     });
-    final m = AiChatMessage.fromJson({'role': 'assistant', 'content': 'OK'});
+    final m = AiChatMessage.fromJson({
+      'role': 'assistant',
+      'content': 'OK',
+      'structuredPayload': '{"summary":{"total":1,"online":1}}',
+      'toolUsed': 'get_fleet_status',
+      'createdAt': '2026-07-21T10:01:00Z',
+    });
     expect(s.messageCount, 4);
     expect(m.isAssistant, isTrue);
+    expect(m.structuredPayload, isNotNull);
+    expect(m.toolUsed, 'get_fleet_status');
   });
 }

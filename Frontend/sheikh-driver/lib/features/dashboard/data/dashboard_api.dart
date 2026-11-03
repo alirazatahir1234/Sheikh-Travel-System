@@ -172,7 +172,8 @@ class DashboardApi {
     final snapshotGps = _normalizeGpsSnapshot(gps, fleet);
     final normalizedFleet = FleetOpsDashboard(
       totalVehicles: snapshotGps.totalVehicles,
-      activeVehicles: snapshotGps.moving,
+      // GPS "active" = online (fresh tracker), not Moving-only.
+      activeVehicles: snapshotGps.online,
       driversOnDuty: fleet.driversOnDuty,
       maintenanceDue: fleet.maintenanceDue,
       monthlyFuelCost: fleet.monthlyFuelCost,
@@ -360,6 +361,7 @@ class DashboardApi {
     final gps = results[8] as GpsFleetStatusKpis;
     final drivers = results[9] as DriverStats;
     final fleet = results[10] as FleetOpsDashboard;
+    final snapshotGps = _normalizeGpsSnapshot(gps, fleet);
 
     final openAlerts =
         _filterAlertsForRole(DashboardRole.dispatcher, alertEvents);
@@ -371,12 +373,12 @@ class DashboardApi {
       lastSyncedAt: DateTime.now(),
       widgets: List.from(widgets),
       quickActions: List.from(quickActions),
-      primaryKpis: _fleetStatusPrimaryKpis(fleet, gps),
+      primaryKpis: _fleetStatusPrimaryKpis(fleet, snapshotGps),
       trips: trips,
       liveTrips: liveTrips.take(5).toList(),
       pendingTrips: pending.take(5).toList(),
       livePositions: live,
-      gps: gps,
+      gps: snapshotGps,
       fleet: fleet,
       driverStats: drivers,
       alerts: alerts,
@@ -557,31 +559,70 @@ class DashboardApi {
         .toList();
   }
 
+  /// Prefer authoritative `/gps/dashboard/fleet-status-local` fields.
+  /// Do not invent Offline=total when the GPS call failed (empty snapshot).
   GpsFleetStatusKpis _normalizeGpsSnapshot(
     GpsFleetStatusKpis gps,
     FleetOpsDashboard fleet,
   ) {
-    final total =
-        gps.totalVehicles > 0 ? gps.totalVehicles : fleet.totalVehicles;
     final moving = gps.moving < 0 ? 0 : gps.moving;
-    final idle = (gps.idle + gps.parked + gps.sos).clamp(0, 1 << 30);
+    final idle = gps.idle < 0 ? 0 : gps.idle;
+    final parked = gps.parked < 0 ? 0 : gps.parked;
     final neverSeen = gps.neverSeen < 0 ? 0 : gps.neverSeen;
-    // Prefer API "online" (fresh GPS = moving+idle). Fall back to moving+idle if API omitted it.
-    final onlineFromApi = gps.online;
-    final online = onlineFromApi > 0 ? onlineFromApi : (moving + idle);
-    var offline = total - online - neverSeen;
-    if (offline < 0) {
-      offline = gps.offline < 0 ? 0 : gps.offline;
+    final sos = gps.sos < 0 ? 0 : gps.sos;
+    final offlineFromApi = gps.offline < 0 ? 0 : gps.offline;
+    final onlineFromApi = gps.online < 0 ? 0 : gps.online;
+
+    final hasGpsPayload = gps.totalVehicles > 0 ||
+        onlineFromApi > 0 ||
+        offlineFromApi > 0 ||
+        moving > 0 ||
+        idle > 0 ||
+        parked > 0 ||
+        neverSeen > 0 ||
+        sos > 0;
+
+    final total = gps.totalVehicles > 0
+        ? gps.totalVehicles
+        : (hasGpsPayload ? 0 : (fleet.totalVehicles < 0 ? 0 : fleet.totalVehicles));
+
+    if (!hasGpsPayload) {
+      return GpsFleetStatusKpis(
+        totalVehicles: total,
+        online: 0,
+        offline: 0,
+        moving: 0,
+        idle: 0,
+        parked: 0,
+        neverSeen: 0,
+        sos: 0,
+        alertsToday: gps.alertsToday < 0 ? 0 : gps.alertsToday,
+      );
     }
+
+    // Backend Online = Moving + Idle + Parked + Sos (+ Unknown).
+    final derivedOnline = moving + idle + parked + sos;
+    final online = onlineFromApi > 0 ? onlineFromApi : derivedOnline;
+
+    var offline = offlineFromApi;
+    if (total > 0) {
+      final remainder = total - online - neverSeen;
+      if (remainder >= 0 &&
+          (online + offline + neverSeen != total || offline < 0)) {
+        offline = remainder;
+      }
+    }
+    if (offline < 0) offline = 0;
+
     return GpsFleetStatusKpis(
       totalVehicles: total < 0 ? 0 : total,
       online: online,
       offline: offline,
       moving: moving,
       idle: idle,
-      parked: 0,
+      parked: parked,
       neverSeen: neverSeen,
-      sos: 0,
+      sos: sos,
       alertsToday: gps.alertsToday < 0 ? 0 : gps.alertsToday,
     );
   }
@@ -1112,25 +1153,23 @@ class DashboardApi {
     ];
   }
 
-  /// Mockup 2×2 KPIs — Vehicles / Moving / Idle / Offline from GPS status API.
+  /// 2×2 KPIs — Online / Offline / Idle / Moving (ERP GPS strip parity).
   List<KpiCell> _fleetStatusPrimaryKpis(
-    FleetOpsDashboard fleet,
+    FleetOpsDashboard _,
     GpsFleetStatusKpis gps,
   ) {
-    final total =
-        gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
     return [
       KpiCell(
-        label: 'Vehicles',
-        value: '${total < 0 ? 0 : total}',
-        colorKey: 'primary',
-        route: '/fleet',
+        label: 'Online',
+        value: '${gps.online < 0 ? 0 : gps.online}',
+        colorKey: 'success',
+        route: '/fleet?status=online',
       ),
       KpiCell(
-        label: 'Moving',
-        value: '${gps.moving < 0 ? 0 : gps.moving}',
-        colorKey: 'success',
-        route: '/fleet?status=moving',
+        label: 'Offline',
+        value: '${gps.offline < 0 ? 0 : gps.offline}',
+        colorKey: 'error',
+        route: '/fleet?status=offline',
       ),
       KpiCell(
         label: 'Idle',
@@ -1139,10 +1178,10 @@ class DashboardApi {
         route: '/fleet?status=idle',
       ),
       KpiCell(
-        label: 'Offline',
-        value: '${gps.offline < 0 ? 0 : gps.offline}',
-        colorKey: 'error',
-        route: '/fleet?status=offline',
+        label: 'Moving',
+        value: '${gps.moving < 0 ? 0 : gps.moving}',
+        colorKey: 'primary',
+        route: '/fleet?status=moving',
       ),
     ];
   }

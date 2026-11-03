@@ -26,17 +26,47 @@ public static class TenantModuleCatalog
     public const string AlertsModuleCode = AlertModuleCatalog.AlertsModuleCode;
 
     /// <summary>
-    /// Premium road-posted speed limit overspeed alerts (Google Roads Speed Limits) —
-    /// paid subscription add-on under <see cref="AlertsModuleCode"/>; never in <see cref="DefaultModuleCodes"/>.
-    /// See <see cref="SubscriptionAddOnCatalog"/> and <see cref="AlertModuleCatalog"/>.
+    /// Legacy module code for road-posted speed alerts — now a <see cref="GpsAddOnFeatureCatalog.SpeedAlerts"/>
+    /// TenantFeature (kept for migration / backfill lookups).
     /// </summary>
     public const string RoadSpeedAlertsModuleCode = "ROAD_SPEED_ALERTS";
+
+    /// <summary>Core platform module — always-on; not an opt-in subscription toggle.</summary>
+    public const string GpsModuleCode = "GPS";
+
+    /// <summary>
+    /// Always-on core modules. Forced on every <c>SetTenantModules</c> and shown as non-toggleable in admin UI.
+    /// </summary>
+    public static IReadOnlyList<string> CoreModuleCodes { get; } = [GpsModuleCode];
+
+    public static bool IsCore(string? moduleCode)
+        => !string.IsNullOrWhiteSpace(moduleCode)
+           && CoreModuleCodes.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when <paramref name="featureKey"/> is a TenantModuleCatalog legacy key (or module code).
+    /// Used to keep module-level keys out of TenantFeatures soft-gates / feature toggles.
+    /// </summary>
+    public static bool IsModuleLegacyFeatureKey(string? featureKey)
+    {
+        if (string.IsNullOrWhiteSpace(featureKey)) return false;
+        foreach (var module in All)
+        {
+            if (string.Equals(module.Code, featureKey, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (module.LegacyKeys.Any(k =>
+                    string.Equals(k, featureKey, StringComparison.OrdinalIgnoreCase)))
+                return true;
+        }
+
+        return false;
+    }
 
     public static readonly ModuleDefinition[] All =
     [
         new("DASHBOARD", "Dashboard", ["dashboard"]),
         new("FLEET", "Fleet Management", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
-        new("GPS", "Fleet Tracking", ["gps-tracking"]),
+        new(GpsModuleCode, "Fleet Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
         // Roads/routes only — bookings & trips are separate opt-in modules.
         // TRIPS stays catalog-only under BOOKINGS (not listed here → not separately enableable).
@@ -47,9 +77,10 @@ public static class TenantModuleCatalog
         new("HR", "HR", ["hr"]),
         new("ANALYTICS", "Analytics Pro", ["reports", "audit-logs"]),
         new("ACCESS", "Access Control", ["users", "driver-allowance-rules"]),
-        // Major Alerts parent + per-type children (see AlertModuleCatalog).
+        // Major Alerts parent + module-governed per-type children (GPS add-on alert types are TenantFeatures).
         new(AlertsModuleCode, "Fleet Alerts", ["alerts"]),
-        ..AlertModuleCatalog.Types.Select(t => new ModuleDefinition(t.ModuleCode, t.DisplayName, [t.LegacyKey])),
+        ..AlertModuleCatalog.ModuleGovernedTypes.Select(t =>
+            new ModuleDefinition(t.ModuleCode, t.DisplayName, [t.LegacyKey])),
         // Premium: SheikhGo AI Assistant — enable only via explicit company opt-in (provision / module management).
         new(AiAssistantModuleCode, "SheikhGo AI Assistant", ["ai"]),
     ];
@@ -57,13 +88,13 @@ public static class TenantModuleCatalog
     /// <summary>
     /// Modules enabled for new tenants when none are specified.
     /// Does <b>not</b> include <see cref="AiAssistantModuleCode"/>, <see cref="BookingsModuleCode"/>,
-    /// <see cref="TripsModuleCode"/>, or premium alert types
-    /// (<see cref="RoadSpeedAlertsModuleCode"/>, ALERT_OVERSPEED, ALERT_GPS_LOST, ALERT_LOW_FUEL).
-    /// Includes <see cref="TravelRoutesModuleCode"/> (roads/routes) and basic fleet alert types
-    /// (online/offline, ignition, battery, power cut, geofence, SOS) — always default-on, not premium.
+    /// <see cref="TripsModuleCode"/>, GPS feature add-ons (geofencing / speed-alerts / route-playback),
+    /// or premium alert modules (ALERT_GPS_LOST, ALERT_LOW_FUEL).
+    /// Includes <see cref="GpsModuleCode"/> (core), <see cref="TravelRoutesModuleCode"/>, and basic
+    /// fleet alert types (online/offline, ignition, battery, power cut, SOS).
     /// </summary>
     public static IReadOnlyList<string> DefaultModuleCodes { get; } =
-        new[] { "DASHBOARD", "FLEET", "GPS" }
+        new[] { "DASHBOARD", "FLEET", GpsModuleCode }
             .Concat(AlertModuleCatalog.DefaultModuleCodes)
             .Concat(["TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"])
             .ToList();

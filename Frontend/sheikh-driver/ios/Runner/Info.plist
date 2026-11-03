@@ -88,9 +88,9 @@
 		<key>NSFaceIDUsageDescription</key>
 		<string>SheikhGo Tracking uses Face ID to unlock the app when biometric lock is enabled.</string>
 		<key>NSMicrophoneUsageDescription</key>
-		<string>SheikhGo Tracking uses the microphone for hands-free voice commands to dispatch.</string>
+		<string>SheikhGo Tracking uses the microphone for hands-free voice commands to dispatch and voice questions to the SheikhGo AI Assistant.</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
-		<string>SheikhGo Tracking converts your speech to text for alerts and messages to dispatch.</string>
+		<string>SheikhGo Tracking converts your speech to text for alerts, messages to dispatch, and AI Assistant questions.</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>location</string>

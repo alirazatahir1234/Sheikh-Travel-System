@@ -10,7 +10,7 @@ Future<FleetVehicleFilters?> showFleetVehicleFilterSheet(
   return showModalBottomSheet<FleetVehicleFilters>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: context.sg.card,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
     ),
@@ -50,18 +50,18 @@ class _FleetFilterSheetState extends State<_FleetFilterSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: context.sg.border,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Filter Vehicles',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 14),
@@ -237,10 +237,10 @@ class _Section extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -272,10 +272,10 @@ class _Chip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppColors.primary.withValues(alpha: 0.12)
-              : AppColors.surface,
+              : context.sg.surface,
           borderRadius: BorderRadius.circular(AppRadii.pill),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? AppColors.primary : context.sg.border,
           ),
         ),
         child: Text(
@@ -283,7 +283,7 @@ class _Chip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? AppColors.primary : AppColors.textPrimary,
+            color: selected ? AppColors.primary : context.sg.textPrimary,
           ),
         ),
       ),

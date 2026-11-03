@@ -12,5 +12,6 @@ public interface IGpsDeviceTelemetryUpdater
         decimal? speed = null,
         decimal? batteryLevel = null,
         int? rssi = null,
+        bool clearStickyIgnition = false,
         CancellationToken cancellationToken = default);
 }

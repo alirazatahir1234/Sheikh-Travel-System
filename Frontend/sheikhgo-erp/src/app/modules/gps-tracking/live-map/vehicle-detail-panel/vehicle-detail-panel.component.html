@@ -1,4 +1,4 @@
-<aside class="vdp stb-elevated" aria-label="Selected vehicle details">
+<aside class="vdp stb-elevated" [class.vdp--collapsed]="collapsed" aria-label="Selected vehicle details">
   <ng-container *ngIf="loc as v; else empty">
     <div class="vdp__head">
       <div class="vdp__avatar" [attr.data-status]="v.status">
@@ -11,6 +11,14 @@
       <span class="vdp__badge" [attr.data-status]="v.status">{{ statusBadge }}</span>
       <button
         type="button"
+        class="vdp__collapse"
+        [attr.aria-expanded]="!collapsed"
+        [attr.aria-label]="collapsed ? 'Expand details' : 'Collapse details'"
+        (click)="toggleCollapsed()">
+        <mat-icon>{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+      </button>
+      <button
+        type="button"
         class="vdp__close"
         aria-label="Close details"
         (click)="closePanel.emit()">
@@ -18,7 +26,7 @@
       </button>
     </div>
 
-    <div class="vdp__tabs" role="tablist">
+    <div class="vdp__tabs" role="tablist" *ngIf="!collapsed">
       <button
         type="button"
         class="vdp__tab stb-touch"
@@ -31,7 +39,7 @@
       </button>
     </div>
 
-    <div class="vdp__body" role="tabpanel">
+    <div class="vdp__body" role="tabpanel" *ngIf="!collapsed">
       <!-- Overview -->
       <ng-container *ngIf="activeTab === 'overview'">
         <div class="vdp__grid">
@@ -56,7 +64,7 @@
             <mat-icon>power_settings_new</mat-icon>
             <div>
               <span class="vdp__lbl">Ignition</span>
-              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : '—' }}</span>
+              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : 'Unavailable' }}</span>
             </div>
           </div>
           <div class="vdp__metric">
@@ -167,7 +175,7 @@
             <mat-icon>power_settings_new</mat-icon>
             <div>
               <span class="vdp__lbl">Ignition</span>
-              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : '—' }}</span>
+              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : 'Unavailable' }}</span>
             </div>
           </div>
           <div class="vdp__metric">
@@ -261,7 +269,7 @@
       </ng-container>
     </div>
 
-    <div class="vdp__actions">
+    <div class="vdp__actions" *ngIf="!collapsed">
       <button type="button" class="vdp__primary stb-touch" (click)="track.emit()">
         <mat-icon>my_location</mat-icon> Track
       </button>

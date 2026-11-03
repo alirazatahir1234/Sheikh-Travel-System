@@ -87,7 +87,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 skipLoadingOnReload: true,
                 skipLoadingOnRefresh: true,
                 loading: () => const AlertLoadingState(),
-                error: (_, __) => AlertErrorState(
+                error: (err, __) => AlertErrorState(
+                  error: err,
                   onRetry: _refresh,
                   retrying: _refreshing,
                 ),

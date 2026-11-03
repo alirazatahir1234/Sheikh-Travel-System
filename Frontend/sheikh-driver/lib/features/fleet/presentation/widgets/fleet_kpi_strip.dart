@@ -11,6 +11,7 @@ Color fleetStatusColor(FleetTrackStatus status) => switch (status) {
       FleetTrackStatus.offline => const Color(0xFFEF4444),
       FleetTrackStatus.neverSeen => const Color(0xFF94A3B8),
       FleetTrackStatus.sos => const Color(0xFFDC2626),
+      FleetTrackStatus.unknown => const Color(0xFF64748B),
     };
 
 /// Connection (Online/Offline[/Unknown]) + activity — always reconciles with list.
@@ -112,10 +113,10 @@ class _KpiSectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: AppColors.textMuted,
+        color: context.sg.textMuted,
         letterSpacing: 0.2,
       ),
     );
@@ -176,7 +177,7 @@ class _KpiChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(
             color:
-                active ? data.color.withValues(alpha: 0.45) : AppColors.border,
+                active ? data.color.withValues(alpha: 0.45) : context.sg.border,
           ),
         ),
         child: Column(
@@ -196,11 +197,11 @@ class _KpiChip extends StatelessWidget {
               data.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 height: 1.1,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
           ],
@@ -263,7 +264,7 @@ class _MiniStat extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: warn ? AppColors.error : AppColors.textPrimary,
+              color: warn ? AppColors.error : context.sg.textPrimary,
             ),
           ),
           Text(
@@ -271,7 +272,7 @@ class _MiniStat extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 10, color: context.sg.textMuted),
           ),
         ],
       ),

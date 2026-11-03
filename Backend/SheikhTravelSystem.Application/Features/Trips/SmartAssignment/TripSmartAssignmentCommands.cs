@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Trips.SmartAssignment;
 
@@ -14,7 +15,12 @@ public class GetTripSmartAssignmentSuggestionsQueryHandler(ITripSmartAssignmentS
         => service.GetSuggestionsAsync(request.TripId, cancellationToken);
 }
 
-public record AutoAssignTripSmartCommand(int TripId) : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>;
+public record AutoAssignTripSmartCommand(int TripId) : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>, IAuditableCommand
+{
+    public string AuditAction => "Assign";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => TripId;
+}
 
 public class AutoAssignTripSmartCommandHandler(ITripSmartAssignmentService service)
     : IRequestHandler<AutoAssignTripSmartCommand, ApiResponse<TripSmartAssignmentApplyResultDto>>
@@ -25,7 +31,12 @@ public class AutoAssignTripSmartCommandHandler(ITripSmartAssignmentService servi
 }
 
 public record ConfirmTripSmartAssignmentCommand(int TripId, ConfirmTripSmartAssignmentRequest Body)
-    : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>;
+    : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>, IAuditableCommand
+{
+    public string AuditAction => "Assign";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => TripId;
+}
 
 public class ConfirmTripSmartAssignmentCommandHandler(ITripSmartAssignmentService service)
     : IRequestHandler<ConfirmTripSmartAssignmentCommand, ApiResponse<TripSmartAssignmentApplyResultDto>>
@@ -36,7 +47,12 @@ public class ConfirmTripSmartAssignmentCommandHandler(ITripSmartAssignmentServic
 }
 
 public record OverrideTripSmartAssignmentCommand(int TripId, OverrideTripSmartAssignmentRequest Body)
-    : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>;
+    : IRequest<ApiResponse<TripSmartAssignmentApplyResultDto>>, IAuditableCommand
+{
+    public string AuditAction => "Assign";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => TripId;
+}
 
 public class OverrideTripSmartAssignmentCommandHandler(ITripSmartAssignmentService service)
     : IRequestHandler<OverrideTripSmartAssignmentCommand, ApiResponse<TripSmartAssignmentApplyResultDto>>

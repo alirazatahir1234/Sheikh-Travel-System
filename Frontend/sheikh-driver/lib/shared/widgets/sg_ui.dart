@@ -2,6 +2,7 @@ export 'sg_brand_loader.dart';
 
 import 'package:flutter/material.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/errors/error_handler.dart';
 
 class SgCard extends StatelessWidget {
   const SgCard({
@@ -482,9 +483,24 @@ class SgErrorView extends StatelessWidget {
     final safeMessage = cleaned.toLowerCase().contains('dioexception')
         ? 'Could not complete the request. Please check your connection and try again.'
         : (cleaned.isEmpty ? 'Please try again.' : cleaned);
+    final kind = ErrorHandler.classifyMessage(safeMessage);
+    final (icon, title) = switch (kind) {
+      ApiErrorKind.unauthorized => (
+          Icons.lock_clock_outlined,
+          'Session expired',
+        ),
+      ApiErrorKind.forbidden => (
+          Icons.lock_outline_rounded,
+          'Access restricted',
+        ),
+      _ => (
+          Icons.cloud_off_rounded,
+          'Something went wrong',
+        ),
+    };
     return SgEmptyState(
-      icon: Icons.cloud_off_rounded,
-      title: 'Something went wrong',
+      icon: icon,
+      title: title,
       subtitle: safeMessage,
       actionLabel: onRetry == null ? null : 'Try again',
       onAction: onRetry,

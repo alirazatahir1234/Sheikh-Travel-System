@@ -203,7 +203,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   Widget build(BuildContext context) {
     final df = DateFormat('dd MMM yyyy');
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: Text(widget.isEdit ? 'Edit driver' : 'Add driver'),
       ),

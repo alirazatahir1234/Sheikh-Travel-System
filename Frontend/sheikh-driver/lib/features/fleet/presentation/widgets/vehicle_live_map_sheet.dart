@@ -93,8 +93,12 @@ final vehicleTodayAnalyticsProvider = FutureProvider.autoDispose
   return bundle.summary;
 });
 
-/// Enterprise vehicle info sheet for Live Map marker selection.
-class VehicleLiveMapSheet extends ConsumerWidget {
+/// Compact bottom-aligned vehicle card for Live Map marker selection.
+///
+/// Intentionally **not** a full-screen [DraggableScrollableSheet]: the card
+/// only occupies the bottom inset so most of the map stays visible and
+/// interactive.
+class VehicleLiveMapSheet extends ConsumerStatefulWidget {
   const VehicleLiveMapSheet({
     super.key,
     required this.vehicle,
@@ -105,6 +109,9 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     required this.onCenter,
     this.onCommands,
     this.canCommands = false,
+    this.showClose = true,
+    this.showDetailsAction = true,
+    this.initiallyExpanded = false,
   });
 
   final FleetVehicleLocation vehicle;
@@ -115,9 +122,37 @@ class VehicleLiveMapSheet extends ConsumerWidget {
   final VoidCallback onCenter;
   final VoidCallback? onCommands;
   final bool canCommands;
+  final bool showClose;
+  final bool showDetailsAction;
+  final bool initiallyExpanded;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VehicleLiveMapSheet> createState() =>
+      _VehicleLiveMapSheetState();
+}
+
+class _VehicleLiveMapSheetState extends ConsumerState<VehicleLiveMapSheet> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  void didUpdateWidget(covariant VehicleLiveMapSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vehicle.vehicleId != widget.vehicle.vehicleId) {
+      _expanded = widget.initiallyExpanded;
+    }
+  }
+
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = widget.vehicle;
     final color = fleetStatusColor(vehicle.status);
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicle.vehicleId));
     final todayAsync =
@@ -132,369 +167,481 @@ class VehicleLiveMapSheet extends ConsumerWidget {
           )
         : null;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.28,
-      minChildSize: 0.18,
-      maxChildSize: 0.58,
-      snap: true,
-      snapSizes: const [0.18, 0.28, 0.58],
-      builder: (context, scrollController) {
-        return Material(
-          color: Colors.white,
-          elevation: 10,
-          shadowColor: const Color(0x33000000),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          clipBehavior: Clip.antiAlias,
-          child: SafeArea(
-            top: false,
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final maxCardHeight = MediaQuery.sizeOf(context).height * 0.46;
+    final p = context.sg;
+
+    // Chat-bubble style card: rounded, soft shadow, teal rim (AI copilot parity).
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.bottomCenter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.28),
+          ),
+          boxShadow: [
+            ...AppShadows.card,
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxCardHeight),
+            child: Material(
+              color: Colors.transparent,
+              child: SafeArea(
+                top: false,
+                minimum: EdgeInsets.zero,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 10,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            vehicle.vehicleName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 17,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _toggleExpanded,
+                      onVerticalDragEnd: (details) {
+                        final v = details.primaryVelocity ?? 0;
+                        if (v < -200 && !_expanded) {
+                          setState(() => _expanded = true);
+                        } else if (v > 200 && _expanded) {
+                          setState(() => _expanded = false);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.35,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            vehicle.registrationNumber,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          if ((vehicle.driverName ?? '').isNotEmpty ||
-                              (vehicle.driverPhone ?? '').trim().isNotEmpty)
+                            const SizedBox(height: 10),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    (vehicle.driverName ?? '').isNotEmpty
-                                        ? 'Driver ${vehicle.driverName}'
-                                        : 'Driver',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textMuted,
-                                    ),
+                                Container(
+                                  width: 10,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                 ),
-                                VehicleCommsButtons(
-                                  phone: vehicle.driverPhone,
-                                  vehicleLabel: vehicle.vehicleName,
-                                  compact: true,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        vehicle.vehicleName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        vehicle.registrationNumber,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: context.sg.textSecondary,
+                                        ),
+                                      ),
+                                      if ((vehicle.driverName ?? '')
+                                              .isNotEmpty ||
+                                          (vehicle.driverPhone ?? '')
+                                              .trim()
+                                              .isNotEmpty)
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                (vehicle.driverName ?? '')
+                                                        .isNotEmpty
+                                                    ? 'Driver ${vehicle.driverName}'
+                                                    : 'Driver',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: context.sg.textMuted,
+                                                ),
+                                              ),
+                                            ),
+                                            VehicleCommsButtons(
+                                              phone: vehicle.driverPhone,
+                                              vehicleLabel: vehicle.vehicleName,
+                                              compact: true,
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: _expanded ? 'Collapse' : 'Expand',
+                                  onPressed: _toggleExpanded,
+                                  icon: Icon(
+                                    _expanded
+                                        ? Icons.keyboard_arrow_down_rounded
+                                        : Icons.keyboard_arrow_up_rounded,
+                                  ),
+                                ),
+                                if (widget.showClose)
+                                  IconButton(
+                                    tooltip: 'Close',
+                                    onPressed: widget.onClose,
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _Chip(
+                                      label: vehicle.status.label,
+                                      color: color),
+                                  _Chip(
+                                    label: formatDisplaySpeedLabel(
+                                      speed: vehicle.speed,
+                                      ignition: vehicle.ignition,
+                                      status: vehicle.status,
+                                      latitude: vehicle.latitude,
+                                      longitude: vehicle.longitude,
+                                      isGpsValid: vehicle.isGpsValid,
+                                    ),
+                                  ),
+                                  _Chip(
+                                    label: vehicle.ignition == true
+                                        ? 'Ignition ON'
+                                        : vehicle.ignition == false
+                                            ? 'Ignition OFF'
+                                            : 'Ignition unavailable',
+                                  ),
+                                  _Chip(
+                                    label: formatGpsFreshness(
+                                      latitude: vehicle.latitude,
+                                      longitude: vehicle.longitude,
+                                      lastUpdated: vehicle.lastUpdated,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _ActionChip(
+                                    icon: widget.follow
+                                        ? Icons.location_disabled
+                                        : Icons.my_location,
+                                    label: widget.follow
+                                        ? 'Following'
+                                        : 'Live track',
+                                    selected: widget.follow,
+                                    onTap: () {
+                                      widget.onFollowToggle();
+                                      widget.onCenter();
+                                    },
+                                  ),
+                                  _ActionChip(
+                                    icon: Icons.timeline_outlined,
+                                    label: 'Playback',
+                                    onTap: () => context.push(
+                                      Uri(
+                                        path:
+                                            '/fleet/vehicles/${vehicle.vehicleId}/history',
+                                      ).toString(),
+                                    ),
+                                  ),
+                                  _ActionChip(
+                                    icon: Icons.navigation_outlined,
+                                    label: 'Navigate',
+                                    onTap: widget.onNavigate,
+                                  ),
+                                  if (widget.showDetailsAction)
+                                    _ActionChip(
+                                      icon: Icons.info_outline,
+                                      label: 'Details',
+                                      onTap: () => context.push(
+                                        '/fleet/vehicles/${vehicle.vehicleId}',
+                                      ),
+                                    ),
+                                  if (widget.canCommands &&
+                                      widget.onCommands != null)
+                                    _ActionChip(
+                                      icon: Icons.power_settings_new_outlined,
+                                      label: 'Commands',
+                                      onTap: widget.onCommands!,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_expanded)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: (maxCardHeight * 0.58).clamp(120.0, 320.0),
+                        ),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                          shrinkWrap: true,
+                          children: [
+                            const _SectionTitle('Today'),
+                            todayAsync.when(
+                              loading: () => const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              ),
+                              error: (_, __) => Text(
+                                'Today stats unavailable',
+                                style: TextStyle(
+                                  color: context.sg.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              data: (s) {
+                                if (s == null) {
+                                  return Text(
+                                    'No trips today',
+                                    style: TextStyle(
+                                      color: context.sg.textMuted,
+                                      fontSize: 13,
+                                    ),
+                                  );
+                                }
+                                return _StatsGrid(
+                                  items: [
+                                    _Stat(
+                                      'Distance',
+                                      '${s.distanceKm.toStringAsFixed(1)} km',
+                                    ),
+                                    _Stat('Driving', _fmtMin(s.drivingMinutes)),
+                                    _Stat('Idle', _fmtMin(s.idleMinutes)),
+                                    _Stat(
+                                      'Max',
+                                      '${s.maxSpeedKmh.toStringAsFixed(0)} km/h',
+                                    ),
+                                    _Stat(
+                                      'Avg',
+                                      '${s.avgSpeedKmh.toStringAsFixed(0)} km/h',
+                                    ),
+                                    _Stat(
+                                      'Engine',
+                                      s.engineHours != null
+                                          ? '${s.engineHours!.toStringAsFixed(1)} h'
+                                          : '—',
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionTitle('Location'),
+                            if (vehicle.hasMapCoords) ...[
+                              Builder(builder: (context) {
+                                final waiting =
+                                    locationAsync?.isLoading == true &&
+                                        !locationAsync!.hasValue;
+                                final display = buildLiveMapLocationDisplay(
+                                  vehicle: vehicle,
+                                  info: locationAsync?.valueOrNull,
+                                  waiting: waiting,
+                                );
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (display.isResolving) ...[
+                                      Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Resolving exact location…',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                height: 1.35,
+                                                color: context.sg.textMuted,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ] else ...[
+                                      if (display.primary != null) ...[
+                                        Text(
+                                          display.primary!,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                      ],
+                                      if (display.secondary != null)
+                                        Text(
+                                          display.secondary!,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            height: 1.35,
+                                            color: display.isUnavailable
+                                                ? context.sg.textMuted
+                                                : context.sg.textPrimary,
+                                          ),
+                                        ),
+                                      if (display.primary != null ||
+                                          display.secondary != null)
+                                        const SizedBox(height: 6),
+                                    ],
+                                    SelectableText(
+                                      display.coords,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.sg.textSecondary,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    TextButton.icon(
+                                      onPressed: () => _openGoogleMaps(vehicle),
+                                      icon: const Icon(Icons.map_outlined,
+                                          size: 18),
+                                      label: const Text('View on Google Maps'),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        visualDensity: VisualDensity.compact,
+                                        foregroundColor: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }),
+                            ] else
+                              const Text(
+                                'Address unavailable',
+                                style: TextStyle(fontSize: 13, height: 1.35),
+                              ),
+                            const SizedBox(height: 12),
+                            const _SectionTitle('Device'),
+                            gpsAsync.when(
+                              loading: () => Text(
+                                'Loading device…',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: context.sg.textMuted,
+                                ),
+                              ),
+                              error: (_, __) =>
+                                  _DeviceFallback(vehicle: vehicle),
+                              data: (gps) {
+                                final tracker = _trackerLabel(gps);
+                                final imei = (gps.uniqueId ?? '').trim();
+                                final items = <_Stat>[
+                                  _Stat(
+                                    'Battery',
+                                    (gps.batteryLevel ??
+                                                vehicle.batteryLevel) !=
+                                            null
+                                        ? '${(gps.batteryLevel ?? vehicle.batteryLevel)!.toStringAsFixed(0)}%'
+                                        : '—',
+                                  ),
+                                  _Stat(
+                                    'GSM',
+                                    (gps.gsmSignal ?? vehicle.gsmSignal) != null
+                                        ? '${gps.gsmSignal ?? vehicle.gsmSignal}'
+                                        : '—',
+                                  ),
+                                  _Stat(
+                                    'GPS',
+                                    formatGpsFreshness(
+                                      latitude: vehicle.latitude,
+                                      longitude: vehicle.longitude,
+                                      lastUpdated: vehicle.lastUpdated,
+                                    ),
+                                  ),
+                                  _Stat('GPS Tracker', tracker),
+                                  if (imei.isNotEmpty) _Stat('IMEI', imei),
+                                ];
+                                return _StatsGrid(items: items);
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionTitle('More'),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _ActionChip(
+                                  icon: Icons.share_outlined,
+                                  label: 'Share',
+                                  onTap: () => _share(vehicle),
+                                ),
+                                _ActionChip(
+                                  icon: Icons.streetview_outlined,
+                                  label: 'Street View',
+                                  onTap: () => _streetView(vehicle),
                                 ),
                               ],
                             ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: onClose,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _Chip(label: vehicle.status.label, color: color),
-                    _Chip(
-                      label: formatDisplaySpeedLabel(
-                        speed: vehicle.speed,
-                        ignition: vehicle.ignition,
-                        status: vehicle.status,
-                        latitude: vehicle.latitude,
-                        longitude: vehicle.longitude,
-                      ),
-                    ),
-                    _Chip(
-                      label: vehicle.ignition == true
-                          ? 'Ignition ON'
-                          : vehicle.ignition == false
-                              ? 'Ignition OFF'
-                              : 'Ignition —',
-                    ),
-                    _Chip(
-                      label: formatGpsFreshness(
-                        latitude: vehicle.latitude,
-                        longitude: vehicle.longitude,
-                        lastUpdated: vehicle.lastUpdated,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const _SectionTitle('Today'),
-                todayAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-                  error: (_, __) => const Text(
-                    'Today stats unavailable',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  ),
-                  data: (s) {
-                    if (s == null) {
-                      return const Text(
-                        'No trips today',
-                        style:
-                            TextStyle(color: AppColors.textMuted, fontSize: 13),
-                      );
-                    }
-                    return _StatsGrid(
-                      items: [
-                        _Stat(
-                          'Distance',
-                          '${s.distanceKm.toStringAsFixed(1)} km',
-                        ),
-                        _Stat('Driving', _fmtMin(s.drivingMinutes)),
-                        _Stat('Idle', _fmtMin(s.idleMinutes)),
-                        _Stat(
-                          'Max',
-                          '${s.maxSpeedKmh.toStringAsFixed(0)} km/h',
-                        ),
-                        _Stat(
-                          'Avg',
-                          '${s.avgSpeedKmh.toStringAsFixed(0)} km/h',
-                        ),
-                        _Stat(
-                          'Engine',
-                          s.engineHours != null
-                              ? '${s.engineHours!.toStringAsFixed(1)} h'
-                              : '—',
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 14),
-                const _SectionTitle('Location'),
-                if (vehicle.hasMapCoords) ...[
-                  Builder(builder: (context) {
-                    final waiting = locationAsync?.isLoading == true &&
-                        !locationAsync!.hasValue;
-                    final display = buildLiveMapLocationDisplay(
-                      vehicle: vehicle,
-                      info: locationAsync?.valueOrNull,
-                      waiting: waiting,
-                    );
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (display.isResolving) ...[
-                          const Row(
-                            children: [
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Resolving exact location…',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.35,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                        ] else ...[
-                          if (display.primary != null) ...[
-                            Text(
-                              display.primary!,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
                           ],
-                          if (display.secondary != null)
-                            Text(
-                              display.secondary!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.35,
-                                color: display.isUnavailable
-                                    ? AppColors.textMuted
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          if (display.primary != null ||
-                              display.secondary != null)
-                            const SizedBox(height: 6),
-                        ],
-                        SelectableText(
-                          display.coords,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontFamily: 'monospace',
-                          ),
                         ),
-                        const SizedBox(height: 6),
-                        TextButton.icon(
-                          onPressed: () => _openGoogleMaps(vehicle),
-                          icon: const Icon(Icons.map_outlined, size: 18),
-                          label: const Text('View on Google Maps'),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            foregroundColor: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ] else
-                  const Text(
-                    'Address unavailable',
-                    style: TextStyle(fontSize: 13, height: 1.35),
-                  ),
-                const SizedBox(height: 14),
-                const _SectionTitle('Device'),
-                gpsAsync.when(
-                  loading: () => const Text(
-                    'Loading device…',
-                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                  ),
-                  error: (_, __) => _DeviceFallback(vehicle: vehicle),
-                  data: (gps) {
-                    final tracker = _trackerLabel(gps);
-                    final imei = (gps.uniqueId ?? '').trim();
-                    final items = <_Stat>[
-                      _Stat(
-                        'Battery',
-                        (gps.batteryLevel ?? vehicle.batteryLevel) != null
-                            ? '${(gps.batteryLevel ?? vehicle.batteryLevel)!.toStringAsFixed(0)}%'
-                            : '—',
-                      ),
-                      _Stat(
-                        'GSM',
-                        (gps.gsmSignal ?? vehicle.gsmSignal) != null
-                            ? '${gps.gsmSignal ?? vehicle.gsmSignal}'
-                            : '—',
-                      ),
-                      _Stat(
-                        'GPS',
-                        formatGpsFreshness(
-                          latitude: vehicle.latitude,
-                          longitude: vehicle.longitude,
-                          lastUpdated: vehicle.lastUpdated,
-                        ),
-                      ),
-                      _Stat('GPS Tracker', tracker),
-                      if (imei.isNotEmpty) _Stat('IMEI', imei),
-                    ];
-                    return _StatsGrid(items: items);
-                  },
-                ),
-                const SizedBox(height: 14),
-                const _SectionTitle('Actions'),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ActionChip(
-                      icon:
-                          follow ? Icons.location_disabled : Icons.my_location,
-                      label: follow ? 'Following' : 'Live track',
-                      selected: follow,
-                      onTap: () {
-                        onFollowToggle();
-                        onCenter();
-                      },
-                    ),
-                    _ActionChip(
-                      icon: Icons.timeline_outlined,
-                      label: 'Playback',
-                      onTap: () => context.push(
-                        Uri(
-                          path: '/fleet/vehicles/${vehicle.vehicleId}/history',
-                        ).toString(),
-                      ),
-                    ),
-                    _ActionChip(
-                      icon: Icons.navigation_outlined,
-                      label: 'Navigate',
-                      onTap: onNavigate,
-                    ),
-                    _ActionChip(
-                      icon: Icons.share_outlined,
-                      label: 'Share',
-                      onTap: () => _share(vehicle),
-                    ),
-                    _ActionChip(
-                      icon: Icons.streetview_outlined,
-                      label: 'Street View',
-                      onTap: () => _streetView(vehicle),
-                    ),
-                    _ActionChip(
-                      icon: Icons.info_outline,
-                      label: 'Details',
-                      onTap: () =>
-                          context.push('/fleet/vehicles/${vehicle.vehicleId}'),
-                    ),
-                    if (canCommands && onCommands != null)
-                      _ActionChip(
-                        icon: Icons.power_settings_new_outlined,
-                        label: 'Commands',
-                        onTap: onCommands!,
                       ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -602,10 +749,10 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w800,
           fontSize: 13,
-          color: AppColors.textSecondary,
+          color: context.sg.textSecondary,
         ),
       ),
     );
@@ -619,7 +766,7 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.textSecondary;
+    final c = color ?? context.sg.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -651,46 +798,52 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final s in items)
-          SizedBox(
-            width: (MediaQuery.sizeOf(context).width - 48) / 3 - 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    s.label,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellW = (constraints.maxWidth - 16) / 3;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final s in items)
+              SizedBox(
+                width: cellW,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: context.sg.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: context.sg.border),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    s.value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: context.sg.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        s.value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -713,7 +866,7 @@ class _ActionChip extends StatelessWidget {
     return Material(
       color: selected
           ? AppColors.primary.withValues(alpha: 0.12)
-          : AppColors.surface,
+          : context.sg.surface,
       borderRadius: BorderRadius.circular(AppRadii.pill),
       child: InkWell(
         onTap: onTap,
@@ -723,7 +876,7 @@ class _ActionChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.pill),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
+              color: selected ? AppColors.primary : context.sg.border,
             ),
           ),
           child: Row(
@@ -732,7 +885,7 @@ class _ActionChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: selected ? AppColors.primary : AppColors.textPrimary,
+                color: selected ? AppColors.primary : context.sg.textPrimary,
               ),
               const SizedBox(width: 6),
               Text(
@@ -740,7 +893,7 @@ class _ActionChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: selected ? AppColors.primary : AppColors.textPrimary,
+                  color: selected ? AppColors.primary : context.sg.textPrimary,
                 ),
               ),
             ],

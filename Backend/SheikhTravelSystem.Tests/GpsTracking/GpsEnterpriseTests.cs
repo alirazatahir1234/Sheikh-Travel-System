@@ -11,11 +11,11 @@ public class GpsEnterpriseTests
     public void GpsDriverQueries_PreferCurrentAssignmentOverTelemetrySnapshot()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SheikhTravelSystem.Application", "Features", "GpsTracking", "Queries", "GpsTrackingQueries.cs");
+            "SheikhTravelSystem.Infrastructure", "Persistence", "Repositories", "GpsTrackingRepository.cs");
         var source = File.ReadAllText(Path.GetFullPath(path));
 
         source.Should().Contain("COALESCE(assignDrv.DriverId, vcl.DriverId) AS DriverId");
-        source.Should().Contain("COALESCE(assignDrv.DriverName, drVcl.FullName) AS DriverName");
+        source.Should().Contain("LEFT JOIN Drivers dr ON dr.Id = COALESCE(assignDrv.DriverId, vcl.DriverId)");
     }
 
     [Fact]
@@ -91,7 +91,8 @@ public class GpsEnterpriseTests
         dto.DeviceName.Should().Be("Jimi VG03");
         dto.DistanceKm.Should().BeApproximately(3.59, 0.01);
         dto.DurationMinutes.Should().Be(11);
-        dto.AvgSpeedKmh.Should().BeApproximately(19.3m, 0.1m);
+        // Average is distance/time (3.59 km over 11 min), not Traccar's reported knots.
+        dto.AvgSpeedKmh.Should().BeApproximately(19.6m, 0.1m);
         dto.StartAddress.Should().Be("Pasrur");
         dto.EndAddress.Should().Be("Pasrur");
         dto.TripKey.Should().NotBeNullOrWhiteSpace();

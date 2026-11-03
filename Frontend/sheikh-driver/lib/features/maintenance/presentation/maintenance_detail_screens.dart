@@ -96,7 +96,7 @@ class _MaintenanceRequestDetailScreenState
     final df = DateFormat('dd MMM yyyy');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Service request')),
       body: async.when(
         loading: () => const Center(child: SgBrandLoader()),
@@ -267,7 +267,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
     final df = DateFormat('dd MMM yyyy');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Work order')),
       body: async.when(
         loading: () => const Center(child: SgBrandLoader()),
@@ -305,7 +305,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen> {
                     const SizedBox(height: 8),
                     Text(
                       w.notes!,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.sg.textSecondary),
                     ),
                   ],
                 ],
@@ -440,7 +440,7 @@ class _Row extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              style: TextStyle(color: context.sg.textMuted, fontSize: 13),
             ),
           ),
           Expanded(

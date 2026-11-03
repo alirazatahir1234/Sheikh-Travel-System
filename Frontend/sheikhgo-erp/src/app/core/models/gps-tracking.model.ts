@@ -38,6 +38,7 @@ export interface PositionDto {
 }
 
 /** Roster row from GET /gps/live/fleet — powers live map grid under GPS.View only. */
+/** When false, live map should show a GPS-unreliable warning (frozen/LBS/jump). */
 export interface GpsLiveFleetVehicleDto {
   vehicleId: number;
   vehicleName: string;
@@ -65,6 +66,8 @@ export interface GpsLiveFleetVehicleDto {
   imei?: string | null;
   trackerName?: string | null;
   relayOutput?: string | null;
+  isGpsValid?: boolean;
+  gpsQualityCode?: string | null;
 }
 
 export interface VehicleLocation {
@@ -81,6 +84,8 @@ export interface VehicleLocation {
   /** True when telemetry was received within the recent window (typically 30 min). */
   isLive?: boolean;
   routeHint?: string;
+  isGpsValid?: boolean;
+  gpsQualityCode?: string | null;
   ignition?: boolean;
   heading?: number;
   fuelLevel?: number;
@@ -139,6 +144,8 @@ export interface GpsDevice {
   modelName?: string;
   model?: string;
   simNumber?: string;
+  /** Tracker SIM / Traccar phone for SMS commands when present. */
+  phone?: string;
   vendor?: string;
   serialNumber?: string;
   installationDate?: string;

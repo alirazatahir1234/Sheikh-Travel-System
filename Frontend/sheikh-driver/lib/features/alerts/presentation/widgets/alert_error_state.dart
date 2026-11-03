@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/errors/error_handler.dart';
 import 'fleet_alerts_colors.dart';
 
 class AlertErrorState extends StatelessWidget {
@@ -7,13 +8,32 @@ class AlertErrorState extends StatelessWidget {
     super.key,
     required this.onRetry,
     this.retrying = false,
+    this.error,
   });
 
   final VoidCallback onRetry;
   final bool retrying;
+  final Object? error;
 
   @override
   Widget build(BuildContext context) {
+    final kind = ErrorHandler.classify(error);
+    final (title, subtitle) = switch (kind) {
+      ApiErrorKind.unauthorized => (
+          'Session Expired',
+          ErrorHandler.message(error!),
+        ),
+      ApiErrorKind.forbidden => (
+          'Access Restricted',
+          ErrorHandler.message(error!),
+        ),
+      _ => (
+          "Couldn't Load Alerts",
+          "We couldn't fetch the latest alerts. Please check your "
+              'internet connection and try again.',
+        ),
+    };
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
@@ -22,21 +42,20 @@ class AlertErrorState extends StatelessWidget {
           children: [
             const _ErrorCloud(),
             const SizedBox(height: 22),
-            const Text(
-              "Couldn't Load Alerts",
+            Text(
+              title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: FleetAlertsColors.navy,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "We couldn't fetch the latest alerts. Please check your "
-              'internet connection and try again.',
+            Text(
+              subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 height: 1.45,
                 color: FleetAlertsColors.secondary,

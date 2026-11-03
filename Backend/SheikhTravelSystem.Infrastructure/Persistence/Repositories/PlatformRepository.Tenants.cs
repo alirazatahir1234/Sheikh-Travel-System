@@ -65,8 +65,6 @@ public sealed partial class PlatformRepository
                    t.IsActive, t.DataRegion, t.CreatedAt, t.UpdatedAt,
                    COALESCE(s.PlanName, t.SubscriptionPlan) AS SubscriptionPlan,
                    s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices,
-                   COALESCE(b.LogoUrl, t.LogoUrl) AS LogoUrl,
-                   COALESCE(b.PrimaryColor, t.PrimaryColor) AS PrimaryColor,
                    b.Website, b.SupportEmail, b.Country, b.CurrencyCode, b.TimeZone,
                    (SELECT COUNT(*) FROM Branches br WHERE br.TenantId = t.Id) AS BranchCount,
                    (SELECT COUNT(*) FROM Departments d WHERE d.TenantId = t.Id) AS DepartmentCount,

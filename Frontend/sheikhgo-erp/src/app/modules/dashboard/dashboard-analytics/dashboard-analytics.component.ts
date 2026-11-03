@@ -33,7 +33,18 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
   @Input() fleetLabels: string[] = ['In use', 'Available', 'Pending trips'];
   @Input() fleetValues: number[] = [0, 0, 0];
   @Input() revenueTotal = 0;
+  @Input() revenueTrend = '—';
+  @Input() revenueTrendUp?: boolean;
+  @Input() bookingTotal = 0;
   @Input() loading = false;
+
+  get bookingHasData(): boolean {
+    return this.bookingValues.some(v => v > 0);
+  }
+
+  get fleetHasData(): boolean {
+    return this.fleetValues.some(v => v > 0);
+  }
 
   readonly skeletonBars = [0, 1, 2, 3, 4, 5, 6];
   readonly skeletonLegend = [0, 1, 2, 3];
@@ -87,8 +98,10 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     if (this.loading) return;
     requestAnimationFrame(() => {
       this.renderRevenue();
-      this.renderBookings();
-      this.renderFleet();
+      if (this.bookingHasData) this.renderBookings();
+      else this.bookingsChart?.destroy();
+      if (this.fleetHasData) this.renderFleet();
+      else this.fleetChart?.destroy();
       this.resizeCharts();
     });
   }

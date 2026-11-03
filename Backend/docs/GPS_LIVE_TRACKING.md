@@ -11,11 +11,12 @@ Jimi VG03 / phone GPS
    Traccar (device reports)
         │  Adaptive HTTP pull (5s → 5 min)
         ▼
-TraccarSyncOrchestrator → IngestPositionCommand
+TraccarSyncOrchestrator → IngestPositionCommand (+ Traccar valid/sat/accuracy metadata)
         │                    ▲
         │                    │  POST ingest / driver-app location
-        ├─ GpsPositions (INSERT history)
-        ├─ VehicleCurrentLocation (MERGE latest)
+        ├─ GpsPositionQualityEvaluator (reject invalid / flag frozen / teleport)
+        ├─ GpsPositions (INSERT history, IsGpsValid / GpsQualityCode)
+        ├─ VehicleCurrentLocation (MERGE latest; may retain last good coords when frozen)
         └─ LocationBroadcastService → TrackingHub
                     │
         ┌───────────┴───────────┐

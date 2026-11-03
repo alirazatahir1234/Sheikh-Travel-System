@@ -269,6 +269,12 @@ abstract final class FleetNavConfig {
       isVisible: _ownerTrackerOps,
     ),
     MoreMenuEntry(
+      label: 'Parking',
+      icon: Icons.local_parking_outlined,
+      route: '/gps/parking',
+      isVisible: _ownerTrackerOps,
+    ),
+    MoreMenuEntry(
       label: 'GPS trips',
       icon: Icons.timeline_outlined,
       route: '/gps/trips',
@@ -371,6 +377,12 @@ abstract final class FleetNavConfig {
       label: 'Geofences',
       icon: Icons.fence_outlined,
       route: '/gps/geofences',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Parking',
+      icon: Icons.local_parking_outlined,
+      route: '/gps/parking',
       isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(
@@ -494,7 +506,7 @@ abstract final class FleetNavConfig {
       isVisible: _driverWorkflow,
     ),
     MoreMenuEntry(
-      label: 'AI Copilot',
+      label: 'AI Assistant',
       icon: Icons.auto_awesome_outlined,
       route: '/ai',
       isVisible: _aiMenu,
@@ -549,6 +561,12 @@ abstract final class FleetNavConfig {
       label: 'Geofences',
       icon: Icons.fence_outlined,
       route: '/gps/geofences',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Parking',
+      icon: Icons.local_parking_outlined,
+      route: '/gps/parking',
       isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(

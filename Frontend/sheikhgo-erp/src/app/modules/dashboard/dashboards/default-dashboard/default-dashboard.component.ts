@@ -52,8 +52,17 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   smartAlertBusyId: number | null = null;
   private destroy$ = new Subject<void>();
 
-  /** Summary KPI row (mirrors DashboardSummaryDto). */
+  /** Summary KPI rows (mirrors DashboardSummaryDto). */
   stats: StatTile[] = [];
+  kpiRowPrimary: StatTile[] = [];
+  kpiRowSecondary: StatTile[] = [];
+
+  revenueWeekTrend = '—';
+  revenueWeekTrendUp: boolean | undefined;
+  bookingChartTotal = 0;
+
+  gpsLoadFailed = false;
+  notifLoadFailed = false;
 
   /** Today's to-do list (Pending / Confirmed needing attention). */
   todoTasks: TaskItem[] = [];
@@ -65,11 +74,11 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   assignedFilter = 'Today';
 
   quickActions: QuickLaunchApp[] = [
-    { id: 'new-booking', label: 'New booking', icon: 'add_circle', route: '/bookings/new', color: 'teal' },
-    { id: 'live-map', label: 'Live map', icon: 'map', route: '/gps-tracking/live', color: 'blue' },
+    { id: 'new-booking', label: 'New Booking', icon: 'add_circle', route: '/bookings/new', color: 'teal' },
+    { id: 'live-map', label: 'Live Map', icon: 'map', route: '/gps-tracking/live', color: 'blue' },
     { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', color: 'sky' },
     { id: 'assign', label: 'Assignments', icon: 'assignment_ind', route: '/fleet/assignments', color: 'orange' },
-    { id: 'fuel', label: 'Fuel logs', icon: 'local_gas_station', route: '/fuel-logs', color: 'amber' },
+    { id: 'fuel', label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs', color: 'amber' },
     { id: 'reports', label: 'Reports', icon: 'assessment', route: '/reports', color: 'green' }
   ];
 
@@ -93,7 +102,6 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   fleetChartLabels = ['Trips in progress', 'Vehicles available', 'Pending bookings'];
   fleetChartValues: number[] = [0, 0, 0];
   fleetUtilizationPct = 0;
-  transportKpis: { icon: string; label: string; value: string | number }[] = [];
   invoiceBilling: InvoiceBillingSummary | null = null;
 
   private loadGeneration = 0;
@@ -189,12 +197,17 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.invoiceBilling = invoiceBilling;
         this.opsHealthy = summary.ok && (gps?.sos ?? 0) === 0;
         this.stats = this.buildStats(summary.value, bookings, invoiceBilling);
+        this.splitKpiRows(this.stats);
         this.recentBookings = bookings.slice(0, 8);
-        this.todoTasks = this.bookingsToTasks(bookings, 5);
+        this.todoTasks = this.mergeTodoTasks(
+          this.buildOperationalTodos(summary.value, invoiceBilling),
+          this.bookingsToTasks(bookings, 5)
+        );
         this.allAssignedTasks = this.bookingsToAssignedTasks(bookings);
         this.applyAssignedFilter();
         this.fleetUtilizationPct = this.calcFleetUtilization(summary.value);
-        this.transportKpis = this.buildTransportKpis(summary.value, gps);
+        this.gpsLoadFailed = gps == null;
+        this.notifLoadFailed = notifStats == null;
         this.applyChartData(bookings, [], summary.value);
         this.loading = false;
 
@@ -207,11 +220,17 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.opsHealthy = false;
         this.summary = this.fallbackSummary();
         this.stats = this.buildStats(this.summary, [], null);
-        this.transportKpis = this.buildTransportKpis(this.summary, null);
+        this.splitKpiRows(this.stats);
+        this.gpsLoadFailed = true;
+        this.notifLoadFailed = true;
         this.applyChartData([], [], this.summary);
         this.loading = false;
       }
     });
+  }
+
+  retryDashboard(): void {
+    this.loadDashboardData(true);
   }
 
   /** Non-blocking: booking status report + notification stats. */
@@ -366,22 +385,59 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     ];
   }
 
-  private buildTransportKpis(
-    s: DashboardSummary,
-    gps: GpsFleetStatusLocal | null
-  ): { icon: string; label: string; value: string | number }[] {
-    const available = Math.max(0, (s.totalVehicles || 0) - (s.activeTrips || 0));
-    const kpis: { icon: string; label: string; value: string | number }[] = [
-      { icon: 'local_shipping', label: 'Active trips', value: s.activeTrips },
-      { icon: 'event_available', label: 'Vehicles available', value: available },
-      { icon: 'schedule', label: 'Pending bookings', value: s.pendingBookings },
-      { icon: 'speed', label: 'Fleet utilization', value: `${this.calcFleetUtilization(s)}%` },
-      { icon: 'local_gas_station', label: 'Fuel spend', value: this.money(s.fuelExpense) }
-    ];
-    if (gps) {
-      kpis.push({ icon: 'sensors', label: 'GPS online', value: `${gps.online}/${gps.totalVehicles}` });
+  private splitKpiRows(all: StatTile[]): void {
+    const secondaryKeys = new Set(['totalRevenue', 'fuelExpense', 'netProfit']);
+    this.kpiRowPrimary = all.filter(s => !secondaryKeys.has(s.key));
+    this.kpiRowSecondary = all.filter(s => secondaryKeys.has(s.key));
+  }
+
+  /** Action items derived from summary counts — not fabricated business rows. */
+  private buildOperationalTodos(s: DashboardSummary, billing: InvoiceBillingSummary | null): TaskItem[] {
+    const items: TaskItem[] = [];
+    if (s.pendingBookings > 0) {
+      items.push({
+        id: -1,
+        title: `Confirm pending bookings (${s.pendingBookings})`,
+        subtitle: 'Bookings awaiting confirmation',
+        priority: 'high',
+        done: false,
+        status: 'Pending'
+      });
     }
-    return kpis;
+    if (billing && billing.outstanding > 0) {
+      items.push({
+        id: -2,
+        title: 'Review outstanding AR',
+        subtitle: `${this.money(billing.outstanding)} unpaid · ${billing.overdueCount} overdue`,
+        priority: billing.overdueCount > 0 ? 'high' : 'medium',
+        done: false,
+        status: 'AR'
+      });
+    }
+    if (s.pendingBookings > 0 && s.totalVehicles > 0) {
+      items.push({
+        id: -3,
+        title: 'Assign vehicles to pending trips',
+        subtitle: `${s.pendingBookings} booking(s) may need fleet assignment`,
+        priority: 'medium',
+        done: false,
+        status: 'Assignment'
+      });
+    }
+    return items;
+  }
+
+  private mergeTodoTasks(primary: TaskItem[], fromBookings: TaskItem[]): TaskItem[] {
+    const seen = new Set<string>();
+    const out: TaskItem[] = [];
+    for (const t of [...primary, ...fromBookings]) {
+      const key = t.title;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+      if (out.length >= 8) break;
+    }
+    return out;
   }
 
   private sparkFromCount(n: number): number[] | undefined {
@@ -485,14 +541,17 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.bookingChartLabels = [...byStatus.keys()];
         this.bookingChartValues = [...byStatus.values()];
       } else {
-        this.bookingChartLabels = ['Pending', 'Active', 'Completed'];
-        this.bookingChartValues = [
-          summary.pendingBookings || 0,
-          summary.activeTrips || 0,
-          0
-        ];
+        this.bookingChartLabels = [];
+        this.bookingChartValues = [];
       }
     }
+    this.bookingChartTotal = this.bookingChartValues.reduce((a, n) => a + n, 0);
+
+    const weekRev = this.revenueWeekTotal;
+    const prevWeekRev = this.sumPreviousWeekRevenue(bookings);
+    const revTrend = this.pctChangeLabel(weekRev, prevWeekRev);
+    this.revenueWeekTrend = revTrend.label;
+    this.revenueWeekTrendUp = revTrend.up;
 
     const inUse = summary.activeTrips || 0;
     const pending = summary.pendingBookings || 0;
@@ -586,7 +645,19 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   }
 
   onTaskToggle(t: TaskItem): void {
-    this.router.navigate(['/bookings', t.id]);
+    if (typeof t.id === 'number' && t.id > 0) {
+      this.router.navigate(['/bookings', t.id]);
+      return;
+    }
+    if (t.status === 'AR') {
+      this.router.navigate(['/invoices']);
+      return;
+    }
+    if (t.status === 'Assignment') {
+      this.router.navigate(['/fleet/assignments']);
+      return;
+    }
+    this.router.navigate(['/bookings'], { queryParams: { status: 'Pending' } });
   }
 
   onAssignedFilter(f: string): void {
@@ -596,6 +667,9 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
 
   onStatClick(key: string): void {
     const routes: Record<string, string> = {
+      invoiceBilled: '/invoices',
+      invoiceCollected: '/payments',
+      invoiceOutstanding: '/invoices',
       activeTrips: '/trips',
       pendingBookings: '/bookings',
       totalVehicles: '/vehicles',

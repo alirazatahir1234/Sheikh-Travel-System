@@ -5,13 +5,13 @@ namespace SheikhTravelSystem.Tests.Assignments;
 public class AssignmentValidationTests
 {
     [Theory]
-    [InlineData("Permanent", "Active")]
+    [InlineData("Permanent", "Scheduled")]
     [InlineData("Temporary", "PendingApproval")]
     [InlineData("Emergency", "PendingApproval")]
-    public void ResolveInitialStatus_FutureStart_ReturnsScheduled(string type, string _)
+    public void ResolveInitialStatus_FutureStart_UsesTypeAndScheduleRules(string type, string expected)
     {
         var future = DateTime.UtcNow.AddDays(2);
-        Assert.Equal("Scheduled", AssignmentValidation.ResolveInitialStatus(future, type));
+        Assert.Equal(expected, AssignmentValidation.ResolveInitialStatus(future, type));
     }
 
     [Theory]

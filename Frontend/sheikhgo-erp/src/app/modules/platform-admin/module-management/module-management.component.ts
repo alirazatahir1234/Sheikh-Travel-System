@@ -129,8 +129,13 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     return this.modules.filter(m => this.isComingSoon(m)).length;
   }
 
+  isCoreModule(module: ModuleStatus): boolean {
+    return module.isCoreAlwaysOn === true || module.code?.toUpperCase() === 'GPS';
+  }
+
   /** Catalog enableability (ignores RBAC) — used for dirty-state and dependency walks. */
   isEnableable(module: ModuleStatus): boolean {
+    if (this.isCoreModule(module)) return false;
     if (module.canToggle === false) return false;
     if (module.canToggle === true) return true;
     const status = (module.status || 'Active').replace(/\s+/g, '');
@@ -139,7 +144,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
 
   /** Whether the current user may flip the toggle in the UI. */
   canToggle(module: ModuleStatus): boolean {
-    return this.canManage && this.isEnableable(module);
+    return this.canManage && this.isEnableable(module) && !this.isCoreModule(module);
   }
 
   isComingSoon(module: ModuleStatus): boolean {
@@ -161,6 +166,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   }
 
   readonlyActionLabel(module: ModuleStatus): string {
+    if (this.isCoreModule(module)) return 'Core (always on)';
     if (!this.canManage && this.isEnableable(module)) {
       return module.isEnabled ? 'Enabled' : 'Disabled';
     }
@@ -216,9 +222,14 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     }
 
     this.overview = overview;
-    this.modules = overview.modules.map(m => ({ ...m }));
+    this.modules = overview.modules.map(m => ({
+      ...m,
+      // Core GPS is always shown enabled in admin UI.
+      isEnabled: m.isCoreAlwaysOn || m.code?.toUpperCase() === 'GPS' ? true : m.isEnabled,
+      isInstalled: m.isCoreAlwaysOn || m.code?.toUpperCase() === 'GPS' ? true : m.isInstalled
+    }));
     this.originalEnabled = new Set(
-      overview.modules.filter(m => m.isEnabled && this.isEnableable(m)).map(m => m.code)
+      this.modules.filter(m => m.isEnabled && this.isEnableable(m)).map(m => m.code)
     );
     this.loadError = false;
   }
@@ -331,8 +342,9 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     if (!this.overview || this.saving || !this.hasChanges || !this.canManage) return;
 
     const tenantId = this.overview.tenantId;
+    // Core modules (GPS) are forced server-side; omit from payload toggles.
     const enabledCodes = this.modules
-      .filter(m => m.isEnabled && this.isEnableable(m))
+      .filter(m => m.isEnabled && (this.isEnableable(m) || this.isCoreModule(m)))
       .map(m => m.code);
 
     this.saving = true;

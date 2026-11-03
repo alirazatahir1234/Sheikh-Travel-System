@@ -104,7 +104,7 @@ class BookingDetailScreen extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Booking detail')),
       body: async.when(
         loading: () => const Center(child: SgBrandLoader()),
@@ -149,9 +149,9 @@ class BookingDetailScreen extends ConsumerWidget {
                   ),
                   Text(
                     df.format(b.pickupTime.toLocal()),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMuted,
+                      color: context.sg.textMuted,
                     ),
                   ),
                 ],
@@ -239,7 +239,7 @@ class _Row extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: TextStyle(fontSize: 13, color: context.sg.textMuted),
             ),
           ),
           Expanded(

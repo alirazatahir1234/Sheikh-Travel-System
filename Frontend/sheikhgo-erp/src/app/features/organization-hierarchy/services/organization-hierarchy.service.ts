@@ -67,7 +67,7 @@ export class OrganizationHierarchyService {
       id: detail.id,
       name: detail.name,
       code: detail.code ?? `T-${detail.id}`,
-      logo: detail.logoUrl ?? undefined,
+      logo: undefined,
       isActive: detail.isActive,
     };
   });

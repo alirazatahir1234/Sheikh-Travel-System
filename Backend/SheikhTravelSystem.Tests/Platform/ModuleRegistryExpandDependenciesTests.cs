@@ -18,18 +18,18 @@ public class ModuleRegistryExpandDependenciesTests
     [Fact]
     public void Expand_IgnoresComingSoonCodes()
     {
-        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["RENTAL", "FLEET"]);
+        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["HR", "FLEET"]);
 
         expanded.Should().Contain("FLEET");
         expanded.Should().Contain("DASHBOARD");
-        expanded.Should().NotContain("RENTAL");
+        expanded.Should().NotContain("HR");
     }
 
     [Fact]
     public void IsToggleable_ComingSoonFalse_AiAndBookingsTrue()
     {
-        var rental = ModuleRegistrySeed.All.Single(e => e.Code == "RENTAL");
-        ModuleRegistrySeed.IsToggleable(rental).Should().BeFalse();
+        var hr = ModuleRegistrySeed.All.Single(e => e.Code == "HR");
+        ModuleRegistrySeed.IsToggleable(hr).Should().BeFalse();
 
         var ai = ModuleRegistrySeed.All.Single(e => e.Code == "AI");
         ModuleRegistrySeed.IsToggleable(ai).Should().BeTrue();

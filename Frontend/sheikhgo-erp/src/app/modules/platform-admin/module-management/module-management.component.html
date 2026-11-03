@@ -12,7 +12,8 @@
         </nav>
         <h2>Module Registry</h2>
         <p class="page-sub">
-          Enable Active parent modules for the selected company. Capability rows marked Active but non-toggleable are included in a parent module. Coming Soon means not built yet.
+          Enable subscription modules (TenantModules) for the selected company. GPS is a core always-on module.
+          GPS add-ons (geofencing, speed alerts, route playback) are managed under Feature / Add-ons — not here.
         </p>
       </div>
     </div>
@@ -105,7 +106,8 @@
                   <div class="module-copy">
                     <div class="module-title-row">
                       <strong>{{ module.displayName || module.name }}</strong>
-                      <span class="status-badge" [attr.data-status]="module.status || 'Active'">
+                      <span class="status-badge" *ngIf="isCoreModule(module)" data-status="Core">Core</span>
+                      <span class="status-badge" *ngIf="!isCoreModule(module)" [attr.data-status]="module.status || 'Active'">
                         {{ formatStatus(module.status) }}
                       </span>
                     </div>
@@ -114,7 +116,8 @@
                     </p>
                     <p class="module-desc" *ngIf="module.description">{{ module.description }}</p>
                     <div class="module-meta">
-                      <span class="meta-chip" *ngIf="module.isInstalled || module.isEnabled">Installed</span>
+                      <span class="meta-chip" *ngIf="isCoreModule(module)">Always on</span>
+                      <span class="meta-chip" *ngIf="!isCoreModule(module) && (module.isInstalled || module.isEnabled)">Installed</span>
                       <span class="meta-chip meta-chip--licensed" *ngIf="module.isLicensed">Licensed</span>
                       <span
                         class="meta-chip meta-chip--unlicensed"

@@ -1,44 +1,131 @@
-<div class="rental-page">
-  <div class="page-header">
-    <div>
-      <button mat-button type="button" routerLink="/rental">← Rentals</button>
-      <h2>Vehicle availability</h2>
-      <p class="page-lead">Conflict check against confirmed and picked-up rentals (MVP list view; full calendar deferred).</p>
+<div class="ops-page rental-subpage">
+  <header class="ops-page-header">
+    <div class="ops-page-heading rental-subpage-heading">
+      <span class="rental-subpage-icon" aria-hidden="true">
+        <mat-icon>event_available</mat-icon>
+      </span>
+      <div>
+        <h1>Vehicle availability</h1>
+        <p>Check conflicts against confirmed and picked-up rentals for a vehicle and time window.</p>
+      </div>
     </div>
-  </div>
+    <div class="rental-hero-actions">
+      <a class="rental-back-link" routerLink="/rental">
+        <mat-icon>arrow_back</mat-icon>
+        Bookings
+      </a>
+      <nav class="rental-segmented" aria-label="Rental modules">
+        <a class="rental-segment" routerLink="/rental" routerLinkActive="rental-segment--active" [routerLinkActiveOptions]="{ exact: true }">
+          <mat-icon>list_alt</mat-icon>
+          Bookings
+        </a>
+        <a class="rental-segment" routerLink="/rental/rates" routerLinkActive="rental-segment--active">
+          <mat-icon>sell</mat-icon>
+          Rates
+        </a>
+        <a class="rental-segment rental-segment--active" routerLink="/rental/availability" routerLinkActive="rental-segment--active">
+          <mat-icon>event_available</mat-icon>
+          Availability
+        </a>
+      </nav>
+    </div>
+  </header>
 
-  <mat-card class="filter-card">
-    <mat-card-content>
-      <form [formGroup]="form" class="filter-grid" (ngSubmit)="check()">
-        <div class="stb-field">
-          <label>Vehicle</label>
-          <select class="stb-select" formControlName="vehicleId">
+  <p class="rental-hint">
+    MVP list view — full fleet calendar is planned; use this check before creating a draft booking.
+  </p>
+
+  <section class="rental-card" aria-labelledby="availCheckTitle">
+    <div class="rental-card__head">
+      <span class="rental-card__icon" aria-hidden="true">
+        <mat-icon>search</mat-icon>
+      </span>
+      <div class="rental-card__head-text">
+        <h2 id="availCheckTitle">Availability check</h2>
+        <p>Select vehicle and rental window to see conflicts.</p>
+      </div>
+    </div>
+
+    <form [formGroup]="form" class="rental-form-grid rental-avail-form" (ngSubmit)="check()" novalidate>
+      <div class="stb-field">
+        <label for="availVehicle">Vehicle <span class="rental-required" aria-hidden="true">*</span></label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">directions_car</mat-icon>
+          <select id="availVehicle" class="stb-select" formControlName="vehicleId">
             <option [ngValue]="null">Select vehicle</option>
             <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }} ({{ v.registrationNumber }})</option>
           </select>
         </div>
-        <div class="stb-field"><label>From</label><input class="stb-input" type="datetime-local" formControlName="from" /></div>
-        <div class="stb-field"><label>To</label><input class="stb-input" type="datetime-local" formControlName="to" /></div>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || checking">
-          {{ checking ? 'Checking…' : 'Check' }}
-        </button>
-      </form>
-    </mat-card-content>
-  </mat-card>
+      </div>
 
-  <mat-card *ngIf="result as r">
-    <mat-card-content>
-      <p class="avail" [class.ok]="r.isAvailable" [class.busy]="!r.isAvailable">
-        {{ r.vehicleName }} ({{ r.registrationNumber }}) is
-        <strong>{{ r.isAvailable ? 'AVAILABLE' : 'NOT AVAILABLE' }}</strong>
-        for {{ r.from | date:'short' }} – {{ r.to | date:'short' }}.
-      </p>
-      <ul *ngIf="r.conflicts.length">
-        <li *ngFor="let c of r.conflicts">
-          {{ c.rentalNumber }} · {{ c.status }} · {{ c.customerName || '—' }} ·
-          {{ c.startAt | date:'short' }} – {{ c.endAt | date:'short' }}
-        </li>
-      </ul>
-    </mat-card-content>
-  </mat-card>
+      <div class="rental-datetime-pair">
+        <div class="stb-field">
+          <label for="availFrom">From</label>
+          <div class="rental-input-wrap">
+            <mat-icon aria-hidden="true">calendar_today</mat-icon>
+            <input id="availFrom" class="stb-input" type="datetime-local" formControlName="from" />
+          </div>
+        </div>
+        <div class="stb-field">
+          <label for="availTo">To</label>
+          <div class="rental-input-wrap">
+            <mat-icon aria-hidden="true">event</mat-icon>
+            <input id="availTo" class="stb-input" type="datetime-local" formControlName="to" />
+          </div>
+        </div>
+      </div>
+
+      <div class="rental-form-actions rental-form-actions--inline">
+        <button class="ops-btn ops-btn--primary" type="submit" [disabled]="form.invalid || checking">
+          <mat-icon *ngIf="!checking">event_available</mat-icon>
+          {{ checking ? 'Checking…' : 'Check availability' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="rental-card rental-result-card" *ngIf="result as r" aria-live="polite">
+    <div class="rental-card__head">
+      <span class="rental-card__icon" aria-hidden="true">
+        <mat-icon>{{ r.isAvailable ? 'check_circle' : 'warning' }}</mat-icon>
+      </span>
+      <div class="rental-card__head-text">
+        <h2>Result</h2>
+        <p>{{ r.from | date:'medium' }} – {{ r.to | date:'medium' }}</p>
+      </div>
+    </div>
+
+    <p
+      class="rental-availability-banner"
+      [ngClass]="r.isAvailable ? 'rental-availability-banner--ok' : 'rental-availability-banner--busy'">
+      <mat-icon aria-hidden="true">{{ r.isAvailable ? 'check_circle' : 'block' }}</mat-icon>
+      <span>
+        <strong>{{ r.vehicleName }}</strong> ({{ r.registrationNumber }}) is
+        <strong>{{ r.isAvailable ? 'available' : 'not available' }}</strong>
+        for the selected period.
+      </span>
+    </p>
+
+    <ul class="rental-conflicts" *ngIf="r.conflicts.length">
+      <li *ngFor="let c of r.conflicts">
+        <strong>{{ c.rentalNumber }}</strong>
+        <span class="rental-conflict-meta">{{ c.status }} · {{ c.customerName || '—' }}</span>
+        <span class="rental-conflict-meta">{{ c.startAt | date:'short' }} – {{ c.endAt | date:'short' }}</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="rental-panel" *ngIf="!result && !checking" aria-label="Availability guidance">
+    <div class="rental-empty-wrap">
+      <div class="rental-empty-art" aria-hidden="true">
+        <mat-icon class="rental-empty-art__car">directions_car</mat-icon>
+        <mat-icon class="rental-empty-art__cal">event_available</mat-icon>
+      </div>
+      <ui-empty-state
+        icon="event_busy"
+        title="Run an availability check"
+        description="Pick a vehicle and time range above to see overlapping bookings before you create a rental.">
+      </ui-empty-state>
+    </div>
+  </section>
 </div>

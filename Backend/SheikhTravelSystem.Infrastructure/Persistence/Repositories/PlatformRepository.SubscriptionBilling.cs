@@ -149,7 +149,7 @@ public sealed partial class PlatformRepository
         var sub = await connection.QuerySingleOrDefaultAsync<(
             string? Plan, string? Code, decimal? Amount, string? Currency, DateTime? NextBilling, bool AutoRenew, string Status)>(
             new CommandDefinition("""
-                SELECT PlanName AS Plan, SubscriptionCode AS Code, MonthlyAmount AS Amount, CurrencyCode AS Currency,
+                SELECT PlanName AS [Plan], SubscriptionCode AS Code, MonthlyAmount AS Amount, CurrencyCode AS Currency,
                        NextBillingDate AS NextBilling, COALESCE(AutoRenew, 1) AS AutoRenew, COALESCE(Status, N'Active') AS Status
                 FROM TenantSubscriptions WHERE TenantId = @TenantId
                 """, new { TenantId = tenantId }, cancellationToken: cancellationToken));

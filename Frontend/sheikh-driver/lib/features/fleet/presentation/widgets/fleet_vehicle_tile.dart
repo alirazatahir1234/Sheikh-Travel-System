@@ -82,19 +82,19 @@ class _CompactOfflineCard extends StatelessWidget {
                     vehicle.vehicleName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: AppColors.textPrimary,
+                      color: context.sg.textPrimary,
                     ),
                   ),
                   Text(
                     vehicle.registrationNumber,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.sg.textSecondary,
                     ),
                   ),
                 ],
@@ -108,18 +108,18 @@ class _CompactOfflineCard extends StatelessWidget {
           'Driver: ${(vehicle.driverName ?? '').trim().isEmpty ? 'Not assigned' : vehicle.driverName!}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: context.sg.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           'Last seen: $lastSeen',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: context.sg.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -173,6 +173,7 @@ class _OnlineCard extends StatelessWidget {
           status: vehicle.status,
           latitude: vehicle.latitude,
           longitude: vehicle.longitude,
+          isGpsValid: vehicle.isGpsValid,
         ),
       ),
       _MetricItem('GPS', _gpsStatusLabel(vehicle)),
@@ -212,10 +213,10 @@ class _OnlineCard extends StatelessWidget {
                     vehicle.vehicleName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: AppColors.textPrimary,
+                      color: context.sg.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -223,9 +224,9 @@ class _OnlineCard extends StatelessWidget {
                     vehicle.registrationNumber,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.sg.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -233,9 +234,9 @@ class _OnlineCard extends StatelessWidget {
                     'Driver: ${(vehicle.driverName ?? '').trim().isEmpty ? 'Not assigned' : vehicle.driverName!}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textPrimary,
+                      color: context.sg.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -255,9 +256,9 @@ class _OnlineCard extends StatelessWidget {
             vehicle.address!,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -336,9 +337,9 @@ class _VehicleMetric extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: AppColors.textMuted,
+            color: context.sg.textMuted,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -347,9 +348,9 @@ class _VehicleMetric extends StatelessWidget {
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: AppColors.textPrimary,
+            color: context.sg.textPrimary,
             fontWeight: FontWeight.w700,
             height: 1.2,
           ),

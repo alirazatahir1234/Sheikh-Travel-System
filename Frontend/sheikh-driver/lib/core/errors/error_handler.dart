@@ -2,6 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'app_exception.dart';
 
+enum ApiErrorKind {
+  unauthorized,
+  forbidden,
+  network,
+  server,
+  other,
+}
+
 class ErrorHandler {
   /// Maps a [DioException] to a typed [AppException].
   static AppException fromDio(DioException e) {
@@ -47,7 +55,7 @@ class ErrorHandler {
               msg ?? 'Your session is no longer valid. Please log in again.',
             );
           }
-          return AuthException(msg ?? 'Session expired. Please log in again.');
+          return AuthException(msg ?? AuthException.defaultMessage);
         }
         if (status == 403) {
           final msg = _bodyMessage(e.response?.data);
@@ -57,7 +65,7 @@ class ErrorHandler {
           if (path.contains('attendance')) {
             return ForbiddenException.attendance;
           }
-          return const ForbiddenException();
+          return ForbiddenException(msg ?? ForbiddenException.defaultMessage);
         }
         if (status == 404) {
           // Dead Railway / trycloudflare / wrong host → 404 on /auth/*.
@@ -182,6 +190,54 @@ class ErrorHandler {
     if (error is AppException) return error.message;
     if (error is DioException) return fromDio(error).message;
     return error.toString();
+  }
+
+  /// Classifies an exception or error into [ApiErrorKind] so UI widgets can
+  /// distinguish 401 Unauthorized, 403 Forbidden, and network/offline errors.
+  static ApiErrorKind classify(Object? error) {
+    if (error == null) return ApiErrorKind.other;
+    final appEx = error is AppException
+        ? error
+        : (error is DioException ? fromDio(error) : null);
+    if (appEx is AuthException) return ApiErrorKind.unauthorized;
+    if (appEx is ForbiddenException) return ApiErrorKind.forbidden;
+    if (appEx is NetworkException) return ApiErrorKind.network;
+    if (appEx is ServerException) return ApiErrorKind.server;
+    return classifyMessage(error.toString());
+  }
+
+  /// Classifies an already-formatted error message into [ApiErrorKind].
+  static ApiErrorKind classifyMessage(String? message) {
+    final lower = (message ?? '').toLowerCase();
+    if (lower.isEmpty) return ApiErrorKind.other;
+    if (lower.contains('session expired') ||
+        lower.contains('sign in again') ||
+        lower.contains('log in again') ||
+        lower.contains('session is no longer valid') ||
+        lower.contains('not signed in') ||
+        lower.contains('401')) {
+      return ApiErrorKind.unauthorized;
+    }
+    if (lower.contains('access restricted') ||
+        lower.contains('do not have permission') ||
+        lower.contains("don't have permission") ||
+        lower.contains('tenant plan does not include') ||
+        lower.contains('403')) {
+      return ApiErrorKind.forbidden;
+    }
+    if (lower.contains('no internet') ||
+        lower.contains('server unavailable') ||
+        lower.contains('cannot reach server') ||
+        lower.contains('taking too long') ||
+        lower.contains('secure connection') ||
+        lower.contains('check your network') ||
+        lower.contains('check connection')) {
+      return ApiErrorKind.network;
+    }
+    if (lower.contains('server error') || lower.contains('500')) {
+      return ApiErrorKind.server;
+    }
+    return ApiErrorKind.other;
   }
 
   /// Returns true if the exception is transient (worth retrying).

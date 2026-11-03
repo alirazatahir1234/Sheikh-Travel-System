@@ -62,6 +62,9 @@ public static class PermissionRegistrySeed
             .Concat(AiPermissions.All)
             .Concat(NotificationPermissions.All)
             .Concat(SmartOpsPermissions.All)
+            .Concat(RentalPermissions.All)
+            .Concat(WebsitePermissions.All)
+            .Concat(WhatsAppPermissions.All)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -70,7 +73,7 @@ public static class PermissionRegistrySeed
         var sort = 10;
         foreach (var code in codes)
         {
-            var (category, moduleKey, featureKey) = MapPolicy(code);
+            var (category, moduleKey, featureKey) = InferHierarchy(code);
             list.Add(new Entry(
                 code,
                 DeriveDisplayName(code),
@@ -88,35 +91,45 @@ public static class PermissionRegistrySeed
 
     /// <summary>
     /// Soft module/feature mapping. Null ModuleKey/FeatureKey = no soft gate (permission always passes).
+    /// Module-governed permissions use <c>ModuleKey</c> (<c>TenantModules</c>) and keep <c>FeatureKey = null</c>
+    /// so opt-in <c>TenantFeatures</c> rows (e.g. "rental", "bookings") never strip unrelated module claims.
     /// </summary>
+    public static (string Category, string? ModuleKey, string? FeatureKey) InferHierarchy(string code)
+        => MapPolicy(code);
+
     private static (string Category, string? ModuleKey, string? FeatureKey) MapPolicy(string code)
     {
         if (code.StartsWith("Platform.", StringComparison.OrdinalIgnoreCase))
         {
-            // Platform admin surface is gated by ACCESS when mapped; system ops stay ungated.
+            // Platform admin surface is gated by ACCESS when mapped; system ops & core shell stay ungated.
             if (code.Contains(".Migrations.", StringComparison.OrdinalIgnoreCase)
-                || code.Contains(".System.", StringComparison.OrdinalIgnoreCase))
+                || code.Contains(".System.", StringComparison.OrdinalIgnoreCase)
+                || code.StartsWith("Platform.Dashboard.", StringComparison.OrdinalIgnoreCase)
+                || code.StartsWith("Platform.Branches.", StringComparison.OrdinalIgnoreCase))
                 return ("Platform", null, null);
             return ("Platform", "ACCESS", null);
         }
 
         if (code.StartsWith("Vehicle.", StringComparison.OrdinalIgnoreCase))
-            return ("Fleet", "FLEET", "vehicles");
-        if (code.StartsWith("Driver.", StringComparison.OrdinalIgnoreCase))
-            return ("Fleet", "FLEET", "drivers");
+            return ("Fleet", "FLEET", null);
+        if (code.StartsWith("Driver.", StringComparison.OrdinalIgnoreCase)
+            || code.StartsWith("DriverWallet.", StringComparison.OrdinalIgnoreCase))
+            return ("Fleet", "FLEET", null);
         if (code.StartsWith("Maintenance.", StringComparison.OrdinalIgnoreCase))
-            return ("Fleet", "FLEET", "maintenance");
+            return ("Fleet", "FLEET", null);
         if (code.StartsWith("Gps.", StringComparison.OrdinalIgnoreCase)
             || code.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
-            return ("Fleet", "GPS", "gps-tracking");
+            return ("Fleet", "GPS", null);
         if (code.StartsWith("Booking.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "BOOKINGS", "bookings");
+            return ("Operations", "BOOKINGS", null);
         if (code.StartsWith("Trip.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "BOOKINGS", "trips");
+            return ("Operations", "TRAVEL", null);
         if (code.StartsWith("Route.", StringComparison.OrdinalIgnoreCase))
-            return ("Operations", "TRAVEL", "routes");
+            return ("Operations", "TRAVEL", null);
         if (code.StartsWith("Fuel.", StringComparison.OrdinalIgnoreCase))
-            return ("Finance", "FLEET", "fuel-logs");
+            return ("Finance", "FLEET", null);
+        if (code.StartsWith("Rental.", StringComparison.OrdinalIgnoreCase))
+            return ("Fleet", "RENTAL", null);
         if (code.StartsWith("Payment.", StringComparison.OrdinalIgnoreCase)
             || code.StartsWith("Invoice.", StringComparison.OrdinalIgnoreCase)
             || code.StartsWith("Settlement.", StringComparison.OrdinalIgnoreCase))
@@ -127,10 +140,16 @@ public static class PermissionRegistrySeed
             return ("Analytics", "ANALYTICS", null);
         if (code.StartsWith("Ai.", StringComparison.OrdinalIgnoreCase))
             return ("AI", "AI", null);
+        // Notifications are core UX for every tenant. NOTIFICATIONS is Beta / not in
+        // TenantModuleCatalog enableable set — do not soft-gate behind a missing module.
         if (code.StartsWith("Notification.", StringComparison.OrdinalIgnoreCase))
-            return ("Platform", "NOTIFICATIONS", null);
+            return ("Platform", null, null);
         if (code.StartsWith("SmartOps.", StringComparison.OrdinalIgnoreCase))
             return ("Operations", "TRAVEL", null);
+        if (code.StartsWith("Website.", StringComparison.OrdinalIgnoreCase))
+            return ("Platform", null, null);
+        if (code.StartsWith("WhatsApp.", StringComparison.OrdinalIgnoreCase))
+            return ("CRM", null, null);
 
         return ("Other", null, null);
     }

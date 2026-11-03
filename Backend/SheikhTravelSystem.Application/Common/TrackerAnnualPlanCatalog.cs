@@ -37,7 +37,7 @@ public static class TrackerAnnualPlanCatalog
             SortOrder: 10,
             IsDefault: false,
             Visible: true,
-            FeatureKeys: ["live_map", "geofence", "playback", "standard_alerts"]),
+            FeatureKeys: ["live_map", "geofencing", "playback", "standard_alerts"]),
         new(
             PlanCode: "TRACKER_PLUS",
             DisplayName: "Plus",
@@ -46,7 +46,7 @@ public static class TrackerAnnualPlanCatalog
             SortOrder: 20,
             IsDefault: true,
             Visible: true,
-            FeatureKeys: ["live_map", "geofence", "playback", "standard_alerts", "sms_alerts", "engine_lock"]),
+            FeatureKeys: ["live_map", "geofencing", "playback", "standard_alerts", "sms_alerts", "engine_lock"]),
         new(
             PlanCode: "TRACKER_PREMIUM",
             DisplayName: "Premium",
@@ -55,7 +55,7 @@ public static class TrackerAnnualPlanCatalog
             SortOrder: 30,
             IsDefault: false,
             Visible: true,
-            FeatureKeys: ["live_map", "geofence", "playback", "standard_alerts", "sms_alerts", "engine_lock", "share_live", "voice_ready"]),
+            FeatureKeys: ["live_map", "geofencing", "playback", "standard_alerts", "sms_alerts", "engine_lock", "share_live", "voice_ready"]),
     ];
 
     public static Entry Default => All.First(e => e.IsDefault);

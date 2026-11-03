@@ -43,7 +43,7 @@ public static class GpsGt06CommandMap
 
     /// <summary>
     /// JM-VG03 documented Commands-panel set (user manual common SMS):
-    /// RESET, STATUS, GPRSSET (+ Network settings query), RELAY stop/resume, URL# position.
+    /// RESET, STATUS, VERSION, GPRSSET (+ Network settings query), RELAY stop/resume, URL# position.
     /// Excludes CHECK / ICCID / IMSI / APN query / PARAM.
     /// </summary>
     public static readonly string[] Vg03PanelCommandKeys =
@@ -53,6 +53,7 @@ public static class GpsGt06CommandMap
         "positionSingle",
         "restart",
         "status",
+        "version",
         "gprsset",
         "server",
     ];
@@ -100,6 +101,7 @@ public static class GpsGt06CommandMap
             "relayon" => new("relayOn", "Auto", "RELAY,1#", "custom"),
             "relayoff" => new("relayOff", "Auto", "RELAY,0#", "custom"),
             "status" => new("status", "Auto", "STATUS#", "custom"),
+            "version" => new("version", "Auto", "VERSION#", "custom"),
             "check" => new("check", "Auto", "CHECK#", "custom"),
             "iccid" => new("iccid", "Auto", "ICCID#", "custom"),
             "imsi" => new("imsi", "Auto", "IMSI#", "custom"),

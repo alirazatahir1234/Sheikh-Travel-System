@@ -91,6 +91,7 @@ public static class DatabaseMigrationRegistry
             M("UserManagementFoundationMigration", UserManagementFoundationMigration.ApplyAsync),
             M("RoleManagementFoundationMigration", RoleManagementFoundationMigration.ApplyAsync),
             M("PermissionEngineFoundationMigration", PermissionEngineFoundationMigration.ApplyAsync),
+            M("PermissionsFeatureKeyMigration", PermissionsFeatureKeyMigration.ApplyAsync),
             M("MenuBuilderFoundationMigration", MenuBuilderFoundationMigration.ApplyAsync),
             M("WorkspaceBuilderFoundationMigration", WorkspaceBuilderFoundationMigration.ApplyAsync),
             M("DashboardBuilderFoundationMigration", DashboardBuilderFoundationMigration.ApplyAsync),
@@ -146,6 +147,7 @@ public static class DatabaseMigrationRegistry
             M("ModuleRoadSpeedAlertsActiveMigration", ModuleRoadSpeedAlertsActiveMigration.ApplyAsync),
             M("RoadSpeedLimitCacheMigration", RoadSpeedLimitCacheMigration.ApplyAsync),
             M("FuelObdTelemetryMigration", FuelObdTelemetryMigration.ApplyAsync),
+            M("GpsPositionQualityMigration", GpsPositionQualityMigration.ApplyAsync),
             M("FuelStationAlertModuleMigration", FuelStationAlertModuleMigration.ApplyAsync),
             M("FuelFraudDetectionMigration", FuelFraudDetectionMigration.ApplyAsync),
             M("TripSmartAssignmentMigration", TripSmartAssignmentMigration.ApplyAsync),
@@ -179,6 +181,14 @@ public static class DatabaseMigrationRegistry
             M("VehicleRentalModuleMigration", VehicleRentalModuleMigration.ApplyAsync),
             M("Vg03EngineRelayCapabilityMigration", Vg03EngineRelayCapabilityMigration.ApplyAsync),
             M("GpsCommandsSuperAdminOnlyMigration", GpsCommandsSuperAdminOnlyMigration.ApplyAsync),
+            M("AiProviderDeepInfraSeedMigration", AiProviderDeepInfraSeedMigration.ApplyAsync),
+            M("DropTenantWhiteLabelBrandingMigration", DropTenantWhiteLabelBrandingMigration.ApplyAsync),
+            M("GpsCoreAndAddOnFeaturesMigration", GpsCoreAndAddOnFeaturesMigration.ApplyAsync),
+            M("VehicleGeofenceStateMigration", VehicleGeofenceStateMigration.ApplyAsync),
+            M("GeofenceManagePermissionMigration", GeofenceManagePermissionMigration.ApplyAsync),
+            M("GeofenceManageGpsOperatorMigration", GeofenceManageGpsOperatorMigration.ApplyAsync),
+            M("ModuleCatalogCleanupMigration", ModuleCatalogCleanupMigration.ApplyAsync),
+            M("HarshBrakingSmsAlertsMigration", HarshBrakingSmsAlertsMigration.ApplyAsync),
         ];
     }
 }

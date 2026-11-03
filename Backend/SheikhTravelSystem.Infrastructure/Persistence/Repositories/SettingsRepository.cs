@@ -16,7 +16,7 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
 
     private static readonly HashSet<string> BrandingKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "LogoUrl", "PrimaryColor", "Website", "SupportEmail", "Country", "CurrencyCode", "TimeZone"
+        "Website", "SupportEmail", "Country", "CurrencyCode", "TimeZone"
     };
 
     public async Task<Dictionary<string, string?>> GetByCategoryAsync(
@@ -159,18 +159,16 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
     private static async Task OverlayBrandingAsync(
         System.Data.IDbConnection connection, int tenantId, Dictionary<string, string?> target, CancellationToken ct)
     {
-        var row = await connection.QuerySingleOrDefaultAsync<(string? LogoUrl, string? PrimaryColor, string? Website,
+        var row = await connection.QuerySingleOrDefaultAsync<(string? Website,
             string? SupportEmail, string? Country, string? CurrencyCode, string? TimeZone)?>(
             new CommandDefinition("""
-                SELECT LogoUrl, PrimaryColor, Website, SupportEmail, Country, CurrencyCode, TimeZone
+                SELECT Website, SupportEmail, Country, CurrencyCode, TimeZone
                 FROM TenantBranding WHERE TenantId = @TenantId
                 """, new { TenantId = tenantId }, cancellationToken: ct));
 
         if (row is null) return;
         var b = row.Value;
 
-        target["LogoUrl"] = b.LogoUrl;
-        target["PrimaryColor"] = b.PrimaryColor;
         target["Website"] = b.Website;
         target["SupportEmail"] = b.SupportEmail;
         target["Country"] = b.Country;
@@ -216,8 +214,6 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM TenantBranding WHERE TenantId = @TenantId)
                 UPDATE TenantBranding SET
-                    LogoUrl = @LogoUrl,
-                    PrimaryColor = @PrimaryColor,
                     Website = @Website,
                     SupportEmail = @SupportEmail,
                     Country = @Country,
@@ -225,13 +221,11 @@ public sealed class SettingsRepository(IDbConnectionFactory dbFactory) : ISettin
                     TimeZone = @TimeZone
                 WHERE TenantId = @TenantId;
             ELSE
-                INSERT INTO TenantBranding (TenantId, LogoUrl, PrimaryColor, Website, SupportEmail, Country, CurrencyCode, TimeZone)
-                VALUES (@TenantId, @LogoUrl, @PrimaryColor, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
+                INSERT INTO TenantBranding (TenantId, Website, SupportEmail, Country, CurrencyCode, TimeZone)
+                VALUES (@TenantId, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
             """, new
         {
             TenantId = tenantId,
-            LogoUrl = Get(values, "LogoUrl"),
-            PrimaryColor = Get(values, "PrimaryColor"),
             Website = Get(values, "Website"),
             SupportEmail = Get(values, "SupportEmail"),
             Country = Get(values, "Country"),

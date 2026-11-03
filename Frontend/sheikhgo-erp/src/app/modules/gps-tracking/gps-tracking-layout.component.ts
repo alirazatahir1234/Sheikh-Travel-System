@@ -34,7 +34,7 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     { label: 'Trips', icon: 'route', route: 'trips' },
     { label: 'Trip Mode', icon: 'settings', route: 'trip-mode', permission: 'Gps.DeviceManage' },
     { label: 'History', icon: 'history', route: 'history' },
-    { label: 'Commands', icon: 'power_settings_new', route: 'commands', superAdminOnly: true },
+    { label: 'Device Commands', icon: 'power_settings_new', route: 'commands', superAdminOnly: true },
     // Keep scoring next to Analytics so it is not buried at the far end of the scrollable tab strip.
     { label: 'Analytics', icon: 'insights', route: 'analytics' },
     { label: 'Driver Performance', icon: 'speed', route: 'driver-performance' },
@@ -63,6 +63,15 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
 
   get isAccidentRiskRoute(): boolean {
     return this.activeChild === 'accident-risk';
+  }
+
+  get isCommandsRoute(): boolean {
+    return this.activeChild === 'commands';
+  }
+
+  /** Company/vehicle scope bar — hidden on Device Commands (no region/scope UI there). */
+  get showScopeFilterBar(): boolean {
+    return !this.isCommandsRoute;
   }
 
   /** Hide the generic Fleet Tracking header when a page supplies its own hero. */

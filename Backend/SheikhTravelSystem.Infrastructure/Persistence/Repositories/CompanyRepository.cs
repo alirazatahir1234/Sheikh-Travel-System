@@ -19,11 +19,8 @@ public sealed class CompanyRepository(
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<CompanyTenantRow>(
             new CommandDefinition("""
-                SELECT t.Id, t.Name, t.Slug,
-                       COALESCE(b.LogoUrl, t.LogoUrl) AS LogoUrl,
-                       COALESCE(b.PrimaryColor, t.PrimaryColor) AS PrimaryColor
+                SELECT t.Id, t.Name, t.Slug
                 FROM Tenants t
-                LEFT JOIN TenantBranding b ON b.TenantId = t.Id
                 WHERE t.Id = @TenantId
                 """,
                 new { TenantId = tenantId },

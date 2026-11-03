@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -60,14 +60,12 @@ const FALLBACK_TIMEZONES = [
   templateUrl: './tenant-provision.component.html',
   styleUrls: ['./tenant-provision.component.scss']
 })
-export class TenantProvisionComponent implements OnInit, OnDestroy {
+export class TenantProvisionComponent implements OnInit {
   saving = false;
   loadingModules = true;
   lookupLoading = true;
   modules: TenantModuleDefinition[] = [];
   hideAdminPassword = true;
-  logoDragOver = false;
-  logoPreviewUrl: string | null = null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
   readonly planDefinitions = PLAN_DEFINITIONS;
@@ -139,10 +137,8 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
         country: ['United Arab Emirates'],
         currencyCode: [DEFAULT_CURRENCY],
         timeZone: ['Asia/Dubai'],
-        primaryColor: ['#007A57'],
         website: [''],
-        supportEmail: ['', Validators.email],
-        logoUrl: ['']
+        supportEmail: ['', Validators.email]
       }),
       security: this.fb.group({
         isMfaRequired: [false],
@@ -253,17 +249,6 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     return value === null || value === undefined ? 'Unlimited' : value;
   }
 
-  get primaryColorPreview(): string {
-    return this.sanitizeHexColor(this.brandingGroup.get('primaryColor')?.value) || '#007A57';
-  }
-
-  onBrandColorPicked(value: string): void {
-    const hex = this.sanitizeHexColor(value);
-    if (!hex) return;
-    this.brandingGroup.get('primaryColor')?.setValue(hex);
-    this.brandingGroup.get('primaryColor')?.markAsDirty();
-  }
-
   private refreshBrandingOptions(): void {
     this.countryOptions = this.toSelectOptions(this.countries);
     this.currencyOptions = this.toSelectOptions(this.currencies);
@@ -272,17 +257,6 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
 
   private toSelectOptions(values: string[]): UiSelectOption[] {
     return values.map(value => ({ value, label: value }));
-  }
-
-  private sanitizeHexColor(value: unknown): string | null {
-    const raw = String(value ?? '').trim();
-    const match = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
-    if (!match) return null;
-    if (match[1].length === 3) {
-      const [r, g, b] = match[1].split('');
-      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-    }
-    return `#${match[1]}`.toLowerCase();
   }
 
   private syncBrandingSelectValues(): void {
@@ -322,54 +296,12 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     this.hideAdminPassword = false;
   }
 
-  onLogoDragOver(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.logoDragOver = true;
-  }
-
-  onLogoDrop(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.logoDragOver = false;
-    const file = event.dataTransfer?.files?.[0];
-    if (file) this.applyLogoFile(file);
-  }
-
-  onLogoFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) this.applyLogoFile(file);
-    input.value = '';
-  }
-
-  ngOnDestroy(): void {
-    this.revokeLogoPreview();
-  }
-
-  private applyLogoFile(file: File): void {
-    if (!file.type.startsWith('image/')) {
-      this.toast.warning('Please select an image file.');
-      return;
-    }
-    this.revokeLogoPreview();
-    this.logoPreviewUrl = URL.createObjectURL(file);
-    this.toast.info('Logo preview ready. Paste a hosted logo URL to include it in provisioning.');
-  }
-
-  private revokeLogoPreview(): void {
-    if (this.logoPreviewUrl) {
-      URL.revokeObjectURL(this.logoPreviewUrl);
-      this.logoPreviewUrl = null;
-    }
-  }
-
   get checklistItems(): { label: string; done: boolean }[] {
     return [
       { label: 'Tenant profile defined', done: this.profileGroup.valid },
       { label: 'Plan & modules selected', done: this.planGroup.valid && this.activeModuleCount > 0 },
       { label: 'Initial administrator setup', done: this.adminGroup.valid },
-      { label: 'Localization & branding', done: this.brandingGroup.valid },
+      { label: 'Contact & localization', done: this.brandingGroup.valid },
       { label: 'Security policies configured', done: this.securityGroup.valid },
       { label: 'Organization structure ready', done: this.organizationGroup.valid },
       { label: 'Billing & GPS (optional)', done: this.billingGroup.valid }
@@ -402,17 +334,26 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     return this.moduleIcons[code] ?? 'extension';
   }
 
+  isCoreModule(code: string): boolean {
+    return (code || '').toUpperCase() === 'GPS';
+  }
+
   isModuleSelected(code: string): boolean {
+    if (this.isCoreModule(code)) return true;
     const selected = this.planGroup.get('moduleCodes')?.value as string[] | null;
     return selected?.includes(code) ?? false;
   }
 
   toggleModule(code: string): void {
+    if (this.isCoreModule(code)) return;
     const ctrl = this.planGroup.get('moduleCodes');
     const current = [...(ctrl?.value as string[] ?? [])];
     const next = current.includes(code)
       ? current.filter(c => c !== code)
       : [...new Set([...current, code])];
+    if (!next.some(c => c.toUpperCase() === 'GPS')) {
+      next.push('GPS');
+    }
     ctrl?.setValue(next);
     ctrl?.markAsTouched();
   }
@@ -498,8 +439,6 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
       country: b.country?.trim() || undefined,
       timeZone: b.timeZone?.trim() || undefined,
       currencyCode: b.currencyCode?.trim() || undefined,
-      primaryColor: b.primaryColor?.trim() || undefined,
-      logoUrl: b.logoUrl?.trim() || undefined,
       website: b.website?.trim() || undefined,
       supportEmail: b.supportEmail?.trim() || undefined,
       isMfaRequired: s.isMfaRequired ?? false,

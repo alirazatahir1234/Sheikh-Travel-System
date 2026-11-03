@@ -14,8 +14,10 @@ class NetworkException extends AppException {
 
 class AuthException extends AppException {
   const AuthException([
-    super.message = 'Session expired. Please log in again.',
+    super.message = defaultMessage,
   ]);
+
+  static const defaultMessage = 'Session expired — please sign in again.';
 }
 
 class RateLimitException extends AppException {
@@ -38,8 +40,12 @@ class NotFoundException extends AppException {
 
 class ForbiddenException extends AppException {
   const ForbiddenException([
-    super.message = 'You do not have permission to perform this action.',
+    super.message = defaultMessage,
   ]);
+
+  static const defaultMessage =
+      'Access restricted — your account role or tenant plan does not include this permission. '
+      'Try signing out and back in if permissions were recently updated.';
 
   /// Attendance-specific copy required by product (never show raw Dio 403).
   static const attendance = ForbiddenException(

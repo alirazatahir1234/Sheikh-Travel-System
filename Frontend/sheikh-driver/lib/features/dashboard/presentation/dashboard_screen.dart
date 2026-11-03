@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
@@ -116,14 +117,13 @@ class DashboardScreen extends ConsumerWidget {
                       child: SectionErrorHint(
                         message: _sectionErrorMessage(data),
                       ),
-                    ),
-                  if (_fleetDataMissing(data, forceDriver: forceDriver))
+                    )
+                  else if (_fleetDataMissing(data, forceDriver: forceDriver))
                     const Padding(
                       padding: EdgeInsets.only(top: AppSpacing.sm),
                       child: SectionErrorHint(
                         message:
-                            'Fleet data could not be loaded. Check that the API is reachable. '
-                            'Pull to refresh, or check your connection.',
+                            'Server unavailable — check your connection and pull to refresh.',
                       ),
                     ),
                 ],
@@ -211,7 +211,9 @@ class DashboardScreen extends ConsumerWidget {
       case DashboardWidgetId.fleetStatusStrip:
         final gps = data.gps;
         final moving = gps?.moving ?? 0;
-        final idle = gps?.idle ?? 0;
+        // Activity strip is 4 buckets (no Parked/SOS tiles) — fold into Idle.
+        final idle =
+            (gps?.idle ?? 0) + (gps?.parked ?? 0) + (gps?.sos ?? 0);
         final offline = gps?.offline ?? 0;
         final neverSeen = gps?.neverSeen ?? 0;
         return FleetActivityDistributionCard(
@@ -307,6 +309,21 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   static String _sectionErrorMessage(RoleDashboardData data) {
+    for (final msg in data.sectionErrors.values) {
+      if (ErrorHandler.classifyMessage(msg) == ApiErrorKind.unauthorized) {
+        return msg;
+      }
+    }
+    for (final msg in data.sectionErrors.values) {
+      if (ErrorHandler.classifyMessage(msg) == ApiErrorKind.forbidden) {
+        return msg;
+      }
+    }
+    for (final msg in data.sectionErrors.values) {
+      if (ErrorHandler.classifyMessage(msg) == ApiErrorKind.network) {
+        return 'Server unavailable — check your connection. ($msg)';
+      }
+    }
     final keys = data.sectionErrors.keys.toList()..sort();
     final critical = keys.where((k) => k == 'fleet' || k == 'gps').toList();
     if (critical.isNotEmpty) {

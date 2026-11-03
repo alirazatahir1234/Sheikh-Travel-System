@@ -6,6 +6,7 @@ enum FleetTrackStatus {
   offline,
   neverSeen,
   sos,
+  unknown,
 }
 
 extension FleetTrackStatusX on FleetTrackStatus {
@@ -16,6 +17,7 @@ extension FleetTrackStatusX on FleetTrackStatus {
         FleetTrackStatus.offline => 'Offline',
         FleetTrackStatus.neverSeen => 'Never seen',
         FleetTrackStatus.sos => 'SOS',
+        FleetTrackStatus.unknown => 'Unknown',
       };
 
   String get filterKey => switch (this) {
@@ -25,6 +27,7 @@ extension FleetTrackStatusX on FleetTrackStatus {
         FleetTrackStatus.offline => 'offline',
         FleetTrackStatus.neverSeen => 'never_seen',
         FleetTrackStatus.sos => 'sos',
+        FleetTrackStatus.unknown => 'unknown',
       };
 }
 
@@ -39,6 +42,7 @@ class GpsFleetStatusKpis {
     required this.neverSeen,
     required this.sos,
     required this.alertsToday,
+    this.unknown = 0,
   });
 
   final int totalVehicles;
@@ -50,6 +54,7 @@ class GpsFleetStatusKpis {
   final int neverSeen;
   final int sos;
   final int alertsToday;
+  final int unknown;
 
   factory GpsFleetStatusKpis.fromJson(Map<String, dynamic> json) {
     int n(String a, [String? b]) => _readInt(json, a, b);
@@ -63,6 +68,7 @@ class GpsFleetStatusKpis {
       neverSeen: n('neverSeen', 'NeverSeen'),
       sos: n('sos', 'Sos'),
       alertsToday: n('alertsToday', 'AlertsToday'),
+      unknown: n('unknown', 'Unknown'),
     );
   }
 
@@ -153,6 +159,8 @@ class GpsPosition {
     this.address,
     this.alarmType,
     this.driverPhone,
+    this.isGpsValid = true,
+    this.gpsQualityCode,
   });
 
   final int vehicleId;
@@ -171,6 +179,8 @@ class GpsPosition {
   final String? address;
   final String? alarmType;
   final String? driverPhone;
+  final bool isGpsValid;
+  final String? gpsQualityCode;
 
   factory GpsPosition.fromJson(Map<String, dynamic> json) {
     return GpsPosition(
@@ -199,6 +209,10 @@ class GpsPosition {
       alarmType: json['alarmType'] as String? ?? json['AlarmType'] as String?,
       driverPhone:
           json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
+      isGpsValid:
+          json['isGpsValid'] as bool? ?? json['IsGpsValid'] as bool? ?? true,
+      gpsQualityCode:
+          json['gpsQualityCode'] as String? ?? json['GpsQualityCode'] as String?,
     );
   }
 }
@@ -477,6 +491,8 @@ class FleetVehicleLocation {
     this.alarmType,
     this.vehicleType,
     this.serviceAlert,
+    this.isGpsValid = true,
+    this.gpsQualityCode,
   });
 
   final int vehicleId;
@@ -498,13 +514,16 @@ class FleetVehicleLocation {
   final String? alarmType;
   final String? vehicleType;
   final String? serviceAlert;
+  final bool isGpsValid;
+  final String? gpsQualityCode;
 
+  /// True when the vehicle has a last-known map position.
+  /// Online/offline/never-seen status must not hide pins — style differs by status.
   bool get hasMapCoords =>
       latitude != null &&
       longitude != null &&
       latitude != 0 &&
-      longitude != 0 &&
-      status != FleetTrackStatus.neverSeen;
+      longitude != 0;
 
   FleetVehicleLocation copyWith({
     double? latitude,
@@ -516,11 +535,14 @@ class FleetVehicleLocation {
     String? driverPhone,
     bool? hasGps,
     bool? ignition,
+    bool clearIgnition = false,
     double? heading,
     double? batteryLevel,
     int? gsmSignal,
     String? address,
     String? alarmType,
+    bool? isGpsValid,
+    String? gpsQualityCode,
   }) {
     return FleetVehicleLocation(
       vehicleId: vehicleId,
@@ -534,7 +556,7 @@ class FleetVehicleLocation {
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
       hasGps: hasGps ?? this.hasGps,
-      ignition: ignition ?? this.ignition,
+      ignition: clearIgnition ? ignition : (ignition ?? this.ignition),
       heading: heading ?? this.heading,
       batteryLevel: batteryLevel ?? this.batteryLevel,
       gsmSignal: gsmSignal ?? this.gsmSignal,
@@ -542,6 +564,8 @@ class FleetVehicleLocation {
       alarmType: alarmType ?? this.alarmType,
       vehicleType: vehicleType,
       serviceAlert: serviceAlert,
+      isGpsValid: isGpsValid ?? this.isGpsValid,
+      gpsQualityCode: gpsQualityCode ?? this.gpsQualityCode,
     );
   }
 }
@@ -1556,6 +1580,11 @@ class GpsGeofenceItem {
     this.geoJson,
     this.isActive = true,
     this.color,
+    this.category,
+    this.description,
+    this.assignedVehicleCount = 0,
+    this.alertOnEnter = false,
+    this.alertOnExit = false,
   });
 
   final int id;
@@ -1567,6 +1596,20 @@ class GpsGeofenceItem {
   final String? geoJson;
   final bool isActive;
   final String? color;
+  final String? category;
+  final String? description;
+  final int assignedVehicleCount;
+
+  /// Fleet-wide Entry/Exit alert rule flags for this zone.
+  final bool alertOnEnter;
+  final bool alertOnExit;
+
+  /// ERP geofences tagged as parking zones (category or name).
+  bool get isParkingZone {
+    final c = (category ?? '').trim().toLowerCase();
+    if (c.contains('parking')) return true;
+    return name.toLowerCase().contains('parking');
+  }
 
   bool get isCircle {
     final t = areaType.toLowerCase();
@@ -1600,6 +1643,17 @@ class GpsGeofenceItem {
       geoJson: json['geoJson'] as String? ?? json['GeoJson'] as String?,
       isActive: json['isActive'] as bool? ?? json['IsActive'] as bool? ?? true,
       color: json['color'] as String? ?? json['Color'] as String?,
+      category: json['category'] as String? ?? json['Category'] as String?,
+      description:
+          json['description'] as String? ?? json['Description'] as String?,
+      assignedVehicleCount: json['assignedVehicleCount'] as int? ??
+          json['AssignedVehicleCount'] as int? ??
+          0,
+      alertOnEnter: json['alertOnEnter'] as bool? ??
+          json['AlertOnEnter'] as bool? ??
+          false,
+      alertOnExit:
+          json['alertOnExit'] as bool? ?? json['AlertOnExit'] as bool? ?? false,
     );
   }
 }

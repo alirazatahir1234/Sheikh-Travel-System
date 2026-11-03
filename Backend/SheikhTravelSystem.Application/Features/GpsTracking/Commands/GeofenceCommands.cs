@@ -31,8 +31,17 @@ public class CreateGeofenceCommandValidator : AbstractValidator<CreateGeofenceCo
 public class CreateGeofenceCommandHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<CreateGeofenceCommand, ApiResponse<int>>
 {
-    public Task<ApiResponse<int>> Handle(CreateGeofenceCommand request, CancellationToken cancellationToken)
-        => gpsTrackingRepository.CreateGeofenceAsync(request, cancellationToken);
+    public async Task<ApiResponse<int>> Handle(CreateGeofenceCommand request, CancellationToken cancellationToken)
+    {
+        var result = await gpsTrackingRepository.CreateGeofenceAsync(request, cancellationToken);
+        if (result.Success && result.Data > 0)
+        {
+            var dto = request.Geofence;
+            await gpsTrackingRepository.ApplyGeofenceMonitoringAsync(
+                result.Data, dto.AlertOnEnter, dto.AlertOnExit, dto.VehicleIds, cancellationToken);
+        }
+        return result;
+    }
 }
 
 public record UpdateGeofenceCommand(int Id, UpdateGeofenceDto Geofence) : IRequest<ApiResponse<bool>>;
@@ -56,8 +65,17 @@ public class UpdateGeofenceCommandValidator : AbstractValidator<UpdateGeofenceCo
 public class UpdateGeofenceCommandHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<UpdateGeofenceCommand, ApiResponse<bool>>
 {
-    public Task<ApiResponse<bool>> Handle(UpdateGeofenceCommand request, CancellationToken cancellationToken)
-        => gpsTrackingRepository.UpdateGeofenceAsync(request, cancellationToken);
+    public async Task<ApiResponse<bool>> Handle(UpdateGeofenceCommand request, CancellationToken cancellationToken)
+    {
+        var result = await gpsTrackingRepository.UpdateGeofenceAsync(request, cancellationToken);
+        if (result.Success)
+        {
+            var dto = request.Geofence;
+            await gpsTrackingRepository.ApplyGeofenceMonitoringAsync(
+                request.Id, dto.AlertOnEnter, dto.AlertOnExit, dto.VehicleIds, cancellationToken);
+        }
+        return result;
+    }
 }
 
 public record DeleteGeofenceCommand(int Id) : IRequest<ApiResponse<bool>>;

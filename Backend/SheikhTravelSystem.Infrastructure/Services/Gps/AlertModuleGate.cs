@@ -1,9 +1,12 @@
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 
-public sealed class AlertModuleGate(ITenantModuleService tenantModules) : IAlertModuleGate
+public sealed class AlertModuleGate(
+    ITenantModuleService tenantModules,
+    IPlatformRepository platformRepository) : IAlertModuleGate
 {
     public async Task<bool> IsAlertTypeEnabledAsync(
         int tenantId,
@@ -13,14 +16,25 @@ public sealed class AlertModuleGate(ITenantModuleService tenantModules) : IAlert
         if (tenantId <= 0 || string.IsNullOrWhiteSpace(eventType))
             return false;
 
-        var typeModule = AlertModuleCatalog.ModuleCodeForEventType(eventType);
-        if (typeModule is null)
+        var typeDef = AlertModuleCatalog.FindByEventType(eventType);
+        if (typeDef is null)
             return true; // Not in Alerts inventory — do not invent a gate
 
         if (!await tenantModules.IsModuleEnabledAsync(
                 tenantId, AlertModuleCatalog.AlertsModuleCode, cancellationToken))
             return false;
 
-        return await tenantModules.IsModuleEnabledAsync(tenantId, typeModule, cancellationToken);
+        // GPS add-ons (geofencing / speed-alerts) → TenantFeatures.
+        if (!string.IsNullOrWhiteSpace(typeDef.FeatureKey))
+        {
+            if (!await tenantModules.IsModuleEnabledAsync(
+                    tenantId, TenantModuleCatalog.GpsModuleCode, cancellationToken))
+                return false;
+
+            var flags = await platformRepository.LoadTenantFeatureFlagsAsync(tenantId, cancellationToken);
+            return flags.TryGetValue(typeDef.FeatureKey, out var enabled) && enabled;
+        }
+
+        return await tenantModules.IsModuleEnabledAsync(tenantId, typeDef.ModuleCode, cancellationToken);
     }
 }

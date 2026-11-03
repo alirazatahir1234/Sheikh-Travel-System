@@ -9,6 +9,8 @@ public static class GpsPermissions
     public const string AlertDelete = "Gps.AlertDelete";
     /// <summary>Register, update, delete, install, uninstall, and transfer GPS trackers.</summary>
     public const string DeviceManage = "Gps.DeviceManage";
+    /// <summary>Create, edit, delete geofence zones and their vehicle assignments / Entry-Exit rules.</summary>
+    public const string GeofenceManage = "Gps.GeofenceManage";
     public const string CommandSend = "Gps.CommandSend";
     public const string CommandView = "Gps.CommandView";
     public const string CommandEngineCutoff = "Gps.CommandEngineCutoff";
@@ -32,7 +34,7 @@ public static class GpsPermissions
     public static readonly string[] All =
     [
         AlertView, AlertAcknowledge, AlertResolve, AlertArchive, AlertDelete,
-        DeviceManage,
+        DeviceManage, GeofenceManage,
         ..CommandAll
     ];
 }

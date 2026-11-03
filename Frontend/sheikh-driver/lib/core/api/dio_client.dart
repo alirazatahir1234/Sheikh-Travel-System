@@ -162,8 +162,11 @@ class _RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Avoid nested interceptor re-entry doubling retries.
-    if (err.requestOptions.extra['isRetry'] == true) {
+    // Avoid nested interceptor re-entry doubling retries; callers with their
+    // own time budget (e.g. AI chat) opt out via `extra['noRetry']`.
+    if (err.requestOptions.extra['isRetry'] == true ||
+        err.requestOptions.extra['noRetry'] == true ||
+        err.type == DioExceptionType.cancel) {
       return handler.next(err);
     }
 

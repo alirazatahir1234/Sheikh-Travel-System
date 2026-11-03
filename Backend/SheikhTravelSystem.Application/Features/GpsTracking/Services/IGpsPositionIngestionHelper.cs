@@ -13,9 +13,11 @@ public interface IGpsPositionIngestionHelper
 
     Task IngestAsync(
         IDbConnection connection,
-        IngestPositionDto dto,
+        IngestPositionDto historyDto,
         DateTime recordedAt,
-        CancellationToken cancellationToken);
+        GpsPositionIngestPlan? plan = null,
+        IngestPositionDto? currentLocationDto = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Pure trip-persistence gate — no SQL.</summary>

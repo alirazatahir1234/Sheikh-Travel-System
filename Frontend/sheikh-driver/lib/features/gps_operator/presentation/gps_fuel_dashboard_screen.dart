@@ -60,7 +60,7 @@ class _GpsFuelDashboardScreenState
   Widget build(BuildContext context) {
     final currency = NumberFormat.compactCurrency(symbol: '');
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Fuel dashboard'),
         actions: [
@@ -109,10 +109,10 @@ class _GpsFuelDashboardScreenState
                         ],
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'Open a vehicle → Fuel tab for per-vehicle history. Theft and refill detection follow GPS analytics when telemetry is available.',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.sg.textSecondary,
                           height: 1.4,
                         ),
                       ),
@@ -130,8 +130,8 @@ class _GpsFuelDashboardScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+                style: TextStyle(
+                    fontSize: 12, color: context.sg.textSecondary)),
             const SizedBox(height: 6),
             Text(value,
                 style:

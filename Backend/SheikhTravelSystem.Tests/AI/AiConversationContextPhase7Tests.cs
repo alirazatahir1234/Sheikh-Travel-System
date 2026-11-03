@@ -218,7 +218,7 @@ public class AiConversationContextPhase7Tests
     {
         var tenants = new Mock<ITenantRepository>();
         tenants.Setup(t => t.GetBrandingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TenantBrandingRow(1, "Demo Co", "demo", null, null, "Asia/Karachi"));
+            .ReturnsAsync(new TenantBrandingRow(1, "Demo Co", "demo", "Asia/Karachi"));
 
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(c => c.IsPlatformSuperAdmin).Returns(false);

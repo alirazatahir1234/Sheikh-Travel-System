@@ -5,6 +5,7 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 public static class GpsGeoHelper
 {
     private const double EarthRadiusKm = 6371.0;
+    public const double MaxCircleRadiusMeters = 50_000;
 
     public static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
     {
@@ -48,6 +49,68 @@ public static class GpsGeoHelper
         return IsInsidePolygon(lng, lat, ring);
     }
 
+    /// <summary>
+    /// Inside/outside plus unsigned distance (meters) to the zone boundary.
+    /// Returns false for unusable geometry (circle radius ≤ 0, polygon &lt; 3 points / unparseable) so callers
+    /// can skip the zone instead of treating it as "outside".
+    /// </summary>
+    public static bool TryEvaluateGeofence(
+        double lat,
+        double lng,
+        string areaType,
+        double centerLat,
+        double centerLng,
+        double radiusMeters,
+        string? geoJson,
+        out bool inside,
+        out double boundaryDistanceMeters)
+    {
+        inside = false;
+        boundaryDistanceMeters = 0;
+        var type = (areaType ?? "circle").Trim().ToLowerInvariant();
+        if (type is "circle" or "")
+        {
+            if (radiusMeters <= 0)
+                return false;
+            var d = HaversineKm(lat, lng, centerLat, centerLng) * 1000.0;
+            inside = d <= radiusMeters;
+            boundaryDistanceMeters = Math.Abs(d - radiusMeters);
+            return true;
+        }
+
+        var ring = TryParsePolygonRing(geoJson);
+        if (ring == null || ring.Count < 3)
+            return false;
+
+        inside = IsInsidePolygon(lng, lat, ring);
+        boundaryDistanceMeters = DistanceToRingMeters(lat, lng, ring);
+        return true;
+    }
+
+    /// <summary>Minimum distance (meters) from a point to the ring edges, using a local equirectangular projection.</summary>
+    public static double DistanceToRingMeters(double lat, double lng, IReadOnlyList<(double Lng, double Lat)> ring)
+    {
+        const double metersPerDegLat = 111_320.0;
+        var metersPerDegLng = metersPerDegLat * Math.Cos(DegreesToRadians(lat));
+        var best = double.MaxValue;
+        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
+        {
+            var ax = (ring[j].Lng - lng) * metersPerDegLng;
+            var ay = (ring[j].Lat - lat) * metersPerDegLat;
+            var bx = (ring[i].Lng - lng) * metersPerDegLng;
+            var by = (ring[i].Lat - lat) * metersPerDegLat;
+            var dx = bx - ax;
+            var dy = by - ay;
+            var lenSq = dx * dx + dy * dy;
+            var t = lenSq <= 0 ? 0 : Math.Clamp(-(ax * dx + ay * dy) / lenSq, 0, 1);
+            var px = ax + t * dx;
+            var py = ay + t * dy;
+            best = Math.Min(best, Math.Sqrt(px * px + py * py));
+        }
+
+        return best;
+    }
+
     public static string NormalizeAreaType(string? areaType)
     {
         var t = (areaType ?? "circle").Trim().ToLowerInvariant();
@@ -81,6 +144,11 @@ public static class GpsGeoHelper
                 error = "Radius must be greater than 0 for circle geofences.";
                 return false;
             }
+            if (radiusMeters > MaxCircleRadiusMeters)
+            {
+                error = $"Radius must be at most {MaxCircleRadiusMeters / 1000:0} km.";
+                return false;
+            }
             return true;
         }
 
@@ -97,9 +165,9 @@ public static class GpsGeoHelper
             return false;
         }
 
-        if (ring.Count < 3)
+        if (ring.Distinct().Count() < 3)
         {
-            error = "Polygon must have at least 3 vertices.";
+            error = "Polygon must have at least 3 distinct vertices.";
             return false;
         }
 

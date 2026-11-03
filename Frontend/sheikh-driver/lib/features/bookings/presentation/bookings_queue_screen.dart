@@ -16,7 +16,7 @@ class BookingsQueueScreen extends ConsumerWidget {
     final df = DateFormat('dd MMM · HH:mm');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Bookings'),
         actions: [
@@ -147,9 +147,9 @@ class BookingsQueueScreen extends ConsumerWidget {
                               ),
                               Text(
                                 '${b.routeName ?? 'Route'} · ${df.format(b.pickupTime.toLocal())}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: context.sg.textSecondary,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -163,7 +163,7 @@ class BookingsQueueScreen extends ConsumerWidget {
                                   fontSize: 12,
                                   color: b.isUnassigned
                                       ? AppColors.error
-                                      : AppColors.textMuted,
+                                      : context.sg.textMuted,
                                   fontWeight: b.isUnassigned
                                       ? FontWeight.w600
                                       : FontWeight.w400,
@@ -204,7 +204,7 @@ class _Mini extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 11, color: context.sg.textMuted),
           ),
         ],
       ),

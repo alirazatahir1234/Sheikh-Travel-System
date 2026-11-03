@@ -16,8 +16,7 @@ bool isSosAlarm(String? alarmType,
 }
 
 /// Single source of truth for deriving a live-map vehicle status from telemetry.
-/// Priority when online: SOS → Parked (ignition off or null at rest) → Moving (>=10) → Idle.
-/// Backend clears stuck Jimi ACC via Traccar motion=false before ignition is stored.
+/// Priority when online: SOS → invalid GPS → Parked (explicit ACC off) → Moving → Idle → Unknown (ACC missing).
 FleetTrackStatus resolveFleetStatus({
   double? speed,
   bool? ignition,
@@ -25,6 +24,7 @@ FleetTrackStatus resolveFleetStatus({
   bool hasGps = true,
   String? alarmType,
   DateTime? now,
+  bool? isGpsValid,
 }) {
   // No tracker assigned — never Online (orphan VCL coords must not inflate KPIs).
   if (!hasGps) return FleetTrackStatus.offline;
@@ -36,16 +36,23 @@ FleetTrackStatus resolveFleetStatus({
   final ageMs = (now ?? DateTime.now()).difference(lastUpdated).inMilliseconds;
   if (ageMs.isNaN || ageMs > offlineStaleMs) return FleetTrackStatus.offline;
 
+  // Unreliable fix — never claim Parked / Ignition off.
+  if (isGpsValid == false) return FleetTrackStatus.unknown;
+
   final spd = speed ?? 0;
 
-  // Explicit ACC OFF: always Parked — GPS drift at 1–9 km/h must not become Moving.
-  if (ignition == false) return FleetTrackStatus.parked;
+  // Explicit ACC OFF + low speed → Parked. High speed with ACC off → Unknown.
+  if (ignition == false) {
+    return spd >= movingThresholdKmh
+        ? FleetTrackStatus.unknown
+        : FleetTrackStatus.parked;
+  }
 
   if (spd >= movingThresholdKmh) return FleetTrackStatus.moving;
 
-  // Engine ON at rest → Idle. Null / unwired ACC at rest → Parked (not Idle).
+  // Engine ON at rest → Idle. Null / unwired ACC at rest → Unknown (not Parked/OFF).
   if (ignition == true) return FleetTrackStatus.idle;
-  return FleetTrackStatus.parked;
+  return FleetTrackStatus.unknown;
 }
 
 /// Maps a `GET /gps/live/fleet` row (ERP GpsLiveFleetVehicleDto).
@@ -64,6 +71,10 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
   final alarmType =
       json['alarmType'] as String? ?? json['AlarmType'] as String?;
   final ignition = json['ignition'] as bool? ?? json['Ignition'] as bool?;
+  final isGpsValid =
+      json['isGpsValid'] as bool? ?? json['IsGpsValid'] as bool? ?? true;
+  final gpsQualityCode =
+      json['gpsQualityCode'] as String? ?? json['GpsQualityCode'] as String?;
   final vehicleId = json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0;
   final rawName =
       (json['vehicleName'] as String? ?? json['VehicleName'] as String? ?? '')
@@ -80,6 +91,7 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
       lastUpdated: lastUpdated,
       hasGps: true,
       alarmType: alarmType,
+      isGpsValid: isGpsValid,
     );
   } else {
     status = FleetTrackStatus.neverSeen;
@@ -109,6 +121,8 @@ FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
     alarmType: alarmType,
     vehicleType:
         json['vehicleType'] as String? ?? json['VehicleType'] as String?,
+    isGpsValid: isGpsValid,
+    gpsQualityCode: gpsQualityCode,
   );
 }
 
@@ -135,6 +149,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
         lastUpdated: livePos.timestamp,
         hasGps: true,
         alarmType: livePos.alarmType,
+        isGpsValid: livePos.isGpsValid,
       );
       return FleetVehicleLocation(
         vehicleId: v.id,
@@ -160,6 +175,8 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
         alarmType: livePos.alarmType,
         vehicleType: v.vehicleType,
         serviceAlert: v.serviceAlert,
+        isGpsValid: livePos.isGpsValid,
+        gpsQualityCode: livePos.gpsQualityCode,
       );
     }
 
@@ -232,6 +249,7 @@ List<FleetVehicleLocation> applyLiveUpdate(
     lastUpdated: update.timestamp,
     hasGps: hasTracker,
     alarmType: update.alarmType,
+    isGpsValid: update.isGpsValid,
   );
   final next = List<FleetVehicleLocation>.from(current);
   final livePhone = update.driverPhone?.trim();
@@ -243,6 +261,7 @@ List<FleetVehicleLocation> applyLiveUpdate(
     status: status,
     hasGps: hasTracker,
     ignition: update.ignition,
+    clearIgnition: true,
     heading: update.heading,
     batteryLevel: update.batteryLevel,
     gsmSignal: update.gsmSignal,
@@ -251,6 +270,8 @@ List<FleetVehicleLocation> applyLiveUpdate(
     driverPhone: (livePhone != null && livePhone.isNotEmpty)
         ? livePhone
         : existing.driverPhone,
+    isGpsValid: update.isGpsValid,
+    gpsQualityCode: update.gpsQualityCode,
   );
   return next;
 }
@@ -279,6 +300,7 @@ GpsFleetStatusKpis deriveFleetKpisFromLocations(
   var offline = 0;
   var neverSeen = 0;
   var sos = 0;
+  var unknown = 0;
 
   for (final v in locations) {
     switch (v.status) {
@@ -294,10 +316,12 @@ GpsFleetStatusKpis deriveFleetKpisFromLocations(
         neverSeen++;
       case FleetTrackStatus.sos:
         sos++;
+      case FleetTrackStatus.unknown:
+        unknown++;
     }
   }
 
-  final online = moving + idle + parked + sos;
+  final online = moving + idle + parked + sos + unknown;
   return GpsFleetStatusKpis(
     totalVehicles: locations.length,
     online: online,
@@ -308,5 +332,6 @@ GpsFleetStatusKpis deriveFleetKpisFromLocations(
     neverSeen: neverSeen,
     sos: sos,
     alertsToday: alertsToday,
+    unknown: unknown,
   );
 }

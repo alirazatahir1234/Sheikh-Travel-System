@@ -21,7 +21,7 @@ public static class GpsCommandCatalog
     [
         new("engineStop",     "Engine Stop",      "engineStop",     GpsPermissions.CommandEngineCutoff,    "SupportsEngineCutoff", true,  true),
         new("engineResume",   "Engine Resume",    "engineResume",   GpsPermissions.CommandEngineCutoff,    "SupportsEngineCutoff", false, true),
-        new("positionSingle", "Request Position", "positionSingle", GpsPermissions.CommandPositionRequest, null,                    false, false),
+        new("positionSingle", "URL / Location",   "positionSingle", GpsPermissions.CommandPositionRequest, null,                    false, false),
         new("restart",        "Restart Device",   "rebootDevice",   GpsPermissions.CommandRestart,          null,                    false, false),
         new("relayOn",        "Relay ON",         "outputControl",  GpsPermissions.CommandRelay,            "SupportsRelay",         true,  false),
         new("relayOff",       "Relay OFF",        "outputControl",  GpsPermissions.CommandRelay,            "SupportsRelay",         true,  false),

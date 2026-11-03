@@ -1,8 +1,17 @@
 class AiChatMessage {
-  const AiChatMessage({required this.role, required this.content});
+  const AiChatMessage({
+    required this.role,
+    required this.content,
+    this.structuredPayload,
+    this.toolUsed,
+    this.createdAt,
+  });
 
   final String role;
   final String content;
+  final String? structuredPayload;
+  final String? toolUsed;
+  final DateTime? createdAt;
 
   bool get isUser => role.toLowerCase() == 'user';
   bool get isAssistant => role.toLowerCase() == 'assistant';
@@ -11,6 +20,15 @@ class AiChatMessage {
         role: json['role']?.toString() ?? json['Role']?.toString() ?? '',
         content:
             json['content']?.toString() ?? json['Content']?.toString() ?? '',
+        structuredPayload: json['structuredPayload']?.toString() ??
+            json['StructuredPayload']?.toString(),
+        toolUsed:
+            json['toolUsed']?.toString() ?? json['ToolUsed']?.toString(),
+        createdAt: DateTime.tryParse(
+          json['createdAt']?.toString() ??
+              json['CreatedAt']?.toString() ??
+              '',
+        ),
       );
 }
 
@@ -161,6 +179,9 @@ class AiChatBubble {
     this.usedLlm = false,
     this.tools = const [],
     this.pendingConfirmation = false,
+    this.structuredPayload,
+    this.toolUsed,
+    this.createdAt,
   });
 
   final String role;
@@ -169,8 +190,28 @@ class AiChatBubble {
   final bool usedLlm;
   final List<String> tools;
   final bool pendingConfirmation;
+  final String? structuredPayload;
+  final String? toolUsed;
+  final DateTime? createdAt;
 
   bool get isUser => role == 'user';
+
+  AiChatBubble copyWith({
+    String? structuredPayload,
+    String? toolUsed,
+    DateTime? createdAt,
+  }) =>
+      AiChatBubble(
+        role: role,
+        content: content,
+        mode: mode,
+        usedLlm: usedLlm,
+        tools: tools,
+        pendingConfirmation: pendingConfirmation,
+        structuredPayload: structuredPayload ?? this.structuredPayload,
+        toolUsed: toolUsed ?? this.toolUsed,
+        createdAt: createdAt ?? this.createdAt,
+      );
 }
 
 const defaultAiSuggestions = [

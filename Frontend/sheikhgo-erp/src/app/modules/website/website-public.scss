@@ -52,6 +52,20 @@
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 
+  @media (max-width: 768px) {
+    --section-pad: 2.75rem;
+    --type-body: 1rem;
+    --type-section-lead: 1rem;
+    --type-section-title: 1.75rem;
+    --type-hero: 2.25rem;
+  }
+
+  @media (max-width: 480px) {
+    --section-pad: 2.25rem;
+    --type-section-title: 1.5rem;
+    --type-hero: 2rem;
+  }
+
   .website-main {
     flex: 1;
     position: relative;

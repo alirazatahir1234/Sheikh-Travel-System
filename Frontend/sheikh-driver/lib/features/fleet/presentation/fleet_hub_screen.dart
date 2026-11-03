@@ -47,7 +47,7 @@ class FleetHubScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: Text(
           ref.watch(fleetSessionProvider)?.isGpsOperator == true
@@ -144,13 +144,13 @@ class FleetHubScreen extends ConsumerWidget {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: filterCount > 0
                                   ? AppColors.primary
-                                  : AppColors.textPrimary,
+                                  : context.sg.textPrimary,
                               side: BorderSide(
                                 color: filterCount > 0
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : context.sg.border,
                               ),
-                              backgroundColor: Colors.white,
+                              backgroundColor: context.sg.card,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 12,
@@ -180,8 +180,8 @@ class FleetHubScreen extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   hub.liveFeedWarning!,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
+                                  style: TextStyle(
+                                    color: context.sg.textSecondary,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -203,14 +203,24 @@ class FleetHubScreen extends ConsumerWidget {
                           padding: const EdgeInsets.all(12),
                           child: Row(
                             children: [
-                              const Icon(Icons.cloud_off_outlined,
-                                  color: AppColors.error, size: 20),
+                              Icon(
+                                switch (ErrorHandler.classifyMessage(
+                                    hub.loadError)) {
+                                  ApiErrorKind.unauthorized =>
+                                    Icons.lock_clock_outlined,
+                                  ApiErrorKind.forbidden =>
+                                    Icons.lock_outline_rounded,
+                                  _ => Icons.cloud_off_outlined,
+                                },
+                                color: AppColors.error,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   hub.loadError!,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
+                                  style: TextStyle(
+                                    color: context.sg.textSecondary,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -232,6 +242,7 @@ class FleetHubScreen extends ConsumerWidget {
                     hasFilters:
                         !hub.filters.isDefault || hub.search.trim().isNotEmpty,
                     loadFailed: hub.loadError != null,
+                    loadError: hub.loadError,
                   )
                 else
                   SliverPadding(
@@ -255,23 +266,44 @@ class _EmptyVehiclesSliver extends StatelessWidget {
   const _EmptyVehiclesSliver({
     this.hasFilters = false,
     this.loadFailed = false,
+    this.loadError,
   });
 
   final bool hasFilters;
   final bool loadFailed;
+  final String? loadError;
 
   @override
   Widget build(BuildContext context) {
-    final title = loadFailed
-        ? 'Could not load vehicles'
-        : hasFilters
-            ? 'No Vehicles Found'
-            : 'No vehicles in fleet';
-    final subtitle = loadFailed
-        ? 'Check your connection and pull to refresh.'
-        : hasFilters
-            ? 'Try clearing search or filters.'
-            : 'Vehicles for this tenant will appear here once added.';
+    final kind = ErrorHandler.classifyMessage(loadError);
+    final (icon, title, subtitle) = !loadFailed
+        ? (
+            Icons.directions_car_outlined,
+            hasFilters ? 'No Vehicles Found' : 'No vehicles in fleet',
+            hasFilters
+                ? 'Try clearing search or filters.'
+                : '0 vehicles — vehicles for this tenant will appear here once added.',
+          )
+        : switch (kind) {
+            ApiErrorKind.unauthorized => (
+                Icons.lock_clock_outlined,
+                'Session expired',
+                loadError ?? 'Session expired — please sign in again.',
+              ),
+            ApiErrorKind.forbidden => (
+                Icons.lock_outline_rounded,
+                'Access restricted',
+                loadError ??
+                    'Access restricted — your account role or tenant plan does not include this permission. '
+                        'Try signing out and back in if permissions were recently updated.',
+              ),
+            _ => (
+                Icons.cloud_off_outlined,
+                'Could not load vehicles',
+                loadError ??
+                    'Server unavailable — check your connection and pull to refresh.',
+              ),
+          };
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Center(
@@ -281,25 +313,23 @@ class _EmptyVehiclesSliver extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                loadFailed
-                    ? Icons.cloud_off_outlined
-                    : Icons.directions_car_outlined,
+                icon,
                 size: 40,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
               ),
               const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.sg.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: context.sg.textSecondary),
               ),
             ],
           ),
@@ -354,7 +384,7 @@ class _LiveTrackingHeader extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: hasLive
-                      ? AppColors.textSecondary
+                      ? context.sg.textSecondary
                       : const Color(0xFF64748B),
                 ),
               ),
@@ -364,9 +394,9 @@ class _LiveTrackingHeader extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           fleetLine,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: AppColors.textMuted,
+            color: context.sg.textMuted,
             fontWeight: FontWeight.w500,
           ),
         ),

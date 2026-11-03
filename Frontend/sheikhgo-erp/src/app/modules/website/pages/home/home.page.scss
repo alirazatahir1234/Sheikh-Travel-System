@@ -1969,3 +1969,81 @@
 .news-card-link:hover {
   text-decoration: underline;
 }
+
+/* Phones: stacked single-column card grids made the page ~36k px tall; swipe rows keep it compact. */
+@media (max-width: 768px) {
+  .platform-overview,
+  .business-benefits,
+  .industries-serve,
+  .product-showcase,
+  .nexus-showcase,
+  .home-ai-spotlight,
+  .home-final-cta {
+    padding-top: var(--section-pad);
+    padding-bottom: var(--section-pad);
+  }
+
+  .section-head,
+  .platform-overview-head,
+  .industries-serve-head {
+    margin-bottom: 1.25rem;
+  }
+
+  .platform-overview-grid,
+  .industries-serve-grid,
+  .driver-payments-grid,
+  .testimonials-grid,
+  .platform-cap-grid,
+  .news-grid,
+  .subscription-plans-grid {
+    display: grid;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(78%, 1fr);
+    gap: 0.85rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1rem;
+    margin-inline: -1rem;
+    padding: 0.25rem 1rem 0.75rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > * {
+      scroll-snap-align: start;
+      min-width: 0;
+    }
+  }
+
+  .nexus-modules-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .nexus-module-caption {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+
+  .driver-payments-card {
+    padding: 1.1rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .platform-overview-grid,
+  .industries-serve-grid,
+  .driver-payments-grid,
+  .testimonials-grid,
+  .platform-cap-grid,
+  .news-grid,
+  .subscription-plans-grid {
+    grid-auto-columns: 85%;
+  }
+}

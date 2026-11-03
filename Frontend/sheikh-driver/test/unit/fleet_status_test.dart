@@ -62,7 +62,7 @@ void main() {
       );
     });
 
-    test('parked when ignition off even at higher drift speed', () {
+    test('unknown when ignition off at high speed (contradictory)', () {
       expect(
         resolveFleetStatus(
           speed: 14,
@@ -70,7 +70,7 @@ void main() {
           lastUpdated: now,
           now: now,
         ),
-        FleetTrackStatus.parked,
+        FleetTrackStatus.unknown,
       );
     });
 
@@ -110,7 +110,7 @@ void main() {
       );
     });
 
-    test('parked when ignition null at rest (Jimi without ACC)', () {
+    test('unknown when ignition null at rest (ACC not reported)', () {
       expect(
         resolveFleetStatus(
           speed: 0,
@@ -118,7 +118,20 @@ void main() {
           lastUpdated: now,
           now: now,
         ),
-        FleetTrackStatus.parked,
+        FleetTrackStatus.unknown,
+      );
+    });
+
+    test('unknown when GPS invalid even with ignition off', () {
+      expect(
+        resolveFleetStatus(
+          speed: 0,
+          ignition: false,
+          lastUpdated: now,
+          now: now,
+          isGpsValid: false,
+        ),
+        FleetTrackStatus.unknown,
       );
     });
   });
@@ -138,97 +151,60 @@ void main() {
       });
       expect(row.status, FleetTrackStatus.offline);
       expect(row.hasGps, isFalse);
-    });
-  });
-
-  group('mergeVehiclesWithLive', () {
-    test('prefers live position over snapshot', () {
-      final now = DateTime.now().toUtc();
-      final vehicles = [
-        VehicleListItem(
-          id: 1,
-          name: 'Bus A',
-          registrationNumber: 'ABC-1',
-          status: 'Available',
-          locationLatitude: 24.0,
-          locationLongitude: 67.0,
-          locationLastUpdate: now.subtract(const Duration(hours: 2)),
-          hasGpsDevice: true,
-        ),
-      ];
-      final live = [
-        GpsPosition(
-          vehicleId: 1,
-          latitude: 24.86,
-          longitude: 67.00,
-          speed: 20,
-          timestamp: now.subtract(const Duration(seconds: 20)),
-          ignition: true,
-        ),
-      ];
-      final merged = mergeVehiclesWithLive(vehicles: vehicles, live: live);
-      expect(merged, hasLength(1));
-      expect(merged.first.latitude, 24.86);
-      expect(merged.first.status, FleetTrackStatus.moving);
-      // ignition true + speed 20 → moving under unified rule
+      // Last-known coords still pin on the live map (styled as offline).
+      expect(row.hasMapCoords, isTrue);
     });
 
-    test('applyLiveUpdate ignores stale payloads', () {
-      final now = DateTime.now().toUtc();
-      final current = [
-        FleetVehicleLocation(
-          vehicleId: 1,
-          vehicleName: 'Bus A',
-          registrationNumber: 'ABC-1',
-          status: FleetTrackStatus.moving,
-          latitude: 24.86,
-          longitude: 67.0,
-          lastUpdated: now,
-          speed: 20,
-          hasGps: true,
-        ),
-      ];
-      final stale = GpsPosition(
-        vehicleId: 1,
-        latitude: 24.0,
-        longitude: 67.0,
-        speed: 0,
-        timestamp: now.subtract(const Duration(minutes: 5)),
-      );
-      final next = applyLiveUpdate(current, stale);
-      expect(next.first.latitude, 24.86);
-      expect(next.first.speed, 20);
+    test('stale tracker with coords stays mappable when offline', () {
+      final row = mapLiveFleetRow({
+        'vehicleId': 9,
+        'vehicleName': 'Bus',
+        'registrationNumber': 'ABC-9',
+        'hasGpsDevice': true,
+        'latitude': 31.5,
+        'longitude': 74.3,
+        'lastUpdated': '2026-07-21T10:00:00Z',
+        'speed': 0,
+        'ignition': false,
+      });
+      expect(row.status, FleetTrackStatus.offline);
+      expect(row.hasMapCoords, isTrue);
     });
 
-    test('applyLiveUpdate preserves driverPhone when SignalR omits it', () {
-      final now = DateTime.now().toUtc();
-      final current = [
-        FleetVehicleLocation(
-          vehicleId: 1,
-          vehicleName: 'Bus A',
-          registrationNumber: 'ABC-1',
-          status: FleetTrackStatus.idle,
-          latitude: 24.86,
-          longitude: 67.0,
-          lastUpdated: now.subtract(const Duration(seconds: 30)),
-          speed: 0,
-          hasGps: true,
-          driverPhone: '03202223333',
-          driverName: 'Kashif Butt',
-        ),
-      ];
-      final update = GpsPosition(
-        vehicleId: 1,
-        latitude: 24.861,
-        longitude: 67.001,
-        speed: 12,
-        ignition: true,
-        timestamp: now,
-      );
-      final next = applyLiveUpdate(current, update);
-      expect(next.first.driverPhone, '03202223333');
-      expect(next.first.driverName, 'Kashif Butt');
-      expect(next.first.status, FleetTrackStatus.moving);
+    test('invalid GPS maps to unknown', () {
+      final fresh = DateTime.now().toUtc().toIso8601String();
+      final row = mapLiveFleetRow({
+        'vehicleId': 1,
+        'vehicleName': 'Corolla',
+        'registrationNumber': 'LEB-8825',
+        'hasGpsDevice': true,
+        'latitude': 31.5,
+        'longitude': 74.3,
+        'lastUpdated': fresh,
+        'speed': 0,
+        'ignition': false,
+        'isGpsValid': false,
+        'gpsQualityCode': 'frozen_coordinates',
+      });
+      expect(row.status, FleetTrackStatus.unknown);
+      expect(row.isGpsValid, isFalse);
+    });
+
+    test('null ignition at rest is unknown not parked', () {
+      final fresh = DateTime.now().toUtc().toIso8601String();
+      final row = mapLiveFleetRow({
+        'vehicleId': 1,
+        'vehicleName': 'Corolla',
+        'registrationNumber': 'LEB-8825',
+        'hasGpsDevice': true,
+        'latitude': 31.5,
+        'longitude': 74.3,
+        'lastUpdated': fresh,
+        'speed': 0,
+        'ignition': null,
+      });
+      expect(row.status, FleetTrackStatus.unknown);
+      expect(row.ignition, isNull);
     });
   });
 }

@@ -3,18 +3,8 @@
   <!-- Header -->
   <div class="page-header">
     <div>
-      <h2 class="page-title">Remote Commands</h2>
-      <p class="page-sub">Send control commands to GPS-linked vehicles</p>
-    </div>
-    <div class="device-selector" *ngIf="canView()">
-      <label class="selector-label">Device</label>
-      <mat-form-field appearance="outline" class="device-field">
-        <mat-select [(value)]="selectedDeviceId" (selectionChange)="onDeviceChange()">
-          <mat-option *ngFor="let d of devices" [value]="d.id">
-            {{ d.name }} <span class="mono-opt">({{ d.uniqueId }})</span>
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+      <h2 class="page-title">Device Commands</h2>
+      <p class="page-sub">Send STATUS, URL/location, and other tracker SMS/commands — see every device at a glance</p>
     </div>
   </div>
 
@@ -29,17 +19,103 @@
     <p class="sub">Register and activate a device in the Devices section first.</p>
   </div>
 
-  <ng-container *ngIf="canView()">
+  <ng-container *ngIf="canView() && devices.length > 0">
 
-  <!-- Device info strip -->
+  <!-- Roster KPIs + search -->
+  <div class="roster-toolbar">
+    <div class="device-kpi-strip">
+      <button type="button" class="device-kpi" *ngFor="let k of deviceKpis"
+        [class.device-kpi--active]="deviceFilter === k.filter"
+        (click)="setDeviceFilter(k.filter)">
+        <span class="device-kpi-value" [style.color]="k.color">{{ k.value }}</span>
+        <span class="device-kpi-label">{{ k.label }}</span>
+      </button>
+    </div>
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search devices</mat-label>
+      <input matInput [(ngModel)]="deviceSearch" placeholder="Plate, IMEI, vehicle, SIM…">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  </div>
+
+  <!-- Device roster -->
+  <div class="section-header">
+    <h3 class="section-title">Devices</h3>
+    <span class="refresh-note">Status refreshes every 15s</span>
+  </div>
+
+  <div class="table-card roster-card" *ngIf="filteredDevices.length > 0">
+    <table class="data-table roster-table">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Plate</th>
+          <th>Device</th>
+          <th>Traccar</th>
+          <th>SIM phone</th>
+          <th>Status</th>
+          <th>Last seen</th>
+          <th>Quick commands</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of filteredDevices"
+            [class.row-selected]="d.id === selectedDeviceId"
+            [ngClass]="deviceStatus(d).rowClass"
+            (click)="selectDevice(d.id)">
+          <td class="fw-med">{{ vehicleLabel(d) }}</td>
+          <td class="mono">{{ d.plateNumber || '—' }}</td>
+          <td>
+            <div class="fw-med">{{ d.name }}</div>
+            <div class="muted small mono">{{ d.uniqueId }}</div>
+            <div class="muted small" *ngIf="d.model">{{ d.model }}</div>
+          </td>
+          <td class="mono muted">{{ d.traccarDeviceId ?? '—' }}</td>
+          <td class="mono" [class.sim-missing]="!hasSim(d)" [class.sim-present]="hasSim(d)"
+              [matTooltip]="hasSim(d) ? 'Tracker SIM / Traccar phone' : 'No SIM phone on SheikhGo or synced Traccar device'">
+            {{ simLabel(d) }}
+          </td>
+          <td>
+            <span class="badge" [ngClass]="deviceStatus(d).badgeClass">{{ deviceStatus(d).label }}</span>
+            <div class="muted small" title="Device ACC/ignition from GPS">
+              ACC {{ d.lastIgnition == null ? 'Unknown' : (d.lastIgnition ? 'On' : 'Off') }}
+            </div>
+          </td>
+          <td class="muted small" [matTooltip]="lastSeenTooltip(d)">{{ lastSeenLabel(d) }}</td>
+          <td class="quick-actions" (click)="$event.stopPropagation()">
+            <button mat-stroked-button class="btn-sm"
+              *ngFor="let a of quickActionsFor(d)"
+              type="button"
+              [disabled]="sending"
+              (click)="sendQuick(d, a.type, $event)">
+              <mat-icon class="btn-icon">{{ a.icon }}</mat-icon>
+              {{ a.label }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div *ngIf="filteredDevices.length === 0" class="empty-state-sm">No devices match this filter.</div>
+
+  <!-- Selected device strip -->
   <div *ngIf="selectedDevice() as dev" class="device-strip">
     <div class="device-strip-item">
-      <span class="strip-label">Name</span>
-      <span class="strip-val">{{ dev.name }}</span>
+      <span class="strip-label">Selected</span>
+      <span class="strip-val">{{ vehicleLabel(dev) }} · {{ dev.name }}</span>
     </div>
     <div class="device-strip-item">
       <span class="strip-label">IMEI</span>
       <span class="strip-val mono">{{ dev.uniqueId }}</span>
+    </div>
+    <div class="device-strip-item">
+      <span class="strip-label">Traccar ID</span>
+      <span class="strip-val mono">{{ dev.traccarDeviceId ?? '—' }}</span>
+    </div>
+    <div class="device-strip-item">
+      <span class="strip-label">SIM phone</span>
+      <span class="strip-val mono" [class.sim-missing]="!hasSim(dev)" [class.sim-present]="hasSim(dev)">{{ simLabel(dev) }}</span>
+      <span class="muted small" *ngIf="!hasSim(dev)">Set on tracker register / Traccar phone</span>
     </div>
     <div class="device-strip-item" title="Device ACC/ignition from GPS. Cut Engine is not blocked when Off.">
       <span class="strip-label">Ignition</span>
@@ -53,7 +129,7 @@
         {{ dev.supportsEngineCutoff ? 'Supported' : 'Not supported' }}
       </span>
     </div>
-    <div class="device-strip-item" title="Immobilizer relay capability (RELAY,1# / RELAY,0#). Should be Supported on VG03 cut-off devices.">
+    <div class="device-strip-item" title="Immobilizer relay capability (RELAY,1# / RELAY,0#).">
       <span class="strip-label">Relay</span>
       <span class="badge" [class.badge-green]="dev.supportsRelay" [class.badge-gray]="!dev.supportsRelay">
         {{ dev.supportsRelay ? 'Supported' : 'Not supported' }}
@@ -61,16 +137,28 @@
     </div>
   </div>
 
-  <!-- KPI strip / status filter -->
-  <div class="kpi-strip" *ngIf="devices.length > 0">
-    <button class="kpi-tile" type="button"
-      *ngFor="let t of kpiTiles"
-      [class.kpi-tile--active]="statusFilter === t.filter"
-      (click)="setStatusFilter(t.filter)">
-      <mat-icon class="kpi-icon" [style.color]="t.color">{{ t.icon }}</mat-icon>
-      <span class="kpi-value">{{ t.value }}</span>
-      <span class="kpi-label">{{ t.label }}</span>
-    </button>
+  <!-- Last command result -->
+  <div class="last-result" *ngIf="lastCommandDetail as detail">
+    <div class="last-result-head">
+      <mat-icon [class.spin]="isPendingLike(detail.command.status)">{{ isPendingLike(detail.command.status) ? 'hourglass_empty' : 'receipt_long' }}</mat-icon>
+      <div>
+        <div class="last-result-title">
+          Last command: <strong>{{ detail.command.commandType }}</strong>
+          <span class="badge" [ngClass]="statusBadgeClass(detail.command.status)">{{ detail.command.status }}</span>
+        </div>
+        <div class="muted small">
+          {{ detail.command.requestedAt | date:'dd MMM yyyy, HH:mm:ss' }}
+          <span *ngIf="detail.command.reason"> · {{ detail.command.reason }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="last-result-body" *ngIf="lastReplyText() as reply">
+      <span class="strip-label">Reply / result</span>
+      <pre class="reply-text">{{ reply }}</pre>
+    </div>
+    <div class="last-result-body" *ngIf="!lastReplyText() && isPendingLike(detail.command.status)">
+      <span class="muted">Waiting for device reply (SMS replies may not be ingested yet).</span>
+    </div>
   </div>
 
   <!-- Inline confirmation panel -->
@@ -81,6 +169,8 @@
         <p class="confirm-title">Send <strong>{{ pendingCard.label }}</strong> to <strong>{{ selectedDevice()?.name }}</strong>?</p>
         <p class="confirm-sub" *ngIf="pendingCard.type === 'engineStop'">This will cut engine power remotely. Ensure the vehicle is safely stopped and below the configured speed limit.</p>
         <p class="confirm-sub" *ngIf="pendingCard.type === 'customSms'">No SMS gateway is configured yet — this will be queued and logged as not configured.</p>
+        <p class="confirm-sub" *ngIf="pendingCard.type === 'custom'">Advanced: raw payload is sent as configured by the translator / Traccar custom channel.</p>
+        <p class="confirm-sub" *ngIf="pendingCard.type === 'positionSingle'">VG03 uses URL# (map link SMS); EV26R uses WHERE#.</p>
       </div>
     </div>
     <mat-form-field appearance="outline" class="reason-field">
@@ -102,7 +192,7 @@
     <ng-container *ngIf="pendingCard.type === 'custom'">
       <mat-form-field appearance="outline" class="reason-field">
         <mat-label>Command data *</mat-label>
-        <input matInput [(ngModel)]="attrData" placeholder="Raw command payload">
+        <input matInput [(ngModel)]="attrData" placeholder="e.g. STATUS# or URL#">
       </mat-form-field>
     </ng-container>
     <ng-container *ngIf="pendingCard.type === 'heartbeat'">
@@ -127,7 +217,10 @@
   </div>
 
   <!-- Command cards -->
-  <div class="command-cards" *ngIf="devices.length > 0 && !pendingCard">
+  <div class="section-header" *ngIf="!pendingCard">
+    <h3 class="section-title">All commands for selected device</h3>
+  </div>
+  <div class="command-cards" *ngIf="!pendingCard">
     <div *ngFor="let card of commandCards" class="command-card" [class]="card.colorClass" [class.disabled]="isCardDisabled(card)"
       [matTooltip]="cardDisabledReason(card) || ''" [matTooltipDisabled]="!cardDisabledReason(card)"
       (click)="send(card)">
@@ -140,16 +233,29 @@
     </div>
   </div>
 
+  <!-- KPI strip / status filter -->
+  <div class="kpi-strip">
+    <button class="kpi-tile" type="button"
+      *ngFor="let t of kpiTiles"
+      [class.kpi-tile--active]="statusFilter === t.filter"
+      (click)="setStatusFilter(t.filter)">
+      <mat-icon class="kpi-icon" [style.color]="t.color">{{ t.icon }}</mat-icon>
+      <span class="kpi-value">{{ t.value }}</span>
+      <span class="kpi-label">{{ t.label }}</span>
+    </button>
+  </div>
+
   <!-- Command history -->
-  <div *ngIf="devices.length > 0 && canView()">
+  <div>
     <div class="section-header">
       <h3 class="section-title">Command History</h3>
-      <span class="refresh-note">Auto-refresh every 15s</span>
+      <span class="refresh-note">Auto-refresh every 15s · history is never deleted from this screen</span>
     </div>
 
     <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
+    <div *ngIf="loadError" class="empty-state-sm">{{ loadError }}</div>
 
-    <div *ngIf="!loading && commands.length === 0" class="empty-state-sm">
+    <div *ngIf="!loading && !loadError && commands.length === 0" class="empty-state-sm">
       No command history for this device.
     </div>
 

@@ -13,6 +13,8 @@ export interface GpsStatusInput {
    */
   hasGps?: boolean;
   alarmType?: string | null;
+  /** When false (frozen/LBS/teleport), do not claim Parked / Ignition off. */
+  isGpsValid?: boolean | null;
 }
 
 /** Mirrors the backend default in TraccarOptions.SosAlarmValues — keep in sync if that changes. */
@@ -53,14 +55,14 @@ export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFA
  * 1. never_seen — no GPS / no last update
  * 2. offline — last fix older than offline threshold
  * 3. sos — SOS/panic while otherwise online
- * 4. parked — ignition OFF + speed &lt; moving threshold (covers speed 0 + low GPS drift)
- * 5. unknown — ignition OFF + speed ≥ threshold (contradictory)
- * 6. moving — speed ≥ moving threshold
- * 7. idle — ignition ON + speed &lt; threshold
- * 8. parked — ignition null / unwired ACC at low speed (Jimi without ACC must not stay Idle)
+ * 4. unknown — IsGpsValid=false (frozen/LBS/teleport)
+ * 5. parked — ignition OFF + speed &lt; moving threshold (covers speed 0 + low GPS drift)
+ * 6. unknown — ignition OFF + speed ≥ threshold (contradictory)
+ * 7. moving — speed ≥ moving threshold
+ * 8. idle — ignition ON + speed &lt; threshold
+ * 9. unknown — ignition null / ACC not reported at low speed (do not invent Parked/OFF)
  *
  * Do not derive status from reverse-geocoded address text.
- * Backend also forces ignition OFF when Traccar motion=false (stuck ACC on Jimi/GT06).
  */
 export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.now()): FleetTrackStatus {
   // No tracker assigned — never Online (orphan VCL coords must not inflate KPIs).
@@ -79,6 +81,10 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
 
   if (isSosAlarm(input.alarmType)) {
     return 'sos';
+  }
+
+  if (input.isGpsValid === false) {
+    return 'unknown';
   }
 
   const speed = Number(input.speed) || 0;
@@ -101,8 +107,8 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'idle';
   }
 
-  // Ignition unwired / null with low speed — Parked (stationary), not Idle/Unknown.
-  return 'parked';
+  // ACC not reported — Unknown (not Parked / Ignition off).
+  return 'unknown';
 }
 
 /**

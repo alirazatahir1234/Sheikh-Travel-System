@@ -35,15 +35,15 @@ class TimelineScreen extends ConsumerWidget {
         ),
         data: (events) {
           if (events.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history, size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: 12),
+                  Icon(Icons.history, size: 64, color: context.sg.textSecondary),
+                  const SizedBox(height: 12),
                   Text('No activity yet',
                       style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 16)),
+                          color: context.sg.textSecondary, fontSize: 16)),
                 ],
               ),
             );
@@ -82,10 +82,10 @@ class _TimelineList extends StatelessWidget {
               padding: const EdgeInsets.only(top: 20, bottom: 8, left: 48),
               child: Text(
                 date,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -177,7 +177,7 @@ class _TimelineTile extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: AppColors.divider,
+                      color: context.sg.divider,
                     ),
                   ),
               ],
@@ -196,9 +196,9 @@ class _TimelineTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           event.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: context.sg.textPrimary,
                             fontSize: 14,
                           ),
                         ),
@@ -206,8 +206,8 @@ class _TimelineTile extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         timeFmt.format(event.eventTime.toLocal()),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.sg.textSecondary,
                           fontSize: 12,
                         ),
                       ),
@@ -217,8 +217,8 @@ class _TimelineTile extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       event.description!,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.sg.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -264,12 +264,12 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off,
-                  size: 48, color: AppColors.textSecondary),
+              Icon(Icons.cloud_off,
+                  size: 48, color: context.sg.textSecondary),
               const SizedBox(height: 12),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: context.sg.textSecondary)),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: onRetry,

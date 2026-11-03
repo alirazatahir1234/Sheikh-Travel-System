@@ -43,14 +43,14 @@ class _OperatorAiScreenState extends ConsumerState<OperatorAiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('AI insights')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Scoped fleet queries run on the server. Open Copilot for free-form chat.',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.sg.textSecondary),
           ),
           const SizedBox(height: 16),
           ..._prompts.map(

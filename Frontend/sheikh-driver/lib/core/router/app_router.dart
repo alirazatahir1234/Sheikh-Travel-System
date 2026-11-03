@@ -17,6 +17,7 @@ import '../../features/gps_operator/presentation/device_health_screen.dart';
 import '../../features/gps_operator/presentation/gps_commands_hub_screen.dart';
 import '../../features/gps_operator/presentation/incident_center_screen.dart';
 import '../../features/gps_operator/presentation/geofence_operator_screen.dart';
+import '../../features/gps_operator/presentation/parking_screen.dart';
 import '../../features/gps_operator/presentation/operator_ai_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/performance/presentation/driver_performance_screen.dart';
@@ -46,7 +47,8 @@ import '../../features/fleet/presentation/fleet_assignments_screen.dart';
 import '../../features/fleet/presentation/fleet_live_map_screen.dart';
 import '../../features/fleet/presentation/vehicle_detail_screen.dart';
 import '../../features/fleet/presentation/vehicle_history_screen.dart';
-import '../../features/ai/presentation/ai_copilot_screen.dart';
+import '../../features/ai/presentation/ai_assistant_chat_screen.dart';
+import '../../features/ai/presentation/ai_assistant_home_screen.dart';
 import '../../features/more/presentation/more_screen.dart';
 import '../../features/drivers/presentation/drivers_list_screen.dart';
 import '../../features/drivers/presentation/driver_detail_screen.dart';
@@ -362,6 +364,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const GeofenceOperatorScreen(),
           ),
           GoRoute(
+            path: '/gps/parking',
+            builder: (_, __) => const ParkingScreen(),
+          ),
+          GoRoute(
             path: '/gps/operator-ai',
             builder: (_, __) => const OperatorAiScreen(),
           ),
@@ -379,9 +385,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/ai',
-            builder: (_, state) => AiCopilotScreen(
-              initialPrompt: state.uri.queryParameters['q'],
-            ),
+            builder: (_, state) {
+              final q = state.uri.queryParameters['q']?.trim();
+              if (q != null && q.isNotEmpty) {
+                return AiAssistantChatScreen(initialPrompt: q);
+              }
+              return const AiAssistantHomeScreen();
+            },
+            routes: [
+              GoRoute(
+                path: 'chat',
+                builder: (_, state) => AiAssistantChatScreen(
+                  initialPrompt: state.uri.queryParameters['q'],
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/bookings',

@@ -12,8 +12,10 @@ import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   DEFAULT_CURRENCY,
+  ALWAYS_ON_MODULE_CODES,
   DEFAULT_TENANT_MODULE_CODES,
   MODULE_ICONS,
+  PREMIUM_ALERT_MODULE_CODES,
   PLAN_DEFINITIONS,
   TENANT_PLAN_TIERS,
   TenantAdminInfo,
@@ -30,7 +32,6 @@ import {
 } from '../../../core/models/platform.model';
 import { CompanyUserSummary } from '../../../core/models/user.model';
 
-const HEX_COLOR = /^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/;
 const OPTIONAL_HTTP_URL = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/i;
 
 function optionalHttpUrlValidator() {
@@ -38,14 +39,6 @@ function optionalHttpUrlValidator() {
     const v = String(control.value ?? '').trim();
     if (!v) return null;
     return OPTIONAL_HTTP_URL.test(v) ? null : { url: true };
-  };
-}
-
-function hexColorValidator() {
-  return (control: { value: unknown }) => {
-    const v = String(control.value ?? '').trim();
-    if (!v) return null;
-    return HEX_COLOR.test(v) ? null : { hexColor: true };
   };
 }
 
@@ -121,8 +114,6 @@ export class TenantDetailComponent implements OnInit {
       maxDrivers: [null as number | null, Validators.min(0)],
       maxBranches: [null as number | null, Validators.min(0)],
       maxGpsDevices: [null as number | null, Validators.min(0)],
-      logoUrl: ['', optionalHttpUrlValidator()],
-      primaryColor: ['#007A57', hexColorValidator()],
       website: ['', optionalHttpUrlValidator()],
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
@@ -136,8 +127,29 @@ export class TenantDetailComponent implements OnInit {
     return this.auth.hasPermission('Platform.Tenants.Manage');
   }
 
+  /** True opt-in TenantFeatures only (GPS add-ons etc.) — never module-legacy duplicates. */
+  private static readonly GPS_ADDON_KEYS = new Set([
+    'geofencing',
+    'speed-alerts',
+    'route-playback'
+  ]);
+
+  private isRealAddOn(f: CompanyFeature): boolean {
+    const key = (f.featureKey || '').toLowerCase();
+    if (TenantDetailComponent.GPS_ADDON_KEYS.has(key)) return true;
+    if (f.isAddOn === true) return true;
+    return false;
+  }
+
+  get addonFeatures(): CompanyFeature[] {
+    return this.features
+      .filter(f => this.isRealAddOn(f))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        || (a.displayName || a.name || '').localeCompare(b.displayName || b.name || ''));
+  }
+
   get enabledFeatureCount(): number {
-    return this.features.filter(f => f.isEnabled).length;
+    return this.addonFeatures.filter(f => f.isEnabled).length;
   }
 
   get kpiEmployees(): number | null {
@@ -167,7 +179,34 @@ export class TenantDetailComponent implements OnInit {
 
   get kpiModules(): number | null {
     if (!this.tenant) return null;
-    return (this.form.controls.moduleCodes.value ?? this.tenant.moduleCodes ?? []).length;
+    const selected = new Set(
+      (this.form.controls.moduleCodes.value ?? this.tenant.moduleCodes ?? []).map(c => c.toUpperCase())
+    );
+    return this.visibleModules.filter(m => this.isCoreModule(m.code) || selected.has(m.code.toUpperCase())).length;
+  }
+
+  /** Enableable, visible, released modules — excludes legacy / feature-governed / ComingSoon codes. */
+  get visibleModules(): TenantModuleDefinition[] {
+    return this.modules.filter(m =>
+      m.visible !== false
+      && m.isEnableable !== false
+      && (m.status ?? 'Active').toLowerCase() === 'active');
+  }
+
+  moduleIcon(m: TenantModuleDefinition): string {
+    return m.icon || this.moduleIcons[m.code] || 'extension';
+  }
+
+  isAlertChild(code: string): boolean {
+    return (code || '').toUpperCase().startsWith('ALERT_');
+  }
+
+  isPremiumModule(code: string): boolean {
+    return (PREMIUM_ALERT_MODULE_CODES as readonly string[]).includes((code || '').toUpperCase());
+  }
+
+  isModuleLocked(code: string): boolean {
+    return this.isCoreModule(code) || (this.isAlertChild(code) && !this.isModuleSelected('ALERTS'));
   }
 
   get kpiFeatures(): number | null {
@@ -306,14 +345,15 @@ export class TenantDetailComponent implements OnInit {
       name: tenant.name,
       subscriptionPlan: tenant.subscriptionPlan ?? 'Enterprise',
       isActive: tenant.isActive,
-      moduleCodes: tenant.moduleCodes?.length ? [...tenant.moduleCodes] : [...DEFAULT_TENANT_MODULE_CODES],
+      moduleCodes: (() => {
+        const codes = tenant.moduleCodes?.length ? [...tenant.moduleCodes] : [...DEFAULT_TENANT_MODULE_CODES];
+        return this.withAlwaysOn(codes);
+      })(),
       maxUsers: tenant.maxUsers ?? null,
       maxVehicles: tenant.maxVehicles ?? null,
       maxDrivers: tenant.maxDrivers ?? null,
       maxBranches: tenant.maxBranches ?? null,
       maxGpsDevices: tenant.maxGpsDevices ?? null,
-      logoUrl: tenant.logoUrl ?? '',
-      primaryColor: tenant.primaryColor ?? '#007A57',
       website: tenant.website ?? '',
       supportEmail: tenant.supportEmail ?? '',
       country: tenant.country ?? 'United Arab Emirates',
@@ -340,24 +380,41 @@ export class TenantDetailComponent implements OnInit {
     });
   }
 
+  isCoreModule(code: string): boolean {
+    return (ALWAYS_ON_MODULE_CODES as readonly string[]).includes((code || '').toUpperCase());
+  }
+
+  private withAlwaysOn(codes: string[]): string[] {
+    const next = [...codes];
+    for (const c of ALWAYS_ON_MODULE_CODES) {
+      if (!next.some(x => x.toUpperCase() === c)) next.push(c);
+    }
+    return next;
+  }
+
   toggleModule(code: string): void {
-    if (!this.canManage) return;
+    if (!this.canManage || this.isModuleLocked(code)) return;
     const control = this.form.controls.moduleCodes;
     const current = control.value ?? [];
-    const next = current.includes(code)
+    let next = current.includes(code)
       ? current.filter(c => c !== code)
       : [...current, code];
-    control.setValue(next);
+    // Children depend on ALERTS; the backend re-adds the parent if any child stays selected.
+    if (code.toUpperCase() === 'ALERTS' && current.includes(code)) {
+      next = next.filter(c => !this.isAlertChild(c));
+    }
+    control.setValue(this.withAlwaysOn(next));
     control.markAsDirty();
   }
 
   isModuleSelected(code: string): boolean {
+    if (this.isCoreModule(code)) return true;
     return (this.form.controls.moduleCodes.value ?? []).includes(code);
   }
 
   get featureGroups(): { category: string; features: CompanyFeature[] }[] {
     const map = new Map<string, CompanyFeature[]>();
-    for (const f of this.features) {
+    for (const f of this.addonFeatures) {
       const category = f.category || f.moduleKey || 'General';
       const list = map.get(category) ?? [];
       list.push(f);
@@ -376,11 +433,18 @@ export class TenantDetailComponent implements OnInit {
     return group.features.some(f => f.isEnabled);
   }
 
+  isAddonEnabled(f: CompanyFeature): boolean {
+    return !!f.isEnabled;
+  }
+
   featureCategoryIcon(category: string): string {
     const key = (category || '').trim().toLowerCase();
     const map: Record<string, string> = {
       administration: 'admin_panel_settings',
       admin: 'admin_panel_settings',
+      'gps add-ons': 'extension',
+      addons: 'extension',
+      'add-ons': 'extension',
       bookings: 'event_note',
       booking: 'event_note',
       crm: 'handshake',
@@ -440,8 +504,6 @@ export class TenantDetailComponent implements OnInit {
         maxGpsDevices: v.maxGpsDevices
       }),
       branding: this.platform.updateTenantBranding(this.tenantId, {
-        logoUrl: v.logoUrl?.trim() || null,
-        primaryColor: v.primaryColor?.trim() || null,
         website: v.website?.trim() || null,
         supportEmail: v.supportEmail?.trim() || null,
         country: v.country || null,
@@ -485,17 +547,6 @@ export class TenantDetailComponent implements OnInit {
     this.currencySearch = '';
   }
 
-  get primaryColorPreview(): string {
-    const raw = this.form.controls.primaryColor.value?.trim() || '#007A57';
-    return HEX_COLOR.test(raw) ? raw : '#007A57';
-  }
-
-  onPrimaryColorPicked(value: string): void {
-    if (!this.canManage) return;
-    this.form.controls.primaryColor.setValue(value);
-    this.form.controls.primaryColor.markAsDirty();
-  }
-
   selectPlan(planName: string): void {
     if (!this.canManage) return;
     this.form.controls.subscriptionPlan.setValue(planName);
@@ -505,13 +556,14 @@ export class TenantDetailComponent implements OnInit {
   applyPlan(planName: string): void {
     if (!this.canManage) return;
     const def = applyPlanDefaults(planName);
+    const premiumOptIns = (this.form.controls.moduleCodes.value ?? []).filter(c => this.isPremiumModule(c));
     this.form.patchValue({
       maxUsers: def.quotas.maxUsers,
       maxVehicles: def.quotas.maxVehicles,
       maxDrivers: def.quotas.maxDrivers,
       maxBranches: def.quotas.maxBranches,
       maxGpsDevices: def.quotas.maxGpsDevices,
-      moduleCodes: [...def.moduleCodes]
+      moduleCodes: this.withAlwaysOn([...new Set([...def.moduleCodes, ...premiumOptIns])])
     });
     this.form.markAsDirty();
     this.toast.success(`${planName} plan defaults applied.`);

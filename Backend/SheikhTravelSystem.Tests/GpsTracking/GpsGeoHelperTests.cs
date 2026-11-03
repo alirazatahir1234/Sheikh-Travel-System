@@ -50,5 +50,30 @@ public class GpsGeoHelperTests
         Assert.Contains("GeoJson", err2!);
 
         Assert.True(GpsGeoHelper.TryValidateGeofenceGeometry("circle", 100, null, out _));
+
+        Assert.False(GpsGeoHelper.TryValidateGeofenceGeometry("polygon", 0, "not json", out _));
+        const string twoPoints = """{"type":"Polygon","coordinates":[[[74.3,31.5],[74.4,31.5],[74.3,31.5]]]}""";
+        Assert.False(GpsGeoHelper.TryValidateGeofenceGeometry("polygon", 0, twoPoints, out _));
+    }
+
+    [Fact]
+    public void TryEvaluateGeofence_ReportsInsideAndBoundaryDistance()
+    {
+        const string square = """{"type":"Polygon","coordinates":[[[74.30,31.50],[74.40,31.50],[74.40,31.60],[74.30,31.60],[74.30,31.50]]]}""";
+
+        Assert.True(GpsGeoHelper.TryEvaluateGeofence(31.55, 74.35, "polygon", 0, 0, 0, square, out var inside, out var dist));
+        Assert.True(inside);
+        Assert.InRange(dist, 4_500, 5_700); // ~0.05° to nearest edge
+
+        Assert.True(GpsGeoHelper.TryEvaluateGeofence(31.52, 74.35, "circle", 31.52, 74.35, 200, null, out var inCircle, out var circleDist));
+        Assert.True(inCircle);
+        Assert.InRange(circleDist, 199, 201);
+    }
+
+    [Fact]
+    public void TryEvaluateGeofence_RejectsInvalidGeometry()
+    {
+        Assert.False(GpsGeoHelper.TryEvaluateGeofence(31.5, 74.3, "polygon", 0, 0, 0, "{bad", out _, out _));
+        Assert.False(GpsGeoHelper.TryEvaluateGeofence(31.5, 74.3, "circle", 31.5, 74.3, 0, null, out _, out _));
     }
 }

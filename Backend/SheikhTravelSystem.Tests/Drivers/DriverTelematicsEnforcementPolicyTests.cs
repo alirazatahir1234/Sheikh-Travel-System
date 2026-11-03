@@ -30,6 +30,8 @@ public class DriverTelematicsEnforcementPolicyTests
     [InlineData("hardBraking", null, "harsh_braking")]
     [InlineData("harshAcceleration", null, "harsh_acceleration")]
     [InlineData("alarm", "hardBraking", "harsh_braking")]
+    [InlineData("alarm", "accident", "harsh_braking")]
+    [InlineData("alarm", "crash", "harsh_braking")]
     [InlineData("alarm", "sos", null)]
     [InlineData("deviceOnline", null, null)]
     public void TraccarHarshEventMapper_maps_canonical(string type, string? alarm, string? expected)

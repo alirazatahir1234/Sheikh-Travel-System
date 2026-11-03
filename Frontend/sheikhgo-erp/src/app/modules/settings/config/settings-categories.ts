@@ -12,7 +12,7 @@ export const SETTINGS_CATEGORIES_FALLBACK: SettingsCategory[] = [
   { id: 'Workflows', label: 'Workflows', icon: 'account_tree', description: 'Approval levels, auto-approval and escalation.', isImplemented: true },
   { id: 'Numbering', label: 'Numbering', icon: 'tag', description: 'Prefixes and sequences for records.', isImplemented: true },
   { id: 'FileManagement', label: 'File Management', icon: 'folder', description: 'Storage provider, file limits and retention.', isImplemented: true },
-  { id: 'Branding', label: 'Branding', icon: 'palette', description: 'Logo, theme colors and public contact details.', isImplemented: true },
+  { id: 'Branding', label: 'Contact & Locale', icon: 'contact_mail', description: 'Public contact details, country, currency and timezone.', isImplemented: true },
   { id: 'System', label: 'System Preferences', icon: 'settings', description: 'Landing page, pagination, theme and auto-save.', isImplemented: true },
   { id: 'Integrations', label: 'Integrations', icon: 'extension', description: 'Maps, payments, GPS and government APIs.', isImplemented: true },
   { id: 'Audit', label: 'Audit & Logging', icon: 'history', description: 'App error logging. Audit write level and retention are in Security Center; browse events in Audit Center.', isImplemented: true },

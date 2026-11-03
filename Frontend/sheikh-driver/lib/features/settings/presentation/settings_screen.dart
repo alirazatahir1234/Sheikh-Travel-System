@@ -1509,7 +1509,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: context.sg.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

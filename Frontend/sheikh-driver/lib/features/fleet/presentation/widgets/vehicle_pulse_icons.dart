@@ -30,6 +30,7 @@ class VehiclePulseIcons {
         FleetTrackStatus.offline => const Color(0xFFEF4444),
         FleetTrackStatus.neverSeen => const Color(0xFF94A3B8),
         FleetTrackStatus.sos => const Color(0xFFDC2626),
+        FleetTrackStatus.unknown => const Color(0xFF64748B),
       };
 
   /// Only moving chevrons rotate with GPS heading (ERP `fv-marker--directional`).
@@ -193,6 +194,7 @@ class VehiclePulseIcons {
         break;
       case FleetTrackStatus.offline:
       case FleetTrackStatus.neverSeen:
+      case FleetTrackStatus.unknown:
         canvas.drawCircle(const Offset(16, 16), 12, fillPaint);
         canvas.drawCircle(const Offset(16, 16), 12, strokePaint);
         canvas.drawCircle(

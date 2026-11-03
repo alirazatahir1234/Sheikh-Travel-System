@@ -51,7 +51,7 @@ public class AssignmentSqlRegressionTests
     [Fact]
     public void MaintenanceReportQueries_DoesNotReferenceScheduleName()
     {
-        var source = ReadApplicationSource("MaintenanceModule", "MaintenanceReportQueries.cs");
+        var source = ReadInfrastructureRepository("MaintenanceModuleRepository.cs");
         Assert.DoesNotContain("ScheduleName", source);
         Assert.Contains("ServiceTypeName", source);
     }
@@ -59,16 +59,9 @@ public class AssignmentSqlRegressionTests
     [Fact]
     public void MaintenanceReportQueries_VendorPerformanceUsesPartUsageUsedAt()
     {
-        var source = ReadApplicationSource("MaintenanceModule", "MaintenanceReportQueries.cs");
+        var source = ReadInfrastructureRepository("MaintenanceModuleRepository.cs");
         Assert.Contains("pu.UsedAt", source);
         Assert.DoesNotContain("pu.CreatedAt", source);
-    }
-
-    private static string ReadApplicationSource(string featureFolder, string fileName)
-    {
-        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SheikhTravelSystem.Application", "Features", featureFolder, fileName);
-        return File.ReadAllText(Path.GetFullPath(dir));
     }
 
     private static string ReadInfrastructureSql(string fileName)

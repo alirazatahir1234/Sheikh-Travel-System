@@ -85,7 +85,8 @@ class FleetVehicleFilters {
         return v.status == FleetTrackStatus.moving ||
             v.status == FleetTrackStatus.idle ||
             v.status == FleetTrackStatus.parked ||
-            v.status == FleetTrackStatus.sos;
+            v.status == FleetTrackStatus.sos ||
+            v.status == FleetTrackStatus.unknown;
       case FleetStatusFilterOption.moving:
         return v.status == FleetTrackStatus.moving;
       case FleetStatusFilterOption.idle:
@@ -167,7 +168,9 @@ class FleetVehicleFilters {
       FleetTrackStatus.offline ||
       FleetTrackStatus.neverSeen =>
         FleetStatusFilterOption.offline,
-      FleetTrackStatus.sos => FleetStatusFilterOption.online,
+      FleetTrackStatus.sos ||
+      FleetTrackStatus.unknown =>
+        FleetStatusFilterOption.online,
     };
   }
 }

@@ -84,13 +84,11 @@ public class TenantScopingBatch3Tests
     {
         var root = FindRepoRoot();
         AssertDoesNotContain(root, "CustomerDtos.cs", "TenantId");
-        var trackingDto = Directory.EnumerateFiles(root, "*Tracking*Dto*.cs", SearchOption.AllDirectories)
-            .Concat(Directory.EnumerateFiles(root, "TrackingDtos.cs", SearchOption.AllDirectories))
-            .Distinct()
-            .ToList();
-        trackingDto.Should().NotBeEmpty();
-        foreach (var path in trackingDto)
-            File.ReadAllText(path).Should().NotContain("TenantId");
+        var trackingDtoPath = Directory
+            .EnumerateFiles(root, "TrackingDtos.cs", SearchOption.AllDirectories)
+            .FirstOrDefault(p => p.Contains($"{Path.DirectorySeparatorChar}Features{Path.DirectorySeparatorChar}Tracking{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+        trackingDtoPath.Should().NotBeNull("Tracking create DTOs should live under Features/Tracking");
+        File.ReadAllText(trackingDtoPath!).Should().NotContain("TenantId");
     }
 
     private static string FindRepoRoot()

@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
+import { UiEmptyStateComponent } from '../../shared/components/ui/empty-state/ui-empty-state.component';
 import { RentalListComponent } from './rental-list/rental-list.component';
 import { RentalDetailComponent } from './rental-detail/rental-detail.component';
 import { RentalRatesComponent } from './rental-rates/rental-rates.component';
@@ -20,6 +21,6 @@ const routes: Routes = [
     RentalRatesComponent,
     RentalAvailabilityComponent
   ],
-  imports: [SharedModule, RouterModule.forChild(routes)]
+  imports: [SharedModule, RouterModule.forChild(routes), UiEmptyStateComponent]
 })
 export class RentalModule {}

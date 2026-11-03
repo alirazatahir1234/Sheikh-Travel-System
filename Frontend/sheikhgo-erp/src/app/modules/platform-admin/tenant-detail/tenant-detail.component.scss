@@ -619,7 +619,24 @@
     mat-icon { color: var(--cc-primary); }
   }
 
+  &--core {
+    cursor: default;
+    border-style: dashed;
+    opacity: 1;
+
+    small {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--cc-primary);
+    }
+  }
+
   &:disabled { cursor: not-allowed; opacity: 0.75; }
+  &--core:disabled { opacity: 1; cursor: default; }
 }
 
 .cc-empty-inline,

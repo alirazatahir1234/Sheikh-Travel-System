@@ -24,10 +24,7 @@ import {
   type GmapThemeHandle
 } from '../../../core/google-maps/gmap-theme';
 import { createFleetMarkerClusterer, type FleetMarkerClusterer } from '../../../core/google-maps/gmap-cluster';
-import {
-  createFleetVehicleMarkerElement,
-  buildFleetVehiclePopup
-} from '../../../core/google-maps/fleet-vehicle-marker.gmap';
+import { createFleetVehicleMarkerElement } from '../../../core/google-maps/fleet-vehicle-marker.gmap';
 import {
   addGmapGeofenceBoundary,
   clearGmapGeofences,
@@ -1332,16 +1329,26 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   speedLabel(loc: VehicleLocation): string {
     if (!this.isValidCoord(loc.latitude, loc.longitude) && !loc.hasGps) return '—';
+    if (loc.isGpsValid === false || loc.status === 'unknown') {
+      const display = this.displaySpeedKmh(loc);
+      if (display > 0) return `${Math.round(display)} km/h · unreliable`;
+      return 'Speed unavailable';
+    }
     const display = this.displaySpeedKmh(loc);
     if (display > 0) return `${Math.round(display)} km/h`;
     if (loc.status === 'idle') return '0 km/h · idle';
     if (loc.status === 'parked' || loc.ignition === false) return '0 km/h · stationary';
+    if (loc.ignition == null) return '0 km/h · ACC unknown';
     return 'Stationary';
   }
 
   /** Raw telemetry speed with ignition-OFF drift zeroed for UI. */
   displaySpeedKmh(loc: VehicleLocation): number {
     const speed = Number(loc.speed) || 0;
+    // Frozen / unreliable fix: backend zeros kinematics; never invent movement from drift.
+    if (loc.isGpsValid === false) {
+      return 0;
+    }
     if (loc.ignition === false || loc.status === 'parked') {
       // Matches resolveFleetStatus: under MOVING_THRESHOLD with ACC off is GPS noise.
       return speed >= MOVING_THRESHOLD_KMH ? speed : 0;
@@ -1435,9 +1442,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Operational status line for the detail panel (e.g. "Parked · Ignition off"). */
   operationalStatusLine(loc: VehicleLocation): string {
     const status = operationalLabel(loc.status);
+    if (loc.isGpsValid === false) return `${status} · GPS unreliable`;
     if (loc.ignition === false) return `${status} · Ignition off`;
     if (loc.ignition === true) return `${status} · Ignition on`;
-    return status;
+    return `${status} · Ignition unavailable`;
   }
 
   private refreshTraccarStatus(): void {
@@ -2038,7 +2046,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  selectVehicle(loc: VehicleLocation): void {
+  selectVehicle(loc: VehicleLocation, options?: { openTooltip?: boolean }): void {
     const previousId = this.selectedVehicleId;
     this.selectedVehicleId = loc.vehicleId;
     this.detailTab = 'overview';
@@ -2046,13 +2054,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastEnrichedCoordKey.delete(loc.vehicleId);
     this.clearNearbyPlaces();
     this.markUserActive();
+    // On mobile, peek the vehicle sheet so the below-map details stay visible.
+    this.listSheetOpen = false;
     void this.realtime.subscribeVehicle(loc.vehicleId);
     this.syncSelectedLocation();
     this.refreshKpiSelectionFlags();
     // Only refresh selection styling on previous + new marker — not the whole fleet.
     this.refreshMarkerSelection(previousId, loc.vehicleId);
     if (loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)) {
-      this.focusVehicle(loc);
+      this.focusVehicle(loc, { openTooltip: options?.openTooltip === true });
       this.enrichSelectedAddress(loc);
       if (this.nearbyExpanded) this.runNearbySearch();
     } else {
@@ -2081,6 +2091,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedEta = null;
     this.followSelected = false;
     this.clearNearbyPlaces();
+    this.infoWindow?.close();
     this.syncSelectedLocation();
     this.refreshKpiSelectionFlags();
     this.refreshMarkerSelection(previousId, null);
@@ -2531,28 +2542,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.prevPositions.set(loc.vehicleId, { lat: loc.latitude, lng: loc.longitude });
         this.updateTrail(loc);
 
-        const headingText = this.headingLabel(loc);
-        const addr =
-          this.locationPrimaryLine(loc) ||
-          shortAddressLine(loc.address) ||
-          `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
-        const popupAddr = this.locationSecondaryLine(loc)
-          ? `${addr} · ${this.locationSecondaryLine(loc)}`
-          : addr;
-        const popupContent =
-          buildFleetVehiclePopup({
-            name: loc.vehicleName,
-            plate: loc.registrationNumber,
-            driver: loc.driverName,
-            tracker: loc.trackerName ?? loc.imei,
-            ignition: loc.ignition,
-            speedKmh: this.displaySpeedKmh(loc),
-            headingLabel: headingText || null,
-            address: popupAddr,
-            mapsUrl: this.googleMapsUrl(loc),
-            gpsStatus: this.formatLastPing(loc),
-            statusLabel: this.statusLabel(loc.status)
-          }) + `<a href="#" class="map-popup-link" data-vid="${loc.vehicleId}">View details →</a>`;
+        // Tiny map tooltip only (name + status). Full telemetry lives in the below-map panel.
+        const popupContent = this.buildMapTooltipHtml(loc);
         this.popupHtml.set(loc.vehicleId, popupContent);
 
         const selected = this.selectedVehicleId === loc.vehicleId;
@@ -2591,7 +2582,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
             title: loc.vehicleName
           });
           const listener = marker.addListener('click', () => {
-            this.ngZone.run(() => this.openVehicleInfoWindow(loc.vehicleId, marker));
+            this.ngZone.run(() => {
+              const current =
+                this.locations.find(l => l.vehicleId === loc.vehicleId) ?? loc;
+              this.selectVehicle(current, { openTooltip: true });
+            });
           });
           this.markerClickListeners.set(loc.vehicleId, listener);
           this.markerCluster!.addMarker(marker);
@@ -2609,25 +2604,26 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** Compact name + status tooltip — never a full telemetry popup over the map. */
+  private buildMapTooltipHtml(loc: VehicleLocation): string {
+    const name = this.escapeHtml(loc.vehicleName || 'Vehicle');
+    const status = this.escapeHtml(this.statusLabel(loc.status));
+    const plate = loc.registrationNumber
+      ? `<span class="map-popup-reg">${this.escapeHtml(loc.registrationNumber)}</span>`
+      : '';
+    return `<div class="map-popup map-popup--tooltip"><strong>${name}</strong>${plate}<span class="map-popup-status">${status}</span></div>`;
+  }
+
   private openVehicleInfoWindow(
     vehicleId: number,
     marker: google.maps.marker.AdvancedMarkerElement
   ): void {
     if (!this.infoWindow || !this.map) return;
-    const html = this.popupHtml.get(vehicleId);
+    const loc = this.locations.find(l => l.vehicleId === vehicleId);
+    const html = loc ? this.buildMapTooltipHtml(loc) : this.popupHtml.get(vehicleId);
     if (!html) return;
     this.infoWindow.setContent(html);
     this.infoWindow.open({ map: this.map, anchor: marker });
-    google.maps.event.addListenerOnce(this.infoWindow, 'domready', () => {
-      document.querySelector(`a[data-vid="${vehicleId}"]`)?.addEventListener(
-        'click',
-        e => {
-          e.preventDefault();
-          this.ngZone.run(() => this.goToVehicleProfile(vehicleId));
-        },
-        { once: true }
-      );
-    });
   }
 
   private escapeHtml(value: string): string {
@@ -2692,18 +2688,22 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.markerAnimFrames.set(vehicleId, requestAnimationFrame(step));
   }
 
-  focusVehicle(loc: VehicleLocation): void {
+  focusVehicle(loc: VehicleLocation, options?: { openTooltip?: boolean }): void {
     if (!loc.hasGps || !this.isValidCoord(loc.latitude, loc.longitude) || !this.map) return;
     this.map.panTo({ lat: loc.latitude, lng: loc.longitude });
     this.map.setZoom(14);
-    const marker = this.markers.get(loc.vehicleId);
-    if (marker) {
-      this.openVehicleInfoWindow(loc.vehicleId, marker);
+    if (options?.openTooltip) {
+      const marker = this.markers.get(loc.vehicleId);
+      if (marker) {
+        this.openVehicleInfoWindow(loc.vehicleId, marker);
+      } else {
+        setTimeout(() => {
+          const m = this.markers.get(loc.vehicleId);
+          if (m) this.openVehicleInfoWindow(loc.vehicleId, m);
+        }, 250);
+      }
     } else {
-      setTimeout(() => {
-        const m = this.markers.get(loc.vehicleId);
-        if (m) this.openVehicleInfoWindow(loc.vehicleId, m);
-      }, 250);
+      this.infoWindow?.close();
     }
     this.pushEvent(
       `Focused ${loc.vehicleName} (${loc.isLive ? 'live' : 'last known'})`,

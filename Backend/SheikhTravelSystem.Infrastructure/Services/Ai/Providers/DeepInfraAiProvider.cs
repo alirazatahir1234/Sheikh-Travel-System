@@ -47,7 +47,10 @@ public sealed class DeepInfraAiProvider(
             var http = httpClientFactory.CreateClient(HttpClientName);
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{NormalizeBase(baseUrl)}/models");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            using var response = await http.SendAsync(request, cancellationToken);
+            // Health probes must not inherit the 120s chat timeout — UI boot waits on this.
+            using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            probeCts.CancelAfter(TimeSpan.FromSeconds(5));
+            using var response = await http.SendAsync(request, probeCts.Token);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)

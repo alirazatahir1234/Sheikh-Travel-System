@@ -245,7 +245,7 @@
               <span class="cc-section-icon"><mat-icon>layers</mat-icon></span>
               <div>
                 <h3>Subscription &amp; Modules</h3>
-                <p>Choose a plan and enable modules for this company</p>
+                <p>Choose a plan and enable TenantModules for this company. GPS is a core always-on module.</p>
               </div>
               <button *ngIf="canManage" type="button" class="cc-btn cc-btn--ghost cc-btn--sm"
                 (click)="applyPlan(form.controls.subscriptionPlan.value ?? 'Enterprise')">
@@ -272,12 +272,16 @@
               </span>
             </div>
             <div class="cc-modules">
-              <button type="button" class="cc-module" *ngFor="let m of modules"
+              <button type="button" class="cc-module" *ngFor="let m of visibleModules"
                 [class.cc-module--on]="isModuleSelected(m.code)"
-                [disabled]="!canManage"
-                (click)="toggleModule(m.code)">
-                <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
+                [class.cc-module--core]="isCoreModule(m.code)"
+                [disabled]="!canManage || isModuleLocked(m.code)"
+                (click)="toggleModule(m.code)"
+                [attr.title]="isCoreModule(m.code) ? 'Core module — always on' : (isModuleLocked(m.code) ? 'Enable Fleet Alerts first' : null)">
+                <mat-icon>{{ moduleIcon(m) }}</mat-icon>
                 <span>{{ m.displayName || m.name }}</span>
+                <small *ngIf="isCoreModule(m.code)">Core</small>
+                <small *ngIf="isPremiumModule(m.code)">Premium</small>
               </button>
             </div>
           </section>
@@ -331,32 +335,10 @@
 
           <section class="cc-card">
             <div class="cc-section-head">
-              <span class="cc-section-icon"><mat-icon>palette</mat-icon></span>
+              <span class="cc-section-icon"><mat-icon>contact_mail</mat-icon></span>
               <div>
-                <h3>Branding &amp; Contact Information</h3>
-                <p>Customize company branding and contact details</p>
-              </div>
-            </div>
-            <div class="cc-grid cc-grid--2">
-              <div class="cc-field">
-                <label for="tenant-logo">Logo URL</label>
-                <div class="cc-input-row">
-                  <input id="tenant-logo" class="cc-input" type="url" formControlName="logoUrl" placeholder="https://example.com/logo.png" />
-                  <span class="cc-logo-preview" *ngIf="form.controls.logoUrl.value">
-                    <img [src]="form.controls.logoUrl.value" alt="" (error)="$any($event.target).style.display='none'" />
-                  </span>
-                </div>
-              </div>
-              <div class="cc-field">
-                <label for="tenant-color">Primary Color</label>
-                <div class="cc-input-row">
-                  <input id="tenant-color" class="cc-input" type="text" formControlName="primaryColor" placeholder="#00B894" />
-                  <label class="cc-swatch">
-                    <input type="color" [value]="primaryColorPreview" [disabled]="!canManage"
-                      (input)="onPrimaryColorPicked($any($event.target).value)" aria-label="Pick brand color" />
-                    <span [style.background]="primaryColorPreview"></span>
-                  </label>
-                </div>
+                <h3>Contact &amp; Locale</h3>
+                <p>Company website, support email and regional defaults</p>
               </div>
             </div>
             <div class="cc-grid cc-grid--2">
@@ -398,45 +380,47 @@
                   title="Display format used across the ERP (not editable here)" />
               </div>
             </div>
-            <span class="cc-error" *ngIf="form.get('logoUrl')?.hasError('url') && form.get('logoUrl')?.touched">Enter a valid URL</span>
             <span class="cc-error" *ngIf="form.get('website')?.hasError('url') && form.get('website')?.touched">Enter a valid website URL</span>
-            <span class="cc-error" *ngIf="form.get('primaryColor')?.hasError('hexColor') && form.get('primaryColor')?.touched">Use a hex color like #00B894</span>
           </section>
 
           <section class="cc-card cc-features" id="company-features">
             <div class="cc-section-head">
-              <span class="cc-section-icon"><mat-icon>checklist</mat-icon></span>
+              <span class="cc-section-icon"><mat-icon>extension</mat-icon></span>
               <div>
-                <h3>Features</h3>
-                <p>Manage which features and modules are available for this company.</p>
+                <h3>Add-ons</h3>
+                <p>
+                  Opt-in TenantFeatures (GPS geofencing, speed alerts, route playback, and other add-ons).
+                  Core modules above are separate — GPS itself is always-on.
+                </p>
               </div>
               <a class="cc-link" [routerLink]="['/platform/feature-management']" [queryParams]="{ tenantId: tenantId }">
-                Manage Features <mat-icon>chevron_right</mat-icon>
+                Manage Add-ons <mat-icon>chevron_right</mat-icon>
               </a>
             </div>
-            <div *ngIf="featuresLoading" class="cc-activity__state" aria-busy="true">Loading features…</div>
-            <div *ngIf="!featuresLoading && features.length === 0" class="cc-activity__state">No features configured.</div>
-            <!-- Reference UX: 3-col category rows (icon + name + count + Enabled pill), not nested feature lists -->
-            <div *ngIf="!featuresLoading && featureGroups.length" class="cc-feature-cats" role="list">
+            <div *ngIf="featuresLoading" class="cc-activity__state" aria-busy="true">Loading add-ons…</div>
+            <div *ngIf="!featuresLoading && addonFeatures.length === 0" class="cc-activity__state">
+              No add-ons configured.
+            </div>
+            <div *ngIf="!featuresLoading && addonFeatures.length" class="cc-feature-cats" role="list">
               <div
                 class="cc-feature-cat"
                 role="listitem"
-                *ngFor="let group of featureGroups"
-                [class.cc-feature-cat--on]="isFeatureCategoryEnabled(group)"
-                [class.cc-feature-cat--off]="!isFeatureCategoryEnabled(group)">
+                *ngFor="let f of addonFeatures"
+                [class.cc-feature-cat--on]="isAddonEnabled(f)"
+                [class.cc-feature-cat--off]="!isAddonEnabled(f)">
                 <span class="cc-feature-cat__icon" aria-hidden="true">
-                  <mat-icon>{{ featureCategoryIcon(group.category) }}</mat-icon>
+                  <mat-icon>{{ f.icon || featureCategoryIcon(f.category || '') }}</mat-icon>
                 </span>
                 <div class="cc-feature-cat__text">
-                  <strong>{{ group.category }}</strong>
-                  <span>{{ group.features.length }} {{ group.features.length === 1 ? 'feature' : 'features' }}</span>
+                  <strong>{{ f.displayName || f.name }}</strong>
+                  <span>{{ f.category || f.moduleKey || 'Add-on' }}</span>
                 </div>
                 <span
                   class="cc-feature-cat__badge"
-                  [class.cc-feature-cat__badge--on]="isFeatureCategoryEnabled(group)"
-                  [class.cc-feature-cat__badge--off]="!isFeatureCategoryEnabled(group)">
+                  [class.cc-feature-cat__badge--on]="isAddonEnabled(f)"
+                  [class.cc-feature-cat__badge--off]="!isAddonEnabled(f)">
                   <span class="cc-feature-cat__dot" aria-hidden="true"></span>
-                  {{ isFeatureCategoryEnabled(group) ? 'Enabled' : 'Off' }}
+                  {{ isAddonEnabled(f) ? 'Enabled' : 'Off' }}
                 </span>
               </div>
             </div>
@@ -553,10 +537,6 @@
         <div class="cc-overview__row">
           <span>Integrations</span>
           <strong>{{ kpiIntegrations ?? 0 }}</strong>
-        </div>
-        <div class="cc-overview__row">
-          <span>Appearance</span>
-          <span class="cc-swatch-inline" [style.background]="primaryColorPreview" [title]="primaryColorPreview"></span>
         </div>
       </section>
 

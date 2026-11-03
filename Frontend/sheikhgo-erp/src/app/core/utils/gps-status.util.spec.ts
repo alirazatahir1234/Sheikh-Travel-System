@@ -90,13 +90,22 @@ describe('resolveFleetStatus', () => {
     ).toBe('unknown');
   });
 
-  it('ignition null + low speed is parked (stationary without ACC)', () => {
+  it('ignition null + low speed is unknown (ACC not reported)', () => {
     expect(
       resolveFleetStatus(
         { hasGps: true, lastUpdated: fresh, speed: 0, ignition: null },
         nowMs
       )
-    ).toBe('parked');
+    ).toBe('unknown');
+  });
+
+  it('invalid GPS is unknown even with ignition OFF', () => {
+    expect(
+      resolveFleetStatus(
+        { hasGps: true, lastUpdated: fresh, speed: 0, ignition: false, isGpsValid: false },
+        nowMs
+      )
+    ).toBe('unknown');
   });
 
   it('speed >= 10 with unknown ignition is moving', () => {

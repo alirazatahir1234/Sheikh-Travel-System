@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../auth/data/auth_repository.dart';
@@ -146,8 +147,21 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
             live?.latitude ?? gps?.latitude,
             live?.longitude ?? gps?.longitude,
           ),
+          isGpsValid: live?.isGpsValid,
         );
   }
+
+  String get _speedLabel => formatDisplaySpeedLabel(
+        speed: _speed,
+        ignition: widget.live?.ignition ??
+            widget.gpsAsync.valueOrNull?.lastIgnition,
+        status: _status,
+        latitude: widget.live?.latitude ??
+            widget.gpsAsync.valueOrNull?.latitude,
+        longitude: widget.live?.longitude ??
+            widget.gpsAsync.valueOrNull?.longitude,
+        isGpsValid: widget.live?.isGpsValid ?? true,
+      );
 
   LatLng? get _position {
     final live = widget.live;
@@ -163,44 +177,6 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
 
   double get _speed =>
       widget.live?.speed ?? widget.gpsAsync.valueOrNull?.speed ?? 0;
-
-  DateTime? get _lastUpdate =>
-      widget.live?.lastUpdated ?? widget.gpsAsync.valueOrNull?.lastUpdate;
-
-  String? get _inlineAddress =>
-      widget.live?.address ?? widget.gpsAsync.valueOrNull?.address;
-
-  /// Street address from reverse-geocode when inline is missing/coarse/coords.
-  String? _resolvedAddress(WidgetRef ref) {
-    final inline = _inlineAddress?.trim();
-    if (inline != null &&
-        inline.isNotEmpty &&
-        !liveMapAddressNeedsReverseGeocode(inline)) {
-      return inline;
-    }
-    final pos = _position;
-    if (pos == null) return inline;
-    final key = liveMapCoordKey(pos.latitude, pos.longitude);
-    if (key.isEmpty) return inline;
-    final info = ref
-        .watch(
-          vehicleLocationProvider((
-            vehicleId: widget.vehicleId,
-            coordKey: key,
-          )),
-        )
-        .valueOrNull;
-    final line = info?.displayLine.trim();
-    if (line != null && line.isNotEmpty && !isLiveMapCoordsOnlyAddress(line)) {
-      return line;
-    }
-    if (inline != null &&
-        inline.isNotEmpty &&
-        !isLiveMapCoordsOnlyAddress(inline)) {
-      return inline;
-    }
-    return null;
-  }
 
   Future<void> _centerOnVehicle({bool animate = true}) async {
     final pos = _position;
@@ -256,6 +232,43 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
     );
   }
 
+  FleetVehicleLocation _sheetVehicle(VehicleGpsInfo? gps) {
+    final live = widget.live;
+    final v = widget.vehicle;
+    return FleetVehicleLocation(
+      vehicleId: widget.vehicleId,
+      vehicleName: v.name,
+      registrationNumber: v.registrationNumber,
+      status: _status,
+      latitude: live?.latitude ?? gps?.latitude,
+      longitude: live?.longitude ?? gps?.longitude,
+      lastUpdated: live?.lastUpdated ?? gps?.lastUpdate,
+      speed: live?.speed ?? gps?.speed ?? 0,
+      driverName: live?.driverName ?? v.driverName,
+      driverPhone: live?.driverPhone ?? v.driverPhone,
+      hasGps: live?.hasGps ?? v.hasGpsDevice,
+      ignition: live?.ignition ?? gps?.lastIgnition,
+      heading: live?.heading ?? gps?.heading,
+      batteryLevel: live?.batteryLevel ?? gps?.batteryLevel,
+      gsmSignal: live?.gsmSignal ?? gps?.gsmSignal,
+      address: live?.address ?? gps?.address,
+      alarmType: live?.alarmType,
+      vehicleType: live?.vehicleType ?? v.vehicleType,
+      serviceAlert: live?.serviceAlert ?? v.serviceAlert,
+    );
+  }
+
+  Future<void> _openExternalNav() async {
+    final pos = _position;
+    if (pos == null) return;
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${pos.latitude},${pos.longitude}',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Prefer GPS snapshot, but do not block Live if hub already has coords
@@ -296,8 +309,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
               SgCard(
                 child: Column(
                   children: [
-                    const Icon(Icons.gps_off,
-                        size: 40, color: AppColors.textMuted),
+                    Icon(Icons.gps_off, size: 40, color: context.sg.textMuted),
                     const SizedBox(height: 10),
                     const Text(
                       'No live GPS position yet',
@@ -310,7 +322,7 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
                               ? 'Tracker details unavailable. Pull to retry.'
                               : 'Tracker may be offline or awaiting first fix.'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.sg.textSecondary),
                     ),
                     if (gpsError != null) ...[
                       const SizedBox(height: 12),
@@ -342,214 +354,153 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
         }
 
         final rotates = VehiclePulseIcons.rotatesWithHeading(_status);
-        return Column(
+        final canCommands =
+            ref.watch(fleetSessionProvider)?.canUseGpsCommands ?? false;
+        final sheetVehicle = _sheetVehicle(gps);
+        return Stack(
           children: [
-            Expanded(
-              flex: 5,
-              child: Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: pos,
-                      zoom: 15.5,
-                      bearing: rotates ? _heading : 0,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: MarkerId('v${widget.vehicleId}'),
-                        position: pos,
-                        rotation: rotates ? _heading : 0,
-                        flat: true,
-                        anchor: const Offset(0.5, 0.5),
-                        icon: _icon ??
-                            BitmapDescriptor.defaultMarkerWithHue(
-                              BitmapDescriptor.hueAzure,
-                            ),
-                        infoWindow: InfoWindow(
-                          title: widget.vehicle.name,
-                          snippet:
-                              '${_speed.toStringAsFixed(0)} km/h · ${_status.label}',
+            Positioned.fill(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: pos,
+                  zoom: 15.5,
+                  bearing: rotates ? _heading : 0,
+                ),
+                markers: {
+                  Marker(
+                    markerId: MarkerId('v${widget.vehicleId}'),
+                    position: pos,
+                    rotation: rotates ? _heading : 0,
+                    flat: true,
+                    anchor: const Offset(0.5, 0.5),
+                    icon: _icon ??
+                        BitmapDescriptor.defaultMarkerWithHue(
+                          BitmapDescriptor.hueAzure,
                         ),
-                      ),
-                    },
-                    mapType: _mapType,
-                    liteModeEnabled: false,
-                    zoomControlsEnabled: false,
-                    myLocationButtonEnabled: false,
-                    mapToolbarEnabled: false,
-                    compassEnabled: true,
-                    onMapCreated: (c) async {
-                      _map = c;
-                      _mapReady = true;
-                      await _centerOnVehicle(animate: false);
-                    },
-                    onCameraMoveStarted: () {
-                      if (_ignoreCameraMove) return;
-                      // User gesture → pause follow until they re-enable.
-                      if (_follow) setState(() => _follow = false);
-                    },
-                  ),
-                  Positioned(
-                    left: 10,
-                    right: 10,
-                    top: 10,
-                    child: _LiveStatusOverlay(
-                      status: _status,
-                      speedKmh: _speed,
-                      address: _resolvedAddress(ref),
-                      lastUpdate: _lastUpdate,
+                    infoWindow: InfoWindow(
+                      title: widget.vehicle.name,
+                      snippet: '$_speedLabel · ${_status.label}',
                     ),
                   ),
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: _MapFabColumn(
-                      follow: _follow,
-                      onZoomIn: () => _zoomBy(1),
-                      onZoomOut: () => _zoomBy(-1),
-                      onCenter: () {
-                        setState(() => _follow = true);
-                        _centerOnVehicle();
-                      },
-                      onToggleFollow: () {
-                        setState(() => _follow = !_follow);
-                        if (_follow) _centerOnVehicle();
-                      },
-                      onToggleMapType: () {
-                        setState(() {
-                          _mapType = _mapType == MapType.normal
-                              ? MapType.hybrid
-                              : MapType.normal;
-                        });
-                      },
-                      onFullscreen: _openFullscreen,
-                    ),
-                  ),
-                ],
+                },
+                mapType: _mapType,
+                liteModeEnabled: false,
+                zoomControlsEnabled: false,
+                myLocationButtonEnabled: false,
+                mapToolbarEnabled: false,
+                compassEnabled: true,
+                onMapCreated: (c) async {
+                  _map = c;
+                  _mapReady = true;
+                  await _centerOnVehicle(animate: false);
+                },
+                onCameraMoveStarted: () {
+                  if (_ignoreCameraMove) return;
+                  // User gesture → pause follow until they re-enable.
+                  if (_follow) setState(() => _follow = false);
+                },
               ),
             ),
-            Expanded(
-              flex: 2,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  if (gps != null)
-                    _TelemetryCard(
-                      vehicle: widget.vehicle,
-                      gps: gps,
-                      live: widget.live,
-                    )
-                  else if (gpsError != null)
-                    SgCard(
-                      child: Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Tracker details failed to load.',
-                              style: TextStyle(color: AppColors.textSecondary),
+            Positioned(
+              right: 10,
+              top: 10,
+              child: _MapFabColumn(
+                follow: _follow,
+                onZoomIn: () => _zoomBy(1),
+                onZoomOut: () => _zoomBy(-1),
+                onCenter: () {
+                  setState(() => _follow = true);
+                  _centerOnVehicle();
+                },
+                onToggleFollow: () {
+                  setState(() => _follow = !_follow);
+                  if (_follow) _centerOnVehicle();
+                },
+                onToggleMapType: () {
+                  setState(() {
+                    _mapType = _mapType == MapType.normal
+                        ? MapType.hybrid
+                        : MapType.normal;
+                  });
+                },
+                onFullscreen: _openFullscreen,
+              ),
+            ),
+            if (gpsError != null && gps == null)
+              Positioned(
+                left: 12,
+                right: 72,
+                top: 10,
+                child: Material(
+                  color: context.sg.card.withValues(alpha: 0.96),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  elevation: 2,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Tracker details failed to load.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.sg.textSecondary,
                             ),
                           ),
-                          TextButton(
-                            onPressed: widget.onRetryGps,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                        ),
+                        TextButton(
+                          onPressed: widget.onRetryGps,
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 12),
-                  _LiveActions(
-                    vehicleId: widget.vehicleId,
-                    hasDevice: gps?.gpsDeviceId != null,
-                    canCommands:
-                        ref.watch(fleetSessionProvider)?.canUseGpsCommands ??
-                            false,
                   ),
-                ],
+                ),
+              ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                builder: (context, t, child) {
+                  return Opacity(
+                    opacity: t.clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - t) * 18),
+                      child: child,
+                    ),
+                  );
+                },
+                child: VehicleLiveMapSheet(
+                  vehicle: sheetVehicle,
+                  follow: _follow,
+                  showClose: false,
+                  showDetailsAction: false,
+                  canCommands: canCommands && gps?.gpsDeviceId != null,
+                  onFollowToggle: () {
+                    setState(() => _follow = !_follow);
+                    if (_follow) _centerOnVehicle();
+                  },
+                  onCenter: () {
+                    setState(() => _follow = true);
+                    _centerOnVehicle();
+                  },
+                  onNavigate: () => _openExternalNav(),
+                  onCommands: canCommands && gps?.gpsDeviceId != null
+                      ? () =>
+                          showVehicleCommandsSheet(context, widget.vehicleId)
+                      : null,
+                  onClose: () {},
+                ),
               ),
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class _LiveStatusOverlay extends StatelessWidget {
-  const _LiveStatusOverlay({
-    required this.status,
-    required this.speedKmh,
-    required this.address,
-    required this.lastUpdate,
-  });
-
-  final FleetTrackStatus status;
-  final double speedKmh;
-  final String? address;
-  final DateTime? lastUpdate;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = fleetStatusColor(status);
-
-    return Material(
-      color: Colors.white.withValues(alpha: 0.94),
-      elevation: 2,
-      borderRadius: BorderRadius.circular(AppRadii.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  status.label.toUpperCase(),
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${speedKmh.toStringAsFixed(0)} km/h',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-            if ((address ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                address!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 2),
-            Text(
-              _formatLiveFreshness(lastUpdate),
-              style:
-                  const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -641,7 +592,7 @@ class _MapFab extends StatelessWidget {
             child: Icon(
               icon,
               size: 20,
-              color: active ? Colors.white : AppColors.textPrimary,
+              color: active ? Colors.white : context.sg.textPrimary,
             ),
           ),
         ),
@@ -663,14 +614,33 @@ class _TelemetryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final speed = live?.speed ?? gps.speed;
+    final speed = live?.speed ?? gps.speed ?? 0;
     final ignition = live?.ignition ?? gps.lastIgnition;
+    final status = live?.status ??
+        resolveFleetStatus(
+          speed: speed,
+          ignition: ignition,
+          lastUpdated: live?.lastUpdated ?? gps.lastUpdate,
+          hasGps: hasValidFleetCoords(
+            live?.latitude ?? gps.latitude,
+            live?.longitude ?? gps.longitude,
+          ),
+          isGpsValid: live?.isGpsValid,
+        );
     final battery = live?.batteryLevel ?? gps.batteryLevel;
     final last = live?.lastUpdated ?? gps.lastUpdate;
     final online = gps.gpsOnline ||
         vehicle.gpsOnline ||
         (last != null && DateTime.now().difference(last).inMinutes <= 10);
     final df = DateFormat('dd MMM yyyy, HH:mm');
+    final speedLabel = formatDisplaySpeedLabel(
+      speed: speed,
+      ignition: ignition,
+      status: status,
+      latitude: live?.latitude ?? gps.latitude,
+      longitude: live?.longitude ?? gps.longitude,
+      isGpsValid: live?.isGpsValid ?? true,
+    );
 
     return SgCard(
       child: Column(
@@ -690,7 +660,7 @@ class _TelemetryCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (online ? AppColors.success : AppColors.textMuted)
+                  color: (online ? AppColors.success : context.sg.textMuted)
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadii.pill),
                 ),
@@ -699,7 +669,7 @@ class _TelemetryCard extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    color: online ? AppColors.success : AppColors.textMuted,
+                    color: online ? AppColors.success : context.sg.textMuted,
                   ),
                 ),
               ),
@@ -708,8 +678,7 @@ class _TelemetryCard extends ConsumerWidget {
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          _metric('Speed',
-              speed != null ? '${speed.toStringAsFixed(0)} km/h' : '—'),
+          _metric('Speed', speedLabel),
           _metric(
             'Ignition',
             ignition == null ? 'Not available' : (ignition ? 'ON' : 'OFF'),
@@ -1123,9 +1092,9 @@ class _LiveMapFullscreenPageState
                             ),
                             Text(
                               widget.plate,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.textSecondary,
+                                color: context.sg.textSecondary,
                               ),
                             ),
                           ],
@@ -1230,16 +1199,16 @@ class _LiveMapFullscreenPageState
                               address!,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: context.sg.textSecondary,
                               ),
                             ),
                           Text(
                             _formatLiveFreshness(lastUpdate),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: AppColors.textMuted,
+                              color: context.sg.textMuted,
                             ),
                           ),
                         ],

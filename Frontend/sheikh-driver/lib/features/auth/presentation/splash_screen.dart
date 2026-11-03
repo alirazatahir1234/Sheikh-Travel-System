@@ -173,7 +173,7 @@ class SplashBrandPanel extends StatelessWidget {
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.3,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        color: isDark ? Colors.white : context.sg.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -186,7 +186,7 @@ class SplashBrandPanel extends StatelessWidget {
                         letterSpacing: 0.6,
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.78)
-                            : AppColors.textSecondary,
+                            : context.sg.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -196,7 +196,7 @@ class SplashBrandPanel extends StatelessWidget {
                         fontSize: 12,
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.45)
-                            : AppColors.textMuted,
+                            : context.sg.textMuted,
                       ),
                     ),
                     if (versionLabel != null) ...[
@@ -207,7 +207,7 @@ class SplashBrandPanel extends StatelessWidget {
                           fontSize: 11,
                           color: isDark
                               ? Colors.white.withValues(alpha: 0.35)
-                              : AppColors.textMuted,
+                              : context.sg.textMuted,
                         ),
                       ),
                     ],

@@ -32,7 +32,7 @@ public class UploadVehicleDocumentCommandValidatorTests
     [Fact]
     public void Validate_PdfRegistrationDoc_ShouldPass()
     {
-        var result = _validator.Validate(ValidCommand("registration.pdf", "RegistrationCertificate"));
+        var result = _validator.Validate(ValidCommand("registration.pdf", "Registration"));
         result.IsValid.Should().BeTrue();
     }
 

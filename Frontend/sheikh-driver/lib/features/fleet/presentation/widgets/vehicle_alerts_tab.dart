@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_theme.dart';
+import '../../../../core/errors/error_handler.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../alerts/data/gps_alerts_api.dart';
 import '../../../alerts/domain/alert_display.dart';
@@ -144,7 +145,7 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
     return async.when(
       loading: () => const Center(child: SgBrandLoader()),
       error: (e, _) => SgErrorView(
-        message: '$e',
+        message: ErrorHandler.message(e),
         onRetry: _invalidate,
       ),
       data: (raw) {
@@ -179,9 +180,9 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
                         const SizedBox(height: 2),
                         Text(
                           _datePresetLabel(_datePreset),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            color: context.sg.textMuted,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -286,8 +287,8 @@ class _VehicleAlertsTabState extends ConsumerState<VehicleAlertsTab> {
                             ? 'Alerts will appear when the vehicle goes offline, speeds, or hits a geofence.'
                             : 'Try a wider date range or clear filters.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.sg.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -470,9 +471,9 @@ class _FilterRow extends StatelessWidget {
               width: 64,
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppColors.textMuted,
+                  color: context.sg.textMuted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -483,7 +484,7 @@ class _FilterRow extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
-            const Icon(Icons.expand_more, color: AppColors.textMuted),
+            Icon(Icons.expand_more, color: context.sg.textMuted),
           ],
         ),
       ),
@@ -594,18 +595,18 @@ class _AlertIncidentCard extends StatelessWidget {
           if (plate.trim().isNotEmpty)
             Text(
               plate,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
           const SizedBox(height: 8),
           Text(
             body,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               height: 1.35,
             ),
           ),
@@ -634,9 +635,9 @@ class _AlertIncidentCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               a.geofenceName!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
               ),
             ),
           ],

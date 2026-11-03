@@ -47,7 +47,15 @@ public static class FeatureRegistryQueries
 
     public static FeatureRegistryDto ToRegistryDto(FeatureRow row, bool isEnabled = false, bool moduleInstalled = false)
     {
-        var toggleable = FeatureRegistrySeed.IsToggleable(row.Status) && row.Visible && row.IsActive;
+        var seed = FeatureRegistrySeed.Find(row.FeatureKey);
+        var toggleable = seed is not null
+            ? FeatureRegistrySeed.IsTenantFeatureToggle(seed) && row.IsActive
+            : FeatureRegistrySeed.IsToggleable(row.Status)
+              && row.Visible
+              && row.IsActive
+              && !TenantModuleCatalog.IsModuleLegacyFeatureKey(row.FeatureKey);
+        var isAddOn = GpsAddOnFeatureCatalog.IsGpsAddOn(row.FeatureKey)
+                      || (seed is not null && FeatureRegistrySeed.IsTenantFeatureToggle(seed));
         return new FeatureRegistryDto(
             FeatureKey: row.FeatureKey,
             ModuleKey: row.ModuleKey,
@@ -55,7 +63,9 @@ public static class FeatureRegistryQueries
             Name: row.Name,
             DisplayName: string.IsNullOrWhiteSpace(row.DisplayName) ? row.Name : row.DisplayName,
             Description: row.Description,
-            Category: row.Category,
+            Category: isAddOn && GpsAddOnFeatureCatalog.IsGpsAddOn(row.FeatureKey)
+                ? "GPS Add-ons"
+                : row.Category,
             Icon: row.Icon,
             Route: row.Route,
             SortOrder: row.SortOrder,
@@ -68,12 +78,15 @@ public static class FeatureRegistryQueries
             IsActive: row.IsActive,
             IsEnabled: isEnabled,
             IsModuleInstalled: moduleInstalled,
-            CanToggle: toggleable && moduleInstalled);
+            CanToggle: toggleable && moduleInstalled,
+            IsAddOn: isAddOn);
     }
 
     public static FeatureRegistryDto FromSeed(FeatureRegistrySeed.Entry entry, bool isEnabled = false, bool moduleInstalled = false)
     {
-        var toggleable = FeatureRegistrySeed.IsToggleable(entry.Status) && entry.Visible;
+        var toggleable = FeatureRegistrySeed.IsTenantFeatureToggle(entry);
+        var isAddOn = GpsAddOnFeatureCatalog.IsGpsAddOn(entry.FeatureKey)
+                      || FeatureRegistrySeed.IsTenantFeatureToggle(entry);
         return new FeatureRegistryDto(
             FeatureKey: entry.FeatureKey,
             ModuleKey: entry.ModuleKey,
@@ -92,10 +105,12 @@ public static class FeatureRegistryQueries
             IsGPSSupported: entry.IsGPSSupported,
             DocumentationUrl: entry.DocumentationUrl,
             IsActive: !string.Equals(entry.Status, "Deprecated", StringComparison.OrdinalIgnoreCase)
-                      && !string.Equals(entry.Status, "Disabled", StringComparison.OrdinalIgnoreCase),
+                      && !string.Equals(entry.Status, "Disabled", StringComparison.OrdinalIgnoreCase)
+                      && !string.Equals(entry.Status, FeatureRegistrySeed.ModuleLegacyStatus, StringComparison.OrdinalIgnoreCase),
             IsEnabled: isEnabled,
             IsModuleInstalled: moduleInstalled,
-            CanToggle: toggleable && moduleInstalled);
+            CanToggle: toggleable && moduleInstalled,
+            IsAddOn: isAddOn);
     }
 
     public static CompanyFeatureDto ToCompanyFeatureDto(FeatureRegistryDto dto)
@@ -115,7 +130,8 @@ public static class FeatureRegistryQueries
             dto.IsAISupported,
             dto.IsGPSSupported,
             dto.Visible,
-            dto.CanToggle);
+            dto.CanToggle,
+            dto.IsAddOn);
 }
 
 public record FeatureRegistryDto(
@@ -138,7 +154,8 @@ public record FeatureRegistryDto(
     bool IsActive,
     bool IsEnabled = false,
     bool IsModuleInstalled = false,
-    bool CanToggle = false);
+    bool CanToggle = false,
+    bool IsAddOn = false);
 
 public record GetFeatureRegistryCatalogQuery : IRequest<ApiResponse<IReadOnlyList<FeatureRegistryDto>>>;
 
@@ -226,9 +243,16 @@ public class SetCompanyFeaturesCommandHandler(
         var catalog = await platformRepository.LoadVisibleFeaturesAsync(cancellationToken: cancellationToken);
 
         var toggleableKeys = catalog
-            .Where(f => FeatureRegistrySeed.IsToggleable(f.Status)
-                        && f.Visible
-                        && installed.Contains(f.ModuleKey))
+            .Where(f =>
+            {
+                var seed = FeatureRegistrySeed.Find(f.FeatureKey);
+                var ok = seed is not null
+                    ? FeatureRegistrySeed.IsTenantFeatureToggle(seed)
+                    : FeatureRegistrySeed.IsToggleable(f.Status)
+                      && f.Visible
+                      && !TenantModuleCatalog.IsModuleLegacyFeatureKey(f.FeatureKey);
+                return ok && installed.Contains(f.ModuleKey);
+            })
             .Select(f => f.FeatureKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 

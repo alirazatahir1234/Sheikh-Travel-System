@@ -30,9 +30,10 @@ public class ModuleRegistrySeedTests
     }
 
     [Fact]
-    public void PremiumAlertChildren_AreActiveEnableable_NotInDefaults()
+    public void PremiumModuleAlertChildren_AreActiveEnableable_NotInDefaults()
     {
-        foreach (var code in new[] { "ROAD_SPEED_ALERTS", "ALERT_OVERSPEED", "ALERT_GPS_LOST", "ALERT_LOW_FUEL" })
+        // Speed / geofence moved to GpsAddOnFeatureCatalog TenantFeatures.
+        foreach (var code in new[] { "ALERT_GPS_LOST", "ALERT_LOW_FUEL" })
         {
             var mod = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == code).Subject;
             mod.Status.Should().Be("Active");
@@ -46,12 +47,11 @@ public class ModuleRegistrySeedTests
             TenantModuleCatalog.DefaultModuleCodes.Should().NotContain(code);
         }
 
-        var road = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == "ROAD_SPEED_ALERTS").Subject;
-        road.LegacyKeys.Should().BeEquivalentTo(["road-speed-alerts"]);
-        road.Dependencies.Should().NotContain("GPS");
+        ModuleRegistrySeed.All.Should().NotContain(e => e.Code == "ROAD_SPEED_ALERTS");
+        ModuleRegistrySeed.All.Should().NotContain(e => e.Code == "ALERT_OVERSPEED");
 
-        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["ROAD_SPEED_ALERTS"]);
-        expanded.Should().Contain("ROAD_SPEED_ALERTS");
+        var expanded = ModuleRegistrySeed.ExpandToggleableWithDependencies(["ALERT_GPS_LOST"]);
+        expanded.Should().Contain("ALERT_GPS_LOST");
         expanded.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
         expanded.Should().Contain("GPS");
         expanded.Should().Contain("FLEET");
@@ -68,7 +68,7 @@ public class ModuleRegistrySeedTests
         ModuleRegistrySeed.IsEnableable(AlertModuleCatalog.AlertsModuleCode).Should().BeTrue();
         TenantModuleCatalog.DefaultModuleCodes.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
 
-        foreach (var type in AlertModuleCatalog.Types)
+        foreach (var type in AlertModuleCatalog.ModuleGovernedTypes)
         {
             var child = ModuleRegistrySeed.All.Should().ContainSingle(e => e.Code == type.ModuleCode).Subject;
             child.Category.Should().Be(AlertModuleCatalog.AlertsCategory);

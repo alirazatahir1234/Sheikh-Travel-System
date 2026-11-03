@@ -151,6 +151,27 @@ public sealed class AiAssistantGateway(
                 help.AppendLine($"• {example}");
             help.AppendLine("• List vehicles / drivers / bookings (Database MCP when bridge enabled)");
 
+            try
+            {
+                var (helpProvider, helpConfig) = await providerResolver.ResolveAsync(tenantId, cancellationToken);
+                if (!helpConfig.IsEnabled
+                    || string.Equals(helpConfig.Provider, "None", StringComparison.OrdinalIgnoreCase)
+                    || helpProvider is null)
+                {
+                    warnings.Add(
+                        "AI language model is not configured for this company. A platform admin should enable DeepInfra in AI Management (and set DEEPINFRA_API_KEY on the API host).");
+                }
+                else if (!mcpToolLoop.IsAvailable)
+                {
+                    warnings.Add(
+                        "MCP bridge is off or not configured — open-ended lookups need Ai:McpBridge enabled with a working Node MCP process.");
+                }
+            }
+            catch
+            {
+                // non-blocking diagnostics for help replies
+            }
+
             return await PersistAndReturnAsync(
                 tenantId, userId, sessionId,
                 new AiAssistantQueryResponse(
@@ -158,7 +179,7 @@ public sealed class AiAssistantGateway(
                     Period: null,
                     null,
                     null,
-                    Array.Empty<string>(),
+                    warnings,
                     UsedLlm: false,
                     Mode: "help",
                     SessionId: sessionId),
@@ -599,6 +620,9 @@ public sealed class AiAssistantGateway(
             return Get("GetOverdueInvoices");
         if (ContainsAny(q, "utilization", "distance", "most used", "km driven"))
             return Get("GetVehicleUtilizationSummary");
+        // "Pending bookings" suggestion → trip/booking analytics (includes pendingBookings KPI).
+        if (ContainsAny(q, "pending booking", "pending bookings", "bookings pending", "open bookings"))
+            return Get("GetTripSummary");
         if (ContainsAny(q, "trip", "booking", "dispatch", "completed trip", "how many trip", "completion rate"))
             return Get("GetTripSummary");
 

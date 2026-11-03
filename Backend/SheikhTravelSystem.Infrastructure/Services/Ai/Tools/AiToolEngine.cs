@@ -272,11 +272,22 @@ public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAi
                 ORDER BY vcl.LastUpdate ASC
                 """, new { context.TenantId, VehicleId = context.VehicleId }, cancellationToken: cancellationToken))).ToList();
 
+        // System.Text.Json omits ValueTuple fields by default (IncludeFields=false) → UI gets [{}].
+        var vehicles = rows.Select(r => new
+        {
+            id = r.Id,
+            plateNumber = r.PlateNumber,
+            name = r.Name,
+            make = r.Make,
+            model = r.Model,
+            lastUpdate = r.LastUpdate
+        }).ToList();
+
         if (rows.Count == 0)
         {
             var allClear =
                 $"For {companyName}: no vehicles are offline right now. All tracked vehicles reported GPS within the last 30 minutes.";
-            return new AiToolExecutionResult(Name, true, allClear, new { companyName, count = 0, vehicles = rows });
+            return new AiToolExecutionResult(Name, true, allClear, new { companyName, count = 0, vehicles });
         }
 
         var sb = new StringBuilder();
@@ -298,7 +309,7 @@ public sealed class GetOfflineVehiclesTool(IDbConnectionFactory dbFactory) : IAi
             Name,
             true,
             sb.ToString().Trim(),
-            new { companyName, count = rows.Count, vehicles = rows });
+            new { companyName, count = rows.Count, vehicles });
     }
 }
 
@@ -442,8 +453,20 @@ public sealed class GetVehicleStatusTool(IDbConnectionFactory dbFactory) : IAiTo
                 ORDER BY vcl.LastUpdate DESC
                 """, new { context.TenantId, Plate = plate }, cancellationToken: cancellationToken))).ToList();
 
+        // Anonymous DTOs — ValueTuples serialize as empty {} under default System.Text.Json.
+        var vehicles = rows.Select(r => new
+        {
+            id = r.Id,
+            plateNumber = r.PlateNumber,
+            status = r.Status,
+            speed = r.Speed,
+            lastUpdate = r.LastUpdate,
+            lat = r.Lat,
+            lng = r.Lng
+        }).ToList();
+
         if (rows.Count == 0)
-            return new AiToolExecutionResult(Name, true, "No matching vehicles found.", rows);
+            return new AiToolExecutionResult(Name, true, "No matching vehicles found.", vehicles);
 
         var sb = new StringBuilder();
         foreach (var r in rows)
@@ -453,7 +476,7 @@ public sealed class GetVehicleStatusTool(IDbConnectionFactory dbFactory) : IAiTo
                 $"last GPS {(r.LastUpdate?.ToString("u") ?? "never")}, pos {(r.Lat is null ? "—" : $"{r.Lat:0.####},{r.Lng:0.####}")}");
         }
 
-        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), rows);
+        return new AiToolExecutionResult(Name, true, sb.ToString().Trim(), vehicles);
     }
 }
 

@@ -40,7 +40,7 @@ public static class SettingsCategories
         new(Workflows, "Workflows", "account_tree", "Approval levels, auto-approval and escalation.", true),
         new(Numbering, "Numbering", "tag", "Prefixes and sequences for records.", true),
         new(FileManagement, "File Management", "folder", "Storage provider, file limits and retention.", true),
-        new(Branding, "Branding", "palette", "Logo, theme colors and public contact details.", true),
+        new(Branding, "Contact & Locale", "contact_mail", "Public contact details, country, currency and timezone.", true),
         new(System, "System Preferences", "settings", "Landing page, pagination, theme and auto-save.", true),
         new(Integrations, "Integrations", "extension", "Maps, payments, GPS and government APIs.", true),
         new(Audit, "Audit & Logging", "history", "Audit logs, activity tracking and retention.", true),

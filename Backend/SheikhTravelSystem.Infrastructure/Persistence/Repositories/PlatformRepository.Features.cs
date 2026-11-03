@@ -76,14 +76,25 @@ public sealed partial class PlatformRepository
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var flags = await LoadTenantFeatureFlagsAsync(tenantId, cancellationToken);
 
-        return rows.Select(row =>
-        {
-            var moduleInstalled = installed.Contains(row.ModuleKey);
-            var isEnabled = flags.TryGetValue(row.FeatureKey, out var en)
-                ? en
-                : moduleInstalled;
-            return FeatureRegistryQueries.ToRegistryDto(row, isEnabled, moduleInstalled);
-        }).ToList();
+        return rows
+            .Select(row =>
+            {
+                var moduleInstalled = installed.Contains(row.ModuleKey);
+                var seed = FeatureRegistrySeed.Find(row.FeatureKey);
+                // Module-legacy keys follow TenantModules — do not invent an "enabled" feature row.
+                var isAddOn = GpsAddOnFeatureCatalog.IsGpsAddOn(row.FeatureKey)
+                    || (seed is not null && FeatureRegistrySeed.IsTenantFeatureToggle(seed));
+                var isEnabled = flags.TryGetValue(row.FeatureKey, out var en)
+                    ? en
+                    : isAddOn
+                        ? false
+                        : moduleInstalled;
+                return FeatureRegistryQueries.ToRegistryDto(row, isEnabled, moduleInstalled);
+            })
+            // Admin / company feature APIs expose add-ons only — never module-legacy duplicates.
+            .Where(dto => dto.IsAddOn
+                || string.Equals(dto.Status, "ComingSoon", StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     public async Task<Dictionary<string, bool>> LoadTenantFeatureFlagsAsync(

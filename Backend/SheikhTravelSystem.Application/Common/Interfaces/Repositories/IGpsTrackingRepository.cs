@@ -21,6 +21,8 @@ public interface IGpsTrackingRepository
     Task<ApiResponse<bool>> DeleteGeofenceAsync(DeleteGeofenceCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<int>> DuplicateGeofenceAsync(DuplicateGeofenceCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> UpsertGeofenceAssignmentsAsync(UpsertGeofenceAssignmentsCommand request, CancellationToken cancellationToken = default);
+    /// <summary>Optional zone-editor extras: fleet-wide Entry/Exit rule and vehicle assignments (null = leave unchanged).</summary>
+    Task ApplyGeofenceMonitoringAsync(int geofenceId, bool? alertOnEnter, bool? alertOnExit, int[]? vehicleIds, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> DeleteGeofenceAssignmentAsync(DeleteGeofenceAssignmentCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<int>> CreateGpsAlertRuleAsync(CreateGpsAlertRuleCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> AcknowledgeGpsAlertAsync(AcknowledgeGpsAlertCommand request, CancellationToken cancellationToken = default);
@@ -41,6 +43,7 @@ public interface IGpsTrackingRepository
     Task<ApiResponse<List<GeofenceDto>>> GetGeofencesAsync(GetGeofencesQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GeofenceAssignmentDto>>> GetGeofenceAssignmentsAsync(GetGeofenceAssignmentsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<GeofenceStatsDto>> GetGeofenceStatsAsync(GetGeofenceStatsQuery request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<List<GeofenceVehicleStateDto>>> GetGeofenceVehicleStatesAsync(GetGeofenceVehicleStatesQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GpsAlertEventDto>>> GetGeofenceEventsAsync(GetGeofenceEventsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GpsLiveFleetVehicleDto>>> GetGpsLiveFleetAsync(GetGpsLiveFleetQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<GpsAlertRuleDto>>> GetGpsAlertRulesAsync(GetGpsAlertRulesQuery request, CancellationToken cancellationToken = default);

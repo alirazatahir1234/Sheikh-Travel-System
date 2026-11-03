@@ -205,7 +205,7 @@ class _TripCard extends StatelessWidget {
             child: Container(
               width: 2,
               height: 10,
-              color: AppColors.divider,
+              color: context.sg.divider,
             ),
           ),
           _LocRow(icon: Icons.location_on, text: drop, color: AppColors.error),

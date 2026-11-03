@@ -30,12 +30,28 @@ public static class TraccarHarshEventMapper
 
     public static bool LooksLikeHarsh(string? value) => Classify(value) is not null;
 
+    /// <summary>
+    /// VG03 and similar G-sensors report hard stops as <c>accident</c>/<c>crash</c> — not a collision product event.
+    /// </summary>
+    public static bool IsGsensorHardStopFalsePositive(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var s = raw.Trim();
+        return s.Equals("accident", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("crash", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("collision", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string? Classify(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
             return null;
 
         var s = raw.Trim();
+        if (IsGsensorHardStopFalsePositive(s))
+            return HarshBraking;
         if (s.Contains("brak", StringComparison.OrdinalIgnoreCase))
             return HarshBraking;
         if (s.Contains("accel", StringComparison.OrdinalIgnoreCase))

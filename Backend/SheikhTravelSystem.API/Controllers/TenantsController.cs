@@ -48,8 +48,6 @@ public class TenantsController : BaseApiController
     public async Task<IActionResult> UpdateBranding(int id, [FromBody] UpdateTenantBrandingRequest request)
         => Ok(await Mediator.Send(new UpdateTenantBrandingCommand(
             id,
-            request.LogoUrl,
-            request.PrimaryColor,
             request.Website,
             request.SupportEmail,
             request.Country,
@@ -65,8 +63,6 @@ public class TenantsController : BaseApiController
 public record ResetAdminPasswordRequest(string NewPassword);
 
 public record UpdateTenantBrandingRequest(
-    string? LogoUrl,
-    string? PrimaryColor,
     string? Website,
     string? SupportEmail,
     string? Country,

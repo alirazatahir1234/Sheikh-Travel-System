@@ -25,6 +25,8 @@ public class LocationBroadcastService(
         string? address = null,
         string? alarmType = null,
         decimal? temperature = null,
+        bool isGpsValid = true,
+        string? gpsQualityCode = null,
         CancellationToken cancellationToken = default)
     {
         var tenantId = await ResolveTenantIdAsync(vehicleId, cancellationToken);
@@ -47,7 +49,9 @@ public class LocationBroadcastService(
             TotalDistanceKm = totalDistanceKm,
             Address = address,
             AlarmType = alarmType,
-            Temperature = temperature
+            Temperature = temperature,
+            IsGpsValid = isGpsValid,
+            GpsQualityCode = gpsQualityCode
         };
 
         await hubContext.Clients.Group(TrackingHub.DispatcherGroup(tenantId.Value))

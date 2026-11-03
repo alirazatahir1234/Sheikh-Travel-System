@@ -104,7 +104,7 @@
     </a>
   </nav>
 
-  <app-gps-scope-filter-bar></app-gps-scope-filter-bar>
+  <app-gps-scope-filter-bar *ngIf="showScopeFilterBar"></app-gps-scope-filter-bar>
 
   <div class="gps-module-content">
     <router-outlet></router-outlet>

@@ -20,6 +20,9 @@ public static class GpsFleetStatusBuckets
     /// Parked for fleet KPIs even if ACC/ignition is ON (idle engine, key on).
     /// Does not change stored/display ignition — only the status bucket.
     /// </param>
+    /// <param name="isGpsValid">
+    /// When false (frozen coords, LBS, teleport, …), do not claim Parked/Idle from speed/ACC.
+    /// </param>
     public static string Classify(
         bool hasGpsDevice,
         DateTime? lastUpdateUtc,
@@ -30,7 +33,8 @@ public static class GpsFleetStatusBuckets
         int offlineStaleMinutes = DefaultOfflineStaleMinutes,
         decimal movingThresholdKmh = DefaultMovingSpeedKmh,
         IReadOnlyCollection<string>? sosAlarmValues = null,
-        bool? motion = null)
+        bool? motion = null,
+        bool? isGpsValid = null)
     {
         var sos = sosAlarmValues is { Count: > 0 }
             ? sosAlarmValues
@@ -52,9 +56,13 @@ public static class GpsFleetStatusBuckets
             sos.Any(v => string.Equals(v, alarmType.Trim(), StringComparison.OrdinalIgnoreCase)))
             return "sos";
 
+        // Unreliable fix — never show trustworthy Parked / Ignition-off.
+        if (isGpsValid == false)
+            return "unknown";
+
         var speed = speedKmh ?? 0m;
 
-        // Settled (no motion) at low speed → Parked for KPIs; ACC may still be ON in UI.
+        // Settled (no motion) at low speed → Parked for KPIs; ACC may still be ON/Unknown in UI.
         if (motion == false && speed < movingThresholdKmh)
             return "parked";
 
@@ -72,8 +80,7 @@ public static class GpsFleetStatusBuckets
         if (ignition == true)
             return "idle";
 
-        // Ignition null / unwired with low speed — treat as parked (stationary), not Idle.
-        // Jimi units without a working ACC wire otherwise stuck on Idle forever.
-        return "parked";
+        // ACC not reported (null / unwired) at rest — Unknown, not Parked/Ignition off.
+        return "unknown";
     }
 }

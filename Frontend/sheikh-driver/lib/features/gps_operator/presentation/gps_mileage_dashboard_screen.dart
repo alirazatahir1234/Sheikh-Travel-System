@@ -72,7 +72,7 @@ class _GpsMileageDashboardScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Mileage dashboard'),
         actions: [
@@ -124,10 +124,10 @@ class _GpsMileageDashboardScreenState
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Distance',
                                     style: TextStyle(
-                                        color: AppColors.textSecondary),
+                                        color: context.sg.textSecondary),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
@@ -140,24 +140,24 @@ class _GpsMileageDashboardScreenState
                                   const SizedBox(height: 12),
                                   Text(
                                     'Avg daily: ${(_n('avgDailyKm', 'AvgDailyKm') ?? 0).toStringAsFixed(1)} km',
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: context.sg.textSecondary,
                                     ),
                                   ),
                                   Text(
                                     'Driving: ${(_n('drivingMinutes', 'DrivingMinutes') ?? 0)} min',
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: context.sg.textSecondary,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'Open vehicle history playback for route-level mileage and trip trends.',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: context.sg.textSecondary,
                                 height: 1.4,
                               ),
                             ),

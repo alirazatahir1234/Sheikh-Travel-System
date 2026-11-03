@@ -18,7 +18,7 @@ public sealed partial class PlatformRepository
                 SELECT Id, ModuleName, PermissionCode, Description,
                        COALESCE(DisplayName, PermissionCode) AS DisplayName,
                        Category, COALESCE(SortOrder, 0) AS SortOrder,
-                       CONVERT(bit, COALESCE(Visible, 1)) AS Visible, Action, ModuleKey
+                       CONVERT(bit, COALESCE(Visible, 1)) AS Visible, Action, ModuleKey, FeatureKey
                 FROM Permissions
                 ORDER BY COALESCE(SortOrder, 0), ModuleName, PermissionCode
                 """, cancellationToken: cancellationToken))).ToList();
@@ -32,7 +32,8 @@ public sealed partial class PlatformRepository
                        0 AS SortOrder,
                        CONVERT(bit, 1) AS Visible,
                        CAST(NULL AS nvarchar(50)) AS Action,
-                       CAST(NULL AS nvarchar(100)) AS ModuleKey
+                       CAST(NULL AS nvarchar(100)) AS ModuleKey,
+                       CAST(NULL AS nvarchar(100)) AS FeatureKey
                 FROM Permissions
                 ORDER BY ModuleName, PermissionCode
                 """, cancellationToken: cancellationToken))).ToList();

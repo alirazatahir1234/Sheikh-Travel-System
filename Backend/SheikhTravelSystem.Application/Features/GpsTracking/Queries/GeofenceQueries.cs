@@ -38,6 +38,16 @@ public class GetGeofenceStatsQueryHandler(IGpsTrackingRepository gpsTrackingRepo
         => gpsTrackingRepository.GetGeofenceStatsAsync(request, cancellationToken);
 }
 
+public record GetGeofenceVehicleStatesQuery(int? GeofenceId = null, int? VehicleId = null)
+    : IRequest<ApiResponse<List<GeofenceVehicleStateDto>>>;
+
+public class GetGeofenceVehicleStatesQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
+    : IRequestHandler<GetGeofenceVehicleStatesQuery, ApiResponse<List<GeofenceVehicleStateDto>>>
+{
+    public Task<ApiResponse<List<GeofenceVehicleStateDto>>> Handle(GetGeofenceVehicleStatesQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetGeofenceVehicleStatesAsync(request, cancellationToken);
+}
+
 public record GetGeofenceEventsQuery(int GeofenceId, DateTime? From = null, DateTime? To = null)
     : IRequest<ApiResponse<List<GpsAlertEventDto>>>;
 

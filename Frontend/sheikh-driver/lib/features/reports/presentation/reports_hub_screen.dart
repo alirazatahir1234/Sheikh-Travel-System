@@ -84,7 +84,7 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
     final currency = NumberFormat.compactCurrency(symbol: 'PKR ');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Reports')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -163,7 +163,7 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
               _report!.totalValue > 0
                   ? '${currency.format(_report!.totalValue)} · ${_report!.rows.length} rows'
                   : '${_report!.rows.length} rows',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
             const SizedBox(height: 12),
             if (_report!.rows.isEmpty)
@@ -186,9 +186,9 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
                           padding: const EdgeInsets.only(bottom: 2),
                           child: Text(
                             '${col.label}: ${_formatField(row.fields[col.key], col.format)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: context.sg.textSecondary,
                               height: 1.35,
                             ),
                           ),

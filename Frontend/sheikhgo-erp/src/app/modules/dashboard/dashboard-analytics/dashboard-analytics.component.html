@@ -6,9 +6,15 @@
 
   <div class="analytics-grid">
     <stb-info-card title="Weekly revenue" subtitle="PKR from bookings · last 7 days" icon="show_chart" class="chart-card chart-card--revenue">
-      <div class="chart-meta" *ngIf="revenueTotal > 0 && !loading">
+      <div class="chart-meta" *ngIf="!loading">
         <span class="meta-val">{{ revenueTotal | number }}</span>
         <span class="meta-lbl">PKR this week</span>
+        <span class="meta-trend" *ngIf="revenueTrend && revenueTrend !== '—'"
+              [class.is-up]="revenueTrendUp === true"
+              [class.is-down]="revenueTrendUp === false">
+          {{ revenueTrend }}
+          <span class="meta-trend-detail">vs prior week</span>
+        </span>
       </div>
       <div class="chart-meta-skeleton stb-shimmer-block" *ngIf="loading" aria-hidden="true"></div>
       <div class="chart-wrap" *ngIf="!loading; else revenueSkeleton">
@@ -18,14 +24,24 @@
     </stb-info-card>
 
     <stb-info-card title="Bookings by status" subtitle="Last 30 days" icon="pie_chart" class="chart-card chart-card--donut">
-      <div class="chart-wrap chart-wrap--donut" *ngIf="!loading; else donutSkeleton">
-        <canvas #bookingsCanvas aria-label="Bookings by status chart"></canvas>
+      <div class="chart-donut-wrap" *ngIf="!loading; else donutSkeleton">
+        <div class="chart-wrap chart-wrap--donut" *ngIf="bookingHasData">
+          <canvas #bookingsCanvas aria-label="Bookings by status chart"></canvas>
+          <div class="donut-center" *ngIf="bookingTotal > 0">
+            <span class="donut-center__val">{{ bookingTotal }}</span>
+            <span class="donut-center__lbl">Bookings</span>
+          </div>
+        </div>
+        <p class="chart-empty-hint stb-muted" *ngIf="!bookingHasData">No booking status data for this period.</p>
       </div>
     </stb-info-card>
 
     <stb-info-card title="Fleet snapshot" subtitle="Utilization & availability" icon="directions_bus" class="chart-card chart-card--fleet">
-      <div class="chart-wrap chart-wrap--bar" *ngIf="!loading; else barSkeleton">
-        <canvas #fleetCanvas aria-label="Fleet utilization chart"></canvas>
+      <div *ngIf="!loading; else barSkeleton">
+        <div class="chart-wrap chart-wrap--bar" *ngIf="fleetHasData">
+          <canvas #fleetCanvas aria-label="Fleet utilization chart"></canvas>
+        </div>
+        <p class="chart-empty-hint stb-muted" *ngIf="!fleetHasData">No fleet utilization data yet.</p>
       </div>
     </stb-info-card>
   </div>

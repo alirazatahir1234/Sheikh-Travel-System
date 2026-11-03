@@ -51,11 +51,16 @@ String formatGpsFreshness({
 }
 
 /// Ignition OFF / Parked: hide GPS drift (under moving threshold) as movement.
+/// Invalid GPS: do not show trustworthy speed (backend may already zero frozen speed).
 double displaySpeedKmh({
   required double speed,
   bool? ignition,
   FleetTrackStatus? status,
+  bool isGpsValid = true,
 }) {
+  if (!isGpsValid || status == FleetTrackStatus.unknown) {
+    return 0;
+  }
   if (ignition == false || status == FleetTrackStatus.parked) {
     return speed >= movingThresholdKmh ? speed : 0;
   }
@@ -68,6 +73,7 @@ String formatDisplaySpeedLabel({
   FleetTrackStatus? status,
   double? latitude,
   double? longitude,
+  bool isGpsValid = true,
 }) {
   // Without a valid position, never claim "Stationary" / 0 km/h.
   if (!hasValidFleetCoords(latitude, longitude) ||
@@ -75,10 +81,15 @@ String formatDisplaySpeedLabel({
     return 'No recent data';
   }
 
+  if (!isGpsValid || status == FleetTrackStatus.unknown) {
+    return 'Speed unavailable';
+  }
+
   final display = displaySpeedKmh(
     speed: speed,
     ignition: ignition,
     status: status,
+    isGpsValid: isGpsValid,
   );
   if (display > 0) return '${display.toStringAsFixed(0)} km/h';
   if (status == FleetTrackStatus.offline) {
@@ -88,5 +99,6 @@ String formatDisplaySpeedLabel({
   if (status == FleetTrackStatus.parked || ignition == false) {
     return '0 km/h · stationary';
   }
+  if (ignition == null) return '0 km/h · ACC unknown';
   return 'Stationary';
 }

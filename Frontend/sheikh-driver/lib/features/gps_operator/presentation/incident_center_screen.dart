@@ -19,14 +19,14 @@ class IncidentCenterScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Incident center')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Jump to live alert queues filtered by incident type.',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.sg.textSecondary),
           ),
           const SizedBox(height: 16),
           ..._incidentTypes.map(

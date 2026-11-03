@@ -43,11 +43,49 @@ public class GpsSettings
     /// </summary>
     public GmeetOfflineSmsOptions GmeetOfflineSms { get; set; } = new();
 
+    /// <summary>Traccar ingest filters and frozen-coordinate / teleport detection.</summary>
+    public GpsPositionQualityOptions PositionQuality { get; set; } = new();
+
     /// <summary>GPS stop + Places proximity detection for fuel-station visit alerts.</summary>
     public FuelStationStopOptions FuelStationStop { get; set; } = new();
 
     /// <summary>Compare driver pump liters vs OBD fuel-level increase after leaving station.</summary>
     public FuelFraudOptions FuelFraud { get; set; } = new();
+}
+
+/// <summary>
+/// Software mitigations when GPS fix is stale, LBS, or coordinates freeze while speed reports movement.
+/// Does not replace physical ACC wiring or antenna repair.
+/// </summary>
+public class GpsPositionQualityOptions
+{
+    public bool RejectInvalidTraccarFixes { get; set; } = true;
+
+    public bool RejectOutdatedTraccarFixes { get; set; } = false;
+
+    /// <summary>When true, outdated Traccar fixes are ingested but flagged invalid.</summary>
+    public bool FlagOutdatedWithoutReject { get; set; } = true;
+
+    public bool RejectLbsOnlyFixes { get; set; } = false;
+
+    public bool RejectZeroAccuracyFixes { get; set; } = false;
+
+    /// <summary>Two fixes within this distance (m) count as identical coordinates.</summary>
+    public double CoordinateEpsilonMeters { get; set; } = 15;
+
+    /// <summary>Speed at or above this with unchanged coords contributes to frozen detection.</summary>
+    public decimal FrozenMinSpeedKmh { get; set; } = 5m;
+
+    /// <summary>Consecutive identical-coordinate reports before VCL lat/lng/speed stop updating.</summary>
+    public int FreezeVclAfterIdenticalPoints { get; set; } = 3;
+
+    public double TeleportMinDistanceKm { get; set; } = 3;
+
+    public int TeleportMaxSeconds { get; set; } = 120;
+
+    public decimal TeleportMaxPlausibleSpeedKmh { get; set; } = 180m;
+
+    public int GpsUnreliableAlertDedupMinutes { get; set; } = 30;
 }
 
 /// <summary>

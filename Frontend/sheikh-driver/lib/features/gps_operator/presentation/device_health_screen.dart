@@ -20,7 +20,7 @@ class DeviceHealthScreen extends ConsumerWidget {
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Device health'),
         actions: [

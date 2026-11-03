@@ -28,8 +28,11 @@ public sealed class OllamaAiProvider(IHttpClientFactory httpClientFactory, ILogg
     {
         try
         {
+            // Health probes must not inherit the 120s chat timeout — UI boot waits on this.
+            using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            probeCts.CancelAfter(TimeSpan.FromSeconds(5));
             var http = httpClientFactory.CreateClient(HttpClientName);
-            using var response = await http.GetAsync($"{NormalizeBase(baseUrl)}/api/tags", cancellationToken);
+            using var response = await http.GetAsync($"{NormalizeBase(baseUrl)}/api/tags", probeCts.Token);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)

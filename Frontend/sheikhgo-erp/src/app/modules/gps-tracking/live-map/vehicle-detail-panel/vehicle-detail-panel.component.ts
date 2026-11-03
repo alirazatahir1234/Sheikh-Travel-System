@@ -3,7 +3,9 @@ import {
   Component,
   EventEmitter,
   Input,
-  Output
+  OnChanges,
+  Output,
+  SimpleChanges
 } from '@angular/core';
 import { VehicleLocation, GpsEta } from '../../../../core/models/gps-tracking.model';
 
@@ -16,7 +18,7 @@ export type DetailTab = 'overview' | 'telemetry' | 'trip' | 'more';
   styleUrls: ['./vehicle-detail-panel.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class VehicleDetailPanelComponent {
+export class VehicleDetailPanelComponent implements OnChanges {
   @Input() loc: VehicleLocation | null = null;
   @Input() dualStatus = '';
   @Input() statusBadge = '';
@@ -47,6 +49,9 @@ export class VehicleDetailPanelComponent {
   @Output() closePanel = new EventEmitter<void>();
   @Output() streetViewError = new EventEmitter<number>();
 
+  /** Collapses body/tabs/actions; header stays visible under the map. */
+  collapsed = false;
+
   readonly tabs: { id: DetailTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'telemetry', label: 'Telemetry' },
@@ -54,8 +59,22 @@ export class VehicleDetailPanelComponent {
     { id: 'more', label: 'More' }
   ];
 
+  ngOnChanges(changes: SimpleChanges): void {
+    const locChange = changes['loc'];
+    if (!locChange || locChange.firstChange) return;
+    const prev = locChange.previousValue as VehicleLocation | null;
+    const next = locChange.currentValue as VehicleLocation | null;
+    if (prev?.vehicleId !== next?.vehicleId) {
+      this.collapsed = false;
+    }
+  }
+
   setTab(tab: DetailTab): void {
     this.tabChange.emit(tab);
+  }
+
+  toggleCollapsed(): void {
+    this.collapsed = !this.collapsed;
   }
 
   /** True when the selected vehicle has a dialable/WhatsApp-able driver phone. */

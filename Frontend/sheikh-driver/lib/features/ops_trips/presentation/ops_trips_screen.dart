@@ -29,7 +29,7 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
     final df = DateFormat('dd MMM · HH:mm');
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Trips'),
         actions: [
@@ -190,17 +190,17 @@ class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 t.customerName ?? 'Customer',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: context.sg.textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 df.format(t.plannedStart.toLocal()),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textMuted,
+                                  color: context.sg.textMuted,
                                 ),
                               ),
                               if (t.driverName != null ||
@@ -248,7 +248,7 @@ class _Mini extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 11, color: context.sg.textMuted),
           ),
         ],
       ),

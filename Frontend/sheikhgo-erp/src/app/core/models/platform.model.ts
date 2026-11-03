@@ -46,8 +46,6 @@ export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
   maxBranches?: number | null;
   maxGpsDevices?: number | null;
   moduleCodes: string[];
-  logoUrl?: string | null;
-  primaryColor?: string | null;
   website?: string | null;
   supportEmail?: string | null;
   country?: string | null;
@@ -78,6 +76,8 @@ export interface CompanyFeature {
   visible?: boolean;
   canToggle?: boolean;
   isModuleInstalled?: boolean;
+  /** True for TenantFeatures add-ons (e.g. GPS geofencing / speed-alerts / route-playback). */
+  isAddOn?: boolean;
 }
 
 export interface CompanyHierarchyCounts {
@@ -103,8 +103,6 @@ export interface UpdateTenantPayload {
 }
 
 export interface UpdateTenantBrandingPayload {
-  logoUrl?: string | null;
-  primaryColor?: string | null;
   website?: string | null;
   supportEmail?: string | null;
   country?: string | null;
@@ -172,6 +170,19 @@ export const DEFAULT_TENANT_MODULE_CODES = [
   'DASHBOARD', 'FLEET', 'GPS', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS'
 ] as const;
 
+/** Mirrors backend AlertModuleCatalog.DefaultModuleCodes (ALERTS parent + basic default-on children). */
+export const DEFAULT_ALERT_MODULE_CODES = [
+  'ALERTS', 'ALERT_SOS', 'ALERT_POWER_CUT', 'ALERT_OFFLINE', 'ALERT_ONLINE',
+  'ALERT_IGNITION_ON', 'ALERT_IGNITION_OFF', 'ALERT_LOW_BATTERY',
+  'ALERT_FUEL_STATION_STOP', 'ALERT_FUEL_FRAUD'
+] as const;
+
+/** Premium opt-in alert modules — never in plan defaults. */
+export const PREMIUM_ALERT_MODULE_CODES = ['ALERT_GPS_LOST', 'ALERT_LOW_FUEL'] as const;
+
+/** Modules always included (GPS is core; FLEET + DASHBOARD are its dependencies). */
+export const ALWAYS_ON_MODULE_CODES = ['GPS', 'FLEET', 'DASHBOARD'] as const;
+
 export const TENANT_PLAN_TIERS = ['Enterprise', 'Pro', 'Starter'] as const;
 
 export interface PlanQuotas {
@@ -194,20 +205,20 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
     description: 'Core fleet & GPS operations',
     bestFor: 'Small companies',
     quotas: { maxUsers: 10, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 50 },
-    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'ACCESS']
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'ACCESS']
   },
   Pro: {
     description: 'Full operations suite',
     bestFor: 'Growing businesses',
     quotas: { maxUsers: 50, maxVehicles: 250, maxDrivers: 250, maxBranches: 15, maxGpsDevices: 250 },
-    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
   },
   Enterprise: {
     description: 'Unlimited — all modules',
     bestFor: 'Large organizations',
     quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: null },
     // Routes (TRAVEL) included; Bookings & Trips + Road Speed Alerts + SheikhGo AI Assistant stay manual opt-in.
-    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'HR', 'ANALYTICS', 'ACCESS']
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
   }
 };
 
@@ -252,8 +263,19 @@ export const MODULE_ICONS: Record<string, string> = {
   ACCESS: 'admin_panel_settings',
   /** Premium SheikhGo AI Assistant — opt-in only; not in DEFAULT_TENANT_MODULE_CODES or plan defaults. */
   AI: 'smart_toy',
-  /** Opt-in road-posted speed-limit overspeed alerts (depends on GPS + Google Roads Speed Limits). */
-  ROAD_SPEED_ALERTS: 'speed'
+  /** Mirrors backend AlertModuleCatalog icons (API `icon` takes precedence). */
+  ALERTS: 'notifications_active',
+  ALERT_SOS: 'emergency',
+  ALERT_POWER_CUT: 'power_off',
+  ALERT_OFFLINE: 'cloud_off',
+  ALERT_ONLINE: 'cloud_done',
+  ALERT_IGNITION_ON: 'toggle_on',
+  ALERT_IGNITION_OFF: 'toggle_off',
+  ALERT_LOW_BATTERY: 'battery_alert',
+  ALERT_GPS_LOST: 'gps_off',
+  ALERT_LOW_FUEL: 'local_gas_station',
+  ALERT_FUEL_STATION_STOP: 'local_gas_station',
+  ALERT_FUEL_FRAUD: 'gpp_bad'
 };
 
 export interface ProvisionTenantRequest {
@@ -279,8 +301,6 @@ export interface ProvisionTenantRequest {
   country?: string;
   currencyCode?: string;
   timeZone?: string;
-  primaryColor?: string;
-  logoUrl?: string;
   website?: string;
   supportEmail?: string;
   isMfaRequired?: boolean;
@@ -1102,6 +1122,9 @@ export interface ModuleStatus {
   isInstalled?: boolean;
   isLicensed?: boolean;
   canToggle?: boolean;
+  /** Core always-on TenantModule (e.g. GPS) — not an opt-in toggle. */
+  isCoreAlwaysOn?: boolean;
+  isPremiumAddOn?: boolean;
 }
 
 export interface LicenseLimit {

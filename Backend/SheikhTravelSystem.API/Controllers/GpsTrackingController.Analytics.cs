@@ -114,6 +114,7 @@ public partial class GpsTrackingController
         => Ok(await Mediator.Send(new GetFuelAnalyticsQuery(from, to, branchId, departmentId, driverId)));
 
     [HttpGet("analytics/geofences")]
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     public async Task<IActionResult> GetGeofenceAnalytics(
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to)

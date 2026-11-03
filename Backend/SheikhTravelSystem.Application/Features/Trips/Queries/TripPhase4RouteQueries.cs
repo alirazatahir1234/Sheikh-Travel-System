@@ -1,6 +1,7 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
 
@@ -19,7 +20,12 @@ public class GetTripRouteSummaryQueryHandler(ITripRepository tripRepository)
     }
 }
 
-public record OptimizeTripRouteCommand(int TripId) : IRequest<ApiResponse<bool>>;
+public record OptimizeTripRouteCommand(int TripId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => TripId;
+}
 
 public class OptimizeTripRouteCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<OptimizeTripRouteCommand, ApiResponse<bool>>

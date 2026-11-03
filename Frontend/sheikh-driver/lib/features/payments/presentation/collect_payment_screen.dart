@@ -90,7 +90,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       appBar: AppBar(title: const Text('Collect Payment')),
       body: state.when(
         loading: () => const Center(child: SgBrandLoader()),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (e, _) => SgErrorView(message: ErrorHandler.message(e)),
         data: (s) {
           if (!_seededAmount && _amountCtrl.text.isEmpty) {
             _seededAmount = true;

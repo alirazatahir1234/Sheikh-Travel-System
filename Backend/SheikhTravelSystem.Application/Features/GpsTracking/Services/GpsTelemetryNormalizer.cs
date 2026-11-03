@@ -5,9 +5,9 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 /// <list type="number">
 /// <item>When <c>attributes.ignition</c> (ACC) is present, use it — never override with motion.</item>
 /// <item>
-/// When ACC is omitted (common on command-result / heartbeat packets) and Traccar reports
-/// <c>motion == false</c> at low speed, treat as Ignition OFF so a prior ACC=ON value cannot
-/// stick forever via COALESCE and show false ON while the vehicle is off.
+/// When ACC is omitted, return null (Unknown) — do not invent hardware ACC / OFF.
+/// Use <see cref="ShouldClearStickyIgnition"/> so ingest can clear a prior sticky ON
+/// without claiming Ignition OFF.
 /// </item>
 /// </list>
 /// Fleet Parked vs Idle still uses motion separately in <see cref="GpsFleetStatusBuckets"/>.
@@ -16,6 +16,7 @@ public static class GpsTelemetryNormalizer
 {
     /// <summary>
     /// Effective ignition for ingest / Commands strip / VCL.
+    /// Null means ACC not reported — UI must show Unavailable / Unknown, not OFF.
     /// </summary>
     public static bool? ResolveIgnition(
         bool? ignition,
@@ -23,14 +24,29 @@ public static class GpsTelemetryNormalizer
         decimal speedKmh,
         decimal movingThresholdKmh = GpsFleetStatusBuckets.DefaultMovingSpeedKmh)
     {
-        // 1) Trust device ACC when the packet includes it.
-        if (ignition.HasValue)
-            return ignition;
+        // Trust device ACC when the packet includes it. Never invent OFF from motion.
+        // motion/speed retained for call-site compatibility; sticky-ON clear uses ShouldClearStickyIgnition.
+#pragma warning disable IDE0060
+        _ = motion;
+        _ = speedKmh;
+        _ = movingThresholdKmh;
+#pragma warning restore IDE0060
+        return ignition;
+    }
 
-        // 2) Sparse GT06 packets omit ACC — settled + no motion ⇒ OFF (not "keep stale ON").
-        if (motion == false && speedKmh < movingThresholdKmh)
+    /// <summary>
+    /// Sparse GT06 packets omit ACC. When Traccar reports settled (motion=false) at low speed,
+    /// clear a prior sticky ON via COALESCE bypass — store null, not false.
+    /// </summary>
+    public static bool ShouldClearStickyIgnition(
+        bool? ignition,
+        bool? motion,
+        decimal speedKmh,
+        decimal movingThresholdKmh = GpsFleetStatusBuckets.DefaultMovingSpeedKmh)
+    {
+        if (ignition.HasValue)
             return false;
 
-        return null;
+        return motion == false && speedKmh < movingThresholdKmh;
     }
 }

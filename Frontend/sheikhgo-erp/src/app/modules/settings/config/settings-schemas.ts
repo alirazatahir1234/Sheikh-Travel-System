@@ -260,14 +260,8 @@ const fileManagementSchema: SettingFieldSchema[] = [
   { key: 'RetentionDays', label: 'Retention Policy (days)', type: 'number', section: 'Limits', min: 0, hint: 'Leave at 0 to retain indefinitely.' }
 ];
 
-// 10. Branding (LogoUrl, PrimaryColor, Website, SupportEmail, Country, CurrencyCode,
-// TimeZone map to TenantBranding)
+// 10. Contact & Locale (Website, SupportEmail, Country, CurrencyCode, TimeZone map to TenantBranding)
 const brandingSchema: SettingFieldSchema[] = [
-  { key: 'LogoUrl', label: 'Logo URL', type: 'url', section: 'Brand', placeholder: 'https://...' },
-  { key: 'FaviconUrl', label: 'Favicon URL', type: 'url', section: 'Brand', placeholder: 'https://...' },
-  { key: 'LoginBackgroundUrl', label: 'Login Background URL', type: 'url', section: 'Brand', placeholder: 'https://...' },
-  { key: 'PrimaryColor', label: 'Theme Color', type: 'color', section: 'Theme' },
-  { key: 'SidebarColor', label: 'Sidebar Color', type: 'color', section: 'Theme' },
   { key: 'Website', label: 'Website', type: 'url', section: 'Public Contact', placeholder: 'https://...' },
   { key: 'SupportEmail', label: 'Support Email', type: 'email', section: 'Public Contact', placeholder: 'support@example.com' },
   { key: 'Country', label: 'Country', type: 'dropdown', section: 'Public Contact', options: COUNTRY_OPTIONS },

@@ -35,14 +35,15 @@ public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
               WHEN vcl.VehicleId IS NULL THEN 'never_seen'
               WHEN DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) > @OfflineStaleMinutes THEN 'offline'
               WHEN LOWER(LTRIM(RTRIM(ISNULL(vcl.AlarmType, '')))) IN ({sosIn}) THEN 'sos'
+              WHEN ISNULL(vcl.IsGpsValid, 1) = 0 THEN 'unknown'
               WHEN COALESCE(vcl.Ignition, gd.LastIgnition) = 0
                    AND ISNULL(vcl.Speed, 0) < @MovingThresholdKmh THEN 'parked'
               WHEN COALESCE(vcl.Ignition, gd.LastIgnition) = 0
                    AND ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'unknown'
               WHEN ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'moving'
               WHEN COALESCE(vcl.Ignition, gd.LastIgnition) = 1 THEN 'idle'
-              -- Null / unwired ACC at rest → Parked (not Unknown/Idle). Jimi without ACC wire.
-              ELSE 'parked'
+              -- Null / unwired ACC at rest → Unknown (do not invent Parked / Ignition off).
+              ELSE 'unknown'
             END
             """;
     }

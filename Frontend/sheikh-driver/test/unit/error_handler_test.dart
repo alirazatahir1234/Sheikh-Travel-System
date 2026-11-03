@@ -68,12 +68,15 @@ void main() {
       expect(ex.message, contains('Cannot reach server'));
     });
 
-    test('401 response → AuthException', () {
+    test('401 response → AuthException with session expired copy', () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,
         statusCode: 401,
       );
-      expect(ErrorHandler.fromDio(e), isA<AuthException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<AuthException>());
+      expect(ex.message, 'Session expired — please sign in again.');
+      expect(ErrorHandler.classify(e), ApiErrorKind.unauthorized);
     });
 
     test('401 on /auth/login → ValidationException with API message', () {
@@ -124,12 +127,19 @@ void main() {
       expect(ex.message.toLowerCase(), contains('login api'));
     });
 
-    test('403 response → ForbiddenException', () {
+    test('403 response → ForbiddenException with access restricted copy', () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,
         statusCode: 403,
       );
-      expect(ErrorHandler.fromDio(e), isA<ForbiddenException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<ForbiddenException>());
+      expect(
+        ex.message,
+        'Access restricted — your account role or tenant plan does not include this permission. '
+        'Try signing out and back in if permissions were recently updated.',
+      );
+      expect(ErrorHandler.classify(e), ApiErrorKind.forbidden);
     });
 
     test('403 on attendance → product copy, never raw DioException', () {
@@ -248,6 +258,27 @@ void main() {
     test('ValidationException is not transient', () {
       expect(
           ErrorHandler.isTransient(const ValidationException('bad')), isFalse);
+    });
+  });
+
+  group('ErrorHandler.classifyMessage', () {
+    test('distinguishes 401, 403, and network messages', () {
+      expect(
+        ErrorHandler.classifyMessage('Session expired — please sign in again.'),
+        ApiErrorKind.unauthorized,
+      );
+      expect(
+        ErrorHandler.classifyMessage(
+          'Access restricted — your account role or tenant plan does not include this permission.',
+        ),
+        ApiErrorKind.forbidden,
+      );
+      expect(
+        ErrorHandler.classifyMessage(
+          'Server unavailable right now. Please try again shortly.',
+        ),
+        ApiErrorKind.network,
+      );
     });
   });
 }

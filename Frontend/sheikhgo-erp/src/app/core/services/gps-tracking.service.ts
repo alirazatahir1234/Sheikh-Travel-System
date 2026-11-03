@@ -267,13 +267,15 @@ export class GpsTrackingService {
     }
 
     if (hasCoords) {
+      const gpsOk = row.isGpsValid !== false;
       const status = lastUpdated
         ? resolveFleetStatus({
             speed,
             ignition: row.ignition ?? undefined,
             lastUpdated,
             hasGps: true,
-            alarmType: row.alarmType ?? undefined
+            alarmType: row.alarmType ?? undefined,
+            isGpsValid: gpsOk
           })
         : 'offline';
       return {
@@ -285,7 +287,13 @@ export class GpsTrackingService {
         status,
         hasGps: true,
         isLive: this.isRecentTelemetry(lastUpdated),
-        routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, speed),
+        isGpsValid: gpsOk,
+        gpsQualityCode: row.gpsQualityCode ?? undefined,
+        routeHint: !gpsOk
+          ? 'GPS unreliable — location may be stale'
+          : status === 'offline'
+            ? 'Last known position'
+            : this.routeHint(status, speed),
         ignition: row.ignition ?? undefined,
         heading: row.heading ?? undefined,
         fuelLevel: row.fuelLevel ?? undefined,

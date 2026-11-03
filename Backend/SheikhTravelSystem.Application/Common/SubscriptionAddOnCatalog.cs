@@ -29,24 +29,7 @@ public static class SubscriptionAddOnCatalog
             CurrencyCode: "PKR",
             MonthlyAmount: null,
             SortOrder: 10),
-        new(
-            ModuleCode: TenantModuleCatalog.RoadSpeedAlertsModuleCode,
-            DisplayName: "Road Speed Alerts",
-            Description: "Premium overspeed alerts using posted road speed limits (Google Roads Speed Limits)",
-            Category: AlertModuleCatalog.AlertsCategory,
-            Dependencies: [AlertModuleCatalog.AlertsModuleCode],
-            CurrencyCode: "PKR",
-            MonthlyAmount: null,
-            SortOrder: 20),
-        new(
-            ModuleCode: "ALERT_OVERSPEED",
-            DisplayName: "Fixed Speed Limit",
-            Description: "Premium GPS fixed speed-limit overspeed alerts (GpsAlertRules)",
-            Category: AlertModuleCatalog.AlertsCategory,
-            Dependencies: [AlertModuleCatalog.AlertsModuleCode],
-            CurrencyCode: "PKR",
-            MonthlyAmount: null,
-            SortOrder: 21),
+        // Speed / geofence / playback are TenantFeatures (GpsAddOnFeatureCatalog), not module add-ons.
         new(
             ModuleCode: "ALERT_GPS_LOST",
             DisplayName: "GPS Lost",

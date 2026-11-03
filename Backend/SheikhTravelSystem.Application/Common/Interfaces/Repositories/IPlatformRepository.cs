@@ -159,7 +159,7 @@ public sealed record OrganizationDepartmentRow(
 public sealed record PermissionRowData(
     int Id, string ModuleName, string PermissionCode, string? Description,
     string? DisplayName, string? Category, int SortOrder, bool Visible,
-    string? Action, string? ModuleKey);
+    string? Action, string? ModuleKey, string? FeatureKey = null);
 
 public sealed record TenantModuleLimitsRow(
     int? MaxUsers, int? MaxVehicles, int? MaxDrivers, int? MaxBranches, int? MaxGpsDevices,

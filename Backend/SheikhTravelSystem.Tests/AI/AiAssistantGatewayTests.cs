@@ -541,7 +541,8 @@ public class AiAssistantGatewayTests
         response.Answer.Should().Contain("not sure");
         response.Answer.Should().NotContain("GetFuelCostSummary");
         response.Answer.Should().NotContain("reports:");
-        response.Warnings.Should().BeEmpty();
+        response.Warnings.Should().ContainSingle()
+            .Which.Should().Contain("AI language model is not configured for this company");
     }
 
     [Fact]

@@ -23,7 +23,8 @@ public record CompanyFeatureDto(
     bool IsAISupported = false,
     bool IsGPSSupported = false,
     bool Visible = true,
-    bool CanToggle = false);
+    bool CanToggle = false,
+    bool IsAddOn = false);
 
 public record CompanyModuleDto(
     string ModuleCode,
@@ -88,8 +89,6 @@ public record CompanyContextDto(
     int TenantId,
     string CompanyName,
     string Slug,
-    string? LogoUrl,
-    string? PrimaryColor,
     int? BranchId,
     string? BranchName,
     int? DepartmentId,
@@ -419,8 +418,6 @@ public class GetCompanyContextQueryHandler(
             TenantId: company.Id,
             CompanyName: company.Name,
             Slug: company.Slug,
-            LogoUrl: company.LogoUrl,
-            PrimaryColor: company.PrimaryColor,
             BranchId: branchId,
             BranchName: branchName,
             DepartmentId: departmentId,

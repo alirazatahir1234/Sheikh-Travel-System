@@ -148,7 +148,7 @@ class _VoiceCommandScreenState extends ConsumerState<VoiceCommandScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Voice commands'),
       ),

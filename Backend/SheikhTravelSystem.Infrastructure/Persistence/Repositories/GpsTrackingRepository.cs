@@ -346,6 +346,56 @@ public sealed partial class GpsTrackingRepository(
         return ApiResponse<int>.SuccessResponse(id, "Geofence duplicated.");
         }
 
+    public async Task ApplyGeofenceMonitoringAsync(
+        int geofenceId,
+        bool? alertOnEnter,
+        bool? alertOnExit,
+        int[]? vehicleIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (vehicleIds is not null)
+        {
+            using var connection = dbFactory.CreateConnection();
+            var tenantId = tenantContext.GetRequiredTenantId();
+            var wanted = vehicleIds.Distinct().ToArray();
+            // Vehicle rows only — branch/department assignments made in the ERP are preserved.
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE a SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+                FROM GeofenceAssignments a
+                INNER JOIN Geofences g ON g.Id = a.GeofenceId AND g.TenantId = @TenantId
+                WHERE a.GeofenceId = @GeofenceId AND a.VehicleId IS NOT NULL AND a.IsDeleted = 0
+                  AND a.VehicleId NOT IN @Wanted;
+
+                INSERT INTO GeofenceAssignments (GeofenceId, VehicleId, CreatedAt, CreatedBy, IsDeleted)
+                SELECT @GeofenceId, v.Id, GETUTCDATE(), @CreatedBy, 0
+                FROM Vehicles v
+                WHERE v.Id IN @Wanted AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                  AND EXISTS (SELECT 1 FROM Geofences g WHERE g.Id = @GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0)
+                  AND NOT EXISTS (SELECT 1 FROM GeofenceAssignments a
+                                  WHERE a.GeofenceId = @GeofenceId AND a.VehicleId = v.Id AND a.IsDeleted = 0);
+                """,
+                new
+                {
+                    GeofenceId = geofenceId,
+                    TenantId = tenantId,
+                    Wanted = wanted.Length == 0 ? new[] { -1 } : wanted,
+                    CreatedBy = currentUser.UserId?.ToString()
+                },
+                cancellationToken: cancellationToken));
+        }
+
+        if (alertOnEnter.HasValue || alertOnExit.HasValue)
+        {
+            await CreateGpsAlertRuleAsync(new CreateGpsAlertRuleCommand(new CreateGpsAlertRuleDto(
+                VehicleId: null,
+                SpeedLimitKmh: null,
+                GeofenceId: geofenceId,
+                AlertOnEnter: alertOnEnter ?? false,
+                AlertOnExit: alertOnExit ?? false)), cancellationToken);
+        }
+    }
+
     public async Task<ApiResponse<bool>> UpsertGeofenceAssignmentsAsync(UpsertGeofenceAssignmentsCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -1208,8 +1258,15 @@ public sealed partial class GpsTrackingRepository(
             SELECT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson, g.IsActive,
                    g.Color, g.Category, g.Description,
                    (SELECT COUNT(1) FROM GeofenceAssignments a
-                    WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0 AND a.VehicleId IS NOT NULL) AS AssignedVehicleCount
+                    WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0 AND a.VehicleId IS NOT NULL) AS AssignedVehicleCount,
+                   CAST(ISNULL(r.AlertOnEnter, 0) AS BIT) AS AlertOnEnter,
+                   CAST(ISNULL(r.AlertOnExit, 0) AS BIT) AS AlertOnExit
             FROM Geofences g
+            OUTER APPLY (
+                SELECT TOP 1 ar.AlertOnEnter, ar.AlertOnExit FROM GpsAlertRules ar
+                WHERE ar.GeofenceId = g.Id AND ar.TenantId = g.TenantId AND ar.VehicleId IS NULL
+                  AND ar.IsDeleted = 0 AND ar.IsActive = 1
+                ORDER BY ar.Id) r
             WHERE g.IsDeleted = 0 AND g.TenantId = @TenantId
             """;
 
@@ -1391,7 +1448,9 @@ public sealed partial class GpsTrackingRepository(
               vcl.BookingId,
               gd.UniqueId AS Imei,
               gd.Name AS TrackerName,
-              gd.RelayOutput
+              gd.RelayOutput,
+              ISNULL(vcl.IsGpsValid, CAST(1 AS BIT)) AS IsGpsValid,
+              vcl.GpsQualityCode
             FROM Vehicles v
             LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0
             LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
@@ -1965,14 +2024,46 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<int>> GetGeofenceBreachCountAsync(GetGeofenceBreachCountQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        // Dashboard badge: tenants without the geofencing add-on get 0 rather than a 403.
         var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(*) FROM GpsAlertEvents
-              WHERE EventType IN ('geofence_enter', 'geofence_exit') AND IsAcknowledged = 0 AND IsDeleted = 0
-              AND Timestamp > DATEADD(HOUR, -24, GETUTCDATE())",
+            """
+            SELECT CASE WHEN EXISTS (
+                       SELECT 1 FROM TenantFeatures
+                       WHERE TenantId = @TenantId AND FeatureKey = @FeatureKey AND IsEnabled = 1)
+                   THEN (SELECT COUNT(*) FROM GpsAlertEvents e
+                         INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                         WHERE e.EventType IN ('geofence_enter', 'geofence_exit') AND e.IsAcknowledged = 0
+                           AND e.IsDeleted = 0 AND e.Timestamp > DATEADD(HOUR, -24, GETUTCDATE()))
+                   ELSE 0 END
+            """,
+            new { TenantId = tenantId, FeatureKey = GpsAddOnFeatureCatalog.Geofencing },
             cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(count);
         }
+
+    public async Task<ApiResponse<List<GeofenceVehicleStateDto>>> GetGeofenceVehicleStatesAsync(GetGeofenceVehicleStatesQuery request, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<GeofenceVehicleStateDto>(new CommandDefinition(
+            """
+            SELECT s.GeofenceId, s.VehicleId, v.Name AS VehicleName, v.RegistrationNumber,
+                   s.IsInside, s.SinceUtc, s.LastEvaluatedUtc, c.LastUpdate AS LastPositionUtc
+            FROM VehicleGeofenceState s
+            INNER JOIN Geofences g ON g.Id = s.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
+            INNER JOIN Vehicles v ON v.Id = s.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            LEFT JOIN VehicleCurrentLocation c ON c.VehicleId = s.VehicleId
+            WHERE s.TenantId = @TenantId
+              AND (@GeofenceId IS NULL OR s.GeofenceId = @GeofenceId)
+              AND (@VehicleId IS NULL OR s.VehicleId = @VehicleId)
+            ORDER BY s.GeofenceId, v.Name
+            """,
+            new { TenantId = tenantContext.GetRequiredTenantId(), request.GeofenceId, request.VehicleId },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<List<GeofenceVehicleStateDto>>.SuccessResponse(rows.ToList());
+    }
 
     public async Task<ApiResponse<TripDeviceContextDto>> GetTripContextAsync(GetTripContextQuery request, CancellationToken cancellationToken = default)
     {
@@ -2291,6 +2382,7 @@ public sealed partial class GpsTrackingRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Position;
+        var qualityOptions = gpsSettings.Value.PositionQuality;
 
         if (currentUser.Role == "Driver")
         {
@@ -2311,21 +2403,107 @@ public sealed partial class GpsTrackingRepository(
             dto = dto with { DriverId = driverId.Value };
         }
 
-        var recordedAt = DateTime.UtcNow;
+        var recordedAt = request.Source?.FixTimeUtc is { } fixTime
+            ? GpsUtcDateTime.AsUtc(fixTime)
+            : DateTime.UtcNow;
 
         // Read the previous state before ingestion overwrites the row — both previousSpeed (for
         // trip-persistence detection below) and previousIgnition (for the ignition-transition
         // alert) depend on this happening first; a future reordering of these calls would
         // silently break both.
         var previous = await connection.QueryFirstOrDefaultAsync<(
-            decimal? Speed, bool? Ignition, double? Latitude, double? Longitude, string? Address)>(new CommandDefinition(
-            "SELECT Speed, Ignition, Latitude, Longitude, Address FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
+            decimal? Speed, bool? Ignition, double? Latitude, double? Longitude, string? Address,
+            int? IdenticalCoordinateStreak, bool? IsGpsValid, DateTime? LastUpdate, double? Heading)>(new CommandDefinition(
+            @"SELECT Speed, Ignition, Latitude, Longitude, Address,
+                     IdenticalCoordinateStreak, IsGpsValid, LastUpdate, Heading
+              FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
         var previousSpeed = previous.Speed;
         var previousIgnition = previous.Ignition;
 
-        await positionIngestion.IngestAsync(connection, dto, recordedAt, cancellationToken);
+        var previousSnapshot = new VehicleLocationSnapshot(
+            previous.Speed,
+            previous.Ignition,
+            previous.Latitude,
+            previous.Longitude,
+            previous.Address,
+            previous.IdenticalCoordinateStreak,
+            previous.IsGpsValid,
+            previous.LastUpdate is { } lu ? GpsUtcDateTime.AsUtc(lu) : null);
+
+        var ingestPlan = GpsPositionQualityEvaluator.Evaluate(
+            dto,
+            previousSnapshot,
+            request.Source,
+            qualityOptions,
+            recordedAt);
+
+        if (ingestPlan.RejectEntireIngest)
+        {
+            if (dto.GpsDeviceId == 1)
+            {
+                logger.LogWarning(
+                    "Rejected Traccar position for GpsDeviceId=1 vehicle {VehicleId}: {Quality}",
+                    dto.VehicleId,
+                    ingestPlan.QualityCode);
+            }
+
+            if (dto.GpsDeviceId.HasValue)
+            {
+                await telemetryUpdater.UpdateAsync(
+                    connection,
+                    dto.GpsDeviceId.Value,
+                    recordedAt,
+                    dto.Ignition,
+                    dto.Speed,
+                    dto.BatteryLevel,
+                    dto.GsmSignal,
+                    clearStickyIgnition: ingestPlan.ClearStickyIgnition,
+                    cancellationToken: cancellationToken);
+            }
+
+            return ApiResponse<bool>.SuccessResponse(
+                true,
+                $"Position skipped ({ingestPlan.QualityCode ?? "invalid_fix"}).");
+        }
+
+        var vclDto = dto;
+        if (!ingestPlan.UpdateVclCoordinates
+            && previous.Latitude is double pLat
+            && previous.Longitude is double pLng)
+        {
+            vclDto = vclDto with { Latitude = pLat, Longitude = pLng };
+        }
+
+        // Frozen coords (full freeze or early warning): never show bogus movement speed on the live pin.
+        if (ingestPlan.QualityCode == GpsPositionQualityEvaluator.QualityFrozenCoordinates)
+        {
+            vclDto = vclDto with { Speed = 0m };
+        }
+        else if (!ingestPlan.UpdateVclKinematics)
+        {
+            if (previous.Speed is decimal ps)
+                vclDto = vclDto with { Speed = ps };
+            if (previous.Heading is double ph)
+                vclDto = vclDto with { Heading = ph };
+        }
+
+        var coordinatesMoved = previous.Latitude is double prevLat
+                               && previous.Longitude is double prevLng
+                               && DistanceMeters(prevLat, prevLng, dto.Latitude, dto.Longitude) >= 150;
+        if (ingestPlan.UpdateVclCoordinates && coordinatesMoved)
+        {
+            vclDto = vclDto with { Address = dto.Address };
+        }
+
+        await positionIngestion.IngestAsync(
+            connection,
+            dto,
+            recordedAt,
+            ingestPlan,
+            vclDto,
+            cancellationToken);
 
         // Traccar often supplies city-only strings (e.g. "Pasrur, Punjab, PK") — upgrade via queue.
         var addressNeedsUpgrade = string.IsNullOrWhiteSpace(dto.Address)
@@ -2354,53 +2532,73 @@ public sealed partial class GpsTrackingRepository(
                 recordedAt,
                 dto.Ignition,
                 dto.Speed,
+                clearStickyIgnition: ingestPlan.ClearStickyIgnition,
                 cancellationToken: cancellationToken);
         }
 
-        var ingestDto = dto with { BookingId = bookingId };
-        await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
-        try
+        var ingestDto = vclDto with { BookingId = bookingId };
+
+        if (!ingestPlan.IsGpsValid)
         {
-            await roadSpeedAlertEvaluator.EvaluateAsync(
-                connection, ingestDto, previous.Latitude, previous.Longitude, recordedAt, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Road speed alert evaluation failed for vehicle {VehicleId}", dto.VehicleId);
-        }
-        await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
-        await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
-        await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
-        try
-        {
-            await fuelStationStopEvaluator.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Fuel station stop evaluation failed for vehicle {VehicleId}", dto.VehicleId);
-        }
-        try
-        {
-            await fuelFraudVerifier.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Fuel fraud verification failed for vehicle {VehicleId}", dto.VehicleId);
-        }
-        await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
-        await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
-        await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
-        try
-        {
-            await fleetAnomalyEvaluator.EvaluateAsync(
-                connection, ingestDto, previousSpeed, recordedAt, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Fleet anomaly evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+            if (dto.GpsDeviceId == 1)
+            {
+                logger.LogWarning(
+                    "GPS unreliable GpsDeviceId=1 vehicle {VehicleId}: {Quality} streak={Streak}",
+                    dto.VehicleId,
+                    ingestPlan.QualityCode,
+                    ingestPlan.IdenticalCoordinateStreak);
+            }
+
+            await EvaluateGpsUnreliableAsync(connection, ingestDto, ingestPlan, recordedAt, cancellationToken);
         }
 
-        await EvaluateWhatsAppTripProximityAsync(ingestDto, recordedAt, cancellationToken);
+        if (!ingestPlan.SkipMovementAlerts)
+        {
+            await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
+            try
+            {
+                await roadSpeedAlertEvaluator.EvaluateAsync(
+                    connection, ingestDto, previous.Latitude, previous.Longitude, recordedAt, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Road speed alert evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+            }
+            await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluateHarshBrakingFromPositionAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
+            await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
+            try
+            {
+                await fuelStationStopEvaluator.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Fuel station stop evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+            }
+            try
+            {
+                await fuelFraudVerifier.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Fuel fraud verification failed for vehicle {VehicleId}", dto.VehicleId);
+            }
+            await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
+            try
+            {
+                await fleetAnomalyEvaluator.EvaluateAsync(
+                    connection, ingestDto, previousSpeed, recordedAt, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Fleet anomaly evaluation failed for vehicle {VehicleId}", dto.VehicleId);
+            }
+
+            await EvaluateWhatsAppTripProximityAsync(ingestDto, recordedAt, cancellationToken);
+        }
 
         // A position just arrived for this vehicle, so it's no longer offline — clear any
         // outstanding offline alert the background detector raised while it was unreachable, and
@@ -2426,27 +2624,34 @@ public sealed partial class GpsTrackingRepository(
                 "Vehicle has reconnected to the tracking server.", recordedAt, cancellationToken);
         }
 
-        if (GpsPositionIngestionRules.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))
+        if (!ingestPlan.SkipMovementAlerts
+            && GpsPositionIngestionRules.ShouldAttemptTripPersistence(vclDto.Speed, vclDto.Ignition, previousSpeed))
         {
             await tripPersistence.TryPersistRecentTripsAsync(connection, dto.VehicleId, cancellationToken);
         }
 
+        var broadcastAddress = coordinatesMoved
+            ? vclDto.Address
+            : vclDto.Address ?? previous.Address;
+
         await broadcaster.BroadcastLocationUpdateAsync(
             dto.VehicleId,
             bookingId,
-            dto.Latitude,
-            dto.Longitude,
-            dto.Speed,
-            dto.Ignition,
+            vclDto.Latitude,
+            vclDto.Longitude,
+            vclDto.Speed,
+            vclDto.Ignition,
             recordedAt,
-            dto.Heading,
-            dto.FuelLevel,
-            dto.BatteryLevel,
-            dto.GsmSignal,
-            dto.TotalDistanceKm,
-            dto.Address ?? previous.Address,
-            dto.AlarmType,
-            dto.Temperature,
+            vclDto.Heading,
+            vclDto.FuelLevel,
+            vclDto.BatteryLevel,
+            vclDto.GsmSignal,
+            vclDto.TotalDistanceKm,
+            broadcastAddress,
+            vclDto.AlarmType,
+            vclDto.Temperature,
+            ingestPlan.IsGpsValid,
+            ingestPlan.QualityCode,
             cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Position recorded.");
@@ -3193,7 +3398,9 @@ public sealed partial class GpsTrackingRepository(
                      vcl.Address,
                      vcl.AlarmType,
                      dr.Phone AS DriverPhone,
-                     vcl.Temperature
+                     vcl.Temperature,
+                     ISNULL(vcl.IsGpsValid, CAST(1 AS BIT)) AS IsGpsValid,
+                     vcl.GpsQualityCode
               {whereClause}
               ORDER BY vcl.VehicleId
               OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY

@@ -14,6 +14,7 @@ public class GpsTelemetryNormalizerTests
             speedKmh: 0);
 
         Assert.True(ignition);
+        Assert.False(GpsTelemetryNormalizer.ShouldClearStickyIgnition(true, false, 0));
     }
 
     [Fact]
@@ -21,18 +22,20 @@ public class GpsTelemetryNormalizerTests
     {
         Assert.False(GpsTelemetryNormalizer.ResolveIgnition(false, false, 0));
         Assert.False(GpsTelemetryNormalizer.ResolveIgnition(false, true, 5));
+        Assert.False(GpsTelemetryNormalizer.ShouldClearStickyIgnition(false, false, 0));
     }
 
     [Fact]
-    public void Acc_omitted_with_motion_false_at_rest_is_off()
+    public void Acc_omitted_with_motion_false_at_rest_is_unknown_not_off()
     {
-        // Command-result / sparse packets omit ignition — do not leave sticky ON.
+        // Do not invent Ignition OFF when ACC wire / attribute is missing.
         var ignition = GpsTelemetryNormalizer.ResolveIgnition(
             ignition: null,
             motion: false,
             speedKmh: 0);
 
-        Assert.False(ignition);
+        Assert.Null(ignition);
+        Assert.True(GpsTelemetryNormalizer.ShouldClearStickyIgnition(null, false, 0));
     }
 
     [Fact]
@@ -40,6 +43,8 @@ public class GpsTelemetryNormalizerTests
     {
         Assert.Null(GpsTelemetryNormalizer.ResolveIgnition(null, null, 0));
         Assert.Null(GpsTelemetryNormalizer.ResolveIgnition(null, true, 0));
+        Assert.False(GpsTelemetryNormalizer.ShouldClearStickyIgnition(null, null, 0));
+        Assert.False(GpsTelemetryNormalizer.ShouldClearStickyIgnition(null, true, 0));
     }
 
     [Fact]

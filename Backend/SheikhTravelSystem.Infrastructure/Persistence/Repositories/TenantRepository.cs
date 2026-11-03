@@ -15,8 +15,6 @@ public sealed class TenantRepository(IDbConnectionFactory dbFactory) : ITenantRe
         var row = await connection.QuerySingleOrDefaultAsync<TenantBrandingRow>(
             new CommandDefinition("""
                 SELECT t.Id, t.Name, t.Slug,
-                       COALESCE(b.LogoUrl, t.LogoUrl) AS LogoUrl,
-                       COALESCE(b.PrimaryColor, t.PrimaryColor) AS PrimaryColor,
                        b.TimeZone AS TimeZone
                 FROM Tenants t
                 LEFT JOIN TenantBranding b ON b.TenantId = t.Id
@@ -30,8 +28,6 @@ public sealed class TenantRepository(IDbConnectionFactory dbFactory) : ITenantRe
 
     public async Task UpdateBrandingAsync(
         int tenantId,
-        string? logoUrl,
-        string? primaryColor,
         string? website,
         string? supportEmail,
         string? country,
@@ -49,32 +45,20 @@ public sealed class TenantRepository(IDbConnectionFactory dbFactory) : ITenantRe
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM TenantBranding WHERE TenantId = @TenantId)
                 UPDATE TenantBranding
-                SET LogoUrl = @LogoUrl, PrimaryColor = @PrimaryColor, Website = @Website,
+                SET Website = @Website,
                     SupportEmail = @SupportEmail, Country = @Country, CurrencyCode = @CurrencyCode, TimeZone = @TimeZone
                 WHERE TenantId = @TenantId;
             ELSE
-                INSERT INTO TenantBranding (TenantId, LogoUrl, PrimaryColor, Website, SupportEmail, Country, CurrencyCode, TimeZone)
-                VALUES (@TenantId, @LogoUrl, @PrimaryColor, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
+                INSERT INTO TenantBranding (TenantId, Website, SupportEmail, Country, CurrencyCode, TimeZone)
+                VALUES (@TenantId, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
             """, new
         {
             TenantId = tenantId,
-            LogoUrl = logoUrl,
-            PrimaryColor = primaryColor,
             Website = website,
             SupportEmail = supportEmail,
             Country = country,
             CurrencyCode = currencyCode,
             TimeZone = timeZone
-        }, cancellationToken: cancellationToken));
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Tenants SET LogoUrl = @LogoUrl, PrimaryColor = @PrimaryColor, UpdatedAt = GETUTCDATE()
-            WHERE Id = @TenantId
-            """, new
-        {
-            TenantId = tenantId,
-            LogoUrl = logoUrl,
-            PrimaryColor = primaryColor
         }, cancellationToken: cancellationToken));
     }
 

@@ -90,9 +90,7 @@ public interface ICompanyRepository
 public sealed record CompanyTenantRow(
     int Id,
     string Name,
-    string Slug,
-    string? LogoUrl,
-    string? PrimaryColor);
+    string Slug);
 
 public sealed record CompanyUserOrgProfileRow(
     int? BranchId,

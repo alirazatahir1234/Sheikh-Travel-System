@@ -31,14 +31,12 @@ public record ProvisionTenantCommand : IRequest<ApiResponse<int>>
     public string AdminPassword { get; init; } = string.Empty;
     public string? AdminMobile { get; init; }
 
-    // 4. Branding & localization
+    // 4. Contact & localization
     public string? Country { get; init; } = "United Arab Emirates";
     public string? CurrencyCode { get; init; } = AppConstants.DefaultCurrency;
     public string? TimeZone { get; init; } = "Asia/Dubai";
-    public string? PrimaryColor { get; init; } = "#007657";
     public string? Website { get; init; }
     public string? SupportEmail { get; init; }
-    public string? LogoUrl { get; init; }
 
     // 5. Security
     public bool IsMfaRequired { get; init; }

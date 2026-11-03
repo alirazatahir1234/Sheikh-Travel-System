@@ -9,7 +9,7 @@ using SheikhTravelSystem.Application.Features.Drivers.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
-using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Infrastructure.Services.Gps;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Infrastructure.Traccar;
@@ -75,10 +75,17 @@ public sealed class TraccarSyncOrchestrator(
             return SingleJob("tracker", 0, 0, 0, 0, "Device not found on Traccar server.");
 
         var lastSeen = traccarDevice.LastUpdate?.ToUniversalTime();
+        // Fill Phone from Traccar only when SheikhGo has neither Phone nor SimNumber — never overwrite.
+        var traccarPhone = string.IsNullOrWhiteSpace(traccarDevice.Phone) ? null : traccarDevice.Phone.Trim();
         await connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE GpsDevices SET
                 Name = @Name, IsActive = @IsActive, LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
+                Phone = CASE
+                    WHEN @Phone IS NOT NULL
+                         AND (Phone IS NULL OR LTRIM(RTRIM(Phone)) = N'')
+                         AND (SimNumber IS NULL OR LTRIM(RTRIM(SimNumber)) = N'')
+                    THEN @Phone ELSE Phone END,
                 LastSyncAt = GETUTCDATE(), UpdatedAt = GETUTCDATE()
             WHERE Id = @Id
             """,
@@ -87,7 +94,8 @@ public sealed class TraccarSyncOrchestrator(
                 Id = gpsDeviceId,
                 traccarDevice.Name,
                 IsActive = !traccarDevice.Disabled,
-                LastSeenAt = lastSeen
+                LastSeenAt = lastSeen,
+                Phone = traccarPhone
             },
             cancellationToken: ct));
 
@@ -103,6 +111,8 @@ public sealed class TraccarSyncOrchestrator(
                 : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
             // Prefer device ACC/ignition; motion must not force Ignition Off for UI/VCL.
             var ignition = GpsTelemetryNormalizer.ResolveIgnition(
+                pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
+            var clearSticky = GpsTelemetryNormalizer.ShouldClearStickyIgnition(
                 pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
             var battery = pos.Attributes.BatteryLevel;
             var rssi = pos.Attributes.Rssi;
@@ -133,7 +143,8 @@ public sealed class TraccarSyncOrchestrator(
 
                 try
                 {
-                    await mediator.Send(new IngestPositionCommand(dto), ct);
+                    var source = TraccarPositionIngestMapper.ToSourceContext(pos, movingThreshold);
+                    await mediator.Send(new IngestPositionCommand(dto, source), ct);
                     telemetryUpdated = 1;
                 }
                 catch (Exception ex)
@@ -146,7 +157,8 @@ public sealed class TraccarSyncOrchestrator(
                 try
                 {
                     await telemetryUpdater.UpdateAsync(
-                        connection, gpsDeviceId, recordedAt, ignition, speedKmh, battery, rssi, ct);
+                        connection, gpsDeviceId, recordedAt, ignition, speedKmh, battery, rssi,
+                        clearStickyIgnition: clearSticky, cancellationToken: ct);
                     telemetryUpdated = 1;
                 }
                 catch (Exception ex)
@@ -193,13 +205,15 @@ public sealed class TraccarSyncOrchestrator(
                         new { td.UniqueId },
                         cancellationToken: ct));
 
+                var phone = string.IsNullOrWhiteSpace(td.Phone) ? null : td.Phone.Trim();
+
                 if (existing.Id == 0)
                 {
                     await connection.ExecuteAsync(new CommandDefinition("""
-                        INSERT INTO GpsDevices (UniqueId, Name, TraccarDeviceId, IsActive, LastSeenAt, CreatedAt, IsDeleted)
-                        VALUES (@UniqueId, @Name, @TraccarDeviceId, @IsActive, @LastSeenAt, GETUTCDATE(), 0)
+                        INSERT INTO GpsDevices (UniqueId, Name, TraccarDeviceId, Phone, IsActive, LastSeenAt, CreatedAt, IsDeleted)
+                        VALUES (@UniqueId, @Name, @TraccarDeviceId, @Phone, @IsActive, @LastSeenAt, GETUTCDATE(), 0)
                         """,
-                        new { td.UniqueId, td.Name, TraccarDeviceId = td.Id, IsActive = isActive, LastSeenAt = lastSeen },
+                        new { td.UniqueId, td.Name, TraccarDeviceId = td.Id, Phone = phone, IsActive = isActive, LastSeenAt = lastSeen },
                         cancellationToken: ct));
                     imported++;
                 }
@@ -207,10 +221,16 @@ public sealed class TraccarSyncOrchestrator(
                 {
                     await connection.ExecuteAsync(new CommandDefinition("""
                         UPDATE GpsDevices SET TraccarDeviceId = @TraccarDeviceId, Name = @Name, IsActive = @IsActive,
-                            LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt), UpdatedAt = GETUTCDATE()
+                            LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
+                            Phone = CASE
+                                WHEN @Phone IS NOT NULL
+                                     AND (Phone IS NULL OR LTRIM(RTRIM(Phone)) = N'')
+                                     AND (SimNumber IS NULL OR LTRIM(RTRIM(SimNumber)) = N'')
+                                THEN @Phone ELSE Phone END,
+                            UpdatedAt = GETUTCDATE()
                         WHERE Id = @Id
                         """,
-                        new { TraccarDeviceId = td.Id, Name = td.Name, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
+                        new { TraccarDeviceId = td.Id, Name = td.Name, Phone = phone, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
                         cancellationToken: ct));
                     updated++;
                 }
@@ -218,10 +238,16 @@ public sealed class TraccarSyncOrchestrator(
                 {
                     await connection.ExecuteAsync(new CommandDefinition("""
                         UPDATE GpsDevices SET Name = @Name, IsActive = @IsActive,
-                            LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt), UpdatedAt = GETUTCDATE()
+                            LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
+                            Phone = CASE
+                                WHEN @Phone IS NOT NULL
+                                     AND (Phone IS NULL OR LTRIM(RTRIM(Phone)) = N'')
+                                     AND (SimNumber IS NULL OR LTRIM(RTRIM(SimNumber)) = N'')
+                                THEN @Phone ELSE Phone END,
+                            UpdatedAt = GETUTCDATE()
                         WHERE Id = @Id
                         """,
-                        new { Name = td.Name, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
+                        new { Name = td.Name, Phone = phone, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
                         cancellationToken: ct));
                     skipped++;
                 }
@@ -295,8 +321,10 @@ public sealed class TraccarSyncOrchestrator(
                 var movingThreshold = options.Value.MovingSpeedKmh > 0
                     ? options.Value.MovingSpeedKmh
                     : GpsFleetStatusBuckets.DefaultMovingSpeedKmh;
-                // Prefer device ACC/ignition; motion must not force Ignition Off for UI/VCL.
+                // Prefer device ACC; never invent OFF. Clear sticky ON separately when ACC omitted + settled.
                 var ignition = GpsTelemetryNormalizer.ResolveIgnition(
+                    pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
+                var clearSticky = GpsTelemetryNormalizer.ShouldClearStickyIgnition(
                     pos.Attributes.Ignition, pos.Attributes.Motion, speedKmh, movingThreshold);
                 adaptiveSamples.Add(new TraccarAdaptiveInterval.Sample(speedKmh, ignition, pos.Attributes.Alarm));
 
@@ -331,7 +359,8 @@ public sealed class TraccarSyncOrchestrator(
 
                     try
                     {
-                        await mediator.Send(new IngestPositionCommand(dto), ct);
+                        var source = TraccarPositionIngestMapper.ToSourceContext(pos, movingThreshold);
+                        await mediator.Send(new IngestPositionCommand(dto, source), ct);
                         ingested++;
                     }
                     catch (Exception ex)
@@ -350,7 +379,8 @@ public sealed class TraccarSyncOrchestrator(
                     {
                         await telemetryUpdater.UpdateAsync(
                             connection, device.GpsDeviceId, recordedAt, ignition,
-                            speedKmh, battery, rssi, ct);
+                            speedKmh, battery, rssi,
+                            clearStickyIgnition: clearSticky, cancellationToken: ct);
                         _lastIngested[pos.DeviceId] = pos.FixTime;
                         telemetryOnly++;
                     }
@@ -582,6 +612,29 @@ public sealed class TraccarSyncOrchestrator(
                     var message = TraccarAlertEventMapper.FormatMessage(eventType);
                     var timestamp = ev.EventTime.ToUniversalTime();
 
+                    if (string.Equals(eventType, TraccarHarshEventMapper.HarshBraking, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var recentHarsh = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                            @"SELECT CASE WHEN EXISTS(
+                                SELECT 1 FROM GpsAlertEvents
+                                WHERE VehicleId = @VehicleId AND EventType = @EventType AND IsDeleted = 0
+                                  AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                              ) THEN 1 ELSE 0 END",
+                            new
+                            {
+                                device.VehicleId,
+                                EventType = TraccarHarshEventMapper.HarshBraking,
+                                Minutes = GpsHarshBrakingAlertDispatch.DedupMinutes,
+                                Timestamp = timestamp
+                            },
+                            cancellationToken: ct));
+                        if (recentHarsh)
+                        {
+                            skipped++;
+                            continue;
+                        }
+                    }
+
                     var alertId = await alertWriter.InsertAsync(
                         connection,
                         device.VehicleId,
@@ -600,6 +653,29 @@ public sealed class TraccarSyncOrchestrator(
                     }
 
                     imported++;
+
+                    if (string.Equals(eventType, TraccarHarshEventMapper.HarshBraking, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var decisionEngine = scope.ServiceProvider.GetRequiredService<INotificationDecisionEngine>();
+                        var speedKmh = (decimal)(ev.SpeedKnots.HasValue ? ev.SpeedKnots.Value * 1.852 : 0);
+                        try
+                        {
+                            await GpsHarshBrakingAlertDispatch.DispatchIfAllowedAsync(
+                                decisionEngine,
+                                connection,
+                                device.VehicleId,
+                                alertId,
+                                speedKmh,
+                                tenantId: null,
+                                cancellationToken: ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex,
+                                "Harsh braking notification failed for alert {AlertId} vehicle {VehicleId}",
+                                alertId, device.VehicleId);
+                        }
+                    }
 
                     if (DriverTelematicsEnforcementPolicy.ShouldCreateViolation(eventType))
                     {

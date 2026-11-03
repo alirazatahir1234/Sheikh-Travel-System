@@ -371,15 +371,15 @@ class PlatformBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SgCard(
+    return SgCard(
       child: Row(
         children: [
-          Icon(Icons.admin_panel_settings_outlined, color: AppColors.primary),
-          SizedBox(width: 10),
+          const Icon(Icons.admin_panel_settings_outlined, color: AppColors.primary),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Platform admin — showing this tenant’s operational view. Multi-tenant KPIs come in a later release.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: context.sg.textSecondary),
             ),
           ),
         ],
@@ -409,17 +409,17 @@ class _PrimaryKpiTile extends StatelessWidget {
   const _PrimaryKpiTile({required this.cell});
   final KpiCell cell;
 
-  /// Mockup icons: Vehicles car · Moving play · Idle pause · Offline power.
+  /// Icons: Online wifi · Offline power · Idle pause · Moving play.
   IconData _icon(String label) {
     final l = label.toLowerCase();
-    if (l.contains('vehicle')) return Icons.directions_car_filled_rounded;
-    if (l.contains('moving')) return Icons.play_arrow_rounded;
-    if (l.contains('idle')) return Icons.pause_rounded;
+    if (l.contains('online')) return Icons.wifi_rounded;
     if (l.contains('offline')) return Icons.power_settings_new_rounded;
+    if (l.contains('idle')) return Icons.pause_rounded;
+    if (l.contains('moving')) return Icons.play_arrow_rounded;
+    if (l.contains('vehicle')) return Icons.directions_car_filled_rounded;
     if (l.contains('driver')) return Icons.person_rounded;
     if (l.contains('trip')) return Icons.route_rounded;
     if (l.contains('alert')) return Icons.shield_outlined;
-    if (l.contains('online')) return Icons.wifi_rounded;
     return Icons.bar_chart_rounded;
   }
 
@@ -690,7 +690,7 @@ class FleetHealthCard extends StatelessWidget {
                                 child: CircularProgressIndicator(
                                   value: (pct / 100).clamp(0.0, 1.0),
                                   strokeWidth: 8,
-                                  backgroundColor: AppColors.border,
+                                  backgroundColor: context.sg.border,
                                   color: pct >= 80
                                       ? AppColors.success
                                       : pct >= 50
@@ -703,10 +703,10 @@ class FleetHealthCard extends StatelessWidget {
                                 children: [
                                   Text(
                                     '${pct.round()}%',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
+                                      color: context.sg.textPrimary,
                                     ),
                                   ),
                                   Text(
@@ -771,10 +771,10 @@ class FleetHealthCard extends StatelessWidget {
                         ),
                         child: Text(
                           data.healthSummary!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             height: 1.35,
-                            color: AppColors.textSecondary,
+                            color: context.sg.textSecondary,
                           ),
                         ),
                       ),
@@ -782,14 +782,14 @@ class FleetHealthCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.refresh_rounded,
-                            size: 14, color: AppColors.textSecondary),
+                        Icon(Icons.refresh_rounded,
+                            size: 14, color: context.sg.textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           'Updated $updated',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: context.sg.textSecondary,
                           ),
                         ),
                       ],
@@ -812,42 +812,42 @@ class _NoVehiclesPlaceholder extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
-          const Icon(
+          Icon(
             Icons.local_shipping_outlined,
             size: 40,
-            color: AppColors.textMuted,
+            color: context.sg.textMuted,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'No vehicles in fleet',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Add vehicles to see live GPS health and tracking data.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
               height: 1.4,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
             ),
           ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.refresh_rounded,
-                  size: 13, color: AppColors.textMuted),
+              Icon(Icons.refresh_rounded,
+                  size: 13, color: context.sg.textMuted),
               const SizedBox(width: 4),
               Text(
                 'Updated $updated',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textMuted,
+                  color: context.sg.textMuted,
                 ),
               ),
             ],
@@ -882,18 +882,18 @@ class _HealthStatRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
         ],
@@ -1192,7 +1192,7 @@ class AiCopilotSummaryCard extends StatelessWidget {
                 size: 20, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1201,14 +1201,14 @@ class AiCopilotSummaryCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: context.sg.textPrimary,
                   ),
                 ),
                 Text(
                   'Ask about vehicles, trips, or alerts…',
                   style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
               ],
@@ -1608,19 +1608,19 @@ class _MiniKpi extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -1628,9 +1628,9 @@ class _MiniKpi extends StatelessWidget {
             detail,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
             ),
           ),
         ],
@@ -2162,24 +2162,24 @@ class MoneySummaryCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
                 Text(
                   _money(amount),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: context.sg.textPrimary,
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
               ],
@@ -2205,20 +2205,20 @@ class FuelAnalyticsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Monthly Fuel',
             style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             _money(monthly),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: context.sg.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -2227,27 +2227,27 @@ class FuelAnalyticsCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Today\n${_money(fuel?.todayCost ?? 0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
               ),
               Expanded(
                 child: Text(
                   'Efficiency\n${eff == null ? '—' : '${eff.toStringAsFixed(1)} km/L'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
               ),
               Expanded(
                 child: Text(
                   'Liters\n${(fuel?.totalLiters ?? 0).toStringAsFixed(0)} L',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.sg.textSecondary,
                   ),
                 ),
               ),
@@ -2284,10 +2284,10 @@ class LiveTripsPreviewCard extends StatelessWidget {
         const SgSectionTitle('Live trips'),
         const SizedBox(height: 8),
         if (trips.isEmpty)
-          const SgCard(
+          SgCard(
             child: Text(
               'No live trips right now',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
           )
         else
@@ -2301,17 +2301,17 @@ class LiveTripsPreviewCard extends StatelessWidget {
                   children: [
                     Text(
                       t.tripNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.sg.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${t.driverName ?? 'No driver'} · ${t.vehicleName ?? 'No vehicle'}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: context.sg.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -2347,10 +2347,10 @@ class PendingAssignmentsCard extends StatelessWidget {
         const SgSectionTitle('Pending assignments'),
         const SizedBox(height: 8),
         if (trips.isEmpty)
-          const SgCard(
+          SgCard(
             child: Text(
               'All scheduled trips have driver and vehicle',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
           )
         else
@@ -2364,9 +2364,9 @@ class PendingAssignmentsCard extends StatelessWidget {
                   children: [
                     Text(
                       t.tripNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.sg.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -2508,9 +2508,9 @@ class QuickActionsGrid extends StatelessWidget {
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9,
-                            color: AppColors.textSecondary,
+                            color: context.sg.textSecondary,
                           ),
                         ),
                     ],

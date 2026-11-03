@@ -21,11 +21,13 @@ public class RoadSpeedAlertEvaluatorTests
     }
 
     [Fact]
-    public void ModuleCode_IsRoadSpeedAlerts()
+    public void RoadSpeed_IsGpsSpeedAlertsFeatureAddOn()
     {
         TenantModuleCatalog.RoadSpeedAlertsModuleCode.Should().Be("ROAD_SPEED_ALERTS");
-        TenantModuleCatalog.All.Should().Contain(m =>
-            m.Code == "ROAD_SPEED_ALERTS" && m.LegacyKeys.Contains("road-speed-alerts"));
+        TenantModuleCatalog.All.Should().NotContain(m => m.Code == "ROAD_SPEED_ALERTS");
+        AlertModuleCatalog.FindByModuleCode("ROAD_SPEED_ALERTS")!.FeatureKey
+            .Should().Be(GpsAddOnFeatureCatalog.SpeedAlerts);
+        GpsAddOnFeatureCatalog.IsGpsAddOn(GpsAddOnFeatureCatalog.SpeedAlerts).Should().BeTrue();
     }
 
     [Fact]

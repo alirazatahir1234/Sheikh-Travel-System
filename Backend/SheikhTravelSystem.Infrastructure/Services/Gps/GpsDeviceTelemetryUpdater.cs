@@ -14,12 +14,16 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
         decimal? speed = null,
         decimal? batteryLevel = null,
         int? rssi = null,
+        bool clearStickyIgnition = false,
         CancellationToken cancellationToken = default)
     {
         return connection.ExecuteAsync(new CommandDefinition(
             @"UPDATE GpsDevices SET
                 LastSeenAt = @Timestamp,
-                LastIgnition = COALESCE(@Ignition, LastIgnition),
+                LastIgnition = CASE
+                    WHEN @ClearStickyIgnition = 1 THEN NULL
+                    ELSE COALESCE(@Ignition, LastIgnition)
+                  END,
                 LastSpeed = COALESCE(@Speed, LastSpeed),
                 LastBatteryLevel = COALESCE(@BatteryLevel, LastBatteryLevel),
                 LastRssi = COALESCE(@Rssi, LastRssi),
@@ -32,7 +36,8 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
                 Ignition = ignition,
                 Speed = speed,
                 BatteryLevel = batteryLevel,
-                Rssi = rssi
+                Rssi = rssi,
+                ClearStickyIgnition = clearStickyIgnition
             },
             cancellationToken: cancellationToken));
     }

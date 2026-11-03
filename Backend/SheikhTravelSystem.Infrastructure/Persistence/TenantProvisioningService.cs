@@ -118,13 +118,11 @@ public class TenantProvisioningService(
         }
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO TenantBranding (TenantId, LogoUrl, PrimaryColor, Website, SupportEmail, Country, CurrencyCode, TimeZone)
-            VALUES (@TenantId, @LogoUrl, @PrimaryColor, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
+            INSERT INTO TenantBranding (TenantId, Website, SupportEmail, Country, CurrencyCode, TimeZone)
+            VALUES (@TenantId, @Website, @SupportEmail, @Country, @CurrencyCode, @TimeZone);
             """, new
         {
             TenantId = tenantId,
-            request.LogoUrl,
-            request.PrimaryColor,
             request.Website,
             request.SupportEmail,
             request.Country,

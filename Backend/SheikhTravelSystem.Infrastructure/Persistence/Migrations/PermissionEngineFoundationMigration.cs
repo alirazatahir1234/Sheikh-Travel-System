@@ -24,6 +24,7 @@ public static class PermissionEngineFoundationMigration
         await AddColumnIfMissingAsync(connection, "Permissions", "Visible", "BIT NOT NULL CONSTRAINT DF_Permissions_Visible DEFAULT (1)", cancellationToken);
         await AddColumnIfMissingAsync(connection, "Permissions", "Action", "NVARCHAR(50) NULL", cancellationToken);
         await AddColumnIfMissingAsync(connection, "Permissions", "ModuleKey", "NVARCHAR(100) NULL", cancellationToken);
+        await AddColumnIfMissingAsync(connection, "Permissions", "FeatureKey", "NVARCHAR(100) NULL", cancellationToken);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Permissions
@@ -40,7 +41,8 @@ public static class PermissionEngineFoundationMigration
                     SortOrder = @SortOrder,
                     Visible = @Visible,
                     Action = @Action,
-                    ModuleKey = @ModuleKey
+                    ModuleKey = @ModuleKey,
+                    FeatureKey = @FeatureKey
                 WHERE PermissionCode = @PermissionCode;
                 """,
                 new
@@ -51,7 +53,8 @@ public static class PermissionEngineFoundationMigration
                     row.SortOrder,
                     Visible = row.Visible,
                     row.Action,
-                    row.ModuleKey
+                    row.ModuleKey,
+                    row.FeatureKey
                 },
                 cancellationToken: cancellationToken));
         }

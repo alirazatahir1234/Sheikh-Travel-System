@@ -23,7 +23,9 @@ public record PositionDto(
     decimal? Temperature = null,
     decimal? FuelConsumptionRateLph = null,
     decimal? ObdFuelUsedLiters = null,
-    decimal? ObdOdometerKm = null);
+    decimal? ObdOdometerKm = null,
+    bool IsGpsValid = true,
+    string? GpsQualityCode = null);
 
 public record IngestPositionDto(
     int VehicleId,
@@ -70,6 +72,8 @@ public record GpsDeviceDto(
     bool IsValidImei = false,
     string? Model = null,
     string? SimNumber = null,
+    /// <summary>Tracker SIM / Traccar phone used for SMS commands when present.</summary>
+    string? Phone = null,
     string? Vendor = null,
     string? SerialNumber = null,
     DateTime? InstallationDate = null,
@@ -121,7 +125,9 @@ public record GeofenceDto(
     string? Color = null,
     string? Category = null,
     string? Description = null,
-    int AssignedVehicleCount = 0);
+    int AssignedVehicleCount = 0,
+    bool AlertOnEnter = false,
+    bool AlertOnExit = false);
 
 public record CreateGeofenceDto(
     string Name,
@@ -133,7 +139,10 @@ public record CreateGeofenceDto(
     string? Color = "#0f766e",
     string? Category = null,
     string? Description = null,
-    bool IsActive = true);
+    bool IsActive = true,
+    bool? AlertOnEnter = null,
+    bool? AlertOnExit = null,
+    int[]? VehicleIds = null);
 
 public record UpdateGeofenceDto(
     string Name,
@@ -145,7 +154,10 @@ public record UpdateGeofenceDto(
     bool IsActive,
     string? Color = "#0f766e",
     string? Category = null,
-    string? Description = null);
+    string? Description = null,
+    bool? AlertOnEnter = null,
+    bool? AlertOnExit = null,
+    int[]? VehicleIds = null);
 
 public record GeofenceAssignmentDto(
     int Id,
@@ -157,6 +169,17 @@ public record GeofenceAssignmentDto(
     string? BranchName,
     int? DepartmentId,
     string? DepartmentName);
+
+/// <summary>Server-evaluated inside/outside state (all zone shapes) with position freshness.</summary>
+public record GeofenceVehicleStateDto(
+    int GeofenceId,
+    int VehicleId,
+    string? VehicleName,
+    string? RegistrationNumber,
+    bool IsInside,
+    DateTime SinceUtc,
+    DateTime LastEvaluatedUtc,
+    DateTime? LastPositionUtc);
 
 public record UpsertGeofenceAssignmentsDto(
     int[]? VehicleIds = null,
@@ -265,9 +288,9 @@ public static class AlertTypeCatalog
 {
     public static readonly IReadOnlyList<string> Types =
     [
-        "sos", "power_cut", "overspeed", "road_speed_exceeded", "geofence_enter", "geofence_exit",
+        "sos", "power_cut", "overspeed", "road_speed_exceeded", "harsh_braking", "geofence_enter", "geofence_exit",
         "offline", "online", "ignition_on", "ignition_off", "low_battery",
-        "gps_lost", "low_fuel", "fuel_station_stop", "fuel_fraud"
+        "gps_lost", "gps_unreliable", "low_fuel", "fuel_station_stop", "fuel_fraud"
     ];
 }
 
@@ -392,4 +415,6 @@ public record GpsLiveFleetVehicleDto(
     int? BookingId,
     string? Imei,
     string? TrackerName,
-    string? RelayOutput);
+    string? RelayOutput,
+    bool IsGpsValid = true,
+    string? GpsQualityCode = null);

@@ -34,6 +34,8 @@ public class AiController(
     ICurrentUserService currentUser,
     IMcpExecutionAmbient executionAmbient) : BaseApiController
 {
+    private static readonly TimeSpan ChatTurnBudget = TimeSpan.FromSeconds(75);
+
     private int UserId => currentUser.UserId ?? throw new UnauthorizedAccessException();
 
     /// <summary>Fail closed — never fall back to tenant 1 when context is missing.</summary>
@@ -258,16 +260,31 @@ public class AiController(
     {
         if (!TryResolveEffectiveTenantId(request.TargetTenantId, out var tenantId, out var error))
             return error!;
-        var result = await Mediator.Send(
-            new SendAiChatCommand(
-                tenantId,
-                UserId,
-                request.Message ?? string.Empty,
-                request.SessionId,
-                request.Title,
-                request.ConfirmWrite),
-            ct);
-        return FromAiResponse(result);
+
+        // Hard turn budget: provider retries × tool rounds can otherwise exceed every
+        // client/proxy timeout and leave the caller waiting with no answer.
+        using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        turnCts.CancelAfter(ChatTurnBudget);
+        try
+        {
+            var result = await Mediator.Send(
+                new SendAiChatCommand(
+                    tenantId,
+                    UserId,
+                    request.Message ?? string.Empty,
+                    request.SessionId,
+                    request.Title,
+                    request.ConfirmWrite),
+                turnCts.Token);
+            return FromAiResponse(result);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return StatusCode(StatusCodes.Status504GatewayTimeout, new
+            {
+                message = "The assistant took too long to answer. Try a shorter or more specific question."
+            });
+        }
     }
 
     [RequireModule(TenantModuleCatalog.AiAssistantModuleCode)]

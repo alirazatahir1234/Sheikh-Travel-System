@@ -1,6 +1,19 @@
-.page-header { margin-bottom: 16px; h2 { margin: 4px 0 0; } }
-.page-lead { margin: 4px 0 0; color: #666; }
-.filter-card { margin-bottom: 16px; }
-.filter-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.full-width { width: 100%; }
-.empty { padding: 24px; text-align: center; color: #666; }
+@use '../rental-subpage';
+
+.rental-subpage {
+  .ops-btn--primary {
+    background: var(--rental-teal);
+    border-color: var(--rental-teal);
+
+    &:hover:not(:disabled) {
+      background: var(--rental-teal-bright);
+      border-color: var(--rental-teal-bright);
+    }
+  }
+}
+
+.rental-rates-form {
+  .rental-form-actions--inline {
+    align-self: end;
+  }
+}

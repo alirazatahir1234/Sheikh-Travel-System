@@ -318,8 +318,6 @@ public record TenantDetailDto(
     int? MaxDrivers,
     int? MaxBranches,
     int? MaxGpsDevices,
-    string? LogoUrl,
-    string? PrimaryColor,
     string? Website,
     string? SupportEmail,
     string? Country,
@@ -488,7 +486,8 @@ public record ModuleStatusDto(
     bool IsInstalled = false,
     bool IsLicensed = false,
     bool CanToggle = true,
-    bool IsPremiumAddOn = false);
+    bool IsPremiumAddOn = false,
+    bool IsCoreAlwaysOn = false);
 
 public record LicenseLimitDto(
     string Resource,

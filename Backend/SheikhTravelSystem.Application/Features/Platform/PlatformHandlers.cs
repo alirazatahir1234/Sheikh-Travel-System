@@ -924,7 +924,7 @@ public class SetTenantModulesCommandHandler(
         platformScope.EnsureTenantAccess(request.TenantId);
         await platformRepository.EnsureTenantExistsAsync(request.TenantId, cancellationToken);
 
-        // Seed is the toggle contract (Active + TenantModuleCatalog). Catalog UI may show more rows.
+        // Seed is the toggle contract (Active + TenantModuleCatalog, excluding core always-on).
         var enableableCodes = ModuleRegistrySeed.All
             .Where(ModuleRegistrySeed.IsToggleable)
             .Select(e => e.Code)
@@ -933,6 +933,7 @@ public class SetTenantModulesCommandHandler(
         var requested = (request.ModuleCodes ?? Array.Empty<string>())
             .Where(c => !string.IsNullOrWhiteSpace(c))
             .Select(c => c.Trim())
+            .Where(c => !TenantModuleCatalog.IsCore(c)) // core forced below
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -943,7 +944,9 @@ public class SetTenantModulesCommandHandler(
                 $"Cannot enable module(s): {string.Join(", ", rejected)}. Only Active catalog modules can be toggled.");
         }
 
-        var moduleCodes = ModuleRegistrySeed.ExpandToggleableWithDependencies(requested);
+        // Core modules (GPS) are always-on — merge + expand dependencies (FLEET → DASHBOARD).
+        var moduleCodes = ModuleRegistrySeed.ExpandToggleableWithDependencies(
+            requested.Concat(TenantModuleCatalog.CoreModuleCodes));
 
         await platformRepository.ReplaceTenantModulesAsync(request.TenantId, moduleCodes, cancellationToken);
         await tenantModuleService.SyncLegacyJsonAsync(request.TenantId, moduleCodes, cancellationToken);

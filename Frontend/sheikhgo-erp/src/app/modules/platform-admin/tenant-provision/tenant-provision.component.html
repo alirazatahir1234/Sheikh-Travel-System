@@ -155,10 +155,13 @@
             [class.selected]="isModuleSelected(mod.code)"
             [class.premium]="mod.code === 'AI'"
             [class.opt-in]="mod.code === 'BOOKINGS' || mod.code === 'AI'"
+            [disabled]="isCoreModule(mod.code)"
+            [attr.title]="isCoreModule(mod.code) ? 'Core module — always on' : null"
             (click)="toggleModule(mod.code)">
             <mat-icon>{{ moduleIcon(mod.code) }}</mat-icon>
             <span>{{ mod.displayName || mod.name }}</span>
-            <span class="premium-chip" *ngIf="mod.code === 'AI' || mod.code === 'ROAD_SPEED_ALERTS'">Premium</span>
+            <span class="premium-chip" *ngIf="mod.code === 'AI'">Premium</span>
+            <span class="opt-in-chip" *ngIf="isCoreModule(mod.code)">Core</span>
             <span class="opt-in-chip" *ngIf="mod.code === 'BOOKINGS'">Opt-in</span>
             <mat-icon class="check-icon" *ngIf="isModuleSelected(mod.code)">check_circle</mat-icon>
           </button>
@@ -233,7 +236,7 @@
       <mat-card class="section-card" id="section-branding" formGroupName="branding">
         <div class="section-head">
           <span class="section-badge">4</span>
-          <h3>Localization &amp; Branding</h3>
+          <h3>Contact &amp; Localization</h3>
         </div>
 
         <div class="field-row field-row--3 branding-selects">
@@ -258,49 +261,6 @@
             [searchable]="true"
             searchPlaceholder="Search timezone"
             placeholder="Select timezone" />
-        </div>
-
-        <div class="branding-row">
-          <div class="stb-field color-field">
-            <label for="tenant-brand-color">Brand Primary Color</label>
-            <div class="stb-input-wrap stb-input-wrap--suffix color-input-wrap">
-              <input
-                id="tenant-brand-color"
-                class="stb-input"
-                type="text"
-                formControlName="primaryColor"
-                placeholder="#007A57"
-                autocomplete="off"
-                spellcheck="false" />
-              <span class="color-swatch-wrap stb-input-suffix-btn color-swatch-btn" aria-hidden="true">
-                <input
-                  type="color"
-                  class="color-native"
-                  [value]="primaryColorPreview"
-                  (input)="onBrandColorPicked($any($event.target).value)"
-                  aria-label="Pick brand color" />
-                <span class="color-swatch" [style.background]="primaryColorPreview"></span>
-              </span>
-            </div>
-          </div>
-          <div
-            class="logo-upload"
-            [class.logo-upload--active]="logoDragOver"
-            (dragover)="onLogoDragOver($event)"
-            (dragleave)="logoDragOver = false"
-            (drop)="onLogoDrop($event)"
-            (click)="logoInput.click()">
-            <input #logoInput type="file" class="logo-upload__input" accept="image/*" (change)="onLogoFileSelected($event)" />
-            <ng-container *ngIf="logoPreviewUrl; else logoPlaceholder">
-              <img [src]="logoPreviewUrl" alt="Logo preview" class="logo-upload__preview" />
-              <span class="logo-upload__label">Click to change logo</span>
-            </ng-container>
-            <ng-template #logoPlaceholder>
-              <mat-icon>cloud_upload</mat-icon>
-              <strong>Upload Logo</strong>
-              <span>Drag &amp; drop or click to browse</span>
-            </ng-template>
-          </div>
         </div>
 
         <div class="field-row branding-text-fields">
@@ -331,18 +291,6 @@
               Enter a valid email address
             </span>
           </div>
-        </div>
-
-        <div class="stb-field stb-field--full branding-text-fields">
-          <label for="tenant-logo-url">Logo URL <span class="field-optional">(optional)</span></label>
-          <input
-            id="tenant-logo-url"
-            class="stb-input"
-            type="text"
-            inputmode="url"
-            formControlName="logoUrl"
-            placeholder="https://cdn.example.com/logo.png"
-            autocomplete="off" />
         </div>
       </mat-card>
 

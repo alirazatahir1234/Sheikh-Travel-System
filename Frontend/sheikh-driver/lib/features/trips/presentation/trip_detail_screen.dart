@@ -19,7 +19,10 @@ class TripDetailScreen extends ConsumerWidget {
     final tripsAsync = ref.watch(tripsProvider);
     return tripsAsync.when(
       loading: () => const Scaffold(body: Center(child: SgBrandLoader())),
-      error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(),
+        body: SgErrorView(message: ErrorHandler.message(e)),
+      ),
       data: (trips) {
         final trip = trips.where((t) => t.matchesRouteId(tripId)).firstOrNull;
         if (trip == null) {
@@ -351,7 +354,7 @@ class _TimelineStop extends StatelessWidget {
               children: [
                 if (!isFirst)
                   Expanded(
-                    child: Container(width: 2, color: AppColors.divider),
+                    child: Container(width: 2, color: context.sg.divider),
                   )
                 else
                   const SizedBox(height: 4),
@@ -372,7 +375,7 @@ class _TimelineStop extends StatelessWidget {
                 ),
                 if (!isLast)
                   Expanded(
-                    child: Container(width: 2, color: AppColors.divider),
+                    child: Container(width: 2, color: context.sg.divider),
                   )
                 else
                   const SizedBox(height: 4),

@@ -171,7 +171,7 @@ class _TabChip extends StatelessWidget {
           color: selected ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(AppRadii.pill),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? AppColors.primary : context.sg.border,
           ),
           boxShadow: selected ? null : AppShadows.card,
         ),
@@ -275,8 +275,8 @@ class _AlertCard extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   _timeAgo(notification.createdAt.toLocal()),
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.sg.textMuted,
                     fontSize: 11,
                   ),
                 ),

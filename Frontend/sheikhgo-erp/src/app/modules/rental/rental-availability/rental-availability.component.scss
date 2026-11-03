@@ -1,6 +1,35 @@
-.page-header { margin-bottom: 16px; h2 { margin: 4px 0 0; } }
-.page-lead { margin: 4px 0 0; color: #666; }
-.filter-card { margin-bottom: 16px; }
-.filter-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.avail.ok { color: #2e7d32; }
-.avail.busy { color: #c62828; }
+@use '../rental-subpage';
+
+.rental-subpage {
+  .ops-btn--primary {
+    background: var(--rental-teal);
+    border-color: var(--rental-teal);
+
+    &:hover:not(:disabled) {
+      background: var(--rental-teal-bright);
+      border-color: var(--rental-teal-bright);
+    }
+  }
+}
+
+.rental-avail-form {
+  .rental-datetime-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+    grid-column: 1 / -1;
+  }
+
+  .rental-form-actions--inline {
+    grid-column: 1 / -1;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  @media (max-width: 640px) {
+    .rental-datetime-pair {
+      grid-template-columns: 1fr;
+    }
+  }
+}

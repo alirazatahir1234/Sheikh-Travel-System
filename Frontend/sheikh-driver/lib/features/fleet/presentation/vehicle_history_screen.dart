@@ -1702,7 +1702,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 ),
                 if (v?.plateNumber != null)
                   Text(v!.plateNumber!,
-                      style: const TextStyle(color: AppColors.textSecondary)),
+                      style: TextStyle(color: context.sg.textSecondary)),
                 if (eventType != null) ...[
                   const SizedBox(height: 8),
                   _infoRow('Event', eventLabel ?? eventType),
@@ -1736,13 +1736,13 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 ),
                 if (snap.connectionState == ConnectionState.waiting &&
                     isCoarsePlaybackAddress(addressLine))
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       'Resolving exact location…',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textMuted,
+                        color: context.sg.textMuted,
                       ),
                     ),
                   ),
@@ -1783,7 +1783,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
           SizedBox(
             width: 90,
             child:
-                Text(label, style: const TextStyle(color: AppColors.textMuted)),
+                Text(label, style: TextStyle(color: context.sg.textMuted)),
           ),
           Expanded(
             child: Text(
@@ -2359,7 +2359,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     if (states.contains(WidgetState.selected)) {
                       return Colors.white;
                     }
-                    return AppColors.textPrimary;
+                    return context.sg.textPrimary;
                   }),
                   backgroundColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
@@ -2371,8 +2371,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     if (states.contains(WidgetState.selected)) {
                       return const BorderSide(color: AppColors.primary);
                     }
-                    return const BorderSide(
-                        color: AppColors.border, width: 1.2);
+                    return BorderSide(
+                        color: context.sg.border, width: 1.2);
                   }),
                 ),
                 showSelectedIcon: false,
@@ -2380,9 +2380,9 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               const SizedBox(height: 6),
               Text(
                 tripFilterHelperText(_tripFilter),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                   height: 1.35,
                   fontWeight: FontWeight.w500,
                 ),
@@ -2423,10 +2423,10 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 total: _trips.length,
                 filter: _tripFilter,
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+                color: context.sg.textSecondary,
               ),
             ),
           ),
@@ -2474,8 +2474,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                   ? 'There are no trips for the selected period.'
                                   : 'Try All, or choose a wider date range.',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: context.sg.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -2530,7 +2530,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         false;
     if (!canView) {
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.sg.surface,
         appBar: AppBar(title: const Text('Trip history')),
         body: const SgEmptyState(
           icon: Icons.lock_outline_rounded,
@@ -2833,7 +2833,7 @@ class _DateBar extends StatelessWidget {
     // Compact 12h strings reduce AM/PM wrap on narrow phones.
     final rangeFmt = DateFormat('dd MMM, h:mma');
     return Material(
-      color: Colors.white,
+      color: context.sg.card,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
@@ -2873,9 +2873,9 @@ class _DateBar extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.sg.surface,
                   borderRadius: BorderRadius.circular(AppRadii.md),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.sg.border),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2903,8 +2903,8 @@ class _DateBar extends StatelessWidget {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.sg.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2995,9 +2995,9 @@ class _TripListCard extends StatelessWidget {
                                     nameText,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.textSecondary,
+                                      color: context.sg.textSecondary,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -3024,9 +3024,9 @@ class _TripListCard extends StatelessWidget {
                 radius: AppRadii.md,
               ),
               const SizedBox(width: 2),
-              const Icon(
+              Icon(
                 Icons.chevron_right,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
                 size: 20,
               ),
             ],
@@ -3035,9 +3035,9 @@ class _TripListCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               idLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: AppColors.textMuted,
+                color: context.sg.textMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -3060,9 +3060,9 @@ class _TripListCard extends StatelessWidget {
             route.primary,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: context.sg.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -3077,7 +3077,7 @@ class _TripListCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: route.addressMissing
                     ? const Color(0xFFB45309)
-                    : AppColors.textMuted,
+                    : context.sg.textMuted,
               ),
             ),
           ],
@@ -3130,9 +3130,9 @@ class _TripStat extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
-            color: AppColors.textMuted,
+            color: context.sg.textMuted,
             fontWeight: FontWeight.w600,
           ),
         ),

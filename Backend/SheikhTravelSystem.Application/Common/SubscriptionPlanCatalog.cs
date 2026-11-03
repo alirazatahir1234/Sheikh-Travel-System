@@ -85,7 +85,7 @@ public static class SubscriptionPlanCatalog
             DefaultModuleCodes:
             [
                 "DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes,
-                "RENTAL", "TRAVEL", "CRM", "FINANCE", "HR", "ANALYTICS", "ACCESS"
+                "RENTAL", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"
             ],
             MaxUsers: null,
             MaxVehicles: null,

@@ -8,7 +8,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Trips.Commands;
 
-public record CloneTripCommand(int Id) : IRequest<ApiResponse<int>>;
+public record CloneTripCommand(int Id) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => null;
+}
 
 public class CloneTripCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<CloneTripCommand, ApiResponse<int>>
@@ -20,7 +25,12 @@ public class CloneTripCommandHandler(ITripEnhancementsRepository repo)
     }
 }
 
-public record BulkImportTripsCommand(string CsvContent) : IRequest<ApiResponse<BulkTripImportResultDto>>;
+public record BulkImportTripsCommand(string CsvContent) : IRequest<ApiResponse<BulkTripImportResultDto>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => null;
+}
 
 public class BulkImportTripsCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<BulkImportTripsCommand, ApiResponse<BulkTripImportResultDto>>
@@ -114,7 +124,12 @@ public class BulkImportTripsCommandHandler(ITripEnhancementsRepository repo)
     }
 }
 
-public record SaveTripTemplateCommand(UpsertTripTemplateDto Template) : IRequest<ApiResponse<int>>;
+public record SaveTripTemplateCommand(UpsertTripTemplateDto Template) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "TripTemplate";
+    public int? AuditEntityId => Template.Id;
+}
 
 public class SaveTripTemplateCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<SaveTripTemplateCommand, ApiResponse<int>>
@@ -126,7 +141,12 @@ public class SaveTripTemplateCommandHandler(ITripEnhancementsRepository repo)
     }
 }
 
-public record DeleteTripTemplateCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteTripTemplateCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "TripTemplate";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteTripTemplateCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<DeleteTripTemplateCommand, ApiResponse<bool>>
@@ -138,7 +158,12 @@ public class DeleteTripTemplateCommandHandler(ITripEnhancementsRepository repo)
     }
 }
 
-public record SpawnTripFromTemplateCommand(int TemplateId, DateTime? OccurrenceDate) : IRequest<ApiResponse<int>>;
+public record SpawnTripFromTemplateCommand(int TemplateId, DateTime? OccurrenceDate) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => null;
+}
 
 public class SpawnTripFromTemplateCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<SpawnTripFromTemplateCommand, ApiResponse<int>>
@@ -150,7 +175,12 @@ public class SpawnTripFromTemplateCommandHandler(ITripEnhancementsRepository rep
     }
 }
 
-public record SpawnDueRecurringTripsCommand : IRequest<ApiResponse<int>>;
+public record SpawnDueRecurringTripsCommand : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => null;
+}
 
 public class SpawnDueRecurringTripsCommandHandler(ITripEnhancementsRepository repo)
     : IRequestHandler<SpawnDueRecurringTripsCommand, ApiResponse<int>>
@@ -162,7 +192,12 @@ public class SpawnDueRecurringTripsCommandHandler(ITripEnhancementsRepository re
     }
 }
 
-public record SendTripDelayedEtaCommand(int TripId, SendDelayedEtaRequestDto Body) : IRequest<ApiResponse<bool>>;
+public record SendTripDelayedEtaCommand(int TripId, SendDelayedEtaRequestDto Body) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => TripId;
+}
 
 public class SendTripDelayedEtaCommandHandler(
     ITripRepository tripRepository,
@@ -203,7 +238,12 @@ public class SendTripDelayedEtaCommandHandler(
     }
 }
 
-public record MoveDispatchBoardTripCommand(DispatchBoardMoveDto Body) : IRequest<ApiResponse<bool>>;
+public record MoveDispatchBoardTripCommand(DispatchBoardMoveDto Body) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "UpdateStatus";
+    public string AuditEntityName => "Trip";
+    public int? AuditEntityId => Body.TripId;
+}
 
 public class MoveDispatchBoardTripCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<MoveDispatchBoardTripCommand, ApiResponse<bool>>

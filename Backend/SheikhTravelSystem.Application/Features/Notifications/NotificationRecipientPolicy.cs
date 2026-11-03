@@ -16,7 +16,7 @@ public static class NotificationRecipientPolicy
         "payment_received" => [UserRole.Admin],
         "fuel_added" or "inspection_submitted" => [UserRole.Admin, UserRole.Dispatcher, UserRole.Driver],
         "compliance_reminder" or "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded" or "sos"
-            or "ignition_on" or "ignition_off"
+            or "ignition_on" or "ignition_off" or "harsh_braking"
             or "driver_voice_alert" or "driver_voice_message"
             or "driver_fatigue" or "driver_fatigue_obd"
             or "fuel_fraud"

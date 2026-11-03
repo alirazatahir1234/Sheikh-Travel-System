@@ -24,11 +24,16 @@ public static class AlertModuleCatalog
         int SortOrder,
         bool IsPremium,
         bool DefaultEnabled,
-        string[] EventTypeAliases);
+        string[] EventTypeAliases,
+        /// <summary>
+        /// When set, entitlement is a <c>TenantFeatures</c> add-on under GPS (not a TenantModules row).
+        /// </summary>
+        string? FeatureKey = null);
 
     /// <summary>
     /// Alert-type child modules (excluding the <see cref="AlertsModuleCode"/> parent).
     /// EventType is the canonical AlertTypeCatalog / settings-matrix spelling.
+    /// Types with <see cref="AlertTypeDefinition.FeatureKey"/> are GPS add-ons, not enableable modules.
     /// </summary>
     public static readonly AlertTypeDefinition[] Types =
     [
@@ -39,22 +44,27 @@ public static class AlertModuleCatalog
         new("ALERT_POWER_CUT", "power_cut", "Power Cut", "Power Cut",
             "Device main-power cut / disconnect alerts", "power_off", "alert-power-cut", 202,
             IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["power_cut"]),
-        // Premium: fixed speed limit — opt-in; never in plan/tenant defaults.
+        // GPS add-on (TenantFeatures speed-alerts) — not a TenantModules toggle.
         new("ALERT_OVERSPEED", "overspeed", "Fixed Speed", "Fixed Speed Limit",
-            "Premium GPS fixed speed-limit overspeed alerts (GpsAlertRules)", "speed", "alert-overspeed", 203,
-            IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["overspeed", "speed_exceeded"]),
+            "GPS add-on: fixed speed-limit overspeed alerts (GpsAlertRules)", "speed", "alert-overspeed", 203,
+            IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["overspeed", "speed_exceeded"],
+            FeatureKey: GpsAddOnFeatureCatalog.SpeedAlerts),
         new(RoadSpeedAlertsModuleCode, "road_speed_exceeded", "Road Speed Alerts", "Road Speed Alerts",
-            "Premium overspeed alerts using posted road speed limits (Google Roads Speed Limits)",
+            "GPS add-on: overspeed alerts using posted road speed limits (Google Roads Speed Limits)",
             "speed", "road-speed-alerts", 204,
-            IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["road_speed_exceeded"]),
+            IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["road_speed_exceeded"],
+            FeatureKey: GpsAddOnFeatureCatalog.SpeedAlerts),
+        // GPS add-on (TenantFeatures geofencing).
         new("ALERT_GEOFENCE_ENTER", "geofence_enter", "Geofence Enter", "Geofence Enter",
-            "Vehicle entered a watched geofence", "login", "alert-geofence-enter", 205,
-            IsPremium: false, DefaultEnabled: true,
-            EventTypeAliases: ["geofence_enter", "geofenceenter"]),
+            "GPS add-on: vehicle entered a watched geofence", "login", "alert-geofence-enter", 205,
+            IsPremium: false, DefaultEnabled: false,
+            EventTypeAliases: ["geofence_enter", "geofenceenter"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
         new("ALERT_GEOFENCE_EXIT", "geofence_exit", "Geofence Exit", "Geofence Exit",
-            "Vehicle exited a watched geofence", "logout", "alert-geofence-exit", 206,
-            IsPremium: false, DefaultEnabled: true,
-            EventTypeAliases: ["geofence_exit", "geofenceexit"]),
+            "GPS add-on: vehicle exited a watched geofence", "logout", "alert-geofence-exit", 206,
+            IsPremium: false, DefaultEnabled: false,
+            EventTypeAliases: ["geofence_exit", "geofenceexit"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
         new("ALERT_OFFLINE", "offline", "Vehicle Offline", "Vehicle Offline",
             "Tracker offline / no-GPRS (includes Gmeet SOS-number SMS)", "cloud_off", "alert-offline", 207,
             IsPremium: false, DefaultEnabled: true,
@@ -74,10 +84,14 @@ public static class AlertModuleCatalog
         new("ALERT_LOW_BATTERY", "low_battery", "Low Battery", "Low Battery",
             "Device backup battery low", "battery_alert", "alert-low-battery", 211,
             IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["low_battery"]),
-        // Premium: GPS lost / low fuel — opt-in; never in plan/tenant defaults.
+        // Premium: GPS lost / low fuel — remain TenantModules opt-in (not GPS feature add-ons).
         new("ALERT_GPS_LOST", "gps_lost", "GPS Lost", "GPS Lost",
             "Premium GPS signal lost / antenna fault alerts", "gps_off", "alert-gps-lost", 212,
             IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["gps_lost"]),
+        new("ALERT_GPS_UNRELIABLE", "gps_unreliable", "GPS Unreliable", "GPS Unreliable",
+            "Frozen coordinates, LBS, or implausible jumps while the tracker still reports", "gps_not_fixed",
+            "alert-gps-unreliable", 212,
+            IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["gps_unreliable"]),
         new("ALERT_LOW_FUEL", "low_fuel", "Low Fuel", "Low Fuel",
             "Premium fuel level below configured threshold alerts", "local_gas_station", "alert-low-fuel", 213,
             IsPremium: true, DefaultEnabled: false, EventTypeAliases: ["low_fuel"]),
@@ -91,18 +105,26 @@ public static class AlertModuleCatalog
             IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["fuel_fraud"]),
     ];
 
-    /// <summary>Parent + default-on children (excludes premium opt-in types).</summary>
+    /// <summary>Alert types still governed by TenantModules (excludes GPS feature add-ons).</summary>
+    public static IEnumerable<AlertTypeDefinition> ModuleGovernedTypes
+        => Types.Where(t => string.IsNullOrWhiteSpace(t.FeatureKey));
+
+    /// <summary>Alert types governed by TenantFeatures GPS add-ons.</summary>
+    public static IEnumerable<AlertTypeDefinition> FeatureGovernedTypes
+        => Types.Where(t => !string.IsNullOrWhiteSpace(t.FeatureKey));
+
+    /// <summary>Parent + default-on module-governed children (excludes feature add-ons + premium opt-in).</summary>
     public static IReadOnlyList<string> DefaultModuleCodes { get; } =
         new[] { AlertsModuleCode }
-            .Concat(Types.Where(t => t.DefaultEnabled).Select(t => t.ModuleCode))
+            .Concat(ModuleGovernedTypes.Where(t => t.DefaultEnabled).Select(t => t.ModuleCode))
             .ToList();
 
     public static IReadOnlyList<string> PremiumModuleCodes { get; } =
-        Types.Where(t => t.IsPremium).Select(t => t.ModuleCode).ToList();
+        ModuleGovernedTypes.Where(t => t.IsPremium).Select(t => t.ModuleCode).ToList();
 
     public static IReadOnlyList<string> AllModuleCodes { get; } =
         new[] { AlertsModuleCode }
-            .Concat(Types.Select(t => t.ModuleCode))
+            .Concat(ModuleGovernedTypes.Select(t => t.ModuleCode))
             .ToList();
 
     public static bool IsPremium(string? moduleCode)

@@ -1,41 +1,130 @@
-<div class="rental-page">
-  <div class="page-header">
-    <div>
-      <button mat-button type="button" routerLink="/rental">← Rentals</button>
-      <h2>Rental rates</h2>
-      <p class="page-lead">Vehicle-specific or fleet-wide hourly/daily/weekly/monthly rates. Confirmed bookings keep their snapshot.</p>
+<div class="ops-page rental-subpage">
+  <header class="ops-page-header">
+    <div class="ops-page-heading rental-subpage-heading">
+      <span class="rental-subpage-icon" aria-hidden="true">
+        <mat-icon>sell</mat-icon>
+      </span>
+      <div>
+        <h1>Rental rates</h1>
+        <p>Vehicle-specific or fleet-wide hourly, daily, weekly, and monthly tariffs.</p>
+      </div>
     </div>
-  </div>
+    <div class="rental-hero-actions">
+      <a class="rental-back-link" routerLink="/rental">
+        <mat-icon>arrow_back</mat-icon>
+        Bookings
+      </a>
+      <nav class="rental-segmented" aria-label="Rental modules">
+        <a class="rental-segment" routerLink="/rental" routerLinkActive="rental-segment--active" [routerLinkActiveOptions]="{ exact: true }">
+          <mat-icon>list_alt</mat-icon>
+          Bookings
+        </a>
+        <a class="rental-segment rental-segment--active" routerLink="/rental/rates" routerLinkActive="rental-segment--active">
+          <mat-icon>sell</mat-icon>
+          Rates
+        </a>
+        <a class="rental-segment" routerLink="/rental/availability" routerLinkActive="rental-segment--active">
+          <mat-icon>event_available</mat-icon>
+          Availability
+        </a>
+      </nav>
+    </div>
+  </header>
 
-  <mat-card class="filter-card" *ngIf="canManageRates">
-    <mat-card-header><mat-card-title>Add rate</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" class="filter-grid" (ngSubmit)="create()">
-        <div class="stb-field">
-          <label>Vehicle (optional)</label>
-          <select class="stb-select" formControlName="vehicleId">
-            <option [ngValue]="null">All vehicles / category default</option>
+  <p class="rental-hint">
+    Confirmed bookings keep their rate snapshot — changes here apply to new quotes only.
+  </p>
+
+  <section class="rental-card" *ngIf="canManageRates" aria-labelledby="addRateTitle">
+    <div class="rental-card__head">
+      <span class="rental-card__icon" aria-hidden="true">
+        <mat-icon>add</mat-icon>
+      </span>
+      <div class="rental-card__head-text">
+        <h2 id="addRateTitle">Add rate</h2>
+        <p>Leave vehicle empty for a fleet-wide default.</p>
+      </div>
+    </div>
+
+    <form [formGroup]="form" class="rental-form-grid rental-rates-form" (ngSubmit)="create()" novalidate>
+      <div class="stb-field">
+        <label for="rateVehicle">Vehicle (optional)</label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">directions_car</mat-icon>
+          <select id="rateVehicle" class="stb-select" formControlName="vehicleId">
+            <option [ngValue]="null">All vehicles / default</option>
             <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }} ({{ v.registrationNumber }})</option>
           </select>
         </div>
-        <div class="stb-field">
-          <label>Type</label>
-          <select class="stb-select" formControlName="rateType">
+      </div>
+
+      <div class="stb-field">
+        <label for="rateType">Type</label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <select id="rateType" class="stb-select" formControlName="rateType">
             <option *ngFor="let t of rateTypes" [ngValue]="t">{{ t }}</option>
           </select>
         </div>
-        <div class="stb-field"><label>Amount</label><input class="stb-input" type="number" formControlName="amount" step="0.01" /></div>
-        <div class="stb-field"><label>Deposit</label><input class="stb-input" type="number" formControlName="depositAmount" step="0.01" /></div>
-        <div class="stb-field"><label>Currency</label><input class="stb-input" formControlName="currency" /></div>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Save rate</button>
-      </form>
-    </mat-card-content>
-  </mat-card>
+      </div>
 
-  <mat-card>
-    <mat-card-content>
-      <app-brand-loader *ngIf="loading" />
-      <table mat-table [dataSource]="dataSource" class="full-width" *ngIf="!loading">
+      <div class="stb-field">
+        <label for="rateAmount">Amount</label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">payments</mat-icon>
+          <input id="rateAmount" class="stb-input" type="number" formControlName="amount" step="0.01" min="0" />
+        </div>
+      </div>
+
+      <div class="stb-field">
+        <label for="rateDeposit">Deposit</label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">account_balance_wallet</mat-icon>
+          <input id="rateDeposit" class="stb-input" type="number" formControlName="depositAmount" step="0.01" min="0" />
+        </div>
+      </div>
+
+      <div class="stb-field">
+        <label for="rateCurrency">Currency</label>
+        <div class="rental-input-wrap">
+          <mat-icon aria-hidden="true">language</mat-icon>
+          <input id="rateCurrency" class="stb-input" formControlName="currency" />
+        </div>
+      </div>
+
+      <div class="rental-form-actions rental-form-actions--inline">
+        <button class="ops-btn ops-btn--primary" type="submit" [disabled]="form.invalid || saving">
+          <mat-icon *ngIf="!saving">save</mat-icon>
+          {{ saving ? 'Saving…' : 'Save rate' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <div *ngIf="error" class="ops-error rental-error" role="alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ error }}</span>
+    <button type="button" class="ops-btn ops-btn--ghost rental-retry-btn" (click)="retryLoad()">Retry</button>
+  </div>
+
+  <div class="rental-panel rental-table-card" *ngIf="loading" aria-busy="true">
+    <div class="rental-panel__head">
+      <h2>Configured rates</h2>
+    </div>
+    <div class="rental-skeleton">
+      <div class="rental-skeleton-row rental-skeleton-row--head"></div>
+      <div class="rental-skeleton-row" *ngFor="let _ of [1, 2, 3, 4]"></div>
+    </div>
+  </div>
+
+  <div class="rental-panel" *ngIf="!loading && !error">
+    <div class="rental-panel__head">
+      <h2>Configured rates</h2>
+      <span class="rental-panel__meta" *ngIf="dataSource.data.length">{{ dataSource.data.length }} total</span>
+    </div>
+
+    <div class="ops-table-wrap" *ngIf="dataSource.data.length; else emptyRates">
+      <table mat-table [dataSource]="dataSource" [trackBy]="trackById" class="ops-table">
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
           <td mat-cell *matCellDef="let row">{{ row.vehicleName || 'Fleet default' }}</td>
@@ -46,31 +135,58 @@
         </ng-container>
         <ng-container matColumnDef="amount">
           <th mat-header-cell *matHeaderCellDef>Amount</th>
-          <td mat-cell *matCellDef="let row">{{ row.amount | number:'1.2-2' }}</td>
+          <td mat-cell *matCellDef="let row" class="ops-mono">{{ row.amount | number:'1.2-2' }}</td>
         </ng-container>
         <ng-container matColumnDef="depositAmount">
           <th mat-header-cell *matHeaderCellDef>Deposit</th>
-          <td mat-cell *matCellDef="let row">{{ row.depositAmount | number:'1.2-2' }}</td>
+          <td mat-cell *matCellDef="let row" class="ops-mono">{{ row.depositAmount | number:'1.2-2' }}</td>
         </ng-container>
         <ng-container matColumnDef="currency">
           <th mat-header-cell *matHeaderCellDef>Currency</th>
           <td mat-cell *matCellDef="let row">{{ row.currency }}</td>
         </ng-container>
         <ng-container matColumnDef="isActive">
-          <th mat-header-cell *matHeaderCellDef>Active</th>
-          <td mat-cell *matCellDef="let row">{{ row.isActive ? 'Yes' : 'No' }}</td>
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="ops-status" [ngClass]="activeStatusClass(row.isActive)">
+              {{ row.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
         </ng-container>
         <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let row">
-            <button mat-button *ngIf="canManageRates && row.isActive" (click)="deactivate(row)">Deactivate</button>
-            <button mat-button color="warn" *ngIf="canManageRates" (click)="remove(row)">Delete</button>
+          <th mat-header-cell *matHeaderCellDef class="ops-actions-cell">Actions</th>
+          <td mat-cell *matCellDef="let row" class="ops-actions-cell">
+            <div class="rental-row-actions" *ngIf="canManageRates">
+              <button
+                type="button"
+                class="ops-btn ops-btn--ghost rental-action-btn"
+                *ngIf="row.isActive"
+                (click)="deactivate(row)">
+                Deactivate
+              </button>
+              <button type="button" class="ops-btn ops-btn--danger rental-action-btn" (click)="remove(row)">
+                Delete
+              </button>
+            </div>
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
-      <p *ngIf="!loading && !dataSource.data.length" class="empty">No rates configured.</p>
-    </mat-card-content>
-  </mat-card>
+    </div>
+
+    <ng-template #emptyRates>
+      <div class="rental-empty-wrap">
+        <div class="rental-empty-art" aria-hidden="true">
+          <mat-icon class="rental-empty-art__car">sell</mat-icon>
+          <mat-icon class="rental-empty-art__cal">price_change</mat-icon>
+        </div>
+        <ui-empty-state
+          icon="payments"
+          title="No rates configured"
+          description="Add hourly, daily, weekly, or monthly rates for your fleet or individual vehicles.">
+        </ui-empty-state>
+      </div>
+    </ng-template>
+  </div>
 </div>

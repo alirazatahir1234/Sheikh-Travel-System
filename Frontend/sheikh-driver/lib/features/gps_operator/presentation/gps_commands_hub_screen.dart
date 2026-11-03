@@ -13,7 +13,7 @@ class GpsCommandsHubScreen extends ConsumerWidget {
     final session = ref.watch(fleetSessionProvider);
     if (session == null || !session.canUseGpsCommands) {
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.sg.surface,
         appBar: AppBar(title: const Text('GPS commands')),
         body: const Center(
           child: Padding(
@@ -31,14 +31,14 @@ class GpsCommandsHubScreen extends ConsumerWidget {
     final vehicles = hub?.locations ?? const [];
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('GPS commands')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Select a vehicle to send engine, buzzer, restart, or locate commands.',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.sg.textSecondary),
           ),
           const SizedBox(height: 16),
           if (vehicles.isEmpty)

@@ -98,6 +98,7 @@ abstract final class FleetPermissions {
   static const gpsAlertAcknowledge = 'Gps.AlertAcknowledge';
   static const gpsAlertResolve = 'Gps.AlertResolve';
   static const gpsDeviceManage = 'Gps.DeviceManage';
+  static const gpsGeofenceManage = 'Gps.GeofenceManage';
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';

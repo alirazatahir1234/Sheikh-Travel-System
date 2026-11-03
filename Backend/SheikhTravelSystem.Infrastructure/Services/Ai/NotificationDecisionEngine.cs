@@ -294,6 +294,7 @@ public sealed class NotificationDecisionEngine(
         "vehicle_offline" => 30,
         "speed_exceeded" or "road_speed_exceeded" => 15,
         "ignition_on" or "ignition_off" => 5,
+        "harsh_braking" => 10,
         "low_fuel" or "low_battery" => 60,
         "fuel_station_stop" => 120,
         "fuel_fraud" => 60,
@@ -307,7 +308,7 @@ public sealed class NotificationDecisionEngine(
     {
         "sos" => 4,
         "vehicle_offline" or "speed_exceeded" or "road_speed_exceeded"
-            or "ignition_on" or "ignition_off" or "compliance_reminder" => 3,
+            or "ignition_on" or "ignition_off" or "harsh_braking" or "compliance_reminder" => 3,
         _ => 2
     };
 
@@ -327,7 +328,10 @@ public sealed class NotificationDecisionEngine(
         "speed_exceeded" or "road_speed_exceeded" => "speed_alert",
         "ignition_on" => "ignition_on_alert",
         "ignition_off" => "ignition_off_alert",
+        "harsh_braking" => "harsh_braking_alert",
         "vehicle_offline" => "vehicle_offline",
+        "geofence_enter" => "geofence_enter_alert",
+        "geofence_exit" => "geofence_exit_alert",
         "booking_created" => "booking_created",
         "trip_created" => "trip_created",
         "trip_driver_assigned" => "trip_driver_assigned",

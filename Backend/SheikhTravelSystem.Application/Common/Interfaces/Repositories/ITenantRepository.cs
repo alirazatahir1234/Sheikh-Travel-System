@@ -8,13 +8,11 @@ public interface ITenantRepository
     Task<TenantBrandingRow?> GetBrandingAsync(int tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Upserts branding and syncs logo/color onto Tenants.
+    /// Upserts company contact / locale fields on TenantBranding.
     /// Throws <see cref="Exceptions.NotFoundException"/> when the tenant is missing.
     /// </summary>
     Task UpdateBrandingAsync(
         int tenantId,
-        string? logoUrl,
-        string? primaryColor,
         string? website,
         string? supportEmail,
         string? country,
@@ -29,6 +27,4 @@ public sealed record TenantBrandingRow(
     int Id,
     string Name,
     string Slug,
-    string? LogoUrl,
-    string? PrimaryColor,
     string? TimeZone = null);

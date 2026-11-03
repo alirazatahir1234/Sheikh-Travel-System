@@ -1,96 +1,326 @@
-<div class="rental-page">
-  <div class="page-header">
-    <div>
-      <h2>Vehicle Rentals</h2>
-      <p class="page-lead">Hire bookings with rates, availability checks, pickup/return, and deposits.</p>
+<div class="ops-page rental-page">
+  <header class="ops-page-header">
+    <div class="ops-page-heading rental-page-heading">
+      <span class="rental-page-icon" aria-hidden="true">
+        <mat-icon>directions_car</mat-icon>
+      </span>
+      <div>
+        <h1>Vehicle Rentals</h1>
+        <p>Manage bookings, rates, availability, pickup and return.</p>
+      </div>
     </div>
-    <div class="header-links">
-      <a mat-button routerLink="/rental/rates">Rates</a>
-      <a mat-button routerLink="/rental/availability">Availability</a>
+    <div class="rental-hero-actions">
+      <nav class="rental-segmented" aria-label="Rental modules">
+        <a class="rental-segment rental-segment--active" routerLink="/rental" routerLinkActive="rental-segment--active" [routerLinkActiveOptions]="{ exact: true }">
+          <mat-icon>list_alt</mat-icon>
+          Bookings
+        </a>
+        <a class="rental-segment" routerLink="/rental/rates" routerLinkActive="rental-segment--active">
+          <mat-icon>sell</mat-icon>
+          Rates
+        </a>
+        <a class="rental-segment" routerLink="/rental/availability" routerLinkActive="rental-segment--active">
+          <mat-icon>event_available</mat-icon>
+          Availability
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <section
+    id="createRentalSection"
+    class="rental-card rental-card--form"
+    *ngIf="canManage"
+    aria-labelledby="createRentalTitle">
+    <div class="rental-card__head">
+      <span class="rental-card__icon" aria-hidden="true">
+        <mat-icon>add_circle</mat-icon>
+      </span>
+      <div class="rental-card__head-text">
+        <h2 id="createRentalTitle">Create rental</h2>
+        <p>Draft a booking — confirm rate and availability before pickup.</p>
+      </div>
+    </div>
+
+    <form [formGroup]="createForm" class="rental-form" (ngSubmit)="create()" novalidate>
+      <div class="rental-form-sections">
+        <fieldset class="rental-form-section">
+          <legend class="rental-form-section__title">
+            <mat-icon aria-hidden="true">groups</mat-icon>
+            Customer &amp; vehicle
+          </legend>
+          <div class="rental-form-section__fields">
+            <div class="stb-field">
+              <label for="rentalCustomer">Customer <span class="rental-required" aria-hidden="true">*</span></label>
+              <div class="rental-input-wrap">
+                <mat-icon aria-hidden="true">person</mat-icon>
+                <select
+                  id="rentalCustomer"
+                  class="stb-select"
+                  formControlName="customerId"
+                  [class.is-invalid]="showFieldError('customerId')"
+                  (blur)="createForm.get('customerId')?.markAsTouched()">
+                  <option [ngValue]="null">Select customer</option>
+                  <option *ngFor="let c of customers" [ngValue]="c.id">{{ c.fullName }}</option>
+                </select>
+              </div>
+              <span class="rental-field-error" *ngIf="showFieldError('customerId')" role="alert">
+                {{ fieldErrorMessage('customerId') }}
+              </span>
+            </div>
+
+            <div class="stb-field">
+              <label for="rentalVehicle">Vehicle <span class="rental-required" aria-hidden="true">*</span></label>
+              <div class="rental-input-wrap">
+                <mat-icon aria-hidden="true">directions_car</mat-icon>
+                <select
+                  id="rentalVehicle"
+                  class="stb-select"
+                  formControlName="vehicleId"
+                  [class.is-invalid]="showFieldError('vehicleId')"
+                  (change)="onCreateFieldChange()"
+                  (blur)="createForm.get('vehicleId')?.markAsTouched()">
+                  <option [ngValue]="null">Select vehicle</option>
+                  <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }} ({{ v.registrationNumber }})</option>
+                </select>
+              </div>
+              <span class="rental-field-error" *ngIf="showFieldError('vehicleId')" role="alert">
+                {{ fieldErrorMessage('vehicleId') }}
+              </span>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="rental-form-section">
+          <legend class="rental-form-section__title">
+            <mat-icon aria-hidden="true">schedule</mat-icon>
+            Schedule
+          </legend>
+          <div class="rental-form-section__fields">
+            <div class="stb-field">
+              <label for="rentalRateType">Rate type <span class="rental-required" aria-hidden="true">*</span></label>
+              <div class="rental-input-wrap">
+                <mat-icon aria-hidden="true">sell</mat-icon>
+                <select
+                  id="rentalRateType"
+                  class="stb-select"
+                  formControlName="rateType"
+                  (change)="onCreateFieldChange()">
+                  <option *ngFor="let t of rateTypes" [ngValue]="t">{{ t }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="stb-field">
+              <span class="rental-field-label">Start <span class="rental-required" aria-hidden="true">*</span></span>
+              <div class="rental-datetime-row">
+                <div class="rental-input-wrap">
+                  <mat-icon aria-hidden="true">calendar_today</mat-icon>
+                  <input
+                    class="stb-input"
+                    type="date"
+                    formControlName="startDate"
+                    aria-label="Start date"
+                    [class.is-invalid]="showFieldError('startDate')"
+                    (change)="onCreateFieldChange()" />
+                </div>
+                <div class="rental-input-wrap">
+                  <mat-icon aria-hidden="true">schedule</mat-icon>
+                  <input
+                    class="stb-input"
+                    type="time"
+                    formControlName="startTime"
+                    aria-label="Start time"
+                    [class.is-invalid]="showFieldError('startTime')"
+                    (change)="onCreateFieldChange()" />
+                </div>
+              </div>
+              <span class="rental-field-error" *ngIf="showFieldError('startDate') || showFieldError('startTime')" role="alert">
+                {{ fieldErrorMessage('startDate') || fieldErrorMessage('startTime') }}
+              </span>
+            </div>
+
+            <div class="stb-field">
+              <span class="rental-field-label">End <span class="rental-required" aria-hidden="true">*</span></span>
+              <div class="rental-datetime-row">
+                <div class="rental-input-wrap">
+                  <mat-icon aria-hidden="true">calendar_today</mat-icon>
+                  <input
+                    class="stb-input"
+                    type="date"
+                    formControlName="endDate"
+                    aria-label="End date"
+                    [class.is-invalid]="showFieldError('endDate')"
+                    (change)="onCreateFieldChange()" />
+                </div>
+                <div class="rental-input-wrap">
+                  <mat-icon aria-hidden="true">schedule</mat-icon>
+                  <input
+                    class="stb-input"
+                    type="time"
+                    formControlName="endTime"
+                    aria-label="End time"
+                    [class.is-invalid]="showFieldError('endTime')"
+                    (change)="onCreateFieldChange()" />
+                </div>
+              </div>
+              <span class="rental-field-error" *ngIf="showFieldError('endDate') || showFieldError('endTime')" role="alert">
+                {{ fieldErrorMessage('endDate') || fieldErrorMessage('endTime') }}
+              </span>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="rental-form-section">
+          <legend class="rental-form-section__title">
+            <mat-icon aria-hidden="true">place</mat-icon>
+            Locations &amp; discount
+          </legend>
+          <div class="rental-form-section__fields">
+            <div class="stb-field">
+              <label for="rentalPickupLocation">Pickup location</label>
+              <div class="rental-input-wrap">
+                <mat-icon aria-hidden="true">trip_origin</mat-icon>
+                <input
+                  id="rentalPickupLocation"
+                  class="stb-input"
+                  formControlName="pickupLocation"
+                  placeholder="Depot or address"
+                  autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="stb-field">
+              <label for="rentalReturnLocation">Return location</label>
+              <div class="rental-input-wrap">
+                <mat-icon aria-hidden="true">place</mat-icon>
+                <input
+                  id="rentalReturnLocation"
+                  class="stb-input"
+                  formControlName="returnLocation"
+                  placeholder="Return depot or address"
+                  autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="stb-field">
+              <label for="rentalDiscount">Discount amount</label>
+              <div class="rental-input-wrap rental-input-wrap--suffix">
+                <mat-icon aria-hidden="true">payments</mat-icon>
+                <input
+                  id="rentalDiscount"
+                  class="stb-input"
+                  type="number"
+                  formControlName="discountAmount"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  aria-label="Discount amount in currency"
+                  (change)="onCreateFieldChange()" />
+                <span class="rental-input-suffix" aria-hidden="true">PKR</span>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <p class="rental-quote" *ngIf="quoteText" aria-live="polite">
+        <mat-icon aria-hidden="true">receipt_long</mat-icon>
+        {{ quoteText }}
+      </p>
+
+      <div class="rental-availability-result" *ngIf="availabilityResult as r" role="status">
+        <p [ngClass]="r.isAvailable ? 'rental-availability-result--ok' : 'rental-availability-result--busy'">
+          {{ r.vehicleName }} ({{ r.registrationNumber }}) is
+          <strong>{{ r.isAvailable ? 'available' : 'not available' }}</strong>
+          for the selected period.
+        </p>
+        <ul *ngIf="r.conflicts.length" class="rental-availability-conflicts">
+          <li *ngFor="let c of r.conflicts">
+            {{ c.rentalNumber }} · {{ c.status }} · {{ c.customerName || '—' }} ·
+            {{ c.startAt | date:'short' }} – {{ c.endAt | date:'short' }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="rental-form-actions">
+        <button class="ops-btn ops-btn--primary" type="submit" [disabled]="createForm.invalid || creating">
+          <mat-icon *ngIf="!creating">add</mat-icon>
+          {{ creating ? 'Creating…' : 'Create draft' }}
+        </button>
+        <button
+          class="ops-btn ops-btn--ghost"
+          type="button"
+          (click)="checkAvailability()"
+          [disabled]="checkingAvailability">
+          <mat-icon>event_available</mat-icon>
+          {{ checkingAvailability ? 'Checking…' : 'Check availability' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <form [formGroup]="filterForm" class="rental-filter-bar" (ngSubmit)="applyFilter()" aria-label="Filter rentals">
+    <span class="rental-filters-label">
+      <mat-icon aria-hidden="true">filter_list</mat-icon>
+      Filters
+    </span>
+
+    <div class="ops-filter-field">
+      <label class="rental-filter-caption" for="rentalFilterStatus">Status</label>
+      <select id="rentalFilterStatus" class="stb-select rental-filter-select" formControlName="status">
+        <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+      </select>
+    </div>
+
+    <div class="ops-filter-field">
+      <label class="rental-filter-caption" for="rentalFilterVehicle">Vehicle</label>
+      <select id="rentalFilterVehicle" class="stb-select rental-filter-select" formControlName="vehicleId">
+        <option [ngValue]="null">All vehicles</option>
+        <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }}</option>
+      </select>
+    </div>
+
+    <button class="ops-btn ops-btn--primary rental-filter-submit" type="submit">
+      <mat-icon>search</mat-icon>
+      Apply
+    </button>
+    <button
+      *ngIf="filtersActive"
+      class="ops-btn ops-btn--ghost"
+      type="button"
+      (click)="clearFilters()">
+      Clear
+    </button>
+  </form>
+
+  <div *ngIf="error" class="ops-error rental-error" role="alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ error }}</span>
+    <button type="button" class="ops-btn ops-btn--ghost rental-retry-btn" (click)="retryLoad()">Retry</button>
+  </div>
+
+  <div class="rental-panel rental-table-card" *ngIf="loading" aria-busy="true" aria-label="Loading rentals">
+    <div class="rental-panel__head">
+      <h2>Bookings</h2>
+    </div>
+    <div class="rental-skeleton">
+      <div class="rental-skeleton-row rental-skeleton-row--head"></div>
+      <div class="rental-skeleton-row" *ngFor="let _ of [1, 2, 3, 4, 5]"></div>
     </div>
   </div>
 
-  <mat-card class="filter-card" *ngIf="canManage">
-    <mat-card-header><mat-card-title>New rental</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="createForm" class="filter-grid" (ngSubmit)="create()">
-        <div class="stb-field">
-          <label>Customer</label>
-          <select class="stb-select" formControlName="customerId">
-            <option [ngValue]="null">Select customer</option>
-            <option *ngFor="let c of customers" [ngValue]="c.id">{{ c.fullName }}</option>
-          </select>
-        </div>
-        <div class="stb-field">
-          <label>Vehicle</label>
-          <select class="stb-select" formControlName="vehicleId" (change)="refreshQuote()">
-            <option [ngValue]="null">Select vehicle</option>
-            <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }} ({{ v.registrationNumber }})</option>
-          </select>
-        </div>
-        <div class="stb-field">
-          <label>Rate type</label>
-          <select class="stb-select" formControlName="rateType" (change)="refreshQuote()">
-            <option *ngFor="let t of rateTypes" [ngValue]="t">{{ t }}</option>
-          </select>
-        </div>
-        <div class="stb-field">
-          <label>Start</label>
-          <input class="stb-input" type="datetime-local" formControlName="startAt" (change)="refreshQuote()" />
-        </div>
-        <div class="stb-field">
-          <label>End</label>
-          <input class="stb-input" type="datetime-local" formControlName="endAt" (change)="refreshQuote()" />
-        </div>
-        <div class="stb-field">
-          <label>Pickup location</label>
-          <input class="stb-input" formControlName="pickupLocation" />
-        </div>
-        <div class="stb-field">
-          <label>Return location</label>
-          <input class="stb-input" formControlName="returnLocation" />
-        </div>
-        <div class="stb-field">
-          <label>Discount</label>
-          <input class="stb-input" type="number" formControlName="discountAmount" step="0.01" (change)="refreshQuote()" />
-        </div>
-        <button mat-raised-button color="primary" type="submit" [disabled]="createForm.invalid || creating">
-          {{ creating ? 'Creating…' : 'Create draft' }}
-        </button>
-      </form>
-      <p class="quote" *ngIf="quoteText">Quote: {{ quoteText }}</p>
-    </mat-card-content>
-  </mat-card>
+  <div class="rental-panel" *ngIf="!loading && !error">
+    <div class="rental-panel__head">
+      <h2>Bookings</h2>
+      <span class="rental-panel__meta" *ngIf="dataSource.data.length">{{ dataSource.data.length }} on this page</span>
+    </div>
 
-  <mat-card class="filter-card">
-    <mat-card-content>
-      <form [formGroup]="filterForm" class="filter-grid" (ngSubmit)="applyFilter()">
-        <div class="stb-field">
-          <label>Status</label>
-          <select class="stb-select" formControlName="status">
-            <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-        <div class="stb-field">
-          <label>Vehicle</label>
-          <select class="stb-select" formControlName="vehicleId">
-            <option [ngValue]="null">All vehicles</option>
-            <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.name }}</option>
-          </select>
-        </div>
-        <button mat-raised-button color="primary" type="submit">Filter</button>
-      </form>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card>
-    <mat-card-content>
-      <app-brand-loader *ngIf="loading" />
-      <div *ngIf="error" class="error-message">{{ error }}</div>
-      <table mat-table [dataSource]="dataSource" class="full-width" *ngIf="!loading && !error">
+    <div class="ops-table-wrap" *ngIf="dataSource.data.length; else emptyRentals">
+      <table mat-table [dataSource]="dataSource" [trackBy]="trackById" class="ops-table">
         <ng-container matColumnDef="rentalNumber">
-          <th mat-header-cell *matHeaderCellDef>Number</th>
-          <td mat-cell *matCellDef="let row">{{ row.rentalNumber }}</td>
+          <th mat-header-cell *matHeaderCellDef>Booking ID</th>
+          <td mat-cell *matCellDef="let row" class="ops-mono">{{ row.rentalNumber }}</td>
         </ng-container>
         <ng-container matColumnDef="customerName">
           <th mat-header-cell *matHeaderCellDef>Customer</th>
@@ -105,33 +335,57 @@
           <td mat-cell *matCellDef="let row">{{ row.rateType }}</td>
         </ng-container>
         <ng-container matColumnDef="window">
-          <th mat-header-cell *matHeaderCellDef>Window</th>
-          <td mat-cell *matCellDef="let row">{{ row.startAt | date:'short' }} – {{ row.endAt | date:'short' }}</td>
+          <th mat-header-cell *matHeaderCellDef>Rental period</th>
+          <td mat-cell *matCellDef="let row" class="ops-muted">
+            {{ row.startAt | date:'short' }} – {{ row.endAt | date:'short' }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="totalAmount">
           <th mat-header-cell *matHeaderCellDef>Total</th>
-          <td mat-cell *matCellDef="let row">{{ row.totalAmount | number:'1.2-2' }}</td>
+          <td mat-cell *matCellDef="let row" class="ops-mono">{{ row.totalAmount | number:'1.2-2' }}</td>
         </ng-container>
         <ng-container matColumnDef="status">
           <th mat-header-cell *matHeaderCellDef>Status</th>
           <td mat-cell *matCellDef="let row">
-            <span class="status-chip" [style.background]="statusColors[row.status] || '#666'">{{ row.status }}</span>
+            <span class="ops-status" [ngClass]="statusClass(row.status)">{{ statusLabel(row.status) }}</span>
           </td>
         </ng-container>
         <ng-container matColumnDef="paymentStatus">
           <th mat-header-cell *matHeaderCellDef>Payment</th>
-          <td mat-cell *matCellDef="let row">{{ row.paymentStatus }}</td>
+          <td mat-cell *matCellDef="let row">
+            <span class="ops-status" [ngClass]="paymentStatusClass(row.paymentStatus)">{{ row.paymentStatus }}</span>
+          </td>
         </ng-container>
         <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let row">
-            <button mat-button color="primary" (click)="open(row.id)">Open</button>
+          <th mat-header-cell *matHeaderCellDef class="ops-actions-cell">Actions</th>
+          <td mat-cell *matCellDef="let row" class="ops-actions-cell">
+            <button type="button" class="ops-btn ops-btn--ghost rental-open-btn" (click)="open(row.id)">
+              Open
+            </button>
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
-      <p *ngIf="!loading && !dataSource.data.length" class="empty">No rental bookings yet.</p>
-    </mat-card-content>
-  </mat-card>
+    </div>
+
+    <ng-template #emptyRentals>
+      <div class="rental-empty-wrap">
+        <div class="rental-empty-art" aria-hidden="true">
+          <mat-icon class="rental-empty-art__car">directions_car</mat-icon>
+          <mat-icon class="rental-empty-art__cal">event</mat-icon>
+          <mat-icon class="rental-empty-art__cloud">cloud</mat-icon>
+        </div>
+        <ui-empty-state
+          icon="car_rental"
+          title="No rental bookings yet"
+          description="Create your first rental to get started — drafts can be confirmed when the customer is ready.">
+          <button *ngIf="canManage" type="button" class="ops-btn ops-btn--primary" (click)="focusCreateForm()">
+            <mat-icon>add</mat-icon>
+            Create your first rental
+          </button>
+        </ui-empty-state>
+      </div>
+    </ng-template>
+  </div>
 </div>

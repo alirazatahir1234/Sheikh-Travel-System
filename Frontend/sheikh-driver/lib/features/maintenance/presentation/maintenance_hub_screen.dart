@@ -81,7 +81,7 @@ class _MaintenanceHubScreenState extends ConsumerState<MaintenanceHubScreen>
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Maintenance'),
         actions: [
@@ -95,7 +95,7 @@ class _MaintenanceHubScreenState extends ConsumerState<MaintenanceHubScreen>
           controller: _tabs,
           isScrollable: true,
           labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          unselectedLabelColor: context.sg.textSecondary,
           indicatorColor: AppColors.primary,
           tabs: const [
             Tab(text: 'Dashboard'),
@@ -200,11 +200,11 @@ class _DashboardTab extends ConsumerWidget {
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const Text(
+                            Text(
                               'Month cost',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.textMuted,
+                                color: context.sg.textMuted,
                               ),
                             ),
                           ],
@@ -217,9 +217,9 @@ class _DashboardTab extends ConsumerWidget {
                     'Requests · Open ${state.requestStats.open} · '
                     'Pending ${state.requestStats.pendingApproval} · '
                     'Approved ${state.requestStats.approved}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMuted,
+                      color: context.sg.textMuted,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -227,9 +227,9 @@ class _DashboardTab extends ConsumerWidget {
                     'Work orders · Open ${state.workOrderStats.open} · '
                     'In progress ${state.workOrderStats.inProgress} · '
                     'Done ${state.workOrderStats.completed}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMuted,
+                      color: context.sg.textMuted,
                     ),
                   ),
                 ],
@@ -279,8 +279,8 @@ class _DashboardTab extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               a.message,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: context.sg.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -297,9 +297,9 @@ class _DashboardTab extends ConsumerWidget {
                                   if (a.progressPercent != null)
                                     '${a.progressPercent}%',
                                 ].join(' · '),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textMuted,
+                                  color: context.sg.textMuted,
                                 ),
                               ),
                             ],
@@ -347,8 +347,8 @@ class _DashboardTab extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               a.message,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: context.sg.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -398,8 +398,8 @@ class _DashboardTab extends ConsumerWidget {
                                         ? s.vehicleName
                                         : (s.vehicleRegistration ??
                                             '#${s.vehicleId}'),
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: context.sg.textSecondary,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -410,9 +410,9 @@ class _DashboardTab extends ConsumerWidget {
                               s.dueDate != null
                                   ? df.format(s.dueDate!.toLocal())
                                   : s.priority,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textMuted,
+                                color: context.sg.textMuted,
                               ),
                             ),
                           ],
@@ -607,16 +607,16 @@ class _RequestsTab extends ConsumerWidget {
                           r.vehicleName ??
                               r.vehicleRegistration ??
                               'Vehicle #${r.vehicleId}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.sg.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${r.priority} · ${r.issueCategory} · ${df.format(r.requestDate.toLocal())}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            color: context.sg.textMuted,
                           ),
                         ),
                       ],
@@ -774,8 +774,8 @@ class _WorkOrdersTab extends ConsumerWidget {
                           w.vehicleName ??
                               w.vehicleRegistration ??
                               'Vehicle #${w.vehicleId}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.sg.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -786,9 +786,9 @@ class _WorkOrdersTab extends ConsumerWidget {
                             _pkr(w.totalCost),
                             df.format(w.createdAt.toLocal()),
                           ].join(' · '),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            color: context.sg.textMuted,
                           ),
                         ),
                       ],
@@ -923,8 +923,8 @@ class _SchedulesTab extends ConsumerWidget {
                           s.vehicleName ??
                               s.vehicleRegistration ??
                               'Vehicle #${s.vehicleId}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.sg.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -935,9 +935,9 @@ class _SchedulesTab extends ConsumerWidget {
                               'Due ${df.format(s.dueDate!.toLocal())}',
                             s.priority,
                           ].join(' · '),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            color: context.sg.textMuted,
                           ),
                         ),
                         if (canManageWo) ...[
@@ -1002,7 +1002,7 @@ class _PredictiveCategoryChip extends StatelessWidget {
       'Oil' => const Color(0xFFB45309),
       'Tires' => const Color(0xFF1D4ED8),
       'Engine' => const Color(0xFF9F1239),
-      _ => AppColors.textMuted,
+      _ => context.sg.textMuted,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1038,7 +1038,7 @@ class _Kpi extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 11, color: context.sg.textMuted),
           ),
         ],
       ),
@@ -1061,7 +1061,7 @@ class _SectionError extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
             const SizedBox(height: 8),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),

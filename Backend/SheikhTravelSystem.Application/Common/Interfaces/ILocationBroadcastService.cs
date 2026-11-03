@@ -18,6 +18,8 @@ public interface ILocationBroadcastService
         string? address = null,
         string? alarmType = null,
         decimal? temperature = null,
+        bool isGpsValid = true,
+        string? gpsQualityCode = null,
         CancellationToken cancellationToken = default);
 
     Task BroadcastSosAlertAsync(

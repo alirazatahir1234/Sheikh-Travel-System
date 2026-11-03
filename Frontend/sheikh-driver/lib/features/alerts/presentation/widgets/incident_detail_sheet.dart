@@ -17,7 +17,7 @@ Future<void> showIncidentDetailSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
+    backgroundColor: context.sg.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -95,7 +95,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: context.sg.border,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -117,8 +117,8 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
             const SizedBox(height: 6),
             Text(
               a.message.trim().isNotEmpty ? a.message : alertDescription(a),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.sg.textSecondary,
                 height: 1.35,
               ),
             ),
@@ -130,7 +130,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                 StatusBadge(alertSeverityLabel(sev), color: _sevColor(sev)),
                 StatusBadge(
                   a.status.toUpperCase(),
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                 ),
               ],
             ),
@@ -172,19 +172,19 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                 ),
               )
             else
-              const SgCard(
+              SgCard(
                 child: Text(
                   'No GPS coordinates for this incident.',
-                  style: TextStyle(color: AppColors.textMuted),
+                  style: TextStyle(color: context.sg.textMuted),
                 ),
               ),
             if (a.geofenceName != null) ...[
               const SizedBox(height: 8),
               Text(
                 'Geofence: ${a.geofenceName}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+                  color: context.sg.textSecondary,
                 ),
               ),
             ],
@@ -239,7 +239,7 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                     const SizedBox(height: 4),
                     Text(
                       a.driverName!,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.sg.textSecondary),
                     ),
                   ],
                 ],
@@ -278,9 +278,9 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
                           ),
                           Text(
                             df.format(n.at.toLocal()),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textMuted,
+                              color: context.sg.textMuted,
                             ),
                           ),
                         ],
@@ -426,9 +426,9 @@ class _MetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.sg.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.sg.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,7 +436,7 @@ class _MetricTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 11, color: context.sg.textMuted),
           ),
           const SizedBox(height: 4),
           Text(
@@ -459,7 +459,7 @@ class AlertDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(title: const Text('Alert')),
       body: IncidentDetailSheet(alertId: alertId),
     );

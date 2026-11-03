@@ -21,7 +21,11 @@ public static class TraccarAlertEventMapper
         "maintenance",
         "textMessage",
         "driverChanged",
-        "media"
+        "media",
+        // Backend ingest (VehicleGeofenceState) is the authoritative geofence evaluator; Traccar's copy of the
+        // synced zones would raise a second alert for the same crossing.
+        "geofenceEnter",
+        "geofenceExit"
     };
 
     /// <summary>
@@ -75,6 +79,7 @@ public static class TraccarAlertEventMapper
         "sos" => "SOS / panic alarm triggered",
         "power_cut" => "External power disconnected",
         "gps_lost" => "GPS signal lost",
+        "low_battery" => "Device battery low",
         "harsh_braking" => "Harsh braking detected",
         "harsh_acceleration" => "Harsh acceleration detected",
         "alarm" => "Device alarm",
@@ -126,13 +131,20 @@ public static class TraccarAlertEventMapper
         "offline", "vehicle_offline", "device_offline", "gps_offline"
     ];
 
-    private static string MapAlarmType(string? alarm) => alarm?.ToLowerInvariant() switch
+    private static string MapAlarmType(string? alarm)
     {
-        "sos" or "panic" => "sos",
-        "powercut" or "poweroff" or "powerdisconnect" => "power_cut",
-        "gpsantennacut" or "gpslost" or "nofix" or "gpsjamming" => "gps_lost",
-        _ => "alarm"
-    };
+        if (TraccarHarshEventMapper.IsGsensorHardStopFalsePositive(alarm))
+            return TraccarHarshEventMapper.HarshBraking;
+
+        return alarm?.ToLowerInvariant() switch
+        {
+            "sos" or "panic" => "sos",
+            "powercut" or "poweroff" or "powerdisconnect" => "power_cut",
+            "gpsantennacut" or "gpslost" or "nofix" or "gpsjamming" => "gps_lost",
+            "lowbattery" or "lowpower" => "low_battery",
+            _ => "alarm"
+        };
+    }
 
     private static string CamelToSnake(string value)
     {
