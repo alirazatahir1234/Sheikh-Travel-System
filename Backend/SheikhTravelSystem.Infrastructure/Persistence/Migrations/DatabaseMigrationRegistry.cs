@@ -189,6 +189,7 @@ public static class DatabaseMigrationRegistry
             M("GeofenceManageGpsOperatorMigration", GeofenceManageGpsOperatorMigration.ApplyAsync),
             M("ModuleCatalogCleanupMigration", ModuleCatalogCleanupMigration.ApplyAsync),
             M("HarshBrakingSmsAlertsMigration", HarshBrakingSmsAlertsMigration.ApplyAsync),
+            M("GpsDuplicateTraccarDeviceIdMigration", GpsDuplicateTraccarDeviceIdMigration.ApplyAsync),
         ];
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data;
 using Dapper;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,6 +78,7 @@ public sealed class TraccarSyncOrchestrator(
         var lastSeen = traccarDevice.LastUpdate?.ToUniversalTime();
         // Fill Phone from Traccar only when SheikhGo has neither Phone nor SimNumber — never overwrite.
         var traccarPhone = string.IsNullOrWhiteSpace(traccarDevice.Phone) ? null : traccarDevice.Phone.Trim();
+        await ClearTraccarDeviceIdFromOthersAsync(connection, traccarDeviceId, gpsDeviceId, ct);
         await connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE GpsDevices SET
@@ -199,6 +201,7 @@ public sealed class TraccarSyncOrchestrator(
                 var isActive = !td.Disabled;
                 var lastSeen = td.LastUpdate?.ToUniversalTime();
 
+                // Match by IMEI/UniqueId only — phone/SIM must never be required for identity.
                 var existing = await connection.QuerySingleOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
                     new CommandDefinition(
                         "SELECT Id, TraccarDeviceId FROM GpsDevices WHERE UniqueId = @UniqueId AND IsDeleted = 0",
@@ -209,6 +212,9 @@ public sealed class TraccarSyncOrchestrator(
 
                 if (existing.Id == 0)
                 {
+                    // Claim Traccar id before insert so two rows never share it (position sync key).
+                    await ClearTraccarDeviceIdFromOthersAsync(connection, td.Id, keepGpsDeviceId: null, ct);
+
                     await connection.ExecuteAsync(new CommandDefinition("""
                         INSERT INTO GpsDevices (UniqueId, Name, TraccarDeviceId, Phone, IsActive, LastSeenAt, CreatedAt, IsDeleted)
                         VALUES (@UniqueId, @Name, @TraccarDeviceId, @Phone, @IsActive, @LastSeenAt, GETUTCDATE(), 0)
@@ -219,6 +225,8 @@ public sealed class TraccarSyncOrchestrator(
                 }
                 else if (existing.TraccarDeviceId != td.Id)
                 {
+                    await ClearTraccarDeviceIdFromOthersAsync(connection, td.Id, existing.Id, ct);
+
                     await connection.ExecuteAsync(new CommandDefinition("""
                         UPDATE GpsDevices SET TraccarDeviceId = @TraccarDeviceId, Name = @Name, IsActive = @IsActive,
                             LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
@@ -236,6 +244,9 @@ public sealed class TraccarSyncOrchestrator(
                 }
                 else
                 {
+                    // Same Traccar id already linked — still clear any accidental duplicate holders.
+                    await ClearTraccarDeviceIdFromOthersAsync(connection, td.Id, existing.Id, ct);
+
                     await connection.ExecuteAsync(new CommandDefinition("""
                         UPDATE GpsDevices SET Name = @Name, IsActive = @IsActive,
                             LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
@@ -291,11 +302,18 @@ public sealed class TraccarSyncOrchestrator(
             var telemetryUpdater = scope.ServiceProvider.GetRequiredService<IGpsDeviceTelemetryUpdater>();
             using var connection = dbFactory.CreateConnection();
 
-            var allDevices = (await connection.QueryAsync<(int TraccarDeviceId, int GpsDeviceId, int? VehicleId)>(
+            // PreferCanonical: duplicate TraccarDeviceId must not throw (ToDictionary crash stopped all live ingest).
+            var deviceRows = await connection.QueryAsync<(int TraccarDeviceId, int GpsDeviceId, int? VehicleId, DateTime? LastSeenAt)>(
                 new CommandDefinition(
-                    "SELECT TraccarDeviceId, Id AS GpsDeviceId, VehicleId FROM GpsDevices WHERE TraccarDeviceId IS NOT NULL AND IsDeleted = 0",
-                    cancellationToken: ct)))
-                .ToDictionary(x => x.TraccarDeviceId);
+                    """
+                    SELECT TraccarDeviceId, Id AS GpsDeviceId, VehicleId, LastSeenAt
+                    FROM GpsDevices
+                    WHERE TraccarDeviceId IS NOT NULL AND IsDeleted = 0
+                    """,
+                    cancellationToken: ct));
+            var allDevices = TraccarDeviceLinkResolver.PreferCanonical(
+                deviceRows.Select(r => new TraccarDeviceLinkResolver.DeviceLink(
+                    r.TraccarDeviceId, r.GpsDeviceId, r.VehicleId, r.LastSeenAt)));
 
             if (allDevices.Count == 0)
             {
@@ -462,11 +480,20 @@ public sealed class TraccarSyncOrchestrator(
             var alertWriter = scope.ServiceProvider.GetRequiredService<IGpsAlertWriter>();
             using var connection = dbFactory.CreateConnection();
 
-            var linked = (await connection.QueryAsync<(int TraccarDeviceId, int VehicleId)>(
+            // Canonicalize first so a duplicate TraccarDeviceId does not double-process events.
+            var linkedRows = await connection.QueryAsync<(int TraccarDeviceId, int GpsDeviceId, int? VehicleId, DateTime? LastSeenAt)>(
                 new CommandDefinition(
-                    @"SELECT TraccarDeviceId, VehicleId FROM GpsDevices
-                      WHERE TraccarDeviceId IS NOT NULL AND VehicleId IS NOT NULL AND IsDeleted = 0",
-                    cancellationToken: ct))).ToList();
+                    """
+                    SELECT TraccarDeviceId, Id AS GpsDeviceId, VehicleId, LastSeenAt
+                    FROM GpsDevices
+                    WHERE TraccarDeviceId IS NOT NULL AND VehicleId IS NOT NULL AND IsDeleted = 0
+                    """,
+                    cancellationToken: ct));
+            var linked = TraccarDeviceLinkResolver.PreferCanonical(
+                    linkedRows.Select(r => new TraccarDeviceLinkResolver.DeviceLink(
+                        r.TraccarDeviceId, r.GpsDeviceId, r.VehicleId, r.LastSeenAt)))
+                .Select(kv => (kv.Value.TraccarDeviceId, VehicleId: kv.Value.VehicleId!.Value))
+                .ToList();
 
             if (linked.Count == 0)
             {
@@ -710,6 +737,26 @@ public sealed class TraccarSyncOrchestrator(
             return failed;
         }
     }
+
+    /// <summary>
+    /// Ensures at most one active GpsDevices row owns a TraccarDeviceId (IMEI sync key).
+    /// Clears the id from other rows — does not delete devices or history.
+    /// </summary>
+    private static Task ClearTraccarDeviceIdFromOthersAsync(
+        IDbConnection connection,
+        int traccarDeviceId,
+        int? keepGpsDeviceId,
+        CancellationToken ct) =>
+        connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices
+            SET TraccarDeviceId = NULL, UpdatedAt = GETUTCDATE()
+            WHERE TraccarDeviceId = @TraccarDeviceId
+              AND IsDeleted = 0
+              AND (@KeepId IS NULL OR Id <> @KeepId)
+            """,
+            new { TraccarDeviceId = traccarDeviceId, KeepId = keepGpsDeviceId },
+            cancellationToken: ct));
 
     private static TraccarSyncRunResult SingleJob(
         string job, int processed, int imported, int updated, int skipped, string? error = null) =>
