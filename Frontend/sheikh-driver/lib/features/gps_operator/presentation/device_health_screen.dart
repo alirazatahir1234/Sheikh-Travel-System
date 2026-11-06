@@ -48,38 +48,43 @@ class DeviceHealthScreen extends ConsumerWidget {
               SgCard(
                 child: Column(
                   children: [
-                    _row('Device', info.deviceName ?? info.uniqueId ?? '—'),
-                    _row('IMEI / Unique ID', info.uniqueId ?? '—'),
-                    _row('Model', info.modelName ?? info.brandName ?? '—'),
-                    _row('Status', info.gpsOnline ? 'Online' : 'Offline'),
+                    _row(context, 'Device', info.deviceName ?? info.uniqueId ?? '—'),
+                    _row(context, 'IMEI / Unique ID', info.uniqueId ?? '—'),
+                    _row(context, 'Model', info.modelName ?? info.brandName ?? '—'),
+                    _row(context, 'Status', info.gpsOnline ? 'Online' : 'Offline'),
                     _row(
+                      context,
                       'Last seen',
                       seen != null ? df.format(seen.toLocal()) : '—',
                     ),
                     _row(
+                      context,
                       'Battery',
                       info.batteryLevel != null
                           ? '${info.batteryLevel!.toStringAsFixed(0)}%'
                           : '—',
                     ),
-                    _row('GSM signal', '${info.gsmSignal ?? '—'}'),
+                    _row(context, 'GSM signal', '${info.gsmSignal ?? '—'}'),
                     _row(
+                      context,
                       'Speed',
                       '${info.speed?.toStringAsFixed(0) ?? '—'} km/h',
                     ),
                     _row(
+                      context,
                       'Ignition',
                       info.lastIgnition == null
                           ? '—'
                           : (info.lastIgnition! ? 'On' : 'Off'),
                     ),
                     _row(
+                      context,
                       'Odometer',
                       info.totalDistanceKm != null
                           ? '${info.totalDistanceKm!.toStringAsFixed(1)} km'
                           : '—',
                     ),
-                    _row('Address', info.address ?? '—'),
+                    _row(context, 'Address', info.address ?? '—'),
                   ],
                 ),
               ),
@@ -97,20 +102,25 @@ class DeviceHealthScreen extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: TextStyle(color: context.sg.textSecondary),
+            ),
           ),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: context.sg.textPrimary,
+              ),
             ),
           ),
         ],

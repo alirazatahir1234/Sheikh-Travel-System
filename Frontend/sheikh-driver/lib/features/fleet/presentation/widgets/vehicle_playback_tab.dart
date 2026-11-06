@@ -584,9 +584,15 @@ class _SummaryCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _metaDot('$stopCount ${stopCount == 1 ? 'stop' : 'stops'}'),
+              _metaDot(
+                context,
+                '$stopCount ${stopCount == 1 ? 'stop' : 'stops'}',
+              ),
               if (maxSpeedKmh > 0)
-                _metaDot('Max ${maxSpeedKmh.toStringAsFixed(0)} km/h'),
+                _metaDot(
+                  context,
+                  'Max ${maxSpeedKmh.toStringAsFixed(0)} km/h',
+                ),
             ],
           ),
           if (lastActivity != null) ...[
@@ -632,7 +638,7 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _metaDot(String text) {
+  Widget _metaDot(BuildContext context, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -647,10 +653,10 @@ class _SummaryCard extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
+            color: context.sg.textSecondary,
           ),
         ),
       ],

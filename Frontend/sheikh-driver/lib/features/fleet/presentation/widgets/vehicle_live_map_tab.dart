@@ -578,7 +578,7 @@ class _MapFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? AppColors.primary : Colors.white,
+      color: active ? AppColors.primary : context.sg.card,
       elevation: 2,
       shape: const CircleBorder(),
       child: InkWell(
@@ -678,18 +678,21 @@ class _TelemetryCard extends ConsumerWidget {
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          _metric('Speed', speedLabel),
+          _metric(context, 'Speed', speedLabel),
           _metric(
+            context,
             'Ignition',
             ignition == null ? 'Not available' : (ignition ? 'ON' : 'OFF'),
           ),
           _metric(
+            context,
             'Battery',
             battery != null
                 ? '${battery.toStringAsFixed(0)}%'
                 : 'Not available',
           ),
           _metric(
+            context,
             'GPS',
             formatGpsFreshness(
               latitude: live?.latitude ?? gps.latitude,
@@ -698,17 +701,20 @@ class _TelemetryCard extends ConsumerWidget {
             ),
           ),
           _metric(
+            context,
             'Last update',
             last != null ? df.format(last.toLocal()) : '—',
           ),
           _metric(
+            context,
             'Odometer',
             gps.totalDistanceKm != null
                 ? '${gps.totalDistanceKm!.toStringAsFixed(0)} km'
                 : '—',
           ),
-          _metric('IMEI', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
+          _metric(context, 'IMEI', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
           _metric(
+            context,
             'Address',
             _telemetryAddress(ref) ?? 'Resolving…',
           ),
@@ -757,7 +763,8 @@ class _TelemetryCard extends ConsumerWidget {
     return null;
   }
 
-  Widget _metric(String label, String value) {
+  Widget _metric(BuildContext context, String label, String value) {
+    final p = context.sg;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -767,9 +774,9 @@ class _TelemetryCard extends ConsumerWidget {
             width: 96,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textMuted,
+                color: p.textMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -777,10 +784,10 @@ class _TelemetryCard extends ConsumerWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: p.textPrimary,
               ),
             ),
           ),
@@ -1060,7 +1067,7 @@ class _LiveMapFullscreenPageState
               child: Row(
                 children: [
                   Material(
-                    color: Colors.white,
+                    color: context.sg.card,
                     shape: const CircleBorder(),
                     child: IconButton(
                       icon: const Icon(Icons.close),
@@ -1070,7 +1077,7 @@ class _LiveMapFullscreenPageState
                   const SizedBox(width: 10),
                   Expanded(
                     child: Material(
-                      color: Colors.white.withValues(alpha: 0.94),
+                      color: context.sg.card.withValues(alpha: 0.94),
                       borderRadius: BorderRadius.circular(AppRadii.md),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -1085,9 +1092,10 @@ class _LiveMapFullscreenPageState
                               widget.vehicleName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
+                                color: context.sg.textPrimary,
                               ),
                             ),
                             Text(
@@ -1104,7 +1112,7 @@ class _LiveMapFullscreenPageState
                   ),
                   const SizedBox(width: 8),
                   Material(
-                    color: Colors.white,
+                    color: context.sg.card,
                     shape: const CircleBorder(),
                     child: IconButton(
                       tooltip: 'Exit full screen',
@@ -1171,7 +1179,7 @@ class _LiveMapFullscreenPageState
             right: 12,
             bottom: 28,
             child: Material(
-              color: Colors.white.withValues(alpha: 0.96),
+              color: context.sg.card.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(AppRadii.md),
               elevation: 3,
               child: Padding(
