@@ -2,6 +2,7 @@ import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { signalRLogging } from '../utils/signalr-logging';
 import { AuthService } from './auth.service';
 import { PositionDto, SosAlertPayload } from '../models/gps-tracking.model';
 
@@ -143,6 +144,7 @@ export class GpsRealtimeService implements OnDestroy {
         // Always read latest token so reconnect uses refreshed credentials.
         accessTokenFactory: () => this.auth.getToken() ?? ''
       })
+      .configureLogging(signalRLogging())
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 
