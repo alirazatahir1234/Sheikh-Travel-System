@@ -21,6 +21,12 @@ export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;
 export const WEBSITE_DEMO_MAP_COORDINATES = '31.4528, 74.2025';
 export const WEBSITE_DEMO_MAP_ADDRESS_SHORT = 'Park View City, Multan Rd, Lahore';
 
+/** Short label for map pin / aria / iframe title — Park View City HQ. */
+export const WEBSITE_OFFICE_LOCATION_LABEL = WEBSITE_DEMO_MAP_ADDRESS_SHORT;
+
+/** Approximate office pin coordinates (Park View City, Multan Rd, Lahore). */
+export const WEBSITE_OFFICE_MAP_COORDINATES = WEBSITE_DEMO_MAP_COORDINATES;
+
 const WEBSITE_OFFICE_MAPS_QUERY =
   'Park View City, 2nd Floor 08 Rose Commercial, Opposite Soneri Bank, Main Boulevard, Multan Rd, Lahore, 54000, Pakistan';
 
@@ -38,11 +44,11 @@ export function resolveWebsiteOfficeAddress(cmsValue: string | null | undefined)
   return trimmed;
 }
 
-/** Opens Google Maps for directions / full map view. */
+/** Opens Google Maps for directions / full map view (Park View City query). */
 export const WEBSITE_OFFICE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}`;
 
-/** iframe embed for Contact page (no API key). */
-export const WEBSITE_OFFICE_MAPS_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}&output=embed`;
+/** iframe embed for Contact page — Park View City query + pin coordinates (no API key). */
+export const WEBSITE_OFFICE_MAPS_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(WEBSITE_OFFICE_MAPS_QUERY)}&ll=${encodeURIComponent(WEBSITE_OFFICE_MAP_COORDINATES)}&z=16&output=embed`;
 
 /**
  * Public marketing brand — SheikhGo Technologies (IT / AI company).

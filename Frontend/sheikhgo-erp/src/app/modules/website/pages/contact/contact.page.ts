@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteLeadsService } from '../../core/leads.service';
@@ -7,6 +8,7 @@ import {
   WEBSITE_BRAND,
   WEBSITE_CONTACT_PHONES,
   WEBSITE_OFFICE_ADDRESS,
+  WEBSITE_OFFICE_LOCATION_LABEL,
   WEBSITE_OFFICE_MAPS_EMBED_URL,
   WEBSITE_OFFICE_MAPS_URL,
   WebsiteContactPhone,
@@ -18,7 +20,7 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 @Component({
   selector: 'app-contact-page',
   standalone: true,
-  imports: [ReactiveFormsModule, WebsiteTranslatePipe],
+  imports: [ReactiveFormsModule, MatIconModule, WebsiteTranslatePipe],
   templateUrl: './contact.page.html',
   styleUrl: './contact.page.scss',
 })
@@ -26,6 +28,7 @@ export class ContactPage implements OnInit {
   readonly brand = WEBSITE_BRAND;
   readonly contactPhones: readonly WebsiteContactPhone[] = WEBSITE_CONTACT_PHONES;
   officeAddress: string = WEBSITE_OFFICE_ADDRESS;
+  readonly officeLocationLabel = WEBSITE_OFFICE_LOCATION_LABEL;
   readonly officeMapsUrl = WEBSITE_OFFICE_MAPS_URL;
   readonly officeMapsEmbedSrc: SafeResourceUrl;
   private readonly seo = inject(WebsiteSeoService);
