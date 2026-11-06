@@ -2,6 +2,7 @@ import { AfterViewInit, Component, OnInit, computed, inject } from '@angular/cor
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CtaBandComponent } from '../../shared/cta-band.component';
+import { SoftwareConsultancyComponent } from '../../shared/software-consultancy/software-consultancy.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import {
@@ -16,7 +17,13 @@ import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 @Component({
   selector: 'app-services-page',
   standalone: true,
-  imports: [RouterLink, MatIconModule, CtaBandComponent, WebsiteTranslatePipe],
+  imports: [
+    RouterLink,
+    MatIconModule,
+    CtaBandComponent,
+    SoftwareConsultancyComponent,
+    WebsiteTranslatePipe,
+  ],
   templateUrl: './services.page.html',
   styleUrl: './services.page.scss',
 })
@@ -55,7 +62,7 @@ export class ServicesPage implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.seo.set(
       this.pageTitle(),
-      'SheikhGo Nexus portfolio — fleet intelligence dashboard, GPS suite, operations modules, product UI gallery, and SheikhGo AI for transport teams.',
+      'SheikhGo Nexus portfolio plus software consultancy — websites, web apps, ERP systems, e-commerce stores, and mobile apps.',
       '/services',
     );
   }

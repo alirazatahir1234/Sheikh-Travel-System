@@ -437,6 +437,28 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'pages.services.portfolioTitle': 'لماذا تبدأ الفرق بـ SheikhGo Nexus',
   'pages.services.portfolioLead': 'محفظة المنصة التي يقدّمها Ali — ذكاء أسطول وعمق تشغيل وذكاء اصطناعي صادق.',
 
+  'consultancy.kicker': 'تطوير مخصّص',
+  'consultancy.title': 'استشارات البرمجيات',
+  'consultancy.lead':
+    'إلى جانب SheikhGo Nexus، تقدّم SheikhGo Technologies استشارات البرمجيات والتطوير المخصّص — من مواقع الويب ومنصات الويب إلى أنظمة ERP ومتاجر التجارة الإلكترونية وتطبيقات الجوال، بما يناسب طريقة عمل عملك.',
+  'consultancy.service.website.title': 'تطوير المواقع',
+  'consultancy.service.website.text':
+    'مواقع أعمال احترافية للوضوح والسرعة والتحويل — لتمثيل علامتك وجذب الاستفسارات الحقيقية.',
+  'consultancy.service.webApps.title': 'تطوير الويب',
+  'consultancy.service.webApps.text':
+    'تطبيقات ومنصات ويب مخصّصة حول سير عملك — بوابات ولوحات وأنظمة أعمال تنمو مع فريقك.',
+  'consultancy.service.erp.title': 'أنظمة ERP',
+  'consultancy.service.erp.text':
+    'أنظمة مؤسسية تجمع العمليات والمخزون والمالية والتقارير — بما في ذلك منصات الأسطول مثل SheikhGo Nexus وبناء ERP حسب الطلب.',
+  'consultancy.service.ecommerce.title': 'متاجر إلكترونية',
+  'consultancy.service.ecommerce.text':
+    'واجهات بيع إلكترونية مع كتالوج ودفع وطلبات موثوقة قابلة للنمو — من الإطلاق إلى التطوير المستمر.',
+  'consultancy.service.mobile.title': 'تطبيقات الجوال',
+  'consultancy.service.mobile.text':
+    'تطبيقات أصلية ومتعددة المنصات للعملاء وفرق الميدان والمشغّلين — مرتبطة بنفس الخلفيات ومنطق العمل الذي تعتمد عليه مؤسستك.',
+  'consultancy.ctaContact': 'ناقش مشروعاً',
+  'consultancy.ctaDemo': 'احجز عرض Nexus',
+
   'pages.liveTracking.kicker': 'تتبع GPS',
   'pages.liveTracking.title': 'التتبع المباشر',
   'pages.liveTracking.tagline': 'أسطولك على خريطة واحدة — يتحدّث مع تقارير الأجهزة.',

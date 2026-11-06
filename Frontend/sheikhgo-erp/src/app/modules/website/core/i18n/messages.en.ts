@@ -505,6 +505,28 @@ export const MESSAGES_EN: WebsiteMessageDictionary = {
   'pages.services.portfolioLead':
     'A client-facing portfolio of the platform Ali delivers — fleet intelligence, operational depth, and honest AI — not a generic agency services list.',
 
+  'consultancy.kicker': 'Custom development',
+  'consultancy.title': 'Software Consultancy',
+  'consultancy.lead':
+    'Beyond SheikhGo Nexus, SheikhGo Technologies provides software consultancy and custom software development. We plan, design, and build digital products — from marketing websites and web platforms to ERP systems, e-commerce stores, and mobile apps — tailored to how your business actually operates.',
+  'consultancy.service.website.title': 'Website development',
+  'consultancy.service.website.text':
+    'Professional business websites built for clarity, speed, and conversion — so your brand looks credible online and turns visitors into real enquiries.',
+  'consultancy.service.webApps.title': 'Web development',
+  'consultancy.service.webApps.text':
+    'Custom web applications and platforms shaped around your workflows — portals, dashboards, and business systems that grow with your team.',
+  'consultancy.service.erp.title': 'ERP systems',
+  'consultancy.service.erp.text':
+    'End-to-end enterprise systems that unify operations, inventory, finance, and reporting — including fleet-grade platforms like SheikhGo Nexus and bespoke ERP builds.',
+  'consultancy.service.ecommerce.title': 'E-commerce stores',
+  'consultancy.service.ecommerce.text':
+    'Online storefronts with catalog, checkout, and order flows engineered for reliability and growth — from first launch through ongoing iteration.',
+  'consultancy.service.mobile.title': 'Mobile apps',
+  'consultancy.service.mobile.text':
+    'Native and cross-platform mobile apps for customers, field teams, and operators — connected to the same backends and business logic your organisation already relies on.',
+  'consultancy.ctaContact': 'Discuss a project',
+  'consultancy.ctaDemo': 'Book a Nexus demo',
+
   'pages.liveTracking.kicker': 'GPS Tracking',
   'pages.liveTracking.title': 'Live Tracking',
   'pages.liveTracking.tagline': 'Your fleet on one map — updated as devices report in.',

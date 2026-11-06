@@ -233,6 +233,47 @@ export const HOME_MODULE_JUMPS: readonly HomeModuleJump[] = [
   },
 ] as const;
 
+/** Software consultancy offerings — About + Services pages (company services, distinct from Nexus portfolio). */
+export interface SoftwareConsultancyService {
+  id: string;
+  icon: string;
+  titleKey: string;
+  textKey: string;
+}
+
+export const SOFTWARE_CONSULTANCY_SERVICES: readonly SoftwareConsultancyService[] = [
+  {
+    id: 'website',
+    icon: 'language',
+    titleKey: 'consultancy.service.website.title',
+    textKey: 'consultancy.service.website.text',
+  },
+  {
+    id: 'web-apps',
+    icon: 'web',
+    titleKey: 'consultancy.service.webApps.title',
+    textKey: 'consultancy.service.webApps.text',
+  },
+  {
+    id: 'erp',
+    icon: 'account_tree',
+    titleKey: 'consultancy.service.erp.title',
+    textKey: 'consultancy.service.erp.text',
+  },
+  {
+    id: 'ecommerce',
+    icon: 'storefront',
+    titleKey: 'consultancy.service.ecommerce.title',
+    textKey: 'consultancy.service.ecommerce.text',
+  },
+  {
+    id: 'mobile',
+    icon: 'smartphone',
+    titleKey: 'consultancy.service.mobile.title',
+    textKey: 'consultancy.service.mobile.text',
+  },
+] as const;
+
 export const NEXUS_MODULE_SHOTS = [
   { caption: 'Dashboard', src: nexusModuleSrc('dashboard.png'), alt: 'SheikhGo Nexus operations dashboard' },
   { caption: 'Live Tracking', src: nexusModuleSrc('live-tracking.png'), alt: 'Live GPS fleet map in SheikhGo Nexus' },

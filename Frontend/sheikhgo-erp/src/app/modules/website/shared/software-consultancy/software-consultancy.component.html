@@ -1,0 +1,30 @@
+<section
+  class="consultancy-section"
+  id="software-consultancy"
+  aria-labelledby="consultancy-heading"
+>
+  <div class="container">
+    <header class="section-head consultancy-head">
+      <span class="section-kicker">{{ 'consultancy.kicker' | wsTranslate }}</span>
+      <h2 id="consultancy-heading" class="section-title">{{ 'consultancy.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'consultancy.lead' | wsTranslate }}</p>
+    </header>
+
+    <div class="consultancy-grid">
+      @for (service of services; track service.id) {
+        <article class="consultancy-card">
+          <span class="consultancy-icon" aria-hidden="true">
+            <mat-icon>{{ service.icon }}</mat-icon>
+          </span>
+          <h3>{{ service.titleKey | wsTranslate }}</h3>
+          <p>{{ service.textKey | wsTranslate }}</p>
+        </article>
+      }
+    </div>
+
+    <div class="consultancy-actions">
+      <a routerLink="/contact" class="btn btn-primary">{{ 'consultancy.ctaContact' | wsTranslate }}</a>
+      <a routerLink="/request-demo" class="btn btn-ghost">{{ 'consultancy.ctaDemo' | wsTranslate }}</a>
+    </div>
+  </div>
+</section>
