@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { BehaviorSubject, Observable, interval, switchMap, tap, catchError, of, Subscription, Subject, map, throwError } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
+import { signalRLogging } from '../utils/signalr-logging';
 import { PagedResult } from '../models/common.model';
 import type {
   Notification as AppNotification,
@@ -319,6 +320,7 @@ export class NotificationService implements OnDestroy {
     const hubUrl = environment.apiUrl.replace('/api', '/hubs/notifications');
     this.hub = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, { accessTokenFactory: () => this.auth.getToken() ?? '' })
+      .configureLogging(signalRLogging())
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 

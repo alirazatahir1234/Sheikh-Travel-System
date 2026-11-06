@@ -2,6 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { signalRLogging } from '../utils/signalr-logging';
 import { AuthService } from './auth.service';
 
 export interface WhatsAppRealtimeEvent {
@@ -35,6 +36,7 @@ export class WhatsAppRealtimeService implements OnDestroy {
       .withUrl(hubUrl, {
         accessTokenFactory: () => this.auth.getToken() ?? ''
       })
+      .configureLogging(signalRLogging())
       .withAutomaticReconnect()
       .build();
 
