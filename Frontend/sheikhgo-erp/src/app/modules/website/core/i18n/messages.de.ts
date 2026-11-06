@@ -442,6 +442,28 @@ export const MESSAGES_DE: WebsiteMessageDictionary = {
   'pages.services.portfolioLead':
     'Kundenportfolio der Plattform — Flotten-Intelligence, operative Tiefe und ehrliche KI, keine generische Agentur-Liste.',
 
+  'consultancy.kicker': 'Individuelle Entwicklung',
+  'consultancy.title': 'Software-Beratung',
+  'consultancy.lead':
+    'Neben SheikhGo Nexus bietet SheikhGo Technologies Software-Beratung und individuelle Softwareentwicklung — von Websites und Webplattformen über ERP-Systeme und E-Commerce-Shops bis zu Mobile Apps, passend zu Ihrem Betrieb.',
+  'consultancy.service.website.title': 'Website-Entwicklung',
+  'consultancy.service.website.text':
+    'Professionelle Unternehmenswebsites für Klarheit, Tempo und Conversion — damit Ihre Marke online überzeugt und Anfragen generiert.',
+  'consultancy.service.webApps.title': 'Webentwicklung',
+  'consultancy.service.webApps.text':
+    'Maßgeschneiderte Webanwendungen und Plattformen für Ihre Abläufe — Portale, Dashboards und Business-Systeme, die mit Ihrem Team wachsen.',
+  'consultancy.service.erp.title': 'ERP-Systeme',
+  'consultancy.service.erp.text':
+    'Unternehmenssysteme, die Betrieb, Lager, Finanzen und Reporting vereinen — inklusive Flottenplattformen wie SheikhGo Nexus und individueller ERP-Builds.',
+  'consultancy.service.ecommerce.title': 'E-Commerce-Shops',
+  'consultancy.service.ecommerce.text':
+    'Online-Shops mit Katalog, Checkout und Auftragsflüssen für Zuverlässigkeit und Wachstum — vom Launch bis zur laufenden Weiterentwicklung.',
+  'consultancy.service.mobile.title': 'Mobile Apps',
+  'consultancy.service.mobile.text':
+    'Native und plattformübergreifende Apps für Kunden, Außendienst und Betreiber — angebunden an dieselben Backends und Geschäftsprozesse Ihrer Organisation.',
+  'consultancy.ctaContact': 'Projekt besprechen',
+  'consultancy.ctaDemo': 'Nexus-Demo buchen',
+
   'pages.liveTracking.kicker': 'GPS-Tracking',
   'pages.liveTracking.title': 'Live-Tracking',
   'pages.liveTracking.tagline': 'Ihre Flotte auf einer Karte — aktualisiert mit Gerätemeldungen.',

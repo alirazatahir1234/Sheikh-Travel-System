@@ -1,0 +1,95 @@
+.consultancy-section {
+  padding: clamp(2.75rem, 5vw, 3.75rem) 0;
+  background: linear-gradient(180deg, #f2faf7 0%, #fff 55%);
+  border-bottom: 1px solid var(--sg-line, rgba(2, 47, 50, 0.1));
+  scroll-margin-top: calc(var(--header-h, 72px) + 1rem);
+}
+
+.consultancy-head {
+  max-width: 52rem;
+}
+
+.consultancy-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1.15rem;
+  margin-top: 1.75rem;
+}
+
+.consultancy-card {
+  grid-column: span 2;
+  background: #fff;
+  border: 1px solid var(--sg-border-soft, #e1eee9);
+  border-radius: calc(var(--sg-radius, 14px) + 2px);
+  padding: 1.35rem 1.25rem;
+  box-shadow: 0 6px 24px rgba(6, 47, 50, 0.05);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: rgba(8, 201, 151, 0.4);
+    box-shadow: var(--sg-shadow-card-hover, 0 12px 40px rgba(6, 47, 50, 0.1));
+  }
+
+  /* Bottom row: two wider cards so five items balance cleanly */
+  &:nth-child(4),
+  &:nth-child(5) {
+    grid-column: span 3;
+  }
+}
+
+.consultancy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--sg-mint, #e9faf4);
+  color: var(--sg-teal, #0f766e);
+  margin-bottom: 0.85rem;
+
+  mat-icon {
+    font-size: 1.35rem;
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
+.consultancy-card h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.45rem;
+  color: var(--sg-ink, #022f32);
+}
+
+.consultancy-card p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--sg-muted, #637780);
+}
+
+.consultancy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+}
+
+@media (max-width: 1024px) {
+  .consultancy-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .consultancy-card,
+  .consultancy-card:nth-child(4),
+  .consultancy-card:nth-child(5) {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .consultancy-grid {
+    grid-template-columns: 1fr;
+  }
+}

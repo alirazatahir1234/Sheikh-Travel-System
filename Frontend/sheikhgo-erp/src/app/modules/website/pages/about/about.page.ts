@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CtaBandComponent } from '../../shared/cta-band.component';
+import { SoftwareConsultancyComponent } from '../../shared/software-consultancy/software-consultancy.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
@@ -8,7 +9,7 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
 @Component({
   selector: 'app-about-page',
   standalone: true,
-  imports: [RouterLink, CtaBandComponent],
+  imports: [RouterLink, CtaBandComponent, SoftwareConsultancyComponent],
   template: `
     <section class="page-hero">
       <div class="container">
@@ -46,6 +47,7 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
         <a routerLink="/contact" class="btn btn-primary" style="margin-top:1.5rem">Contact us</a>
       </div>
     </section>
+    <app-software-consultancy />
     <app-cta-band />
   `,
   styles: `
@@ -64,7 +66,11 @@ export class AboutPage implements OnInit {
   bodyHtml: string | null = null;
 
   ngOnInit(): void {
-    this.seo.set('About', `About ${WEBSITE_BRAND.companyName} and the SheikhGo fleet & travel management platform.`, '/about');
+    this.seo.set(
+      'About',
+      `About ${WEBSITE_BRAND.companyName} — fleet software and software consultancy for websites, web apps, ERP, e-commerce, and mobile.`,
+      '/about',
+    );
 
     this.content.getPage('about').subscribe(page => {
       if (!page?.page) return;

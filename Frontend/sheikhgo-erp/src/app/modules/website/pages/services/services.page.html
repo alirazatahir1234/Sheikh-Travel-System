@@ -11,6 +11,7 @@
       @for (s of portfolio; track s.slug) {
         <a [routerLink]="[]" [fragment]="s.slug">{{ i18n.catalogField(s.slug, 'title') }}</a>
       }
+      <a [routerLink]="[]" fragment="software-consultancy">{{ 'consultancy.title' | wsTranslate }}</a>
     </nav>
   </div>
 </section>
@@ -123,5 +124,7 @@
     </p>
   </div>
 </section>
+
+<app-software-consultancy />
 
 <app-cta-band />
