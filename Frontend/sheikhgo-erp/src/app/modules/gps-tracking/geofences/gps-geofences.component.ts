@@ -25,6 +25,7 @@ import {
   setGmapShapeLocked,
   type GmapEditableShape
 } from '../../../core/google-maps/gmap-geofence-layer';
+import { GmapShapeDrawer } from '../../../core/google-maps/gmap-shape-drawer';
 import { triggerGmapResize } from '../../../core/google-maps/gmap-theme';
 import {
   attachSheikhGoPlacesAutocomplete,
@@ -104,11 +105,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
   drawHint = 'Search a place, or use Draw tools / Add Geofence for a default circle.';
 
   private map: google.maps.Map | null = null;
-  /** Runtime DrawingManager; @types/google.maps omit MVC helpers (setMap/setOptions). */
-  private drawingManager: google.maps.drawing.DrawingManager | null = null;
-  private get dm(): any {
-    return this.drawingManager;
-  }
+  /** Custom drawer — Maps DrawingManager was removed in JS API v3.65. */
+  private shapeDrawer: GmapShapeDrawer | null = null;
   private draftShape: GmapEditableShape | null = null;
   private draftListeners: google.maps.MapsEventListener[] = [];
   private fenceEntries: FenceOverlayEntry[] = [];
@@ -182,8 +180,8 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearDraftListeners();
     this.clearFenceOverlays();
     this.clearDraft();
-    this.dm?.setMap(null);
-    this.drawingManager = null;
+    this.shapeDrawer?.destroy();
+    this.shapeDrawer = null;
     this.map = null;
   }
 
@@ -290,7 +288,6 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
       await this.googleMapsLoader.importLibrary('maps');
-      await this.googleMapsLoader.importLibrary('drawing');
       if (this.googleMapsLoader.authFailed) {
         this.mapError = this.googleMapsLoader.failureMessage || 'Google Maps authentication failed.';
         return;
@@ -319,7 +316,7 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       gestureHandling: 'greedy'
     });
 
-    this.setupDrawingManager();
+    this.setupShapeDrawer();
     this.observeMapResize();
     this.mapReady = true;
     this.cdr.detectChanges(); // render place-search input before attaching autocomplete
@@ -426,58 +423,27 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.searchMarker = null;
   }
 
-  private setupDrawingManager(): void {
-    if (!this.map || this.drawingManager) return;
+  private setupShapeDrawer(): void {
+    if (!this.map || this.shapeDrawer) return;
 
-    const color = this.form.value.color || '#0f766e';
-    this.drawingManager = new (google.maps.drawing.DrawingManager as any)({
-      drawingMode: null,
-      drawingControl: false,
-      circleOptions: {
-        fillColor: color,
-        fillOpacity: 0.18,
-        strokeColor: color,
-        strokeWeight: 2,
-        editable: true,
-        draggable: true,
-        clickable: true
-      },
-      polygonOptions: {
-        fillColor: color,
-        fillOpacity: 0.18,
-        strokeColor: color,
-        strokeWeight: 2,
-        editable: true,
-        draggable: true,
-        clickable: true
-      },
-      rectangleOptions: {
-        fillColor: color,
-        fillOpacity: 0.18,
-        strokeColor: color,
-        strokeWeight: 2,
-        editable: true,
-        draggable: true,
-        clickable: true
-      }
-    });
-    this.dm.setMap(this.map);
-
-    this.dm.addListener('overlaycomplete', (event: { overlay: GmapEditableShape; type: string }) => {
-      this.ngZone.run(() => this.onOverlayComplete(event));
+    this.shapeDrawer = new GmapShapeDrawer({
+      map: this.map,
+      getColor: () => this.form.value.color || '#0f766e',
+      isLocked: () => this.shapeLocked,
+      onLockedAttempt: () => this.toast.info('Shape is locked. Unlock to redraw.'),
+      onComplete: overlay => this.ngZone.run(() => this.onOverlayComplete(overlay))
     });
   }
 
-  private onOverlayComplete(event: { overlay: GmapEditableShape; type: string }): void {
+  private onOverlayComplete(overlay: GmapEditableShape): void {
     if (this.shapeLocked) {
-      event.overlay.setMap(null);
+      overlay.setMap(null);
       this.toast.info('Shape is locked. Unlock to redraw.');
       this.setDrawMode('');
       return;
     }
 
     this.clearDraft(false);
-    const overlay = event.overlay as GmapEditableShape;
     this.draftShape = overlay;
     this.attachDraftListeners(overlay);
     this.patchFormFromShape(overlay);
@@ -506,17 +472,14 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   setDrawMode(mode: '' | 'circle' | 'polygon' | 'rectangle'): void {
     this.drawMode = mode;
-    if (!this.drawingManager) return;
+    if (!this.shapeDrawer) return;
     if (this.shapeLocked) {
-      this.dm.setDrawingMode(null);
+      this.shapeDrawer.setMode('');
       this.drawMode = '';
       return;
     }
-    const OverlayType = google.maps.drawing.OverlayType;
-    if (mode === 'circle') this.dm.setDrawingMode(OverlayType.CIRCLE);
-    else if (mode === 'polygon') this.dm.setDrawingMode(OverlayType.POLYGON);
-    else if (mode === 'rectangle') this.dm.setDrawingMode(OverlayType.RECTANGLE);
-    else this.dm.setDrawingMode(null);
+    // Circles use the default draft helper; only poly/rect need interactive draw.
+    this.shapeDrawer.setMode(mode === 'circle' ? '' : mode);
   }
 
   /** Switch shape from map toolbar or form — circle places a draft; poly/rect enter draw mode. */
@@ -644,24 +607,9 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       applyGmapShapeStyle(this.draftShape, color);
       setGmapShapeLocked(this.draftShape, this.shapeLocked);
     }
-    if (this.drawingManager) {
-      const opts = {
-        fillColor: color,
-        strokeColor: color,
-        fillOpacity: 0.18,
-        strokeWeight: 2,
-        editable: !this.shapeLocked,
-        draggable: !this.shapeLocked
-      };
-      this.dm.setOptions({
-        circleOptions: opts,
-        polygonOptions: opts,
-        rectangleOptions: opts
-      });
-      if (this.shapeLocked) {
-        this.dm.setDrawingMode(null);
-        this.drawMode = '';
-      }
+    if (this.shapeLocked && this.shapeDrawer) {
+      this.shapeDrawer.setMode('');
+      this.drawMode = '';
     }
 
     const type = (this.form.value.areaType || 'circle').toLowerCase();

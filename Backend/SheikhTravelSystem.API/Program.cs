@@ -246,7 +246,21 @@ builder.Services.AddCors(options =>
                         || uri.Host.Contains("sheikh-travel-customer-hub", StringComparison.OrdinalIgnoreCase));
             })
             .AllowAnyMethod()
-            .AllowAnyHeader()
+            // Explicit headers: browsers reject Access-Control-Allow-Headers: * for
+            // credentialed requests when Authorization / SignalR negotiate headers are sent.
+            .WithHeaders(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Accept-Language",
+                "X-Requested-With",
+                "X-SignalR-User-Agent",
+                "x-signalr-user-agent",
+                "X-Tenant-Slug",
+                "X-Tenant-Id",
+                "X-Correlation-Id",
+                "Idempotency-Key",
+                "X-Client-Op-Id")
             .WithExposedHeaders(AuthSessionLimits.SessionEndedHeader)
             .AllowCredentials());
 });
