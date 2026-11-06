@@ -4,13 +4,72 @@
 # Hosts:
 #   api.sheikhgo.com          — preferred (add DNS A → 20.174.1.230)
 #   20-174-1-230.sslip.io     — works without custom DNS (real LE cert)
+#
+# Global `{ email ... }` is injected by install-caddy-tls.sh (keep this file site-only).
+#
+# CORS note:
+#   Kestrel (AllowFrontendClients) still owns ACAO on successful proxied responses.
+#   Caddy answers OPTIONS + gateway errors here so brief Kestrel restarts do not
+#   surface in the browser as "Cross-origin / CORS blocked" (502 with no ACAO).
+#   Do NOT use Access-Control-Allow-Headers: * with credentials — browsers reject
+#   the Authorization header unless it is listed explicitly (SignalR negotiate).
+
+# Keep in sync with Backend Program.cs WithHeaders(...) for AllowFrontendClients.
+(cors_preflight_headers) {
+	header Access-Control-Allow-Credentials "true"
+	header Access-Control-Allow-Methods "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+	header Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Accept-Language, X-Requested-With, X-SignalR-User-Agent, x-signalr-user-agent, X-Tenant-Slug, X-Tenant-Id, X-Correlation-Id, Idempotency-Key, X-Client-Op-Id"
+	header Access-Control-Max-Age "86400"
+	header Vary Origin
+}
 
 api.sheikhgo.com, 20-174-1-230.sslip.io {
 	encode gzip zstd
 
 	# ACME HTTP-01 is handled by Caddy on :80 automatically.
 
-	handle /health {
+	# --- Edge CORS preflight (do not proxy; survives Kestrel restarts) ---
+	@preflight_www {
+		method OPTIONS
+		header Origin https://www.sheikhgo.com
+	}
+	handle @preflight_www {
+		header Access-Control-Allow-Origin "https://www.sheikhgo.com"
+		import cors_preflight_headers
+		respond 204
+	}
+
+	@preflight_apex {
+		method OPTIONS
+		header Origin https://sheikhgo.com
+	}
+	handle @preflight_apex {
+		header Access-Control-Allow-Origin "https://sheikhgo.com"
+		import cors_preflight_headers
+		respond 204
+	}
+
+	@preflight_local4200 {
+		method OPTIONS
+		header Origin http://localhost:4200
+	}
+	handle @preflight_local4200 {
+		header Access-Control-Allow-Origin "http://localhost:4200"
+		import cors_preflight_headers
+		respond 204
+	}
+
+	@preflight_local127 {
+		method OPTIONS
+		header Origin http://127.0.0.1:4200
+	}
+	handle @preflight_local127 {
+		header Access-Control-Allow-Origin "http://127.0.0.1:4200"
+		import cors_preflight_headers
+		respond 204
+	}
+
+	handle /health* {
 		reverse_proxy 127.0.0.1:5082
 	}
 
@@ -46,5 +105,38 @@ api.sheikhgo.com, 20-174-1-230.sslip.io {
 		-Server
 	}
 
-	# Access logs go to journald via systemd (avoids /var/log permission issues).
+	# When upstream is down/timeout, still emit ACAO so browsers report 502 — not a fake CORS error.
+	handle_errors {
+		@err_www header Origin https://www.sheikhgo.com
+		handle @err_www {
+			header Access-Control-Allow-Origin "https://www.sheikhgo.com"
+			header Access-Control-Allow-Credentials "true"
+			header Vary Origin
+			respond "Upstream unavailable" {err.status_code}
+		}
+
+		@err_apex header Origin https://sheikhgo.com
+		handle @err_apex {
+			header Access-Control-Allow-Origin "https://sheikhgo.com"
+			header Access-Control-Allow-Credentials "true"
+			header Vary Origin
+			respond "Upstream unavailable" {err.status_code}
+		}
+
+		@err_local4200 header Origin http://localhost:4200
+		handle @err_local4200 {
+			header Access-Control-Allow-Origin "http://localhost:4200"
+			header Access-Control-Allow-Credentials "true"
+			header Vary Origin
+			respond "Upstream unavailable" {err.status_code}
+		}
+
+		@err_local127 header Origin http://127.0.0.1:4200
+		handle @err_local127 {
+			header Access-Control-Allow-Origin "http://127.0.0.1:4200"
+			header Access-Control-Allow-Credentials "true"
+			header Vary Origin
+			respond "Upstream unavailable" {err.status_code}
+		}
+	}
 }
