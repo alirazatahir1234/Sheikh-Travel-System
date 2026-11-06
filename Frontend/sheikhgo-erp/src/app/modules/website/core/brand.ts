@@ -15,20 +15,25 @@ export const WEBSITE_CONTACT_PHONES: readonly WebsiteContactPhone[] = [
 /** E.164 digits (no +) for wa.me links — same as Pakistan contact line. */
 export const WEBSITE_WHATSAPP_DIGITS = '923177368305';
 
-/** Office postal address — verified with Ali (Exchange Tower, Business Bay). */
+/** Office postal address — verified with Ali (Park View City, Lahore). */
 export const WEBSITE_OFFICE_ADDRESS = COMPANY_ADDRESS;
 
-/** Marketing sample pin — Dubai corporate office (Live Tracking / GPS pages). */
-export const WEBSITE_DEMO_MAP_COORDINATES = '25.1854, 55.2663';
-export const WEBSITE_DEMO_MAP_ADDRESS_SHORT = 'The Exchange Tower, Business Bay, Dubai';
+/** Marketing sample pin — Lahore corporate office (Live Tracking / GPS pages). */
+export const WEBSITE_DEMO_MAP_COORDINATES = '31.4528, 74.2025';
+export const WEBSITE_DEMO_MAP_ADDRESS_SHORT = 'Park View City, Multan Rd, Lahore';
 
-const WEBSITE_OFFICE_MAPS_QUERY = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
+const WEBSITE_OFFICE_MAPS_QUERY =
+  'Park View City, 2nd Floor 08 Rose Commercial, Opposite Soneri Bank, Main Boulevard, Multan Rd, Lahore, 54000, Pakistan';
 
-/** Prefer verified office address when CMS holds invalid or hidden-service values. */
+/** Prefer verified office address when CMS holds invalid, hidden-service, or stale HQ values. */
 export function resolveWebsiteOfficeAddress(cmsValue: string | null | undefined): string {
   const trimmed = cmsValue?.trim() ?? '';
   if (!trimmed) return WEBSITE_OFFICE_ADDRESS;
   if (/\.onion\b/i.test(trimmed) || /hidden\s+service/i.test(trimmed)) {
+    return WEBSITE_OFFICE_ADDRESS;
+  }
+  // Supersede previous Dubai HQ if still stored in WebsiteSettings CMS.
+  if (/exchange\s+tower/i.test(trimmed) || /business\s+bay/i.test(trimmed)) {
     return WEBSITE_OFFICE_ADDRESS;
   }
   return trimmed;

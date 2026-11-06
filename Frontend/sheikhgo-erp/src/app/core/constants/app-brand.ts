@@ -4,7 +4,8 @@ export const APP_PRODUCT_SHORT_NAME = 'SheikhGo Nexus';
 export const APP_PRODUCT_TAGLINE = 'Smarter Fleet. Stronger Business.';
 export const COMPANY_NAME = 'Sheikh Travel Group';
 /** Corporate office — shown on report letterheads and the public marketing site. */
-export const COMPANY_ADDRESS = 'The Exchange Tower, Business Bay, Dubai, United Arab Emirates';
+export const COMPANY_ADDRESS =
+  'Park View City, 2nd Floor 08 Rose Commercial, Opposite Soneri Bank, Main Boulevard, Multan Rd, Lahore, 54000';
 export const APP_LOGO_PATH = '/brand/sheikhgo-logo.png';
 /** ERP shell / fleet sidebar mark — transparent Nexus lockup for dark navy rail. */
 export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-nexus-logo.png';
