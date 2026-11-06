@@ -220,9 +220,10 @@
   display: grid;
 }
 
-/* —— Compact banner (tracking pages) —— */
+/* —— Compact banner (tracking pages & home) —— */
 .mobile-app-banner {
   padding: 1.15rem 0;
+  scroll-margin-top: calc(var(--header-h, 72px) + 1.5rem);
   background:
     linear-gradient(105deg, rgba(3, 47, 50, 0.96) 0%, rgba(5, 55, 58, 0.92) 55%, rgba(0, 95, 73, 0.85) 100%);
   color: #fff;

@@ -17,7 +17,6 @@
           {{ 'home.hero.explorePlatform' | wsTranslate }}
         </a>
       </div>
-      <p class="hero-trust">{{ 'home.hero.trustLine' | wsTranslate }}</p>
       <ul class="hero-perks">
         @for (p of heroPerks(); track p.text) {
           <li class="hero-perk">
@@ -105,12 +104,14 @@
           <span class="platform-overview-icon" aria-hidden="true">
             <mat-icon>{{ card.icon }}</mat-icon>
           </span>
-          <h3>{{ card.titleKey | wsTranslate }}</h3>
-          <p>{{ card.textKey | wsTranslate }}</p>
-          <span class="platform-overview-link">
-            {{ 'home.overview.explore' | wsTranslate }}
-            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-          </span>
+          <div class="platform-overview-body">
+            <h3>{{ card.titleKey | wsTranslate }}</h3>
+            <p>{{ card.textKey | wsTranslate }}</p>
+            <span class="platform-overview-link">
+              {{ 'home.overview.explore' | wsTranslate }}
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            </span>
+          </div>
         </a>
       }
     </div>
@@ -190,555 +191,51 @@
   </div>
 </section>
 
-<section class="business-benefits" id="business-benefits" aria-labelledby="business-benefits-heading">
-  <div class="container business-benefits-inner">
-    <div class="business-benefits-copy">
-      <span class="section-kicker">{{ 'home.benefits.kicker' | wsTranslate }}</span>
-      <h2 id="business-benefits-heading" class="section-title">{{ 'home.benefits.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.benefits.lead' | wsTranslate }}</p>
-      <ul class="business-benefits-list">
-        @for (item of businessBenefits; track item.id) {
-          <li class="business-benefit-item">
-            <span class="business-benefit-icon" aria-hidden="true">
-              <mat-icon>{{ item.icon }}</mat-icon>
-            </span>
-            <div>
-              <h3>{{ item.titleKey | wsTranslate }}</h3>
-              <p>{{ item.textKey | wsTranslate }}</p>
-            </div>
-          </li>
-        }
-      </ul>
-    </div>
-
-    <div class="business-benefits-visual" role="img" [attr.aria-label]="'home.benefits.visualAria' | wsTranslate">
-      <div class="benefits-visual-frame benefits-visual-primary">
-        <img
-          [src]="benefitsVisual.primary.src"
-          [alt]="benefitsVisual.primary.alt"
-          width="1920"
-          height="1080"
-          loading="lazy"
-          decoding="async" />
-      </div>
-      <div class="benefits-visual-frame benefits-visual-map" aria-hidden="true">
-        <img
-          [src]="benefitsVisual.map.src"
-          [alt]="benefitsVisual.map.alt"
-          width="1440"
-          height="900"
-          loading="lazy"
-          decoding="async" />
-      </div>
-      <div class="benefits-visual-frame benefits-visual-reports" aria-hidden="true">
-        <img
-          [src]="benefitsVisual.reports.src"
-          [alt]="benefitsVisual.reports.alt"
-          width="1440"
-          height="900"
-          loading="lazy"
-          decoding="async" />
-      </div>
-      <p class="benefits-visual-note">{{ 'home.benefits.visualNote' | wsTranslate }}</p>
-    </div>
-  </div>
-</section>
-
-<section class="industries-serve" id="industries-serve" aria-labelledby="industries-serve-heading">
-  <div class="container">
-    <header class="section-head industries-serve-head">
-      <span class="section-kicker">{{ 'home.industriesServe.kicker' | wsTranslate }}</span>
-      <h2 id="industries-serve-heading" class="section-title">{{ 'home.industriesServe.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.industriesServe.lead' | wsTranslate }}</p>
-    </header>
-    <div class="industries-serve-grid">
-      @for (card of industryServeCards; track card.id) {
-        <a class="industries-serve-card" [routerLink]="card.link">
-          <span class="industries-serve-icon" aria-hidden="true">
-            <mat-icon>{{ card.icon }}</mat-icon>
-          </span>
-          <h3>{{ card.titleKey | wsTranslate }}</h3>
-          <p>{{ card.textKey | wsTranslate }}</p>
-          <span class="industries-serve-link">
-            {{ 'home.industriesServe.explore' | wsTranslate }}
-            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-          </span>
-        </a>
-      }
-    </div>
-  </div>
-</section>
-
-<nav class="premium-pill-nav" [attr.aria-label]="'home.pill.explore' | wsTranslate">
-  <div class="container pills">
-    @for (pill of pillLinks(); track pill.label) {
-      @if (pill.link) {
-        <a [routerLink]="pill.link">
-          <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
-          {{ pill.label }}
-        </a>
-      } @else {
-        <a
-          [routerLink]="['/']"
-          [fragment]="pill.fragment"
-          (click)="scrollToHomeSection($event, pill.fragment!)">
-          <mat-icon aria-hidden="true">{{ pill.icon }}</mat-icon>
-          {{ pill.label }}
-        </a>
-      }
-    }
-  </div>
-</nav>
-
-<section class="home-module-jumps" [attr.aria-label]="'home.modules.title' | wsTranslate">
-  <div class="container">
-    <div class="home-module-jumps-grid">
-      @for (mod of homeModuleJumps; track mod.labelKey) {
-        @if (mod.link) {
-          <a class="home-module-jump-card" [routerLink]="mod.link" [attr.aria-label]="mod.labelKey | wsTranslate">
-            <span class="home-module-jump-shot">
-              <img [src]="mod.image" [alt]="mod.alt" width="360" height="225" loading="lazy" decoding="async" />
-            </span>
-            <span class="home-module-jump-label">{{ mod.labelKey | wsTranslate }}</span>
-          </a>
-        } @else {
-          <a
-            class="home-module-jump-card"
-            [routerLink]="['/']"
-            [fragment]="mod.fragment"
-            [attr.aria-label]="mod.labelKey | wsTranslate"
-            (click)="scrollToHomeSection($event, mod.fragment!)">
-            <span class="home-module-jump-shot">
-              <img [src]="mod.image" [alt]="mod.alt" width="360" height="225" loading="lazy" decoding="async" />
-            </span>
-            <span class="home-module-jump-label">{{ mod.labelKey | wsTranslate }}</span>
-          </a>
-        }
-      }
-    </div>
-  </div>
-</section>
-
-<section class="nexus-showcase" id="see-the-platform" aria-labelledby="nexus-showcase-heading">
-  <div class="nexus-showcase-bg" aria-hidden="true"></div>
-  <div class="container nexus-container">
-    <header class="section-head nexus-showcase-head">
-      <span class="section-kicker">{{ 'home.showcase.kicker' | wsTranslate }}</span>
-      <h2 id="nexus-showcase-heading" class="section-title">{{ 'home.showcase.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.showcase.lead' | wsTranslate }}</p>
-      <div class="nexus-showcase-actions">
-        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
-        <a [routerLink]="brand.loginPath" class="btn btn-outline">{{ brand.signInToProductLabel }}</a>
-      </div>
-    </header>
-
-    <figure class="nexus-frame">
-      <div class="nexus-frame-glow" aria-hidden="true"></div>
-      <div class="nexus-screenshot-wrap">
-        <img
-          [src]="nexusDashboardSrc"
-          [alt]="nexusDashboardAlt"
-          class="nexus-screenshot"
-          width="1920"
-          height="1080"
-          loading="lazy"
-          decoding="async"
-          [class.is-hidden]="nexusImageError"
-          (error)="nexusImageError = true" />
-        @if (nexusImageError) {
-          <div class="nexus-screenshot-placeholder" role="img" aria-label="Platform preview placeholder">
-            <mat-icon aria-hidden="true">dashboard</mat-icon>
-            <span>SheikhGo NEXUS dashboard preview</span>
-            <small>Dashboard image unavailable</small>
-          </div>
-        }
-      </div>
-      @for (callout of nexusCallouts(); track callout.title; let i = $index) {
-        <div class="nexus-callout reveal" [ngClass]="'callout-' + i" aria-hidden="true">
-          <span class="nexus-callout-icon"><mat-icon>{{ callout.icon }}</mat-icon></span>
-          <div>
-            <strong>{{ callout.title }}</strong>
-            <span>{{ callout.text }}</span>
-          </div>
-        </div>
-      }
-      <figcaption class="nexus-caption">{{ 'home.showcase.caption' | wsTranslate }}</figcaption>
-    </figure>
-  </div>
-</section>
-
-<section class="section news-announcements" id="news" aria-labelledby="home-news-heading">
-  <div class="container">
-    <header class="section-head news-head">
-      <span class="section-kicker">{{ 'home.news.kicker' | wsTranslate }}</span>
-      <h2 id="home-news-heading" class="section-title">{{ 'home.news.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.news.lead' | wsTranslate }}</p>
-      <a routerLink="/news" class="btn btn-outline news-all-link">{{ 'home.news.viewAll' | wsTranslate }}</a>
-    </header>
-    <div class="news-grid">
-      @for (item of newsPreview; track item.id) {
-        <article class="news-card">
-          <div class="news-card-meta">
-            <span class="news-tag">{{ item.category }}</span>
-            <time>{{ item.date }}</time>
-          </div>
-          <h3>{{ item.title }}</h3>
-          <p>{{ item.excerpt }}</p>
-          <a routerLink="/news" class="news-card-link">{{ 'home.news.cardLink' | wsTranslate }}</a>
-        </article>
-      }
-    </div>
-  </div>
-</section>
-
-<section class="section nexus-modules-showcase" id="platform-modules" aria-labelledby="platform-modules-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.modules.kicker' | wsTranslate }}</span>
-      <h2 id="platform-modules-heading" class="section-title">{{ 'home.modules.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.modules.lead' | wsTranslate }}</p>
-    </header>
-    <div class="nexus-modules-grid">
-      @for (mod of nexusModuleShots; track mod.caption) {
-        <figure class="nexus-module-card">
-          <div class="nexus-module-shot">
-            <img
-              [src]="mod.src"
-              [alt]="mod.alt"
-              width="720"
-              height="450"
-              loading="lazy"
-              decoding="async" />
-          </div>
-          <figcaption class="nexus-module-caption">{{ mod.caption }}</figcaption>
-        </figure>
-      }
-    </div>
-    <p class="nexus-modules-footnote">{{ 'home.modules.footnote' | wsTranslate }}</p>
-  </div>
-</section>
-
-<section class="section subscription-plans-showcase" id="subscription-plans" aria-labelledby="subscription-plans-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.subscriptionPlans.kicker' | wsTranslate }}</span>
-      <h2 id="subscription-plans-heading" class="section-title">{{ 'home.subscriptionPlans.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.subscriptionPlans.lead' | wsTranslate }}</p>
-    </header>
-    <div class="subscription-plans-grid">
-      @for (tier of subscriptionTiers(); track tier.id) {
-        <article class="subscription-plan-card" [class.featured]="tier.featured">
-          @if (tier.badge) {
-            <span class="subscription-plan-badge">{{ tier.badge }}</span>
-          }
-          <h3>{{ tier.name }}</h3>
-          <p class="subscription-plan-fleet">{{ tier.fleet }}</p>
-          <p class="subscription-plan-price">
-            <span class="amount">{{ tier.price }}</span>
-            <span class="currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
-            <span class="period">{{ 'pages.pricing.perMonth' | wsTranslate }}</span>
-          </p>
-          @if (tier.priceNote) {
-            <p class="subscription-plan-note">{{ tier.priceNote }}</p>
-          }
-        </article>
-      }
-    </div>
-    <p class="subscription-plans-footnote">{{ 'home.subscriptionPlans.footnote' | wsTranslate }}</p>
-    <div class="subscription-plans-cta">
-      <a routerLink="/pricing" class="btn btn-ghost">{{ 'home.subscriptionPlans.viewPricing' | wsTranslate }}</a>
-      <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="client-billing" aria-labelledby="client-billing-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.clientBilling.kicker' | wsTranslate }}</span>
-      <h2 id="client-billing-heading" class="section-title">{{ 'home.clientBilling.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.clientBilling.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">receipt_long</mat-icon>
-        <h3>{{ 'home.clientBilling.autoTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.clientBilling.autoText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">mail</mat-icon>
-        <h3>{{ 'home.clientBilling.emailTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.clientBilling.emailText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">monitoring</mat-icon>
-        <h3>{{ 'home.clientBilling.statusTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.clientBilling.statusText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="driver-payments" aria-labelledby="driver-payments-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.driverPayments.kicker' | wsTranslate }}</span>
-      <h2 id="driver-payments-heading" class="section-title">{{ 'home.driverPayments.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.driverPayments.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">account_balance_wallet</mat-icon>
-        <h3>{{ 'home.driverPayments.walletTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverPayments.walletText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">calendar_month</mat-icon>
-        <h3>{{ 'home.driverPayments.cadenceTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverPayments.cadenceText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">payments</mat-icon>
-        <h3>{{ 'home.driverPayments.cashOutTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverPayments.cashOutText' | wsTranslate }}</p>
-        <ul class="driver-payments-fees">
-          <li>{{ 'home.driverPayments.feeMin' | wsTranslate }}</li>
-          <li>{{ 'home.driverPayments.feePercent' | wsTranslate }}</li>
-          <li>{{ 'home.driverPayments.feeBreakdown' | wsTranslate }}</li>
-        </ul>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase smart-assignment-showcase" id="smart-assignment" aria-labelledby="smart-assignment-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.smartAssignment.kicker' | wsTranslate }}</span>
-      <h2 id="smart-assignment-heading" class="section-title">{{ 'home.smartAssignment.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.smartAssignment.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">insights</mat-icon>
-        <h3>{{ 'home.smartAssignment.signalsTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.smartAssignment.signalsText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">notifications_active</mat-icon>
-        <h3>{{ 'home.smartAssignment.driverTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.smartAssignment.driverText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">admin_panel_settings</mat-icon>
-        <h3>{{ 'home.smartAssignment.adminTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.smartAssignment.adminText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="live-traffic" aria-labelledby="live-traffic-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.liveTraffic.kicker' | wsTranslate }}</span>
-      <h2 id="live-traffic-heading" class="section-title">{{ 'home.liveTraffic.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.liveTraffic.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">dashboard</mat-icon>
-        <h3>{{ 'home.liveTraffic.erpTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.liveTraffic.erpText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">navigation</mat-icon>
-        <h3>{{ 'home.liveTraffic.mobileTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.liveTraffic.mobileText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">link</mat-icon>
-        <h3>{{ 'home.liveTraffic.trackingTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.liveTraffic.trackingText' | wsTranslate }}</p>
-      </article>
-    </div>
-    <p class="section-note muted">{{ 'home.liveTraffic.costNote' | wsTranslate }}</p>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="driver-verification" aria-labelledby="driver-verification-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.driverVerification.kicker' | wsTranslate }}</span>
-      <h2 id="driver-verification-heading" class="section-title">{{ 'home.driverVerification.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.driverVerification.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">upload_file</mat-icon>
-        <h3>{{ 'home.driverVerification.uploadTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVerification.uploadText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">policy</mat-icon>
-        <h3>{{ 'home.driverVerification.providersTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVerification.providersText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">block</mat-icon>
-        <h3>{{ 'home.driverVerification.opsTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVerification.opsText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="driver-voice" aria-labelledby="driver-voice-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.driverVoice.kicker' | wsTranslate }}</span>
-      <h2 id="driver-voice-heading" class="section-title">{{ 'home.driverVoice.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.driverVoice.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">translate</mat-icon>
-        <h3>{{ 'home.driverVoice.langTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVoice.langText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">campaign</mat-icon>
-        <h3>{{ 'home.driverVoice.intentTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVoice.intentText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">cloud_off</mat-icon>
-        <h3>{{ 'home.driverVoice.offlineTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverVoice.offlineText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase" id="fatigue-detection" aria-labelledby="fatigue-detection-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.fatigueDetection.kicker' | wsTranslate }}</span>
-      <h2 id="fatigue-detection-heading" class="section-title">{{ 'home.fatigueDetection.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.fatigueDetection.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">videocam</mat-icon>
-        <h3>{{ 'home.fatigueDetection.cameraTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.fatigueDetection.cameraText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">speed</mat-icon>
-        <h3>{{ 'home.fatigueDetection.obdTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.fatigueDetection.obdText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">bedtime</mat-icon>
-        <h3>{{ 'home.fatigueDetection.opsTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.fatigueDetection.opsText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section driver-payments-showcase driver-offline-showcase" id="driver-offline-sync" aria-labelledby="driver-offline-heading">
-  <div class="container">
-    <header class="section-head">
-      <span class="section-kicker">{{ 'home.driverOffline.kicker' | wsTranslate }}</span>
-      <h2 id="driver-offline-heading" class="section-title">{{ 'home.driverOffline.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.driverOffline.lead' | wsTranslate }}</p>
-    </header>
-    <div class="driver-payments-grid">
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">inventory_2</mat-icon>
-        <h3>{{ 'home.driverOffline.queueTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverOffline.queueText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card">
-        <mat-icon aria-hidden="true">verified</mat-icon>
-        <h3>{{ 'home.driverOffline.serverTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverOffline.serverText' | wsTranslate }}</p>
-      </article>
-      <article class="driver-payments-card driver-payments-card--accent">
-        <mat-icon aria-hidden="true">rule</mat-icon>
-        <h3>{{ 'home.driverOffline.conflictTitle' | wsTranslate }}</h3>
-        <p>{{ 'home.driverOffline.conflictText' | wsTranslate }}</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section client-testimonials" id="client-testimonials" aria-labelledby="client-testimonials-heading">
-  <div class="container">
-    <header class="section-head testimonials-head">
-      <span class="section-kicker">{{ 'home.scenarios.kicker' | wsTranslate }}</span>
-      <h2 id="client-testimonials-heading" class="section-title">{{ 'home.scenarios.title' | wsTranslate }}</h2>
-      <p class="section-lead">{{ 'home.scenarios.lead' | wsTranslate }}</p>
-    </header>
-    <div class="testimonials-grid">
-      @for (s of operatorScenarios; track s.id) {
-        <article class="testimonial-card scenario-card">
-          <span class="scenario-icon" aria-hidden="true">
-            <mat-icon>{{ s.icon }}</mat-icon>
-          </span>
-          <h3>{{ s.titleKey | wsTranslate }}</h3>
-          <p>{{ s.textKey | wsTranslate }}</p>
-        </article>
-      }
-    </div>
-  </div>
-</section>
-
 <section class="section platform-capabilities" id="platform-features" aria-labelledby="platform-features-heading">
   <div class="container">
-    <header class="section-head">
+    <header class="section-head platform-capabilities-head">
       <span class="section-kicker">{{ 'home.capabilities.kicker' | wsTranslate }}</span>
       <h2 id="platform-features-heading" class="section-title">{{ 'home.capabilities.title' | wsTranslate }}</h2>
       <p class="section-lead">{{ 'home.capabilities.lead' | wsTranslate }}</p>
     </header>
     <div class="platform-cap-grid">
-      @for (cap of platformCapabilities(); track cap.title) {
-        <article class="platform-cap-card">
-          <span class="cap-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
-          <h3>{{ cap.title }}</h3>
+      @for (cap of platformHighlights(); track cap.title) {
+        <a class="platform-cap-card" [routerLink]="cap.link">
+          <div class="cap-card-top">
+            <span class="cap-icon" aria-hidden="true"><mat-icon>{{ cap.icon }}</mat-icon></span>
+            <h3>{{ cap.title }}</h3>
+          </div>
           <p>{{ cap.text }}</p>
-          <a class="cap-link" [routerLink]="cap.link">{{ cap.linkLabel }} →</a>
-        </article>
+          <span class="cap-link">{{ cap.linkLabel }} →</span>
+        </a>
       }
     </div>
-  </div>
-</section>
-
-<section class="trust-band" id="trust">
-  <div class="container trust-inner">
-    <mat-icon aria-hidden="true">verified</mat-icon>
-    <div>
-      <strong>{{ 'home.trust.title' | wsTranslate }}</strong>
-      <p>{{ 'home.trust.body' | wsTranslate }}</p>
+    <div class="platform-cap-foot">
+      <a routerLink="/features" class="btn btn-outline">{{ 'home.highlights.viewAll' | wsTranslate }}</a>
+      <a routerLink="/services" class="btn btn-outline">{{ 'home.highlights.viewPortfolio' | wsTranslate }}</a>
     </div>
   </div>
 </section>
 
-<app-mobile-app-promo variant="section" analyticsSource="home" />
-
-<section class="home-ai-spotlight" id="home-ai">
+<section class="home-ai-spotlight" id="home-ai" aria-labelledby="home-ai-heading">
   <div class="ai-spotlight-bg" aria-hidden="true"></div>
   <div class="container ai-spotlight-grid">
     <div class="ai-spotlight-copy">
       <span class="section-kicker light">{{ 'home.ai.kicker' | wsTranslate }}</span>
-      <h2>{{ 'home.ai.title' | wsTranslate }}</h2>
+      <h2 id="home-ai-heading">{{ 'home.ai.title' | wsTranslate }}</h2>
       <p>{{ 'home.ai.lead' | wsTranslate }}</p>
       <ul class="ai-spotlight-list">
         @for (f of aiFeatures; track f) {
           <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
       </ul>
+      <div class="ai-trust-inline" id="trust">
+        <mat-icon aria-hidden="true">verified</mat-icon>
+        <p>
+          <strong>{{ 'home.trust.title' | wsTranslate }}:</strong>
+          {{ 'home.trust.body' | wsTranslate }}
+        </p>
+      </div>
       <a routerLink="/ai-solutions" class="btn btn-primary">{{ 'common.exploreAi' | wsTranslate }}</a>
     </div>
     <div class="ai-spotlight-cards" aria-hidden="true">
@@ -747,6 +244,40 @@
           <mat-icon>{{ card.icon }}</mat-icon>
           <strong>{{ card.title }}</strong>
           <p>{{ card.text }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<app-mobile-app-promo variant="banner" analyticsSource="home" />
+
+<section class="section subscription-plans-showcase" id="subscription-plans" aria-labelledby="subscription-plans-heading">
+  <div class="container pricing-teaser-inner">
+    <div class="pricing-teaser-copy">
+      <span class="section-kicker">{{ 'home.subscriptionPlans.kicker' | wsTranslate }}</span>
+      <h2 id="subscription-plans-heading" class="section-title">{{ 'home.subscriptionPlans.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'home.subscriptionPlans.lead' | wsTranslate }}</p>
+      <div class="subscription-plans-cta">
+        <a routerLink="/pricing" class="btn btn-outline">{{ 'home.subscriptionPlans.viewPricing' | wsTranslate }}</a>
+        <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
+      </div>
+    </div>
+    <div class="subscription-plans-grid">
+      @for (tier of subscriptionTiers(); track tier.id) {
+        <article class="subscription-plan-card" [class.featured]="tier.featured">
+          @if (tier.badge) {
+            <span class="subscription-plan-badge">{{ tier.badge }}</span>
+          }
+          <div class="subscription-plan-head">
+            <h3>{{ tier.name }}</h3>
+            <p class="subscription-plan-fleet">{{ tier.fleet }}</p>
+          </div>
+          <p class="subscription-plan-price">
+            <span class="amount">{{ tier.price }}</span>
+            <span class="currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
+            <span class="period">{{ 'pages.pricing.perMonth' | wsTranslate }}</span>
+          </p>
         </article>
       }
     </div>
@@ -762,14 +293,9 @@
     </div>
     <div class="actions">
       <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>
-      <a routerLink="/features" class="btn btn-ghost">{{ 'home.hero.explorePlatform' | wsTranslate }}</a>
       <button type="button" class="btn btn-ghost" (click)="openDemoModal()">
         <mat-icon aria-hidden="true">play_circle</mat-icon>
         {{ 'common.watchDemo' | wsTranslate }}
-      </button>
-      <button type="button" class="btn btn-ghost" (click)="openPromoModal()">
-        <mat-icon aria-hidden="true">movie</mat-icon>
-        {{ 'common.watchPromo' | wsTranslate }}
       </button>
       <a routerLink="/contact" class="btn btn-ghost">{{ 'common.contactUs' | wsTranslate }}</a>
     </div>

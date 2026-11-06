@@ -1,5 +1,4 @@
 import { AfterViewInit, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,16 +7,10 @@ import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
 import {
-  BUSINESS_BENEFITS,
-  BUSINESS_BENEFITS_VISUAL,
-  HOME_MODULE_JUMPS,
-  INDUSTRY_SERVE_CARDS,
   NEXUS_DASHBOARD_IMAGE,
-  NEXUS_MODULE_SHOTS,
   PLATFORM_OVERVIEW_CARDS,
   PRODUCT_SHOWCASE_TABS,
 } from '../../core/site-catalog';
-import { NEWS_ANNOUNCEMENTS } from '../../core/news-items';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { NexusDemoModalComponent } from '../../shared/nexus-demo-modal/nexus-demo-modal.component';
 import { MobileAppPromoComponent } from '../../shared/mobile-app-promo/mobile-app-promo.component';
@@ -29,7 +22,6 @@ import { WebsiteGoogleAnalyticsService } from '../../core/website-google-analyti
   standalone: true,
   imports: [
     RouterLink,
-    NgClass,
     MatIconModule,
     NexusDemoModalComponent,
     MobileAppPromoComponent,
@@ -54,13 +46,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly mobilePromoPosterSrc = NEXUS_MOBILE_PROMO_POSTER;
   readonly demoModalOpen = signal(false);
   readonly demoModalMode = signal<NexusDemoModalMode>('erp');
-  readonly newsPreview = NEWS_ANNOUNCEMENTS.slice(0, 4);
 
   readonly platformOverviewCards = PLATFORM_OVERVIEW_CARDS;
   readonly productShowcaseTabs = PRODUCT_SHOWCASE_TABS;
-  readonly businessBenefits = BUSINESS_BENEFITS;
-  readonly industryServeCards = INDUSTRY_SERVE_CARDS;
-  readonly benefitsVisual = BUSINESS_BENEFITS_VISUAL;
   readonly showcaseTabIndex = signal(0);
 
   readonly activeShowcaseTab = computed(() => {
@@ -113,29 +101,6 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  readonly pillLinks = computed(() => {
-    this.i18n.lang();
-    return [
-      { label: this.i18n.t('home.pill.dashboard'), fragment: 'see-the-platform', icon: 'dashboard' },
-      { label: this.i18n.t('home.pill.modules'), fragment: 'platform-modules', icon: 'view_module' },
-      { label: this.i18n.t('home.pill.subscriptionPlans'), fragment: 'subscription-plans', icon: 'subscriptions' },
-      { label: this.i18n.t('home.pill.clientBilling'), fragment: 'client-billing', icon: 'receipt_long' },
-      { label: this.i18n.t('home.pill.driverPayments'), fragment: 'driver-payments', icon: 'account_balance_wallet' },
-      { label: this.i18n.t('home.pill.smartAssignment'), fragment: 'smart-assignment', icon: 'auto_awesome' },
-      { label: this.i18n.t('home.pill.liveTraffic'), fragment: 'live-traffic', icon: 'traffic' },
-      { label: this.i18n.t('home.pill.driverVerification'), fragment: 'driver-verification', icon: 'verified_user' },
-      { label: this.i18n.t('home.pill.driverVoice'), fragment: 'driver-voice', icon: 'mic' },
-      { label: this.i18n.t('home.pill.fatigueDetection'), fragment: 'fatigue-detection', icon: 'bedtime' },
-      { label: this.i18n.t('home.pill.driverOffline'), fragment: 'driver-offline-sync', icon: 'sync_disabled' },
-      { label: this.i18n.t('home.pill.capabilities'), fragment: 'platform-features', icon: 'grid_view' },
-      { label: this.i18n.t('home.pill.mobileApp'), fragment: 'mobile-app', icon: 'smartphone' },
-      { label: this.i18n.t('home.pill.ai'), link: '/ai-solutions', icon: 'auto_awesome' },
-      { label: this.i18n.t('home.pill.pricing'), link: '/pricing', icon: 'payments' },
-      { label: this.i18n.t('home.pill.nexus'), link: '/services', icon: 'hub' },
-      { label: this.i18n.t('home.pill.demo'), fragment: 'cta', icon: 'rocket_launch' },
-    ];
-  });
-
   readonly subscriptionTiers = computed(() => {
     this.i18n.lang();
     return [
@@ -159,156 +124,59 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
         name: this.i18n.t('pages.pricing.enterprise.name'),
         fleet: this.i18n.t('pages.pricing.enterprise.fleet'),
         price: '165,000',
-        priceNote: this.i18n.t('pages.pricing.enterprise.priceNote'),
         featured: false,
       },
     ];
   });
 
-  readonly nexusCallouts = computed(() => {
+  /** Concise 6-card platform highlights replacing repetitive 3-card feature dumps. */
+  readonly platformHighlights = computed(() => {
     this.i18n.lang();
     return [
-      { title: this.i18n.t('home.callout.liveGps.title'), text: this.i18n.t('home.callout.liveGps.text'), icon: 'gps_fixed' },
-      { title: this.i18n.t('home.callout.ai.title'), text: this.i18n.t('home.callout.ai.text'), icon: 'smart_toy' },
-      { title: this.i18n.t('home.callout.geo.title'), text: this.i18n.t('home.callout.geo.text'), icon: 'fence' },
-      { title: this.i18n.t('home.callout.alerts.title'), text: this.i18n.t('home.callout.alerts.text'), icon: 'notifications_active' },
+      {
+        title: this.i18n.t('home.highlights.gps.title'),
+        text: this.i18n.t('home.highlights.gps.text'),
+        icon: 'my_location',
+        link: '/live-tracking',
+        linkLabel: this.i18n.t('home.highlights.gps.linkLabel'),
+      },
+      {
+        title: this.i18n.t('home.highlights.alerts.title'),
+        text: this.i18n.t('home.highlights.alerts.text'),
+        icon: 'notifications_active',
+        link: '/gps-alerts',
+        linkLabel: this.i18n.t('home.highlights.alerts.linkLabel'),
+      },
+      {
+        title: this.i18n.t('home.highlights.dispatch.title'),
+        text: this.i18n.t('home.highlights.dispatch.text'),
+        icon: 'route',
+        link: '/fleet-management',
+        linkLabel: this.i18n.t('home.highlights.dispatch.linkLabel'),
+      },
+      {
+        title: this.i18n.t('home.highlights.fuel.title'),
+        text: this.i18n.t('home.highlights.fuel.text'),
+        icon: 'local_gas_station',
+        link: '/fuel-management',
+        linkLabel: this.i18n.t('home.highlights.fuel.linkLabel'),
+      },
+      {
+        title: this.i18n.t('home.highlights.drivers.title'),
+        text: this.i18n.t('home.highlights.drivers.text'),
+        icon: 'verified_user',
+        link: '/driver-performance',
+        linkLabel: this.i18n.t('home.highlights.drivers.linkLabel'),
+      },
+      {
+        title: this.i18n.t('home.highlights.maintenance.title'),
+        text: this.i18n.t('home.highlights.maintenance.text'),
+        icon: 'build_circle',
+        link: '/predictive-maintenance',
+        linkLabel: this.i18n.t('home.highlights.maintenance.linkLabel'),
+      },
     ] as const;
   });
-
-  readonly platformCapabilities = computed(() => {
-    this.i18n.lang();
-    const voice = {
-      title: this.i18n.t('home.capability.voice.title'),
-      text: this.i18n.t('home.capability.voice.text'),
-      icon: 'mic' as const,
-      link: '/',
-      linkLabel: this.i18n.t('home.pill.driverVoice'),
-    };
-    const offlineDriver = {
-      title: this.i18n.t('home.capability.offlineDriver.title'),
-      text: this.i18n.t('home.capability.offlineDriver.text'),
-      icon: 'cloud_off' as const,
-      link: '/',
-      linkLabel: this.i18n.t('home.pill.driverOffline'),
-    };
-    const fuelFraud = {
-      title: this.i18n.t('home.capability.fuelFraud.title'),
-      text: this.i18n.t('home.capability.fuelFraud.text'),
-      icon: 'gpp_bad' as const,
-      link: '/fuel-management',
-      linkLabel: this.i18n.t('home.capability.fuelFraud.linkLabel'),
-    };
-    return [
-      ...this._platformCapabilitiesBase,
-      voice,
-      offlineDriver,
-      fuelFraud,
-    ] as const;
-  });
-
-  private readonly _platformCapabilitiesBase = [
-    {
-      title: 'GPS Tracking',
-      text: 'Device registry, live positions, and operational map views tied to your fleet.',
-      icon: 'gps_fixed',
-      link: '/gps-tracking',
-      linkLabel: 'GPS Tracking',
-    },
-    {
-      title: 'Live Tracking',
-      text: 'Follow units in motion with speed, ignition, and connectivity at a glance.',
-      icon: 'my_location',
-      link: '/live-tracking',
-      linkLabel: 'Live map',
-    },
-    {
-      title: 'Geofencing',
-      text: 'Office, depot, and customer zones with alerts when boundaries are crossed.',
-      icon: 'fence',
-      link: '/gps-tracking',
-      linkLabel: 'Geofences',
-    },
-    {
-      title: 'Playback & History',
-      text: 'Replay routes with stops and timestamps for audits, disputes, and coaching.',
-      icon: 'route',
-      link: '/gps-tracking',
-      linkLabel: 'Trip history',
-    },
-    {
-      title: 'Offline Log Sync',
-      text: 'Recover trips and positions when devices reconnect — fewer silent data gaps.',
-      icon: 'sync',
-      link: '/fleet-management',
-      linkLabel: 'Fleet platform',
-    },
-    {
-      title: 'Fleet Intelligence',
-      text: 'Health scores, digests, and heuristic recommendations you can explain to stakeholders.',
-      icon: 'insights',
-      link: '/fleet-management',
-      linkLabel: 'Intelligence',
-    },
-    {
-      title: 'Vehicle Health Alerts',
-      text: 'Speeding, geofence, fuel, panic, and device events routed to the right people.',
-      icon: 'warning',
-      link: '/gps-alerts',
-      linkLabel: 'GPS alerts',
-    },
-    {
-      title: 'AI Solutions',
-      text: 'Assistants and copilots that query live GPS and Nexus tools — optional LLM when configured.',
-      icon: 'auto_awesome',
-      link: '/ai-solutions',
-      linkLabel: 'AI Solutions',
-    },
-    {
-      title: 'SheikhGo Nexus',
-      text: 'Vehicles, drivers, fuel, maintenance, bookings, reports, and tenant-ready operations.',
-      icon: 'business',
-      link: WEBSITE_BRAND.loginPath,
-      linkLabel: 'Sign in',
-    },
-    {
-      title: 'NEXUS Dashboard',
-      text: 'Unified fleet intelligence UI — map, alerts, modules, and AI panel in one workspace.',
-      icon: 'dashboard',
-      link: '/features',
-      linkLabel: 'Explore platform',
-    },
-  ] as const;
-
-  readonly nexusModuleShots = NEXUS_MODULE_SHOTS;
-  readonly homeModuleJumps = HOME_MODULE_JUMPS;
-
-  /** Illustrative operator scenarios — not attributed customer testimonials. */
-  readonly operatorScenarios = [
-    {
-      id: 'dispatch',
-      icon: 'hub',
-      titleKey: 'home.scenarios.dispatch.title',
-      textKey: 'home.scenarios.dispatch.text',
-    },
-    {
-      id: 'rental',
-      icon: 'key',
-      titleKey: 'home.scenarios.rental.title',
-      textKey: 'home.scenarios.rental.text',
-    },
-    {
-      id: 'visibility',
-      icon: 'gps_fixed',
-      titleKey: 'home.scenarios.visibility.title',
-      textKey: 'home.scenarios.visibility.text',
-    },
-    {
-      id: 'insights',
-      icon: 'insights',
-      titleKey: 'home.scenarios.insights.title',
-      textKey: 'home.scenarios.insights.text',
-    },
-  ] as const;
 
   readonly aiFeatures = [
     'AI Assistant & chat gateway',
@@ -326,8 +194,8 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
       icon: 'support_agent',
     },
     {
-      title: 'Connected insights',
-      text: 'Vehicles, drivers, and operations records in one explainable view.',
+      title: 'Configurable LLM providers',
+      text: 'Optional natural-language layer using Google Gemini, Ollama, or DeepInfra when enabled.',
       icon: 'hub',
     },
   ] as const;
@@ -336,6 +204,23 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
     'SheikhGo | Fleet Management, GPS Tracking & Mobility Solutions';
   private static readonly HOME_SEO_DESCRIPTION =
     "Manage fleet operations, GPS tracking, vehicle rentals, and travel workflows with SheikhGo's connected mobility platform.";
+
+  private static readonly LEGACY_FRAGMENT_MAP: Readonly<Record<string, string>> = {
+    'see-the-platform': 'product-showcase',
+    'platform-modules': 'product-showcase',
+    'business-benefits': 'platform-features',
+    'industries-serve': 'platform-features',
+    'client-billing': 'subscription-plans',
+    'driver-payments': 'platform-features',
+    'smart-assignment': 'platform-features',
+    'live-traffic': 'platform-features',
+    'driver-verification': 'platform-features',
+    'driver-voice': 'platform-features',
+    'fatigue-detection': 'platform-features',
+    'driver-offline-sync': 'platform-features',
+    'client-testimonials': 'platform-features',
+    news: 'platform-features',
+  };
 
   ngOnInit(): void {
     this.seo.set(HomePage.HOME_SEO_TITLE, HomePage.HOME_SEO_DESCRIPTION, '/');
@@ -384,8 +269,9 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private scrollToFragmentId(fragment: string): void {
+    const targetId = HomePage.LEGACY_FRAGMENT_MAP[fragment] ?? fragment;
     requestAnimationFrame(() => {
-      document.getElementById(fragment)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
 

@@ -144,11 +144,26 @@
   }
 
   @media (max-width: 640px) {
-    padding: 3.5rem 0 2rem;
+    padding: 2.25rem 0 1.5rem;
 
     .grid {
-      grid-template-columns: 1fr;
-      gap: 1.75rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem 1rem;
+      padding-bottom: 1.75rem;
+    }
+
+    .brand-col {
+      grid-column: 1 / -1;
+    }
+
+    h3 {
+      margin-bottom: 0.55rem;
+    }
+
+    a,
+    .footer-text-btn {
+      padding: 0.28rem 0;
+      font-size: 0.875rem;
     }
   }
 }

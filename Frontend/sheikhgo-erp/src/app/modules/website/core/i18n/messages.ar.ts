@@ -393,7 +393,33 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'home.capabilities.lead': 'من أول إصلاح GPS إلى سجلات ERP والتشغيل وقرارات بمساعدة الذكاء الاصطناعي.',
   'home.trust.title': 'مبني للمشغّلين، موصوف بصدق',
   'home.trust.body':
-    'درجات ذكاء الأسطول والملخصات استدلالية وقائمة على قواعد. مساعدو الذكاء الاصطناعي يستدعون أدوات SheikhGo. واتساب AI لا يرسل تلقائياً. ميزات LLM تحتاج مزوداً تضبطه.',
+    'درجات ذكاء الأسطول والملخصات استدلالية وقائمة على قواعد. مساعدو الذكاء الاصطناعي يستدعون أدوات SheikhGo، وواتساب AI لا يرسل تلقائياً، وميزات LLM تستخدم مزوداً تضبطه (مثل Google Gemini أو Ollama أو DeepInfra) عند التفعيل.',
+  'home.highlights.gps.title': 'تتبع GPS المباشر والسياج الجغرافي',
+  'home.highlights.gps.text':
+    'مواقع الخريطة المباشرة، السرعة، حالة الإشعال، مناطق السياج، وإعادة تشغيل المسار.',
+  'home.highlights.gps.linkLabel': 'التتبع المباشر',
+  'home.highlights.alerts.title': 'تنبيهات GPS والسلامة',
+  'home.highlights.alerts.text':
+    'تنبيهات فورية للسرعة والسياج وصحة الجهاز والتعب وإرسال SOS بلمسة واحدة.',
+  'home.highlights.alerts.linkLabel': 'تنبيهات GPS',
+  'home.highlights.dispatch.title': 'التوزيع الذكي وحركة المرور',
+  'home.highlights.dispatch.text':
+    'تعيين رحلات موزون بالذكاء الاصطناعي، وقت وصول يراعي المرور، ومزامنة سائق دون اتصال.',
+  'home.highlights.dispatch.linkLabel': 'منصة الأسطول',
+  'home.highlights.fuel.title': 'الوقود وقراءات OBD',
+  'home.highlights.fuel.text':
+    'مستويات الخزان من OBD، تنبيهات المحطات، تقارير كم/لتر، وكشف احتيال الوقود.',
+  'home.highlights.fuel.linkLabel': 'إدارة الوقود',
+  'home.highlights.drivers.title': 'تقييم السائقين والتحقق',
+  'home.highlights.drivers.text':
+    'ترتيب السلامة والالتزام بالوقت، تقييمات العملاء بعد الرحلة، والتحقق الرقمي من الوثائق.',
+  'home.highlights.drivers.linkLabel': 'أداء السائقين',
+  'home.highlights.maintenance.title': 'الصيانة والمخاطر والمركبات الكهربائية',
+  'home.highlights.maintenance.text':
+    'جدولة الصيانة حسب المسافة، درجات مخاطر المسارات، وتتبع بطاريات الأسطول الكهربائي.',
+  'home.highlights.maintenance.linkLabel': 'الصيانة التنبؤية',
+  'home.highlights.viewAll': 'استكشف كل ميزات المنصة ←',
+  'home.highlights.viewPortfolio': 'محفظة SheikhGo Nexus ←',
   'home.pill.mobileApp': 'تطبيق الجوال',
   'mobileApp.kicker': 'تطبيق السائق والأسطول',
   'mobileApp.title': 'SheikhGo على هاتفك',
@@ -409,7 +435,8 @@ export const MESSAGES_AR: WebsiteMessageDictionary = {
   'mobileApp.banner.kicker': 'تطبيق الجوال',
   'home.ai.kicker': 'حلول الذكاء الاصطناعي',
   'home.ai.title': 'ذكاء أسطول يجيب من بياناتك',
-  'home.ai.lead': 'مساعدون ودردشة copilot ودرجات صحة وملخصات صباحية ومسودات واتساب — أدوات أولاً.',
+  'home.ai.lead':
+    'مساعدون ودردشة copilot ودرجات صحة وملخصات صباحية ومسودات واتساب بموافقة بشرية — مبنية على الأدوات أولاً، ويمكنها استخدام مزود LLM مهيأ مثل Google Gemini أو Ollama أو DeepInfra عند التفعيل.',
   'home.final.title': 'لنبني شيئاً رائعاً معاً',
   'home.final.lead': 'شاهد NEXUS مباشرة، ناقش سير عمل أسطولك، أو حدّد نطاق برمجيات مخصصة مع فريقنا.',
 
