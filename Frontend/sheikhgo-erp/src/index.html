@@ -47,9 +47,32 @@
       filter: drop-shadow(0 4px 14px rgba(14, 61, 58, 0.18));
     }
 
-    #app-initial-splash .boot-arc {
+    #app-initial-splash .boot-nexus {
       transform-origin: 60px 60px;
-      animation: boot-arc-spin 1.15s linear infinite;
+      animation: boot-nexus-spin 2.8s linear infinite;
+    }
+
+    #app-initial-splash .boot-nexus-link {
+      stroke-dasharray: 10 18;
+      animation: boot-nexus-flow 1.4s linear infinite;
+    }
+
+    #app-initial-splash .boot-nexus-node {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: boot-nexus-node 1.6s ease-in-out infinite;
+    }
+
+    #app-initial-splash .boot-nexus-node:nth-child(1) { animation-delay: 0s; }
+    #app-initial-splash .boot-nexus-node:nth-child(2) { animation-delay: 0.12s; }
+    #app-initial-splash .boot-nexus-node:nth-child(3) { animation-delay: 0.24s; }
+    #app-initial-splash .boot-nexus-node:nth-child(4) { animation-delay: 0.36s; }
+    #app-initial-splash .boot-nexus-node:nth-child(5) { animation-delay: 0.48s; }
+    #app-initial-splash .boot-nexus-node:nth-child(6) { animation-delay: 0.6s; }
+
+    #app-initial-splash .boot-hub {
+      transform-origin: 60px 60px;
+      animation: boot-hub-pulse 1.85s ease-in-out infinite;
     }
 
     #app-initial-splash .boot-logo-wrap {
@@ -57,8 +80,22 @@
       animation: boot-logo-pulse 1.85s ease-in-out infinite;
     }
 
-    @keyframes boot-arc-spin {
+    @keyframes boot-nexus-spin {
       to { transform: rotate(360deg); }
+    }
+
+    @keyframes boot-nexus-flow {
+      to { stroke-dashoffset: -28; }
+    }
+
+    @keyframes boot-nexus-node {
+      0%, 100% { opacity: 0.55; transform: scale(0.85); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    @keyframes boot-hub-pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
     }
 
     @keyframes boot-logo-pulse {
@@ -67,11 +104,15 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #app-initial-splash .boot-arc,
+      #app-initial-splash .boot-nexus,
+      #app-initial-splash .boot-nexus-link,
+      #app-initial-splash .boot-nexus-node,
+      #app-initial-splash .boot-hub,
       #app-initial-splash .boot-logo-wrap {
         animation: none !important;
       }
 
+      #app-initial-splash .boot-nexus-node,
       #app-initial-splash .boot-logo-wrap {
         opacity: 1;
         transform: scale(1);
@@ -83,19 +124,70 @@
   <div id="app-initial-splash" aria-hidden="true">
     <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>
-        <linearGradient id="bootArcGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0FAF9F" stop-opacity="0.35" />
+        <linearGradient id="bootNexusGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0FAF9F" stop-opacity="0.4" />
           <stop offset="55%" stop-color="#0FAF9F" />
           <stop offset="100%" stop-color="#5eead4" />
         </linearGradient>
+        <radialGradient id="bootHubGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#5eead4" stop-opacity="0.35" />
+          <stop offset="100%" stop-color="#0FAF9F" stop-opacity="0" />
+        </radialGradient>
       </defs>
-      <circle cx="60" cy="60" r="46" fill="none" stroke="#0FAF9F" stroke-width="7" stroke-opacity="0.18" />
-      <g class="boot-arc">
-        <circle cx="60" cy="60" r="46" fill="none" stroke="url(#bootArcGlow)" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="28 72" />
+
+      <!-- Soft hub aura -->
+      <circle cx="60" cy="60" r="28" fill="url(#bootHubGlow)" />
+
+      <!-- Nexus mesh: hub + hex ring of nodes -->
+      <g class="boot-nexus">
+        <!-- Outer hexagon frame -->
+        <polygon
+          points="60,12 101.57,36 101.57,84 60,108 18.43,84 18.43,36"
+          fill="none"
+          stroke="#0FAF9F"
+          stroke-width="1.5"
+          stroke-opacity="0.22"
+        />
+
+        <!-- Spoke links hub → nodes -->
+        <g stroke="url(#bootNexusGlow)" stroke-width="2" stroke-linecap="round" fill="none">
+          <line class="boot-nexus-link" x1="60" y1="60" x2="60" y2="12" />
+          <line class="boot-nexus-link" x1="60" y1="60" x2="101.57" y2="36" />
+          <line class="boot-nexus-link" x1="60" y1="60" x2="101.57" y2="84" />
+          <line class="boot-nexus-link" x1="60" y1="60" x2="60" y2="108" />
+          <line class="boot-nexus-link" x1="60" y1="60" x2="18.43" y2="84" />
+          <line class="boot-nexus-link" x1="60" y1="60" x2="18.43" y2="36" />
+        </g>
+
+        <!-- Inter-node ring links -->
+        <g stroke="#0FAF9F" stroke-width="1.75" stroke-opacity="0.55" stroke-linecap="round" fill="none">
+          <line class="boot-nexus-link" x1="60" y1="12" x2="101.57" y2="36" />
+          <line class="boot-nexus-link" x1="101.57" y1="36" x2="101.57" y2="84" />
+          <line class="boot-nexus-link" x1="101.57" y1="84" x2="60" y2="108" />
+          <line class="boot-nexus-link" x1="60" y1="108" x2="18.43" y2="84" />
+          <line class="boot-nexus-link" x1="18.43" y1="84" x2="18.43" y2="36" />
+          <line class="boot-nexus-link" x1="18.43" y1="36" x2="60" y2="12" />
+        </g>
+
+        <!-- Outer nodes -->
+        <g fill="#0FAF9F">
+          <circle class="boot-nexus-node" cx="60" cy="12" r="4.5" />
+          <circle class="boot-nexus-node" cx="101.57" cy="36" r="4.5" />
+          <circle class="boot-nexus-node" cx="101.57" cy="84" r="4.5" />
+          <circle class="boot-nexus-node" cx="60" cy="108" r="4.5" />
+          <circle class="boot-nexus-node" cx="18.43" cy="84" r="4.5" />
+          <circle class="boot-nexus-node" cx="18.43" cy="36" r="4.5" />
+        </g>
+
+        <!-- Hub core -->
+        <g class="boot-hub">
+          <circle cx="60" cy="60" r="11" fill="none" stroke="url(#bootNexusGlow)" stroke-width="2.5" />
+          <circle cx="60" cy="60" r="4" fill="#0E3D3A" />
+        </g>
       </g>
-      <circle cx="60" cy="60" r="34" fill="none" stroke="rgba(15, 175, 159, 0.12)" stroke-width="1" />
+
       <g class="boot-logo-wrap">
-        <image href="brand/sheikhgo-logo.png" x="32" y="28" width="56" height="54" preserveAspectRatio="xMidYMid meet" />
+        <image href="brand/sheikhgo-logo.png" x="36" y="33" width="48" height="46" preserveAspectRatio="xMidYMid meet" />
       </g>
     </svg>
   </div>
