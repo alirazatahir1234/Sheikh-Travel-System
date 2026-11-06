@@ -224,3 +224,4 @@ export class GmapShapeDrawer {
     this.opts.map.setOptions({ draggable: true, gestureHandling: 'greedy' });
   }
 }
+
