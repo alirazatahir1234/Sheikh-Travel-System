@@ -297,9 +297,15 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Raster only: no mapId / Advanced Markers / cloud styling here. Vector+WebGL
+    // attempts log "Falling back to Raster" on some GPUs/browsers; ShapeDrawer
+    // (Circle/Polygon/Rectangle) works fine on Raster.
+    // Note: maps.googleapis.com/.../gen_204?csp_test=true net::ERR_BLOCKED_BY_CLIENT
+    // is almost always an ad blocker (uBlock etc.), not a broken CSP — ignore it.
     this.map = new google.maps.Map(this.mapEl.nativeElement, {
       center: { lat: 31.52, lng: 74.35 },
       zoom: 11,
+      renderingType: google.maps.RenderingType.RASTER,
       mapTypeControl: true,
       mapTypeControlOptions: {
         position: google.maps.ControlPosition.TOP_RIGHT
