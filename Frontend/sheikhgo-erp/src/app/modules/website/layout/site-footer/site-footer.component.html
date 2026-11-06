@@ -13,7 +13,19 @@
           <a [href]="'tel:' + p.tel">{{ p.label }} · {{ p.display }}</a>
         }
         @if (officeAddress) {
-          <a class="office-address" [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">{{ officeAddress }}</a>
+          <div class="office-block">
+            <a
+              class="office-pin"
+              [href]="officeMapsUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.aria-label]="'Open ' + officeLocationLabel + ' on Google Maps'"
+              [attr.title]="officeLocationLabel"
+            >
+              <mat-icon aria-hidden="true">location_on</mat-icon>
+            </a>
+            <a class="office-address" [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">{{ officeAddress }}</a>
+          </div>
         }
       </div>
     </div>

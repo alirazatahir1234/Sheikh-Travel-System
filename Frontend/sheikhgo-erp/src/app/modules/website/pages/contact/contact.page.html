@@ -84,8 +84,18 @@
         </p>
       }
       @if (officeAddress) {
-        <p class="contact-block">
-          <strong>Office</strong><br />
+        <p class="contact-block office-block">
+          <strong>Office</strong>
+          <a
+            class="office-pin"
+            [href]="officeMapsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            [attr.aria-label]="'Open ' + officeLocationLabel + ' on Google Maps'"
+            [attr.title]="officeLocationLabel"
+          >
+            <mat-icon aria-hidden="true">location_on</mat-icon>
+          </a>
           <a class="office-address" [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">{{ officeAddress }}</a>
         </p>
       }
@@ -94,12 +104,12 @@
 </section>
 
 @if (officeAddress) {
-  <section class="section section-band-alt office-map-section" aria-label="Office location map">
+  <section class="section section-band-alt office-map-section" [attr.aria-label]="officeLocationLabel + ' map'">
     <div class="container">
-      <h2 class="office-map-heading">Our Lahore office</h2>
+      <h2 class="office-map-heading">Our Lahore office — {{ officeLocationLabel }}</h2>
       <div class="office-map-wrap">
         <iframe
-          title="SheikhGo office — Park View City, Multan Rd, Lahore"
+          [title]="'SheikhGo office — ' + officeLocationLabel"
           [src]="officeMapsEmbedSrc"
           loading="lazy"
           referrerpolicy="no-referrer-when-downgrade"
@@ -107,7 +117,7 @@
         ></iframe>
       </div>
       <p class="office-map-link">
-        <a [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+        <a [href]="officeMapsUrl" target="_blank" rel="noopener noreferrer">Open {{ officeLocationLabel }} in Google Maps</a>
       </p>
     </div>
   </section>

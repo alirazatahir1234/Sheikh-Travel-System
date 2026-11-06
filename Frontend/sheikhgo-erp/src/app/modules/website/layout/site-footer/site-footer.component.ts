@@ -1,9 +1,11 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import {
   WEBSITE_BRAND,
   WEBSITE_CONTACT_PHONES,
   WEBSITE_OFFICE_ADDRESS,
+  WEBSITE_OFFICE_LOCATION_LABEL,
   WEBSITE_OFFICE_MAPS_URL,
   WebsiteContactPhone,
   resolveWebsiteOfficeAddress,
@@ -18,7 +20,7 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 @Component({
   selector: 'app-site-footer',
   standalone: true,
-  imports: [RouterLink, SgLogoComponent, WebsiteTranslatePipe],
+  imports: [RouterLink, MatIconModule, SgLogoComponent, WebsiteTranslatePipe],
   templateUrl: './site-footer.component.html',
   styleUrl: './site-footer.component.scss',
 })
@@ -34,6 +36,7 @@ export class SiteFooterComponent implements OnInit {
   siteName: string = WEBSITE_BRAND.productName;
   readonly contactPhones: readonly WebsiteContactPhone[] = WEBSITE_CONTACT_PHONES;
   officeAddress: string = WEBSITE_OFFICE_ADDRESS;
+  readonly officeLocationLabel = WEBSITE_OFFICE_LOCATION_LABEL;
   readonly officeMapsUrl = WEBSITE_OFFICE_MAPS_URL;
 
   /** Single contact line — avoid listing the same address twice. */

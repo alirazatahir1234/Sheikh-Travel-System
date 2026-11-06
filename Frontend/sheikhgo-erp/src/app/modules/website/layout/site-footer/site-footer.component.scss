@@ -55,9 +55,40 @@
     color: rgba(255, 255, 255, 0.75);
   }
 
+  .office-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+  }
+
+  .office-pin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: rgba(24, 201, 135, 0.16);
+    color: var(--sg-primary, #18c987);
+    text-decoration: none;
+  }
+
+  .office-pin:hover {
+    background: rgba(24, 201, 135, 0.28);
+    color: #6ee7b7;
+  }
+
+  .office-pin mat-icon {
+    font-size: 1.35rem;
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
   .office-address {
     display: block;
-    margin: 0.35rem 0 0;
+    margin: 0;
     max-width: 36ch;
     font-size: 0.9375rem;
     line-height: 1.55;
