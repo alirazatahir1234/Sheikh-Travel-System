@@ -51,6 +51,7 @@ export class AuthInterceptor implements HttpInterceptor {
         map(res => res.accessToken),
         catchError(err => {
           this.notifySessionEndedIfNeeded(originalError, err);
+          // Refresh failed → session is over; clear auth and go to login.
           this.auth.logout();
           return throwError(() => err);
         }),
@@ -62,7 +63,18 @@ export class AuthInterceptor implements HttpInterceptor {
     }
 
     return this.refreshInFlight$.pipe(
-      switchMap(accessToken => next.handle(this.withBearerToken(req, accessToken)))
+      switchMap(accessToken =>
+        next.handle(this.withBearerToken(req, accessToken)).pipe(
+          catchError((retryError: HttpErrorResponse) => {
+            // Post-refresh 401 means the session is still invalid — do not leave the user in-app.
+            if (retryError.status === 401) {
+              this.notifySessionEndedIfNeeded(originalError, retryError);
+              this.auth.logout();
+            }
+            return throwError(() => retryError);
+          })
+        )
+      )
     );
   }
 
