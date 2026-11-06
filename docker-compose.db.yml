@@ -5,8 +5,9 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "Alisheikh@123"
+    # Bind localhost only — never publish 0.0.0.0:1433 (internet brute-force risk).
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sheikh-sql-data:/var/opt/mssql
 volumes:

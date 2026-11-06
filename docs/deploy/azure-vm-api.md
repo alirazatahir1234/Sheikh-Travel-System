@@ -18,7 +18,7 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 | Env file | `/etc/sheikhgo/api.env` (chmod 600) |
 | Releases | `/opt/sheikhgo-api/releases/<stamp>` → `/opt/sheikhgo-api/current` |
 | Swap | 2G `/swapfile` |
-| SQL | local Docker `sheikhgo-sql` on `127.0.0.1:1433` (untouched) |
+| SQL | local Docker `sheikhgo-sql` published as `127.0.0.1:1433:1433` only (never `0.0.0.0:1433`) |
 | Traccar | local `127.0.0.1:8082` (untouched) |
 | Railway | **left intact** (public Railway app may be offline; Azure is primary) |
 
@@ -144,4 +144,5 @@ DEPLOY_BRANCH=main /opt/sheikhgo-api/src/deploy/azure-vm/deploy-api.sh
 - **RAM:** ~4 GB VM with SQL + Traccar + API + Caddy; swap in use under load. Live unit uses `MemoryMax=512M` / `MemoryHigh=400M` (not managed by `deploy-api.sh` — unit lives on the VM only).
 - **Memory (Ali approve before changing live):** if swap stays high after worker/GPS fixes, consider a conservative bump, e.g. `MemoryMax=768M` + `MemoryHigh=600M` in `/etc/systemd/system/sheikhgo-api.service`, then `sudo systemctl daemon-reload && sudo systemctl restart sheikhgo-api`. Do **not** raise past ~1G without more host RAM or moving SQL/Traccar off-box. App-side mitigations (tighter history-replay default window + lower route/playback point caps) ship in code.
 - **Do not** restart/reconfigure Traccar or `sheikhgo-sql` for API deploys.
+- **SQL port lockdown:** `sheikhgo-sql` must publish `127.0.0.1:1433:1433` only. Public `0.0.0.0:1433` invites internet `sa` brute-force. Repo `docker-compose.db.yml` and `deploy/azure-vm/lockdown-sql-port.sh` enforce localhost bind. Azure NSG should also omit inbound 1433; host `ufw` deny 1433/tcp is optional defense-in-depth.
 - **Do not** pause/delete Railway until you explicitly choose to.
