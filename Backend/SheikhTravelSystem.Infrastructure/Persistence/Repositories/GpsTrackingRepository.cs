@@ -1450,7 +1450,8 @@ public sealed partial class GpsTrackingRepository(
               gd.Name AS TrackerName,
               gd.RelayOutput,
               ISNULL(vcl.IsGpsValid, CAST(1 AS BIT)) AS IsGpsValid,
-              vcl.GpsQualityCode
+              vcl.GpsQualityCode,
+              vimg.FileUrl AS ImageUrl
             FROM Vehicles v
             LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0
             LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
@@ -1462,6 +1463,21 @@ public sealed partial class GpsTrackingRepository(
                 ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
             ) assignDrv
             LEFT JOIN Drivers dr ON dr.Id = COALESCE(assignDrv.DriverId, vcl.DriverId) AND dr.IsDeleted = 0
+            OUTER APPLY (
+                SELECT TOP 1 vd.FileUrl
+                FROM VehicleDocuments vd
+                WHERE vd.VehicleId = v.Id
+                  AND vd.DocumentType = N'VehicleImage'
+                  AND vd.IsDeleted = 0
+                  AND vd.FileUrl IS NOT NULL
+                  AND LTRIM(RTRIM(vd.FileUrl)) <> N''
+                ORDER BY
+                    CASE
+                        WHEN vd.Notes LIKE N'%|primary%' OR LOWER(LTRIM(RTRIM(vd.Notes))) = N'primary' THEN 0
+                        ELSE 1
+                    END,
+                    vd.CreatedAt DESC
+            ) vimg
             WHERE {whereClause}
             ORDER BY v.Name, v.Id
             """,

@@ -20,15 +20,15 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-# Cloudflare quick tunnel HTTPS (VM: /var/lib/sheikhgo/cloudflared-quick-url.txt).
-# Do NOT default to retired Railway (HTTP 404 "Application not found") or
-# unreachable sslip.io from some client networks.
-DEFAULT_PROD_API='https://joke-rebates-titans-duties.trycloudflare.com/api'
+# Stable Azure HTTPS (Caddy / sslip.io) — same as ERP environment.prod.ts.
+# Do NOT default to retired Railway or a stale *.trycloudflare.com quick tunnel
+# (quick-tunnel hostnames die when cloudflared restarts).
+DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 case "$API_BASE_URL" in
-  *railway.app*|*sslip.io*)
-    echo "ERROR: Refusing retired/unreachable API host: $API_BASE_URL"
-    echo "  Use: $DEFAULT_PROD_API"
+  *railway.app*|*trycloudflare.com*)
+    echo "ERROR: Refusing retired/stale API host: $API_BASE_URL"
+    echo "  Use: $DEFAULT_PROD_API (or a live named tunnel / api.sheikhgo.com)"
     exit 1
     ;;
 esac

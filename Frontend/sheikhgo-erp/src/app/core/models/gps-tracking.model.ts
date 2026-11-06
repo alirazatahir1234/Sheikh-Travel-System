@@ -68,6 +68,10 @@ export interface GpsLiveFleetVehicleDto {
   relayOutput?: string | null;
   isGpsValid?: boolean;
   gpsQualityCode?: string | null;
+  /** Primary vehicle photo (VehicleImage document), resolved read URL when present. */
+  imageUrl?: string | null;
+  /** PascalCase fallback when an older serializer/proxy preserves CLR names. */
+  ImageUrl?: string | null;
 }
 
 export interface VehicleLocation {
@@ -107,6 +111,8 @@ export interface VehicleLocation {
   temperature?: number;
   /** Active booking this vehicle is currently on, if any — drives the Trip/ETA panel section. */
   bookingId?: number;
+  /** Primary vehicle photo URL for the selected-vehicle detail panel. */
+  imageUrl?: string | null;
 }
 
 export interface SosAlertPayload {

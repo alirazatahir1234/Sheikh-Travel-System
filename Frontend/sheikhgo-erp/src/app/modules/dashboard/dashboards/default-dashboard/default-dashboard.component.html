@@ -134,35 +134,146 @@
     <button type="button" class="dash-retry dash-retry--inline" (click)="retryDashboard()">Retry</button>
   </section>
 
-  <!-- Smart Operations alerts -->
-  <section class="dash-section ops-alerts" *ngIf="smartAlerts.length" aria-label="Operations alerts">
+  <!-- Smart Operations Alert Center (grouped by ruleType) -->
+  <section
+    class="dash-section ops-alerts"
+    *ngIf="smartAlerts.length"
+    aria-label="Operations Alerts"
+    [class.ops-alerts--view-all]="opsAlertsViewAll">
     <div class="ops-alerts-head">
-      <div>
+      <div class="ops-alerts-head-copy">
         <h2 class="ops-alerts-title">
           <mat-icon>campaign</mat-icon>
-          Operations alerts
+          Operations Alerts
         </h2>
-        <p class="ops-alerts-sub">Deterministic rule engine · {{ smartAlertNewCount }} new</p>
+        <p class="ops-alerts-sub">
+          {{ smartAlertActiveCount || smartAlerts.length }} active
+          <span *ngIf="smartAlertNewCount > 0">· {{ smartAlertNewCount }} new</span>
+        </p>
+      </div>
+      <div class="ops-alerts-head-actions">
+        <span class="ops-alerts-badge" *ngIf="smartAlertNewCount > 0" [attr.aria-label]="smartAlertNewCount + ' new alerts'">
+          {{ smartAlertNewCount }} new
+        </span>
+        <button type="button" class="ops-alerts-view-all" (click)="toggleOpsAlertsViewAll()">
+          {{ opsAlertsViewAll ? 'Collapse' : 'View All' }}
+        </button>
       </div>
     </div>
-    <ul class="ops-alerts-list">
-      <li *ngFor="let a of smartAlerts" class="ops-alert" [class]="severityClass(a.severity)">
-        <div class="ops-alert-main">
-          <span class="ops-alert-rule">{{ a.ruleType }}</span>
-          <span class="ops-alert-status">{{ a.status }}</span>
-          <p class="ops-alert-msg">{{ a.message }}</p>
-        </div>
-        <div class="ops-alert-actions">
-          <button mat-stroked-button type="button"
-                  *ngIf="a.status === 'New'"
-                  [disabled]="smartAlertBusyId === a.id"
-                  (click)="acknowledgeSmartAlert(a)">Acknowledge</button>
-          <button mat-flat-button color="primary" type="button"
-                  [disabled]="smartAlertBusyId === a.id"
-                  (click)="resolveSmartAlert(a)">Resolve</button>
-        </div>
-      </li>
-    </ul>
+
+    <div class="ops-sev-chips" role="group" aria-label="Filter by severity">
+      <button
+        type="button"
+        class="ops-sev-chip ops-sev-chip--critical"
+        [class.is-active]="opsAlertSeverityFilter === 'Critical'"
+        [disabled]="!opsAlertSeverityCounts.critical"
+        (click)="setOpsAlertSeverityFilter('Critical')">
+        Critical
+        <span class="ops-sev-chip-count">{{ opsAlertSeverityCounts.critical }}</span>
+      </button>
+      <button
+        type="button"
+        class="ops-sev-chip ops-sev-chip--warning"
+        [class.is-active]="opsAlertSeverityFilter === 'Warning'"
+        [disabled]="!opsAlertSeverityCounts.warning"
+        (click)="setOpsAlertSeverityFilter('Warning')">
+        Warning
+        <span class="ops-sev-chip-count">{{ opsAlertSeverityCounts.warning }}</span>
+      </button>
+      <button
+        type="button"
+        class="ops-sev-chip ops-sev-chip--info"
+        [class.is-active]="opsAlertSeverityFilter === 'Info'"
+        [disabled]="!opsAlertSeverityCounts.info"
+        (click)="setOpsAlertSeverityFilter('Info')">
+        Info
+        <span class="ops-sev-chip-count">{{ opsAlertSeverityCounts.info }}</span>
+      </button>
+      <button
+        type="button"
+        class="ops-sev-chip ops-sev-chip--clear"
+        *ngIf="opsAlertSeverityFilter"
+        (click)="setOpsAlertSeverityFilter(null)">
+        Clear filter
+      </button>
+    </div>
+
+    <div class="ops-alerts-body" [class.ops-alerts-body--expanded]="opsAlertsViewAll">
+      <ul class="ops-alert-groups" *ngIf="visibleOpsAlertGroups.length; else noFilteredAlerts">
+        <li
+          *ngFor="let g of visibleOpsAlertGroups; trackBy: trackOpsAlertGroup"
+          class="ops-alert-group"
+          [class]="severityClass(g.severity)"
+          [class.is-expanded]="isOpsAlertGroupExpanded(g.key)">
+          <button
+            type="button"
+            class="ops-alert-group-toggle"
+            [attr.aria-expanded]="isOpsAlertGroupExpanded(g.key)"
+            (click)="toggleOpsAlertGroup(g.key)">
+            <span class="ops-alert-group-sev" [attr.data-sev]="g.severity" aria-hidden="true"></span>
+            <span class="ops-alert-group-main">
+              <span class="ops-alert-group-title-row">
+                <span class="ops-alert-group-title">{{ g.title }}</span>
+                <span class="ops-alert-group-count">{{ g.affectedCount }} {{ g.affectedLabel }}</span>
+                <span class="ops-alert-group-new" *ngIf="g.newCount > 0">{{ g.newCount }} new</span>
+              </span>
+              <span class="ops-alert-group-desc">{{ g.description }}</span>
+            </span>
+            <span class="ops-alert-group-meta">
+              <span class="ops-alert-group-time" *ngIf="g.latestAt">{{ formatAlertTime(g.latestAt) }}</span>
+              <mat-icon class="ops-alert-group-chevron">{{ isOpsAlertGroupExpanded(g.key) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </span>
+          </button>
+
+          <div class="ops-alert-group-detail" *ngIf="isOpsAlertGroupExpanded(g.key)">
+            <ul class="ops-alert-rows">
+              <li *ngFor="let a of visibleRowsForGroup(g); trackBy: trackSmartAlert" class="ops-alert-row">
+                <div class="ops-alert-row-main">
+                  <span class="ops-alert-row-entity">{{ alertEntityLabel(a) }}</span>
+                  <span class="ops-alert-row-status">{{ a.status }}</span>
+                  <p class="ops-alert-row-msg">{{ a.message }}</p>
+                  <time class="ops-alert-row-time" [attr.datetime]="a.createdAt">{{ formatAlertTime(a.createdAt) }}</time>
+                </div>
+                <div class="ops-alert-row-actions">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    *ngIf="a.status === 'New'"
+                    [disabled]="smartAlertBusyId === a.id"
+                    (click)="acknowledgeSmartAlert(a, $event)">Acknowledge</button>
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="smartAlertBusyId === a.id"
+                    (click)="resolveSmartAlert(a, $event)">Resolve</button>
+                </div>
+              </li>
+            </ul>
+            <button
+              type="button"
+              class="ops-alert-show-more"
+              *ngIf="hasMoreRowsForGroup(g)"
+              (click)="showMoreRowsForGroup(g, $event)">
+              Show more
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <ng-template #noFilteredAlerts>
+        <p class="ops-alerts-empty">No alerts for this severity.</p>
+      </ng-template>
+    </div>
+
+    <div class="ops-alerts-footer" *ngIf="hasMoreOpsAlertGroups || opsAlertsShowAllGroups">
+      <button type="button" class="ops-alert-show-more" *ngIf="hasMoreOpsAlertGroups" (click)="showMoreOpsAlertGroups()">
+        Show {{ hiddenOpsAlertGroupCount }} more {{ hiddenOpsAlertGroupCount === 1 ? 'type' : 'types' }}
+      </button>
+      <button type="button" class="ops-alerts-view-all ops-alerts-view-all--footer" (click)="toggleOpsAlertsViewAll()">
+        {{ opsAlertsViewAll ? 'Collapse Alert Center' : 'Open Alert Center' }}
+      </button>
+    </div>
   </section>
 
   <!-- KPI grid -->

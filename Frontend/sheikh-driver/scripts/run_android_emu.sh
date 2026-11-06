@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
 
-# Emulator → host loopback. Override with a stable HTTPS host if needed:
-#   API_BASE_URL=https://joke-rebates-titans-duties.trycloudflare.com/api ./scripts/run_android_emu.sh
+# Emulator → host loopback. Override with production HTTPS if needed:
+#   API_BASE_URL=https://20-174-1-230.sslip.io/api ./scripts/run_android_emu.sh
 # Do NOT use release AAB on emulator — ENV=prod blocks emulators.
 API_BASE_URL="${API_BASE_URL:-http://10.0.2.2:5082/api}"
 
@@ -60,4 +60,4 @@ echo "  API=$API_BASE_URL"
 echo "  Seed login: admin@sheikhtravel.com / Pass@123"
 echo "  (driver phone: 03021234567 / Pass@123)"
 echo "  Do NOT use release AAB/APK on emulator — prod release blocks emulators;"
-echo "  release defaults to https://joke-rebates-titans-duties.trycloudflare.com/api (physical devices)."
+echo "  release defaults to https://20-174-1-230.sslip.io/api (physical devices)."

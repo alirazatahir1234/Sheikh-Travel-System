@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, forkJoin, of, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   VehicleLocation,
@@ -216,6 +216,7 @@ export class GpsTrackingService {
       ...this.tenantScopedHttpOptions(tenantScopeId)
     }).pipe(
       map(rows => (rows ?? []).map(row => this.mapLiveFleetRow(row))),
+      switchMap(locations => this.enrichMissingVehicleImages(locations, tenantScopeId)),
       catchError(err => {
         // Older APIs without /live/fleet — keep previous join path. Other failures must surface
         // so the live map does not silently show "0 of 0".
@@ -225,6 +226,37 @@ export class GpsTrackingService {
         return throwError(() => err);
       })
     );
+  }
+
+  /**
+   * Best-effort fill for primary photos when /gps/live/fleet predates ImageUrl (or returns null).
+   * Uses the same Vehicles list ImageUrl the fleet table already shows; 403/errors are ignored.
+   */
+  private enrichMissingVehicleImages(
+    locations: VehicleLocation[],
+    tenantScopeId?: number | null
+  ): Observable<VehicleLocation[]> {
+    if (!locations.some(loc => !loc.imageUrl?.trim())) {
+      return of(locations);
+    }
+    return this.vehicleService
+      .getAll(1, LIVE_FLEET_PAGE_SIZE, false, tenantScopeId ?? undefined)
+      .pipe(
+        map(page => {
+          const byId = new Map<number, string>();
+          for (const v of page.items ?? []) {
+            const url = v.imageUrl?.trim();
+            if (url) byId.set(v.id, url);
+          }
+          if (byId.size === 0) return locations;
+          return locations.map(loc => {
+            if (loc.imageUrl?.trim()) return loc;
+            const imageUrl = byId.get(loc.vehicleId);
+            return imageUrl ? { ...loc, imageUrl } : loc;
+          });
+        }),
+        catchError(() => of(locations))
+      );
   }
 
   private mapLiveFleetRow(row: GpsLiveFleetVehicleDto): VehicleLocation {
@@ -238,12 +270,14 @@ export class GpsTrackingService {
       trackerName: row.trackerName ?? undefined,
       relayOutput: row.relayOutput ?? undefined
     };
+    const imageUrl = (row.imageUrl ?? row.ImageUrl)?.trim() || undefined;
     const base = {
       vehicleId: row.vehicleId,
       vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
       registrationNumber: row.registrationNumber ?? '',
       driverName: row.driverName ?? undefined,
       vehicleType: row.vehicleType ?? undefined,
+      imageUrl,
       ...trackerFields
     };
 
@@ -375,6 +409,8 @@ export class GpsTrackingService {
 
             const live = liveByVehicle.get(v.id);
             const hasTracker = !!v.hasGpsDevice || !!tracker;
+            const imageUrl = v.imageUrl?.trim() || undefined;
+
             if (live && this.hasValidCoords(live.latitude, live.longitude) && hasTracker) {
               const status = resolveFleetStatus({
                 speed: Number(live.speed) || 0,
@@ -408,6 +444,7 @@ export class GpsTrackingService {
                 vehicleType: v.vehicleType,
                 driverPhone: resolveDriverPhone(live.driverPhone, live.driverId ?? v.driverId, v.driverPhone),
                 bookingId: live.bookingId,
+                imageUrl,
                 ...trackerFields
               };
             }
@@ -437,6 +474,7 @@ export class GpsTrackingService {
                 ignition: v.engineIgnition ?? undefined,
                 vehicleType: v.vehicleType,
                 driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
+                imageUrl,
                 ...trackerFields
               };
             }
@@ -456,6 +494,7 @@ export class GpsTrackingService {
                 routeHint: 'No GPS signal',
                 vehicleType: v.vehicleType,
                 driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
+                imageUrl,
                 ...trackerFields
               };
             }
@@ -475,6 +514,7 @@ export class GpsTrackingService {
               routeHint: 'Awaiting GPS signal',
               vehicleType: v.vehicleType,
               driverPhone: resolveDriverPhone(undefined, v.driverId, v.driverPhone),
+              imageUrl,
               ...trackerFields
             };
           });

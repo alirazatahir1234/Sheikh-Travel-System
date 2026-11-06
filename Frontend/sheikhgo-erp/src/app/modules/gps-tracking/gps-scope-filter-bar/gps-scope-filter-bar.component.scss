@@ -1,13 +1,13 @@
-/* Scope bar — Company/Vehicle cards matching Fleet Alerts mock */
+/* Shared GPS company/vehicle scope — aligned with Nexus white/teal filters */
 .gps-scope-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 16px;
-  padding: 12px 14px;
+  gap: 10px 12px;
+  padding: 10px 12px;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
@@ -15,46 +15,52 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .filter-entity {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1 1 240px;
-  min-width: min(100%, 240px);
-  max-width: 360px;
-  min-height: 56px;
-  padding: 8px 12px 8px 14px;
-  border-radius: 10px;
-  border: 1.5px solid transparent;
+  gap: 8px;
+  flex: 0 1 260px;
+  min-width: min(100%, 200px);
+  max-width: 320px;
+  min-height: 44px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
   background: #fff;
-  transition: box-shadow 0.12s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
   &:hover {
-    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
   }
 
-  &--company {
-    border-color: #ddd6fe;
-    background: #f5f3ff;
-    .filter-entity__icon { color: #7c3aed; }
-  }
-
-  &--vehicle {
-    border-color: #99f6e4;
-    background: #f0fdfa;
-    .filter-entity__icon { color: #0f766e; }
+  &:focus-within {
+    border-color: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
   }
 }
 
-.filter-entity__icon {
-  font-size: 22px;
-  width: 22px;
-  height: 22px;
+.filter-entity__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #0d9488;
+}
+
+.filter-entity__icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
 }
 
 .filter-entity__field {
@@ -63,14 +69,52 @@
   margin: 0;
 
   ::ng-deep {
-    .mat-mdc-form-field-subscript-wrapper { display: none; }
-    .mat-mdc-text-field-wrapper { background: transparent !important; padding: 0; }
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    .mat-mdc-text-field-wrapper {
+      background: transparent !important;
+      padding: 0;
+    }
+
     .mdc-notched-outline__leading,
     .mdc-notched-outline__notch,
-    .mdc-notched-outline__trailing { border-color: transparent !important; }
-    .mat-mdc-form-field-infix { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
-    .mat-mdc-floating-label { font-weight: 600; font-size: 12px; color: #64748b; }
-    .mat-mdc-select-value-text { font-weight: 700; color: #0f172a; }
+    .mdc-notched-outline__trailing {
+      border-color: transparent !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: 36px;
+      padding-top: 6px;
+      padding-bottom: 4px;
+    }
+
+    .mat-mdc-floating-label,
+    .mdc-floating-label {
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      color: #64748b !important;
+    }
+
+    .mdc-floating-label--float-above {
+      color: #64748b !important;
+    }
+
+    .mat-mdc-select-value-text {
+      font-weight: 600;
+      font-size: 13px;
+      color: #071d2e;
+    }
+
+    .mat-mdc-select-arrow {
+      color: #94a3b8;
+    }
+
+    .mat-mdc-form-field-flex {
+      align-items: center;
+    }
   }
 }
 
@@ -78,8 +122,9 @@
   flex: 1 1 100%;
   margin: 0;
   font-size: 0.8125rem;
-  font-weight: 600;
-  color: #6d28d9;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #64748b;
 }
 
 .gps-scope-bar__applied {
@@ -88,36 +133,23 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
-}
-
-.applied-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-.filter-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #0f766e;
-  background: #ecfdf5;
-  border: 1px solid #99f6e4;
-  border-radius: 999px;
-  padding: 5px 12px;
+  flex-shrink: 0;
 }
 
 .clear-scope {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  border: none;
-  background: transparent;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
   color: #475569;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.75rem;
   cursor: pointer;
-  min-height: 36px;
-  padding: 0 4px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 
   mat-icon {
     font-size: 14px;
@@ -126,19 +158,25 @@
   }
 
   &:hover {
-    color: #0f766e;
-    text-decoration: underline;
+    color: #0d9488;
+    border-color: #99f6e4;
+    background: #f0fdfa;
   }
 }
 
 @media (max-width: 640px) {
   .filter-entity {
     max-width: none;
-    flex-basis: 100%;
+    flex: 1 1 100%;
   }
 
   .gps-scope-bar__applied {
     margin-left: 0;
     width: 100%;
+  }
+
+  .clear-scope {
+    width: 100%;
+    justify-content: center;
   }
 }

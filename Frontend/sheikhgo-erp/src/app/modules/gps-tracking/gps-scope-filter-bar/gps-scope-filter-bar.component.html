@@ -1,7 +1,9 @@
 <section class="gps-scope-bar" aria-label="Company and vehicle scope">
   <div class="gps-scope-bar__entities">
     <div class="filter-entity filter-entity--company" *ngIf="scope.isSuperAdmin">
-      <mat-icon class="filter-entity__icon" aria-hidden="true">business</mat-icon>
+      <span class="filter-entity__icon-wrap" aria-hidden="true">
+        <mat-icon class="filter-entity__icon">business</mat-icon>
+      </span>
       <mat-form-field appearance="outline" class="filter-entity__field">
         <mat-label>Company</mat-label>
         <mat-select
@@ -15,7 +17,9 @@
     </div>
 
     <div class="filter-entity filter-entity--vehicle">
-      <mat-icon class="filter-entity__icon" aria-hidden="true">local_shipping</mat-icon>
+      <span class="filter-entity__icon-wrap" aria-hidden="true">
+        <mat-icon class="filter-entity__icon">local_shipping</mat-icon>
+      </span>
       <mat-form-field appearance="outline" class="filter-entity__field">
         <mat-label>Vehicle</mat-label>
         <mat-select
@@ -36,14 +40,7 @@
   </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
-    <span class="applied-label">Scope:</span>
-    <span class="filter-tag" *ngIf="scope.isSuperAdmin && scope.companyFilterId != null">
-      Company: {{ scope.companyLabel() }}
-    </span>
-    <span class="filter-tag" *ngIf="scope.vehicleFilterId != null">
-      Vehicle: {{ scope.vehicleLabel() }}
-    </span>
-    <button type="button" class="clear-scope" (click)="clearScope()">
+    <button type="button" class="clear-scope" (click)="clearScope()" aria-label="Clear company and vehicle scope">
       <mat-icon aria-hidden="true">close</mat-icon>
       Clear Scope
     </button>

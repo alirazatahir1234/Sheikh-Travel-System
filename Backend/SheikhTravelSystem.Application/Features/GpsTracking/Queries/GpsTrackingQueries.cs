@@ -18,11 +18,27 @@ public record GetLivePositionsQuery(int Page = 1, int PageSize = 500) : IRequest
 /// </summary>
 public record GetGpsLiveFleetQuery : IRequest<ApiResponse<List<GpsLiveFleetVehicleDto>>>;
 
-public class GetGpsLiveFleetQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
+public class GetGpsLiveFleetQueryHandler(
+    IGpsTrackingRepository gpsTrackingRepository,
+    IFileStorageService fileStorage)
     : IRequestHandler<GetGpsLiveFleetQuery, ApiResponse<List<GpsLiveFleetVehicleDto>>>
 {
-    public Task<ApiResponse<List<GpsLiveFleetVehicleDto>>> Handle(GetGpsLiveFleetQuery request, CancellationToken cancellationToken)
-        => gpsTrackingRepository.GetGpsLiveFleetAsync(request, cancellationToken);
+    public async Task<ApiResponse<List<GpsLiveFleetVehicleDto>>> Handle(
+        GetGpsLiveFleetQuery request,
+        CancellationToken cancellationToken)
+    {
+        var response = await gpsTrackingRepository.GetGpsLiveFleetAsync(request, cancellationToken);
+        if (response.Data is null || response.Data.Count == 0)
+            return response;
+
+        var resolved = response.Data
+            .Select(v => string.IsNullOrWhiteSpace(v.ImageUrl)
+                ? v
+                : v with { ImageUrl = fileStorage.ResolveReadUrl(v.ImageUrl) })
+            .ToList();
+
+        return ApiResponse<List<GpsLiveFleetVehicleDto>>.SuccessResponse(resolved);
+    }
 }
 
 public class GetLivePositionsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)

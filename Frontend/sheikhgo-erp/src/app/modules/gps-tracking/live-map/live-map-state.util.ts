@@ -17,6 +17,28 @@ export function preferRicherAddress(
   return cur;
 }
 
+/** Blob path without SAS/query — used to avoid remounting <img> on every fleet poll. */
+export function vehicleImagePathKey(url?: string | null): string {
+  return (url ?? '').trim().split(/[?#]/)[0];
+}
+
+/**
+ * Prefer an existing photo URL when the storage path is unchanged.
+ * Live fleet / vehicles list re-sign Azure SAS on every poll; swapping src each time
+ * remounts the thumb and can race into the error→placeholder path.
+ */
+export function preferStableImageUrl(
+  current?: string | null,
+  incoming?: string | null
+): string | undefined {
+  const cur = current?.trim() || '';
+  const next = incoming?.trim() || '';
+  if (!next) return cur || undefined;
+  if (!cur) return next;
+  if (vehicleImagePathKey(cur) === vehicleImagePathKey(next)) return cur;
+  return next;
+}
+
 /**
  * Merge a full live-fleet roster refresh into prior rows.
  * Incoming is the membership source of truth (drops vehicles absent from the payload)
@@ -40,7 +62,8 @@ export function mergeVehicleLocations(
         // Prefer newer telemetry fields from previous, but still allow incoming metadata
         // (name/plate) when previous lacked them.
         vehicleName: previous.vehicleName || location.vehicleName,
-        registrationNumber: previous.registrationNumber || location.registrationNumber
+        registrationNumber: previous.registrationNumber || location.registrationNumber,
+        imageUrl: preferStableImageUrl(previous.imageUrl, location.imageUrl)
       };
     }
     return {
@@ -50,7 +73,8 @@ export function mergeVehicleLocations(
       address: preferRicherAddress(previous?.address, location.address),
       placeName: location.placeName?.trim() || previous?.placeName,
       placeType: location.placeType?.trim() || previous?.placeType,
-      addressLocality: location.addressLocality?.trim() || previous?.addressLocality
+      addressLocality: location.addressLocality?.trim() || previous?.addressLocality,
+      imageUrl: preferStableImageUrl(previous?.imageUrl, location.imageUrl)
     };
   });
 }

@@ -69,7 +69,7 @@ Resolution order:
 
 | Target | Default |
 |--------|---------|
-| `ENV=prod` / `ENV=uat` | `https://joke-rebates-titans-duties.trycloudflare.com/api` (Cloudflare quick tunnel) |
+| `ENV=prod` / `ENV=uat` / release | `https://20-174-1-230.sslip.io/api` (Azure Caddy HTTPS; same as ERP) |
 | Physical phone + `DEV_LAN_HOST` / `API_BASE_URL` | `http://{MacLAN}:5082/api` |
 | Android emulator (`ENV=dev`, no LAN define) | `http://10.0.2.2:5082/api` |
 | iOS Simulator / desktop (`ENV=dev`) | `http://localhost:5082/api` |
@@ -114,7 +114,7 @@ Seed login (DatabaseSeeder): **`admin@sheikhtravel.com` / `Pass@123`**
 Driver phone: `03021234567` / `Pass@123`  
 (Do not use `Admin@123` — that is outdated Postman copy.)
 
-Debug login shows the resolved API URL under the password field. Use a **debug** build on emulators — release AAB/APK (`ENV=prod`) blocks emulators and points at `https://joke-rebates-titans-duties.trycloudflare.com/api`.
+Debug login shows the resolved API URL under the password field. Use a **debug** build on emulators — release AAB/APK (`ENV=prod`) blocks emulators and points at `https://20-174-1-230.sslip.io/api`.
 
 ### Physical / wireless Android (Samsung A05)
 
@@ -288,8 +288,11 @@ See `store/` for privacy, terms, listing copy, screenshots guide, release notes,
 # Release APK for any physical device (defaults to sslip.io HTTPS)
 ./scripts/run_prod_device.sh
 
+# iPhone USB release (no TestFlight) — production API
+./scripts/run_ios_prod_device.sh
+
 # Android App Bundle (requires android/key.properties — see key.properties.example)
-# API_BASE_URL defaults to https://joke-rebates-titans-duties.trycloudflare.com/api
+# API_BASE_URL defaults to https://20-174-1-230.sslip.io/api
 # Ensure android/maps.properties exists (or export GOOGLE_MAPS_API_KEY)
 export PRIVACY_URL=https://example.com/fleet/privacy
 export TERMS_URL=https://example.com/fleet/terms
@@ -299,13 +302,13 @@ export CERT_PIN_1=YOUR_SHA256_HEX   # optional; without pins HTTPS still works, 
 # Or direct flutter:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://joke-rebates-titans-duties.trycloudflare.com/api \
+  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
   --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
   --dart-define=PRIVACY_URL=https://example.com/fleet/privacy \
   --dart-define=TERMS_URL=https://example.com/fleet/terms \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX
 
-# iOS IPA
+# iOS IPA (store); for USB install prefer run_ios_prod_device.sh
 ./scripts/build_prod.sh ios
 ```
 

@@ -1,29 +1,50 @@
 <aside class="vdp stb-elevated" [class.vdp--collapsed]="collapsed" aria-label="Selected vehicle details">
   <ng-container *ngIf="loc as v; else empty">
     <div class="vdp__head">
-      <div class="vdp__avatar" [attr.data-status]="v.status">
-        <mat-icon>{{ statusIconName }}</mat-icon>
+      <div class="vdp__identity">
+        <div class="vdp__thumb" [attr.data-status]="v.status">
+          <img
+            *ngIf="vehicleImageSrc as src"
+            class="vdp__thumb-img"
+            [src]="src"
+            [alt]="v.vehicleName + ' photo'"
+            width="112"
+            height="84"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            (error)="onVehicleImageError()" />
+          <div
+            class="vdp__thumb-fallback"
+            [class.vdp__thumb-fallback--hidden]="!!vehicleImageSrc"
+            aria-hidden="true">
+            <mat-icon>directions_car</mat-icon>
+          </div>
+        </div>
+        <div class="vdp__titles">
+          <h2 class="vdp__name">{{ v.vehicleName }}</h2>
+          <span class="vdp__plate">{{ v.registrationNumber }}</span>
+        </div>
       </div>
-      <div class="vdp__titles">
-        <h2 class="vdp__name">{{ v.vehicleName }}</h2>
-        <span class="vdp__plate">{{ v.registrationNumber }}</span>
+
+      <div class="vdp__head-end">
+        <span class="vdp__badge" [attr.data-status]="v.status">{{ statusBadge }}</span>
+        <button
+          type="button"
+          class="vdp__collapse"
+          [attr.aria-expanded]="!collapsed"
+          [attr.aria-label]="collapsed ? 'Expand details' : 'Collapse details'"
+          (click)="toggleCollapsed()">
+          <mat-icon>{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="vdp__close"
+          aria-label="Close details"
+          (click)="closePanel.emit()">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-      <span class="vdp__badge" [attr.data-status]="v.status">{{ statusBadge }}</span>
-      <button
-        type="button"
-        class="vdp__collapse"
-        [attr.aria-expanded]="!collapsed"
-        [attr.aria-label]="collapsed ? 'Expand details' : 'Collapse details'"
-        (click)="toggleCollapsed()">
-        <mat-icon>{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
-      </button>
-      <button
-        type="button"
-        class="vdp__close"
-        aria-label="Close details"
-        (click)="closePanel.emit()">
-        <mat-icon>close</mat-icon>
-      </button>
     </div>
 
     <div class="vdp__tabs" role="tablist" *ngIf="!collapsed">

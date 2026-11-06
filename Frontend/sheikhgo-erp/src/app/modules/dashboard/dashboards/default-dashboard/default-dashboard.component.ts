@@ -27,6 +27,19 @@ import { InvoiceBillingSummary } from '../../../../core/models/invoice.model';
 
 type AssignedTask = TaskItem & { pickupKey?: string };
 
+/** Grouped Smart Ops alerts by stable ruleType (not message text). */
+export interface OpsAlertGroup {
+  key: string;
+  title: string;
+  description: string;
+  severity: string;
+  alerts: SmartAlert[];
+  affectedCount: number;
+  affectedLabel: string;
+  latestAt: string;
+  newCount: number;
+}
+
 @Component({
   selector: 'app-default-dashboard',
   standalone: true,
@@ -50,6 +63,21 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   smartAlerts: SmartAlert[] = [];
   smartAlertNewCount = 0;
   smartAlertBusyId: number | null = null;
+  smartAlertActiveCount = 0;
+  /** Collapsed Alert Center groups; expand only on user action. */
+  opsAlertGroups: OpsAlertGroup[] = [];
+  /** Severity filter for chips: null = all. */
+  opsAlertSeverityFilter: 'Critical' | 'Warning' | 'Info' | null = null;
+  /** Expanded group keys (ruleType). Empty by default. */
+  expandedOpsAlertKeys = new Set<string>();
+  /** When false, only first page of groups is shown. */
+  opsAlertsShowAllGroups = false;
+  /** View All lifts max-height and shows every group. */
+  opsAlertsViewAll = false;
+  readonly opsAlertGroupsPageSize = 5;
+  readonly opsAlertRowsPageSize = 8;
+  /** Per-group visible row count when expanded (Show more). */
+  private opsAlertRowsVisible = new Map<string, number>();
   private destroy$ = new Subject<void>();
 
   /** Summary KPI rows (mirrors DashboardSummaryDto). */
@@ -127,6 +155,8 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     this.smartAlertsApi.summary.pipe(takeUntil(this.destroy$)).subscribe(s => {
       this.smartAlerts = s.items ?? [];
       this.smartAlertNewCount = s.newCount ?? 0;
+      this.smartAlertActiveCount = s.activeCount ?? this.smartAlerts.length;
+      this.rebuildOpsAlertGroups();
       if (this.smartAlertNewCount > 0) this.opsHealthy = false;
     });
 
@@ -136,14 +166,16 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  acknowledgeSmartAlert(alert: SmartAlert): void {
+  acknowledgeSmartAlert(alert: SmartAlert, event?: Event): void {
+    event?.stopPropagation();
     this.smartAlertBusyId = alert.id;
     this.smartAlertsApi.acknowledge(alert.id).pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.smartAlertBusyId = null;
     });
   }
 
-  resolveSmartAlert(alert: SmartAlert): void {
+  resolveSmartAlert(alert: SmartAlert, event?: Event): void {
+    event?.stopPropagation();
     this.smartAlertBusyId = alert.id;
     this.smartAlertsApi.resolve(alert.id).pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.smartAlertBusyId = null;
@@ -155,6 +187,259 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     if (s === 'critical') return 'sev-critical';
     if (s === 'info') return 'sev-info';
     return 'sev-warning';
+  }
+
+  get opsAlertSeverityCounts(): { critical: number; warning: number; info: number } {
+    let critical = 0;
+    let warning = 0;
+    let info = 0;
+    for (const a of this.smartAlerts) {
+      const s = (a.severity || '').toLowerCase();
+      if (s === 'critical') critical++;
+      else if (s === 'info') info++;
+      else warning++;
+    }
+    return { critical, warning, info };
+  }
+
+  get visibleOpsAlertGroups(): OpsAlertGroup[] {
+    const filtered = this.opsAlertSeverityFilter
+      ? this.opsAlertGroups.filter(g =>
+          g.alerts.some(a => (a.severity || '').toLowerCase() === this.opsAlertSeverityFilter!.toLowerCase()))
+      : this.opsAlertGroups;
+
+    if (this.opsAlertsViewAll || this.opsAlertsShowAllGroups) return filtered;
+    return filtered.slice(0, this.opsAlertGroupsPageSize);
+  }
+
+  get hasMoreOpsAlertGroups(): boolean {
+    if (this.opsAlertsViewAll || this.opsAlertsShowAllGroups) return false;
+    const filtered = this.opsAlertSeverityFilter
+      ? this.opsAlertGroups.filter(g =>
+          g.alerts.some(a => (a.severity || '').toLowerCase() === this.opsAlertSeverityFilter!.toLowerCase()))
+      : this.opsAlertGroups;
+    return filtered.length > this.opsAlertGroupsPageSize;
+  }
+
+  get hiddenOpsAlertGroupCount(): number {
+    const filtered = this.opsAlertSeverityFilter
+      ? this.opsAlertGroups.filter(g =>
+          g.alerts.some(a => (a.severity || '').toLowerCase() === this.opsAlertSeverityFilter!.toLowerCase()))
+      : this.opsAlertGroups;
+    return Math.max(0, filtered.length - this.opsAlertGroupsPageSize);
+  }
+
+  setOpsAlertSeverityFilter(sev: 'Critical' | 'Warning' | 'Info' | null): void {
+    this.opsAlertSeverityFilter = this.opsAlertSeverityFilter === sev ? null : sev;
+  }
+
+  toggleOpsAlertGroup(key: string, event?: Event): void {
+    event?.stopPropagation();
+    const next = new Set(this.expandedOpsAlertKeys);
+    if (next.has(key)) next.delete(key);
+    else {
+      next.add(key);
+      if (!this.opsAlertRowsVisible.has(key)) {
+        this.opsAlertRowsVisible.set(key, this.opsAlertRowsPageSize);
+      }
+    }
+    this.expandedOpsAlertKeys = next;
+  }
+
+  isOpsAlertGroupExpanded(key: string): boolean {
+    return this.expandedOpsAlertKeys.has(key);
+  }
+
+  visibleRowsForGroup(group: OpsAlertGroup): SmartAlert[] {
+    if (this.opsAlertSeverityFilter) {
+      const sev = this.opsAlertSeverityFilter.toLowerCase();
+      const filtered = group.alerts.filter(a => (a.severity || '').toLowerCase() === sev);
+      const limit = this.opsAlertRowsVisible.get(group.key) ?? this.opsAlertRowsPageSize;
+      return filtered.slice(0, limit);
+    }
+    const limit = this.opsAlertRowsVisible.get(group.key) ?? this.opsAlertRowsPageSize;
+    return group.alerts.slice(0, limit);
+  }
+
+  hasMoreRowsForGroup(group: OpsAlertGroup): boolean {
+    const total = this.opsAlertSeverityFilter
+      ? group.alerts.filter(a => (a.severity || '').toLowerCase() === this.opsAlertSeverityFilter!.toLowerCase()).length
+      : group.alerts.length;
+    const shown = this.opsAlertRowsVisible.get(group.key) ?? this.opsAlertRowsPageSize;
+    return total > shown;
+  }
+
+  showMoreRowsForGroup(group: OpsAlertGroup, event?: Event): void {
+    event?.stopPropagation();
+    const current = this.opsAlertRowsVisible.get(group.key) ?? this.opsAlertRowsPageSize;
+    this.opsAlertRowsVisible.set(group.key, current + this.opsAlertRowsPageSize);
+  }
+
+  showMoreOpsAlertGroups(): void {
+    this.opsAlertsShowAllGroups = true;
+  }
+
+  /** View All: expand card height and reveal every group (still collapsed by default). */
+  toggleOpsAlertsViewAll(): void {
+    this.opsAlertsViewAll = !this.opsAlertsViewAll;
+    if (this.opsAlertsViewAll) this.opsAlertsShowAllGroups = true;
+  }
+
+  ruleTypeTitle(ruleType: string): string {
+    const map: Record<string, string> = {
+      MaintenanceDue: 'Maintenance Due',
+      DocumentExpiry: 'Document Expiry',
+      UnassignedTrip: 'Unassigned Trip',
+      OverdueInvoice: 'Overdue Invoice',
+      FuelAnomaly: 'Fuel Anomaly',
+      AccidentRisk: 'Accident Risk',
+      GpsOffline: 'GPS Offline'
+    };
+    if (map[ruleType]) return map[ruleType];
+    return (ruleType || 'Alert').replace(/([a-z])([A-Z])/g, '$1 $2');
+  }
+
+  alertEntityLabel(alert: SmartAlert): string {
+    const type = (alert.relatedEntityType || '').trim();
+    const id = alert.relatedEntityId;
+    const msg = alert.message || '';
+
+    // Prefer name embedded in scanner messages: "... for {label} ..."
+    const forMatch = msg.match(/\bfor\s+(.+?)\s+(?:is|expires|expired|due)\b/i);
+    if (forMatch?.[1]) return forMatch[1].trim();
+
+    if (type && id != null) return `${type} #${id}`;
+    if (type) return type;
+    if (id != null) return `#${id}`;
+    return '—';
+  }
+
+  formatAlertTime(iso: string): string {
+    return this.formatDate(iso);
+  }
+
+  trackOpsAlertGroup(_: number, g: OpsAlertGroup): string {
+    return g.key;
+  }
+
+  trackSmartAlert(_: number, a: SmartAlert): number {
+    return a.id;
+  }
+
+  private rebuildOpsAlertGroups(): void {
+    const byRule = new Map<string, SmartAlert[]>();
+    const seenIds = new Set<number>();
+
+    for (const alert of this.smartAlerts) {
+      if (seenIds.has(alert.id)) continue;
+      seenIds.add(alert.id);
+      const key = (alert.ruleType || 'Unknown').trim() || 'Unknown';
+      const list = byRule.get(key) ?? [];
+      list.push(alert);
+      byRule.set(key, list);
+    }
+
+    const groups: OpsAlertGroup[] = [];
+    for (const [key, alerts] of byRule) {
+      alerts.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      const severity = this.highestSeverity(alerts);
+      const { count, label } = this.affectedSummary(alerts);
+      const latest = alerts[0]?.createdAt || '';
+      groups.push({
+        key,
+        title: this.ruleTypeTitle(key),
+        description: this.groupDescription(key, count, label),
+        severity,
+        alerts,
+        affectedCount: count,
+        affectedLabel: label,
+        latestAt: latest,
+        newCount: alerts.filter(a => a.status === 'New').length
+      });
+    }
+
+    // Critical first, then by latest activity
+    const sevRank = (s: string) => {
+      const x = (s || '').toLowerCase();
+      if (x === 'critical') return 0;
+      if (x === 'warning') return 1;
+      return 2;
+    };
+    groups.sort((a, b) => {
+      const d = sevRank(a.severity) - sevRank(b.severity);
+      if (d !== 0) return d;
+      return (b.latestAt || '').localeCompare(a.latestAt || '');
+    });
+
+    this.opsAlertGroups = groups;
+
+    // Drop expansions for rule types no longer present
+    const valid = new Set(groups.map(g => g.key));
+    this.expandedOpsAlertKeys = new Set([...this.expandedOpsAlertKeys].filter(k => valid.has(k)));
+  }
+
+  private highestSeverity(alerts: SmartAlert[]): string {
+    let hasWarning = false;
+    let hasInfo = false;
+    for (const a of alerts) {
+      const s = (a.severity || '').toLowerCase();
+      if (s === 'critical') return 'Critical';
+      if (s === 'warning') hasWarning = true;
+      else if (s === 'info') hasInfo = true;
+      else hasWarning = true;
+    }
+    if (hasWarning) return 'Warning';
+    if (hasInfo) return 'Info';
+    return 'Warning';
+  }
+
+  private affectedSummary(alerts: SmartAlert[]): { count: number; label: string } {
+    const byType = new Map<string, Set<string>>();
+    for (const a of alerts) {
+      const type = (a.relatedEntityType || 'Item').trim() || 'Item';
+      const idKey = a.relatedEntityId != null ? String(a.relatedEntityId) : `alert:${a.id}`;
+      if (!byType.has(type)) byType.set(type, new Set());
+      byType.get(type)!.add(idKey);
+    }
+
+    if (byType.size === 1) {
+      const [type, ids] = [...byType.entries()][0];
+      const count = ids.size;
+      const label = this.pluralEntityLabel(type, count);
+      return { count, label };
+    }
+
+    // Mixed entities: prefer Vehicle count in label when present
+    const vehicleIds = byType.get('Vehicle');
+    if (vehicleIds?.size) {
+      return { count: vehicleIds.size, label: this.pluralEntityLabel('Vehicle', vehicleIds.size) };
+    }
+
+    const total = [...byType.values()].reduce((n, s) => n + s.size, 0);
+    return { count: total, label: total === 1 ? 'item' : 'items' };
+  }
+
+  private pluralEntityLabel(type: string, count: number): string {
+    const t = type.toLowerCase();
+    if (t === 'vehicle') return count === 1 ? 'vehicle' : 'vehicles';
+    if (t === 'driver') return count === 1 ? 'driver' : 'drivers';
+    if (t === 'booking' || t === 'trip') return count === 1 ? 'trip' : 'trips';
+    if (t === 'invoice') return count === 1 ? 'invoice' : 'invoices';
+    return count === 1 ? 'item' : 'items';
+  }
+
+  private groupDescription(ruleType: string, count: number, label: string): string {
+    const titles: Record<string, string> = {
+      MaintenanceDue: 'Scheduled maintenance due or overdue',
+      DocumentExpiry: 'Compliance documents nearing expiry',
+      UnassignedTrip: 'Confirmed trips missing driver or vehicle',
+      OverdueInvoice: 'Invoices past due date',
+      FuelAnomaly: 'Unusual fuel consumption detected',
+      AccidentRisk: 'Elevated accident risk signals',
+      GpsOffline: 'GPS devices offline'
+    };
+    const base = titles[ruleType] || 'Active operations alerts for this rule';
+    return `${base} · ${count} ${label}`;
   }
 
   ngOnDestroy(): void {

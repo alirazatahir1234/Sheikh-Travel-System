@@ -417,4 +417,6 @@ public record GpsLiveFleetVehicleDto(
     string? TrackerName,
     string? RelayOutput,
     bool IsGpsValid = true,
-    string? GpsQualityCode = null);
+    string? GpsQualityCode = null,
+    /// <summary>Primary VehicleImage document FileUrl (resolved to a read URL by the query handler).</summary>
+    string? ImageUrl = null);

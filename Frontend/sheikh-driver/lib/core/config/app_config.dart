@@ -11,12 +11,13 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
-  /// Cloudflare quick tunnel → Kestrel on Azure VM. Used by release APKs / AABs
-  /// when `API_BASE_URL` is omitted. Host comes from VM
-  /// `/var/lib/sheikhgo/cloudflared-quick-url.txt` — update after tunnel restart.
-  /// Override anytime with `--dart-define=API_BASE_URL=...`.
+  /// Stable Azure HTTPS (Caddy + Let’s Encrypt on sslip.io) — same host as ERP
+  /// `environment.prod.ts`. Used by release builds when `API_BASE_URL` is omitted.
+  /// Prefer this over `*.trycloudflare.com` quick tunnels (hostname changes on
+  /// restart). Override anytime with `--dart-define=API_BASE_URL=...`.
+  /// Later: `https://api.sheikhgo.com/api` once DNS is live.
   static const String defaultProductionApiBaseUrl =
-      'https://joke-rebates-titans-duties.trycloudflare.com/api';
+      'https://20-174-1-230.sslip.io/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

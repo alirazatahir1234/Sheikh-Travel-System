@@ -1,6 +1,8 @@
 import {
   mergeVehicleLocations,
-  mergeVehicleLocationsPreservingIdentity
+  mergeVehicleLocationsPreservingIdentity,
+  preferStableImageUrl,
+  vehicleImagePathKey
 } from './live-map-state.util';
 import { VehicleLocation } from '../../../core/models/gps-tracking.model';
 
@@ -114,6 +116,40 @@ describe('mergeVehicleLocations', () => {
     expect(merged[0].address).toBe('Circular Road, Sialkot, Punjab, Pakistan');
     expect(merged[0].placeName).toBe('Ali Store');
     expect(merged[0].speed).toBe(5);
+  });
+
+  it('keeps the prior imageUrl when only the Azure SAS query changes', () => {
+    const stable =
+      'https://account.blob.core.windows.net/c/vehicles/1/2/photo.jpeg?sv=2024&sig=old';
+    const existing = [
+      createVehicle(1, {
+        lastUpdated: '2026-07-13T08:00:00.000Z',
+        imageUrl: stable
+      })
+    ];
+    const incoming = [
+      createVehicle(1, {
+        lastUpdated: '2026-07-13T08:01:00.000Z',
+        imageUrl:
+          'https://account.blob.core.windows.net/c/vehicles/1/2/photo.jpeg?sv=2024&sig=new'
+      })
+    ];
+
+    const merged = mergeVehicleLocations(existing, incoming);
+    expect(merged[0].imageUrl).toBe(stable);
+  });
+});
+
+describe('preferStableImageUrl', () => {
+  it('returns incoming when current is empty', () => {
+    expect(preferStableImageUrl(null, 'https://x/a.jpeg?sig=1')).toBe('https://x/a.jpeg?sig=1');
+  });
+
+  it('keeps current when blob paths match', () => {
+    const cur = 'https://x/a.jpeg?sig=old';
+    const next = 'https://x/a.jpeg?sig=new';
+    expect(preferStableImageUrl(cur, next)).toBe(cur);
+    expect(vehicleImagePathKey(cur)).toBe(vehicleImagePathKey(next));
   });
 });
 

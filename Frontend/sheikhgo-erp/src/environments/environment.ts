@@ -31,5 +31,5 @@ export const environment = {
    */
   plausibleDomain: mapsSecrets.plausibleDomain || '',
   /** Optional custom Plausible script URL (self-hosted). Default: https://plausible.io/js/script.js */
-  plausibleScriptSrc: mapsSecrets.plausibleScriptSrc || '',
+  plausibleScriptSrc: mapsSecrets.plausibleScriptSrc || ''
 };
