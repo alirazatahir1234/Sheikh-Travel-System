@@ -58,6 +58,10 @@ export class NotificationService implements OnDestroy {
       void this.disconnectHub();
       this.notifications$.next([]);
       this.unreadCount$.next(0);
+      // Safety net: if a 401 still reaches here after refresh failed, force login redirect.
+      if (this.auth.isLoggedIn()) {
+        this.auth.logout();
+      }
     }
   }
 

@@ -109,7 +109,10 @@ export class AuthService {
     localStorage.removeItem('security_idle_minutes');
     localStorage.removeItem('security_absolute_minutes');
     this.currentUserSubject.next(null);
-    this.router.navigate(['/auth/login']);
+    // Always leave the app shell when the session ends (401 / idle / absolute).
+    this.zone.run(() => {
+      void this.router.navigateByUrl('/auth/login', { replaceUrl: true });
+    });
   }
 
   refreshToken(): Observable<LoginResponse> {
