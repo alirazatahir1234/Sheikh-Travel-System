@@ -171,9 +171,11 @@ class _KpiChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          color: active ? data.color.withValues(alpha: 0.14) : Colors.white,
+          color: active
+              ? data.color.withValues(alpha: 0.14)
+              : context.sg.card,
           borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(
             color:
@@ -188,11 +190,12 @@ class _KpiChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                height: 1.1,
+                height: 1.15,
                 color: data.color,
+                fontFamily: 'PlusJakartaSans',
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               data.label,
               maxLines: 1,
@@ -200,8 +203,9 @@ class _KpiChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                height: 1.1,
+                height: 1.15,
                 color: context.sg.textSecondary,
+                fontFamily: 'PlusJakartaSans',
               ),
             ),
           ],

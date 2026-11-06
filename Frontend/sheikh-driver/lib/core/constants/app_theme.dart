@@ -198,10 +198,22 @@ abstract class AppRadii {
 }
 
 abstract class AppTheme {
+  /// Prefer the bundled `PlusJakartaSans` asset (Android/iOS parity). Fall back
+  /// to Google Fonts runtime only when the asset family is unavailable (tests).
   static TextTheme _textTheme(Brightness brightness) {
-    final base = GoogleFonts.config.allowRuntimeFetching
-        ? GoogleFonts.plusJakartaSansTextTheme()
-        : ThemeData(brightness: brightness).textTheme;
+    TextTheme base;
+    if (GoogleFonts.config.allowRuntimeFetching) {
+      try {
+        base = GoogleFonts.plusJakartaSansTextTheme();
+      } catch (_) {
+        base = ThemeData(brightness: brightness).textTheme;
+      }
+    } else {
+      base = ThemeData(brightness: brightness).textTheme;
+    }
+    // Force bundled family so release APKs never render as system Roboto when
+    // the first Google Fonts fetch fails (common on Android offline / Play).
+    base = base.apply(fontFamily: 'PlusJakartaSans');
     final onSurface = brightness == Brightness.dark
         ? SgPalette.dark.textPrimary
         : SgPalette.light.textPrimary;
@@ -274,6 +286,7 @@ abstract class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: 'PlusJakartaSans',
       textTheme: text,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,

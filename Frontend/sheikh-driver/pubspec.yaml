@@ -1,7 +1,7 @@
 name: sheikh_go_driver
 description: SheikhGo Tracking App — Owner live tracking, drivers, fuel, and driver operations
 publish_to: 'none'
-version: 1.0.4+24
+version: 1.0.5+26
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -69,8 +69,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  integration_test:
-    sdk: flutter
+  # Omit integration_test for Play release builds: Flutter still registers it in
+  # GeneratedPluginRegistrant while excluding it from the release classpath,
+  # which fails compileReleaseJavaWithJavac. Re-add when running integration_test/*.
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
   mockito: ^5.4.4
@@ -88,6 +89,12 @@ flutter:
     - assets/branding/sheikhgo_nexus_logo.png
     - assets/branding/sheikhgo_logo_official.png
     - assets/icons/playback/
+  # Bundled brand typeface so Android (and offline iOS) match audited typography
+  # without relying on Google Fonts runtime download → system Roboto fallback.
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
 
 # Native layer: solid brand navy only (no bitmap — avoids black-matte logo artifacts).
 # Full Nexus logo + loader animation live in Flutter `SplashScreen`.

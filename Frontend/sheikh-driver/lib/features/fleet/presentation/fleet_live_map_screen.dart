@@ -678,10 +678,11 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           left: 0,
           right: 0,
           child: Material(
-            color: Colors.white.withValues(alpha: 0.92),
+            // Theme-aware glass strip (audit: no hardcoded white on Android/iOS).
+            color: context.sg.card.withValues(alpha: 0.94),
             elevation: 1,
             child: Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 8),
+              padding: const EdgeInsets.only(top: 8, bottom: 10),
               child: FleetKpiStrip(
                 kpis: hub.kpis,
                 selected: hub.statusFilter,
