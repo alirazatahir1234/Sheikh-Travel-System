@@ -8,7 +8,6 @@ export type WebsiteContactPhone = {
 
 /** Public marketing lines — verified with Ali; PK matches WhatsApp Business. */
 export const WEBSITE_CONTACT_PHONES: readonly WebsiteContactPhone[] = [
-  { label: 'UAE', display: '+971 55 770 1219', tel: '+971557701219' },
   { label: 'Pakistan', display: '+92 317 736 8305', tel: '+923177368305' },
 ];
 
