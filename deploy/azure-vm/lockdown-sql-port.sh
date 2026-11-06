@@ -61,7 +61,7 @@ sudo docker run -d \
   "${ENV_ARGS[@]}" \
   "$IMAGE"
 
-# Wait for TCP on localhost, then for API SQL health (MSSQL can accept TCP before ready)
+# Wait for TCP on localhost (engine can listen before user DBs finish recovery)
 ok=0
 for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
   sleep 5
@@ -88,8 +88,24 @@ if echo "$AFTER" | grep -q '0.0.0.0'; then
   exit 1
 fi
 
+# User DBs (e.g. SheikhGo) can take many minutes after TCP is open
+recovery_ok=0
+for i in $(seq 1 60); do
+  if sudo docker logs "$CONTAINER" 2>&1 | grep -q 'Recovery is complete'; then
+    recovery_ok=1
+    echo "==> SQL recovery complete (try=$i)"
+    break
+  fi
+  PROG="$(sudo docker logs "$CONTAINER" 2>&1 | grep "Recovery of database" | tail -1 || true)"
+  echo "==> waiting for DB recovery try=$i ${PROG:+| $PROG}"
+  sleep 15
+done
+if [[ "$recovery_ok" -ne 1 ]]; then
+  echo "WARN: no 'Recovery is complete' in logs after ~15m; continuing to health poll." >&2
+fi
+
 sql_healthy=0
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
   sleep 5
   DETAIL="$(curl -sS -m 20 http://127.0.0.1:5082/health/detail 2>/dev/null || true)"
   HTTP="$(curl -s -m 15 -o /tmp/sheikhgo-sql-lockdown-health.txt -w '%{http_code}' http://127.0.0.1:5082/health || true)"
@@ -101,9 +117,16 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
     echo
     break
   fi
+  # Restart API once after recovery if it is still unhealthy (stale connection)
+  if [[ "$i" -eq 6 && "$recovery_ok" -eq 1 ]]; then
+    echo "==> restarting sheikhgo-api after SQL recovery"
+    sudo systemctl restart sheikhgo-api || true
+    sleep 5
+  fi
 done
 if [[ "$sql_healthy" -ne 1 ]]; then
-  echo "WARN: API sql health not Healthy yet; container bind is locked down. Check /health/detail." >&2
+  echo "ERROR: bind is 127.0.0.1 but API sql health not Healthy. Fix /health before docker rm $BACKUP." >&2
+  exit 1
 fi
 
 echo "==> Old container kept as $BACKUP (docker rm $BACKUP when satisfied)"
