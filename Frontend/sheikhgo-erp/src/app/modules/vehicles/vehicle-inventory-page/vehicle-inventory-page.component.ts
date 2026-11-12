@@ -301,8 +301,8 @@ export class VehicleInventoryPageComponent implements OnInit {
         const dashTotal = dashboard?.totalVehicles ?? 0;
         if (!this.error() && vehicles.items.length === 0 && dashTotal > 0) {
           this.error.set(
-            `Fleet reports ${dashTotal} vehicle(s), but none are visible for your branch/data scope. ` +
-              `Ask an admin to apply FleetListCompanyScopeMigration (or set FLEET_MANAGER scope to Company).`
+            `Fleet reports ${dashTotal} vehicle(s), but none are in the branch/department your role can see. ` +
+              `Ask a company admin to assign these vehicles to your branch, or set your role's data scope to Company.`
           );
         }
       },

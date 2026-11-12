@@ -156,4 +156,43 @@ public class DataScopeResolverTests
         result.IsCompanyWide.Should().BeTrue();
         result.Source.Should().Be("gps_operator");
     }
+
+    [Fact]
+    public void Owner_With_Home_Department_Is_CompanyWide()
+    {
+        var result = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: 5, homeDepartmentId: 2,
+            [new DataScopeResolver.RoleAssignmentInput("OWNER", "Assigned", null, null)]);
+
+        result.IsCompanyWide.Should().BeTrue();
+        result.Source.Should().Be("company_admin");
+    }
+
+    [Fact]
+    public void ApplyVehicleScope_DepartmentMode_Includes_Unassigned_Department()
+    {
+        var scope = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: null, homeDepartmentId: 2,
+            [new DataScopeResolver.RoleAssignmentInput("ACCOUNTANT", "Assigned", null, null)]);
+        scope.Mode.Should().Be(DataScopeMode.Department);
+
+        var parameters = new Dapper.DynamicParameters();
+        var clauses = new List<string>();
+        DataScopeSqlBuilder.ApplyVehicleScope(parameters, scope, "v", clauses);
+
+        clauses.Should().ContainSingle(c => c.Contains("DepartmentId IS NULL") && c.Contains("IN @DsDepartmentIds"));
+    }
+
+    [Fact]
+    public void ApplyLinkedFleetScope_DepartmentMode_Includes_Unassigned_Vehicles()
+    {
+        var scope = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: null, homeDepartmentId: 2,
+            [new DataScopeResolver.RoleAssignmentInput("ACCOUNTANT", "Assigned", null, null)]);
+
+        var clauses = new List<string>();
+        DataScopeSqlBuilder.ApplyLinkedFleetScope(new Dapper.DynamicParameters(), scope, clauses);
+
+        clauses.Should().ContainSingle(c => c.Contains("v.DepartmentId IS NULL"));
+    }
 }

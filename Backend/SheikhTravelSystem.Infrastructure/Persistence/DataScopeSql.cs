@@ -49,7 +49,9 @@ public static class DataScopeSqlBuilder
             }
             else
             {
-                clauses.Add($"{vehicleAlias}.DepartmentId IN @DsDepartmentIds");
+                // Same rule as branch scope: vehicles not yet assigned to any department stay visible
+                // (most fleets never set Vehicles.DepartmentId, which otherwise blanks the whole list).
+                clauses.Add($"({vehicleAlias}.DepartmentId IS NULL OR {vehicleAlias}.DepartmentId IN @DsDepartmentIds)");
                 p.Add("DsDepartmentIds", scope.DepartmentIds.ToArray());
             }
 
@@ -142,6 +144,7 @@ public static class DataScopeSqlBuilder
             clauses.Add($@"(
                 ({vehicleAlias}.Id IS NULL AND {driverAlias}.Id IS NULL)
                 OR {vehicleAlias}.DepartmentId IN @DsDepartmentIds
+                OR ({vehicleAlias}.Id IS NOT NULL AND {vehicleAlias}.DepartmentId IS NULL)
                 OR ({vehicleAlias}.Id IS NULL AND {driverAlias}.BranchId IN @DsBranchIdsFallback)
             )");
             p.Add("DsDepartmentIds", scope.DepartmentIds.ToArray());

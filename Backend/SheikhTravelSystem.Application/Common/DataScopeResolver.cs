@@ -36,8 +36,10 @@ public static class DataScopeResolver
             return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "super_admin");
         }
 
-        if (codes.Any(c => string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase)))
+        if (codes.Any(c => string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase)
+                           || string.Equals(c, "OWNER", StringComparison.OrdinalIgnoreCase)))
         {
+            // OWNER is the business owner — never clamp them to the home branch/department set at provisioning.
             return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "company_admin");
         }
 
@@ -150,6 +152,7 @@ public static class DataScopeResolver
     {
         if (string.Equals(roleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "OWNER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase) ||
