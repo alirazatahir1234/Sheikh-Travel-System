@@ -68,7 +68,9 @@ import { formatCurrency } from '../../../../../../core/models/platform.model';
         </div>
         <div>
           <dt class="text-xs font-semibold uppercase text-fleet-text-muted">GPS Tracker</dt>
-          <dd class="text-sm font-medium" [class.text-emerald-600]="gpsAssigned()">{{ gpsAssigned() ? 'Assigned' : 'Not assigned' }}</dd>
+          <dd class="text-sm font-medium" [class.text-emerald-600]="gpsAssigned()" [class.text-amber-600]="!gpsAssigned() && gpsPending()">
+            {{ gpsAssigned() ? 'Assigned' : gpsPending() ? 'Will be linked on publish' : 'Not assigned' }}
+          </dd>
         </div>
         <div>
           <dt class="text-xs font-semibold uppercase text-fleet-text-muted">Documents</dt>
@@ -95,6 +97,8 @@ export class WizardStepReviewComponent {
   readonly formValues = input<Record<string, unknown>>({});
   readonly isDraft = input(true);
   readonly gpsAssigned = input(false);
+  /** Tracker chosen on a draft — linked automatically after publish. */
+  readonly gpsPending = input(false);
   readonly documentsCount = input(0);
   readonly validationErrors = input<string[]>([]);
   readonly showValidationErrors = input(false);

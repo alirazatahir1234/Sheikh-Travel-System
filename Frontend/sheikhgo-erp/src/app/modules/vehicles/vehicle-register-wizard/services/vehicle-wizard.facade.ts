@@ -90,6 +90,11 @@ export class VehicleWizardFacade {
   readonly gpsDeviceId = signal<number | null>(null);
   readonly assignedTracker = signal<AssignedTrackerInfo | null>(null);
   readonly changingTracker = signal(false);
+  /**
+   * Draft vehicles cannot hold a tracker (backend rule), so the GPS step only validates and remembers
+   * the choice; {@link publish} links it right after the vehicle is published.
+   */
+  readonly gpsLinkPending = signal(false);
   readonly unassignedDevices = signal<GpsDevice[]>([]);
   readonly branchOptions = signal<UiSelectOption[]>([]);
   readonly currencyOptions = signal<UiSelectOption[]>([]);
@@ -417,12 +422,30 @@ export class VehicleWizardFacade {
     // Keep current assignment (initial view or "Keep current tracker" after Change Tracker).
     if (mode === 'skip') {
       this.changingTracker.set(false);
+      this.gpsLinkPending.set(false);
       return true;
     }
 
     const vehicleId = this.vehicleId();
     if (!vehicleId) return false;
 
+    if (!this.isStepValid('gps')) {
+      this.markCurrentStepTouched();
+      return false;
+    }
+
+    // Draft vehicle: defer linking until publish (backend rejects trackers on drafts).
+    if (!this.isPublishedVehicle()) {
+      this.gpsLinkPending.set(true);
+      return true;
+    }
+
+    return this.linkGpsNow(vehicleId);
+  }
+
+  /** Assign an existing tracker or register a new one against a published vehicle. */
+  private async linkGpsNow(vehicleId: number): Promise<boolean> {
+    const mode = this.gpsForm.get('mode')?.value as GpsWizardMode;
     try {
       if (mode === 'existing') {
         const deviceId = Number(this.gpsForm.get('existingDeviceId')?.value);
@@ -678,7 +701,21 @@ export class VehicleWizardFacade {
       await this.persistVehicle(false);
       await this.syncExpiryDocuments(id);
       await firstValueFrom(this.vehicleService.publish(id));
-      this.toast.success('Vehicle published successfully');
+      this.vehicleStatus.set(VehicleStatus.Available);
+
+      if (this.gpsLinkPending()) {
+        const linked = await this.linkGpsNow(id);
+        this.gpsLinkPending.set(false);
+        if (!linked) {
+          // linkGpsNow already showed the reason; keep the user on the GPS step of the live vehicle.
+          this.toast.warning('Vehicle published, but the GPS tracker was not linked. Link it from the GPS step.');
+          this.router.navigate(['/vehicles', id, 'edit']);
+          return;
+        }
+        this.toast.success('Vehicle published and GPS tracker linked');
+      } else {
+        this.toast.success('Vehicle published successfully');
+      }
       this.router.navigate(['/vehicles']);
     } catch (err) {
       const message = apiErrorMessage(err, 'Failed to publish vehicle');
