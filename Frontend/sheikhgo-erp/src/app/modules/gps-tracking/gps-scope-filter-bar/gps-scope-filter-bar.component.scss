@@ -63,6 +63,43 @@
   line-height: 16px;
 }
 
+.filter-entity__readonly {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  gap: 0;
+  line-height: 1.2;
+  padding: 2px 0;
+}
+
+.filter-entity__readonly-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.filter-entity__readonly-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-entity__readonly-hint {
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+
+.filter-entity__readonly--warn .filter-entity__readonly-value {
+  color: #b45309;
+}
+
 .filter-entity__field {
   flex: 1;
   min-width: 0;

@@ -4,16 +4,17 @@
       <span class="filter-entity__icon-wrap" aria-hidden="true">
         <mat-icon class="filter-entity__icon">business</mat-icon>
       </span>
-      <mat-form-field appearance="outline" class="filter-entity__field">
-        <mat-label>Company</mat-label>
-        <mat-select
-          [value]="scope.companyFilterId"
-          [disabled]="companiesLoading"
-          (selectionChange)="onCompanyChange($event.value)">
-          <mat-option [value]="null">Select a company</mat-option>
-          <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="filter-entity__readonly" *ngIf="scope.companyFilterId != null; else pickCompanyHint">
+        <span class="filter-entity__readonly-label">Company</span>
+        <span class="filter-entity__readonly-value">{{ scope.companyLabel() }}</span>
+        <span class="filter-entity__readonly-hint">Change in top bar</span>
+      </div>
+      <ng-template #pickCompanyHint>
+        <div class="filter-entity__readonly filter-entity__readonly--warn">
+          <span class="filter-entity__readonly-label">Company</span>
+          <span class="filter-entity__readonly-value">Select in top bar</span>
+        </div>
+      </ng-template>
     </div>
 
     <div class="filter-entity filter-entity--vehicle">
@@ -36,7 +37,7 @@
   </div>
 
   <p class="gps-scope-bar__hint" *ngIf="scope.isSuperAdmin && !scope.isFleetScopeReady">
-    Select a company to view vehicles on Live Map, History, Alerts, and Driver Performance. Devices still loads your home tenant until a company is picked.
+    Use the Company control in the top bar to view vehicles on Live Map, History, Alerts, and Driver Performance. Devices still loads your home tenant until a company is picked.
   </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">

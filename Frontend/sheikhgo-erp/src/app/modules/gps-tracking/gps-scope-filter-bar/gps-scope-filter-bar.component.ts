@@ -51,10 +51,6 @@ export class GpsScopeFilterBarComponent implements OnInit, OnDestroy {
     this.subs.unsubscribe();
   }
 
-  onCompanyChange(tenantId: number | null): void {
-    this.scope.setCompany(tenantId);
-  }
-
   onVehicleChange(vehicleId: number | null): void {
     this.scope.setVehicle(vehicleId);
   }

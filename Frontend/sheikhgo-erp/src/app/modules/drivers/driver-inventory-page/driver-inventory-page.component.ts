@@ -7,8 +7,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BulkDriverImportDialogComponent } from '../bulk-driver-import-dialog/bulk-driver-import-dialog.component';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take, Observable } from 'rxjs';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take, Observable, skip } from 'rxjs';
+import { CompanyScopeService } from '../../../core/services/company-scope.service';
 import { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui';
 import { DriverService, DriverListParams } from '../../../core/services/driver.service';
@@ -80,6 +81,7 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   readonly companyScope = inject(CompanyScopeController);
+  private readonly companyScopeService = inject(CompanyScopeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
   /** Cancels in-flight Top Drivers / compliance fetches when the page reloads. */
@@ -321,6 +323,18 @@ export class DriverInventoryPageComponent implements OnInit {
   ngOnInit(): void {
     // Super Admin: scope every call on this page to the chosen company (no-op for everyone else).
     this.companyScope.beginList();
+
+    // Top-bar company dropdown: re-apply scope + reload without leaving the page.
+    toObservable(this.companyScopeService.tenantId).pipe(
+      skip(1),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      if (!this.companyScope.isSuperAdmin) return;
+      this.companyScope.beginList();
+      this.pagination.update(p => ({ ...p, page: 1 }));
+      this.reload$.next();
+    });
+
     this.platformService.getBranches().pipe(
       catchError(() => of([])),
       takeUntilDestroyed(this.destroyRef)

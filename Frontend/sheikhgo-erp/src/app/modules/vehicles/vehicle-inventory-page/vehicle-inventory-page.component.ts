@@ -7,8 +7,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BulkVehicleImportDialogComponent } from '../bulk-vehicle-import-dialog/bulk-vehicle-import-dialog.component';
-import { catchError, forkJoin, of, filter, interval, Observable, switchMap } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, forkJoin, of, filter, interval, Observable, switchMap, skip } from 'rxjs';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { CompanyScopeService } from '../../../core/services/company-scope.service';
 import { PagedResult } from '../../../core/models/common.model';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -97,6 +98,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   readonly companyScope = inject(CompanyScopeController);
+  private readonly companyScopeService = inject(CompanyScopeService);
   private readonly route = inject(ActivatedRoute);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
@@ -268,6 +270,18 @@ export class VehicleInventoryPageComponent implements OnInit {
       filter(event => event.urlAfterRedirects === '/vehicles' || event.urlAfterRedirects.startsWith('/vehicles?')),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
+      this.resolveCompanyTenantFromRoute();
+      this.loadBranches();
+      this.loadDrivers();
+      this.load();
+    });
+
+    // Top-bar company dropdown (also covers cases where URL sync is a no-op).
+    toObservable(this.companyScopeService.tenantId).pipe(
+      skip(1),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      if (!this.companyScope.isSuperAdmin) return;
       this.resolveCompanyTenantFromRoute();
       this.loadBranches();
       this.loadDrivers();

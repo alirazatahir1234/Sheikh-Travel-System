@@ -4,9 +4,11 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError, take } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
+import { CompanyScopeService } from '../../core/services/company-scope.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { SmartAlertService } from '../../core/services/smart-alert.service';
 import { GlobalSearchService, SearchResult } from '../../core/services/global-search.service';
+import { PlatformTenantContextService } from '../../core/services/platform-tenant-context.service';
 import {
   Notification,
   NotificationType,
@@ -105,7 +107,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     private tenantConfig: TenantConfigService,
     private menuService: MenuService,
     private http: HttpClient,
-    private aiAssistantOpenSound: AiAssistantOpenSoundService
+    private aiAssistantOpenSound: AiAssistantOpenSoundService,
+    private companyScope: CompanyScopeService,
+    private tenantContext: PlatformTenantContextService
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
@@ -475,7 +479,11 @@ export class ShellComponent implements OnInit, OnDestroy {
   trackByGroupId(_i: number, group: NavGroup): string { return group.id; }
   trackByNotifId(_i: number, n: Notification): number { return n.id; }
 
-  logout(): void { this.auth.logout(); }
+  logout(): void {
+    this.companyScope.clear();
+    this.tenantContext.clear();
+    this.auth.logout();
+  }
 
   goToProfile(): void {
     this.router.navigate(['/profile']);

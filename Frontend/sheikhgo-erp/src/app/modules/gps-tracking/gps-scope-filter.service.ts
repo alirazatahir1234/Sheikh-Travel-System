@@ -1,7 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
+import { CompanyScopeService } from '../../core/services/company-scope.service';
 import { PlatformService } from '../../core/services/platform.service';
 import { VehicleService } from '../../core/services/vehicle.service';
 import { Tenant } from '../../core/models/platform.model';
@@ -18,6 +20,9 @@ const STORAGE_KEY = 'stb-gps-scope-filters';
  * Shared Company (Super Admin) + Vehicle filters for the GPS module.
  * Survives tab switches (live / history / alerts) via root singleton + localStorage.
  *
+ * Company selection is driven by the global {@link CompanyScopeService} top-bar dropdown
+ * (same X-Tenant-Id as vehicles/drivers). Vehicle filter remains GPS-local.
+ *
  * Super Admin must select a company before any fleet data loads (empty map until then).
  * Tenant users are always scoped by JWT — no company picker required.
  */
@@ -25,12 +30,15 @@ const STORAGE_KEY = 'stb-gps-scope-filters';
 export class GpsScopeFilterService {
   readonly isSuperAdmin: boolean;
 
+  private readonly companyScope = inject(CompanyScopeService);
   private readonly companyIdSubject = new BehaviorSubject<number | null>(null);
   private readonly vehicleIdSubject = new BehaviorSubject<number | null>(null);
   private readonly companiesSubject = new BehaviorSubject<Tenant[]>([]);
   private readonly vehiclesSubject = new BehaviorSubject<VehicleListItem[]>([]);
   private readonly companiesLoadingSubject = new BehaviorSubject(false);
   private readonly vehiclesLoadingSubject = new BehaviorSubject(false);
+  /** Prevents feedback loops when syncing with {@link CompanyScopeService}. */
+  private syncingFromGlobal = false;
 
   readonly companyId$ = this.companyIdSubject.asObservable().pipe(distinctUntilChanged());
   readonly vehicleId$ = this.vehicleIdSubject.asObservable().pipe(distinctUntilChanged());
@@ -58,10 +66,15 @@ export class GpsScopeFilterService {
     private platform: PlatformService,
     private vehiclesApi: VehicleService
   ) {
-    this.isSuperAdmin = this.auth.hasRole('SUPER_ADMIN');
+    this.isSuperAdmin =
+      this.auth.hasRole('SUPER_ADMIN') || this.auth.hasRole('SUPERADMIN');
+
     this.restore();
+    this.applyGlobalCompanyPreferred();
+
     if (this.isSuperAdmin) {
       this.loadCompanies();
+      toObservable(this.companyScope.tenantId).subscribe(id => this.applyFromGlobal(id));
     }
     this.loadVehicles();
   }
@@ -122,11 +135,15 @@ export class GpsScopeFilterService {
 
   setCompany(tenantId: number | null): void {
     if (!this.isSuperAdmin) return;
-    if (this.companyFilterId === tenantId) return;
+    if (this.companyFilterId === tenantId) {
+      this.mirrorToGlobal(tenantId);
+      return;
+    }
     this.companyIdSubject.next(tenantId);
     // Vehicle list is tenant-scoped — clear selection until options reload.
     this.vehicleIdSubject.next(null);
     this.persist();
+    this.mirrorToGlobal(tenantId);
     this.loadVehicles();
   }
 
@@ -142,6 +159,7 @@ export class GpsScopeFilterService {
     this.vehicleIdSubject.next(null);
     if (this.isSuperAdmin) {
       this.companyIdSubject.next(null);
+      this.mirrorToGlobal(null);
     }
     this.persist();
     if (hadCompany || this.isSuperAdmin) {
@@ -162,6 +180,41 @@ export class GpsScopeFilterService {
     const v = this.vehicles.find(x => x.id === this.vehicleFilterId);
     if (v) return `${v.name} (${v.registrationNumber || '—'})`;
     return `Vehicle #${this.vehicleFilterId}`;
+  }
+
+  private applyGlobalCompanyPreferred(): void {
+    if (!this.isSuperAdmin) return;
+    const globalId = this.companyScope.tenantId();
+    if (globalId != null) {
+      this.companyIdSubject.next(globalId);
+      return;
+    }
+    // Seed global scope from legacy GPS localStorage so one header control covers trackers.
+    if (this.companyFilterId != null) {
+      this.mirrorToGlobal(this.companyFilterId);
+    }
+  }
+
+  private applyFromGlobal(tenantId: number | null): void {
+    if (!this.isSuperAdmin) return;
+    if (this.companyFilterId === tenantId) return;
+    this.syncingFromGlobal = true;
+    this.companyIdSubject.next(tenantId);
+    this.vehicleIdSubject.next(null);
+    this.persist();
+    this.syncingFromGlobal = false;
+    this.loadVehicles();
+  }
+
+  private mirrorToGlobal(tenantId: number | null): void {
+    if (!this.isSuperAdmin || this.syncingFromGlobal) return;
+    if (tenantId != null && tenantId > 0) {
+      if (this.companyScope.tenantId() !== tenantId) {
+        this.companyScope.set(tenantId);
+      }
+    } else if (this.companyScope.tenantId() != null) {
+      this.companyScope.clear();
+    }
   }
 
   private loadCompanies(): void {

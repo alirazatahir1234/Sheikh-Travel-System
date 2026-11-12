@@ -14,8 +14,8 @@ export interface ScopedCompany {
 
 /**
  * Per-page helper (provide it in the component) that lets a Super Admin work on another company's
- * drivers / vehicles. It reads `?tenantId=`, drives the global {@link CompanyScopeService} header
- * override (which persists inside the Drivers / Vehicles areas) and holds the banner state.
+ * drivers / vehicles. It reads `?tenantId=`, syncs the global {@link CompanyScopeService} (also
+ * set from the top-bar company dropdown and persisted in sessionStorage) and holds banner/gate state.
  * Non-Super-Admins are unaffected.
  */
 @Injectable()

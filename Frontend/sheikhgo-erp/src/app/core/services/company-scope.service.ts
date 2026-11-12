@@ -1,44 +1,75 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { AuthService } from './auth.service';
 
-/** Areas where a Super Admin can work inside another company (lists, profiles, wizards). */
+/** sessionStorage key for Super Admin global company scope (survives in-app navigation). */
+export const COMPANY_SCOPE_STORAGE_KEY = 'stb-company-scope-tenant-id';
+
+/** Areas that historically used per-page company gates (still valid for banners / deep links). */
 const SCOPED_AREAS = ['/drivers', '/vehicles'];
 
 /**
- * Super Admin "work inside another company" scope for the Drivers / Vehicles areas.
+ * Super Admin global company (tenant) scope for the ERP shell.
  *
  * While set, {@link AuthInterceptor} adds `X-Tenant-Id` to API calls that do not already carry one,
- * so lists, profiles, lookups, uploads and create/update calls all target the chosen company. The
+ * so vehicles, drivers, trackers, and other tenant-scoped APIs target the chosen company. The
  * backend only honours a differing `X-Tenant-Id` for platform operators.
  *
- * The scope survives navigation inside the Drivers / Vehicles areas (list → profile → edit) and is
- * cleared automatically as soon as the user navigates anywhere else.
+ * Selection is set from the top-bar company dropdown (and still from per-page gates/banners). It
+ * persists for the browser tab via sessionStorage and is not cleared on route changes.
  */
 @Injectable({ providedIn: 'root' })
 export class CompanyScopeService {
-  private readonly scopedTenantId = signal<number | null>(null);
+  private readonly scopedTenantId = signal<number | null>(loadFromSession());
 
   readonly tenantId = this.scopedTenantId.asReadonly();
 
   constructor() {
-    inject(Router).events
-      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(e => {
-        if (!isScopedArea(e.urlAfterRedirects)) this.clear();
-      });
+    // Drop scoped tenant when the session ends (logout / idle / 401).
+    inject(AuthService).currentUser$
+      .pipe(filter(user => !user))
+      .subscribe(() => this.clear());
   }
 
   set(tenantId: number): void {
+    if (!(tenantId > 0)) {
+      this.clear();
+      return;
+    }
     this.scopedTenantId.set(tenantId);
+    persistToSession(tenantId);
   }
 
   clear(): void {
     this.scopedTenantId.set(null);
+    persistToSession(null);
   }
 }
 
 export function isScopedArea(url: string): boolean {
   const path = url.split(/[?#]/)[0];
   return SCOPED_AREAS.some(area => path === area || path.startsWith(`${area}/`));
+}
+
+function loadFromSession(): number | null {
+  try {
+    const raw = sessionStorage.getItem(COMPANY_SCOPE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistToSession(id: number | null): void {
+  try {
+    if (id != null && id > 0) {
+      sessionStorage.setItem(COMPANY_SCOPE_STORAGE_KEY, String(id));
+    } else {
+      sessionStorage.removeItem(COMPANY_SCOPE_STORAGE_KEY);
+    }
+  } catch {
+    /* private mode / quota — ignore */
+  }
 }
