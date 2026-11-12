@@ -1,12 +1,16 @@
 # SheikhGo — Azure DevOps CI/CD
 #
-# Org: Alirazatahir · Project: SheikhGo · Repo: SheikhGo
-# Trigger: push to main (or master)
+# PRODUCTION PIPELINE: SheikhGo-Deploy-GitHub only (GitHub repo Sheikh-Travel-System).
+# Do NOT use SheikhGo-Deploy / Azure Repos "SheikhGo" — that mirror can lag main by
+# hundreds of commits and overwrite Vercel/API with a stale build (incident 2026-11-12,
+# run 141 @ ff92a22a after GitHub run 140 @ 757fe534).
 #
-# Jobs (path-filtered inside each job):
+# Trigger: push to main (or master). batch: true collapses rapid pushes.
+#
+# Jobs (path-filtered inside each job; override with FORCE_FULL_DEPLOY=true):
 #   1) Backend → Azure VM 20.174.1.230 (systemd sheikhgo-api :5082)
 #      via self-hosted pool SheikhGo-VM (agent runs ON the VM)
-#   2) Frontend → Vercel (ERP + Customer Hub via vercel CLI)
+#   2) Frontend → Vercel project sheikh-travel-system (ERP + optional Customer Hub)
 #
 # Does NOT touch Railway.
 #
@@ -17,8 +21,11 @@
 #   VERCEL_PROD (optional, default true)
 #   GOOGLE_MAPS_API_KEY (SheikhGo-Frontend browser key — required for ERP live map)
 #   GOOGLE_MAPS_MAP_ID (optional Advanced Markers map ID)
+# Optional (manual runs): FORCE_FULL_DEPLOY=true to deploy VM+Vercel even if path filter
+# would skip; use after a bad overwrite / recovery.
 
 trigger:
+  batch: true
   branches:
     include:
       - main
@@ -37,9 +44,18 @@ trigger:
 
 pr: none
 
+# Manual "Run pipeline" checkbox — forces VM + Vercel even when path filters would skip.
+parameters:
+  - name: FORCE_FULL_DEPLOY
+    displayName: Force full deploy (VM + Vercel), ignore path filters
+    type: boolean
+    default: false
+
 # Library group (Vercel + Maps). Required for Frontend job env macros.
 variables:
   - group: SheikhGo-Deploy
+  - name: FORCE_FULL_DEPLOY
+    value: ${{ parameters.FORCE_FULL_DEPLOY }}
 
 stages:
   # ── Phase 8 AI/MCP tests (incl. live SQL + MCP stdio when SQL/MCP available) ──
@@ -122,10 +138,47 @@ stages:
         steps:
           - checkout: self
             clean: false
-            fetchDepth: 1
+            # Need enough history to compare SourceVersion age vs origin/main tip.
+            fetchDepth: 50
 
           - bash: |
               set -euo pipefail
+              echo "Repository provider: $(Build.Repository.Provider)"
+              echo "Repository name: $(Build.Repository.Name)"
+              echo "SourceVersion: $(Build.SourceVersion)"
+              # Hard block: Azure Repos "SheikhGo" mirror is stale vs GitHub and must not deploy prod.
+              PROVIDER="$(Build.Repository.Provider)"
+              REPO_NAME="$(Build.Repository.Name)"
+              if [[ "$PROVIDER" == "TfsGit" ]] || [[ "$REPO_NAME" == "SheikhGo" && "$PROVIDER" != "GitHub" ]]; then
+                echo "##vso[task.logissue type=error]Refusing deploy from Azure Repos mirror ($REPO_NAME / $PROVIDER). Use pipeline SheikhGo-Deploy-GitHub (GitHub Sheikh-Travel-System) only."
+                exit 1
+              fi
+              # Refuse to promote a commit that is behind the tip of origin/main (out-of-order / stale SHA).
+              cd "$(Build.SourcesDirectory)"
+              git fetch --depth=50 origin main 2>/dev/null || git fetch --depth=50 origin refs/heads/main:refs/remotes/origin/main || true
+              TIP="$(git rev-parse origin/main 2>/dev/null || true)"
+              HEAD="$(Build.SourceVersion)"
+              if [[ -n "$TIP" && "$TIP" != "$HEAD" ]]; then
+                if git merge-base --is-ancestor "$HEAD" "$TIP" 2>/dev/null; then
+                  # HEAD is strictly behind tip — only allow if this is not a production promote of an old SHA.
+                  # IndividualCI on an older commit that finished late must not overwrite newer prod.
+                  BEHIND="$(git rev-list --count "${HEAD}..${TIP}" 2>/dev/null || echo '?')"
+                  echo "##vso[task.logissue type=error]Build SourceVersion $HEAD is ${BEHIND} commit(s) behind origin/main tip $TIP. Refusing production deploy to avoid overwriting a newer release. Re-queue on current main tip (or set FORCE_FULL_DEPLOY after resetting to tip)."
+                  exit 1
+                fi
+              fi
+              echo "Deploy gate OK (provider=$PROVIDER tip=${TIP:-unknown} head=$HEAD)."
+            displayName: Gate — GitHub only + refuse stale SHA
+
+          - bash: |
+              set -euo pipefail
+              FORCE="$(FORCE_FULL_DEPLOY)"
+              FORCE="$(echo "${FORCE:-false}" | tr '[:upper:]' '[:lower:]')"
+              if [[ "$FORCE" == "true" || "$FORCE" == "1" || "$FORCE" == "yes" ]]; then
+                echo "##vso[task.setvariable variable=SKIP_VM]false"
+                echo "FORCE_FULL_DEPLOY — will deploy Azure VM."
+                exit 0
+              fi
               if git rev-parse HEAD^ >/dev/null 2>&1; then
                 if git diff --name-only HEAD^ HEAD | grep -qE '^Backend/|^deploy/azure-vm/|^azure-pipelines\.yml'; then
                   echo "##vso[task.setvariable variable=SKIP_VM]false"
@@ -139,6 +192,8 @@ stages:
                 echo "No parent commit; running Azure VM deploy."
               fi
             displayName: Detect Backend changes
+            env:
+              FORCE_FULL_DEPLOY: $(FORCE_FULL_DEPLOY)
 
           - bash: |
               set -euo pipefail
@@ -153,6 +208,13 @@ stages:
 
           - bash: |
               set -euo pipefail
+              FORCE="$(FORCE_FULL_DEPLOY)"
+              FORCE="$(echo "${FORCE:-false}" | tr '[:upper:]' '[:lower:]')"
+              if [[ "$FORCE" == "true" || "$FORCE" == "1" || "$FORCE" == "yes" ]]; then
+                echo "##vso[task.setvariable variable=SKIP_VERCEL]false"
+                echo "FORCE_FULL_DEPLOY — will deploy Vercel."
+                exit 0
+              fi
               if git rev-parse HEAD^ >/dev/null 2>&1; then
                 if git diff --name-only HEAD^ HEAD | grep -qE '^Frontend/sheikhgo-erp/|^Frontend/sheikh-travel-customer-hub/|^deploy/vercel/|^azure-pipelines\.yml'; then
                   echo "##vso[task.setvariable variable=SKIP_VERCEL]false"
@@ -166,6 +228,8 @@ stages:
                 echo "No parent commit; running Vercel deploy."
               fi
             displayName: Detect Frontend changes
+            env:
+              FORCE_FULL_DEPLOY: $(FORCE_FULL_DEPLOY)
 
           - bash: |
               set -euo pipefail

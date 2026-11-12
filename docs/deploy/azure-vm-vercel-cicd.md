@@ -1,15 +1,18 @@
 # SheikhGo CI/CD — Backend → Azure VM · Frontend → Vercel
 
-Org **Alirazatahir** · Project **SheikhGo** · Repo **SheikhGo** · Pipeline file: `azure-pipelines.yml`
+Org **Alirazatahir** · Project **SheikhGo** · Pipeline file: `azure-pipelines.yml`
+
+**Production pipeline:** **`SheikhGo-Deploy-GitHub`** only (GitHub repo `alirazatahir1234/Sheikh-Travel-System`).  
+The older **`SheikhGo-Deploy`** definition (Azure Repos mirror `SheikhGo`) is **disabled** — that mirror lagged GitHub `main` by ~226 commits and overwrote production (2026-11-12 run 141 @ `ff92a22a` after GitHub run 140 @ `757fe534`).
 
 | Target | Trigger paths | How |
 |--------|---------------|-----|
 | **Azure VM** `20.174.1.230` (API) | `Backend/**`, `deploy/azure-vm/**` | Self-hosted pool `SheikhGo-VM` runs `deploy/azure-vm/deploy-api.sh` → `dotnet publish` + `systemctl restart sheikhgo-api` |
-| **Vercel** (ERP + Customer Hub) | `Frontend/sheikhgo-erp/**`, `Frontend/sheikh-travel-customer-hub/**` | `deploy/vercel/deploy-frontends.sh` via Vercel CLI on self-hosted pool `SheikhGo-VM` |
+| **Vercel** project **sheikh-travel-system** → `www.sheikhgo.com` | `Frontend/sheikhgo-erp/**`, `Frontend/sheikh-travel-customer-hub/**` | `deploy/vercel/deploy-frontends.sh` via Vercel CLI on self-hosted pool `SheikhGo-VM` |
 
 **Not** this pipeline’s target: Railway (left intact).
 
-Trigger branches: **main** and **master**.
+Trigger branches: **main** and **master** (`batch: true`). Deploy job refuses Azure Repos provider and refuses SourceVersions that are behind `origin/main` tip. Manual recovery: run **SheikhGo-Deploy-GitHub** with **Force full deploy** checked.
 
 Live API HTTPS: `https://joke-rebates-titans-duties.trycloudflare.com` (Cloudflare quick tunnel → Kestrel) · Caddy backup: `https://20-174-1-230.sslip.io` · HTTP kept: `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy`, `sheikhgo-cloudflared` · health: `/health`  
 Preferred host after DNS: `https://api.sheikhgo.com` — see [azure-vm-api.md](./azure-vm-api.md).
