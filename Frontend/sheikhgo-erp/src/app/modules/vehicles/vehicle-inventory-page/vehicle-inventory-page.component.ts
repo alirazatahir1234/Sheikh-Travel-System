@@ -418,7 +418,9 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   onEdit(row: VehicleListItem): void {
-    void this.router.navigate(['/vehicles', row.id, 'edit']);
+    void this.router.navigate(['/vehicles', row.id, 'edit'], {
+      queryParams: this.companyScope.queryParams()
+    });
   }
 
   onTrack(row: VehicleListItem): void {

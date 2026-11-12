@@ -109,7 +109,9 @@ export class VehicleImageGalleryComponent {
   readonly fileRejected = output<{ index: number; message: string }>();
   readonly selectPrimary = output<number>();
 
-  readonly uploadedCount = computed(() => this.slots().filter(s => !!s.fileUrl).length);
+  readonly uploadedCount = computed(() =>
+    this.slots().filter(s => !!s.fileUrl?.trim() || (s.documentId != null && s.documentId > 0)).length
+  );
   readonly hasAnyImage = computed(() => this.uploadedCount() > 0);
 
   previewUrl(slot: VehicleImageSlotState): string | null {

@@ -82,8 +82,8 @@ export type DocumentDisplayStatus = 'Empty' | 'Processing' | 'Verified' | 'Faile
 
 export function resolveDocumentDisplayStatus(slot: DocumentSlotState): DocumentDisplayStatus {
   if (slot.uploading) return 'Processing';
-  if (slot.error && !slot.fileUrl) return 'Failed';
-  if (slot.fileUrl) return 'Verified';
+  if (slot.error && !slot.fileUrl && !(slot.documentId != null && slot.documentId > 0)) return 'Failed';
+  if (slot.fileUrl || (slot.documentId != null && slot.documentId > 0)) return 'Verified';
   return 'Empty';
 }
 
