@@ -30,8 +30,10 @@ class ErrorHandler {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
+        // Dio timed out waiting for TCP/TLS or the response body — not a
+        // parsed API error. Common on cellular + distant Azure hosts.
         return const NetworkException(
-          'Server is taking too long. Please try again.',
+          'Server is taking too long. Check your connection and try again.',
         );
 
       case DioExceptionType.badResponse:
@@ -79,7 +81,7 @@ class ErrorHandler {
         }
         if (status == 408) {
           return const NetworkException(
-            'Server is taking too long. Please try again.',
+            'Server is taking too long. Check your connection and try again.',
           );
         }
         if (status == 409) {

@@ -20,10 +20,18 @@ class AuthApi {
     return _driverLogin(request);
   }
 
+  /// Extra headroom for login on high-latency cellular → Azure/sslip.
+  static Options get _loginOptions => Options(
+        connectTimeout: const Duration(seconds: 40),
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 40),
+      );
+
   Future<FleetSession> _staffLogin(LoginRequest request) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.staffLogin,
       data: request.toStaffJson(),
+      options: _loginOptions,
     );
     final data = _unwrapLoginData(res.data);
     final session = FleetSession.fromStaffJson(data);
@@ -35,6 +43,7 @@ class AuthApi {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverLogin,
       data: request.toDriverJson(),
+      options: _loginOptions,
     );
     final data = _unwrapLoginData(res.data);
     final session = FleetSession.fromDriverJson(data);

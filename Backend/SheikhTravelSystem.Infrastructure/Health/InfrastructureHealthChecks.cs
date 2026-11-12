@@ -72,9 +72,12 @@ public sealed class TraccarHealthCheck(
         if (!options.Value.Enabled)
             return HealthCheckResult.Healthy("Traccar integration disabled.");
 
+        // Cap wait so /health never blocks probes for tens of seconds when Traccar hangs.
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
         try
         {
-            var devices = await traccar.GetDevicesAsync(cancellationToken);
+            var devices = await traccar.GetDevicesAsync(timeoutCts.Token);
             var snapshot = syncState.Snapshot(connected: true);
             var data = new Dictionary<string, object>
             {
@@ -83,6 +86,10 @@ public sealed class TraccarHealthCheck(
                 ["isRunning"] = snapshot.IsRunning
             };
             return HealthCheckResult.Healthy("Traccar reachable.", data);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return HealthCheckResult.Degraded("Traccar health check timed out.");
         }
         catch (Exception ex)
         {

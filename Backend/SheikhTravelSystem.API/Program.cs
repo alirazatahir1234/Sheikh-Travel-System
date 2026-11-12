@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.IO.Compression;
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -147,11 +150,42 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
+// Trust X-Forwarded-For / Proto only from local reverse proxies (Caddy / cloudflared).
+// Required so auth rate limits partition by real client IP instead of 127.0.0.1.
+// Direct public :5082 callers keep their connection IP (spoofed XFF ignored).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownProxies.Clear();
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Add(IPAddress.Loopback);
+    options.KnownProxies.Add(IPAddress.IPv6Loopback);
+});
+
 // Rate Limiting (built-in). Development uses NoLimiter so local login/retry
-// loops are not blocked by the tight production auth window (10/min → 429).
+// loops are not blocked. Production partitions by client IP — AddFixedWindowLimiter
+// alone uses a single global bucket (policy name), so one tester's probes 429 everyone.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+                    .ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            context.HttpContext.Response.Headers.RetryAfter = "60";
+        }
+
+        await ValueTask.CompletedTask;
+    };
+
+    static string ClientIpKey(HttpContext httpContext) =>
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     if (builder.Environment.IsDevelopment())
     {
@@ -162,30 +196,36 @@ builder.Services.AddRateLimiter(options =>
     }
     else
     {
-        options.AddFixedWindowLimiter("general", opt =>
-        {
-            opt.PermitLimit = 60;
-            opt.Window = TimeSpan.FromMinutes(1);
-            opt.QueueLimit = 0;
-        });
-        options.AddFixedWindowLimiter("auth", opt =>
-        {
-            opt.PermitLimit = 10;
-            opt.Window = TimeSpan.FromMinutes(1);
-            opt.QueueLimit = 0;
-        });
-        options.AddFixedWindowLimiter("portal", opt =>
-        {
-            opt.PermitLimit = 40;
-            opt.Window = TimeSpan.FromMinutes(1);
-            opt.QueueLimit = 0;
-        });
-        options.AddFixedWindowLimiter("public", opt =>
-        {
-            opt.PermitLimit = 5;
-            opt.Window = TimeSpan.FromMinutes(1);
-            opt.QueueLimit = 0;
-        });
+        options.AddPolicy("general", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(ClientIpKey(httpContext), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+        // Auth: per-IP, slightly raised for legitimate retries / password-reset flows
+        // without removing protection against credential stuffing.
+        options.AddPolicy("auth", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(ClientIpKey(httpContext), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+        options.AddPolicy("portal", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(ClientIpKey(httpContext), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 40,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+        options.AddPolicy("public", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(ClientIpKey(httpContext), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
     }
 });
 
@@ -384,6 +424,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
+app.UseForwardedHeaders();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -392,7 +433,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// TLS is terminated at Railway/Vercel in production; local dev uses HTTP on :5082 via the Angular proxy.
+// TLS is terminated at Caddy/Cloudflare in production; local dev uses HTTP on :5082 via the Angular proxy.
 
 app.UseCors("AllowFrontendClients");
 app.UseResponseCompression();

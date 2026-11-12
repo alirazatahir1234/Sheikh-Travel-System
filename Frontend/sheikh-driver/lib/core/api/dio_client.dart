@@ -58,10 +58,15 @@ final secureStorageProvider = Provider(
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.read(secureStorageProvider);
   final sessionInvalidation = ref.read(sessionInvalidationProvider);
+  // Azure/sslip TLS+RTT is often ~0.3–1.7s on Wi‑Fi and higher on cellular.
+  // 20s was too tight when handshake stalls or the first auth/DB round-trip
+  // is slow — Dio then surfaces connectionTimeout/receiveTimeout as
+  // "Server is taking too long." Keep finite caps (no infinite waits).
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.resolvedBaseUrl,
-    connectTimeout: const Duration(seconds: 20),
-    receiveTimeout: const Duration(seconds: 20),
+    connectTimeout: const Duration(seconds: 35),
+    receiveTimeout: const Duration(seconds: 45),
+    sendTimeout: const Duration(seconds: 35),
     headers: {
       // Do not hardcode Sheikh's `default` slug — AuthInterceptor sets the
       // logged-in company slug (JWT tenant_id remains authoritative on API).
@@ -141,16 +146,15 @@ class _RetryInterceptor extends Interceptor {
     // Don't retry client errors
     final status = e.response?.statusCode;
     if (status != null && status >= 400 && status < 500) return false;
-    // Receive timeouts on heavy analytics are usually slow queries — retrying
-    // stacks hung connections and starves Overview's other parallel calls.
-    final path = e.requestOptions.path.toLowerCase();
-    if (e.type == DioExceptionType.receiveTimeout &&
-        path.contains('/analytics/')) {
+    // Timeouts: another full wait (connect/receive) × retries makes cellular
+    // login/dashboard feel hung before "Server is taking too long" appears.
+    // Only retry clear transport drops and 5xx.
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
       return false;
     }
     return e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
         (status != null && status >= 500);
   }
 

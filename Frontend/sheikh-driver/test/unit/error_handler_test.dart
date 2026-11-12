@@ -41,6 +41,7 @@ void main() {
       final ex = ErrorHandler.fromDio(e);
       expect(ex, isA<NetworkException>());
       expect(ex.message, contains('taking too long'));
+      expect(ex.message, contains('connection'));
     });
 
     test('badCertificate → secure connection failed', () {

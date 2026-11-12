@@ -39,7 +39,14 @@ public class DriverLoginCommandHandler(
 {
     public async Task<ApiResponse<DriverAuthResultDto>> Handle(DriverLoginCommand request, CancellationToken cancellationToken)
     {
-        var tenantId = tenantContext.GetRequiredTenantId();
+        // Anonymous driver login needs a resolved tenant (X-Tenant-Slug). Without it
+        // GetRequiredTenantId throws → opaque 500; fail clearly instead.
+        if (tenantContext.TenantId is not int tenantId)
+        {
+            return ApiResponse<DriverAuthResultDto>.FailResponse(
+                "Company is required for driver login. Update the app or contact support.");
+        }
+
         var row = await repository.GetDriverLoginByPhoneAsync(request.Phone, tenantId, cancellationToken);
 
         if (row is null || !passwordHasher.Verify(request.Password, row.PasswordHash))
@@ -98,7 +105,9 @@ public class DriverForgotPasswordCommandHandler(
     {
         const string okMessage = "If a driver account exists for that phone, a reset code has been sent.";
 
-        var tenantId = tenantContext.GetRequiredTenantId();
+        if (tenantContext.TenantId is not int tenantId)
+            return ApiResponse<object>.SuccessResponse(new { }, okMessage);
+
         var row = await driverRepository.GetDriverLoginByPhoneAsync(request.Phone, tenantId, cancellationToken);
         if (row is null)
             return ApiResponse<object>.SuccessResponse(new { }, okMessage);
