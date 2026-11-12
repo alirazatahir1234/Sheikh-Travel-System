@@ -262,25 +262,42 @@ public sealed class TrackerRegistrationService(
         if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
-        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, string UniqueId)>(
             new CommandDefinition(
-                "SELECT Id, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT Id, TraccarDeviceId, UniqueId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = id }, cancellationToken: ct));
 
         if (existing.Id == 0)
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
         var opts = traccarOptions.Value;
-        if (opts.IsConfigured && opts.Enabled && existing.TraccarDeviceId.HasValue)
+        if (opts.IsConfigured && opts.Enabled)
         {
-            var deleted = await traccar.DeleteDeviceAsync(existing.TraccarDeviceId.Value, ct);
-            if (!deleted)
-                return ApiResponse<bool>.FailResponse("Failed to remove device from Traccar. Tracker was not deleted.");
+            // Rows imported without a Traccar id still exist in Traccar under the IMEI; delete that device
+            // too, otherwise the next Traccar sync re-imports the "deleted" tracker.
+            var traccarDeviceId = existing.TraccarDeviceId
+                ?? (await traccar.GetDeviceByUniqueIdAsync(existing.UniqueId, ct))?.Id;
+            if (traccarDeviceId.HasValue && !await traccar.DeleteDeviceAsync(traccarDeviceId.Value, ct))
+            {
+                logger.LogWarning("Traccar delete failed for device {TraccarDeviceId} (tracker {TrackerId}).",
+                    traccarDeviceId.Value, id);
+                return ApiResponse<bool>.FailResponse(
+                    "Could not remove the device from the Traccar server (server unreachable or rejected the request). Tracker was not deleted - try again.");
+            }
         }
 
+        // Detach from any vehicle first so no vehicle keeps pointing at a deleted tracker.
+        var now = DateTime.UtcNow;
+        await CloseActiveAssignmentAsync(connection, id, tenantId, null, "Tracker deleted", ct);
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
+            new { DeviceId = id, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE GpsDevices SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { Id = id }, cancellationToken: ct));
+            "UPDATE GpsDevices SET IsDeleted = 1, VehicleId = NULL, DriverId = NULL, TraccarDeviceId = NULL, UpdatedAt = @Now " +
+            "WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = id, Now = now }, cancellationToken: ct));
 
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Tracker not found.")

@@ -138,7 +138,8 @@ public class TraccarClient(
         try
         {
             var response = await http.DeleteAsync(uri, ct);
-            return response.IsSuccessStatusCode;
+            // Already gone in Traccar (deleted there, or never synced) = desired end state.
+            return response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound;
         }
         catch (Exception ex)
         {
