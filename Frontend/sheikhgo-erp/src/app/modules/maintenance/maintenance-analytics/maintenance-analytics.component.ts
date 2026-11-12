@@ -8,10 +8,7 @@ import {
   SimpleChanges,
   ViewChild
 } from '@angular/core';
-import { Chart, registerables } from 'chart.js';
 import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util';
-
-Chart.register(...registerables);
 
 @Component({
   standalone: false,
@@ -69,7 +66,7 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     return getComputedStyle(document.documentElement).getPropertyValue('--stb-primary').trim() || '#0F766E';
   }
 
-  private renderCost(): void {
+  private async renderCost(): Promise<void> {
     const el = this.costCanvasRef?.nativeElement;
     if (!el) return;
     this.costChart?.destroy();
@@ -80,7 +77,7 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     const p = this.primary();
     g.addColorStop(0, `${p}55`);
     g.addColorStop(1, `${p}06`);
-    this.costChart = createAppChart(ctx, {
+    this.costChart = await createAppChart(ctx, {
       type: 'line',
       data: {
         labels: this.costLabels,
@@ -108,14 +105,14 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     });
   }
 
-  private renderStatus(): void {
+  private async renderStatus(): Promise<void> {
     const el = this.statusCanvasRef?.nativeElement;
     if (!el) return;
     this.statusChart?.destroy();
     const ctx = el.getContext('2d');
     if (!ctx) return;
     const colors = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444'];
-    this.statusChart = createAppChart(ctx, {
+    this.statusChart = await createAppChart(ctx, {
       type: 'doughnut',
       data: {
         labels: this.statusLabels,
@@ -136,13 +133,13 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     });
   }
 
-  private renderVehicles(): void {
+  private async renderVehicles(): Promise<void> {
     const el = this.vehicleCanvasRef?.nativeElement;
     if (!el) return;
     this.vehicleChart?.destroy();
     const ctx = el.getContext('2d');
     if (!ctx) return;
-    this.vehicleChart = createAppChart(ctx, {
+    this.vehicleChart = await createAppChart(ctx, {
       type: 'bar',
       data: {
         labels: this.vehicleLabels,

@@ -1,6 +1,5 @@
 import { Component, ElementRef, Inject, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import * as XLSX from 'xlsx';
 import { UserService } from '../../../core/services/user.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -306,19 +305,22 @@ export class BulkUserImportDialogComponent {
 
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const data = new Uint8Array(reader.result as ArrayBuffer);
-        const book = XLSX.read(data, { type: 'array' });
-        const sheet = book.Sheets[book.SheetNames[0]];
-        const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-        this.rows = parseUserImportRecords(records, this.parseContext);
-        if (!this.rows.length) {
-          this.toast.error('No data rows found in the file.');
+      void (async () => {
+        try {
+          const XLSX = await import('xlsx');
+          const data = new Uint8Array(reader.result as ArrayBuffer);
+          const book = XLSX.read(data, { type: 'array' });
+          const sheet = book.Sheets[book.SheetNames[0]];
+          const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+          this.rows = parseUserImportRecords(records, this.parseContext);
+          if (!this.rows.length) {
+            this.toast.error('No data rows found in the file.');
+          }
+        } catch {
+          this.toast.error('Could not read that file. Use CSV or Excel (.xlsx).');
+          this.rows = [];
         }
-      } catch {
-        this.toast.error('Could not read that file. Use CSV or Excel (.xlsx).');
-        this.rows = [];
-      }
+      })();
     };
     reader.readAsArrayBuffer(file);
     input.value = '';

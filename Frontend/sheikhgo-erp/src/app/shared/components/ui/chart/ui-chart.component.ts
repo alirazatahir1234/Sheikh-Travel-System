@@ -8,17 +8,12 @@ import {
   OnDestroy,
   viewChild
 } from '@angular/core';
-import {
-  Chart,
+import type {
   ChartConfiguration,
   ChartData,
   ChartOptions,
-  ChartType,
-  registerables
+  ChartType
 } from 'chart.js';
-import { AppChartInstance, createAppChart } from '../../../../core/utils/chart.util';
-
-Chart.register(...registerables);
 
 export type UiChartType = Extract<ChartType, 'line' | 'bar' | 'doughnut' | 'pie'>;
 
@@ -43,8 +38,9 @@ export class UiChartComponent implements AfterViewInit, OnDestroy {
   readonly height = input('280px');
 
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
-  private chart?: AppChartInstance;
+  private chart?: { destroy: () => void };
   private viewReady = false;
+  private chartJsPromise: Promise<typeof import('chart.js')> | null = null;
 
   constructor() {
     effect(() => {
@@ -53,27 +49,38 @@ export class UiChartComponent implements AfterViewInit, OnDestroy {
       this.data();
       this.options();
       if (this.viewReady) {
-        this.render();
+        void this.render();
       }
     });
   }
 
   ngAfterViewInit(): void {
     this.viewReady = true;
-    this.render();
+    void this.render();
   }
 
-  private render(): void {
+  private loadChartJs(): Promise<typeof import('chart.js')> {
+    if (!this.chartJsPromise) {
+      this.chartJsPromise = import('chart.js').then(mod => {
+        mod.Chart.register(...mod.registerables);
+        return mod;
+      });
+    }
+    return this.chartJsPromise;
+  }
+
+  private async render(): Promise<void> {
     const canvas = this.canvasRef()?.nativeElement;
     if (!canvas) {
       return;
     }
+    const { Chart } = await this.loadChartJs();
     this.chart?.destroy();
-    this.chart = createAppChart(canvas, {
+    this.chart = new Chart(canvas, {
       type: this.type(),
       data: this.data(),
       options: this.options() ?? this.defaultOptions()
-    } as ChartConfiguration<UiChartType>);
+    } as ChartConfiguration);
   }
 
   private defaultOptions(): UiChartOptions {

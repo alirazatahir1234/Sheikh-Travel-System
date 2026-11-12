@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ChartData } from 'chart.js';
+import type { ChartData } from 'chart.js';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError, finalize, timeout } from 'rxjs/operators';
 import { VehicleService } from '../../../core/services/vehicle.service';

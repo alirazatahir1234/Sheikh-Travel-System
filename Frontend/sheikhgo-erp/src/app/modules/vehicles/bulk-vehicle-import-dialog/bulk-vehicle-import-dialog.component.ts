@@ -5,7 +5,6 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
-import * as XLSX from 'xlsx';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import {
@@ -109,7 +108,8 @@ export class BulkVehicleImportDialogComponent {
     return this.rows.filter(r => r.dto && r.severity !== 'error').length;
   }
 
-  downloadTemplate(): void {
+  async downloadTemplate(): Promise<void> {
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.aoa_to_sheet([
       [...VEHICLE_IMPORT_HEADERS],
       ...VEHICLE_IMPORT_SAMPLE_ROWS
@@ -126,11 +126,14 @@ export class BulkVehicleImportDialogComponent {
     this.fileName = file.name;
     const reader = new FileReader();
     reader.onload = () => {
-      const data = new Uint8Array(reader.result as ArrayBuffer);
-      const wb = XLSX.read(data, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-      this.rows = parseVehicleImportRecords(records);
+      void (async () => {
+        const XLSX = await import('xlsx');
+        const data = new Uint8Array(reader.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+        this.rows = parseVehicleImportRecords(records);
+      })();
     };
     reader.readAsArrayBuffer(file);
   }

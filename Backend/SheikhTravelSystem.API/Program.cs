@@ -56,7 +56,8 @@ builder.Services.AddDataProtection()
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")
     .AddCheck<RedisHealthCheck>("redis")
-    .AddCheck<TraccarHealthCheck>("traccar")
+    // Tag "ready" so /health (liveness-style probes) skips Traccar; /health/ready + /detail still include it.
+    .AddCheck<TraccarHealthCheck>("traccar", tags: ["ready"])
     .AddCheck<SignalRHealthCheck>("signalr");
 
 // JWT Authentication
@@ -347,17 +348,26 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // GPS position retention is data maintenance, not schema — run with startup migrations only.
-        try
+        // GPS position retention is data maintenance — defer until after the host is listening
+        // so cold start / first probe TTFB is not blocked by retention deletes.
+        var retentionDays = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value.PositionRetentionDays;
+        var retentionLogger = logger;
+        app.Lifetime.ApplicationStarted.Register(() =>
         {
-            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-            var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
-            await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "GPS position retention failed at startup.");
-        }
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var retentionScope = app.Services.CreateScope();
+                    var dbFactory = retentionScope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+                    await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, retentionDays, retentionLogger);
+                }
+                catch (Exception ex)
+                {
+                    retentionLogger.LogError(ex, "GPS position retention failed after startup.");
+                }
+            });
+        });
     }
     else
     {
@@ -423,20 +433,21 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
     ResponseWriter = HealthCheckPlainTextResponseWriter.WriteAsync
 });
 
-// /health — dependency checks; plain text "Healthy" for ADO/Caddy/curl probes
+// /health — fast dependency checks (excludes Traccar "ready" tag); plain text for probes
 // (HTTP 200 even when Degraded so simple up checks stay green).
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
+    Predicate = check => !check.Tags.Contains("ready"),
     ResponseWriter = HealthCheckPlainTextResponseWriter.WriteAsync
 });
 
-// /health/detail — same checks with JSON entries (ops / dashboards).
+// /health/detail — all checks with JSON entries (ops / dashboards), including Traccar.
 app.MapHealthChecks("/health/detail", new HealthCheckOptions
 {
     ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync
 });
 
-// /health/ready — JSON; Degraded (e.g. Traccar unreachable) → 503.
+// /health/ready — all checks; Degraded (e.g. Traccar unreachable) → 503.
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     ResponseWriter = HealthCheckJsonResponseWriter.WriteAsync,

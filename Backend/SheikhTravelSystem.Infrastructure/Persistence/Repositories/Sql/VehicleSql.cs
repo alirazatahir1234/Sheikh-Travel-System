@@ -27,8 +27,11 @@ internal static class VehicleSql
         vimg.FileUrl AS ImageUrl
         """;
 
-    internal const string ListFrom = """
-        FROM Vehicles v
+    /// <summary>
+    /// Joins / applies for list projection. Used after a paged Id CTE so OUTER APPLY
+    /// only runs for the current page (not every tenant vehicle matching the filter).
+    /// </summary>
+    internal const string ListJoins = """
         OUTER APPLY (
             SELECT TOP 1 ah.DriverId
             FROM AssignmentHistory ah
@@ -66,6 +69,11 @@ internal static class VehicleSql
                 END,
                 vd.CreatedAt DESC
         ) vimg
+        """;
+
+    internal const string ListFrom = $"""
+        FROM Vehicles v
+        {ListJoins}
         """;
 
     internal const string DetailColumns = """

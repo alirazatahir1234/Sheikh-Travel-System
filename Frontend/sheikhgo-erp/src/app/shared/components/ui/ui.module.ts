@@ -9,7 +9,6 @@ import { UiModalComponent } from './modal/ui-modal.component';
 import { UiDrawerComponent } from './drawer/ui-drawer.component';
 import { UiTabsComponent } from './tabs/ui-tabs.component';
 import { UiEmptyStateComponent } from './empty-state/ui-empty-state.component';
-import { UiChartComponent } from './chart/ui-chart.component';
 import { UiDataTableComponent } from './data-table/ui-data-table.component';
 import { UiTableCellDirective } from './data-table/ui-table-cell.directive';
 import { UiConfirmDialogComponent } from './confirm-dialog/ui-confirm-dialog.component';
@@ -24,7 +23,8 @@ const UI = [
   UiDrawerComponent,
   UiTabsComponent,
   UiEmptyStateComponent,
-  UiChartComponent,
+  // UiChartComponent intentionally excluded — chart.js is heavy; import the standalone
+  // component only on screens that render charts (lazy-loads chart.js via dynamic import).
   UiDataTableComponent,
   UiTableCellDirective,
   UiConfirmDialogComponent

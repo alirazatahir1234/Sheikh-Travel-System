@@ -1,7 +1,5 @@
 import { Injectable } from '@angular/core';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type * as XLSX from 'xlsx';
 
 /**
  * Describes a single export column for both Excel and PDF outputs.
@@ -57,21 +55,32 @@ const PAGE_MARGIN_PT = 32;
 /**
  * Centralises Excel (.xlsx) and PDF exports so every list page exports in a
  * consistent style. Callers just provide rows, column definitions, and metadata.
+ *
+ * xlsx / jspdf / jspdf-autotable are loaded via dynamic import() so they stay out of
+ * the initial shared bundle (they are only needed when the user clicks Export).
  */
 @Injectable({ providedIn: 'root' })
 export class ExportService {
-  exportExcel<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): void {
-    const book = this.buildWorkbook(rows, columns, meta, /* withBanner */ true);
+  async exportExcel<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): Promise<void> {
+    const XLSX = await import('xlsx');
+    const book = this.buildWorkbook(XLSX, rows, columns, meta, /* withBanner */ true);
     XLSX.writeFile(book, `${this.sanitize(meta.filename)}.xlsx`, { compression: true });
   }
 
   /** No banner — CSVs are consumed by re-import/tooling, not presentation; branding would break a clean header + data read. */
-  exportCsv<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): void {
-    const book = this.buildWorkbook(rows, columns, meta, /* withBanner */ false);
+  async exportCsv<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): Promise<void> {
+    const XLSX = await import('xlsx');
+    const book = this.buildWorkbook(XLSX, rows, columns, meta, /* withBanner */ false);
     XLSX.writeFile(book, `${this.sanitize(meta.filename)}.csv`, { bookType: 'csv' });
   }
 
-  private buildWorkbook<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta, withBanner = false): XLSX.WorkBook {
+  private buildWorkbook<T>(
+    XLSX: typeof import('xlsx'),
+    rows: T[],
+    columns: ExportColumn<T>[],
+    meta: ExportMeta,
+    withBanner = false
+  ): XLSX.WorkBook {
     const data = rows.map(row => {
       const obj: Record<string, string | number | null> = {};
       for (const col of columns) {
@@ -107,6 +116,11 @@ export class ExportService {
   }
 
   async exportPdf<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): Promise<void> {
+    const [{ jsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable')
+    ]);
+    const autoTable = autoTableMod.default;
     const logo = meta.logo ? await this.loadLogo(meta.logo) : null;
 
     const orientation = meta.orientation ?? 'landscape';
@@ -171,7 +185,7 @@ export class ExportService {
         cellWidth: columnWidths[idx]
       };
       return acc;
-    }, {} as Record<number, { halign: 'left' | 'center' | 'right'; cellWidth: number }>);
+    }, {} as Record<number, {halign: 'left' | 'center' | 'right'; cellWidth: number }>);
 
     // --- Auto-pick a readable font size for this column count --------------
     // (small tables breathe, wide tables shrink gracefully)

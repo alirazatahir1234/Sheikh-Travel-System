@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { FleetUiModule } from '../../shared/fleet-ui';
 import { UiModule } from '../../shared/components/ui/ui.module';
+import { UiChartComponent } from '../../shared/components/ui/chart/ui-chart.component';
 import { VehicleInventoryPageComponent } from './vehicle-inventory-page/vehicle-inventory-page.component';
 import { VehicleRegisterWizardComponent } from './vehicle-register-wizard/vehicle-register-wizard.component';
 import { VehicleProfileComponent } from './vehicle-profile/vehicle-profile.component';
@@ -32,6 +33,7 @@ const routes: Routes = [
     SharedModule,
     FleetUiModule,
     UiModule,
+    UiChartComponent,
     VehicleInventoryPageComponent,
     VehicleRegisterWizardComponent,
     VehicleDetailsDrawerComponent,

@@ -74,15 +74,18 @@ public sealed class TraccarHealthCheck(
 
         try
         {
-            var devices = await traccar.GetDevicesAsync(cancellationToken);
-            var snapshot = syncState.Snapshot(connected: true);
+            // Lightweight /api/server probe — avoid GetDevicesAsync (full device dump ~1.5s+) on every health hit.
+            var server = await traccar.GetServerAsync(cancellationToken);
+            var snapshot = syncState.Snapshot(connected: server is not null);
             var data = new Dictionary<string, object>
             {
-                ["deviceCount"] = devices.Count,
+                ["serverVersion"] = server?.Version ?? "unknown",
                 ["lastPositionSyncAt"] = snapshot.LastPositionSyncAt?.ToString("O") ?? "never",
                 ["isRunning"] = snapshot.IsRunning
             };
-            return HealthCheckResult.Healthy("Traccar reachable.", data);
+            return server is null
+                ? HealthCheckResult.Degraded("Traccar responded without server payload.", data: data)
+                : HealthCheckResult.Healthy("Traccar reachable.", data);
         }
         catch (Exception ex)
         {

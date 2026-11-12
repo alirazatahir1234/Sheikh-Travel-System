@@ -39,13 +39,23 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
 
         var whereClause = string.Join(" AND ", clauses);
 
+        // Page Ids first so OUTER APPLY image/service/assignment work only runs for the page,
+        // then project list DTOs. COUNT stays on Vehicles alone (no joins).
         var vehicles = (await connection.QueryAsync<VehicleListItemDto>(
             new CommandDefinition(
-                $@"SELECT {VehicleSql.ListSelect}
-                  {VehicleSql.ListFrom}
-                  WHERE {whereClause}
-                  ORDER BY v.CreatedAt DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                $@"
+                WITH page AS (
+                    SELECT v.Id
+                    FROM Vehicles v
+                    WHERE {whereClause}
+                    ORDER BY v.CreatedAt DESC
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                )
+                SELECT {VehicleSql.ListSelect}
+                FROM page p
+                INNER JOIN Vehicles v ON v.Id = p.Id
+                {VehicleSql.ListJoins}
+                ORDER BY v.CreatedAt DESC",
                 parameters,
                 cancellationToken: cancellationToken))).ToList();
 

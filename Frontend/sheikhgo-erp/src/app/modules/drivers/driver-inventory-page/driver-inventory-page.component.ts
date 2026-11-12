@@ -9,7 +9,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { BulkDriverImportDialogComponent } from '../bulk-driver-import-dialog/bulk-driver-import-dialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take, Observable } from 'rxjs';
-import { ChartData } from 'chart.js';
+import type { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui';
 import { DriverService, DriverListParams } from '../../../core/services/driver.service';
 import { AuthService } from '../../../core/services/auth.service';

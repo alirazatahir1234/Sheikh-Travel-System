@@ -11,7 +11,7 @@ import {
   NgZone
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { ChartData } from 'chart.js';
+import type { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui/chart/ui-chart.component';
 import { environment } from '../../../../environments/environment';
 import {

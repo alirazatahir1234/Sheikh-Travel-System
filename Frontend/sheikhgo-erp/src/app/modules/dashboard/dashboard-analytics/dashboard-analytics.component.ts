@@ -8,11 +8,8 @@ import {
   SimpleChanges,
   ViewChild
 } from '@angular/core';
-import { Chart, registerables } from 'chart.js';
 import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util';
 import { SharedModule } from '../../../shared/shared.module';
-
-Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard-analytics',
@@ -118,7 +115,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     return g;
   }
 
-  private renderRevenue(): void {
+  private async renderRevenue(): Promise<void> {
     const el = this.revenueCanvasRef?.nativeElement;
     if (!el) return;
     this.revenueChart?.destroy();
@@ -127,7 +124,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     // Never invent day-level revenue — zeros are a valid empty week.
     const values = this.revenueValues.length ? [...this.revenueValues] : labels.map(() => 0);
 
-    this.revenueChart = createAppChart(el, {
+    this.revenueChart = await createAppChart(el, {
       type: 'line',
       data: {
         labels,
@@ -184,7 +181,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     });
   }
 
-  private renderBookings(): void {
+  private async renderBookings(): Promise<void> {
     const el = this.bookingsCanvasRef?.nativeElement;
     if (!el) return;
     this.bookingsChart?.destroy();
@@ -198,7 +195,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     };
     const colors = labels.map(l => statusColors[l] ?? '#94A3B8');
 
-    this.bookingsChart = createAppChart(el, {
+    this.bookingsChart = await createAppChart(el, {
       type: 'doughnut',
       data: {
         labels,
@@ -226,7 +223,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     });
   }
 
-  private renderFleet(): void {
+  private async renderFleet(): Promise<void> {
     const el = this.fleetCanvasRef?.nativeElement;
     if (!el) return;
     this.fleetChart?.destroy();
@@ -234,7 +231,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     const info = getComputedStyle(document.documentElement).getPropertyValue('--stb-info').trim() || '#3B82F6';
     const warn = getComputedStyle(document.documentElement).getPropertyValue('--stb-warning').trim() || '#F59E0B';
 
-    this.fleetChart = createAppChart(el, {
+    this.fleetChart = await createAppChart(el, {
       type: 'bar',
       data: {
         labels: this.fleetLabels,

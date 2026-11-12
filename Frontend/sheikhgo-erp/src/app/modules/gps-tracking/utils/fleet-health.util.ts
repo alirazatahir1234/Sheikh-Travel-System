@@ -1,4 +1,4 @@
-import { ChartData } from 'chart.js';
+import type { ChartData } from 'chart.js';
 import { FleetHealthSummary, FleetVehicleHealth } from '../../../core/models/gps-tracking.model';
 
 export interface FleetHealthBreakdown {
