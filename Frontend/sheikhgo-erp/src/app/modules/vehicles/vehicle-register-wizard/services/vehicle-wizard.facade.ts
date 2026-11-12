@@ -16,7 +16,6 @@ import {
   VehicleDocument,
   VehicleGps,
   VehicleStatus,
-  UploadVehicleDocumentResult,
   sanitizeCreateVehicleDto,
   normalizeFuelType,
   normalizeVehicleStatus
@@ -41,8 +40,6 @@ import {
   WIZARD_STEPS,
   VEHICLE_IMAGE_ANGLES,
   VehicleImageSlotState,
-  parseVehicleImageAngle,
-  isPrimaryVehicleImage,
   documentContinueMessage
 } from '../models/vehicle-wizard.model';
 import {
@@ -52,6 +49,13 @@ import {
   toSelectOptions,
   withSelectOption
 } from '../utils/vehicle-catalog.util';
+import {
+  hydrateVehicleDocumentSlots,
+  readVehicleDocumentId,
+  readVehicleFileUrl,
+  slotHasUploadedDocument,
+  unwrapUploadVehicleDocumentResult
+} from '../utils/vehicle-document-slots.util';
 import {
   descriptiveVehicleTextError,
   descriptiveVehicleTextValidator,
@@ -171,15 +175,15 @@ export class VehicleWizardFacade {
   });
 
   readonly documentsUploadedCount = computed(() => {
-    const docSlots = this.documentSlots().filter(s => !!s.fileUrl).length;
-    const hasVehicleImage = this.vehicleImageSlots().some(s => !!s.fileUrl);
+    const docSlots = this.documentSlots().filter(s => slotHasUploadedDocument(s)).length;
+    const hasVehicleImage = this.vehicleImageSlots().some(s => slotHasUploadedDocument(s));
     return docSlots + (hasVehicleImage ? 1 : 0);
   });
 
   readonly primaryVehicleImageUrl = computed(() => {
     const slots = this.vehicleImageSlots();
-    const primary = slots.find(s => s.isPrimary && s.fileUrl);
-    const fallback = slots.find(s => s.fileUrl);
+    const primary = slots.find(s => s.isPrimary && slotHasUploadedDocument(s));
+    const fallback = slots.find(s => slotHasUploadedDocument(s));
     const chosen = primary ?? fallback;
     if (!chosen) return null;
     if (chosen.file) return URL.createObjectURL(chosen.file);
@@ -187,7 +191,7 @@ export class VehicleWizardFacade {
   });
 
   readonly vehicleImageHasError = computed(() => {
-    if (this.vehicleImageSlots().some(s => !!s.fileUrl)) return false;
+    if (this.vehicleImageSlots().some(s => slotHasUploadedDocument(s))) return false;
     return this.attemptedSubmit()
       || this.vehicleImageSlots().some(s => s.error === 'At least one vehicle image is required.');
   });
@@ -214,7 +218,7 @@ export class VehicleWizardFacade {
     if (!f.purchaseCurrencyCode?.trim()) errors.push('Purchase currency is required');
     if (!f.purchasePrice || Number(f.purchasePrice) <= 0) errors.push('Purchase amount is required');
     if (!f.branchId) errors.push('Branch is required');
-    if (!this.vehicleImageSlots().some(s => !!s.fileUrl)) {
+    if (!this.vehicleImageSlots().some(s => slotHasUploadedDocument(s))) {
       errors.push('At least one vehicle image is required');
     }
     const slots = this.documentSlots();
@@ -240,16 +244,22 @@ export class VehicleWizardFacade {
       this.isEditMode.set(true);
       this.vehicleId.set(editId);
       this.loading.set(true);
-      forkJoin({
-        vehicle: this.vehicleService.getById(editId),
-        documents: this.vehicleService.getDocuments(editId).pipe(catchError(() => of([]))),
-        gps: this.vehicleService.getGps(editId).pipe(catchError(() => of(null)))
-      }).subscribe({
-        next: ({ vehicle, documents, gps }) => {
+      // Load vehicle first so company scope / X-Tenant-Id matches before documents hydrate.
+      // Parallel forkJoin previously fetched docs under the wrong tenant and left previews empty.
+      this.vehicleService.getById(editId).pipe(
+        switchMap(vehicle => {
           if (vehicle.companyId) {
             this.companyScope?.syncTo(vehicle.companyId, vehicle.companyName ?? undefined);
           }
           this.prefillVehicle(vehicle);
+          return forkJoin({
+            documents: this.vehicleService.getDocuments(editId).pipe(catchError(() => of([] as VehicleDocument[]))),
+            gps: this.vehicleService.getGps(editId).pipe(catchError(() => of(null as VehicleGps | null)))
+          });
+        }),
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: ({ documents, gps }) => {
           this.uploadedDocuments.set(documents);
           this.syncDocumentSlots(documents);
           if (gps?.gpsDeviceId) {
@@ -530,7 +540,7 @@ export class VehicleWizardFacade {
     this.vehicleImageSlots.set(slots);
 
     try {
-      const result = await firstValueFrom(this.vehicleService.uploadDocument(
+      const rawResult = await firstValueFrom(this.vehicleService.uploadDocument(
         vehicleId,
         file,
         'VehicleImage',
@@ -538,14 +548,19 @@ export class VehicleWizardFacade {
         slots[slotIndex].angle
       ));
 
+      const result = unwrapUploadVehicleDocumentResult(rawResult);
       const updated = [...this.vehicleImageSlots()];
       const wasPrimary = updated[slotIndex].isPrimary;
-      const hasPrimary = updated.some(s => s.isPrimary && !!s.fileUrl && s.angle !== updated[slotIndex].angle);
-      const documentId = this.extractDocumentId(result);
+      const hasPrimary = updated.some(
+        s => s.isPrimary && slotHasUploadedDocument(s) && s.angle !== updated[slotIndex].angle
+      );
+      const documentId = readVehicleDocumentId(result);
+      const fileUrl = readVehicleFileUrl(result) ?? updated[slotIndex].fileUrl;
       updated[slotIndex] = {
         ...updated[slotIndex],
-        file: undefined,
-        fileUrl: this.readFileUrl(result) ?? updated[slotIndex].fileUrl,
+        // Keep local file until a remote URL is confirmed so the preview does not flash empty.
+        file: fileUrl ? undefined : updated[slotIndex].file,
+        fileUrl,
         documentId: documentId ?? updated[slotIndex].documentId,
         uploading: false,
         error: undefined,
@@ -553,9 +568,8 @@ export class VehicleWizardFacade {
       };
       this.vehicleImageSlots.set(this.stripVehicleImageRequiredErrors(updated));
 
-      if (!documentId) {
-        await this.refreshVehicleImageSlots(vehicleId);
-      }
+      // Always rehydrate from the API so edit/clarify previews match persisted rows.
+      await this.refreshVehicleImageSlots(vehicleId);
     } catch (err) {
       const updated = [...this.vehicleImageSlots()];
       updated[slotIndex] = {
@@ -577,8 +591,8 @@ export class VehicleWizardFacade {
     const vehicleId = this.vehicleId();
     const slots = [...this.vehicleImageSlots()];
     const slot = slots[slotIndex];
-    const documentId = this.readDocumentId(slot);
-    if (!vehicleId || !documentId || !slot?.fileUrl) {
+    const documentId = readVehicleDocumentId(slot);
+    if (!vehicleId || !documentId || !slotHasUploadedDocument(slot)) {
       this.toast.warning('Save the image first, then set it as the display photo.');
       return;
     }
@@ -621,19 +635,20 @@ export class VehicleWizardFacade {
         slots[slotIndex].documentType
       ));
 
-      const result = this.unwrapUploadResult(rawResult);
+      const result = unwrapUploadVehicleDocumentResult(rawResult);
       const updated = [...this.documentSlots()];
-      const fileUrl = this.readFileUrl(result) ?? updated[slotIndex].fileUrl;
+      const fileUrl = readVehicleFileUrl(result) ?? updated[slotIndex].fileUrl;
 
       updated[slotIndex] = {
         ...updated[slotIndex],
-        file: undefined,
+        file: fileUrl ? undefined : updated[slotIndex].file,
         fileUrl,
-        documentId: this.extractDocumentId(result) ?? updated[slotIndex].documentId,
+        documentId: readVehicleDocumentId(result) ?? updated[slotIndex].documentId,
         uploading: false,
         error: undefined
       };
       this.documentSlots.set(updated);
+      await this.refreshVehicleImageSlots(vehicleId);
     } catch (err) {
       const updated = [...this.documentSlots()];
       updated[slotIndex] = {
@@ -645,20 +660,6 @@ export class VehicleWizardFacade {
       };
       this.documentSlots.set(updated);
     }
-  }
-
-  private unwrapUploadResult(raw: unknown): UploadVehicleDocumentResult {
-    if (!raw || typeof raw !== 'object') {
-      return raw as UploadVehicleDocumentResult;
-    }
-    const rec = raw as Record<string, unknown>;
-    if (rec['data'] && typeof rec['data'] === 'object') {
-      return rec['data'] as UploadVehicleDocumentResult;
-    }
-    if (rec['Data'] && typeof rec['Data'] === 'object') {
-      return rec['Data'] as UploadVehicleDocumentResult;
-    }
-    return raw as UploadVehicleDocumentResult;
   }
 
   async publish(): Promise<void> {
@@ -722,6 +723,11 @@ export class VehicleWizardFacade {
     this.loadUnassignedDevices();
     try {
       await this.persistVehicle(false);
+      const vehicleId = this.vehicleId();
+      if (vehicleId) {
+        // Rehydrate docs under the new X-Tenant-Id so save validation still sees uploaded files.
+        await this.refreshVehicleImageSlots(vehicleId);
+      }
       this.toast.success('Vehicle moved to the selected company');
     } catch (err) {
       this.toast.error(apiErrorMessage(err, 'Failed to change vehicle company'));
@@ -906,60 +912,22 @@ export class VehicleWizardFacade {
   }
 
   private syncDocumentSlots(documents: VehicleDocument[]): void {
-    const imageDocs = documents.filter(d => d.documentType === 'VehicleImage');
-    const slots: VehicleImageSlotState[] = VEHICLE_IMAGE_ANGLES.map(({ angle, label }) => ({ angle, label }));
-    const assignedDocIds = new Set<number>();
+    // Empty payloads usually mean a failed/tenant-mismatched fetch — do not wipe previews.
+    if (!documents.length) return;
 
-    for (const slot of slots) {
-      const doc = imageDocs.find(d => {
-        const id = this.readDocumentId(d);
-        return id != null
-          && !assignedDocIds.has(id)
-          && parseVehicleImageAngle(d.notes) === slot.angle;
-      });
-      if (!doc) continue;
-      const id = this.readDocumentId(doc)!;
-      assignedDocIds.add(id);
-      slot.fileUrl = doc.fileUrl;
-      slot.documentId = id;
-      slot.isPrimary = isPrimaryVehicleImage(doc.notes);
-    }
+    const { imageSlots, documentSlots } = hydrateVehicleDocumentSlots(documents, this.documentSlots());
+    this.vehicleImageSlots.set(this.stripVehicleImageRequiredErrors(imageSlots));
+    this.documentSlots.set(documentSlots);
 
-    const unassigned = imageDocs.filter(d => {
-      const id = this.readDocumentId(d);
-      return id != null && !assignedDocIds.has(id);
-    });
-    const openSlots = slots.filter(s => !s.fileUrl);
-    for (let i = 0; i < unassigned.length && i < openSlots.length; i++) {
-      const doc = unassigned[i];
-      const slot = openSlots[i];
-      const id = this.readDocumentId(doc)!;
-      assignedDocIds.add(id);
-      slot.fileUrl = doc.fileUrl;
-      slot.documentId = id;
-      slot.isPrimary = isPrimaryVehicleImage(doc.notes);
-    }
-
-    if (!slots.some(s => s.isPrimary)) {
-      const first = slots.find(s => s.fileUrl);
-      if (first) first.isPrimary = true;
-    }
-
-    this.vehicleImageSlots.set(this.stripVehicleImageRequiredErrors(slots));
-
-    const docSlots = this.documentSlots().map(slot => {
-      const doc = documents.find(d =>
-        d.documentType === slot.documentType && !!d.fileUrl?.trim()
-      );
-      return doc
-        ? { ...slot, fileUrl: doc.fileUrl, documentId: this.readDocumentId(doc) }
-        : slot;
-    });
-    this.documentSlots.set(docSlots);
-
-    const regDoc = documents.find(d => d.documentType === 'Registration' && d.fileUrl?.trim());
-    const roadDoc = documents.find(d => d.documentType === 'RoadTax' && d.fileUrl?.trim());
-    const fitDoc = documents.find(d => d.documentType === 'Fitness' && d.fileUrl?.trim());
+    const regDoc = documents.find(d =>
+      d.documentType?.toLowerCase() === 'registration' && (!!d.fileUrl?.trim() || readVehicleDocumentId(d) != null)
+    );
+    const roadDoc = documents.find(d =>
+      d.documentType?.toLowerCase() === 'roadtax' && (!!d.fileUrl?.trim() || readVehicleDocumentId(d) != null)
+    );
+    const fitDoc = documents.find(d =>
+      d.documentType?.toLowerCase() === 'fitness' && (!!d.fileUrl?.trim() || readVehicleDocumentId(d) != null)
+    );
     this.form.patchValue({
       registrationExpiryDate: toDateInputValue(regDoc?.expiryDate),
       roadTaxExpiryDate: toDateInputValue(roadDoc?.expiryDate),
@@ -1211,7 +1179,7 @@ export class VehicleWizardFacade {
         this.documentSlots.set(slots);
       }
 
-      if (!this.vehicleImageSlots().some(s => !!s.fileUrl)) {
+      if (!this.vehicleImageSlots().some(s => slotHasUploadedDocument(s))) {
         const imageSlots = this.vehicleImageSlots().map(s => ({
           ...s,
           error: s.error === 'At least one vehicle image is required.' ? undefined : s.error
@@ -1228,43 +1196,28 @@ export class VehicleWizardFacade {
   }
 
   private async refreshVehicleImageSlots(vehicleId: number): Promise<void> {
-    const documents = await firstValueFrom(this.vehicleService.getDocuments(vehicleId).pipe(catchError(() => of([]))));
-    this.uploadedDocuments.set(documents);
-    this.syncDocumentSlots(documents);
+    try {
+      const documents = await firstValueFrom(this.vehicleService.getDocuments(vehicleId));
+      this.uploadedDocuments.set(documents);
+      this.syncDocumentSlots(documents);
+    } catch {
+      // Keep current slot previews if reload fails (transient scope/network issues).
+    }
   }
 
   private stripVehicleImageRequiredErrors(slots: VehicleImageSlotState[]): VehicleImageSlotState[] {
-    if (!slots.some(s => !!s.fileUrl)) return slots;
+    if (!slots.some(s => slotHasUploadedDocument(s))) return slots;
     return slots.map(s =>
       s.error === 'At least one vehicle image is required.' ? { ...s, error: undefined } : s
     );
   }
 
-  private readDocumentId(value: VehicleImageSlotState | VehicleDocument | UploadVehicleDocumentResult | Record<string, unknown> | null | undefined): number | undefined {
-    if (!value || typeof value !== 'object') return undefined;
-    const rec = value as Record<string, unknown>;
-    const raw = rec['documentId'] ?? rec['DocumentId'] ?? rec['id'] ?? rec['Id'];
-    const num = Number(raw);
-    return Number.isFinite(num) && num > 0 ? Math.trunc(num) : undefined;
-  }
-
-  private extractDocumentId(value: unknown): number | undefined {
-    return this.readDocumentId(value as Record<string, unknown>);
-  }
-
-  private readFileUrl(value: unknown): string | undefined {
-    if (!value || typeof value !== 'object') return undefined;
-    const rec = value as Record<string, unknown>;
-    const raw = rec['fileUrl'] ?? rec['FileUrl'];
-    return typeof raw === 'string' && raw.trim() ? raw : undefined;
-  }
-
   private requiredDocumentSlotsValid(): boolean {
-    const hasVehicleImage = this.vehicleImageSlots().some(slot => !!slot.fileUrl);
+    const hasVehicleImage = this.vehicleImageSlots().some(slot => slotHasUploadedDocument(slot));
     const docsValid = this.documentSlots().every(slot => {
       if (!slot.required) return true;
       if (slot.uploading) return false;
-      return !!slot.fileUrl;
+      return slotHasUploadedDocument(slot);
     });
     return hasVehicleImage && docsValid;
   }

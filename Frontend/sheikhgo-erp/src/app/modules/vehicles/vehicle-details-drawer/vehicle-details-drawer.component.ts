@@ -11,6 +11,7 @@ import { DriverService } from '../../../core/services/driver.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { BookingService } from '../../../core/services/booking.service';
+import { CompanyScopeService } from '../../../core/services/company-scope.service';
 import {
   Vehicle,
   VehicleListItem,
@@ -148,6 +149,7 @@ export class VehicleDetailsDrawerComponent {
   private readonly gpsService = inject(GpsTrackingService);
   private readonly platformService = inject(PlatformService);
   private readonly bookingService = inject(BookingService);
+  private readonly companyScopeService = inject(CompanyScopeService);
   private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
   readonly router = inject(Router);
@@ -959,7 +961,10 @@ export class VehicleDetailsDrawerComponent {
     const id = this.effectiveVehicleId();
     if (id) {
       this.closeDrawer();
-      void this.router.navigate(['/vehicles', id, 'edit']);
+      const tenantId = this.companyScopeService.tenantId();
+      void this.router.navigate(['/vehicles', id, 'edit'], {
+        queryParams: tenantId != null ? { tenantId } : {}
+      });
     }
   }
 

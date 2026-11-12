@@ -169,8 +169,12 @@ export class DocumentUploadZoneComponent {
     const remoteUrl = slot.fileUrl ? resolveUploadUrl(slot.fileUrl) : null;
 
     if (remoteUrl) {
-      if (isImageUploadUrl(slot.fileUrl)) return { kind: 'image', src: remoteUrl };
       if (isPdfUploadUrl(slot.fileUrl)) return { kind: 'pdf', src: remoteUrl };
+      // Prefer image for known image extensions; fall back to image for extension-less/SAS paths
+      // so edit/clarify hydrate still shows a preview when the file is already uploaded.
+      if (isImageUploadUrl(slot.fileUrl) || !isPdfUploadUrl(slot.fileUrl)) {
+        return { kind: 'image', src: remoteUrl };
+      }
     }
 
     const local = this.localPreviewUrl();
