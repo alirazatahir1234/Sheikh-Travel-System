@@ -34,13 +34,17 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { DriverScore } from '../../../core/models/gps-tracking.model';
 import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, blendDriverTopScore, computeDriverScore, exclusiveLicenseWindows, scoreTone, TopDriverRankItem } from '../models/driver-inventory.model';
 
+import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
+import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
+
 @Component({
   selector: 'app-driver-inventory-page',
   standalone: true,
-  providers: [DatePipe],
+  providers: [DatePipe, CompanyScopeController],
   imports: [
     NgClass,
     RouterModule,
+    CompanyScopeBannerComponent,
     MatIconModule,
     MatMenuModule,
     MatButtonModule,
@@ -75,6 +79,7 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  readonly companyScope = inject(CompanyScopeController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
   /** Cancels in-flight Top Drivers / compliance fetches when the page reloads. */
@@ -314,6 +319,8 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Super Admin: scope every call on this page to the chosen company (no-op for everyone else).
+    this.companyScope.beginList();
     this.platformService.getBranches().pipe(
       catchError(() => of([])),
       takeUntilDestroyed(this.destroyRef)

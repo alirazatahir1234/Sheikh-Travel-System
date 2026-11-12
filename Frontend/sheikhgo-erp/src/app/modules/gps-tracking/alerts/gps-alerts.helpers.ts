@@ -78,11 +78,12 @@ export function severityRank(severity?: string | null): number {
   }
 }
 
+/** Newest first by time, then higher severity. Keeps WHEN column chronological. */
 export function sortAlertsBySeverity(events: GpsAlertEvent[]): GpsAlertEvent[] {
   return [...events].sort((a, b) => {
-    const sr = severityRank(a.severity) - severityRank(b.severity);
-    if (sr !== 0) return sr;
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    const timeDiff = new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    if (timeDiff !== 0) return timeDiff;
+    return severityRank(a.severity) - severityRank(b.severity);
   });
 }
 
@@ -107,8 +108,9 @@ export function groupSimilarAlerts(events: GpsAlertEvent[]): GpsAlertDisplayGrou
     });
   }
   return groups.sort(
-    (a, b) => severityRank(a.representative.severity) - severityRank(b.representative.severity)
-      || new Date(b.representative.timestamp).getTime() - new Date(a.representative.timestamp).getTime()
+    (a, b) =>
+      new Date(b.representative.timestamp).getTime() - new Date(a.representative.timestamp).getTime()
+      || severityRank(a.representative.severity) - severityRank(b.representative.severity)
   );
 }
 

@@ -8,6 +8,7 @@ import { AuthService } from '../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { resolveTenantSlug } from '../utils/tenant-slug';
 import { UiToastService } from '../../shared/components/ui/toast/ui-toast.service';
+import { CompanyScopeService } from '../services/company-scope.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -17,7 +18,8 @@ export class AuthInterceptor implements HttpInterceptor {
 
   constructor(
     private auth: AuthService,
-    private injector: Injector) {}
+    private injector: Injector,
+    private companyScope: CompanyScopeService) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     const token = this.auth.getToken();
@@ -26,6 +28,11 @@ export class AuthInterceptor implements HttpInterceptor {
     if (req.url.includes('/api')) {
       // Backend prefers JWT tenant_id; slug is for branding / unauthenticated fallback.
       headers['X-Tenant-Slug'] = resolveTenantSlug(environment.tenantSlug);
+      // Super Admin acting for another company (driver/vehicle wizards). Explicit per-call headers win.
+      const scopedTenantId = this.companyScope.tenantId();
+      if (scopedTenantId != null && !req.headers.has('X-Tenant-Id')) {
+        headers['X-Tenant-Id'] = String(scopedTenantId);
+      }
     }
     const authReq = Object.keys(headers).length
       ? req.clone({ setHeaders: headers })

@@ -302,7 +302,7 @@
             </td>
             <td class="when-cell">
               <div class="when-cell__date">{{ g.representative.timestamp | date:'dd MMM yyyy' }}</div>
-              <div class="when-cell__time">{{ g.representative.timestamp | date:'HH:mm' }}</div>
+              <div class="when-cell__time">{{ g.representative.timestamp | date:'h:mm a' }}</div>
             </td>
             <td>
               <span class="status-pill" [ngClass]="statusClass(g.representative)">
@@ -336,7 +336,7 @@
       <article class="timeline-item" *ngFor="let g of paginatedDisplayGroups" [ngClass]="severityClass(g.representative.severity)" (click)="openEvent(g.representative)">
         <div class="timeline-item__rail" aria-hidden="true"></div>
         <div class="timeline-item__card">
-          <div class="timeline-item__when">{{ g.representative.timestamp | date:'dd MMM yyyy, HH:mm' }}</div>
+          <div class="timeline-item__when">{{ g.representative.timestamp | date:'dd MMM yyyy, h:mm a' }}</div>
           <div class="alert-primary">
             <span class="badge" [ngClass]="eventTypeBadge(g.representative.eventType)">{{ eventTypeLabel(g.representative.eventType) }}</span>
             <span class="badge" [ngClass]="severityBadge(g.representative.severity)">{{ eventTypeLabel(g.representative.severity || 'medium') }}</span>
@@ -379,7 +379,7 @@
         <p class="alert-msg">{{ g.representative.message }}</p>
         <p class="alert-meta">{{ inlineMeta(g.representative) }}</p>
         <div class="alert-card__foot">
-          <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, HH:mm' }}</span>
+          <span class="muted small">{{ g.representative.timestamp | date:'dd MMM, h:mm a' }}</span>
           <div class="alert-card__actions">
             <button class="btn-icon" type="button" (click)="jumpToLive(g.representative, $event)"><mat-icon>map</mat-icon></button>
             <button class="btn-icon" type="button" (click)="jumpToHistory(g.representative, $event)"><mat-icon>history</mat-icon></button>
@@ -465,7 +465,7 @@
         <div><span class="label">Vehicle</span><span>{{ event.vehicleName || ('#' + event.vehicleId) }}</span></div>
         <div><span class="label">Plate</span><span>{{ event.registrationNumber || '—' }}</span></div>
         <div><span class="label">Driver</span><span>{{ event.driverName || '—' }}</span></div>
-        <div><span class="label">Time</span><span>{{ event.timestamp | date:'dd MMM yyyy, HH:mm' }}</span></div>
+        <div><span class="label">Time</span><span>{{ event.timestamp | date:'dd MMM yyyy, h:mm a' }}</span></div>
         <div><span class="label">Location</span><span>{{ event.latitude | number:'1.4-4' }}, {{ event.longitude | number:'1.4-4' }}</span></div>
         <div><span class="label">Speed</span><span>{{ event.speed | number:'1.0-1' }} km/h</span></div>
         <div><span class="label">Geofence</span><span>{{ event.geofenceName || '—' }}</span></div>

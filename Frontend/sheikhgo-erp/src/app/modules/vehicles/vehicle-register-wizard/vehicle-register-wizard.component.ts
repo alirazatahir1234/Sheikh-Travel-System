@@ -7,7 +7,7 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import { AppBrandLoaderComponent } from '../../../shared/components/app-brand-loader/app-brand-loader.component';
@@ -21,6 +21,10 @@ import { WizardStepGpsComponent } from './components/steps/wizard-step-gps/wizar
 import { WizardStepDocumentsComponent } from './components/steps/wizard-step-documents/wizard-step-documents.component';
 import { WizardStepReviewComponent } from './components/steps/wizard-step-review/wizard-step-review.component';
 import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
+import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
+import { CompanyScopeGateComponent } from '../../../shared/components/company-scope/company-scope-gate.component';
+import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
+import { Tenant } from '../../../core/models/platform.model';
 
 @Component({
   selector: 'app-vehicle-register-wizard',
@@ -35,16 +39,20 @@ import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
     WizardStepTechnicalComponent,
     WizardStepGpsComponent,
     WizardStepDocumentsComponent,
-    WizardStepReviewComponent
+    WizardStepReviewComponent,
+    CompanyScopeGateComponent,
+    CompanyScopeBannerComponent
   ],
-  providers: [VehicleWizardFacade],
+  providers: [CompanyScopeController, VehicleWizardFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './vehicle-register-wizard.component.html',
   styleUrls: ['./vehicle-register-wizard.component.scss']
 })
 export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   readonly facade = inject(VehicleWizardFacade);
+  readonly companyScope = inject(CompanyScopeController);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly yearOptions = signal<UiSelectOption[]>(this.buildYearOptions());
 
@@ -57,7 +65,28 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    this.facade.init(id ? +id : undefined);
+    if (id) {
+      this.companyScope.beginExisting();
+      this.facade.init(+id);
+      return;
+    }
+    // Super Admin picks the company first — the wizard creates a server draft on init.
+    if (this.companyScope.beginCreate()) this.facade.init(undefined);
+  }
+
+  onCompanyConfirmed(tenant: Tenant): void {
+    this.companyScope.confirm(tenant);
+    this.facade.init(undefined);
+  }
+
+  onCompanyGateCancelled(): void {
+    void this.router.navigate(['/vehicles']);
+  }
+
+  /** Drop the empty draft created in the current company, then pick again. */
+  async changeCompany(): Promise<void> {
+    await this.facade.discardNewDraft();
+    this.companyScope.restart('/vehicles/new');
   }
 
   ngOnDestroy(): void {

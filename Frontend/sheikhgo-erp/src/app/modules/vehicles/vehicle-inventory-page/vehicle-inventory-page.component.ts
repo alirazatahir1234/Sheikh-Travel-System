@@ -52,12 +52,16 @@ import {
   vehicleHasTracker
 } from '../utils/vehicle-filter.util';
 
+import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
+import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
+
 @Component({
   selector: 'app-vehicle-inventory-page',
   standalone: true,
   imports: [
     RouterModule,
     MatIconModule,
+    CompanyScopeBannerComponent,
     MatMenuModule,
     MatButtonModule,
     MatDialogModule,
@@ -73,7 +77,7 @@ import {
     VehicleAdvancedFiltersComponent,
     VehicleRegistryFabComponent
   ],
-  providers: [DatePipe, DecimalPipe],
+  providers: [DatePipe, DecimalPipe, CompanyScopeController],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './vehicle-inventory-page.component.html',
   styleUrls: ['./vehicle-inventory-page.component.scss']
@@ -89,6 +93,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  readonly companyScope = inject(CompanyScopeController);
   private readonly route = inject(ActivatedRoute);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
@@ -268,6 +273,12 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   private resolveCompanyTenantFromRoute(): void {
+    if (this.companyScope.isSuperAdmin) {
+      // Scope every call on this page (list, dashboard, branches, drivers) to the same company.
+      this.companyScope.beginList();
+      this.companyTenantId = this.companyScope.company()?.id ?? null;
+      return;
+    }
     const raw = this.route.snapshot.queryParamMap.get('tenantId');
     const id = raw ? Number(raw) : NaN;
     if (Number.isFinite(id) && id > 0) {

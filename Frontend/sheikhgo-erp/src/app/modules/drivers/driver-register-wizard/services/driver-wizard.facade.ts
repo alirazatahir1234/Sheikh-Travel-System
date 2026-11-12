@@ -22,6 +22,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { COMPANY_NAME } from '../../../../core/constants/app-brand';
 import { vehicleUploadSizeError, resolveDriverPhotoUrl, resolveUploadUrl } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
+import { CompanyScopeService } from '../../../../core/services/company-scope.service';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import {
   DRIVER_DOC_SLOTS,
@@ -96,6 +97,7 @@ export class DriverWizardFacade {
   private readonly router = inject(Router);
   private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly companyScope = inject(CompanyScopeService);
 
   readonly steps = DRIVER_WIZARD_STEPS;
   readonly phoneCountryCodes = PHONE_COUNTRY_CODES;
@@ -448,7 +450,7 @@ export class DriverWizardFacade {
         error: () => {
           this.loading.set(false);
           this.toast.error('Failed to load driver');
-          void this.router.navigate(['/drivers']);
+          this.navigateToList();
         }
       });
     } else {
@@ -816,7 +818,7 @@ export class DriverWizardFacade {
         currentStep: this.currentStep(),
         savedAt: new Date().toISOString()
       };
-      localStorage.setItem(DRIVER_WIZARD_DRAFT_KEY, JSON.stringify(draft));
+      localStorage.setItem(this.draftKey(), JSON.stringify(draft));
       this.lastSavedAt.set(new Date());
       this.toast.success('Draft saved');
     } finally {
@@ -838,7 +840,7 @@ export class DriverWizardFacade {
 
   private restoreDraft(): void {
     try {
-      const raw = localStorage.getItem(DRIVER_WIZARD_DRAFT_KEY);
+      const raw = localStorage.getItem(this.draftKey());
       if (!raw) return;
       const draft = JSON.parse(raw) as DriverWizardDraft;
       if (draft.form) {
@@ -853,11 +855,23 @@ export class DriverWizardFacade {
   }
 
   clearDraft(): void {
-    localStorage.removeItem(DRIVER_WIZARD_DRAFT_KEY);
+    localStorage.removeItem(this.draftKey());
   }
 
   cancel(): void {
-    void this.router.navigate(['/drivers']);
+    this.navigateToList();
+  }
+
+  /** Super Admin acting for another company keeps one draft per company. */
+  private draftKey(): string {
+    const scoped = this.companyScope.tenantId();
+    return scoped != null ? `${DRIVER_WIZARD_DRAFT_KEY}:t${scoped}` : DRIVER_WIZARD_DRAFT_KEY;
+  }
+
+  /** Back to the driver list — for the same company the driver was added to. */
+  private navigateToList(): void {
+    const scoped = this.companyScope.tenantId();
+    void this.router.navigate(['/drivers'], scoped != null ? { queryParams: { tenantId: scoped } } : {});
   }
 
   private buildDto(): CreateDriverDto {
@@ -938,7 +952,7 @@ export class DriverWizardFacade {
 
       this.toast.success(this.isEditMode() ? 'Driver updated' : 'Driver registered');
       if (!this.isEditMode()) {
-        void this.router.navigate(['/drivers']);
+        this.navigateToList();
       }
     } catch (err) {
       this.applyConflictFromError(err);

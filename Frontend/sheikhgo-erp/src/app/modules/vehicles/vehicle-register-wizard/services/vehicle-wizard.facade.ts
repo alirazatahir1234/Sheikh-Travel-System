@@ -689,6 +689,21 @@ export class VehicleWizardFacade {
     this.router.navigate(['/vehicles']);
   }
 
+  /**
+   * Best-effort delete of the auto-created draft (create mode only) — used when a Super Admin switches
+   * company before publishing, so no orphan draft is left in the previous company.
+   */
+  async discardNewDraft(): Promise<void> {
+    const id = this.vehicleId();
+    if (!id || this.isEditMode()) return;
+    try {
+      await firstValueFrom(this.vehicleService.delete(id));
+    } catch {
+      /* draft stays listed under Drafts; not worth blocking the switch */
+    }
+    this.vehicleId.set(null);
+  }
+
   primaryCtaLabel(): string {
     const step = this.currentStep();
     if (step === 'review') {

@@ -6,15 +6,30 @@
     <p class="mt-1 text-sm text-fleet-text-muted">
       {{ facade.pageSubtitle() }}
     </p>
-    <div class="mt-5">
-      <app-wizard-stepper
-        [steps]="facade.steps"
-        [currentStep]="facade.currentStep()"
-        (stepClick)="facade.goToStep($event)" />
-    </div>
+    @if (!companyScope.needsGate()) {
+      @if (companyScope.company(); as company) {
+        <app-company-scope-banner
+          [companyName]="company.name"
+          [prefix]="facade.isEditMode() ? 'Editing vehicle in' : 'Adding vehicle to'"
+          [actionLabel]="facade.isEditMode() ? null : 'Change company'"
+          (action)="changeCompany()" />
+      }
+      <div class="mt-5">
+        <app-wizard-stepper
+          [steps]="facade.steps"
+          [currentStep]="facade.currentStep()"
+          (stepClick)="facade.goToStep($event)" />
+      </div>
+    }
   </header>
 
-  @if (facade.loading()) {
+  @if (companyScope.needsGate()) {
+    <app-company-scope-gate
+      entityLabel="vehicle"
+      [initialTenantId]="companyScope.initialTenantId()"
+      (confirmed)="onCompanyConfirmed($event)"
+      (cancelled)="onCompanyGateCancelled()" />
+  } @else if (facade.loading()) {
     <app-brand-loader size="lg" />
   }   @else {
     <div class="vehicle-wizard__body grid gap-6 lg:grid-cols-[1fr_320px]">

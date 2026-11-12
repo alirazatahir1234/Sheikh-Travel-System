@@ -30,6 +30,14 @@
     </div>
   </ui-page-header>
 
+  @if (companyScope.company(); as company) {
+    <app-company-scope-banner
+      [companyName]="company.name"
+      prefix="Viewing drivers of"
+      actionLabel="Back to my company"
+      (action)="companyScope.exitToOwnCompany('/drivers')" />
+  }
+
   <div class="kpi-section">
     @if (loading() && !stats() && !statsError()) {
       <div class="kpi-group">
