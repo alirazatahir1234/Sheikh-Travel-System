@@ -28,10 +28,17 @@ import { Tenant } from '../../../core/models/platform.model';
   template: `
     <section class="company-gate mx-auto mt-6 max-w-xl" aria-labelledby="company-gate-title">
       <div class="company-gate__icon"><mat-icon>apartment</mat-icon></div>
-      <h2 id="company-gate-title" class="company-gate__title">Which company is this {{ entityLabel }} for?</h2>
+      <h2 id="company-gate-title" class="company-gate__title">
+        {{ mode === 'move' ? 'Move this ' + entityLabel + ' to which company?' : 'Which company is this ' + entityLabel + ' for?' }}
+      </h2>
       <p class="company-gate__lead">
-        As Super Admin you can add a {{ entityLabel }} to any company. Everything in this form — branches,
-        departments, GPS devices and the saved record — will belong to the company you choose.
+        @if (mode === 'move') {
+          As Super Admin you can move this {{ entityLabel }} to another company. Branch and department
+          from the previous company are cleared; documents and GPS stay with the vehicle.
+        } @else {
+          As Super Admin you can add a {{ entityLabel }} to any company. Everything in this form — branches,
+          departments, GPS devices and the saved record — will belong to the company you choose.
+        }
       </p>
 
       <label class="company-gate__label" for="company-gate-search">Company</label>
@@ -111,6 +118,8 @@ import { Tenant } from '../../../core/models/platform.model';
 export class CompanyScopeGateComponent implements OnInit {
   /** e.g. "driver" / "vehicle". */
   @Input() entityLabel = 'record';
+  /** create = new record gate; move = change company on an existing record. */
+  @Input() mode: 'create' | 'move' = 'create';
   /** Preselected company (route ?tenantId or the platform's selected company). */
   @Input() initialTenantId: number | null = null;
 

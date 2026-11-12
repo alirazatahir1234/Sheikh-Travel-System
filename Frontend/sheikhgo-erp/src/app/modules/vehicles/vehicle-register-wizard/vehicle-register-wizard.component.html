@@ -11,7 +11,7 @@
         <app-company-scope-banner
           [companyName]="company.name"
           [prefix]="facade.isEditMode() ? 'Editing vehicle in' : 'Adding vehicle to'"
-          [actionLabel]="facade.isEditMode() ? null : 'Change company'"
+          actionLabel="Change company"
           (action)="changeCompany()" />
       }
       <div class="mt-5">
@@ -26,6 +26,7 @@
   @if (companyScope.needsGate()) {
     <app-company-scope-gate
       entityLabel="vehicle"
+      [mode]="facade.isEditMode() ? 'move' : 'create'"
       [initialTenantId]="companyScope.initialTenantId()"
       (confirmed)="onCompanyConfirmed($event)"
       (cancelled)="onCompanyGateCancelled()" />

@@ -73,7 +73,7 @@ public class GetVehicleGpsQueryHandler(
 
         row = await OverlayLiveTraccarAsync(row, cancellationToken);
 
-        var lastUpdate = GpsUtcDateTime.AsUtc(row.LastUpdate);
+        var lastUpdate = GpsUtcDateTime.AsUtc(row.PositionUpdatedAt);
         var lastSeen = GpsUtcDateTime.AsUtc(row.LastSeenAt);
         var online = IsOnline(lastUpdate, lastSeen);
 
@@ -114,7 +114,7 @@ public class GetVehicleGpsQueryHandler(
                 ? DateTime.SpecifyKind(pos.FixTime, DateTimeKind.Utc)
                 : pos.FixTime.ToUniversalTime();
 
-            if (row.LastUpdate is { } localTs)
+            if (row.PositionUpdatedAt is { } localTs)
             {
                 var localUtc = localTs.Kind == DateTimeKind.Unspecified
                     ? DateTime.SpecifyKind(localTs, DateTimeKind.Utc)
@@ -135,7 +135,7 @@ public class GetVehicleGpsQueryHandler(
             row.Latitude = pos.Latitude;
             row.Longitude = pos.Longitude;
             row.Speed = speedKmh;
-            row.LastUpdate = fixTime;
+            row.PositionUpdatedAt = fixTime;
             row.TotalDistanceKm = totalDistanceKm;
             row.BatteryLevel = pos.Attributes?.BatteryLevel ?? row.BatteryLevel;
             row.GsmSignal = pos.Attributes?.Rssi ?? row.GsmSignal;

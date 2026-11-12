@@ -70,6 +70,16 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<int?> GetTenantIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<int?>(
+            new CommandDefinition(
+                "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id },
+                cancellationToken: cancellationToken));
+    }
+
     public async Task EnsureExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -154,12 +164,16 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
         }
     }
 
-    public async Task UpdateAsync(
-        int id, int tenantId, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
+    public async Task PersistVehicleAsync(
+        int id,
+        int currentTenantId,
+        int targetTenantId,
+        UpdateVehicleDto dto,
+        CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
-        var exists = await ExistsOn(connection, id, tenantId, cancellationToken);
+        var exists = await ExistsOn(connection, id, currentTenantId, cancellationToken);
         if (!exists)
             throw new NotFoundException("Vehicle", id);
 
@@ -175,7 +189,7 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                         SELECT 1 FROM Vehicles
                         WHERE RegistrationNumber = @Reg AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
                       ) THEN 1 ELSE 0 END",
-                    new { Reg = registration, Id = id, TenantId = tenantId },
+                    new { Reg = registration, Id = id, TenantId = targetTenantId },
                     cancellationToken: cancellationToken));
 
             if (regConflict)
@@ -190,7 +204,7 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                     WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id != @Id
                       AND EngineNo IS NOT NULL AND LOWER(LTRIM(RTRIM(EngineNo))) = LOWER(LTRIM(RTRIM(@EngineNo)))
                   ) THEN 1 ELSE 0 END",
-                new { Id = id, TenantId = tenantId, EngineNo = dto.EngineNo },
+                new { Id = id, TenantId = targetTenantId, EngineNo = dto.EngineNo },
                 cancellationToken: cancellationToken));
             if (engineDup)
                 throw new ConflictException("Vehicle already registered with this engine number.");
@@ -204,12 +218,13 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                     WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id != @Id
                       AND ChassisNo IS NOT NULL AND LOWER(LTRIM(RTRIM(ChassisNo))) = LOWER(LTRIM(RTRIM(@ChassisNo)))
                   ) THEN 1 ELSE 0 END",
-                new { Id = id, TenantId = tenantId, ChassisNo = dto.ChassisNo },
+                new { Id = id, TenantId = targetTenantId, ChassisNo = dto.ChassisNo },
                 cancellationToken: cancellationToken));
             if (chassisDup)
                 throw new ConflictException("Vehicle already registered with this chassis number.");
         }
 
+        var companyChanged = currentTenantId != targetTenantId;
         int rows;
         try
         {
@@ -225,8 +240,9 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                       PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice,
                       PurchaseCurrencyCode = @PurchaseCurrencyCode,
                       BranchId = @BranchId, DepartmentId = @DepartmentId, Status = @Status,
+                      TenantId = @TargetTenantId,
                       UpdatedAt = @UpdatedAt
-                      WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                      WHERE Id = @Id AND TenantId = @CurrentTenantId AND IsDeleted = 0",
                     new
                     {
                         dto.Name,
@@ -239,7 +255,9 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                             ? null
                             : dto.PurchaseCurrencyCode.Trim().ToUpperInvariant(),
                         dto.BranchId, dto.DepartmentId, Status = (int)dto.Status,
-                        UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId
+                        UpdatedAt = DateTime.UtcNow, Id = id,
+                        CurrentTenantId = currentTenantId,
+                        TargetTenantId = targetTenantId
                     },
                     cancellationToken: cancellationToken));
         }
@@ -251,6 +269,43 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
 
         if (rows == 0)
             throw new NotFoundException("Vehicle", id);
+
+        if (!companyChanged)
+            return;
+
+        // End cross-company driver assignments — drivers stay with the previous tenant.
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE AssignmentHistory
+              SET Status = N'Completed', EndAt = @Now, ModifiedAt = @Now, ModifiedBy = N'System'
+              WHERE VehicleId = @Id AND TenantId = @CurrentTenantId
+                AND IsDeleted = 0 AND Status IN (N'Active', N'Scheduled')",
+            new { Id = id, CurrentTenantId = currentTenantId, Now = DateTime.UtcNow },
+            cancellationToken: cancellationToken));
+
+        // Keep vehicle-scoped rows readable under the new company.
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE VehicleDocuments SET TenantId = @TargetTenantId, UpdatedAt = @Now
+              WHERE VehicleId = @Id AND TenantId = @CurrentTenantId",
+            new { Id = id, CurrentTenantId = currentTenantId, TargetTenantId = targetTenantId, Now = DateTime.UtcNow },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE FuelLogs SET TenantId = @TargetTenantId, UpdatedAt = @Now
+              WHERE VehicleId = @Id AND TenantId = @CurrentTenantId",
+            new { Id = id, CurrentTenantId = currentTenantId, TargetTenantId = targetTenantId, Now = DateTime.UtcNow },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE Maintenance SET TenantId = @TargetTenantId, UpdatedAt = @Now
+              WHERE VehicleId = @Id AND TenantId = @CurrentTenantId",
+            new { Id = id, CurrentTenantId = currentTenantId, TargetTenantId = targetTenantId, Now = DateTime.UtcNow },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE GpsDevices SET TenantId = @TargetTenantId, UpdatedAt = @Now
+              WHERE VehicleId = @Id AND (TenantId = @CurrentTenantId OR TenantId IS NULL) AND IsDeleted = 0",
+            new { Id = id, CurrentTenantId = currentTenantId, TargetTenantId = targetTenantId, Now = DateTime.UtcNow },
+            cancellationToken: cancellationToken));
     }
 
     public async Task<IReadOnlyList<string>> SoftDeleteAsync(
@@ -621,7 +676,7 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
             new CommandDefinition(
                 @"SELECT v.GpsDeviceId,
                          gd.Name AS DeviceName, gd.UniqueId, gd.IsActive, gd.LastSeenAt, gd.LastIgnition,
-                         vcl.Latitude, vcl.Longitude, vcl.Speed, vcl.LastUpdate,
+                         vcl.Latitude, vcl.Longitude, vcl.Speed, vcl.LastUpdate AS PositionUpdatedAt,
                          gd.SimNumber, COALESCE(tm.Name, gd.Model, gd.Name) AS ModelName, tb.Name AS BrandName,
                          gd.InstallationDate,
                          vcl.TotalDistanceKm, vcl.BatteryLevel, vcl.GsmSignal, vcl.Address,

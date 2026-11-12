@@ -31,7 +31,8 @@ public record VehicleDto(
     decimal? BatteryLevel = null, int? GsmSignal = null, string? Address = null,
     string? ImageUrl = null, string? TrackerName = null, string? TrackerModel = null,
     string? TrackerBrand = null, DateTime? TrackerInstallationDate = null,
-    DateTime? NextServiceDue = null, decimal? NextDueMileage = null, string? ServiceAlert = null);
+    DateTime? NextServiceDue = null, decimal? NextDueMileage = null, string? ServiceAlert = null,
+    int? CompanyId = null, string? CompanyName = null);
 
 public record CreateVehicleDto(
     string Name, string RegistrationNumber, string? Model, int? Year,
@@ -51,7 +52,9 @@ public record UpdateVehicleDto(
     string? Color = null, string? VehicleType = null,
     string? EngineNo = null, string? ChassisNo = null,
     DateTime? PurchaseDate = null, decimal? PurchasePrice = null, string? PurchaseCurrencyCode = null,
-    int? BranchId = null, int? DepartmentId = null);
+    int? BranchId = null, int? DepartmentId = null,
+    /// <summary>Super Admin may move the vehicle to another company (TenantId).</summary>
+    int? CompanyId = null);
 
 public record VehicleMaintenanceDto(
     int Id, int VehicleId, string Description, decimal Cost,

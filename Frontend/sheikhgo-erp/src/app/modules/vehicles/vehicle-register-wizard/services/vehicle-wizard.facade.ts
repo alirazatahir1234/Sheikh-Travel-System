@@ -6,6 +6,8 @@ import { VehicleService } from '../../../../core/services/vehicle.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { PlatformService } from '../../../../core/services/platform.service';
 import { LookupService } from '../../../../core/services/lookup.service';
+import { CompanyScopeService } from '../../../../core/services/company-scope.service';
+import { CompanyScopeController } from '../../../../shared/components/company-scope/company-scope.controller';
 import {
   CreateVehicleDto,
   FuelType,
@@ -63,6 +65,8 @@ export class VehicleWizardFacade {
   private readonly gpsService = inject(GpsTrackingService);
   private readonly platformService = inject(PlatformService);
   private readonly lookupService = inject(LookupService);
+  private readonly companyScopeService = inject(CompanyScopeService);
+  private readonly companyScope = inject(CompanyScopeController, { optional: true });
   private readonly router = inject(Router);
   private readonly toast = inject(UiToastService);
   private readonly destroy$ = new Subject<void>();
@@ -242,6 +246,9 @@ export class VehicleWizardFacade {
         gps: this.vehicleService.getGps(editId).pipe(catchError(() => of(null)))
       }).subscribe({
         next: ({ vehicle, documents, gps }) => {
+          if (vehicle.companyId) {
+            this.companyScope?.syncTo(vehicle.companyId, vehicle.companyName ?? undefined);
+          }
           this.prefillVehicle(vehicle);
           this.uploadedDocuments.set(documents);
           this.syncDocumentSlots(documents);
@@ -704,6 +711,23 @@ export class VehicleWizardFacade {
     this.vehicleId.set(null);
   }
 
+  /**
+   * Super Admin changed company on an existing vehicle: clear org fields that belong to the old
+   * tenant, reload company-scoped lookups, and persist CompanyId immediately.
+   */
+  async applyCompanyChange(companyId: number): Promise<void> {
+    if (!this.isEditMode() || !(companyId > 0)) return;
+    this.form.patchValue({ branchId: null });
+    this.loadBranches();
+    this.loadUnassignedDevices();
+    try {
+      await this.persistVehicle(false);
+      this.toast.success('Vehicle moved to the selected company');
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err, 'Failed to change vehicle company'));
+    }
+  }
+
   primaryCtaLabel(): string {
     const step = this.currentStep();
     if (step === 'review') {
@@ -982,7 +1006,12 @@ export class VehicleWizardFacade {
         }
       } else {
         const status = normalizeVehicleStatus(this.vehicleStatus(), VehicleStatus.Draft);
-        const updateDto: UpdateVehicleDto = { ...dto, status };
+        const companyId = this.companyScopeService.tenantId();
+        const updateDto: UpdateVehicleDto = {
+          ...dto,
+          status,
+          ...(companyId != null && companyId > 0 ? { companyId } : {})
+        };
         await firstValueFrom(this.vehicleService.update({ id, vehicle: updateDto }));
       }
       this.lastSavedAt.set(new Date());

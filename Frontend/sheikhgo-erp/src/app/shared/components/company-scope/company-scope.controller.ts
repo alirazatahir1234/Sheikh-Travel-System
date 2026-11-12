@@ -108,6 +108,33 @@ export class CompanyScopeController {
   }
 
   /**
+   * Edit wizards: show the company gate again so a Super Admin can move the record to another
+   * company without leaving the page. Cancel restores the form under the current company.
+   */
+  beginChange(): void {
+    if (!this.isSuperAdmin) return;
+    this.initialTenantId.set(this.company()?.id ?? this.scope.tenantId() ?? this.tenantContext.currentTenantId);
+    this.needsGate.set(true);
+  }
+
+  /** Dismiss a mid-edit company gate without navigating away. */
+  cancelChange(): void {
+    this.needsGate.set(false);
+  }
+
+  /** Force the banner/header scope onto the vehicle's real company after load. */
+  syncTo(tenantId: number, name?: string): void {
+    if (!this.isSuperAdmin || !(tenantId > 0)) return;
+    this.apply(tenantId, name);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tenantId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  /**
    * Recreate the routed component (same-URL navigation would reuse it). Hopping via `/` also clears
    * the area scope; {@link exitToOwnCompany} wants that, and a restarted gate preselects from
    * the platform tenant context instead.

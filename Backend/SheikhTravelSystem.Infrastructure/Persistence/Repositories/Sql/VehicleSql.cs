@@ -75,6 +75,8 @@ internal static class VehicleSql
         v.BranchId, v.DepartmentId, v.Status,
         CASE WHEN v.Status <> 4 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsActive,
         v.CreatedAt, v.UpdatedAt,
+        v.TenantId AS CompanyId,
+        t.Name AS CompanyName,
         d.FullName AS DriverName,
         activeAssign.DriverId AS DriverId,
         d.Phone AS DriverPhone,
@@ -109,6 +111,7 @@ internal static class VehicleSql
 
     internal const string DetailFrom = """
         FROM Vehicles v
+        LEFT JOIN Tenants t ON t.Id = v.TenantId
         OUTER APPLY (
             SELECT TOP 1 ah.DriverId
             FROM AssignmentHistory ah
