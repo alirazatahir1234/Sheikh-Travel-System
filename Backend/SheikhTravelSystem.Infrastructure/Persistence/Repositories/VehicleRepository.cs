@@ -61,13 +61,16 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
     public async Task<VehicleDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        return await connection.QuerySingleOrDefaultAsync<VehicleDto>(
+        // Map into mutable VehicleDetailRow first — VehicleDto positional record fails Dapper
+        // materialization when DetailColumns order/nullability diverge from the ctor signature.
+        var row = await connection.QuerySingleOrDefaultAsync<VehicleDetailRow>(
             new CommandDefinition(
                 $@"SELECT {VehicleSql.DetailColumns}
                   {VehicleSql.DetailFrom}
                   WHERE v.Id = @Id AND v.TenantId = @TenantId AND v.IsDeleted = 0",
                 new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
+        return row is null ? null : VehicleDetailMapper.ToDto(row);
     }
 
     public async Task<int?> GetTenantIdAsync(int id, CancellationToken cancellationToken = default)
