@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
+/* DM Sans + Syne are loaded via <link> in index.html (avoids build-time Google Fonts fetch). */
 
 .website-shell {
   --sg-ink: #032f32;

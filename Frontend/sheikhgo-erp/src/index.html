@@ -19,11 +19,13 @@
   <link rel="apple-touch-icon" href="brand/sheikhgo-app-icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="brand/sheikhgo-app-icon-512.png">
 
-  <!-- Inter (used as the app's primary typeface) -->
+  <!-- Fonts load at runtime via <link> (not SCSS @import) so CI builds do not fetch Google Fonts. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter (app primary typeface) -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <!-- DM Sans + Syne (public website / marketing surfaces) -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <!-- Plus Jakarta Sans + Manrope (Fleet management UI typefaces) -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 
