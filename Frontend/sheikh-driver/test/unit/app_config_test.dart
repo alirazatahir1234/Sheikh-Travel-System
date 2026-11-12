@@ -24,16 +24,16 @@ void main() {
       expect(AppConfig.appVersion, isNotEmpty);
     });
 
-    test('default production API is Azure Caddy HTTPS (sslip.io)', () {
+    test('default production API matches Fleet cleartext Azure :5082', () {
       expect(
         AppConfig.defaultProductionApiBaseUrl,
-        'https://20-174-1-230.sslip.io/api',
+        'http://20.174.1.230:5082/api',
       );
       final url = AppConfig.defaultProductionApiBaseUrl.toLowerCase();
-      expect(url.contains('sslip.io'), isTrue);
+      expect(url.contains('sslip.io'), isFalse);
       expect(url.contains('trycloudflare.com'), isFalse);
       expect(url.contains('railway.app'), isFalse);
-      expect(url.startsWith('https://'), isTrue);
+      expect(url.startsWith('http://20.174.1.230:5082'), isTrue);
       expect(url.endsWith('/api'), isTrue);
     });
 

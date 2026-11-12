@@ -1,5 +1,14 @@
 # SheikhGo Tracking — Release Notes
 
+## Unreleased (secure-connection fix)
+
+### Fixes
+- Default production API → `http://20.174.1.230:5082/api` (Fleet parity; leaves `sslip.io` / dead `trycloudflare` hosts)
+- `_isTlsFailure` no longer treats substring `ssl` as TLS (stops false “Secure connection failed.” for `sslip.io` errors)
+- iOS ATS exception for `20.174.1.230`; Android NSC already allowlisted cleartext to that IP
+- `build_prod.sh` / run scripts still refuse `railway.app` and `*.trycloudflare.com`
+- **Rebuild/reinstall required** for devices still on APKs that baked sslip or trycloudflare
+
 ## 1.0.4 (build 24) — 2026-10-22
 
 ### Fixes & polish
@@ -14,7 +23,7 @@
 ## 1.0.3 (build 23) — 2026-10-22
 
 ### Fixes
-- Production API `https://joke-rebates-titans-duties.trycloudflare.com/api` (Cloudflare quick tunnel; replaces unreachable sslip / retired Railway)
+- Production API previously pointed at Cloudflare quick tunnel `joke-rebates-titans-duties.trycloudflare.com` (**now NXDOMAIN / stale** — do not redistribute those APKs)
 - `build_prod.sh` refuses `railway.app` and `trycloudflare.com` bake-ins
 - Auth-path 404 → “Cannot reach login API…” (not generic “resource not found”)
 - Login footer shows API host for support screenshots
@@ -25,7 +34,7 @@
 
 ### Fixes
 - Login FailResponse (`success:false` + HTTP 200) no longer treated as success
-- Default production API → `https://joke-rebates-titans-duties.trycloudflare.com/api` (live VM quick-tunnel)
+- Default production API briefly used Cloudflare quick tunnel (host now dead — see Unreleased fix)
 - Release build script injects Maps key from `android/maps.properties`
 - Clearer 401 (auth paths) / 429 rate-limit messages; emulator block copy for testers
 

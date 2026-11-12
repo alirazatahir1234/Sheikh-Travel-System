@@ -6,15 +6,13 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 
 | Item | Value |
 |------|--------|
-| **HTTPS API (clients, current)** | `https://joke-rebates-titans-duties.trycloudflare.com` (Cloudflare quick tunnel; live value also in `/var/lib/sheikhgo/cloudflared-quick-url.txt` on VM) |
-| **HTTPS backup (Caddy)** | `https://20-174-1-230.sslip.io` (Let’s Encrypt; kept — some client networks see `ERR_ADDRESS_UNREACHABLE`) |
-| **Preferred HTTPS host later** | `https://api.sheikhgo.com` — add DNS A `api` → `20.174.1.230`, then flip frontend env URLs (paid/custom domain — not required for tunnel) |
-| HTTP API (Kestrel, kept for mobile/LAN) | `http://20.174.1.230:5082` |
-| API base (HTTPS clients) | `https://joke-rebates-titans-duties.trycloudflare.com/api` |
-| Health (tunnel) | `https://joke-rebates-titans-duties.trycloudflare.com/health` |
-| Health (Caddy) | `https://20-174-1-230.sslip.io/health` |
-| Health (HTTP) | `http://20.174.1.230:5082/health` |
-| systemd units | `sheikhgo-api` (Kestrel), `caddy` (TLS proxy), `sheikhgo-cloudflared` (free quick tunnel) |
+| **Mobile / Fleet API (current)** | `http://20.174.1.230:5082/api` (Kestrel cleartext; Android NSC + iOS ATS allowlisted) |
+| **HTTPS API (browsers / ERP / Hub)** | `https://20-174-1-230.sslip.io` (Caddy + Let’s Encrypt; SAN is **only** this hostname — do **not** use `https://20.174.1.230`) |
+| **Preferred HTTPS host later** | `https://api.sheikhgo.com` — add DNS A `api` → `20.174.1.230`, then flip client URLs (Caddyfile already lists the host) |
+| HTTP health | `http://20.174.1.230:5082/health` |
+| HTTPS health (Caddy) | `https://20-174-1-230.sslip.io/health` |
+| **Deprecated** | `*.trycloudflare.com` quick tunnels — currently **NXDOMAIN**; do not bake into APKs or `environment.prod.ts` |
+| systemd units | `sheikhgo-api` (Kestrel), `caddy` (TLS proxy); `sheikhgo-cloudflared` optional/legacy |
 | Env file | `/etc/sheikhgo/api.env` (chmod 600) |
 | Releases | `/opt/sheikhgo-api/releases/<stamp>` → `/opt/sheikhgo-api/current` |
 | Swap | 2G `/swapfile` |
@@ -24,51 +22,30 @@ Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azu
 
 ## HTTPS / Mixed Content (ERP on Vercel)
 
-`https://www.sheikhgo.com` must call an **HTTPS** API (never `http://20.174.1.230:5082`).
+`https://www.sheikhgo.com` must call an **HTTPS** API (never `http://20.174.1.230:5082`). ERP stays on Caddy/sslip (or `api.sheikhgo.com` once DNS is live).
 
-### Cloudflare quick tunnel (free, current clients)
+### Azure NSG (SheikhGo-VM-nsg) — verified 2026-11-12
 
-Free `*.trycloudflare.com` tunnel to Kestrel — **no paid domain**.
+Inbound allows already present (no rule changes required for this fix):
 
-| Item | Value |
-|------|--------|
-| Unit | `sheikhgo-cloudflared` |
-| Wrapper | `/usr/local/bin/sheikhgo-cloudflared-quick.sh` |
-| Current URL file | `/var/lib/sheikhgo/cloudflared-quick-url.txt` |
-| Target | `http://127.0.0.1:5082` |
-| Clients | ERP `environment.prod.ts` + Flutter `AppConfig.defaultProductionApiBaseUrl` |
+| Rule | Port | Source | Access |
+|------|------|--------|--------|
+| `Allow-SheikhGo-API-5082` | 5082 | Internet | Allow |
+| `Allow-HTTPS-443` | 443 | * | Allow |
+| `Allow-HTTP-80` | 80 | * | Allow |
+| `Deny-SQL-1433-Internet` | 1433 | Internet | Deny |
 
-```bash
-# Install (once) + start
-# cloudflared from GitHub .deb; systemd enables sheikhgo-cloudflared
-sudo systemctl status sheikhgo-cloudflared
-cat /var/lib/sheikhgo/cloudflared-quick-url.txt
-curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"
-```
+From an external probe, TCP **80 / 443 / 5082** to `20.174.1.230` succeed. If some mobile carriers still report `ERR_ADDRESS_UNREACHABLE` to the Azure public IP, that is **not** an NSG gap — prefer a Cloudflare **named** tunnel or `api.sheikhgo.com` proxied via CDN (not configured in-repo yet).
 
-**Caveat:** quick-tunnel URLs usually change whenever `sheikhgo-cloudflared` restarts. After a restart, update ERP + Flutter prod URLs to the new host and redeploy. Caddy/sslip.io remains as backup (some networks get `ERR_ADDRESS_UNREACHABLE` to the Azure public IP).
+### Cloudflare quick tunnel (legacy — do not ship)
 
-### How Ali updates the API URL after a tunnel restart
+Free `*.trycloudflare.com` tunnels die when `cloudflared` restarts (hostname becomes NXDOMAIN). Historical host `joke-rebates-titans-duties.trycloudflare.com` is dead. Mobile `build_prod.sh` and Vercel deploy rewrite **refuse** trycloudflare bake-ins.
 
-1. SSH to the VM and read the live host:
-   ```bash
-   ssh -i ~/.ssh/sheikhgo_vm_cicd azureuser@20.174.1.230 \
-     'cat /var/lib/sheikhgo/cloudflared-quick-url.txt'
-   curl -sS "$(cat that-url)/health"   # expect Healthy
-   ```
-2. Set the same origin (plus `/api`) in:
-   - `Frontend/sheikhgo-erp/src/environments/environment.prod.ts` → `apiUrl`
-   - `Frontend/sheikh-travel-customer-hub/src/environments/environment.prod.ts` → `apiRoot` / `hubRoot`
-   - `Frontend/sheikh-driver/lib/core/config/app_config.dart` → `defaultProductionApiBaseUrl`
-   - `Frontend/sheikh-driver/scripts/build_prod.sh` → `DEFAULT_PROD_API`
-3. Redeploy ERP/Hub to Vercel (`deploy/vercel/deploy-frontends.sh` or ADO frontend job) and rebuild mobile release APKs.
-4. Local `ng serve` (`environment.ts` → `/api` proxy to `:5082`) is unchanged — do not point localhost ERP at the tunnel unless testing prod.
+Named Cloudflare tunnels with a stable hostname require a zone in a Cloudflare account — not configured here.
 
-Named Cloudflare tunnels with a stable hostname require a zone in a Cloudflare account (still free plan possible) — not configured here.
+### Caddy / sslip.io (browser HTTPS)
 
-### Caddy / sslip.io (backup, kept)
-
-Caddy terminates TLS on **:443** and proxies to Kestrel **:5082**.
+Caddy terminates TLS on **:443** and proxies to Kestrel **:5082**. Cert SAN: `DNS:20-174-1-230.sslip.io` only.
 
 ```bash
 chmod +x deploy/azure-vm/install-caddy-tls.sh
@@ -77,13 +54,13 @@ chmod +x deploy/azure-vm/install-caddy-tls.sh
 
 Azure NSG must allow **80** (ACME) and **443** (HTTPS). Rules: `Allow-HTTP-80`, `Allow-HTTPS-443`.
 
-### Switch to `api.sheikhgo.com` (optional later)
+### Switch to `api.sheikhgo.com` (recommended next)
 
 1. Spaceship DNS → A record: `api` → `20.174.1.230` (TTL 300).
 2. Wait for `dig +short api.sheikhgo.com` → `20.174.1.230`.
 3. Caddy auto-issues the cert (same Caddyfile already lists the host).
 4. Update ERP / Hub / Flutter prod URLs → `https://api.sheikhgo.com`.
-5. Redeploy ERP to Vercel.
+5. Redeploy ERP to Vercel; rebuild mobile with HTTPS base URL.
 
 ## Azure DevOps self-hosted agent on the VM
 
@@ -98,51 +75,22 @@ Flow:
 ### What Ali must click once (agent + secrets)
 
 1. **Project settings → Agent pools → Add pool** named exactly **`SheikhGo-VM`** (self-hosted), if missing.
-2. Create a PAT: User settings → Personal access tokens → **Agent Pools (Read & manage)** + **Code (Read)** if needed. Copy once; do not commit.
-3. On the VM (SSH as `azureuser`):
+2. Create a PAT with Agent Pools (Read & manage).
+3. Run `deploy/azure-vm/install-ado-agent.sh` on the VM.
+4. Link Library variable group **`SheikhGo-Deploy`** (Vercel + Maps secrets).
 
-```bash
-cd /opt/sheikhgo-api/src/deploy/azure-vm   # after repo is on the VM
-# or copy install-ado-agent.sh from the repo
-export AZP_URL='https://dev.azure.com/Alirazatahir'
-export AZP_TOKEN='***PAT***'
-export AZP_POOL='SheikhGo-VM'
-export AZP_AGENT_NAME='sheikhgo-vm'
-chmod +x install-ado-agent.sh
-./install-ado-agent.sh
-unset AZP_TOKEN
-```
+## Verify
 
-4. **Pipelines → New pipeline → Azure Repos Git → SheikhGo** → **Existing Azure Pipelines YAML** → `/azure-pipelines.yml`.
-5. Add Vercel variables (see [azure-vm-vercel-cicd.md](./azure-vm-vercel-cicd.md)).
-6. Run once (manual) or push under `Backend/` / frontend paths to verify.
-
-### How to trigger / verify
-
-- **Trigger:** `git push` to `main`/`master` (with matching path changes), or **Run pipeline** in Azure DevOps.
-- **Verify tunnel:** `curl -sS "$(cat /var/lib/sheikhgo/cloudflared-quick-url.txt)/health"` → plain text `Healthy`
+- **Mobile / HTTP:** `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
 - **Verify Caddy HTTPS:** `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
-- **Verify HTTP (kept):** `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
 - **Liveness:** `curl -s http://20.174.1.230:5082/health/live` → plain text `Healthy` (no deps)
 - **Detail (JSON):** `curl -s http://20.174.1.230:5082/health/detail` → JSON `"status":"Healthy"` with per-check entries
 - **Readiness:** `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (or `503` if SQL/Redis/Traccar degraded)
-- **Logs:** `journalctl -u sheikhgo-api -f` / `journalctl -u caddy -f` / `journalctl -u sheikhgo-cloudflared -f`
-- **Agent:** Azure DevOps → Agent pools → SheikhGo-VM → agent online
-
-### Manual deploy (no ADO)
 
 ```bash
 ssh azureuser@20.174.1.230
-/opt/sheikhgo-api/deploy/deploy-api.sh
-# or from repo checkout:
-DEPLOY_BRANCH=main /opt/sheikhgo-api/src/deploy/azure-vm/deploy-api.sh
+sudo systemctl status sheikhgo-api caddy
+journalctl -u sheikhgo-api -n 80 --no-pager
 ```
 
-## Caveats
-
-- **CORS** already allows `https://www.sheikhgo.com` / `https://sheikhgo.com` and `*.sheikhgo.com` (no change required for sslip.io API host — CORS checks the browser Origin, not the API hostname).
-- **RAM:** ~4 GB VM with SQL + Traccar + API + Caddy; swap in use under load. Live unit uses `MemoryMax=512M` / `MemoryHigh=400M` (not managed by `deploy-api.sh` — unit lives on the VM only).
-- **Memory (Ali approve before changing live):** if swap stays high after worker/GPS fixes, consider a conservative bump, e.g. `MemoryMax=768M` + `MemoryHigh=600M` in `/etc/systemd/system/sheikhgo-api.service`, then `sudo systemctl daemon-reload && sudo systemctl restart sheikhgo-api`. Do **not** raise past ~1G without more host RAM or moving SQL/Traccar off-box. App-side mitigations (tighter history-replay default window + lower route/playback point caps) ship in code.
-- **Do not** restart/reconfigure Traccar or `sheikhgo-sql` for API deploys.
-- **SQL port lockdown:** `sheikhgo-sql` must publish `127.0.0.1:1433:1433` only. Public `0.0.0.0:1433` invites internet `sa` brute-force. Repo `docker-compose.db.yml` and `deploy/azure-vm/lockdown-sql-port.sh` enforce localhost bind. Azure NSG `SheikhGo-VM-nsg` must keep inbound 1433 denied (`Deny-SQL-1433-Internet`, no `VM-SQLSERVER` allow); host `ufw` deny 1433/tcp is optional defense-in-depth.
-- **Do not** pause/delete Railway until you explicitly choose to.
+- **CORS** already allows `https://www.sheikhgo.com` / `https://sheikhgo.com` and `*.sheikhgo.com` (CORS checks the browser Origin, not the API hostname).

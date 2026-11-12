@@ -78,6 +78,18 @@
 		<dict>
 			<key>NSAllowsLocalNetworking</key>
 			<true/>
+			<!-- Prod mobile default is http://20.174.1.230:5082 (Fleet parity).
+			     IP exceptions are best-effort on iOS; prefer api.sheikhgo.com HTTPS later. -->
+			<key>NSExceptionDomains</key>
+			<dict>
+				<key>20.174.1.230</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+					<key>NSIncludesSubdomains</key>
+					<false/>
+				</dict>
+			</dict>
 		</dict>
 		<key>NSCameraUsageDescription</key>
 		<string>SheikhGo Tracking needs the camera to capture fuel receipts, inspection photos, and compliance documents.</string>

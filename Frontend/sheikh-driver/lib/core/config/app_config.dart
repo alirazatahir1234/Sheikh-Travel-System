@@ -11,13 +11,22 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
-  /// Stable Azure HTTPS (Caddy + Let’s Encrypt on sslip.io) — same host as ERP
-  /// `environment.prod.ts`. Used by release builds when `API_BASE_URL` is omitted.
-  /// Prefer this over `*.trycloudflare.com` quick tunnels (hostname changes on
-  /// restart). Override anytime with `--dart-define=API_BASE_URL=...`.
-  /// Later: `https://api.sheikhgo.com/api` once DNS is live.
+  /// Production API for release builds when `API_BASE_URL` is omitted.
+  ///
+  /// Matches Fleet (`http://20.174.1.230:5082/api`) and Android
+  /// `network_security_config` cleartext allowlist. Do **not** use:
+  /// - `*.trycloudflare.com` (ephemeral / currently NXDOMAIN)
+  /// - `https://20.174.1.230` (Let’s Encrypt SAN is only `20-174-1-230.sslip.io`)
+  /// - `https://20-174-1-230.sslip.io` as the mobile default (hostname embeds
+  ///   `ssl` and previously triggered false "Secure connection failed" copy;
+  ///   some networks also fail direct Azure IP reachability via that path)
+  ///
+  /// Prefer later: `https://api.sheikhgo.com/api` once DNS A → 20.174.1.230
+  /// is live (Caddyfile already lists that host). ERP browsers stay on HTTPS
+  /// (sslip / api.sheikhgo.com) — never cleartext from www.sheikhgo.com.
+  /// Override anytime with `--dart-define=API_BASE_URL=...`.
   static const String defaultProductionApiBaseUrl =
-      'https://20-174-1-230.sslip.io/api';
+      'http://20.174.1.230:5082/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.
@@ -55,8 +64,8 @@ class AppConfig {
   ///
   /// Resolution order:
   /// 1. Explicit `--dart-define=API_BASE_URL=...` (full URL wins).
-  /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl] (HTTPS).
-  /// 3. Release builds without prod/uat or HTTPS define → force prod HTTPS
+  /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl].
+  /// 3. Release builds without prod/uat or an HTTPS define → force prod API
   ///    (never ship `10.0.2.2` / `localhost` / cleartext LAN to Play).
   /// 4. `--dart-define=DEV_LAN_HOST=...` → `http://{host}:5082/api`
   ///    (physical Android / iOS on the same Wi‑Fi as the Mac).
@@ -78,7 +87,7 @@ class AppConfig {
     }
     if (isProd || isUat) return defaultProductionApiBaseUrl;
 
-    // Release without ENV=prod|uat and without API_BASE_URL → prod HTTPS.
+    // Release without ENV=prod|uat and without API_BASE_URL → prod API.
     if (kReleaseMode) return defaultProductionApiBaseUrl;
 
     final lanHost = _devLanHostDefine.trim();

@@ -20,15 +20,18 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-# Stable Azure HTTPS (Caddy / sslip.io) — same as ERP environment.prod.ts.
-# Do NOT default to retired Railway or a stale *.trycloudflare.com quick tunnel
-# (quick-tunnel hostnames die when cloudflared restarts).
-DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
+# Mobile prod default matches Fleet: cleartext Kestrel on Azure VM :5082
+# (network_security_config allows 20.174.1.230). Do NOT default to:
+# - retired Railway / stale *.trycloudflare.com (NXDOMAIN when tunnel dies)
+# - https://20.174.1.230 (cert SAN is only 20-174-1-230.sslip.io)
+# Prefer later: https://api.sheikhgo.com/api once DNS is live.
+# ERP browsers keep HTTPS (sslip / api.sheikhgo.com) — Mixed Content.
+DEFAULT_PROD_API='http://20.174.1.230:5082/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 case "$API_BASE_URL" in
   *railway.app*|*trycloudflare.com*)
     echo "ERROR: Refusing retired/stale API host: $API_BASE_URL"
-    echo "  Use: $DEFAULT_PROD_API (or a live named tunnel / api.sheikhgo.com)"
+    echo "  Use: $DEFAULT_PROD_API (or https://api.sheikhgo.com/api when DNS is live)"
     exit 1
     ;;
 esac

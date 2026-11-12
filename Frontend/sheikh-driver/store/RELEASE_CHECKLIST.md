@@ -6,8 +6,8 @@
 - [ ] `flutter analyze` clean enough for release
 - [ ] Version bumped in `pubspec.yaml` (`x.y.z+build`)
 - [ ] `store/RELEASE_NOTES.md` updated for this build
-- [ ] Prod API: `ENV=prod` — default is Azure Caddy `https://20-174-1-230.sslip.io/api` (`AppConfig.defaultProductionApiBaseUrl` / `scripts/build_prod.sh`; same as ERP). Confirm `curl -sS https://20-174-1-230.sslip.io/health` → `Healthy` before store upload.
-- [ ] Cert pins set: `CERT_PIN_1` / `CERT_PIN_2` (recommended for store; without pins HTTPS still works)
+- [ ] Prod API: `ENV=prod` — default is `http://20.174.1.230:5082/api` (Fleet parity; Android NSC + iOS ATS exception). Confirm `curl -sS http://20.174.1.230:5082/health` → `Healthy` before store upload. Prefer `https://api.sheikhgo.com/api` once DNS is live. Never bake `*.trycloudflare.com`.
+- [ ] Cert pins: optional / N/A for cleartext `:5082` default; set `CERT_PIN_*` only when shipping HTTPS (`api.sheikhgo.com`)
 - [ ] Maps: `android/maps.properties` (or `GOOGLE_MAPS_API_KEY` env) present before `./scripts/build_prod.sh` — blank map otherwise
 - [ ] `GOOGLE_MAPS_KEY` / Maps key restricted to app package / bundle id + release SHA-1
 - [ ] Firebase: `google-services.json` + `GoogleService-Info.plist` for **prod** project (see `android/app/GOOGLE_SERVICES.md`) — missing file disables FCM but app still launches
@@ -31,10 +31,9 @@ cd Frontend/sheikh-driver
 # Or:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
-  --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
   --dart-define=TERMS_URL=https://example.com/driver/terms
 ```
@@ -60,9 +59,8 @@ flutter build appbundle --release \
 # Or:
 flutter build ipa --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
   --dart-define=TENANT_SLUG=default \
-  --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
   --dart-define=TERMS_URL=https://example.com/driver/terms
 ```

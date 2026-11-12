@@ -198,17 +198,22 @@ EOF
     fi
 
     # Safety net: never ship Mixed Content HTTP API URL.
-    # Prefer Cloudflare quick tunnel from environment.prod.ts when present;
-    # otherwise fall back to stable Caddy/sslip HTTPS (not ephemeral).
+    # Rewrite to stable Caddy/sslip HTTPS (or api.sheikhgo.com once DNS is live).
+    # Do NOT fall back to *.trycloudflare.com — quick tunnels die (NXDOMAIN).
     if [[ -d .vercel/output/static ]]; then
       ENV_PROD="${ROOT}/Frontend/sheikhgo-erp/src/environments/environment.prod.ts"
       if [[ "$name" == "sheikhgo-erp" ]] && grep -qE "apiUrl:[[:space:]]*'http://20\\.174\\.1\\.230:5082" "$ENV_PROD" 2>/dev/null; then
         echo "WARN: environment.prod.ts still has raw HTTP apiUrl — will rewrite build output to HTTPS." >&2
       fi
-      TUNNEL_HOST="$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' \
-        "$ENV_PROD" 2>/dev/null | head -1 || true)"
-      # Prefer tunnel baked into environment.prod.ts; fallback matches VM quick-url.
-      REWRITE_TO="${TUNNEL_HOST:-https://joke-rebates-titans-duties.trycloudflare.com}"
+      HTTPS_ORIGIN="$(grep -oE 'https://[a-zA-Z0-9.-]+' "$ENV_PROD" 2>/dev/null \
+        | grep -v trycloudflare | head -1 || true)"
+      REWRITE_TO="${HTTPS_ORIGIN:-https://20-174-1-230.sslip.io}"
+      case "$REWRITE_TO" in
+        *trycloudflare.com*|*railway.app*)
+          echo "ERROR: Refusing stale HTTPS rewrite target: $REWRITE_TO" >&2
+          exit 1
+          ;;
+      esac
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "Rewriting baked http://20.174.1.230:5082 → ${REWRITE_TO} in build output"
         find .vercel/output/static -type f -name '*.js' -print0 \
@@ -220,6 +225,10 @@ EOF
       fi
       if grep -Rql 'http://20\.174\.1\.230:5082' .vercel/output/static --include='*.js' 2>/dev/null; then
         echo "ERROR: HTTP API URL still present after rewrite — refusing deploy." >&2
+        exit 1
+      fi
+      if grep -Rql 'trycloudflare.com' .vercel/output/static --include='*.js' 2>/dev/null; then
+        echo "ERROR: trycloudflare.com still present in frontend build — refusing deploy." >&2
         exit 1
       fi
       # Refuse any remaining non-HTTPS API host for ERP (defense in depth).

@@ -63,16 +63,18 @@ Supports **Android emulator + physical Samsung (or any phone)** without editing 
 Resolution order:
 
 1. Explicit `--dart-define=API_BASE_URL=...` (full URL always wins)
-2. When `--dart-define=ENV=prod` or `ENV=uat`: Production HTTPS (same host as ERP)
+2. When `--dart-define=ENV=prod` or `ENV=uat`: Production API (Fleet-parity Azure `:5082`)
 3. `--dart-define=DEV_LAN_HOST=192.168.x.x` → `http://{host}:5082/api` (physical device)
 4. Otherwise platform local defaults
 
 | Target | Default |
 |--------|---------|
-| `ENV=prod` / `ENV=uat` / release | `https://20-174-1-230.sslip.io/api` (Azure Caddy HTTPS; same as ERP) |
+| `ENV=prod` / `ENV=uat` / release | `http://20.174.1.230:5082/api` (same as Fleet; Android cleartext allowlisted) |
 | Physical phone + `DEV_LAN_HOST` / `API_BASE_URL` | `http://{MacLAN}:5082/api` |
 | Android emulator (`ENV=dev`, no LAN define) | `http://10.0.2.2:5082/api` |
 | iOS Simulator / desktop (`ENV=dev`) | `http://localhost:5082/api` |
+
+ERP/browser clients use HTTPS (`https://20-174-1-230.sslip.io` until `api.sheikhgo.com` DNS is live). Do not bake `*.trycloudflare.com` or bare-IP HTTPS (cert SAN mismatch).
 
 SignalR uses `AppConfig.hubBaseUrl` (`{apiOrigin}/hubs/tracking`, or `--dart-define=HUB_URL=...`).
 
@@ -114,7 +116,7 @@ Seed login (DatabaseSeeder): **`admin@sheikhtravel.com` / `Pass@123`**
 Driver phone: `03021234567` / `Pass@123`  
 (Do not use `Admin@123` — that is outdated Postman copy.)
 
-Debug login shows the resolved API URL under the password field. Use a **debug** build on emulators — release AAB/APK (`ENV=prod`) blocks emulators and points at `https://20-174-1-230.sslip.io/api`.
+Debug login shows the resolved API URL under the password field. Use a **debug** build on emulators — release AAB/APK (`ENV=prod`) blocks emulators and points at `http://20.174.1.230:5082/api`.
 
 ### Physical / wireless Android (Samsung A05)
 
@@ -285,24 +287,24 @@ See `store/` for privacy, terms, listing copy, screenshots guide, release notes,
 - **Prod builds** — `scripts/build_prod.sh`
 
 ```bash
-# Release APK for any physical device (defaults to sslip.io HTTPS)
+# Release APK for any physical device (defaults to http://20.174.1.230:5082/api)
 ./scripts/run_prod_device.sh
 
 # iPhone USB release (no TestFlight) — production API
 ./scripts/run_ios_prod_device.sh
 
 # Android App Bundle (requires android/key.properties — see key.properties.example)
-# API_BASE_URL defaults to https://20-174-1-230.sslip.io/api
+# API_BASE_URL defaults to http://20.174.1.230:5082/api (Fleet parity)
 # Ensure android/maps.properties exists (or export GOOGLE_MAPS_API_KEY)
 export PRIVACY_URL=https://example.com/fleet/privacy
 export TERMS_URL=https://example.com/fleet/terms
-export CERT_PIN_1=YOUR_SHA256_HEX   # optional; without pins HTTPS still works, pinning is off
+export CERT_PIN_1=YOUR_SHA256_HEX   # optional; pinning off unless set (HTTP prod has no TLS pin)
 ./scripts/build_prod.sh android
 
 # Or direct flutter:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://20-174-1-230.sslip.io/api \
+  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
   --dart-define=GOOGLE_MAPS_KEY=YOUR_KEY \
   --dart-define=PRIVACY_URL=https://example.com/fleet/privacy \
   --dart-define=TERMS_URL=https://example.com/fleet/terms \

@@ -14,8 +14,8 @@ The older **`SheikhGo-Deploy`** definition (Azure Repos mirror `SheikhGo`) is **
 
 Trigger branches: **main** and **master** (`batch: true`). Deploy job refuses Azure Repos provider and refuses SourceVersions that are behind `origin/main` tip. Manual recovery: run **SheikhGo-Deploy-GitHub** with **Force full deploy** checked.
 
-Live API HTTPS: `https://joke-rebates-titans-duties.trycloudflare.com` (Cloudflare quick tunnel → Kestrel) · Caddy backup: `https://20-174-1-230.sslip.io` · HTTP kept: `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy`, `sheikhgo-cloudflared` · health: `/health`  
-Preferred host after DNS: `https://api.sheikhgo.com` — see [azure-vm-api.md](./azure-vm-api.md).
+Live API HTTPS (browsers): `https://20-174-1-230.sslip.io` (Caddy + Let’s Encrypt) · HTTP (mobile/Fleet): `http://20.174.1.230:5082` · units: `sheikhgo-api`, `caddy` · health: `/health`  
+Do **not** use dead `*.trycloudflare.com` quick tunnels. Preferred host after DNS: `https://api.sheikhgo.com` — see [azure-vm-api.md](./azure-vm-api.md).
 
 ---
 
@@ -84,9 +84,8 @@ Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pip
 
 ## Verify
 
-- Backend HTTPS (tunnel): `curl -s https://joke-rebates-titans-duties.trycloudflare.com/health` → plain text `Healthy`
-- Backend HTTPS (Caddy backup): `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
-- Backend HTTP (kept): `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
+- Backend HTTPS (Caddy / browsers): `curl -s https://20-174-1-230.sslip.io/health` → plain text `Healthy`
+- Backend HTTP (mobile/Fleet): `curl -s http://20.174.1.230:5082/health` → plain text `Healthy`
 - Detail JSON: `curl -s http://20.174.1.230:5082/health/detail` → `"status":"Healthy"`
 - Readiness: `curl -s -o /dev/null -w '%{http_code}' http://20.174.1.230:5082/health/ready` → `200` (503 if deps degraded)
 - Logs: `journalctl -u sheikhgo-api -f` on the VM

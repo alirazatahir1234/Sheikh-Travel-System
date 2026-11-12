@@ -14,14 +14,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
+DEFAULT_PROD_API='http://20.174.1.230:5082/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 ENV_NAME="${ENV:-prod}"
 
 case "$API_BASE_URL" in
   *railway.app*|*trycloudflare.com*)
     echo "ERROR: Refusing retired/stale API host: $API_BASE_URL"
-    echo "  Use: $DEFAULT_PROD_API"
+    echo "  Use: $DEFAULT_PROD_API (or https://api.sheikhgo.com/api when DNS is live)"
     exit 1
     ;;
 esac

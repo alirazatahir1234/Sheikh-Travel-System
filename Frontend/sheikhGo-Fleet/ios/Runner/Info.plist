@@ -78,6 +78,17 @@
 		<dict>
 			<key>NSAllowsLocalNetworking</key>
 			<true/>
+			<!-- Prod default is http://20.174.1.230:5082. Prefer api.sheikhgo.com HTTPS later. -->
+			<key>NSExceptionDomains</key>
+			<dict>
+				<key>20.174.1.230</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+					<key>NSIncludesSubdomains</key>
+					<false/>
+				</dict>
+			</dict>
 		</dict>
 		<key>NSCameraUsageDescription</key>
 		<string>SheikhGo Fleet needs the camera to capture fuel receipts, inspection photos, and compliance documents.</string>
