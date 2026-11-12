@@ -76,15 +76,30 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
 
   onCompanyConfirmed(tenant: Tenant): void {
     this.companyScope.confirm(tenant);
+    if (this.facade.isEditMode()) {
+      void this.facade.applyCompanyChange(tenant.id);
+      return;
+    }
     this.facade.init(undefined);
   }
 
   onCompanyGateCancelled(): void {
+    if (this.facade.isEditMode()) {
+      this.companyScope.cancelChange();
+      return;
+    }
     void this.router.navigate(['/vehicles']);
   }
 
-  /** Drop the empty draft created in the current company, then pick again. */
+  /**
+   * Create: drop the empty draft, then pick again.
+   * Edit: re-open the company gate and persist the new company on confirm.
+   */
   async changeCompany(): Promise<void> {
+    if (this.facade.isEditMode()) {
+      this.companyScope.beginChange();
+      return;
+    }
     await this.facade.discardNewDraft();
     this.companyScope.restart('/vehicles/new');
   }

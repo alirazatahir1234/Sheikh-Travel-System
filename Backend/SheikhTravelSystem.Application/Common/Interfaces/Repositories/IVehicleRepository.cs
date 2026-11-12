@@ -20,6 +20,8 @@ public interface IVehicleRepository
 
     Task<VehicleDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
+    Task<int?> GetTenantIdAsync(int id, CancellationToken cancellationToken = default);
+
     Task EnsureExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task<bool> RegistrationExistsAsync(
@@ -33,9 +35,10 @@ public interface IVehicleRepository
         bool saveAsDraft,
         CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(
+    Task PersistVehicleAsync(
         int id,
-        int tenantId,
+        int currentTenantId,
+        int targetTenantId,
         UpdateVehicleDto dto,
         CancellationToken cancellationToken = default);
 
@@ -137,7 +140,7 @@ public sealed class VehicleGpsSnapshot
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public decimal? Speed { get; set; }
-    public DateTime? LastUpdate { get; set; }
+    public DateTime? PositionUpdatedAt { get; set; }
     public string? SimNumber { get; set; }
     public string? ModelName { get; set; }
     public string? BrandName { get; set; }

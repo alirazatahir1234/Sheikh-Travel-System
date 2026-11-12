@@ -116,6 +116,8 @@ export interface Vehicle {
   nextServiceDue?: string | null;
   nextDueMileage?: number | null;
   serviceAlert?: string | null;
+  companyId?: number | null;
+  companyName?: string | null;
 }
 
 /** Inner DTO — POST body sends `{ "vehicle": CreateVehicleDto }`. */
@@ -146,6 +148,8 @@ export interface CreateVehicleDto {
 /** Inner DTO — PUT body sends `{ "id": number, "vehicle": UpdateVehicleDto }`. */
 export interface UpdateVehicleDto extends CreateVehicleDto {
   status: VehicleStatus;
+  /** Super Admin may move the vehicle to another company. */
+  companyId?: number | null;
 }
 
 export interface CreateVehicleRequest {
@@ -348,7 +352,8 @@ export function sanitizeCreateVehicleDto(dto: CreateVehicleDto): CreateVehicleDt
 export function sanitizeUpdateVehicleDto(dto: UpdateVehicleDto): UpdateVehicleDto {
   return {
     ...sanitizeCreateVehicleDto(dto),
-    status: normalizeVehicleStatus(dto.status, VehicleStatus.Draft)
+    status: normalizeVehicleStatus(dto.status, VehicleStatus.Draft),
+    companyId: toOptionalInt(dto.companyId)
   };
 }
 

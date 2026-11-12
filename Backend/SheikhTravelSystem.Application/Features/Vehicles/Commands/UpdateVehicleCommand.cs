@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
@@ -51,13 +52,46 @@ public class UpdateVehicleCommandValidator : AbstractValidator<UpdateVehicleComm
     }
 }
 
-public class UpdateVehicleCommandHandler(IVehicleRepository vehicleRepository, ITenantContext tenantContext)
+public class UpdateVehicleCommandHandler(
+    IVehicleRepository vehicleRepository,
+    IUserRepository userRepository,
+    IPlatformScope platformScope)
     : IRequestHandler<UpdateVehicleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateVehicleCommand request, CancellationToken cancellationToken)
     {
-        await vehicleRepository.UpdateAsync(
-            request.Id, tenantContext.GetRequiredTenantId(), request.Vehicle, cancellationToken);
+        var dto = request.Vehicle;
+
+        var currentTenantId = await vehicleRepository.GetTenantIdAsync(request.Id, cancellationToken);
+        if (!currentTenantId.HasValue)
+            throw new NotFoundException("Vehicle", request.Id);
+
+        platformScope.EnsureTenantAccess(currentTenantId.Value);
+
+        var targetTenantId = ResolveTargetTenantId(currentTenantId.Value, dto.CompanyId);
+        if (targetTenantId != currentTenantId.Value)
+            platformScope.EnsureTenantAccess(targetTenantId);
+
+        await userRepository.EnsureOrgBelongsToTenantAsync(
+            targetTenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
+
+        await vehicleRepository.PersistVehicleAsync(
+            request.Id, currentTenantId.Value, targetTenantId, dto, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Vehicle updated successfully.");
+    }
+
+    private int ResolveTargetTenantId(int currentTenantId, int? companyId)
+    {
+        if (!platformScope.IsSuperAdmin)
+        {
+            if (companyId is int requested && requested > 0 && requested != currentTenantId)
+                throw new ForbiddenException("You cannot move vehicles to another company.");
+            return currentTenantId;
+        }
+
+        if (companyId is int cid && cid > 0)
+            return cid;
+
+        return currentTenantId;
     }
 }
