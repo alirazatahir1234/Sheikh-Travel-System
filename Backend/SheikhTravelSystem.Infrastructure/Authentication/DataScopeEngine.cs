@@ -74,6 +74,29 @@ public class DataScopeEngine(IDbConnectionFactory dbFactory) : IDataScopeEngine
                 .ToList();
         }
 
+        // Platform SUPER_ADMIN is global. When deep-linking into another company
+        // (X-Tenant-Id / ?tenantId=), UserRoles for that tenant are empty — without
+        // this inject, scope falls through to home-branch clamps or empty lists.
+        // Mirrors PermissionEngine's holdsPlatformSuperAdmin bridge.
+        if (!assignments.Any(a => string.Equals(a.RoleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)))
+        {
+            var holdsPlatformSuperAdmin = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+                SELECT TOP 1 1
+                FROM UserRoles ur
+                INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+                WHERE ur.UserId = @UserId AND UPPER(r.Code) = N'SUPER_ADMIN'
+                """, new { UserId = userId }, cancellationToken: cancellationToken)) == 1;
+
+            if (holdsPlatformSuperAdmin)
+            {
+                assignments.Insert(0, new DataScopeResolver.RoleAssignmentInput(
+                    PlatformRoles.SuperAdmin,
+                    DataScopeResolver.ScopeCompany,
+                    null,
+                    null));
+            }
+        }
+
         return DataScopeResolver.Resolve(
             userId,
             tenantId,
