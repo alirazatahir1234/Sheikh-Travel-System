@@ -190,6 +190,7 @@ public static class DatabaseMigrationRegistry
             M("ModuleCatalogCleanupMigration", ModuleCatalogCleanupMigration.ApplyAsync),
             M("HarshBrakingSmsAlertsMigration", HarshBrakingSmsAlertsMigration.ApplyAsync),
             M("GpsDuplicateTraccarDeviceIdMigration", GpsDuplicateTraccarDeviceIdMigration.ApplyAsync),
+            M("VehicleDocumentTenantAlignMigration", VehicleDocumentTenantAlignMigration.ApplyAsync),
         ];
     }
 }

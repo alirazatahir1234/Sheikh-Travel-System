@@ -714,8 +714,12 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                       CASE WHEN NULLIF(LTRIM(RTRIM(FileUrl)), '') IS NOT NULL THEN 0 ELSE 1 END,
                       CreatedAt DESC
                   ) AS rn
-                FROM VehicleDocuments
-                WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0
+                FROM VehicleDocuments vd
+                -- Scope by the owning vehicle's company (same rule as the profile image join),
+                -- so documents with a stale/NULL TenantId still show in the edit wizard.
+                WHERE vd.VehicleId = @VehicleId AND vd.IsDeleted = 0
+                  AND EXISTS (SELECT 1 FROM Vehicles v
+                              WHERE v.Id = vd.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0)
               ) ranked
               WHERE DocumentType = N'VehicleImage' OR rn = 1
               ORDER BY CreatedAt DESC",
