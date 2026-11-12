@@ -30,12 +30,30 @@
     </div>
   </ui-page-header>
 
-  @if (companyScope.company(); as company) {
+  @if (companyScope.isSuperAdmin && companyScope.needsGate()) {
+    <app-company-scope-gate
+      entityLabel="vehicles"
+      mode="filter"
+      [initialTenantId]="companyScope.initialTenantId()"
+      (confirmed)="onCompanyFilter($event)"
+      (cancelled)="onCompanyFilterCancel()" />
+  } @else if (companyScope.company(); as company) {
     <app-company-scope-banner
       [companyName]="company.name"
       prefix="Viewing vehicles of"
-      actionLabel="Back to my company"
-      (action)="companyScope.exitToOwnCompany('/vehicles')" />
+      actionLabel="Change company"
+      (action)="companyScope.beginChange()" />
+    <div class="company-scope-exit">
+      <button type="button" class="company-scope-exit__btn" (click)="companyScope.exitToOwnCompany('/vehicles')">
+        Back to my company
+      </button>
+    </div>
+  } @else if (companyScope.isSuperAdmin) {
+    <div class="company-scope-exit">
+      <button type="button" class="company-scope-exit__btn" (click)="companyScope.beginChange()">
+        Filter by company
+      </button>
+    </div>
   }
 
   <div class="kpi-grid">

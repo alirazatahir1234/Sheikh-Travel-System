@@ -29,12 +29,21 @@ import { Tenant } from '../../../core/models/platform.model';
     <section class="company-gate mx-auto mt-6 max-w-xl" aria-labelledby="company-gate-title">
       <div class="company-gate__icon"><mat-icon>apartment</mat-icon></div>
       <h2 id="company-gate-title" class="company-gate__title">
-        {{ mode === 'move' ? 'Move this ' + entityLabel + ' to which company?' : 'Which company is this ' + entityLabel + ' for?' }}
+        @if (mode === 'move') {
+          Move this {{ entityLabel }} to which company?
+        } @else if (mode === 'filter') {
+          Show {{ entityLabel }} for which company?
+        } @else {
+          Which company is this {{ entityLabel }} for?
+        }
       </h2>
       <p class="company-gate__lead">
         @if (mode === 'move') {
           As Super Admin you can move this {{ entityLabel }} to another company. Branch and department
           from the previous company are cleared; documents and GPS stay with the vehicle.
+        } @else if (mode === 'filter') {
+          As Super Admin you can filter this list to any company. Vehicles, branches and drivers below
+          will load for the company you choose.
         } @else {
           As Super Admin you can add a {{ entityLabel }} to any company. Everything in this form — branches,
           departments, GPS devices and the saved record — will belong to the company you choose.
@@ -118,8 +127,8 @@ import { Tenant } from '../../../core/models/platform.model';
 export class CompanyScopeGateComponent implements OnInit {
   /** e.g. "driver" / "vehicle". */
   @Input() entityLabel = 'record';
-  /** create = new record gate; move = change company on an existing record. */
-  @Input() mode: 'create' | 'move' = 'create';
+  /** create = new record; move = change company on an existing record; filter = list scope. */
+  @Input() mode: 'create' | 'move' | 'filter' = 'create';
   /** Preselected company (route ?tenantId or the platform's selected company). */
   @Input() initialTenantId: number | null = null;
 

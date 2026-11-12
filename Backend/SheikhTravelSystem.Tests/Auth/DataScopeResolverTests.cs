@@ -20,6 +20,21 @@ public class DataScopeResolverTests
     }
 
     [Fact]
+    public void SuperAdmin_Injected_For_Other_Tenant_Is_CompanyWide()
+    {
+        // DataScopeEngine injects SUPER_ADMIN when the platform operator deep-links
+        // into another company that has no local UserRoles row for them.
+        var result = DataScopeResolver.Resolve(
+            1, tenantId: 5, homeBranchId: null, homeDepartmentId: null,
+            [new DataScopeResolver.RoleAssignmentInput("SUPER_ADMIN", "Company", null, null)]);
+
+        result.IsCompanyWide.Should().BeTrue();
+        result.Source.Should().Be("super_admin");
+        result.BranchIds.Should().BeEmpty();
+        result.DepartmentIds.Should().BeEmpty();
+    }
+
+    [Fact]
     public void TenantAdmin_Is_CompanyWide()
     {
         var result = DataScopeResolver.Resolve(

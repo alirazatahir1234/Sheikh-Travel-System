@@ -54,6 +54,8 @@ import {
 
 import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
 import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
+import { CompanyScopeGateComponent } from '../../../shared/components/company-scope/company-scope-gate.component';
+import { Tenant } from '../../../core/models/platform.model';
 
 @Component({
   selector: 'app-vehicle-inventory-page',
@@ -62,6 +64,7 @@ import { CompanyScopeBannerComponent } from '../../../shared/components/company-
     RouterModule,
     MatIconModule,
     CompanyScopeBannerComponent,
+    CompanyScopeGateComponent,
     MatMenuModule,
     MatButtonModule,
     MatDialogModule,
@@ -287,6 +290,20 @@ export class VehicleInventoryPageComponent implements OnInit {
     } else {
       this.companyTenantId = this.tenantContext.currentTenantId;
     }
+  }
+
+  /** Super Admin picked a company filter on this list — scope + reload via ?tenantId=. */
+  onCompanyFilter(tenant: Tenant): void {
+    this.companyScope.confirm(tenant);
+  }
+
+  onCompanyFilterCancel(): void {
+    if (this.companyScope.company()) {
+      this.companyScope.cancelChange();
+      return;
+    }
+    // No company in scope yet — stay on the list without a gate.
+    this.companyScope.cancelChange();
   }
 
   load(): void {
