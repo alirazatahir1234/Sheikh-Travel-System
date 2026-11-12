@@ -33,7 +33,9 @@ void main() {
       expect(url.contains('sslip.io'), isTrue);
       expect(url.contains('trycloudflare.com'), isFalse);
       expect(url.contains('railway.app'), isFalse);
+      // Cleartext Azure :5082 breaks on many cellular networks (HTTP 302).
       expect(url.startsWith('https://'), isTrue);
+      expect(url.contains('20.174.1.230:5082'), isFalse);
       expect(url.endsWith('/api'), isTrue);
     });
 

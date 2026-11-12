@@ -172,12 +172,27 @@ class ErrorHandler {
     return parts.join(' ').toLowerCase();
   }
 
-  static bool _isTlsFailure(String detail) =>
-      detail.contains('handshakeexception') ||
-      detail.contains('certificate_verify_failed') ||
-      detail.contains('certificateverifyfailed') ||
-      detail.contains('bad certificate') ||
-      detail.contains('ssl');
+  /// True for real TLS/certificate failures only.
+  ///
+  /// Do **not** use a bare `contains('ssl')` check — that falsely matches
+  /// hostnames like `sslip.io` in ordinary connection-error messages and
+  /// surfaces "Secure connection failed." for non-TLS failures.
+  static bool _isTlsFailure(String detail) {
+    const phrases = <String>[
+      'handshakeexception',
+      'certificate_verify_failed',
+      'certificateverifyfailed',
+      'certificate verify failed',
+      'bad certificate',
+      'tlsv1 alert',
+      'ssl handshake',
+      'ssl error',
+      'sslexception',
+    ];
+    if (phrases.any(detail.contains)) return true;
+    // Word-boundary ssl/tls — does not match "sslip".
+    return RegExp(r'\b(ssl|tls)\b').hasMatch(detail);
+  }
 
   static bool _isDnsFailure(String detail) =>
       detail.contains('failed host lookup') ||

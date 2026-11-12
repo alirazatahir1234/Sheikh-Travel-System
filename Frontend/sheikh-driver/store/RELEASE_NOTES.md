@@ -1,5 +1,12 @@
 # SheikhGo Tracking — Release Notes
 
+## 1.0.5 (build 28) — 2026-11-12
+
+### Fixes
+- Keep prod API on HTTPS `https://20-174-1-230.sslip.io/api` (do not ship cleartext `:5082` — carriers often return HTTP 302 on mobile data while Wi‑Fi still works)
+- Harden TLS error detection so `sslip.io` hostnames are not mislabeled "Secure connection failed"
+- `build_prod.sh` refuses cleartext `http://` API_BASE_URL overrides for release builds
+
 ## 1.0.4 (build 24) — 2026-10-22
 
 ### Fixes & polish

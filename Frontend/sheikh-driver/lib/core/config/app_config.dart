@@ -13,9 +13,14 @@ class AppConfig {
 
   /// Stable Azure HTTPS (Caddy + Let’s Encrypt on sslip.io) — same host as ERP
   /// `environment.prod.ts`. Used by release builds when `API_BASE_URL` is omitted.
+  ///
+  /// **Must stay HTTPS.** Cleartext `http://20.174.1.230:5082` works on many
+  /// Wi‑Fi networks but carriers often hijack/block cleartext → HTTP 302
+  /// (captive portal / rewrite), which Dio surfaces as "Server error (302)".
+  /// Cert SAN is only `20-174-1-230.sslip.io` (not the raw IP). Prefer later:
+  /// `https://api.sheikhgo.com/api` once DNS is live.
   /// Prefer this over `*.trycloudflare.com` quick tunnels (hostname changes on
   /// restart). Override anytime with `--dart-define=API_BASE_URL=...`.
-  /// Later: `https://api.sheikhgo.com/api` once DNS is live.
   static const String defaultProductionApiBaseUrl =
       'https://20-174-1-230.sslip.io/api';
 

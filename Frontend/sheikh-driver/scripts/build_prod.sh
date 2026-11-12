@@ -21,8 +21,10 @@ TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
 # Stable Azure HTTPS (Caddy / sslip.io) — same as ERP environment.prod.ts.
-# Do NOT default to retired Railway or a stale *.trycloudflare.com quick tunnel
-# (quick-tunnel hostnames die when cloudflared restarts).
+# Do NOT default to:
+# - retired Railway / stale *.trycloudflare.com (NXDOMAIN when tunnel dies)
+# - cleartext http://20.174.1.230:5082 (carriers often 302-hijack cleartext
+#   on mobile data; Wi‑Fi may still work — see cellular login 302 incident)
 DEFAULT_PROD_API='https://20-174-1-230.sslip.io/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 case "$API_BASE_URL" in
@@ -32,6 +34,13 @@ case "$API_BASE_URL" in
     exit 1
     ;;
 esac
+# Refuse cleartext prod overrides (cellular hijack → HTTP 302 on login).
+if [[ "$API_BASE_URL" == http://* ]]; then
+  echo "ERROR: Refusing cleartext API_BASE_URL for release builds: $API_BASE_URL"
+  echo "  Carriers often rewrite/block cleartext HTTP → 302. Use HTTPS:"
+  echo "  $DEFAULT_PROD_API"
+  exit 1
+fi
 
 # Native Maps key → Gradle manifest placeholder (android/maps.properties).
 # Dart Directions/ETA key → --dart-define=GOOGLE_MAPS_KEY.

@@ -59,6 +59,40 @@ void main() {
       expect(ex.message, contains('Secure connection'));
     });
 
+    test('sslip.io hostname in connection error is NOT a TLS failure', () {
+      // Regression: bare contains('ssl') matched "sslip.io" and showed
+      // "Secure connection failed." for ordinary connectivity errors.
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message:
+            'SocketException: Connection failed (OS Error: Network is unreachable), '
+            'address = 20-174-1-230.sslip.io, port = 443',
+        error: Exception('Failed host lookup: 20-174-1-230.sslip.io'),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, isNot(contains('Secure connection')));
+    });
+
+    test('CERTIFICATE_VERIFY_FAILED still maps to secure connection failed',
+        () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message: 'CERTIFICATE_VERIFY_FAILED: bad certificate',
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, contains('Secure connection'));
+    });
+
+    test('word-boundary ssl token still maps to secure connection failed', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message: 'Connection terminated during SSL handshake',
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, contains('Secure connection'));
+    });
+
     test('Failed host lookup → cannot reach server', () {
       final e = _makeDioException(
         type: DioExceptionType.connectionError,
