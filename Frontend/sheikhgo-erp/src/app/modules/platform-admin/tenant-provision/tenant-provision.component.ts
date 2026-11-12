@@ -9,6 +9,7 @@ import { LookupService } from '../../../core/services/lookup.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   BRANCH_CURRENCIES,
+  DEFAULT_BILLING_CYCLE,
   DEFAULT_CURRENCY,
   DEFAULT_TENANT_MODULE_CODES,
   GPS_PROVIDERS,
@@ -21,7 +22,11 @@ import {
   TENANT_TYPES,
   TenantModuleDefinition,
   applyPlanDefaults,
-  tenantPlanMeta
+  formatCurrency,
+  planYearlyAmount,
+  subscriptionPeriodEnd,
+  tenantPlanMeta,
+  toIsoDate
 } from '../../../core/models/platform.model';
 import { blockNonOrgNameKey, orgNameListValidator, orgNameValidator } from './org-name.validator';
 import { parseOptionalPositiveInt } from '../../../core/utils/integer-input.util';
@@ -120,12 +125,15 @@ export class TenantProvisionComponent implements OnInit {
       }),
       plan: this.fb.group({
         planName: ['Enterprise', Validators.required],
+        billingCycle: [DEFAULT_BILLING_CYCLE, Validators.required],
+        subscriptionStartDate: [toIsoDate(new Date()), Validators.required],
         moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], Validators.required),
         maxUsers: [null as number | null, [Validators.min(0)]],
         maxVehicles: [null as number | null, [Validators.min(0)]],
         maxDrivers: [null as number | null, [Validators.min(0)]],
         maxBranches: [null as number | null, [Validators.min(0)]],
-        maxGpsDevices: [null as number | null, [Validators.min(0)]]
+        // Licensed devices — the yearly invoice is per-device price × this count.
+        maxGpsDevices: [1 as number | null, [Validators.required, Validators.min(1)]]
       }),
       admin: this.fb.group({
         adminFullName: ['', Validators.required],
@@ -244,6 +252,32 @@ export class TenantProvisionComponent implements OnInit {
     }
   }
 
+  get billingCycle(): string {
+    return this.planGroup.get('billingCycle')?.value ?? DEFAULT_BILLING_CYCLE;
+  }
+
+  /** Auto-calculated: start date + one billing cycle (same rule the backend applies). */
+  get subscriptionEndDate(): string | null {
+    return subscriptionPeriodEnd(this.planGroup.get('subscriptionStartDate')?.value, this.billingCycle);
+  }
+
+  get licensedDevices(): number {
+    const raw = Number(this.planGroup.get('maxGpsDevices')?.value);
+    return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  }
+
+  get pricePerDevice(): number {
+    return applyPlanDefaults(this.summaryPlanName).yearlyPricePerDevice;
+  }
+
+  get yearlyTotal(): number {
+    return planYearlyAmount(this.summaryPlanName, this.licensedDevices);
+  }
+
+  formatPkr(amount: number): string {
+    return formatCurrency(amount, 'PKR');
+  }
+
   get summaryUserQuota(): string | number {
     const value = this.planGroup.get('maxUsers')?.value;
     return value === null || value === undefined ? 'Unlimited' : value;
@@ -315,6 +349,8 @@ export class TenantProvisionComponent implements OnInit {
   applyPlan(planName: string): void {
     const resolved = PLAN_DEFINITIONS[planName] ? planName : 'Enterprise';
     const def = applyPlanDefaults(resolved);
+    // Keep the licensed device count the admin already entered; plan change only reprices it.
+    const currentDevices = parseOptionalPositiveInt(this.planGroup.get('maxGpsDevices')?.value);
     const planCtrl = this.planGroup.get('planName');
     if (planCtrl && planCtrl.value !== resolved) {
       planCtrl.setValue(resolved, { emitEvent: false });
@@ -324,7 +360,7 @@ export class TenantProvisionComponent implements OnInit {
       maxVehicles: parseOptionalPositiveInt(def.quotas.maxVehicles),
       maxDrivers: parseOptionalPositiveInt(def.quotas.maxDrivers),
       maxBranches: parseOptionalPositiveInt(def.quotas.maxBranches),
-      maxGpsDevices: parseOptionalPositiveInt(def.quotas.maxGpsDevices),
+      maxGpsDevices: currentDevices ?? parseOptionalPositiveInt(def.quotas.maxGpsDevices) ?? 1,
       moduleCodes: [...def.moduleCodes]
     }, { emitEvent: false });
     this.planGroup.markAsDirty();
@@ -426,6 +462,9 @@ export class TenantProvisionComponent implements OnInit {
       industryType: p.industryType?.trim() || undefined,
       storageModel: p.storageModel || 'SharedDatabase',
       planName: pl.planName ?? 'Enterprise',
+      billingCycle: pl.billingCycle ?? DEFAULT_BILLING_CYCLE,
+      subscriptionStartDate: pl.subscriptionStartDate || undefined,
+      subscriptionEndDate: this.subscriptionEndDate ?? undefined,
       maxUsers: pl.maxUsers ?? undefined,
       maxVehicles: pl.maxVehicles ?? undefined,
       maxDrivers: pl.maxDrivers ?? undefined,

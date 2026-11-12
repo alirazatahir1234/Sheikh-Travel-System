@@ -471,10 +471,14 @@
                 <input id="limit-branches" class="cc-input" type="number" formControlName="maxBranches" min="0" placeholder="Unlimited" />
               </div>
               <div class="cc-field">
-                <label for="limit-gps">Max GPS Devices</label>
-                <input id="limit-gps" class="cc-input" type="number" formControlName="maxGpsDevices" min="0" placeholder="Unlimited" />
+                <label for="limit-gps">Licensed GPS Devices</label>
+                <input id="limit-gps" class="cc-input" type="number" formControlName="maxGpsDevices" min="1" placeholder="Not set (billed as 1)" />
               </div>
             </div>
+            <p class="cc-muted">
+              Yearly price: {{ yearlyPriceLabel }}. Raising licensed devices reprices the next yearly invoice and lets the
+              company register more trackers.
+            </p>
             <div *ngIf="license" class="cc-usage">
               <p>Current usage from license</p>
               <ul>

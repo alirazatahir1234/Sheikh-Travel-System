@@ -22,8 +22,16 @@ public record ProvisionTenantCommand : IRequest<ApiResponse<int>>
     public int? MaxVehicles { get; init; } = 500;
     public int? MaxDrivers { get; init; } = 500;
     public int? MaxBranches { get; init; } = 50;
-    public int? MaxGpsDevices { get; init; } = 500;
+    /// <summary>Licensed GPS devices — the yearly invoice is per-device price × this count.</summary>
+    public int? MaxGpsDevices { get; init; } = 1;
     public IReadOnlyList<string>? ModuleCodes { get; init; }
+
+    /// <summary>Monthly or Yearly. Defaults to <see cref="SubscriptionBillingCycle.Default"/>.</summary>
+    public string? BillingCycle { get; init; } = SubscriptionBillingCycle.Default;
+    /// <summary>First day of the subscription (UTC date). Defaults to today.</summary>
+    public DateTime? SubscriptionStartDate { get; init; }
+    /// <summary>Optional override; defaults to start date + one billing cycle.</summary>
+    public DateTime? SubscriptionEndDate { get; init; }
 
     // 3. Initial admin
     public string AdminFullName { get; init; } = string.Empty;

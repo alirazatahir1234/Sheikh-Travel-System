@@ -50,4 +50,40 @@ public class ProvisionTenantCommandValidatorTests
         var result = _validator.Validate(cmd);
         result.IsValid.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("Yearly")]
+    [InlineData("monthly")]
+    [InlineData("Annual")]
+    public void Validate_KnownBillingCycle_ShouldPass(string cycle)
+    {
+        var result = _validator.Validate(ValidCommand() with { BillingCycle = cycle });
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_UnknownBillingCycle_ShouldFail()
+    {
+        var result = _validator.Validate(ValidCommand() with { BillingCycle = "Weekly" });
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(ProvisionTenantCommand.BillingCycle));
+    }
+
+    [Fact]
+    public void Validate_EndDateNotAfterStartDate_ShouldFail()
+    {
+        var start = new DateTime(2026, 11, 12);
+        var cmd = ValidCommand() with { SubscriptionStartDate = start, SubscriptionEndDate = start };
+        var result = _validator.Validate(cmd);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(ProvisionTenantCommand.SubscriptionEndDate));
+    }
+
+    [Fact]
+    public void Validate_EndDateAfterStartDate_ShouldPass()
+    {
+        var start = new DateTime(2026, 11, 12);
+        var cmd = ValidCommand() with { SubscriptionStartDate = start, SubscriptionEndDate = start.AddYears(1) };
+        _validator.Validate(cmd).IsValid.Should().BeTrue();
+    }
 }

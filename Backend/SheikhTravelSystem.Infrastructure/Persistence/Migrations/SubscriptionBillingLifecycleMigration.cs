@@ -52,9 +52,10 @@ public static class SubscriptionBillingLifecycleMigration
               AND (SubscriptionEndDate IS NULL OR SubscriptionEndDate < DATEADD(day, -20, GETUTCDATE()));
             """, new
         {
-            Starter = SubscriptionPlanPricing.StarterMonthlyPkr,
-            Pro = SubscriptionPlanPricing.ProMonthlyPkr,
-            Enterprise = SubscriptionPlanPricing.EnterpriseBaseMonthlyPkr
+            // Legacy backfill only (rows with no amount): monthly equivalent of one licensed device.
+            Starter = SubscriptionPlanPricing.ResolveMonthlyAmount("STARTER", 1),
+            Pro = SubscriptionPlanPricing.ResolveMonthlyAmount("PRO", 1),
+            Enterprise = SubscriptionPlanPricing.ResolveMonthlyAmount("ENTERPRISE", 1)
         }, cancellationToken: cancellationToken));
 
         logger.LogInformation("Subscription billing lifecycle migration completed.");

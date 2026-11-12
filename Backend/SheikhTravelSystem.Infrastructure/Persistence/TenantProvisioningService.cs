@@ -90,21 +90,36 @@ public class TenantProvisioningService(
                 cancellationToken: cancellationToken));
         }
 
+        // Subscription period: start (default today) → start + one billing cycle (Yearly by default).
+        // NextBillingDate = start date, so the billing job raises the first-period invoice on the start date;
+        // each renewal invoice then advances NextBillingDate / SubscriptionEndDate by one cycle.
+        var billingCycle = SubscriptionBillingCycle.Normalize(request.BillingCycle, SubscriptionBillingCycle.Default);
+        var startDate = (request.SubscriptionStartDate ?? DateTime.UtcNow).Date;
+        var endDate = request.SubscriptionEndDate?.Date ?? SubscriptionBillingCycle.PeriodEnd(startDate, billingCycle);
+        var plan = SubscriptionPlanCatalog.Resolve(request.PlanName);
+        // Billed per licensed GPS device per year; blank ⇒ plan default (1 device).
+        var licensedDevices = request.MaxGpsDevices ?? plan.MaxGpsDevices ?? 1;
+
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO TenantSubscriptions (TenantId, PlanName, MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices,
-                Status, SubscriptionStartDate)
-            VALUES (@TenantId, @PlanName, @MaxUsers, @MaxVehicles, @MaxDrivers, @MaxBranches, @MaxGpsDevices,
-                @Status, GETUTCDATE());
+            INSERT INTO TenantSubscriptions (TenantId, PlanName, SubscriptionCode, MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices,
+                Status, SubscriptionStartDate, SubscriptionEndDate, NextBillingDate, BillingCycle, MonthlyAmount, CurrencyCode, AutoRenew)
+            VALUES (@TenantId, @PlanName, @SubscriptionCode, @MaxUsers, @MaxVehicles, @MaxDrivers, @MaxBranches, @MaxGpsDevices,
+                @Status, @StartDate, @EndDate, @StartDate, @BillingCycle, @MonthlyAmount, N'PKR', 1);
             """, new
         {
             TenantId = tenantId,
             request.PlanName,
+            plan.SubscriptionCode,
             request.MaxUsers,
             request.MaxVehicles,
             request.MaxDrivers,
             request.MaxBranches,
-            request.MaxGpsDevices,
-            request.Status
+            MaxGpsDevices = licensedDevices,
+            request.Status,
+            StartDate = startDate,
+            EndDate = endDate,
+            BillingCycle = billingCycle,
+            MonthlyAmount = SubscriptionPlanPricing.ResolveMonthlyAmount(request.PlanName, licensedDevices)
         }, transaction: transaction, cancellationToken: cancellationToken));
 
         foreach (var code in moduleCodes)

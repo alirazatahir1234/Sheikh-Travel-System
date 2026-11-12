@@ -31,14 +31,19 @@ public sealed partial class PlatformRepository
                      WHERE h.PaidAt >= DATEADD(day, -30, GETUTCDATE())) AS Collected30
                 """, cancellationToken: cancellationToken));
 
-        var renewals = (await connection.QueryAsync<SubscriptionRenewalRowDto>(new CommandDefinition("""
+        var renewalRows = await connection.QueryAsync<(
+            int TenantId, string TenantName, string? PlanName, string? PlanKey, DateTime? NextBillingDate,
+            decimal? MonthlyAmount, string CurrencyCode, string? BillingCycle, int? Devices)>(new CommandDefinition("""
             SELECT TOP 20
                 s.TenantId,
                 t.Name AS TenantName,
                 COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
+                COALESCE(s.SubscriptionCode, s.PlanName, t.SubscriptionPlan) AS PlanKey,
                 s.NextBillingDate,
                 s.MonthlyAmount,
-                COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode
+                COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                s.BillingCycle,
+                s.MaxGpsDevices AS Devices
             FROM TenantSubscriptions s
             INNER JOIN Tenants t ON t.Id = s.TenantId AND t.IsActive = 1
             WHERE s.Status = N'Active'
@@ -46,7 +51,18 @@ public sealed partial class PlatformRepository
               AND s.NextBillingDate IS NOT NULL
               AND s.NextBillingDate <= DATEADD(day, 14, GETUTCDATE())
             ORDER BY s.NextBillingDate
-            """, cancellationToken: cancellationToken))).ToList();
+            """, cancellationToken: cancellationToken));
+
+        var renewals = renewalRows.Select(r => new SubscriptionRenewalRowDto(
+                r.TenantId,
+                r.TenantName,
+                r.PlanName,
+                r.NextBillingDate,
+                r.MonthlyAmount,
+                r.CurrencyCode,
+                SubscriptionBillingCycle.Normalize(r.BillingCycle),
+                SubscriptionPlanPricing.ResolveCycleAmount(r.PlanKey, r.Devices, r.BillingCycle)))
+            .ToList();
 
         var overdue = (await connection.QueryAsync<SubscriptionOverdueAccountDto>(new CommandDefinition("""
             SELECT
@@ -147,10 +163,11 @@ public sealed partial class PlatformRepository
     {
         using var connection = dbFactory.CreateConnection();
         var sub = await connection.QuerySingleOrDefaultAsync<(
-            string? Plan, string? Code, decimal? Amount, string? Currency, DateTime? NextBilling, bool AutoRenew, string Status)>(
+            string? Plan, string? Code, int? Devices, string? Currency, DateTime? NextBilling, bool AutoRenew, string Status, string? Cycle)>(
             new CommandDefinition("""
-                SELECT PlanName AS [Plan], SubscriptionCode AS Code, MonthlyAmount AS Amount, CurrencyCode AS Currency,
-                       NextBillingDate AS NextBilling, COALESCE(AutoRenew, 1) AS AutoRenew, COALESCE(Status, N'Active') AS Status
+                SELECT PlanName AS [Plan], SubscriptionCode AS Code, MaxGpsDevices AS Devices, CurrencyCode AS Currency,
+                       NextBillingDate AS NextBilling, COALESCE(AutoRenew, 1) AS AutoRenew, COALESCE(Status, N'Active') AS Status,
+                       BillingCycle AS Cycle
                 FROM TenantSubscriptions WHERE TenantId = @TenantId
                 """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
@@ -169,12 +186,14 @@ public sealed partial class PlatformRepository
         if (pendingExists > 0)
             return null;
 
-        var vehicleCount = await CountActiveVehiclesAsync(tenantId, cancellationToken);
-        var amount = sub.Amount ?? SubscriptionPlanPricing.ResolveMonthlyAmount(sub.Code ?? sub.Plan, vehicleCount);
+        // Priced per licensed GPS device at invoice time, so device increases flow into the next invoice.
+        var planKey = sub.Code ?? sub.Plan;
+        var monthlyAmount = SubscriptionPlanPricing.ResolveMonthlyAmount(planKey, sub.Devices);
+        var amount = SubscriptionPlanPricing.ResolveCycleAmount(planKey, sub.Devices, sub.Cycle);
         var currency = string.IsNullOrWhiteSpace(sub.Currency) ? "PKR" : sub.Currency!;
         var invoiceNumber = $"SUB-{tenantId:D4}-{asOf:yyyyMMddHHmmss}";
         var periodStart = sub.NextBilling ?? asOf;
-        var periodEnd = periodStart.AddMonths(1);
+        var periodEnd = SubscriptionBillingCycle.PeriodEnd(periodStart, sub.Cycle);
 
         var invoiceId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO TenantInvoices (
@@ -200,7 +219,7 @@ public sealed partial class PlatformRepository
             UPDATE TenantSubscriptions
             SET NextBillingDate = @NextBilling,
                 SubscriptionEndDate = @PeriodEnd,
-                MonthlyAmount = @Amount,
+                MonthlyAmount = @MonthlyAmount,
                 UpdatedAt = GETUTCDATE()
             WHERE TenantId = @TenantId
             """, new
@@ -208,10 +227,31 @@ public sealed partial class PlatformRepository
             TenantId = tenantId,
             NextBilling = periodEnd,
             PeriodEnd = periodEnd,
-            Amount = amount
+            MonthlyAmount = monthlyAmount
         }, cancellationToken: cancellationToken));
 
         return invoiceId;
+    }
+
+    /// <summary>
+    /// Re-derives <c>MonthlyAmount</c> (monthly equivalent of the yearly per-device package) from the stored plan
+    /// and licensed device count. Call after the plan or <c>MaxGpsDevices</c> changes.
+    /// </summary>
+    private static async Task RefreshSubscriptionPriceAsync(
+        System.Data.IDbConnection connection, int tenantId, CancellationToken ct)
+    {
+        var sub = await connection.QuerySingleOrDefaultAsync<(int TenantId, string? PlanKey, int? Devices)>(new CommandDefinition("""
+            SELECT s.TenantId, COALESCE(s.SubscriptionCode, s.PlanName, t.SubscriptionPlan) AS PlanKey, s.MaxGpsDevices AS Devices
+            FROM TenantSubscriptions s
+            INNER JOIN Tenants t ON t.Id = s.TenantId
+            WHERE s.TenantId = @TenantId
+            """, new { TenantId = tenantId }, cancellationToken: ct));
+        if (sub.TenantId == 0) return;
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE TenantSubscriptions SET MonthlyAmount = @Amount, UpdatedAt = GETUTCDATE() WHERE TenantId = @TenantId",
+            new { TenantId = tenantId, Amount = SubscriptionPlanPricing.ResolveMonthlyAmount(sub.PlanKey, sub.Devices) },
+            cancellationToken: ct));
     }
 
     public async Task<bool> MarkSubscriptionInvoicePaidAsync(

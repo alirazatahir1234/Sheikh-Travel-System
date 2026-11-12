@@ -26,6 +26,8 @@ import {
   RoleSummary,
   MenuCatalog,
   applyPlanDefaults,
+  formatCurrency,
+  planYearlyAmount,
   tenantDisplayCode,
   tenantPlanMeta,
   AuditEventListItem
@@ -113,7 +115,8 @@ export class TenantDetailComponent implements OnInit {
       maxVehicles: [null as number | null, Validators.min(0)],
       maxDrivers: [null as number | null, Validators.min(0)],
       maxBranches: [null as number | null, Validators.min(0)],
-      maxGpsDevices: [null as number | null, Validators.min(0)],
+      // Licensed devices: drives the yearly price (per device) and caps tracker registration.
+      maxGpsDevices: [1 as number | null, Validators.min(1)],
       website: ['', optionalHttpUrlValidator()],
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
@@ -553,6 +556,16 @@ export class TenantDetailComponent implements OnInit {
     this.form.markAsDirty();
   }
 
+  /** Live yearly price for the plan + licensed devices currently in the form. */
+  get yearlyPriceLabel(): string {
+    const plan = this.form.controls.subscriptionPlan.value;
+    const devices = this.form.controls.maxGpsDevices.value;
+    const perDevice = applyPlanDefaults(plan ?? 'Enterprise').yearlyPricePerDevice;
+    const count = Math.max(1, Math.floor(devices ?? 1));
+    return `${formatCurrency(perDevice, 'PKR')} × ${count} device${count === 1 ? '' : 's'} = `
+      + `${formatCurrency(planYearlyAmount(plan, count), 'PKR')} / year`;
+  }
+
   applyPlan(planName: string): void {
     if (!this.canManage) return;
     const def = applyPlanDefaults(planName);
@@ -562,7 +575,8 @@ export class TenantDetailComponent implements OnInit {
       maxVehicles: def.quotas.maxVehicles,
       maxDrivers: def.quotas.maxDrivers,
       maxBranches: def.quotas.maxBranches,
-      maxGpsDevices: def.quotas.maxGpsDevices,
+      // Keep licensed devices — they are what the company pays for; the plan only changes the per-device price.
+      maxGpsDevices: this.form.controls.maxGpsDevices.value ?? def.quotas.maxGpsDevices,
       moduleCodes: this.withAlwaysOn([...new Set([...def.moduleCodes, ...premiumOptIns])])
     });
     this.form.markAsDirty();

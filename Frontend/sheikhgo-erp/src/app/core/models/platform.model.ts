@@ -185,6 +185,34 @@ export const ALWAYS_ON_MODULE_CODES = ['GPS', 'FLEET', 'DASHBOARD'] as const;
 
 export const TENANT_PLAN_TIERS = ['Enterprise', 'Pro', 'Starter'] as const;
 
+export type BillingCycle = 'Monthly' | 'Yearly';
+/** All plans are sold as one-year packages; Monthly survives only on legacy subscriptions. */
+export const BILLING_CYCLES: readonly BillingCycle[] = ['Yearly'];
+export const DEFAULT_BILLING_CYCLE: BillingCycle = 'Yearly';
+
+export function billingCycleMonths(cycle: string | null | undefined): number {
+  return (cycle ?? '').trim().toLowerCase() === 'yearly' ? 12 : 1;
+}
+
+/** Local yyyy-MM-dd for a Date (avoids UTC day-shift from toISOString). */
+export function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Subscription period end for a yyyy-MM-dd start date (mirrors backend AddMonths, clamping month-end). */
+export function subscriptionPeriodEnd(startIso: string | null | undefined, cycle: string | null | undefined): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startIso ?? '');
+  if (!match) return null;
+  const [y, m, d] = [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
+  const target = new Date(y, m + billingCycleMonths(cycle), 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, lastDay));
+  return toIsoDate(target);
+}
+
 export interface PlanQuotas {
   maxUsers: number | null;
   maxVehicles: number | null;
@@ -198,25 +226,30 @@ export interface PlanDefinition {
   moduleCodes: string[];
   description: string;
   bestFor: string;
+  /** PKR list price per licensed GPS device per year (mirrors backend SubscriptionPlanPricing). */
+  yearlyPricePerDevice: number;
 }
 
 export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
   Starter: {
-    description: 'Core fleet & GPS operations',
+    description: 'Core fleet & GPS operations — 1 user',
     bestFor: 'Small companies',
-    quotas: { maxUsers: 10, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 50 },
+    yearlyPricePerDevice: 20_000,
+    quotas: { maxUsers: 1, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 1 },
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'ACCESS']
   },
   Pro: {
     description: 'Full operations suite',
     bestFor: 'Growing businesses',
-    quotas: { maxUsers: 50, maxVehicles: 250, maxDrivers: 250, maxBranches: 15, maxGpsDevices: 250 },
+    yearlyPricePerDevice: 45_000,
+    quotas: { maxUsers: 50, maxVehicles: 250, maxDrivers: 250, maxBranches: 15, maxGpsDevices: 1 },
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
   },
   Enterprise: {
-    description: 'Unlimited — all modules',
+    description: 'All modules, unlimited users',
     bestFor: 'Large organizations',
-    quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: null },
+    yearlyPricePerDevice: 70_000,
+    quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: 1 },
     // Routes (TRAVEL) included; Bookings & Trips + Road Speed Alerts + SheikhGo AI Assistant stay manual opt-in.
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
   }
@@ -224,6 +257,12 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
 
 export function applyPlanDefaults(planName: string): PlanDefinition {
   return PLAN_DEFINITIONS[planName] ?? PLAN_DEFINITIONS['Enterprise'];
+}
+
+/** Yearly package = per-device price × licensed devices (minimum 1). */
+export function planYearlyAmount(planName: string | null | undefined, devices: number | null | undefined): number {
+  const perDevice = applyPlanDefaults(planName ?? 'Enterprise').yearlyPricePerDevice;
+  return perDevice * Math.max(1, Math.floor(devices ?? 1));
 }
 
 export const TENANT_TYPES = [
@@ -297,6 +336,12 @@ export interface ProvisionTenantRequest {
   maxBranches?: number;
   maxGpsDevices?: number;
   moduleCodes?: string[];
+  /** Monthly | Yearly (backend default: Yearly). */
+  billingCycle?: BillingCycle;
+  /** ISO date (yyyy-MM-dd). Backend default: today. */
+  subscriptionStartDate?: string;
+  /** ISO date (yyyy-MM-dd). Backend default: start + one billing cycle. */
+  subscriptionEndDate?: string;
   adminMobile?: string;
   country?: string;
   currencyCode?: string;
@@ -1165,6 +1210,10 @@ export interface SubscriptionDetail {
   licensedModuleCodes?: string[];
   featuresLocked?: boolean;
   nextBillingDate?: string | null;
+  yearlyPricePerDevice?: number;
+  billableGpsDevices?: number;
+  yearlyAmount?: number;
+  cycleAmount?: number;
 }
 
 export interface SubscriptionRevenueDashboard {
@@ -1185,6 +1234,8 @@ export interface SubscriptionRenewalRow {
   nextBillingDate?: string | null;
   monthlyAmount?: number | null;
   currencyCode: string;
+  billingCycle?: string;
+  invoiceAmount?: number | null;
 }
 
 export interface SubscriptionOverdueRow {

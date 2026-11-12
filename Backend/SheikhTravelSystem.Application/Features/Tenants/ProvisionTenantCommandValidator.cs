@@ -40,7 +40,19 @@ public class ProvisionTenantCommandValidator : AbstractValidator<ProvisionTenant
         RuleFor(x => x.MaxVehicles).GreaterThanOrEqualTo(0).When(x => x.MaxVehicles.HasValue);
         RuleFor(x => x.MaxDrivers).GreaterThanOrEqualTo(0).When(x => x.MaxDrivers.HasValue);
         RuleFor(x => x.MaxBranches).GreaterThanOrEqualTo(0).When(x => x.MaxBranches.HasValue);
-        RuleFor(x => x.MaxGpsDevices).GreaterThanOrEqualTo(0).When(x => x.MaxGpsDevices.HasValue);
+        RuleFor(x => x.MaxGpsDevices)
+            .GreaterThanOrEqualTo(1).WithMessage("At least one GPS device must be licensed (plans are priced per device).")
+            .When(x => x.MaxGpsDevices.HasValue);
+
+        RuleFor(x => x.BillingCycle)
+            .Must(SubscriptionBillingCycle.IsValid)
+            .WithMessage("Billing cycle must be Monthly or Yearly.")
+            .When(x => !string.IsNullOrWhiteSpace(x.BillingCycle));
+
+        RuleFor(x => x.SubscriptionEndDate)
+            .Must((cmd, end) => end!.Value.Date > (cmd.SubscriptionStartDate ?? DateTime.UtcNow).Date)
+            .WithMessage("Subscription end date must be after the start date.")
+            .When(x => x.SubscriptionEndDate.HasValue);
 
         RuleFor(x => x.ModuleCodes)
             .Must(codes => codes is null || codes.All(c => ValidModuleCodes.Contains(c)))

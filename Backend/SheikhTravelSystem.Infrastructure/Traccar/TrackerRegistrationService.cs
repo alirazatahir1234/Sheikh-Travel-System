@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Infrastructure.Persistence;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -34,6 +35,10 @@ public sealed class TrackerRegistrationService(
             new { dto.UniqueId }, cancellationToken: ct));
         if (duplicate)
             return ApiResponse<TrackerRegisteredDto>.FailResponse("IMEI already registered.");
+
+        var licenseError = await GpsDeviceLicenseGuard.CheckCapacityAsync(connection, tenantContext.GetRequiredTenantId(), ct);
+        if (licenseError is not null)
+            return ApiResponse<TrackerRegisteredDto>.FailResponse(licenseError);
 
         if (dto.VehicleId.HasValue)
         {

@@ -653,6 +653,43 @@
   &:hover { border-color: #86efac; }
 }
 
+.subscription-period-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  @media (max-width: 800px) { grid-template-columns: 1fr; }
+
+  .stb-field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .stb-input--readonly {
+    background: var(--stb-surface-alt);
+    cursor: default;
+  }
+}
+
+.period-hint {
+  display: block;
+  margin: 6px 0 12px;
+}
+
+.price-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--stb-surface-alt);
+
+  &__calc { font-size: 13px; color: var(--stb-text-muted); }
+  &__total { font-size: 15px; }
+}
+
 .limits-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

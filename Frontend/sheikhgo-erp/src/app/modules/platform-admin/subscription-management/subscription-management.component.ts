@@ -13,6 +13,7 @@ import {
   SubscriptionAction,
   CompanyLicense,
   TENANT_PLAN_TIERS,
+  billingCycleMonths,
   formatCurrency
 } from '../../../core/models/platform.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -148,13 +149,25 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
     return new Date(end).getTime() < Date.now();
   }
 
+  get isYearly(): boolean {
+    return billingCycleMonths(this.subscription?.billingCycle) === 12;
+  }
+
+  /** Legacy monthly subscriptions move to the yearly package when a plan is applied. */
+  get planChangePending(): boolean {
+    const sub = this.subscription;
+    if (!sub || !this.upgradePlan) return false;
+    return this.upgradePlan !== sub.planName || !this.isYearly;
+  }
+
   upgrade(): void {
     if (!this.subscription || !this.upgradePlan) return;
-    this.runAction({ action: 'Upgrade', planName: this.upgradePlan });
+    this.runAction({ action: 'Upgrade', planName: this.upgradePlan, billingCycle: 'Yearly' });
   }
 
   renew(): void {
-    if (!confirm('Renew this subscription for another monthly period? A new invoice will be generated.')) return;
+    const period = this.isYearly ? 'year' : 'month';
+    if (!confirm(`Renew this subscription for another ${period}? A new invoice will be generated.`)) return;
     this.runAction({ action: 'Renew' });
   }
 
@@ -177,7 +190,7 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
     this.runAction({ action: this.subscription.status === 'Active' ? 'Upgrade' : 'Reactivate', autoRenew });
   }
 
-  private runAction(request: { action: SubscriptionAction; planName?: string; autoRenew?: boolean }): void {
+  private runAction(request: { action: SubscriptionAction; planName?: string; autoRenew?: boolean; billingCycle?: string }): void {
     if (!this.overview) return;
     const tenantId = this.overview.subscription.tenantId;
 

@@ -530,6 +530,15 @@ public record SubscriptionDetailDto
     public IReadOnlyList<string> LicensedModuleCodes { get; init; } = [];
     public bool FeaturesLocked { get; init; }
     public DateTime? NextBillingDate { get; init; }
+
+    /// <summary>List price per GPS device per year for this plan (PKR).</summary>
+    public decimal YearlyPricePerDevice { get; init; }
+    /// <summary>Devices billed (licensed MaxGpsDevices, minimum 1).</summary>
+    public int BillableGpsDevices { get; init; }
+    /// <summary>Yearly package total = per-device price × billable devices.</summary>
+    public decimal YearlyAmount { get; init; }
+    /// <summary>Amount of the next invoice for the current billing cycle.</summary>
+    public decimal CycleAmount { get; init; }
 }
 
 public record SubscriptionPlanDto(
@@ -661,7 +670,10 @@ public record SubscriptionRenewalRowDto(
     string? PlanName,
     DateTime? NextBillingDate,
     decimal? MonthlyAmount,
-    string CurrencyCode);
+    string CurrencyCode,
+    string BillingCycle = "Monthly",
+    /// <summary>Amount the renewal invoice will be raised for (full year for Yearly subscriptions).</summary>
+    decimal? InvoiceAmount = null);
 
 public record SubscriptionOverdueAccountDto(
     int TenantId,

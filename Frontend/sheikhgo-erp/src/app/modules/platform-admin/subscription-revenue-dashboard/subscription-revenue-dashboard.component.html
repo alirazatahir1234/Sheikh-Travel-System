@@ -22,7 +22,7 @@
       <mat-card class="kpi">
         <span class="kpi-label">MRR (listed)</span>
         <strong class="kpi-value">{{ money(dashboard.monthlyRecurringRevenue) }}</strong>
-        <span class="kpi-hint">Sum of tenant MonthlyAmount</span>
+        <span class="kpi-hint">Yearly packages ÷ 12</span>
       </mat-card>
       <mat-card class="kpi">
         <span class="kpi-label">Outstanding</span>
@@ -58,8 +58,11 @@
               <td mat-cell *matCellDef="let r">{{ r.nextBillingDate | date:'mediumDate' }}</td>
             </ng-container>
             <ng-container matColumnDef="amount">
-              <th mat-header-cell *matHeaderCellDef>Amount</th>
-              <td mat-cell *matCellDef="let r">{{ money(r.monthlyAmount, r.currencyCode) }}</td>
+              <th mat-header-cell *matHeaderCellDef>Invoice amount</th>
+              <td mat-cell *matCellDef="let r">
+                {{ money(r.invoiceAmount ?? r.monthlyAmount, r.currencyCode) }}
+                <span class="cell-hint" *ngIf="r.billingCycle === 'Yearly'">/ year</span>
+              </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="['tenant','plan','next','amount']"></tr>
             <tr mat-row *matRowDef="let row; columns: ['tenant','plan','next','amount'];"></tr>

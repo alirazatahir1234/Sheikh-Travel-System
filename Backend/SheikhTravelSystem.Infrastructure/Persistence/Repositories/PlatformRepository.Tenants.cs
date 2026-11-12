@@ -217,6 +217,7 @@ public sealed partial class PlatformRepository
                 IF EXISTS (SELECT 1 FROM TenantSubscriptions WHERE TenantId = @Id)
                     UPDATE TenantSubscriptions
                     SET PlanName = COALESCE(@PlanName, PlanName),
+                        SubscriptionCode = COALESCE(@SubscriptionCode, SubscriptionCode),
                         MaxUsers = COALESCE(@MaxUsers, MaxUsers),
                         MaxVehicles = COALESCE(@MaxVehicles, MaxVehicles),
                         MaxDrivers = COALESCE(@MaxDrivers, MaxDrivers),
@@ -225,8 +226,10 @@ public sealed partial class PlatformRepository
                         UpdatedAt = GETUTCDATE()
                     WHERE TenantId = @Id;
                 ELSE
-                    INSERT INTO TenantSubscriptions (TenantId, PlanName, MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices, Status, SubscriptionStartDate)
-                    VALUES (@Id, COALESCE(@PlanName, N'Enterprise'), @MaxUsers, @MaxVehicles, @MaxDrivers, @MaxBranches, @MaxGpsDevices, N'Active', GETUTCDATE());
+                    INSERT INTO TenantSubscriptions (TenantId, PlanName, MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices, Status,
+                        SubscriptionStartDate, SubscriptionEndDate, NextBillingDate, BillingCycle, CurrencyCode, AutoRenew)
+                    VALUES (@Id, COALESCE(@PlanName, N'Enterprise'), @MaxUsers, @MaxVehicles, @MaxDrivers, @MaxBranches, COALESCE(@MaxGpsDevices, 1), N'Active',
+                        GETUTCDATE(), DATEADD(month, 12, GETUTCDATE()), GETUTCDATE(), @Cycle, N'PKR', 1);
                 """, new
             {
                 Id = id,
@@ -235,8 +238,15 @@ public sealed partial class PlatformRepository
                 MaxVehicles = maxVehicles,
                 MaxDrivers = maxDrivers,
                 MaxBranches = maxBranches,
-                MaxGpsDevices = maxGpsDevices
+                MaxGpsDevices = maxGpsDevices,
+                SubscriptionCode = string.IsNullOrWhiteSpace(subscriptionPlan)
+                    ? null
+                    : SubscriptionPlanCatalog.Resolve(subscriptionPlan).SubscriptionCode,
+                Cycle = SubscriptionBillingCycle.Default
             }, cancellationToken: cancellationToken));
+
+            // Plan or licensed device count may have changed — reprice (per device / year).
+            await RefreshSubscriptionPriceAsync(connection, id, cancellationToken);
         }
 
         if (moduleCodes is { Count: > 0 })

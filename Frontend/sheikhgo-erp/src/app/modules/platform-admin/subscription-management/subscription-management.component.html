@@ -56,8 +56,20 @@
 
             <div class="plan-info">
               <div class="info-item">
-                <span class="label">Monthly Amount</span>
-                <span class="value">{{ formatMoney(subscription.monthlyAmount) }}</span>
+                <span class="label">Price per GPS device</span>
+                <span class="value">{{ formatMoney(subscription.yearlyPricePerDevice) }} / year</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Licensed GPS devices</span>
+                <span class="value">{{ subscription.billableGpsDevices ?? '—' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Yearly Amount</span>
+                <span class="value">{{ formatMoney(subscription.yearlyAmount) }}</span>
+              </div>
+              <div class="info-item" *ngIf="!isYearly">
+                <span class="label">Monthly Amount (legacy)</span>
+                <span class="value">{{ formatMoney(subscription.cycleAmount) }}</span>
               </div>
               <div class="info-item">
                 <span class="label">Billing Cycle</span>
@@ -95,7 +107,7 @@
               </mat-select>
             </mat-form-field>
             <button mat-raised-button color="primary" type="button" (click)="upgrade()"
-                    [disabled]="saving || !upgradePlan || upgradePlan === subscription.planName">
+                    [disabled]="saving || !planChangePending">
               Apply Plan
             </button>
             <button mat-stroked-button type="button" (click)="renew()" [disabled]="saving">Renew</button>

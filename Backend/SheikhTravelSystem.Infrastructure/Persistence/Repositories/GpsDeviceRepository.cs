@@ -839,6 +839,10 @@ public sealed partial class GpsDeviceRepository(
         if (duplicate)
             return ApiResponse<int>.FailResponse("IMEI already registered.");
 
+        var licenseError = await GpsDeviceLicenseGuard.CheckCapacityAsync(connection, tenantId, cancellationToken);
+        if (licenseError is not null)
+            return ApiResponse<int>.FailResponse(licenseError);
+
         if (dto.VehicleId.HasValue)
         {
             var vehicleError = await ValidateVehicleForDeviceAsync(connection, dto.VehicleId.Value, tenantId, cancellationToken);
