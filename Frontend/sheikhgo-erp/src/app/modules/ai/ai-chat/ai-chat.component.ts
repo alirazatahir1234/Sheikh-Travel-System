@@ -98,16 +98,25 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     return this.compact || this.workspace;
   }
 
+  /** Phone / narrow tablet — single-column chat so examples do not cover the prompt. */
+  @HostBinding('class.is-narrow-viewport')
+  narrowViewport = false;
+
   @ViewChild('messagesPane') messagesPane?: ElementRef<HTMLDivElement>;
   @ViewChild('messagesContent') messagesContent?: ElementRef<HTMLDivElement>;
   @ViewChild('scrollAnchor') scrollAnchor?: ElementRef<HTMLDivElement>;
-  @ViewChild('composerInput') composerInput?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('railComposer') railComposer?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('dockComposer') dockComposer?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   /** Keep pinned to latest reply unless the user scrolls up to read history. */
   private stickToBottom = true;
   private contentObserver?: ResizeObserver;
   private observedContent: HTMLElement | null = null;
+  private narrowMq?: MediaQueryList;
+  private readonly onNarrowMqChange = (e: MediaQueryListEvent): void => {
+    this.narrowViewport = e.matches;
+  };
 
   readonly attachAccept = ATTACH_ACCEPT;
 
@@ -158,6 +167,7 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   ngOnInit(): void {
     this.aiAssistantOpenSound.notifyAssistantOpened();
+    this.bindNarrowViewport();
     this.refresh();
   }
 
@@ -169,6 +179,31 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.contentObserver?.disconnect();
     this.contentObserver = undefined;
     this.observedContent = null;
+    this.narrowMq?.removeEventListener('change', this.onNarrowMqChange);
+    this.narrowMq = undefined;
+  }
+
+  /** Grow the composer when the user pastes or types a multi-line prompt. */
+  onDraftInput(event: Event): void {
+    const el = event.target as HTMLTextAreaElement | null;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }
+
+  private bindNarrowViewport(): void {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    this.narrowMq = window.matchMedia('(max-width: 820px)');
+    this.narrowViewport = this.narrowMq.matches;
+    this.narrowMq.addEventListener('change', this.onNarrowMqChange);
+  }
+
+  private focusComposer(): void {
+    const preferDock = !this.workspace || this.narrowViewport;
+    const el = (preferDock ? this.dockComposer : this.railComposer)?.nativeElement
+      ?? this.dockComposer?.nativeElement
+      ?? this.railComposer?.nativeElement;
+    el?.focus();
   }
 
   /** Track whether the user is near the bottom so widget growth can re-pin. */
@@ -324,7 +359,7 @@ export class AiChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.pendingFiles = [];
     this.pendingAction = null;
     this.suggestions = [...this.defaultSuggestions];
-    queueMicrotask(() => this.composerInput?.nativeElement?.focus());
+    queueMicrotask(() => this.focusComposer());
   }
 
   openSession(session: AiChatSession): void {
