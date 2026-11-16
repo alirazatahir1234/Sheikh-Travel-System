@@ -1,3 +1,5 @@
+export type SwitchableTenantStatus = 'Active' | 'Suspended' | 'Expired' | 'Deactivated';
+
 export interface Tenant {
   id: number;
   name: string;
@@ -19,6 +21,19 @@ export interface Tenant {
   maxVehicles?: number | null;
   moduleCodes?: string | null;
   subscriptionEndDate?: string | null;
+  subscriptionStatus?: string | null;
+  /** Present on /platform/tenants/switchable (SG-11). */
+  status?: SwitchableTenantStatus | string | null;
+}
+
+/** Platform act-as list including suspended/expired/deactivated (SG-11). */
+export interface SwitchableTenant {
+  id: number;
+  name: string;
+  slug: string;
+  code?: string | null;
+  status: SwitchableTenantStatus | string;
+  isActive: boolean;
   subscriptionStatus?: string | null;
 }
 

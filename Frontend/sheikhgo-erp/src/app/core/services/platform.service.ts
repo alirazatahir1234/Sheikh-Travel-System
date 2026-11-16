@@ -21,6 +21,7 @@ import {
   UpdateSubscriptionRequest,
   ProvisionTenantRequest,
   Tenant,
+  SwitchableTenant,
   TenantDetail,
   TenantManagementStats,
   TenantModuleDefinition,
@@ -76,6 +77,11 @@ export class PlatformService {
 
   getTenants(): Observable<Tenant[]> {
     return this.http.get<Tenant[]>(`${environment.apiUrl}/tenants`);
+  }
+
+  /** Includes Suspended / Expired / Deactivated for renew and inspect workflows (SG-11). */
+  getSwitchableTenants(): Observable<SwitchableTenant[]> {
+    return this.http.get<SwitchableTenant[]>(`${this.base}/tenants/switchable`);
   }
 
   getTenantById(id: number): Observable<TenantDetail> {

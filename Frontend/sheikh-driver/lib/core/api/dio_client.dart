@@ -235,7 +235,9 @@ class _AuthInterceptor extends QueuedInterceptor {
       _authSessionCancelTokens.add(cancelToken);
     }
 
-    // Super Admin company filter → X-Tenant-Id (omit = cross-tenant bypass).
+    // Super Admin company filter → X-Tenant-Id.
+    // Omit = JWT tenant only, except endpoints that opt in to all-companies
+    // ([AllowCrossTenantBypass], e.g. GET /api/admin/vehicles).
     final scopedCompany =
         await _storage.read(key: _platformCompanyFilterKey);
     final companyId = int.tryParse(scopedCompany ?? '');

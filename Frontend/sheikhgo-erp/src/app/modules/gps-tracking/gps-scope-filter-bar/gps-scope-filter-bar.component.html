@@ -11,7 +11,9 @@
           [disabled]="companiesLoading"
           (selectionChange)="onCompanyChange($event.value)">
           <mat-option [value]="null">Select a company</mat-option>
-          <mat-option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</mat-option>
+          <mat-option *ngFor="let c of companies" [value]="c.id">
+            {{ c.name }}{{ c.status && c.status !== 'Active' ? ' — ' + c.status : '' }}
+          </mat-option>
         </mat-select>
       </mat-form-field>
     </div>

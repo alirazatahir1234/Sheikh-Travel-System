@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
-import { Tenant } from '../../../core/models/platform.model';
+import { SwitchableTenant, Tenant } from '../../../core/models/platform.model';
 
 @Component({
   standalone: false,
@@ -11,7 +11,7 @@ import { Tenant } from '../../../core/models/platform.model';
   styleUrls: ['./tenant-picker.component.scss']
 })
 export class TenantPickerComponent implements OnInit, OnDestroy {
-  tenants: Tenant[] = [];
+  tenants: SwitchableTenant[] = [];
   selectedTenantId: number | null = null;
   loading = true;
 
@@ -39,15 +39,16 @@ export class TenantPickerComponent implements OnInit, OnDestroy {
 
   private loadTenants(): void {
     this.loading = true;
-    this.platform.getTenants().subscribe({
+    this.platform.getSwitchableTenants().subscribe({
       next: (tenants) => {
-        this.tenants = tenants.filter(t => t.isActive);
+        // SG-11: include suspended/expired/deactivated so renew is not a one-way door.
+        this.tenants = [...(tenants ?? [])].sort((a, b) => a.name.localeCompare(b.name));
         this.loading = false;
 
         if (this.selectedTenantId) {
           const tenant = this.tenants.find(t => t.id === this.selectedTenantId);
           if (tenant) {
-            this.tenantContext.setTenantDetails(tenant);
+            this.tenantContext.setTenantDetails(this.toTenant(tenant));
           } else if (this.tenants.length > 0) {
             this.selectTenant(this.tenants[0].id);
           }
@@ -69,7 +70,7 @@ export class TenantPickerComponent implements OnInit, OnDestroy {
 
     const tenant = this.tenants.find(t => t.id === tenantId);
     if (tenant) {
-      this.tenantContext.selectTenant(tenant);
+      this.tenantContext.selectTenant(this.toTenant(tenant));
     }
   }
 
@@ -77,5 +78,29 @@ export class TenantPickerComponent implements OnInit, OnDestroy {
     if (!tenantId) return '';
     const tenant = this.tenants.find(t => t.id === tenantId);
     return tenant?.name ?? '';
+  }
+
+  optionLabel(tenant: SwitchableTenant): string {
+    const base = `${tenant.name} (${tenant.slug || tenant.code || tenant.id})`;
+    if (!tenant.status || tenant.status === 'Active') return base;
+    return `${base} — ${tenant.status}`;
+  }
+
+  private toTenant(row: SwitchableTenant): Tenant {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      code: row.code,
+      isActive: row.isActive,
+      status: row.status,
+      subscriptionStatus: row.subscriptionStatus,
+      branchCount: 0,
+      departmentCount: 0,
+      roleCount: 0,
+      createdAt: '',
+      activeUserCount: 0,
+      activeVehicleCount: 0
+    };
   }
 }

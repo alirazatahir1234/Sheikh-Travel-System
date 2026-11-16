@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.API.Controllers;
 using SheikhTravelSystem.Application.Common;
@@ -74,5 +73,22 @@ public class AdminCrossTenantAuthorizationTests
             new Claim("tenant_id", PlatformTenant.Id.ToString())
         ], "test"));
         PlatformPermissionClaims.CanSwitchTenant(noPerm).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Admin_controller_opts_in_to_cross_tenant_bypass()
+    {
+        typeof(AdminCrossTenantController)
+            .GetCustomAttribute<AllowCrossTenantBypassAttribute>()
+            .Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Switchable_endpoint_requires_TenantsView()
+    {
+        var method = typeof(PlatformTenantsController).GetMethod(nameof(PlatformTenantsController.GetSwitchable));
+        var attr = method!.GetCustomAttribute<RequirePermissionAttribute>();
+        attr.Should().NotBeNull();
+        attr!.Policy.Should().Be(PlatformPermissions.TenantsView);
     }
 }

@@ -25,7 +25,9 @@ public static class TenantResolutionPolicy
         string? slug,
         bool isAuthenticated,
         bool canSwitchTenant,
-        bool allowAnonymousDefaultTenant)
+        bool allowAnonymousDefaultTenant,
+        bool allowCrossTenantBypass = false,
+        bool? headerTenantAllowed = null)
     {
         if (isAuthenticated)
             return DecideAuthenticated(
@@ -33,7 +35,9 @@ public static class TenantResolutionPolicy
                 headerTenantId,
                 slugResolvedTenantId,
                 slug,
-                canSwitchTenant);
+                canSwitchTenant,
+                allowCrossTenantBypass,
+                headerTenantAllowed);
 
         return DecideAnonymous(
             headerTenantId,
@@ -47,7 +51,9 @@ public static class TenantResolutionPolicy
         int? headerTenantId,
         int? slugResolvedTenantId,
         string? slug,
-        bool canSwitchTenant)
+        bool canSwitchTenant,
+        bool allowCrossTenantBypass,
+        bool? headerTenantAllowed)
     {
         string? warn = null;
 
@@ -55,6 +61,16 @@ public static class TenantResolutionPolicy
         {
             if (canSwitchTenant)
             {
+                if (headerTenantAllowed == false)
+                {
+                    return new TenantResolutionDecision(
+                        null,
+                        slug,
+                        Reject: true,
+                        RejectReason: "X-Tenant-Id is not in the caller's switchable tenant list.",
+                        WarnReason: null);
+                }
+
                 if (jwtTenantId.HasValue && headerTenantId.Value != jwtTenantId.Value)
                 {
                     warn = "Platform operator overridden JWT tenant via X-Tenant-Id.";
@@ -94,8 +110,8 @@ public static class TenantResolutionPolicy
 
         if (!jwtTenantId.HasValue)
         {
-            // Platform DataRead with no JWT tenant and no X-Tenant-Id → full cross-tenant mode.
-            if (canSwitchTenant)
+            // Opt-in all-companies only (SG-11). Never set bypass by default.
+            if (canSwitchTenant && allowCrossTenantBypass)
             {
                 return new TenantResolutionDecision(
                     null,
@@ -116,9 +132,8 @@ public static class TenantResolutionPolicy
 
         warn = AppendSlugWarn(warn, jwtTenantId, slugResolvedTenantId, slug);
 
-        // Platform DataRead without X-Tenant-Id: keep JWT tenant as working default for
-        // legacy handlers, but mark cross-tenant bypass so admin APIs can list all companies.
-        if (canSwitchTenant)
+        // Opt-in: keep JWT tenant as working default and mark bypass for all-companies endpoints.
+        if (canSwitchTenant && allowCrossTenantBypass)
         {
             warn = string.IsNullOrEmpty(warn)
                 ? "Platform operator cross-tenant bypass (JWT tenant kept as working default)."

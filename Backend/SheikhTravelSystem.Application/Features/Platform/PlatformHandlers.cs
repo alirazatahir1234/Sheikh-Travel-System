@@ -3,6 +3,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Common.Multitenancy;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
@@ -343,6 +344,31 @@ public class GetTenantsQueryHandler(
             ? await platformRepository.GetAllTenantsAsync(cancellationToken)
             : await platformRepository.GetTenantByScopeAsync(platformScope.TenantId, cancellationToken);
         return ApiResponse<IReadOnlyList<TenantListDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public class GetSwitchableTenantsQueryHandler(
+    IPlatformRepository platformRepository)
+    : IRequestHandler<GetSwitchableTenantsQuery, ApiResponse<IReadOnlyList<SwitchableTenantDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<SwitchableTenantDto>>> Handle(
+        GetSwitchableTenantsQuery request,
+        CancellationToken cancellationToken)
+    {
+        // Gate: controller [RequirePermission(Platform.Tenants.View)] (SG-11).
+        var rows = await platformRepository.GetSwitchableTenantsAsync(cancellationToken);
+        var mapped = rows
+            .Select(r => new SwitchableTenantDto(
+                r.Id,
+                r.Name,
+                r.Slug,
+                r.Code,
+                SwitchableTenantStatus.Resolve(r.IsActive, r.TenantStatus, r.SubscriptionStatus),
+                r.IsActive,
+                r.SubscriptionStatus))
+            .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return ApiResponse<IReadOnlyList<SwitchableTenantDto>>.SuccessResponse(mapped);
     }
 }
 

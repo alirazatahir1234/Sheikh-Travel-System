@@ -8,11 +8,12 @@ namespace SheikhTravelSystem.API.Controllers;
 
 /// <summary>
 /// Platform cross-company read APIs (vehicles / companies).
-/// Tenant middleware sets <c>IsCrossTenantBypass</c> when no X-Tenant-Id is sent.
+/// Opt-in <see cref="AllowCrossTenantBypassAttribute"/> so omit X-Tenant-Id = all companies (SG-11).
 /// </summary>
 [Authorize]
 [ApiController]
 [Route("api/admin")]
+[AllowCrossTenantBypass]
 public class AdminCrossTenantController : BaseApiController
 {
     /// <summary>Companies for the platform filter dropdown.</summary>

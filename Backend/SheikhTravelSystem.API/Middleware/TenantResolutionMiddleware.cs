@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Multitenancy;
@@ -82,6 +83,24 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         }
 
         var canSwitchTenant = PlatformPermissionClaims.CanSwitchTenant(context.User);
+        bool? headerTenantAllowed = null;
+        if (canSwitchTenant && headerTenantId.HasValue)
+        {
+            try
+            {
+                headerTenantAllowed = await tenantLookup.IsSwitchableTenantAsync(
+                    headerTenantId.Value, context.RequestAborted);
+            }
+            catch (Microsoft.Data.SqlClient.SqlException)
+            {
+                // Fail closed for act-as: unknown DB state must not grant a foreign tenant.
+                headerTenantAllowed = false;
+            }
+        }
+
+        var allowCrossTenantBypass = canSwitchTenant
+            && context.GetEndpoint()?.Metadata.GetMetadata<AllowCrossTenantBypassAttribute>() is not null;
+
         var decision = TenantResolutionPolicy.Decide(
             jwtTenantId,
             headerTenantId,
@@ -89,7 +108,9 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
             slug,
             isAuthenticated,
             canSwitchTenant,
-            allowAnonymousDefault);
+            allowAnonymousDefault,
+            allowCrossTenantBypass,
+            headerTenantAllowed);
 
         if (decision.Reject)
         {

@@ -9,7 +9,7 @@
       [disabled]="loading"
     >
       <option *ngFor="let tenant of tenants" [ngValue]="tenant.id">
-        {{ tenant.name }} ({{ tenant.slug || tenant.code }})
+        {{ optionLabel(tenant) }}
       </option>
     </select>
   </div>

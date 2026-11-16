@@ -76,7 +76,7 @@ public class TenantResolutionPolicyTests
     }
 
     [Fact]
-    public void SuperAdmin_NoHeader_MarksCrossTenantBypass_KeepsJwtWorkingTenant()
+    public void SuperAdmin_NoHeader_WithoutOptIn_DoesNotSetBypass()
     {
         var d = TenantResolutionPolicy.Decide(
             jwtTenantId: 1,
@@ -85,12 +85,67 @@ public class TenantResolutionPolicyTests
             slug: null,
             isAuthenticated: true,
             canSwitchTenant: true,
-            allowAnonymousDefaultTenant: true);
+            allowAnonymousDefaultTenant: true,
+            allowCrossTenantBypass: false);
+
+        d.Reject.Should().BeFalse();
+        d.TenantId.Should().Be(1);
+        d.CrossTenantBypass.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SuperAdmin_NoHeader_WithOptIn_MarksCrossTenantBypass_KeepsJwtWorkingTenant()
+    {
+        var d = TenantResolutionPolicy.Decide(
+            jwtTenantId: 1,
+            headerTenantId: null,
+            slugResolvedTenantId: null,
+            slug: null,
+            isAuthenticated: true,
+            canSwitchTenant: true,
+            allowAnonymousDefaultTenant: true,
+            allowCrossTenantBypass: true);
 
         d.Reject.Should().BeFalse();
         d.TenantId.Should().Be(1);
         d.CrossTenantBypass.Should().BeTrue();
         d.WarnReason.Should().Contain("cross-tenant bypass");
+    }
+
+    [Fact]
+    public void SuperAdmin_UnknownHeader_Rejects()
+    {
+        var d = TenantResolutionPolicy.Decide(
+            jwtTenantId: 1,
+            headerTenantId: 999,
+            slugResolvedTenantId: null,
+            slug: null,
+            isAuthenticated: true,
+            canSwitchTenant: true,
+            allowAnonymousDefaultTenant: true,
+            headerTenantAllowed: false);
+
+        d.Reject.Should().BeTrue();
+        d.TenantId.Should().BeNull();
+        d.RejectReason.Should().Contain("switchable");
+    }
+
+    [Fact]
+    public void SuperAdmin_AllowedHeader_Accepts()
+    {
+        var d = TenantResolutionPolicy.Decide(
+            jwtTenantId: 1,
+            headerTenantId: 42,
+            slugResolvedTenantId: null,
+            slug: null,
+            isAuthenticated: true,
+            canSwitchTenant: true,
+            allowAnonymousDefaultTenant: true,
+            headerTenantAllowed: true);
+
+        d.Reject.Should().BeFalse();
+        d.TenantId.Should().Be(42);
+        d.CrossTenantBypass.Should().BeFalse();
     }
 
     [Fact]

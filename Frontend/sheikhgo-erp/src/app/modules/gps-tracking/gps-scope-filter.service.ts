@@ -166,9 +166,25 @@ export class GpsScopeFilterService {
 
   private loadCompanies(): void {
     this.companiesLoadingSubject.next(true);
-    this.platform.getTenants().subscribe({
+    this.platform.getSwitchableTenants().subscribe({
       next: list => {
-        this.companiesSubject.next((list ?? []).filter(t => t.isActive !== false));
+        // SG-11: include suspended/expired/deactivated for inspect workflows.
+        const mapped: Tenant[] = (list ?? []).map(t => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          code: t.code,
+          isActive: t.isActive,
+          status: t.status,
+          subscriptionStatus: t.subscriptionStatus,
+          branchCount: 0,
+          departmentCount: 0,
+          roleCount: 0,
+          createdAt: '',
+          activeUserCount: 0,
+          activeVehicleCount: 0
+        }));
+        this.companiesSubject.next(mapped);
         this.companiesLoadingSubject.next(false);
       },
       error: () => {

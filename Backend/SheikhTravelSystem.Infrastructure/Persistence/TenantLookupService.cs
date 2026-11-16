@@ -24,4 +24,21 @@ public sealed class TenantLookupService(IDbConnectionFactory dbFactory) : ITenan
                 new { UserId = userId },
                 cancellationToken: cancellationToken));
     }
+
+    public async Task<bool> IsSwitchableTenantAsync(int tenantId, CancellationToken cancellationToken = default)
+    {
+        if (tenantId <= 0) return false;
+
+        using var connection = dbFactory.CreateConnection();
+        var found = await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(
+                """
+                SELECT TOP 1 1
+                FROM Tenants
+                WHERE Id = @TenantId AND COALESCE(IsDeleted, 0) = 0
+                """,
+                new { TenantId = tenantId },
+                cancellationToken: cancellationToken));
+        return found == 1;
+    }
 }

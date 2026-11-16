@@ -46,6 +46,28 @@ public sealed partial class PlatformRepository
         return rows.ToList();
     }
 
+    public async Task<IReadOnlyList<SwitchableTenantRow>> GetSwitchableTenantsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<SwitchableTenantRow>(new CommandDefinition(
+            """
+            SELECT t.Id,
+                   t.Name,
+                   t.Slug,
+                   t.Code,
+                   t.IsActive,
+                   COALESCE(t.Status, CASE WHEN t.IsActive = 1 THEN N'Active' ELSE N'Suspended' END) AS TenantStatus,
+                   s.Status AS SubscriptionStatus
+            FROM Tenants t
+            LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
+            WHERE COALESCE(t.IsDeleted, 0) = 0
+            ORDER BY t.Name
+            """,
+            cancellationToken: cancellationToken));
+        return rows.ToList();
+    }
+
     public async Task<IReadOnlyList<TenantListDto>> GetTenantByScopeAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

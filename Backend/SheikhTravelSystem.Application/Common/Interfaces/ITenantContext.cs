@@ -6,8 +6,8 @@ public interface ITenantContext
     string? TenantSlug { get; }
 
     /// <summary>
-    /// True when a platform SUPER_ADMIN request is not locked to one company
-    /// (no X-Tenant-Id). Admin cross-tenant read APIs may query all tenants.
+    /// True only when an endpoint opted in via <c>AllowCrossTenantBypass</c> and the
+    /// caller has platform DataRead with no X-Tenant-Id (SG-11). Default is never set.
     /// Legacy tenant-scoped handlers should still prefer <see cref="TenantId"/> when set.
     /// </summary>
     bool IsCrossTenantBypass { get; }

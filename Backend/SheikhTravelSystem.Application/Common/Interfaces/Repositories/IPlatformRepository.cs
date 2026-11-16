@@ -58,6 +58,7 @@ public interface IPlatformRepository
 
     // ── Tenants ───────────────────────────────────────────────────────────
     Task<IReadOnlyList<TenantListDto>> GetAllTenantsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SwitchableTenantRow>> GetSwitchableTenantsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TenantListDto>> GetTenantByScopeAsync(int tenantId, CancellationToken cancellationToken = default);
     Task<TenantDetailDto?> GetTenantDetailRowAsync(int id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetTenantModuleCodesOrderedAsync(int tenantId, CancellationToken cancellationToken = default);
@@ -167,3 +168,13 @@ public sealed record PermissionRowData(
 public sealed record TenantModuleLimitsRow(
     int? MaxUsers, int? MaxVehicles, int? MaxDrivers, int? MaxBranches, int? MaxGpsDevices,
     int UsedUsers, int UsedVehicles, int UsedDrivers, int UsedBranches, int UsedGps);
+
+/// <summary>Raw row for SG-11 switchable tenant list (status resolved in application layer).</summary>
+public sealed record SwitchableTenantRow(
+    int Id,
+    string Name,
+    string Slug,
+    string? Code,
+    bool IsActive,
+    string? TenantStatus,
+    string? SubscriptionStatus);

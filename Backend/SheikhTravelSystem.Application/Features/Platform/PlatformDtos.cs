@@ -288,6 +288,19 @@ public record GetModuleByKeyQuery(string CodeOrId) : IRequest<ApiResponse<Module
 
 public record GetTenantsQuery : IRequest<ApiResponse<IReadOnlyList<TenantListDto>>>;
 
+/// <summary>Tenants the platform caller may act in, including suspended/expired/deactivated (SG-11).</summary>
+public record SwitchableTenantDto(
+    int Id,
+    string Name,
+    string Slug,
+    string? Code,
+    /// <summary>Active | Suspended | Expired | Deactivated</summary>
+    string Status,
+    bool IsActive,
+    string? SubscriptionStatus);
+
+public record GetSwitchableTenantsQuery : IRequest<ApiResponse<IReadOnlyList<SwitchableTenantDto>>>;
+
 public record TenantAdminInfoDto(
     int Id,
     string FullName,

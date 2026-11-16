@@ -69,7 +69,7 @@ import { Tenant } from '../../../core/models/platform.model';
         <option value="" [selected]="selectedId() == null" disabled>— Select company —</option>
         @for (t of filtered(); track t.id) {
           <option [value]="t.id" [selected]="t.id === selectedId()">
-            {{ t.name }}{{ t.code ? ' · ' + t.code : '' }}
+            {{ t.name }}{{ t.code ? ' · ' + t.code : '' }}{{ statusSuffix(t) }}
           </option>
         }
       </select>
@@ -77,7 +77,7 @@ import { Tenant } from '../../../core/models/platform.model';
       @if (loading()) {
         <p class="company-gate__hint">Loading companies…</p>
       } @else if (!tenants().length) {
-        <p class="company-gate__hint">No active companies found.</p>
+        <p class="company-gate__hint">No companies found.</p>
       } @else if (!filtered().length) {
         <p class="company-gate__hint">No companies match “{{ filter() }}”.</p>
       }
@@ -158,16 +158,38 @@ export class CompanyScopeGateComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectedId.set(this.initialTenantId);
-    this.platform.getTenants().pipe(
-      catchError(() => of([] as Tenant[])),
+    this.platform.getSwitchableTenants().pipe(
+      catchError(() => of([])),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(list => {
-      const active = (list ?? []).filter(t => t.isActive !== false)
+      // SG-11: include suspended/expired/deactivated so renew/inspect is possible.
+      const all = [...(list ?? [])]
+        .map(t => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          code: t.code,
+          isActive: t.isActive,
+          status: t.status,
+          subscriptionStatus: t.subscriptionStatus,
+          branchCount: 0,
+          departmentCount: 0,
+          roleCount: 0,
+          createdAt: '',
+          activeUserCount: 0,
+          activeVehicleCount: 0
+        } as Tenant))
         .sort((a, b) => a.name.localeCompare(b.name));
-      this.tenants.set(active);
-      if (!active.some(t => t.id === this.selectedId())) this.selectedId.set(null);
+      this.tenants.set(all);
+      if (!all.some(t => t.id === this.selectedId())) this.selectedId.set(null);
       this.loading.set(false);
     });
+  }
+
+  statusSuffix(tenant: Tenant): string {
+    const status = (tenant.status ?? '').trim();
+    if (!status || status === 'Active') return '';
+    return ` — ${status}`;
   }
 
   confirm(): void {
