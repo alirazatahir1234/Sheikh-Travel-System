@@ -8,12 +8,12 @@
 
 | Classification | Count |
 | --- | ---: |
-| **LEAK** | **81** |
+| **LEAK** | **82** |
 | AUTHORIZATION BUG | 5 |
 | OK | 255 |
-| **Total read paths classified** | **341** |
+| **Total read paths classified** | **342** |
 
-Pass 2 size: **large (~3–5 days)** — ~27 files / ~81 LEAK methods + 5 AUTH BUG surfaces. Do not start Pass 2 in this commit.
+Pass 2 size: **large (~3–5 days)** — ~28 files / ~82 LEAK methods + 5 AUTH BUG surfaces. Do not start Pass 2 in this commit.
 
 ## Notes
 
@@ -28,6 +28,7 @@ Pass 2 size: **large (~3–5 days)** — ~27 files / ~81 LEAK methods + 5 AUTH B
 | Priority | File | Method | Tables |
 | --- | --- | --- | --- |
 | 1 | `FleetRepository.cs` | **GetComplianceDocumentsAsync** | ComplianceDocuments, Drivers, Vehicles |
+| 1b | `ComplianceReminderHostedService.cs` | ScanAsync CROSS APPLY ComplianceDocuments | ComplianceDocuments (missing `c.TenantId = v.TenantId`) |
 | 2 | `FleetRepository.cs` | GetAssignmentsAsync | AssignmentHistory, Drivers, Vehicles |
 | 3 | `CustomerPortalRepository.cs` | GetVehiclesAsync / GetRoutesAsync (+ 27 siblings) | Vehicles, Routes, Bookings, Payments, … |
 | 4 | `FleetIntelligenceServices.cs` | ComputeAsync / GenerateRecommendationsAsync | Maintenance, GpsAlertEvents, ComplianceDocuments |
@@ -75,6 +76,7 @@ Pass 2 size: **large (~3–5 days)** — ~27 files / ~81 LEAK methods + 5 AUTH B
 | `Infrastructure/.../DriverAppRepository.cs` | GetDriverFullNameAsync | Drivers | LEAK | `WHERE Id = @Id` |
 | `Infrastructure/.../DriverAppRepository.cs` | GetVehicleNameAsync | Vehicles | LEAK | `WHERE Id = @Id` |
 | `Infrastructure/.../FleetRepository.cs` | **GetComplianceDocumentsAsync** | ComplianceDocuments, Vehicles, Drivers | **LEAK** | `c.TenantId=@TenantId` but **JOIN Drivers/Vehicles on EntityId only** |
+| `Infrastructure/.../Services/ComplianceReminderHostedService.cs` | ScanAsync driverVehicleDocs | ComplianceDocuments, Vehicles, Drivers | LEAK | CROSS APPLY docs by EntityId only — missing `c.TenantId = v.TenantId` |
 | `Infrastructure/.../FleetRepository.cs` | GetAssignmentsAsync | AssignmentHistory, Vehicles, Drivers | LEAK | `v.TenantId=@TenantId`; Drivers join unscoped |
 | `Infrastructure/.../GpsDeviceRepository.cs` | GetPendingDeviceCommandsAsync | GpsDeviceCommands, GpsDevices | LEAK | by UniqueId — no TenantId |
 | `Infrastructure/.../GpsTrackingRepository.cs` | GetGpsEtaAsync | Bookings, Routes, Trips, VehicleCurrentLocation, Vehicles | LEAK | by booking/vehicle Id — no TenantId |
@@ -138,7 +140,7 @@ Compliance-related OK examples: `DriverRepository.GetDocumentsAsync`, `DriverApp
 | Metric | Estimate |
 | --- | --- |
 | Files to touch | **~27** LEAK files + **~5** AUTH BUG surfaces (+ isolation tests) |
-| Methods to fix | **~81 LEAK** + **5 AUTH BUG** |
+| Methods to fix | **~82 LEAK** + **5 AUTH BUG** |
 | Effort | **Large — ~3–5 days** |
 | Suggested order | (1) FleetRepository compliance/assignment joins, (2) CustomerPortal tenant scoping, (3) FleetIntelligence Maintenance/GpsAlertEvents, (4) User IDOR reads, (5) GPS/Traccar/ingest Id-only reads, (6) tighten Platform/Users request-TenantId paths |
 
