@@ -47,3 +47,4 @@ appsettings.Staging.json
 **/releases/
 docs/marketing/**/*.mp4
 docs/marketing/**/*.mov
+.DS_Store
