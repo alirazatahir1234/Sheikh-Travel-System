@@ -1,0 +1,11 @@
+---
+description: Flutter app rules
+globs: ["Frontend/sheikh-driver/**/*.dart"]
+alwaysApply: false
+---
+
+API base URL from build flavour or remote config, never a hardcoded IP.
+Offline-first: queue writes in Hive, reconcile on reconnect, show what is pending.
+Telemetry carries Live / Stale / Offline states; a cached speed is never shown as current.
+Tenant comes from the token, never from a parameter the client sets.
+Never log or cache CNIC or exact coordinates to disk.

@@ -25,3 +25,23 @@ Thumbs.db
 secrets/
 secrets/**
 docker-compose.db.env
+appsettings.Production.json
+appsettings.Staging.json
+**/secrets.json
+*.pfx
+
+# Frontend build output and dependencies
+**/node_modules/
+**/dist/
+**/.angular/
+**/build/
+**/.dart_tool/
+**/ios/Pods/
+
+# Frontend build output and dependencies
+**/node_modules/
+**/dist/
+**/.angular/
+**/build/
+**/.dart_tool/
+**/ios/Pods/

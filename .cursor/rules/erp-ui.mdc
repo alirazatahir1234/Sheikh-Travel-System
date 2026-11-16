@@ -1,0 +1,16 @@
+---
+description: Angular ERP KPI, currency and telemetry rules
+globs: ["Frontend/sheikhgo-erp/**/*.ts", "Frontend/sheikhgo-erp/**/*.html"]
+alwaysApply: false
+---
+
+No hardcoded currency symbols. Currency pipe with the tenant's ISO code.
+No hardcoded API host. Runtime config only.
+KPI values come from a summary endpoint, not computed from a partial list.
+Every KPI label states its time window.
+Telemetry renders with a Live / Stale / Offline freshness badge; a cached value is
+never styled as live.
+CNIC renders masked unless the user holds Customer.ViewPII.
+Shared streams use shareReplay({bufferSize:1, refCount:true}); never subscribe in
+ngOnInit and use an async pipe on the same stream.
+Menu visibility uses a View permission, never Create.

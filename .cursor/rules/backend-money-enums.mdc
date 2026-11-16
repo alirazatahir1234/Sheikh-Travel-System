@@ -1,0 +1,13 @@
+---
+description: Money, enums, dates and authorization
+globs: ["Backend/**/*.cs"]
+alwaysApply: false
+---
+
+Money is decimal(18,2) with an ISO 4217 CurrencyCode. Never double, never an assumed PKR.
+Revenue is recognised from Invoices, never from Payment.Status.
+Enums serialize as strings over the wire, never ints.
+fromDate/toDate must be applied; an empty range returns an empty set, never an
+unfiltered fallback.
+No authorization by role name. Permission checks only.
+Never log CNIC, full phone numbers or exact coordinates.

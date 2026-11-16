@@ -1,0 +1,12 @@
+---
+description: Tenant isolation for all data access
+globs: ["Backend/**/*.cs"]
+alwaysApply: false
+---
+
+Every SQL statement touching a tenant-owned table carries WHERE TenantId = @TenantId.
+TenantId comes from ITenantContext only - never from request body, query string or route.
+Tenant-owned: Vehicles, Drivers, ComplianceDocuments, Trips, Bookings, Customers,
+Invoices, Payments, Settlements, FuelLogs, MaintenanceOrders, Inspections, Assignments,
+Branches, Departments, Users, GpsDevices, Alerts, Notifications, RentalBookings, AllowanceRules.
+New repository method => a test asserting it returns nothing for another tenant.

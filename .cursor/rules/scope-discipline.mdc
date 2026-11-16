@@ -1,0 +1,10 @@
+---
+description: Scope discipline
+alwaysApply: true
+---
+
+Change only what I asked for. Do not reformat, rename or "improve" untouched code.
+If you believe a wider change is needed, say so and wait - do not make it.
+This is a monorepo: if a change needs a matching change in Backend/ or Frontend/,
+name the file - it is the same branch and the same commit.
+Never commit anything under secrets/, appsettings.Production.json, .env or *.pfx.
