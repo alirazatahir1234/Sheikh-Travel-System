@@ -319,7 +319,11 @@ public class CreateRoleCommandHandler(IPlatformRepository platformRepository, IT
     }
 }
 
-public class UpdateRolePermissionsCommandHandler(IPlatformRepository platformRepository, ITenantContext tenantContext)
+public class UpdateRolePermissionsCommandHandler(
+    IPlatformRepository platformRepository,
+    ITenantContext tenantContext,
+    IDbConnectionFactory dbFactory,
+    IAuditEngine auditEngine)
     : IRequestHandler<UpdateRolePermissionsCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateRolePermissionsCommand request, CancellationToken cancellationToken)
@@ -327,8 +331,52 @@ public class UpdateRolePermissionsCommandHandler(IPlatformRepository platformRep
         var tenantId = tenantContext.GetRequiredTenantId();
         if (!await platformRepository.RoleExistsAsync(tenantId, request.RoleId, cancellationToken))
             throw new NotFoundException("Role", request.RoleId);
-        await platformRepository.ReplaceRolePermissionsAsync(
-            request.RoleId, request.PermissionCodes ?? Array.Empty<string>(), cancellationToken);
+
+        var newCodes = (request.PermissionCodes ?? Array.Empty<string>())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var oldCodes = (await platformRepository.GetRolePermissionCodesAsync(request.RoleId, cancellationToken))
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        using var connection = dbFactory.CreateConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+        try
+        {
+            await platformRepository.ReplaceRolePermissionsAsync(
+                connection, tx, request.RoleId, newCodes, cancellationToken);
+
+            var removed = oldCodes.Except(newCodes, StringComparer.OrdinalIgnoreCase).ToList();
+            var added = newCodes.Except(oldCodes, StringComparer.OrdinalIgnoreCase).ToList();
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.RolePermissions,
+                EntityType: "Role",
+                EntityId: request.RoleId,
+                Action: "UpdatePermissions",
+                OldValues: System.Text.Json.JsonSerializer.Serialize(new { permissions = oldCodes }),
+                NewValues: System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    permissions = newCodes,
+                    added,
+                    removed
+                }),
+                Success: true,
+                Message: $"Role {request.RoleId} permissions updated (+{added.Count}/-{removed.Count})",
+                TenantId: tenantId,
+                TargetTenantId: tenantId,
+                FailPolicy: AuditFailPolicy.FailClosed), connection, tx, cancellationToken);
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
+
         return ApiResponse<bool>.SuccessResponse(true, "Role permissions updated.");
     }
 }
@@ -751,7 +799,12 @@ public class DeleteRoleForTenantCommandHandler(IPlatformRepository platformRepos
     }
 }
 
-public class UpdateRolePermissionsForTenantCommandHandler(IPlatformRepository platformRepository, IPlatformScope platformScope)
+public class UpdateRolePermissionsForTenantCommandHandler(
+    IPlatformRepository platformRepository,
+    IPlatformScope platformScope,
+    IDbConnectionFactory dbFactory,
+    IAuditEngine auditEngine,
+    ITenantContext tenantContext)
     : IRequestHandler<UpdateRolePermissionsForTenantCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
@@ -760,8 +813,53 @@ public class UpdateRolePermissionsForTenantCommandHandler(IPlatformRepository pl
         platformScope.EnsureTenantAccess(request.TenantId);
         if (!await platformRepository.RoleExistsAsync(request.TenantId, request.RoleId, cancellationToken))
             throw new NotFoundException("Role", request.RoleId);
-        await platformRepository.ReplaceRolePermissionsAsync(
-            request.RoleId, request.PermissionCodes ?? Array.Empty<string>(), cancellationToken);
+
+        var newCodes = (request.PermissionCodes ?? Array.Empty<string>())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var oldCodes = (await platformRepository.GetRolePermissionCodesAsync(request.RoleId, cancellationToken))
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        using var connection = dbFactory.CreateConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+        try
+        {
+            await platformRepository.ReplaceRolePermissionsAsync(
+                connection, tx, request.RoleId, newCodes, cancellationToken);
+
+            var removed = oldCodes.Except(newCodes, StringComparer.OrdinalIgnoreCase).ToList();
+            var added = newCodes.Except(oldCodes, StringComparer.OrdinalIgnoreCase).ToList();
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.RolePermissions,
+                EntityType: "Role",
+                EntityId: request.RoleId,
+                Action: "UpdatePermissions",
+                OldValues: System.Text.Json.JsonSerializer.Serialize(new { permissions = oldCodes }),
+                NewValues: System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    permissions = newCodes,
+                    added,
+                    removed
+                }),
+                Success: true,
+                Message: $"Role {request.RoleId} permissions updated for tenant {request.TenantId} (+{added.Count}/-{removed.Count})",
+                TenantId: request.TenantId,
+                TargetTenantId: request.TenantId,
+                ActorTenantId: tenantContext.TenantId,
+                FailPolicy: AuditFailPolicy.FailClosed), connection, tx, cancellationToken);
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
+
         return ApiResponse<bool>.SuccessResponse(true, "Role permissions updated.");
     }
 }
@@ -1107,13 +1205,21 @@ public class GetSubscriptionOverviewQueryHandler(IPlatformRepository platformRep
     }
 }
 
-public class UpdateSubscriptionCommandHandler(IPlatformRepository platformRepository, IPlatformScope platformScope)
+public class UpdateSubscriptionCommandHandler(
+    IPlatformRepository platformRepository,
+    IPlatformScope platformScope,
+    IAuditEngine auditEngine,
+    ITenantContext tenantContext)
     : IRequestHandler<UpdateSubscriptionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateSubscriptionCommand request, CancellationToken cancellationToken)
     {
         platformScope.EnsureTenantAccess(request.TenantId);
         await platformRepository.EnsureTenantExistsAsync(request.TenantId, cancellationToken);
+
+        // ApplySubscriptionActionAsync opens its own connection — not the same SQL TX as the audit
+        // INSERT. Fail-closed at application boundary: if audit fails after mutate, throw so the
+        // caller does not treat the change as a clean audited success. Prefer shared TX in a follow-up.
         await platformRepository.ApplySubscriptionActionAsync(
             request.TenantId,
             request.Action,
@@ -1122,6 +1228,27 @@ public class UpdateSubscriptionCommandHandler(IPlatformRepository platformReposi
             request.BillingCycle,
             request.AutoRenew,
             cancellationToken);
+
+        await auditEngine.RecordAsync(new AuditEventWrite(
+            EventKey: AuditEventKeys.SubscriptionChange,
+            EntityType: "Subscription",
+            EntityId: request.TenantId,
+            Action: request.Action.ToString(),
+            NewValues: System.Text.Json.JsonSerializer.Serialize(new
+            {
+                action = request.Action.ToString(),
+                planName = request.PlanName,
+                monthlyAmount = request.MonthlyAmount,
+                billingCycle = request.BillingCycle,
+                autoRenew = request.AutoRenew
+            }),
+            Success: true,
+            Message: $"Subscription {request.Action.ToString().ToLowerInvariant()}d for tenant {request.TenantId}",
+            TenantId: request.TenantId,
+            TargetTenantId: request.TenantId,
+            ActorTenantId: tenantContext.TenantId,
+            FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+
         return ApiResponse<bool>.SuccessResponse(true, $"Subscription {request.Action.ToString().ToLowerInvariant()}d.");
     }
 }

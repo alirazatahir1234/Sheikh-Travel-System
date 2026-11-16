@@ -126,6 +126,17 @@ public interface IUserRepository
         IReadOnlyDictionary<int, (int? BranchId, int? DepartmentId)> scopes,
         int? assignedBy,
         CancellationToken cancellationToken = default);
+
+    /// <summary>SG-07: replace assignments on an open connection/transaction (fail-closed audit enrollment).</summary>
+    Task ReplaceRoleAssignmentsAsync(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
+        int userId,
+        int tenantId,
+        IReadOnlyList<int> roleIds,
+        IReadOnlyDictionary<int, (int? BranchId, int? DepartmentId)> scopes,
+        int? assignedBy,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record UserOrgInfo(int TenantId, int? BranchId, int? DepartmentId);

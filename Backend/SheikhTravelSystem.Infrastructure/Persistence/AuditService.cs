@@ -6,7 +6,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence;
 
 /// <summary>
 /// Thin wrapper over <see cref="IAuditEngine"/> for legacy callers.
-/// Dual-write and Stage 13 gates live in the engine.
+/// Fail-open + loud. Prefer explicit <see cref="IAuditEngine"/> for security events.
 /// </summary>
 public class AuditService(
     IAuditEngine auditEngine,
@@ -23,11 +23,15 @@ public class AuditService(
                 EntityId: entityId,
                 Action: action,
                 Success: true,
-                Message: $"{action} {entityName}"), cancellationToken);
+                Message: $"{action} {entityName}",
+                FailPolicy: AuditFailPolicy.FailOpenLoud), cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "AuditService.LogAsync failed for {Action} {Entity}", action, entityName);
+            AuditWriteMetrics.RecordFailure(
+                AuditEventRegistrySeed.ResolveEventKey(entityName, action),
+                "audit_service");
+            logger.LogError(ex, "Fail-open audit write failed for {Action} {Entity}", action, entityName);
         }
     }
 }

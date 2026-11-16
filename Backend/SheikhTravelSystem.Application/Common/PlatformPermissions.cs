@@ -16,7 +16,10 @@ public static class PlatformPermissions
     public const string TenantsAuditReadAll = "Platform.Tenants.AuditReadAll";
     /// <summary>Cross-tenant user directory (SG-42).</summary>
     public const string TenantsUsersReadAll = "Platform.Tenants.UsersReadAll";
-    /// <summary>Impersonation (seeded for SUPER_ADMIN; no endpoint yet).</summary>
+    /// <summary>
+    /// Impersonation (seeded for SUPER_ADMIN; no endpoint yet).
+    /// Future endpoint MUST write <c>platform.impersonation</c> fail-closed in the same TX (SG-07).
+    /// </summary>
     public const string TenantsImpersonate = "Platform.Tenants.Impersonate";
     public const string BranchesView = "Platform.Branches.View";
     public const string BranchesManage = "Platform.Branches.Manage";

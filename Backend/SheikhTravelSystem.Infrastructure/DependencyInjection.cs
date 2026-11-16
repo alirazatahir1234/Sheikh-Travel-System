@@ -173,6 +173,7 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseResetService, DatabaseResetService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuditEngine, AuditEngine>();
+        services.AddScoped<IPiiRevealAudit, PiiRevealAudit>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<NotificationRecipientResolver>();
         services.AddScoped<INotificationRetentionService, NotificationRetentionService>();

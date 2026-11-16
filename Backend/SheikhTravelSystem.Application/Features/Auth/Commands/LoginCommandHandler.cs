@@ -33,17 +33,18 @@ public class LoginCommandHandler(
         if (user is null)
         {
             logger.LogWarning("Failed login attempt for email {Email}", request.Email);
-            try
-            {
-                await auditEngine.RecordAsync(new AuditEventWrite(
+            await TryAuditLoginAsync(
+                new AuditEventWrite(
                     EventKey: AuditEventKeys.LoginFailed,
                     EntityType: "User",
                     Action: "LoginFailed",
                     Success: false,
                     Message: "Unknown user",
-                    IpAddress: request.ClientIp), cancellationToken);
-            }
-            catch { /* never block login */ }
+                    TenantId: PlatformTenant.Id,
+                    TargetTenantId: null,
+                    IpAddress: request.ClientIp,
+                    FailPolicy: AuditFailPolicy.FailOpenLoud),
+                cancellationToken);
             return ApiResponse<LoginResponse>.FailResponse("Invalid email or password.");
         }
 
@@ -60,9 +61,8 @@ public class LoginCommandHandler(
 
         if (user.LockoutEndUtc is DateTime lockoutEnd && lockoutEnd > DateTime.UtcNow)
         {
-            try
-            {
-                await auditEngine.RecordAsync(new AuditEventWrite(
+            await TryAuditLoginAsync(
+                new AuditEventWrite(
                     EventKey: AuditEventKeys.Lockout,
                     EntityType: "User",
                     EntityId: user.Id,
@@ -70,10 +70,11 @@ public class LoginCommandHandler(
                     Success: false,
                     Message: "Login attempted while locked",
                     TenantId: user.TenantId,
+                    TargetTenantId: user.TenantId,
                     UserId: user.Id,
-                    IpAddress: request.ClientIp), cancellationToken);
-            }
-            catch { /* never block login */ }
+                    IpAddress: request.ClientIp,
+                    FailPolicy: AuditFailPolicy.FailOpenLoud),
+                cancellationToken);
             return ApiResponse<LoginResponse>.FailResponse(
                 $"Account locked. Try again after {lockoutEnd:u}.");
         }
@@ -91,12 +92,11 @@ public class LoginCommandHandler(
         {
             logger.LogWarning("Failed login attempt for email {Email}", request.Email);
             await RecordFailedAttemptAsync(user, policies, securityEngine, cancellationToken);
-            try
-            {
-                var maxAttempts = securityEngine.GetInt(policies, SecurityPolicyKeys.LockoutMaxAttempts, 0);
-                var nextAttempts = user.FailedLoginAttempts + 1;
-                var locked = maxAttempts > 0 && nextAttempts >= maxAttempts;
-                await auditEngine.RecordAsync(new AuditEventWrite(
+            var maxAttempts = securityEngine.GetInt(policies, SecurityPolicyKeys.LockoutMaxAttempts, 0);
+            var nextAttempts = user.FailedLoginAttempts + 1;
+            var locked = maxAttempts > 0 && nextAttempts >= maxAttempts;
+            await TryAuditLoginAsync(
+                new AuditEventWrite(
                     EventKey: locked ? AuditEventKeys.Lockout : AuditEventKeys.LoginFailed,
                     EntityType: "User",
                     EntityId: user.Id,
@@ -104,10 +104,11 @@ public class LoginCommandHandler(
                     Success: false,
                     Message: locked ? "Account locked after failed attempts" : "Invalid password",
                     TenantId: user.TenantId,
+                    TargetTenantId: user.TenantId,
                     UserId: user.Id,
-                    IpAddress: request.ClientIp), cancellationToken);
-            }
-            catch { /* never block login */ }
+                    IpAddress: request.ClientIp,
+                    FailPolicy: AuditFailPolicy.FailOpenLoud),
+                cancellationToken);
             return ApiResponse<LoginResponse>.FailResponse("Invalid email or password.");
         }
 
@@ -200,9 +201,8 @@ public class LoginCommandHandler(
             logger.LogWarning(ex, "Failed to record login presence for user {UserId}", user.Id);
         }
 
-        try
-        {
-            await auditEngine.RecordAsync(new AuditEventWrite(
+        await TryAuditLoginAsync(
+            new AuditEventWrite(
                 EventKey: AuditEventKeys.LoginSuccess,
                 EntityType: "User",
                 EntityId: user.Id,
@@ -210,13 +210,11 @@ public class LoginCommandHandler(
                 Success: true,
                 Message: "Login successful",
                 TenantId: user.TenantId,
+                TargetTenantId: user.TenantId,
                 UserId: user.Id,
-                IpAddress: request.ClientIp), cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to record login audit for user {UserId}", user.Id);
-        }
+                IpAddress: request.ClientIp,
+                FailPolicy: AuditFailPolicy.FailOpenLoud),
+            cancellationToken);
 
         var orderedRoles = RoleCodePriority.OrderByPrivilege(access.RoleCodes);
         var primaryRole = RoleCodePriority.SelectPrimary(orderedRoles) ?? user.Role.ToString();
@@ -232,6 +230,24 @@ public class LoginCommandHandler(
             orderedRoles,
             access.Permissions);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Login successful.");
+    }
+
+    /// <summary>
+    /// Login audit is fail-open (never block auth) but MUST alert on write failure (SG-07).
+    /// </summary>
+    private async Task TryAuditLoginAsync(AuditEventWrite write, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await auditEngine.RecordAsync(write, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            AuditWriteMetrics.RecordFailure(write.EventKey, "login_audit");
+            logger.LogError(ex,
+                "Fail-open login audit write failed for {EventKey} — metric {Metric}",
+                write.EventKey, AuditWriteMetrics.FailureCounterName);
+        }
     }
 
     private async Task RecordFailedAttemptAsync(

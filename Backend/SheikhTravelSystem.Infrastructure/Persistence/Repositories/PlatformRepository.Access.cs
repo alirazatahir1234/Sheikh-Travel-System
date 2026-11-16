@@ -260,19 +260,51 @@ public sealed partial class PlatformRepository
             new { RoleId = roleId, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
+    public async Task<IReadOnlyList<string>> GetRolePermissionCodesAsync(
+        int roleId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var codes = await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT p.PermissionCode
+            FROM RolePermissions rp
+            INNER JOIN Permissions p ON p.Id = rp.PermissionId
+            WHERE rp.RoleId = @RoleId
+            ORDER BY p.PermissionCode
+            """, new { RoleId = roleId }, cancellationToken: cancellationToken));
+        return codes.ToList();
+    }
+
     public async Task ReplaceRolePermissionsAsync(int roleId, IEnumerable<string> permissionCodes, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+        await ReplaceRolePermissionsAsync(connection, tx, roleId, permissionCodes, cancellationToken);
+        tx.Commit();
+    }
+
+    public async Task ReplaceRolePermissionsAsync(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
+        int roleId,
+        IEnumerable<string> permissionCodes,
+        CancellationToken cancellationToken = default)
+    {
         await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM RolePermissions WHERE RoleId = @RoleId",
-            new { RoleId = roleId }, cancellationToken: cancellationToken));
+            new { RoleId = roleId },
+            transaction: transaction,
+            cancellationToken: cancellationToken));
 
         foreach (var code in permissionCodes.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO RolePermissions (RoleId, PermissionId)
                 SELECT @RoleId, p.Id FROM Permissions p WHERE p.PermissionCode = @Code
-                """, new { RoleId = roleId, Code = code }, cancellationToken: cancellationToken));
+                """, new { RoleId = roleId, Code = code },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
         }
     }
 

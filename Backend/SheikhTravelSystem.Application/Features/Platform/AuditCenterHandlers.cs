@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
@@ -72,12 +73,14 @@ public class SearchAuditEventsQueryHandler(
         if (rangeError is not null)
             return ApiResponse<PagedResult<AuditEventListItemDto>>.FailResponse(rangeError);
 
-        var tenantId = ResolveTenant(request.TenantId, tenantContext, platformScope);
+        var scope = ResolveSearchScope(request.TenantId, tenantContext, platformScope);
         var toDate = AuditEngineRules.NormalizeToDateInclusive(request.ToDate);
         var (items, total) = await auditEngine.SearchAsync(new AuditEventSearchFilter(
-            request.Page, request.PageSize, tenantId, request.UserId, request.Category,
+            request.Page, request.PageSize, scope.TenantId, request.UserId, request.Category,
             request.EventKey, request.EntityType, request.EntityId, request.Severity,
-            request.Success, request.FromDate, toDate, request.Search), cancellationToken);
+            request.Success, request.FromDate, toDate, request.Search,
+            ForExport: false,
+            AllCompanies: scope.AllCompanies), cancellationToken);
 
         return ApiResponse<PagedResult<AuditEventListItemDto>>.SuccessResponse(
             new PagedResult<AuditEventListItemDto>
@@ -89,16 +92,40 @@ public class SearchAuditEventsQueryHandler(
             });
     }
 
-    internal static int ResolveTenant(int? requested, ITenantContext tenantContext, IPlatformScope platformScope)
+    /// <summary>
+    /// All-companies when caller has <see cref="PlatformPermissions.TenantsAuditReadAll"/> and no
+    /// concrete tenant is selected / requested. Does not throw for missing tenant in that mode (SG-07).
+    /// </summary>
+    public static AuditSearchScope ResolveSearchScope(
+        int? requested, ITenantContext tenantContext, IPlatformScope platformScope)
     {
         if (requested is int tid)
         {
             platformScope.EnsureTenantAccess(tid);
-            return tid;
+            return new AuditSearchScope(tid, AllCompanies: false);
         }
-        return tenantContext.GetRequiredTenantId();
+
+        if (tenantContext.TenantId is int current)
+            return new AuditSearchScope(current, AllCompanies: false);
+
+        if (platformScope.HasPermission(PlatformPermissions.TenantsAuditReadAll))
+            return new AuditSearchScope(null, AllCompanies: true);
+
+        throw new ForbiddenException(
+            "Select a company or hold Platform.Tenants.AuditReadAll for all-companies audit search.");
+    }
+
+    /// <summary>Legacy helper used by retention / recent when a concrete tenant is required.</summary>
+    public static int ResolveTenant(int? requested, ITenantContext tenantContext, IPlatformScope platformScope)
+    {
+        var scope = ResolveSearchScope(requested, tenantContext, platformScope);
+        if (scope.AllCompanies || scope.TenantId is not int tid)
+            return PlatformTenant.Id;
+        return tid;
     }
 }
+
+public readonly record struct AuditSearchScope(int? TenantId, bool AllCompanies);
 
 public class GetAuditEventByIdQueryHandler(
     IAuditEngine auditEngine,
@@ -109,13 +136,24 @@ public class GetAuditEventByIdQueryHandler(
     public async Task<ApiResponse<AuditEventDetailDto>> Handle(
         GetAuditEventByIdQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = request.TenantId;
-        if (tenantId is int tid)
+        int? tenantFilter = null;
+        if (request.TenantId is int tid)
+        {
             platformScope.EnsureTenantAccess(tid);
-        else
-            tenantId = tenantContext.GetRequiredTenantId();
+            tenantFilter = tid;
+        }
+        else if (tenantContext.TenantId is int current)
+        {
+            tenantFilter = current;
+        }
+        else if (!platformScope.HasPermission(PlatformPermissions.TenantsAuditReadAll))
+        {
+            throw new ForbiddenException(
+                "Select a company or hold Platform.Tenants.AuditReadAll to open an audit event.");
+        }
+        // All-companies + AuditReadAll: tenantFilter stays null → no TenantId predicate.
 
-        var detail = await auditEngine.GetByIdAsync(request.Id, tenantId, cancellationToken);
+        var detail = await auditEngine.GetByIdAsync(request.Id, tenantFilter, cancellationToken);
         if (detail is null)
             return ApiResponse<AuditEventDetailDto>.FailResponse("Audit event not found.");
         return ApiResponse<AuditEventDetailDto>.SuccessResponse(detail);
@@ -147,10 +185,20 @@ public class GetRecentAuditEventsQueryHandler(
     public async Task<ApiResponse<IReadOnlyList<AuditEventListItemDto>>> Handle(
         GetRecentAuditEventsQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = SearchAuditEventsQueryHandler.ResolveTenant(
+        var scope = SearchAuditEventsQueryHandler.ResolveSearchScope(
             request.TenantId, tenantContext, platformScope);
+        if (scope.AllCompanies)
+        {
+            var (items, _) = await auditEngine.SearchAsync(new AuditEventSearchFilter(
+                Page: 1,
+                PageSize: Math.Clamp(request.Take, 1, 100),
+                UserId: request.UserId,
+                AllCompanies: true), cancellationToken);
+            return ApiResponse<IReadOnlyList<AuditEventListItemDto>>.SuccessResponse(items);
+        }
+
         var rows = await auditEngine.GetRecentAsync(
-            tenantId, request.UserId, request.Take, cancellationToken);
+            scope.TenantId!.Value, request.UserId, request.Take, cancellationToken);
         return ApiResponse<IReadOnlyList<AuditEventListItemDto>>.SuccessResponse(rows);
     }
 }
@@ -170,13 +218,13 @@ public class ExportAuditEventsQueryHandler(
         if (rangeError is not null)
             return ApiResponse<AuditExportResultDto>.FailResponse(rangeError);
 
-        var tenantId = SearchAuditEventsQueryHandler.ResolveTenant(
+        var scope = SearchAuditEventsQueryHandler.ResolveSearchScope(
             request.TenantId, tenantContext, platformScope);
         var toDate = AuditEngineRules.NormalizeToDateInclusive(request.ToDate);
         var (items, _) = await auditEngine.SearchAsync(new AuditEventSearchFilter(
             Page: 1,
             PageSize: ExportCap,
-            TenantId: tenantId,
+            TenantId: scope.TenantId,
             UserId: request.UserId,
             Category: request.Category,
             EventKey: request.EventKey,
@@ -186,7 +234,8 @@ public class ExportAuditEventsQueryHandler(
             FromDate: request.FromDate,
             ToDate: toDate,
             Search: request.Search,
-            ForExport: true), cancellationToken);
+            ForExport: true,
+            AllCompanies: scope.AllCompanies), cancellationToken);
 
         var csv = BuildCsv(items);
         var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
@@ -199,12 +248,14 @@ public class ExportAuditEventsQueryHandler(
     internal static string BuildCsv(IEnumerable<AuditEventListItemDto> rows)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Id,CreatedOn,Company,User,Category,Severity,EventKey,Event,Action,Entity,EntityId,Success,IpAddress,Message");
+        sb.AppendLine("Id,CreatedOn,Company,TenantId,TargetTenantId,User,Category,Severity,EventKey,Event,Action,Entity,EntityId,Success,IpAddress,Message");
         foreach (var r in rows)
         {
             sb.Append(r.Id).Append(',')
                 .Append(r.CreatedOn.ToString("O")).Append(',')
                 .Append(Csv(r.CompanyName)).Append(',')
+                .Append(r.TenantId).Append(',')
+                .Append(r.TargetTenantId?.ToString() ?? "").Append(',')
                 .Append(Csv(r.UserName)).Append(',')
                 .Append(Csv(r.Category)).Append(',')
                 .Append(Csv(r.Severity)).Append(',')

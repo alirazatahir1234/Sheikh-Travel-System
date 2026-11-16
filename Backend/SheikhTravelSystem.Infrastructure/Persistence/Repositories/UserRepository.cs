@@ -749,12 +749,32 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+        await ReplaceRoleAssignmentsAsync(
+            connection, tx, userId, tenantId, roleIds, scopes, assignedBy, cancellationToken);
+        tx.Commit();
+    }
+
+    public async Task ReplaceRoleAssignmentsAsync(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
+        int userId,
+        int tenantId,
+        IReadOnlyList<int> roleIds,
+        IReadOnlyDictionary<int, (int? BranchId, int? DepartmentId)> scopes,
+        int? assignedBy,
+        CancellationToken cancellationToken = default)
+    {
         var distinct = roleIds.Distinct().ToList();
         if (distinct.Count > 0)
         {
             var validCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
                 SELECT COUNT(*) FROM Roles WHERE TenantId = @TenantId AND Id IN @RoleIds AND IsActive = 1
-                """, new { TenantId = tenantId, RoleIds = distinct }, cancellationToken: cancellationToken));
+                """, new { TenantId = tenantId, RoleIds = distinct },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
             if (validCount != distinct.Count)
                 throw new ConflictException(
                     "One or more roles are invalid, inactive, or do not belong to this company.");
@@ -763,13 +783,14 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM UserRoles WHERE UserId = @UserId",
             new { UserId = userId },
+            transaction: transaction,
             cancellationToken: cancellationToken));
 
         foreach (var roleId in distinct)
         {
             scopes.TryGetValue(roleId, out var scope);
             await InsertAssignmentAsync(
-                connection, userId, roleId, scope.BranchId, scope.DepartmentId, assignedBy, cancellationToken);
+                connection, transaction, userId, roleId, scope.BranchId, scope.DepartmentId, assignedBy, cancellationToken);
         }
     }
 
@@ -862,8 +883,20 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         }
     }
 
+    private static Task InsertAssignmentAsync(
+        System.Data.IDbConnection connection,
+        int userId,
+        int roleId,
+        int? branchId,
+        int? departmentId,
+        int? assignedBy,
+        CancellationToken cancellationToken)
+        => InsertAssignmentAsync(
+            connection, transaction: null, userId, roleId, branchId, departmentId, assignedBy, cancellationToken);
+
     private static async Task InsertAssignmentAsync(
         System.Data.IDbConnection connection,
+        System.Data.IDbTransaction? transaction,
         int userId,
         int roleId,
         int? branchId,
@@ -885,13 +918,16 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
                     DepartmentId = departmentId,
                     AssignedBy = assignedBy
                 },
+                transaction: transaction,
                 cancellationToken: cancellationToken));
         }
         catch
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO UserRoles (UserId, RoleId) VALUES (@UserId, @RoleId)
-                """, new { UserId = userId, RoleId = roleId }, cancellationToken: cancellationToken));
+                """, new { UserId = userId, RoleId = roleId },
+                transaction: transaction,
+                cancellationToken: cancellationToken));
         }
     }
 

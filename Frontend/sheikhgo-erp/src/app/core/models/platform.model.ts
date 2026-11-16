@@ -1017,6 +1017,8 @@ export interface SecurityCompanySummary {
 export interface AuditEventListItem {
   id: number;
   tenantId: number;
+  /** Null = platform aggregate / no single target (SG-07). */
+  targetTenantId?: number | null;
   companyName?: string | null;
   userId?: number | null;
   userName?: string | null;

@@ -22,12 +22,19 @@ public static class AuditEventKeys
     public const string RoleDelete = "roles.delete";
     public const string RolePermissions = "roles.permissions";
     public const string PermissionChange = "permissions.change";
+    public const string RoleAssignment = "roles.assignment";
 
     public const string SecurityPolicyUpdate = "security.policy.update";
     public const string ModuleEnable = "platform.module.enable";
     public const string ModuleDisable = "platform.module.disable";
     public const string FeatureEnable = "platform.feature.enable";
     public const string FeatureDisable = "platform.feature.disable";
+
+    public const string CrossTenantRead = "platform.cross_tenant.read";
+    public const string SubscriptionChange = "billing.subscription.change";
+    public const string PiiReveal = "privacy.pii.reveal";
+    /// <summary>Seeded permission Platform.Tenants.Impersonate; write when an impersonation endpoint lands.</summary>
+    public const string Impersonation = "platform.impersonation";
 
     public const string GenericCreate = "generic.create";
     public const string GenericUpdate = "generic.update";
@@ -75,6 +82,8 @@ public static class AuditEventRegistrySeed
         new(AuditEventKeys.RoleDelete, "Role deleted", "Roles", "Critical", null, 230),
         new(AuditEventKeys.RolePermissions, "Role permissions updated", "Authorization", "Warning", null, 240),
         new(AuditEventKeys.PermissionChange, "Permission change", "Permissions", "Warning", null, 250),
+        new(AuditEventKeys.RoleAssignment, "User roles assigned", "Authorization", "Warning",
+            "User role membership changed.", 260),
 
         new(AuditEventKeys.SecurityPolicyUpdate, "Security policy updated", "Security", "Critical",
             "Company security policy values changed.", 310),
@@ -82,6 +91,15 @@ public static class AuditEventRegistrySeed
         new(AuditEventKeys.ModuleDisable, "Module disabled", "Platform", "Warning", null, 330),
         new(AuditEventKeys.FeatureEnable, "Feature enabled", "Settings", "Information", null, 340),
         new(AuditEventKeys.FeatureDisable, "Feature disabled", "Settings", "Warning", null, 350),
+
+        new(AuditEventKeys.CrossTenantRead, "Cross-tenant data read", "Platform", "Warning",
+            "Platform operator read another company's data (or an all-companies aggregate).", 360),
+        new(AuditEventKeys.SubscriptionChange, "Subscription changed", "Billing", "Critical",
+            "Tenant subscription / billing lifecycle change.", 370),
+        new(AuditEventKeys.PiiReveal, "PII revealed", "Privacy", "Critical",
+            "Restricted personal data was unmasked (SG-18).", 380),
+        new(AuditEventKeys.Impersonation, "Tenant impersonation", "Security", "Critical",
+            "Actor used Platform.Tenants.Impersonate. Endpoint not shipped yet — key reserved.", 390),
 
         new(AuditEventKeys.GenericCreate, "Entity created", "Administration", "Information",
             "Fallback create event.", 900),
@@ -122,6 +140,10 @@ public static class AuditEventRegistrySeed
 
         if (e.Contains("securitypolicy") || e == "securitypolicy")
             return AuditEventKeys.SecurityPolicyUpdate;
+        if (e.Contains("adminvehicles") || e.Contains("admincompan") || a.Contains("listallcompanies") || a.Contains("listbycompany"))
+            return AuditEventKeys.CrossTenantRead;
+        if (e.Contains("subscription") || e.Contains("billing"))
+            return AuditEventKeys.SubscriptionChange;
         if (e.Contains("user"))
         {
             if (a.Contains("password") && a.Contains("reset")) return AuditEventKeys.PasswordReset;
@@ -129,11 +151,14 @@ public static class AuditEventRegistrySeed
             if (a.Contains("status")) return AuditEventKeys.UserStatus;
             if (a.Contains("delete")) return AuditEventKeys.UserDelete;
             if (a.Contains("create") || a.Contains("add")) return AuditEventKeys.UserCreate;
+            if (a.Contains("assign") || a.Contains("updateroles") || a.Contains("roles"))
+                return AuditEventKeys.RoleAssignment;
             return AuditEventKeys.UserUpdate;
         }
         if (e.Contains("role"))
         {
             if (a.Contains("permission")) return AuditEventKeys.RolePermissions;
+            if (a.Contains("assign") || a.Contains("updateroles")) return AuditEventKeys.RoleAssignment;
             if (a.Contains("delete")) return AuditEventKeys.RoleDelete;
             if (a.Contains("create")) return AuditEventKeys.RoleCreate;
             return AuditEventKeys.RoleUpdate;

@@ -6,8 +6,9 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Application.Common.Behaviors;
 
 /// <summary>
-/// MediatR pipeline behavior that records AuditEvents after auditable commands.
-/// Soft-logs failures as Error events when Stage 13 level allows.
+/// MediatR pipeline behavior that records AuditEvents after <see cref="IAuditableCommand"/> CRUD.
+/// Fail-open + loud (LogError + <see cref="AuditWriteMetrics"/>). Security events use explicit
+/// fail-closed writes in their handlers instead of relying on this pipeline.
 /// </summary>
 public class AuditLoggingBehavior<TRequest, TResponse>(
     IAuditEngine auditEngine,
@@ -50,7 +51,8 @@ public class AuditLoggingBehavior<TRequest, TResponse>(
                 EntityId: entityId,
                 Action: auditable.AuditAction,
                 Success: success,
-                Message: $"{auditable.AuditAction} {auditable.AuditEntityName}"), cancellationToken);
+                Message: $"{auditable.AuditAction} {auditable.AuditEntityName}",
+                FailPolicy: AuditFailPolicy.FailOpenLoud), cancellationToken);
 
             return response;
         }
@@ -64,11 +66,15 @@ public class AuditLoggingBehavior<TRequest, TResponse>(
                     EntityId: auditable.AuditEntityId,
                     Action: auditable.AuditAction,
                     Success: false,
-                    Message: Truncate(ex.Message, 500)), cancellationToken);
+                    Message: Truncate(ex.Message, 500),
+                    FailPolicy: AuditFailPolicy.FailOpenLoud), cancellationToken);
             }
             catch (Exception auditEx)
             {
-                logger.LogDebug(auditEx, "Failed to record audit error event");
+                AuditWriteMetrics.RecordFailure(AuditEventKeys.GenericError, "pipeline_error_event");
+                logger.LogError(auditEx,
+                    "Fail-open audit write failed while recording command error for {Entity}/{Action}",
+                    auditable.AuditEntityName, auditable.AuditAction);
             }
 
             throw;

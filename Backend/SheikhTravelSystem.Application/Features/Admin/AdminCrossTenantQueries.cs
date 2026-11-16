@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
@@ -18,7 +19,9 @@ public record AdminVehiclesPageDto(
 public record GetAdminCompaniesQuery : IRequest<ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>>;
 
 public class GetAdminCompaniesQueryHandler(
-    IPlatformRepository platformRepository)
+    IPlatformRepository platformRepository,
+    IAuditEngine auditEngine,
+    ITenantContext tenantContext)
     : IRequestHandler<GetAdminCompaniesQuery, ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>> Handle(
@@ -37,6 +40,27 @@ public class GetAdminCompaniesQueryHandler(
                 t.IsActive))
             .ToList();
 
+        // Aggregate cross-tenant read: one row, TargetTenantId=NULL, payload lists count + ids.
+        var tenantIds = options.Select(o => o.Id).ToList();
+        var payload = JsonSerializer.Serialize(new
+        {
+            mode = "all_companies",
+            count = tenantIds.Count,
+            tenantIds
+        });
+
+        await auditEngine.RecordAsync(new AuditEventWrite(
+            EventKey: AuditEventKeys.CrossTenantRead,
+            EntityType: "AdminCompanies",
+            Action: "ListAllCompanies",
+            NewValues: payload,
+            Success: true,
+            Message: $"Listed {tenantIds.Count} companies (cross-tenant)",
+            TenantId: PlatformTenant.Id,
+            TargetTenantId: null,
+            ActorTenantId: tenantContext.TenantId,
+            FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+
         return ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>.SuccessResponse(options);
     }
 }
@@ -46,7 +70,8 @@ public record GetAdminVehiclesQuery(int? CompanyId, int Page = 1, int PageSize =
 
 public class GetAdminVehiclesQueryHandler(
     IVehicleRepository vehicleRepository,
-    IAuditService auditService)
+    IAuditEngine auditEngine,
+    ITenantContext tenantContext)
     : IRequestHandler<GetAdminVehiclesQuery, ApiResponse<AdminVehiclesPageDto>>
 {
     public async Task<ApiResponse<AdminVehiclesPageDto>> Handle(
@@ -61,11 +86,52 @@ public class GetAdminVehiclesQueryHandler(
         var (items, total) = await vehicleRepository.GetCrossTenantPagedAsync(
             companyId, page, pageSize, cancellationToken);
 
-        await auditService.LogAsync(
-            action: companyId is null ? "ListAllCompanies" : "ListByCompany",
-            entityName: "AdminVehicles",
-            entityId: companyId,
-            cancellationToken);
+        if (companyId is int subjectTenantId)
+        {
+            // Single-target: TenantId = subject company so their SearchAsync finds it.
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.CrossTenantRead,
+                EntityType: "AdminVehicles",
+                EntityId: subjectTenantId,
+                Action: "ListByCompany",
+                NewValues: JsonSerializer.Serialize(new
+                {
+                    mode = "single_tenant",
+                    tenantId = subjectTenantId,
+                    page,
+                    pageSize,
+                    total
+                }),
+                Success: true,
+                Message: $"Listed vehicles for company {subjectTenantId}",
+                TenantId: subjectTenantId,
+                TargetTenantId: subjectTenantId,
+                ActorTenantId: tenantContext.TenantId,
+                FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+        }
+        else
+        {
+            var distinctTenantIds = items.Select(i => i.CompanyId).Distinct().OrderBy(x => x).ToList();
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.CrossTenantRead,
+                EntityType: "AdminVehicles",
+                Action: "ListAllCompanies",
+                NewValues: JsonSerializer.Serialize(new
+                {
+                    mode = "all_companies",
+                    count = distinctTenantIds.Count,
+                    tenantIds = distinctTenantIds,
+                    page,
+                    pageSize,
+                    total
+                }),
+                Success: true,
+                Message: $"Listed vehicles across {distinctTenantIds.Count} companies on page (total {total})",
+                TenantId: PlatformTenant.Id,
+                TargetTenantId: null,
+                ActorTenantId: tenantContext.TenantId,
+                FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+        }
 
         return ApiResponse<AdminVehiclesPageDto>.SuccessResponse(
             new AdminVehiclesPageDto(items, total, page, pageSize, companyId));

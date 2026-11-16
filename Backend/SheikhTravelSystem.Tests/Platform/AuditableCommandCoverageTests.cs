@@ -12,6 +12,14 @@ public class AuditableCommandCoverageTests
         "Bookings", "Trips", "Customers", "Payments", "Vehicles", "Drivers", "FuelLogs", "Routes", "Users"
     ];
 
+    /// <summary>
+    /// SG-07: security events use explicit fail-closed audit (same TX), not the CRUD pipeline.
+    /// </summary>
+    private static readonly HashSet<string> ExplicitFailClosedAuditCommands = new(StringComparer.Ordinal)
+    {
+        "SheikhTravelSystem.Application.Features.Users.Commands.SetUserRolesCommand"
+    };
+
     [Fact]
     public void Erp_mutation_commands_implement_IAuditableCommand()
     {
@@ -32,6 +40,9 @@ public class AuditableCommandCoverageTests
             // Skip query-shaped types accidentally named Command outside Commands folders is fine —
             // still require audit if they mutate via IRequest and live under Features.
             if (typeof(IAuditableCommand).IsAssignableFrom(type))
+                continue;
+
+            if (type.FullName is string full && ExplicitFailClosedAuditCommands.Contains(full))
                 continue;
 
             missing.Add($"{type.FullName}");

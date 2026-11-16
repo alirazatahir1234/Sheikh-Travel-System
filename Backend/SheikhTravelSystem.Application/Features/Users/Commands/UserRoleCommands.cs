@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -26,18 +27,18 @@ public class GetUserRolesQueryHandler(
     }
 }
 
+/// <summary>
+/// Role assignment is an explicit fail-closed security event (SG-07) — not IAuditableCommand.
+/// </summary>
 public record SetUserRolesCommand(int UserId, SetUserRolesRequest Payload)
-    : IRequest<ApiResponse<bool>>, IAuditableCommand
-{
-    public string AuditAction => "UpdateRoles";
-    public string AuditEntityName => "User";
-    public int? AuditEntityId => UserId;
-}
+    : IRequest<ApiResponse<bool>>;
 
 public class SetUserRolesCommandHandler(
     IUserRepository userRepository,
     IPlatformScope platformScope,
-    ICurrentUserService currentUser) : IRequestHandler<SetUserRolesCommand, ApiResponse<bool>>
+    ICurrentUserService currentUser,
+    IDbConnectionFactory dbFactory,
+    IAuditEngine auditEngine) : IRequestHandler<SetUserRolesCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(SetUserRolesCommand request, CancellationToken cancellationToken)
     {
@@ -74,13 +75,51 @@ public class SetUserRolesCommandHandler(
                 user.TenantId, scope.BranchId, scope.DepartmentId, cancellationToken);
         }
 
-        await userRepository.ReplaceRoleAssignmentsAsync(
-            request.UserId,
-            user.TenantId,
-            roleIds,
-            scopes,
-            currentUser.UserId,
-            cancellationToken);
+        var previous = await userRepository.GetAssignedRolesAsync(request.UserId, cancellationToken);
+        var oldRoleIds = previous.Select(r => r.RoleId).OrderBy(x => x).ToList();
+        var newRoleIds = roleIds.Distinct().OrderBy(x => x).ToList();
+
+        using var connection = dbFactory.CreateConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+        try
+        {
+            await userRepository.ReplaceRoleAssignmentsAsync(
+                connection,
+                tx,
+                request.UserId,
+                user.TenantId,
+                roleIds,
+                scopes,
+                currentUser.UserId,
+                cancellationToken);
+
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.RoleAssignment,
+                EntityType: "User",
+                EntityId: request.UserId,
+                Action: "UpdateRoles",
+                OldValues: JsonSerializer.Serialize(new { roleIds = oldRoleIds }),
+                NewValues: JsonSerializer.Serialize(new
+                {
+                    roleIds = newRoleIds,
+                    added = newRoleIds.Except(oldRoleIds).ToList(),
+                    removed = oldRoleIds.Except(newRoleIds).ToList()
+                }),
+                Success: true,
+                Message: $"User {request.UserId} roles updated",
+                TenantId: user.TenantId,
+                TargetTenantId: user.TenantId,
+                FailPolicy: AuditFailPolicy.FailClosed), connection, tx, cancellationToken);
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "User roles updated.");
     }

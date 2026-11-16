@@ -54,6 +54,14 @@ public interface IPlatformRepository
     Task<int> DeleteRoleAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task<bool> RoleExistsAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task ReplaceRolePermissionsAsync(int roleId, IEnumerable<string> permissionCodes, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetRolePermissionCodesAsync(int roleId, CancellationToken cancellationToken = default);
+    /// <summary>SG-07: replace permissions on an open connection/transaction (fail-closed audit enrollment).</summary>
+    Task ReplaceRolePermissionsAsync(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
+        int roleId,
+        IEnumerable<string> permissionCodes,
+        CancellationToken cancellationToken = default);
     Task ApplyRoleTemplateAsync(int tenantId, string code, string name, RoleRegistrySeed.Entry? seed, IReadOnlyList<string> permissions, CancellationToken cancellationToken = default);
 
     // ── Tenants ───────────────────────────────────────────────────────────

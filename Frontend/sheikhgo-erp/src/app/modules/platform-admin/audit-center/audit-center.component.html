@@ -9,7 +9,7 @@
       variant="secondary"
       type="button"
       aria-label="Refresh audit events"
-      [disabled]="!selectedTenant || loading"
+      [disabled]="!canLoad || loading"
       (click)="load()"
     >
       Refresh
@@ -19,7 +19,7 @@
       variant="secondary"
       type="button"
       aria-label="Export audit events as CSV"
-      [disabled]="!selectedTenant || exporting || dateRangeInvalid"
+      [disabled]="!canLoad || exporting || dateRangeInvalid"
       (click)="exportCsv()"
     >
       {{ exporting ? 'Exporting…' : 'Export CSV' }}
@@ -89,7 +89,7 @@
       />
     </label>
     <div class="filter-actions">
-      <button appUiButton variant="primary" type="button" (click)="applyFilters()" [disabled]="!selectedTenant">
+      <button appUiButton variant="primary" type="button" (click)="applyFilters()" [disabled]="!canLoad">
         Apply
       </button>
       <button
@@ -97,14 +97,14 @@
         variant="ghost"
         type="button"
         (click)="clearFilters()"
-        [disabled]="!selectedTenant || !hasActiveFilters"
+        [disabled]="!canLoad || !hasActiveFilters"
       >
         Clear
       </button>
     </div>
   </div>
 
-  <div class="quick-ranges" *ngIf="selectedTenant">
+  <div class="quick-ranges" *ngIf="canLoad">
     <span class="muted">Quick range:</span>
     <button type="button" class="chip-btn" (click)="setQuickRange(1)">Today</button>
     <button type="button" class="chip-btn" (click)="setQuickRange(7)">Last 7 days</button>
@@ -116,15 +116,16 @@
   </div>
 
   <div class="meta-row">
-    <span class="tenant-chip" *ngIf="selectedTenant">Company: {{ selectedTenant.name }}</span>
+    <span class="tenant-chip" *ngIf="isAllCompanies">All companies</span>
+    <span class="tenant-chip" *ngIf="selectedTenant && !isAllCompanies">Company: {{ selectedTenant.name }}</span>
     <span class="muted" *ngIf="retentionLabel">{{ retentionLabel }}</span>
-    <span class="warn-chip" *ngIf="selectedTenant && !auditEnabled">Auditing disabled for this company</span>
+    <span class="warn-chip" *ngIf="selectedTenant && !isAllCompanies && !auditEnabled">Auditing disabled for this company</span>
     <a class="link" routerLink="/platform/security-center" [queryParams]="selectedTenant ? { tenantId: selectedTenant.id } : {}">
       Security policies
     </a>
   </div>
 
-  <div class="summary-strip" *ngIf="selectedTenant && !loading">
+  <div class="summary-strip" *ngIf="canLoad && !loading">
     <div class="summary-card">
       <span class="label">Matching events</span>
       <strong>{{ totalCount | number }}</strong>
@@ -148,10 +149,10 @@
   </p>
 
   <div class="loading" *ngIf="loading">Loading events…</div>
-  <div class="empty" *ngIf="!loading && !selectedTenant">
-    Pick a company from the header switcher. Audit Center requires a single company (platform-wide audit is SG-07).
+  <div class="empty" *ngIf="!loading && !canLoad">
+    Pick a company from the header switcher, or choose All companies (requires AuditReadAll).
   </div>
-  <div class="empty" *ngIf="!loading && selectedTenant && items.length === 0">
+  <div class="empty" *ngIf="!loading && canLoad && items.length === 0">
     No audit events match these filters.
     <button *ngIf="hasActiveFilters" type="button" class="link" (click)="clearFilters()">Clear filters</button>
   </div>
@@ -206,7 +207,7 @@
     </table>
   </div>
 
-  <div class="pager" *ngIf="selectedTenant && totalCount > 0">
+  <div class="pager" *ngIf="canLoad && totalCount > 0">
     <button type="button" class="link" [disabled]="page <= 1 || loading" (click)="prevPage()">Previous</button>
     <span>Page {{ page }} / {{ totalPages }} · {{ totalCount | number }} events</span>
     <label class="page-size">

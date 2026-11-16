@@ -21,6 +21,8 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   loading = false;
   exporting = false;
   selectedTenant: Tenant | null = null;
+  /** SG-06 / SG-07: all-companies mode (AuditReadAll) — no tenantId on search. */
+  isAllCompanies = false;
   items: AuditEventListItem[] = [];
   totalCount = 0;
   page = 1;
@@ -85,7 +87,16 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
       });
 
     this.tenantContext.tenant$.pipe(takeUntil(this.destroy$)).subscribe(t => (this.selectedTenant = t));
+    this.tenantContext.isAllCompanies$.pipe(takeUntil(this.destroy$)).subscribe(all => {
+      this.isAllCompanies = all;
+      if (all) {
+        this.page = 1;
+        this.loadRetention(null);
+        this.load();
+      }
+    });
     this.tenantContext.tenantId$.pipe(takeUntil(this.destroy$)).subscribe(id => {
+      if (this.tenantContext.isAllCompanies) return;
       if (id) {
         this.page = 1;
         this.loadRetention(id);
@@ -97,6 +108,11 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
         this.retentionDays = null;
       }
     });
+  }
+
+  /** Concrete company or all-companies with AuditReadAll. */
+  get canLoad(): boolean {
+    return this.isAllCompanies || !!this.selectedTenant;
   }
 
   ngOnDestroy(): void {
@@ -181,26 +197,27 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
     return `${y}-${m}-${day}`;
   }
 
-  private loadRetention(tenantId: number): void {
+  private loadRetention(tenantId: number | null): void {
     this.platform
-      .getAuditRetention(tenantId)
+      .getAuditRetention(tenantId ?? undefined)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: r => {
           if (!r) {
-            this.retentionLabel = '';
+            this.retentionLabel = this.isAllCompanies ? 'All companies' : '';
             this.retentionDays = null;
             this.auditEnabled = true;
             return;
           }
           this.retentionDays = r.retentionDays;
           this.auditEnabled = r.auditEnabled;
-          this.retentionLabel = `Retention ${r.retentionDays}d · Level ${r.auditLevel}${
+          const scope = this.isAllCompanies ? 'All companies · ' : '';
+          this.retentionLabel = `${scope}Retention ${r.retentionDays}d · Level ${r.auditLevel}${
             r.auditEnabled ? '' : ' (disabled)'
           }`;
         },
         error: () => {
-          this.retentionLabel = '';
+          this.retentionLabel = this.isAllCompanies ? 'All companies' : '';
           this.retentionDays = null;
         }
       });
@@ -208,7 +225,7 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
 
   private buildFilterPayload() {
     return {
-      tenantId: this.selectedTenant!.id,
+      tenantId: this.isAllCompanies ? undefined : this.selectedTenant?.id,
       category: this.categoryFilter || undefined,
       eventKey: this.eventKeyFilter || undefined,
       entityType: this.entityTypeFilter.trim() || undefined,
@@ -224,7 +241,7 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    if (!this.selectedTenant) return;
+    if (!this.canLoad) return;
     if (this.dateRangeInvalid) {
       this.toast.error('From date must be on or before To date.');
       return;
@@ -255,8 +272,9 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
     this.detail = null;
     this.detailError = '';
     this.detailLoading = true;
+    const tenantId = this.isAllCompanies ? undefined : this.selectedTenant?.id;
     this.platform
-      .getAuditEventById(row.id, this.selectedTenant?.id)
+      .getAuditEventById(row.id, tenantId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: d => {
@@ -291,7 +309,7 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
   }
 
   exportCsv(): void {
-    if (!this.selectedTenant) return;
+    if (!this.canLoad) return;
     if (this.dateRangeInvalid) {
       this.toast.error('From date must be on or before To date.');
       return;
@@ -310,7 +328,8 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `audit-export-${this.selectedTenant!.id}-${Date.now()}.csv`;
+          const scope = this.isAllCompanies ? 'all' : String(this.selectedTenant!.id);
+          a.download = `audit-export-${scope}-${Date.now()}.csv`;
           a.click();
           URL.revokeObjectURL(url);
           this.toast.success('Export downloaded.');
