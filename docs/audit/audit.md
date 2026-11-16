@@ -670,6 +670,7 @@ The sequence matters more than the list. Fixing dashboards before fixing the led
 ### Week 1 — stop the bleeding
 
 - [ ] **Verify the blast radius of SG-01.** Grep every repository and query handler for a missing tenant predicate, starting with anything joining Drivers or Vehicles. This is the only finding that could become a disclosure incident.
+- [ ] **Take SG-29 next (right after SG-01).** Remove auto-migrate-on-startup; run migrations only as an explicit gated deploy-pipeline step. Second proof after SG-05: a failed mid-migration (no TX) can leave schema half-applied.
 - [ ] **Take /mcp out of production** (SG-22), or put it behind an environment flag. One line of config, removes the largest unreviewed surface.
 - [ ] **Mask CNIC in list views and CSV export** (SG-18).
 - [ ] **Fix the Vehicles menu permission** (SG-16) — `Vehicle.Create` → `Vehicle.View`.

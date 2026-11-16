@@ -69,8 +69,10 @@ public static class Sg07AuditTrailTargetTenantAndAppendOnlyMigration
             END');
             """, cancellationToken: cancellationToken));
 
-        // SG-36: keep /platform/audit-center; hide/redirect legacy /audit-logs menu rows.
-        // Do NOT rename multiple rows to Name='Audit Center' in one shot — UX_PlatformMenus_ModuleId_Name.
+        // SG-36 route consolidation (/audit-logs → /platform/audit-center). Root cause of the
+        // Startup failure: non-idempotent Name UPDATE into UX_PlatformMenus_ModuleId_Name
+        // (ModuleId 10, 'Audit Center') — NOT "delete the duplicate". Fix = IF NOT EXISTS /
+        // skip-when-taken guards (runner also has no per-migration TX; see SG-29).
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PlatformMenus')
             BEGIN
@@ -95,6 +97,29 @@ public static class Sg07AuditTrailTargetTenantAndAppendOnlyMigration
                       WHERE other.ModuleId = pm.ModuleId
                         AND other.Name = N'Audit Center'
                         AND other.Id <> pm.Id);
+
+                -- Idempotent seed: insert only when neither route nor (ModuleId, Name) exists.
+                IF EXISTS (SELECT 1 FROM PlatformModules WHERE ModuleKey = N'platform')
+                AND NOT EXISTS (
+                    SELECT 1 FROM PlatformMenus pm
+                    WHERE pm.Route = N'/platform/audit-center'
+                       OR (pm.Name = N'Audit Center' AND pm.ModuleId IN (
+                            SELECT Id FROM PlatformModules WHERE ModuleKey = N'platform')))
+                BEGIN
+                    INSERT INTO PlatformMenus (
+                        ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
+                        DisplayName, Description, Category, Visible, FeatureKey, ModuleKey,
+                        IsMobileSupported, UpdatedAt)
+                    SELECT m.Id, NULL, N'Audit Center', N'/platform/audit-center', N'history',
+                           N'Platform.Audit.View', 49, 1,
+                           N'Audit Center', N'Company audit event explorer', N'Platform', 1,
+                           N'audit-logs', N'platform', 0, SYSUTCDATETIME()
+                    FROM PlatformModules m
+                    WHERE m.ModuleKey = N'platform'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM PlatformMenus x
+                          WHERE x.ModuleId = m.Id AND x.Name = N'Audit Center');
+                END
 
                 -- Prefer a single visible Audit Center under platform module.
                 ;WITH ranked AS (
