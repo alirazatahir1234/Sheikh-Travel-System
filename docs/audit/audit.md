@@ -391,6 +391,8 @@ The Role Templates tab offers *Company Admin (TENANT\_ADMIN) — 98 permissions*
 
 Migration Manager: 171 applied, 0 pending, all applied **18 Jul 2026 12:04 by "Startup"**. Schema changes running automatically when the app boots is convenient in development and dangerous in production — a bad deploy mutates the schema before anyone can stop it, and rollback is manual. Move to an explicit, gated migration step in the deployment pipeline. The *Apply Pending* button here is the right idea; it should be the only path.
 
+**Priority note (after two startup-migration incidents):** Do **not** leave SG-29 for a month. Take it **right after SG-01**. Evidence: SG-05 permission sync on Startup risked lockout if a bad seed shipped; SG-07’s first Startup attempt half-applied schema (column/triggers before `SchemaMigrationHistory`) because the runner has no per-migration SQL transaction and the menu UPDATE was non-idempotent. Scope when scheduled: **remove auto-migrate from startup** → **explicit gated deploy step** only. Do not implement in the same pass as SG-01.
+
 ## Platform and Organization
 
 ### SG-06 — Three screens are unusable without a switcher that does not exist (P0)
@@ -622,7 +624,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-26 | Maintenance | Cost widget prints `$0.00` while the whole app uses PKR |
 | SG-27 | Settings | Company identity, contact, timezone, currency, language and date/time format all unset |
 | SG-28 | Access Control | Role template Company Admin = 98 permissions vs live TENANT\_ADMIN = 81; applying it silently grants 17 |
-| SG-29 | Platform | All 171 migrations applied automatically at app startup; no gated deployment step |
+| SG-29 | Platform | All 171 migrations applied automatically at app startup; no gated deployment step — elevate: do right after SG-01 (startup incidents SG-05/SG-07); remove auto-migrate → gated deploy only |
 | SG-30 | Trips | Total 6 ≠ Scheduled 1 + In progress 0 + Completed 4 + Delayed 0; no Cancelled counter |
 | SG-31 | Notifications | Channel counts sum to 1,931 against a total of 3,101 |
 | SG-32 | GPS Alerts | 1,795 unread alerts, 14 unacknowledged operations alerts, zero acknowledgements ever |
