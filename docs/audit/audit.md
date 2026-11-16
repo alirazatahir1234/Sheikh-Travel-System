@@ -600,7 +600,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-42 | Users | /users shows 5 of 9 platform users; 4 invisible to the super admin | Cross-tenant user directory for platform roles |
 | SG-50 | Billing / FX | Subscription pricing uses a hardcoded USD→PKR constant (280) in Backend `SubscriptionBilling:UsdToPkr` / `ToPkr` and ERP `USD_TO_PKR_DEFAULT`; no live rate, no drift alert | Fix with money chain SG-02/03/14 — live or Key Vault FX + drift alert; not a one-off patch |
 
-### P2 — backlog with a date (19)
+### P2 — backlog with a date (20)
 
 | ID | Module | Finding |
 | --- | --- | --- |
@@ -623,6 +623,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-45 | Inspections | A FAIL result from 20 July still open; no workflow, filters, KPIs or pagination |
 | SG-47 | Platform | Monthly revenue PKR 35k does not reconcile with per-tenant subscription amounts |
 | SG-48 | Org | Branch and Department blank on every user and every driver; only 2 of 9 users in any department |
+| SG-51 | GPS / Notifications | `GpsAlertAccess` and `NotificationHub` still authorize platform alert feeds by role name; deferred from SG-05 because replacing them needs alert-category permissions |
 
 ### P3 — housekeeping (7)
 
@@ -642,7 +643,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | --- | --- | --- | --- | --- |
 | Platform & Access Control | 4 | 4 | 4 | 3 |
 | Finance (invoices, payments, settlements) | 2 | 3 | 2 | 0 |
-| GPS & tracking | 1 | 1 | 3 | 1 |
+| GPS & tracking | 1 | 1 | 4 | 1 |
 | Fleet (vehicles, drivers, compliance, maintenance) | 1 | 3 | 4 | 0 |
 | Operations (bookings, trips, routes) | 0 | 1 | 2 | 0 |
 | Integrations & infrastructure | 0 | 2 | 2 | 0 |
