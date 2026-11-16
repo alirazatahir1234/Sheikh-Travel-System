@@ -192,6 +192,7 @@ public static class DatabaseMigrationRegistry
             M("GpsDuplicateTraccarDeviceIdMigration", GpsDuplicateTraccarDeviceIdMigration.ApplyAsync),
             M("VehicleDocumentTenantAlignMigration", VehicleDocumentTenantAlignMigration.ApplyAsync),
             M("SubscriptionAccessExpiryMigration", SubscriptionAccessExpiryMigration.ApplyAsync),
+            M("PlatformOperatorPermissionsMigration", PlatformOperatorPermissionsMigration.ApplyAsync),
         ];
     }
 }

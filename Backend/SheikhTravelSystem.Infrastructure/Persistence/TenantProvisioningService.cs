@@ -14,7 +14,6 @@ public class TenantProvisioningService(
 {
     private static readonly (string Name, string Code)[] DefaultRoles =
     [
-        ("Super Admin", "SUPER_ADMIN"),
         ("Tenant Admin", "TENANT_ADMIN"),
         ("Owner", "OWNER"),
         ("Fleet Manager", "FLEET_MANAGER"),

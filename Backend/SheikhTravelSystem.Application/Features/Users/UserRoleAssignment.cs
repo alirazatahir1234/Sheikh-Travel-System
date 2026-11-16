@@ -8,17 +8,35 @@ namespace SheikhTravelSystem.Application.Features.Users;
 internal static class UserRoleAssignment
 {
     /// <summary>
-    /// Blocks elevating a user to SUPER_ADMIN unless the caller is a platform Super Admin.
+    /// Platform roles (SUPER_ADMIN / PLATFORM_AUDITOR) require Platform.Tenants.Manage
+    /// and may only be assigned to users in the platform tenant (SG-05 B11).
     /// </summary>
-    public static void EnsureCanAssignPlatformRole(string? platformRoleCode, ICurrentUserService currentUser)
+    public static void EnsureCanAssignPlatformRole(
+        string? platformRoleCode,
+        ICurrentUserService currentUser,
+        int targetUserTenantId)
     {
         if (string.IsNullOrWhiteSpace(platformRoleCode))
             return;
 
-        if (string.Equals(platformRoleCode.Trim(), PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
+        var code = platformRoleCode.Trim();
+        var isPlatformRole =
+            string.Equals(code, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(code, PlatformRoles.PlatformAuditor, StringComparison.OrdinalIgnoreCase);
+
+        if (!isPlatformRole)
+            return;
+
+        if (!currentUser.HasPermission(PlatformPermissions.TenantsManage)
             && !currentUser.IsPlatformSuperAdmin)
         {
-            throw new ForbiddenException("Only platform owners can assign the Super Admin role.");
+            throw new ForbiddenException("Only platform operators can assign platform roles.");
+        }
+
+        if (targetUserTenantId != PlatformTenant.Id)
+        {
+            throw new ForbiddenException(
+                "Platform roles can only be assigned to users in the platform tenant.");
         }
     }
 }

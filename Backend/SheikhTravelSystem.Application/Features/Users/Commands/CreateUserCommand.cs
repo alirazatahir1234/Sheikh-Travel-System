@@ -53,7 +53,7 @@ public class CreateUserCommandHandler(
         await userRepository.EnsureOrgBelongsToTenantAsync(
             tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
-        UserRoleAssignment.EnsureCanAssignPlatformRole(dto.PlatformRoleCode, currentUser);
+        UserRoleAssignment.EnsureCanAssignPlatformRole(dto.PlatformRoleCode, currentUser, tenantId);
 
         var status = UserLifecycle.Normalize(dto.Status, true);
         var isActive = UserLifecycle.IsActiveStatus(status);
@@ -105,19 +105,14 @@ public class CreateUserCommandHandler(
 
     private int ResolveTargetTenantId(int? companyId)
     {
-        if (platformScope.IsSuperAdmin)
+        if (companyId is int cid && cid > 0 && cid != platformScope.TenantId)
         {
-            if (companyId is int cid && cid > 0)
-            {
-                platformScope.EnsureTenantAccess(cid);
-                return cid;
-            }
-
-            return platformScope.TenantId;
+            platformScope.EnsureTenantAccess(cid);
+            return cid;
         }
 
-        if (companyId is int requested && requested > 0 && requested != platformScope.TenantId)
-            throw new ForbiddenException("You cannot create users for another company.");
+        if (companyId is int same && same > 0)
+            return same;
 
         return platformScope.TenantId;
     }

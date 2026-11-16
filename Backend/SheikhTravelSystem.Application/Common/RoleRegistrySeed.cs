@@ -19,6 +19,7 @@ public static class RoleRegistrySeed
     public static IReadOnlyList<Entry> All { get; } =
     [
         E("SUPER_ADMIN", "Super Admin", "Super Admin", "Platform-wide administration", "Platform", 5, "System"),
+        E("PLATFORM_AUDITOR", "Platform Auditor", "Platform Auditor", "Read-only cross-tenant platform auditor", "Platform", 7, "System"),
         E("TENANT_ADMIN", "Tenant Admin", "Company Admin", "Full company administration", "Platform", 10, "System"),
         E("OWNER", "Owner", "Owner", "Company owner — full fleet tracker: live map, routes, stops, vehicle control", "Fleet", 15, "System"),
         E("FLEET_MANAGER", "Fleet Manager", "Fleet Manager", "Fleet, vehicles, drivers, GPS", "Fleet", 20, "System"),

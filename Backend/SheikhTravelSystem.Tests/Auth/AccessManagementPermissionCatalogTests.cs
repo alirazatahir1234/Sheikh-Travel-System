@@ -166,65 +166,66 @@ public class PermissionAuthorizationHandlerTests
     }
 
     [Fact]
-    public async Task SuperAdmin_bypasses_all_permissions()
+    public async Task SuperAdmin_role_alone_does_not_bypass_permissions()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
-            new Claim("role", PlatformRoles.SuperAdmin)
+            new Claim("role", PlatformRoles.SuperAdmin),
+            new Claim("tenant_id", PlatformTenant.Id.ToString())
         ], "test"));
 
         var ctx = await EvaluateAsync(user, GpsPermissions.CommandEngineCutoff);
-        ctx.HasSucceeded.Should().BeTrue();
+        ctx.HasSucceeded.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Non_SuperAdmin_cannot_use_Gps_Commands_even_with_stale_permission_claim()
+    public async Task Platform_scope_permission_requires_claim_and_platform_tenant()
     {
-        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        var withClaimWrongTenant = new ClaimsPrincipal(new ClaimsIdentity(
         [
-            new Claim("role", "FLEET_MANAGER"),
             new Claim("permission", GpsPermissions.CommandSend),
-            new Claim("permission", GpsPermissions.CommandApprove)
+            new Claim("tenant_id", "1001")
         ], "test"));
+        (await EvaluateAsync(withClaimWrongTenant, GpsPermissions.CommandSend)).HasSucceeded.Should().BeFalse();
 
-        (await EvaluateAsync(user, GpsPermissions.CommandSend)).HasSucceeded.Should().BeFalse();
-        (await EvaluateAsync(user, GpsPermissions.CommandApprove)).HasSucceeded.Should().BeFalse();
+        var withClaimPlatformTenant = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("permission", GpsPermissions.CommandSend),
+            new Claim("tenant_id", PlatformTenant.Id.ToString())
+        ], "test"));
+        (await EvaluateAsync(withClaimPlatformTenant, GpsPermissions.CommandSend)).HasSucceeded.Should().BeTrue();
     }
 
     [Fact]
-    public async Task TenantAdmin_bypasses_non_tenant_platform_permissions()
+    public async Task TenantAdmin_role_alone_does_not_grant_Platform_permissions()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim("role", PlatformRoles.TenantAdmin)
         ], "test"));
 
-        var ctx = await EvaluateAsync(user, PlatformPermissions.SettingsView);
-        ctx.HasSucceeded.Should().BeTrue();
-
-        var tenants = await EvaluateAsync(user, PlatformPermissions.TenantsManage);
-        tenants.HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, PlatformPermissions.SettingsView)).HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, PlatformPermissions.TenantsManage)).HasSucceeded.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Fleet_manager_role_satisfies_Driver_View_for_team_attendance()
+    public async Task Fleet_manager_role_alone_does_not_satisfy_Driver_View()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim("role", "FLEET_MANAGER")
         ], "test"));
 
-        (await EvaluateAsync(user, DriverPermissions.DriverView)).HasSucceeded.Should().BeTrue();
-        (await EvaluateAsync(user, DriverPermissions.DriverUpdate)).HasSucceeded.Should().BeTrue();
-        (await EvaluateAsync(user, DriverPermissions.DriverDelete)).HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, DriverPermissions.DriverView)).HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, DriverPermissions.DriverUpdate)).HasSucceeded.Should().BeFalse();
     }
 
     [Fact]
-    public async Task TenantAdmin_role_satisfies_Driver_View_without_permission_claim()
+    public async Task Driver_View_requires_permission_claim()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
-            new Claim("role", PlatformRoles.TenantAdmin)
+            new Claim("permission", DriverPermissions.DriverView)
         ], "test"));
 
         (await EvaluateAsync(user, DriverPermissions.DriverView)).HasSucceeded.Should().BeTrue();

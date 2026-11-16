@@ -2,7 +2,9 @@ using Dapper;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Infrastructure.Caching;
@@ -110,5 +112,60 @@ public sealed class SignalRHealthCheck : IHealthCheck
             ["connectedClients"] = TrackingHubMetrics.ConnectedClients
         };
         return Task.FromResult(HealthCheckResult.Healthy("SignalR hub registered.", data));
+    }
+}
+
+/// <summary>
+/// SG-05: fails when no active platform-tenant user holds Platform.Tenants.Manage via RolePermissions.
+/// No bypass — power must come from seeded RolePermissions.
+/// </summary>
+public sealed class PlatformOperatorPermissionsHealthCheck(
+    IDbConnectionFactory dbFactory,
+    ILogger<PlatformOperatorPermissionsHealthCheck> logger) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var connection = dbFactory.CreateConnection();
+            var ok = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+                SELECT TOP 1 1
+                FROM Users u
+                INNER JOIN UserRoles ur ON ur.UserId = u.Id
+                INNER JOIN Roles r ON r.Id = ur.RoleId
+                    AND r.IsActive = 1
+                    AND r.TenantId = @PlatformTenantId
+                INNER JOIN RolePermissions rp ON rp.RoleId = r.Id
+                INNER JOIN Permissions p ON p.Id = rp.PermissionId
+                WHERE u.TenantId = @PlatformTenantId
+                  AND u.IsActive = 1
+                  AND u.IsDeleted = 0
+                  AND p.PermissionCode = @Manage
+                """,
+                new
+                {
+                    PlatformTenantId = PlatformTenant.Id,
+                    Manage = PlatformPermissions.TenantsManage
+                },
+                cancellationToken: cancellationToken));
+
+            if (ok == 1)
+                return HealthCheckResult.Healthy("Platform operator RolePermissions present.");
+
+            logger.LogCritical(
+                "SG-05 health check failed: no active user in TenantId={TenantId} holds {Permission} via RolePermissions. See Backend/docs/PLATFORM_OPERATOR_PERMISSIONS_RECOVERY.md.",
+                PlatformTenant.Id,
+                PlatformPermissions.TenantsManage);
+
+            return HealthCheckResult.Unhealthy(
+                $"No active platform-tenant user holds {PlatformPermissions.TenantsManage} via RolePermissions.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "SG-05 platform operator permissions health check threw.");
+            return HealthCheckResult.Unhealthy("Platform operator permissions health check failed.", ex);
+        }
     }
 }

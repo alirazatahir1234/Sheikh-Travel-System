@@ -128,9 +128,10 @@ public class LoginCommandHandler(
         }
 
         var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
-        var isPlatformSuperAdmin = access.RoleCodes.Any(c =>
-            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
-        if (!isPlatformSuperAdmin)
+        // SG-05 C3: exempt when Platform.Tenants.View comes from a platform-tenant role.
+        var isPlatformOperator = user.TenantId == PlatformTenant.Id
+            && access.Permissions.Contains(PlatformPermissions.TenantsView, StringComparer.OrdinalIgnoreCase);
+        if (!isPlatformOperator)
         {
             var gate = await platformRepository.GetTenantSubscriptionAccessAsync(user.TenantId, cancellationToken);
             if (gate is not null)

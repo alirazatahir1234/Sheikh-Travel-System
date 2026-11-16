@@ -1,9 +1,7 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
-using SheikhTravelSystem.Application.Features.Platform;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Admin;
@@ -20,17 +18,14 @@ public record AdminVehiclesPageDto(
 public record GetAdminCompaniesQuery : IRequest<ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>>;
 
 public class GetAdminCompaniesQueryHandler(
-    IPlatformRepository platformRepository,
-    ICurrentUserService currentUser,
-    ITenantContext tenantContext)
+    IPlatformRepository platformRepository)
     : IRequestHandler<GetAdminCompaniesQuery, ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>> Handle(
         GetAdminCompaniesQuery request,
         CancellationToken cancellationToken)
     {
-        EnsurePlatformCrossTenantReader(currentUser, tenantContext);
-
+        // Gate: controller [RequirePermission(Platform.Tenants.View)] (SG-05 C1).
         var tenants = await platformRepository.GetAllTenantsAsync(cancellationToken);
         var options = tenants
             .OrderBy(t => t.Name)
@@ -44,14 +39,6 @@ public class GetAdminCompaniesQueryHandler(
 
         return ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>.SuccessResponse(options);
     }
-
-    internal static void EnsurePlatformCrossTenantReader(
-        ICurrentUserService currentUser,
-        ITenantContext tenantContext)
-    {
-        if (!currentUser.IsPlatformSuperAdmin && !tenantContext.IsCrossTenantBypass)
-            throw new ForbiddenException("Only platform Super Admin can access cross-company vehicle data.");
-    }
 }
 
 public record GetAdminVehiclesQuery(int? CompanyId, int Page = 1, int PageSize = 50)
@@ -59,8 +46,6 @@ public record GetAdminVehiclesQuery(int? CompanyId, int Page = 1, int PageSize =
 
 public class GetAdminVehiclesQueryHandler(
     IVehicleRepository vehicleRepository,
-    ICurrentUserService currentUser,
-    ITenantContext tenantContext,
     IAuditService auditService)
     : IRequestHandler<GetAdminVehiclesQuery, ApiResponse<AdminVehiclesPageDto>>
 {
@@ -68,8 +53,7 @@ public class GetAdminVehiclesQueryHandler(
         GetAdminVehiclesQuery request,
         CancellationToken cancellationToken)
     {
-        GetAdminCompaniesQueryHandler.EnsurePlatformCrossTenantReader(currentUser, tenantContext);
-
+        // Gate: controller [RequirePermission(Platform.Tenants.DataRead)] (SG-05 C1).
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 50 : Math.Min(request.PageSize, 200);
         var companyId = request.CompanyId is int cid && cid > 0 ? cid : (int?)null;

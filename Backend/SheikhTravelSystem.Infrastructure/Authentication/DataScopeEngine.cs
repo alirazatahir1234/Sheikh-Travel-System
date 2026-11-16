@@ -74,27 +74,34 @@ public class DataScopeEngine(IDbConnectionFactory dbFactory) : IDataScopeEngine
                 .ToList();
         }
 
-        // Platform SUPER_ADMIN is global. When deep-linking into another company
-        // (X-Tenant-Id / ?tenantId=), UserRoles for that tenant are empty — without
-        // this inject, scope falls through to home-branch clamps or empty lists.
-        // Mirrors PermissionEngine's holdsPlatformSuperAdmin bridge.
-        if (!assignments.Any(a => string.Equals(a.RoleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)))
-        {
-            var holdsPlatformSuperAdmin = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
-                SELECT TOP 1 1
-                FROM UserRoles ur
-                INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
-                WHERE ur.UserId = @UserId AND UPPER(r.Code) = N'SUPER_ADMIN'
-                """, new { UserId = userId }, cancellationToken: cancellationToken)) == 1;
+        // SG-05 A7: Platform.Tenants.DataRead + working tenant ≠ home → company-wide (source platform).
+        var homeTenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+            SELECT TenantId FROM Users WHERE Id = @UserId AND IsDeleted = 0
+            """, new { UserId = userId }, cancellationToken: cancellationToken));
 
-            if (holdsPlatformSuperAdmin)
+        var hasDataRead = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+            SELECT TOP 1 1
+            FROM UserRoles ur
+            INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1 AND r.TenantId = @PlatformTenantId
+            INNER JOIN RolePermissions rp ON rp.RoleId = r.Id
+            INNER JOIN Permissions p ON p.Id = rp.PermissionId
+            WHERE ur.UserId = @UserId AND p.PermissionCode = @DataRead
+            """,
+            new
             {
-                assignments.Insert(0, new DataScopeResolver.RoleAssignmentInput(
-                    PlatformRoles.SuperAdmin,
-                    DataScopeResolver.ScopeCompany,
-                    null,
-                    null));
-            }
+                UserId = userId,
+                PlatformTenantId = PlatformTenant.Id,
+                DataRead = PlatformPermissions.TenantsDataRead
+            },
+            cancellationToken: cancellationToken)) == 1;
+
+        if (hasDataRead && homeTenantId.HasValue && tenantId != homeTenantId.Value)
+        {
+            return DataScopeResolver.ResolvePlatformCrossTenant(
+                userId,
+                tenantId,
+                home.BranchId,
+                home.DepartmentId);
         }
 
         return DataScopeResolver.Resolve(

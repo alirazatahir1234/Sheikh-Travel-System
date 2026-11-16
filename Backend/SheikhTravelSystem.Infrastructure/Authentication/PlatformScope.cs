@@ -13,26 +13,27 @@ public class PlatformScope(IHttpContextAccessor httpContextAccessor, ITenantCont
 
     public int TenantId => tenantContext.GetRequiredTenantId();
 
-    public bool IsSuperAdmin =>
-        HasRole(PlatformRoles.SuperAdmin);
-
     public bool HasPermission(string permission)
     {
-        if (IsSuperAdmin) return true;
-        if (User?.HasClaim("permission", permission) == true) return true;
+        if (User is null || string.IsNullOrWhiteSpace(permission))
+            return false;
 
-        // Legacy Admin role retains platform admin access during migration.
-        if (User?.IsInRole("Admin") == true && permission.StartsWith("Platform.", StringComparison.Ordinal))
-            return true;
+        if (!User.HasClaim("permission", permission))
+            return false;
 
-        return false;
+        // Platform-scope: claim alone is not enough — JWT must be platform tenant (A2/A8).
+        if (PlatformPermissions.IsPlatformScopePermission(permission))
+            return PlatformPermissionClaims.IsPlatformTenantToken(User);
+
+        return true;
     }
 
     public void EnsureTenantAccess(int tenantId)
     {
-        // SUPER_ADMIN may scope lists to another tenant via ?tenantId= (ERP company deep-link).
-        if (IsSuperAdmin) return;
-        if (tenantId != TenantId)
+        if (tenantId == TenantId)
+            return;
+
+        if (!HasPermission(PlatformPermissions.TenantsDataRead))
             throw new ForbiddenException("Cross-tenant access is not allowed.");
     }
 
@@ -46,9 +47,4 @@ public class PlatformScope(IHttpContextAccessor httpContextAccessor, ITenantCont
 
         return TenantId;
     }
-
-    private bool HasRole(string roleCode) =>
-        User?.IsInRole(roleCode) == true ||
-        User?.HasClaim("role", roleCode) == true ||
-        User?.HasClaim(ClaimTypes.Role, roleCode) == true;
 }

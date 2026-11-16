@@ -81,14 +81,14 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
             }
         }
 
-        var isPlatformOperator = PlatformRoleClaims.IsPlatformOperator(context.User);
+        var canSwitchTenant = PlatformPermissionClaims.CanSwitchTenant(context.User);
         var decision = TenantResolutionPolicy.Decide(
             jwtTenantId,
             headerTenantId,
             slugResolvedTenantId,
             slug,
             isAuthenticated,
-            isPlatformOperator,
+            canSwitchTenant,
             allowAnonymousDefault);
 
         if (decision.Reject)

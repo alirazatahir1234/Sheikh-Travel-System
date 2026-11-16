@@ -16,7 +16,7 @@ public class TenantRoleSeedService(IDbConnectionFactory dbFactory) : ITenantRole
 
     public async Task SeedSuperAdminPermissionsAsync(int tenantId, CancellationToken cancellationToken = default)
     {
-        if (tenantId != 1) return;
+        if (tenantId != PlatformTenant.Id) return;
 
         using var connection = dbFactory.CreateConnection();
         var codes = (await connection.QueryAsync<string>(new CommandDefinition(

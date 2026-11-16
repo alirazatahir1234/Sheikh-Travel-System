@@ -8,28 +8,27 @@ namespace SheikhTravelSystem.Tests.Auth;
 public class DataScopeResolverTests
 {
     [Fact]
-    public void SuperAdmin_Is_CompanyWide()
+    public void CompanyScopeRole_Is_CompanyWide_With_Roles_Source()
     {
+        // SUPER_ADMIN no longer special-cases by role name; Company ScopeLevel → source "roles".
         var result = DataScopeResolver.Resolve(
             1, 10, homeBranchId: 5, homeDepartmentId: 2,
             [new DataScopeResolver.RoleAssignmentInput("SUPER_ADMIN", "Company", null, null)]);
 
         result.IsCompanyWide.Should().BeTrue();
         result.Mode.Should().Be(DataScopeMode.Company);
-        result.Source.Should().Be("super_admin");
+        result.Source.Should().Be("roles");
     }
 
     [Fact]
-    public void SuperAdmin_Injected_For_Other_Tenant_Is_CompanyWide()
+    public void PlatformCrossTenant_Is_CompanyWide_With_Platform_Source()
     {
-        // DataScopeEngine injects SUPER_ADMIN when the platform operator deep-links
-        // into another company that has no local UserRoles row for them.
-        var result = DataScopeResolver.Resolve(
-            1, tenantId: 5, homeBranchId: null, homeDepartmentId: null,
-            [new DataScopeResolver.RoleAssignmentInput("SUPER_ADMIN", "Company", null, null)]);
+        // SG-05 A7: DataRead + working ≠ home → source "platform".
+        var result = DataScopeResolver.ResolvePlatformCrossTenant(
+            1, tenantId: 5, homeBranchId: null, homeDepartmentId: null);
 
         result.IsCompanyWide.Should().BeTrue();
-        result.Source.Should().Be("super_admin");
+        result.Source.Should().Be("platform");
         result.BranchIds.Should().BeEmpty();
         result.DepartmentIds.Should().BeEmpty();
     }

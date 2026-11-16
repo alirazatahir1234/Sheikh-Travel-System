@@ -22,7 +22,7 @@ public sealed class TenantSubscriptionAccessMiddleware(RequestDelegate next)
         var path = context.Request.Path.Value ?? "";
         if (context.User.Identity?.IsAuthenticated != true
             || IsExemptPath(path)
-            || PlatformRoleClaims.IsPlatformOperator(context.User))
+            || PlatformPermissionClaims.HasPlatformScopeExemption(context.User))
         {
             await next(context);
             return;
@@ -77,7 +77,7 @@ public sealed class TenantSubscriptionAccessMiddleware(RequestDelegate next)
             return true;
         if (path.StartsWith("/api/website", StringComparison.OrdinalIgnoreCase))
             return true;
-        // Platform admin APIs remain available to SuperAdmin (checked via IsPlatformOperator above).
+        // Platform admin APIs remain available to platform-scope operators (checked above).
         // Non-admin users hitting /api/platform still go through the gate.
         if (path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase))
             return true;

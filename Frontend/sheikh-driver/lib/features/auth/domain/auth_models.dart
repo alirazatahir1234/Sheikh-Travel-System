@@ -94,7 +94,7 @@ abstract final class FleetPermissions {
   static const paymentView = 'Payment.View';
   static const invoiceView = 'Invoice.View';
   static const platformUsersView = 'Platform.Users.View';
-  static const platformVehiclesViewAll = 'Platform.Vehicles.ViewAll';
+  static const platformTenantsDataRead = 'Platform.Tenants.DataRead';
   static const gpsAlertView = 'Gps.AlertView';
   static const gpsAlertAcknowledge = 'Gps.AlertAcknowledge';
   static const gpsAlertResolve = 'Gps.AlertResolve';
@@ -249,10 +249,10 @@ class FleetSession {
   /// Fleet owners, managers, and GPS operators must not see or run Commands.
   bool get canUseGpsCommands => hasRole(FleetRole.superAdmin);
 
-  /// Cross-company vehicles / company filter (platform SUPER_ADMIN).
+  /// Cross-company vehicles / company filter (platform DataRead).
   bool get canCrossTenantVehicles =>
       hasRole(FleetRole.superAdmin) ||
-      hasPermission(FleetPermissions.platformVehiclesViewAll);
+      hasPermission(FleetPermissions.platformTenantsDataRead);
 
   /// Tracker hardware / diagnostics & device health — GPS_OPERATOR or SUPER_ADMIN only
   /// (never exposed to FLEET_MANAGER, DISPATCHER, DRIVER_MANAGER, ACCOUNTANT, or DRIVER).

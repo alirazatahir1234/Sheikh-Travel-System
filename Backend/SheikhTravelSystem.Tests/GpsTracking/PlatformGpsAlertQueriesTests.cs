@@ -11,11 +11,11 @@ namespace SheikhTravelSystem.Tests.GpsTracking;
 public class PlatformGpsAlertQueriesTests
 {
     [Fact]
-    public async Task GetPlatformEvents_NonSuperAdmin_IsRejected()
+    public async Task GetPlatformEvents_WithoutDataRead_IsRejected()
     {
         var repo = new Mock<IGpsTrackingRepository>();
         var scope = new Mock<IPlatformScope>();
-        scope.SetupGet(s => s.IsSuperAdmin).Returns(false);
+        scope.Setup(s => s.HasPermission(PlatformPermissions.TenantsDataRead)).Returns(false);
 
         var handler = new GetPlatformGpsAlertEventsQueryHandler(repo.Object, scope.Object);
         var result = await handler.Handle(
@@ -30,11 +30,11 @@ public class PlatformGpsAlertQueriesTests
     }
 
     [Fact]
-    public async Task GetPlatformEvents_SuperAdmin_CallsRepository()
+    public async Task GetPlatformEvents_WithDataRead_CallsRepository()
     {
         var repo = new Mock<IGpsTrackingRepository>();
         var scope = new Mock<IPlatformScope>();
-        scope.SetupGet(s => s.IsSuperAdmin).Returns(true);
+        scope.Setup(s => s.HasPermission(PlatformPermissions.TenantsDataRead)).Returns(true);
         repo.Setup(r => r.GetPlatformGpsAlertEventsAsync(It.IsAny<GetPlatformGpsAlertEventsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ApiResponse<List<GpsAlertEventDto>>.SuccessResponse([]));
 
@@ -52,11 +52,11 @@ public class PlatformGpsAlertQueriesTests
     }
 
     [Fact]
-    public async Task GetPlatformStats_NonSuperAdmin_IsRejected()
+    public async Task GetPlatformStats_WithoutDataRead_IsRejected()
     {
         var repo = new Mock<IGpsTrackingRepository>();
         var scope = new Mock<IPlatformScope>();
-        scope.SetupGet(s => s.IsSuperAdmin).Returns(false);
+        scope.Setup(s => s.HasPermission(PlatformPermissions.TenantsDataRead)).Returns(false);
 
         var handler = new GetPlatformGpsAlertStatsQueryHandler(repo.Object, scope.Object);
         var result = await handler.Handle(new GetPlatformGpsAlertStatsQuery(), CancellationToken.None);

@@ -14,8 +14,8 @@ public class ProvisionTenantCommandHandler(
 {
     public async Task<ApiResponse<int>> Handle(ProvisionTenantCommand request, CancellationToken cancellationToken)
     {
-        if (!platformScope.IsSuperAdmin)
-            return ApiResponse<int>.FailResponse("Only platform super administrators can provision tenants.");
+        if (!platformScope.HasPermission(PlatformPermissions.TenantsManage))
+            return ApiResponse<int>.FailResponse("Only platform operators can provision tenants.");
 
         var slug = request.Slug.Trim().ToLowerInvariant();
         if (await tenantRepository.SlugExistsAsync(slug, cancellationToken))

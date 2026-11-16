@@ -201,10 +201,12 @@ public static class MenuBuilderQueries
     /// </summary>
     public static List<MenuModuleDto> FilterByPrimaryRole(
         List<MenuModuleDto> modules,
-        string? primaryRoleCode)
+        string? primaryRoleCode,
+        bool grantFullCatalog = false)
     {
         var role = (primaryRoleCode ?? string.Empty).Trim().ToUpperInvariant();
-        if (string.IsNullOrEmpty(role) || role == PlatformRoles.SuperAdmin)
+        // SG-05 B4: full catalog is Platform.Tenants.Manage (grantFullCatalog), not SUPER_ADMIN by name.
+        if (grantFullCatalog || string.IsNullOrEmpty(role))
             return modules;
 
         static bool IsRouteAllowed(string route, string roleCode)

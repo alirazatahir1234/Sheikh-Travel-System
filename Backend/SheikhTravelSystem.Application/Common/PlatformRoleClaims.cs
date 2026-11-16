@@ -44,8 +44,4 @@ public static class PlatformRoleClaims
     /// <summary>True when the caller is a driver (legacy enum or RBAC code).</summary>
     public static bool IsDriver(ClaimsPrincipal? user) =>
         HasRole(user, "DRIVER") || HasRole(user, "Driver");
-
-    /// <summary>Platform operator = SUPER_ADMIN only (not TENANT_ADMIN).</summary>
-    public static bool IsPlatformOperator(ClaimsPrincipal? user) =>
-        HasRole(user, PlatformRoles.SuperAdmin);
 }

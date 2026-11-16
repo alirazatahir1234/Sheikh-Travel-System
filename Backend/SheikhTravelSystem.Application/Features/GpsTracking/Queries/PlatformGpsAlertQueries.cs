@@ -31,7 +31,7 @@ public class GetPlatformGpsAlertEventsQueryHandler(
         GetPlatformGpsAlertEventsQuery request,
         CancellationToken cancellationToken)
     {
-        if (!platformScope.IsSuperAdmin)
+        if (!platformScope.HasPermission(PlatformPermissions.TenantsDataRead))
             return Task.FromResult(ApiResponse<List<GpsAlertEventDto>>.FailResponse("Platform operator access required."));
 
         return gpsTrackingRepository.GetPlatformGpsAlertEventsAsync(request, cancellationToken);
@@ -49,7 +49,7 @@ public class GetPlatformGpsAlertStatsQueryHandler(
         GetPlatformGpsAlertStatsQuery request,
         CancellationToken cancellationToken)
     {
-        if (!platformScope.IsSuperAdmin)
+        if (!platformScope.HasPermission(PlatformPermissions.TenantsDataRead))
             return Task.FromResult(ApiResponse<GpsAlertStatsDto>.FailResponse("Platform operator access required."));
 
         return gpsTrackingRepository.GetPlatformGpsAlertStatsAsync(request, cancellationToken);

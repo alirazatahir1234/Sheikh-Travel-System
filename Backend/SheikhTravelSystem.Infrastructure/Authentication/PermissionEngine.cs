@@ -55,90 +55,65 @@ public class PermissionEngine(
             EnsureLegacyBridge(codes, (UserRole)legacyRole.Value);
         }
 
-        // Platform SUPER_ADMIN is global. When a SuperAdmin deep-links into another
-        // company (X-Tenant-Id), UserRoles for that tenant are empty and legacy
-        // Users.Role=Admin would otherwise demote them to TENANT_ADMIN — which
-        // strips Platform.Tenants.* and hides Companies / tenant detail.
-        var holdsPlatformSuperAdmin = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
-            SELECT TOP 1 1
+        // SG-05 A6: merge RolePermissions from working-tenant roles + platform-tenant roles.
+        // No catalog dump for SUPER_ADMIN and no TENANT_ADMIN Platform.* mirror.
+        var platformRoleCodes = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT r.Code
             FROM UserRoles ur
             INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
-            WHERE ur.UserId = @UserId AND UPPER(r.Code) = N'SUPER_ADMIN'
-            """, new { UserId = userId }, cancellationToken: cancellationToken)) == 1;
+            WHERE ur.UserId = @UserId AND r.TenantId = @PlatformTenantId
+            """,
+            new { UserId = userId, PlatformTenantId = PlatformTenant.Id },
+            cancellationToken: cancellationToken))).ToList();
 
-        if (holdsPlatformSuperAdmin
-            && !codes.Contains(PlatformRoles.SuperAdmin, StringComparer.OrdinalIgnoreCase))
+        foreach (var platformCode in platformRoleCodes)
         {
-            codes.Insert(0, PlatformRoles.SuperAdmin);
-            codes = RoleCodePriority.OrderByPrivilege(codes).ToList();
+            if (!codes.Contains(platformCode, StringComparer.OrdinalIgnoreCase))
+                codes.Add(platformCode);
         }
 
-        var isSuperAdmin = codes.Contains(PlatformRoles.SuperAdmin, StringComparer.OrdinalIgnoreCase);
-        var isTenantAdmin = codes.Contains(PlatformRoles.TenantAdmin, StringComparer.OrdinalIgnoreCase);
+        codes = RoleCodePriority.OrderByPrivilege(codes).ToList();
 
-        Dictionary<string, HashSet<string>> sourceByPerm;
-        List<string> permissionCodes;
+        var sourceByPerm = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var tenantIdsForPerms = new HashSet<int> { tenantId, PlatformTenant.Id };
 
-        if (isSuperAdmin)
+        var pairs = await connection.QueryAsync<(string PermissionCode, string RoleCode)>(new CommandDefinition("""
+            SELECT DISTINCT p.PermissionCode, r.Code AS RoleCode
+            FROM UserRoles ur
+            INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+            INNER JOIN RolePermissions rp ON rp.RoleId = r.Id
+            INNER JOIN Permissions p ON p.Id = rp.PermissionId
+            WHERE ur.UserId = @UserId AND r.TenantId IN @TenantIds
+            """,
+            new { UserId = userId, TenantIds = tenantIdsForPerms.ToArray() },
+            cancellationToken: cancellationToken));
+
+        foreach (var pair in pairs)
+            AddSource(sourceByPerm, pair.PermissionCode, pair.RoleCode);
+
+        if (sourceByPerm.Count == 0 && codes.Count > 0)
         {
-            permissionCodes = (await connection.QueryAsync<string>(new CommandDefinition(
-                "SELECT PermissionCode FROM Permissions ORDER BY PermissionCode",
-                cancellationToken: cancellationToken))).ToList();
-            sourceByPerm = permissionCodes.ToDictionary(
-                p => p,
-                _ => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PlatformRoles.SuperAdmin },
-                StringComparer.OrdinalIgnoreCase);
-        }
-        else
-        {
-            sourceByPerm = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            if (codes.Count > 0)
+            foreach (var code in codes)
             {
-                var pairs = await connection.QueryAsync<(string PermissionCode, string RoleCode)>(new CommandDefinition("""
-                    SELECT DISTINCT p.PermissionCode, r.Code AS RoleCode
-                    FROM Roles r
-                    INNER JOIN RolePermissions rp ON rp.RoleId = r.Id
-                    INNER JOIN Permissions p ON p.Id = rp.PermissionId
-                    WHERE r.TenantId = @TenantId AND r.IsActive = 1 AND r.Code IN @RoleCodes
-                    """, new { TenantId = tenantId, RoleCodes = codes }, cancellationToken: cancellationToken));
-
-                foreach (var pair in pairs)
-                    AddSource(sourceByPerm, pair.PermissionCode, pair.RoleCode);
-            }
-
-            if (sourceByPerm.Count == 0 && codes.Count > 0)
-            {
-                foreach (var code in codes)
+                var match = TenantRolePermissionTemplates.StandardRoles
+                    .FirstOrDefault(r => string.Equals(r.RoleCode, code, StringComparison.OrdinalIgnoreCase));
+                if (match.Permissions is { Length: > 0 } perms)
                 {
-                    var match = TenantRolePermissionTemplates.StandardRoles
-                        .FirstOrDefault(r => string.Equals(r.RoleCode, code, StringComparison.OrdinalIgnoreCase));
-                    if (match.Permissions is { Length: > 0 } perms)
-                    {
-                        foreach (var p in perms)
-                            AddSource(sourceByPerm, p, code);
-                    }
+                    foreach (var p in perms)
+                        AddSource(sourceByPerm, p, code);
                 }
             }
-
-            // Mirror AuthorizationHandler Tenant Admin Platform.* bypass for effective lists.
-            if (isTenantAdmin)
-            {
-                var platformPerms = await connection.QueryAsync<string>(new CommandDefinition("""
-                    SELECT PermissionCode FROM Permissions
-                    WHERE PermissionCode LIKE N'Platform.%'
-                      AND PermissionCode NOT LIKE N'Platform.Tenants.%'
-                    """, cancellationToken: cancellationToken));
-                foreach (var p in platformPerms)
-                    AddSource(sourceByPerm, p, PlatformRoles.TenantAdmin);
-            }
-
-            permissionCodes = sourceByPerm.Keys
-                .Where(p => !PermissionAuthorizationHandler.IsSuperAdminOnlyPermission(p))
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList();
         }
 
-        if (!isSuperAdmin)
+        var permissionCodes = sourceByPerm.Keys
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Platform operators keep full RolePermissions; tenant entitlements still apply
+        // for non-platform working tenants (module/feature soft gates).
+        var isPlatformOperator = sourceByPerm.ContainsKey(PlatformPermissions.TenantsManage)
+            || sourceByPerm.ContainsKey(PlatformPermissions.TenantsDataRead);
+        if (!isPlatformOperator || tenantId != PlatformTenant.Id)
             permissionCodes = await FilterByTenantEntitlementsAsync(
                 connection, tenantId, permissionCodes, userId, cancellationToken);
 

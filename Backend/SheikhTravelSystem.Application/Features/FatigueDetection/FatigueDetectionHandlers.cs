@@ -70,8 +70,8 @@ public class GetFatigueEventsPlatformQueryHandler(
     public async Task<ApiResponse<List<FatigueEventListItemDto>>> Handle(
         GetFatigueEventsPlatformQuery request, CancellationToken cancellationToken)
     {
-        if (!platformScope.IsSuperAdmin)
-            return ApiResponse<List<FatigueEventListItemDto>>.FailResponse("Super admin access required.");
+        if (!platformScope.HasPermission(PlatformPermissions.TenantsDataRead))
+            return ApiResponse<List<FatigueEventListItemDto>>.FailResponse("Platform data-read access required.");
 
         var rows = await repository.ListEventsPlatformAsync(
             request.TenantId, request.Status, request.Limit, cancellationToken);

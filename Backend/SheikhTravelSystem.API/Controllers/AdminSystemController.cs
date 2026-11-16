@@ -26,8 +26,8 @@ public class AdminSystemController(
         if (!IsResetEnvironment())
             return Ok(new { available = false, environment = environment.EnvironmentName });
 
-        if (!platformScope.IsSuperAdmin)
-            return Ok(new { available = false, environment = environment.EnvironmentName, reason = "Super Admin required." });
+        if (!platformScope.HasPermission(PlatformPermissions.SystemReset))
+            return Ok(new { available = false, environment = environment.EnvironmentName, reason = "Platform.System.Reset required." });
 
         return Ok(new { available = true, environment = environment.EnvironmentName });
     }
@@ -41,7 +41,7 @@ public class AdminSystemController(
         if (!IsResetEnvironment())
             return Forbid();
 
-        if (!platformScope.IsSuperAdmin)
+        if (!platformScope.HasPermission(PlatformPermissions.SystemReset))
             return Forbid();
 
         if (!string.Equals(request.Confirmation?.Trim(), "RESET", StringComparison.Ordinal))

@@ -128,7 +128,7 @@ public class BulkCreateUsersCommandHandler(
                 var code = dto.PlatformRoleCode.Trim().ToUpperInvariant();
                 try
                 {
-                    UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
+                    UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser, tenantId);
                 }
                 catch (ForbiddenException ex)
                 {

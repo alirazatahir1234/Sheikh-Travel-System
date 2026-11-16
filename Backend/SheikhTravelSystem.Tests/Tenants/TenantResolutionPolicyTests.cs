@@ -14,7 +14,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -31,7 +31,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeTrue();
@@ -48,7 +48,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: 2,
             slug: "other-tenant",
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -66,7 +66,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: true,
+            canSwitchTenant: true,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -84,7 +84,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: true,
+            canSwitchTenant: true,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -102,7 +102,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: 5,
             slug: "acme",
             isAuthenticated: false,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -120,7 +120,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: "missing",
             isAuthenticated: false,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -137,7 +137,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: "missing",
             isAuthenticated: false,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: false);
 
         d.Reject.Should().BeFalse();
@@ -154,7 +154,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: 3,
             slug: "portal",
             isAuthenticated: false,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -170,7 +170,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -187,7 +187,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeFalse();
@@ -203,7 +203,7 @@ public class TenantResolutionPolicyTests
             slugResolvedTenantId: null,
             slug: null,
             isAuthenticated: true,
-            isPlatformOperator: false,
+            canSwitchTenant: false,
             allowAnonymousDefaultTenant: true);
 
         d.Reject.Should().BeTrue();

@@ -54,7 +54,7 @@ public class SetUserRolesCommandHandler(
                 user.TenantId, roleIds.Distinct().ToList(), cancellationToken);
 
             foreach (var code in assignedCodes)
-                UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
+                UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser, user.TenantId);
         }
 
         var scopes = new Dictionary<int, (int? BranchId, int? DepartmentId)>();

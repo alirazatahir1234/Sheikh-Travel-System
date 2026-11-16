@@ -25,40 +25,42 @@ public class UpdateVehicleCompanyChangeTests
         CompanyId: companyId);
 
     [Fact]
-    public async Task SuperAdmin_CanMoveVehicleToAnotherCompany()
+    public async Task PlatformDataRead_CanMoveVehicleToAnotherCompany()
     {
         var vehicles = new Mock<IVehicleRepository>();
         var users = new Mock<IUserRepository>();
         var scope = new Mock<IPlatformScope>();
 
         vehicles.Setup(v => v.GetTenantIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        scope.SetupGet(s => s.IsSuperAdmin).Returns(true);
+        scope.SetupGet(s => s.TenantId).Returns(1);
 
         var handler = new UpdateVehicleCommandHandler(vehicles.Object, users.Object, scope.Object);
         var result = await handler.Handle(new UpdateVehicleCommand(7, SampleDto(3)), CancellationToken.None);
 
         result.Success.Should().BeTrue();
         scope.Verify(s => s.EnsureTenantAccess(1), Times.Once);
-        scope.Verify(s => s.EnsureTenantAccess(3), Times.Once);
+        scope.Verify(s => s.EnsureTenantAccess(3), Times.AtLeastOnce);
         users.Verify(u => u.EnsureOrgBelongsToTenantAsync(3, null, null, It.IsAny<CancellationToken>()), Times.Once);
         vehicles.Verify(v => v.PersistVehicleAsync(7, 1, 3, It.IsAny<UpdateVehicleDto>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task NonSuperAdmin_CannotMoveVehicleToAnotherCompany()
+    public async Task WithoutDataRead_CannotMoveVehicleToAnotherCompany()
     {
         var vehicles = new Mock<IVehicleRepository>();
         var users = new Mock<IUserRepository>();
         var scope = new Mock<IPlatformScope>();
 
         vehicles.Setup(v => v.GetTenantIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        scope.SetupGet(s => s.IsSuperAdmin).Returns(false);
+        scope.SetupGet(s => s.TenantId).Returns(1);
+        scope.Setup(s => s.EnsureTenantAccess(3))
+            .Throws(new ForbiddenException("Cross-tenant access is not allowed."));
 
         var handler = new UpdateVehicleCommandHandler(vehicles.Object, users.Object, scope.Object);
         var act = () => handler.Handle(new UpdateVehicleCommand(7, SampleDto(3)), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenException>()
-            .WithMessage("*cannot move vehicles*");
+            .WithMessage("*Cross-tenant*");
         vehicles.Verify(
             v => v.PersistVehicleAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<UpdateVehicleDto>(), It.IsAny<CancellationToken>()),
             Times.Never);

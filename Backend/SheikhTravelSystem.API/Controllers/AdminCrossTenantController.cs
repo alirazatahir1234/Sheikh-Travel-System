@@ -7,7 +7,7 @@ using SheikhTravelSystem.Application.Features.Admin;
 namespace SheikhTravelSystem.API.Controllers;
 
 /// <summary>
-/// Platform SUPER_ADMIN cross-company read APIs (vehicles / companies).
+/// Platform cross-company read APIs (vehicles / companies).
 /// Tenant middleware sets <c>IsCrossTenantBypass</c> when no X-Tenant-Id is sent.
 /// </summary>
 [Authorize]
@@ -15,9 +15,9 @@ namespace SheikhTravelSystem.API.Controllers;
 [Route("api/admin")]
 public class AdminCrossTenantController : BaseApiController
 {
-    /// <summary>Companies for the Super Admin filter dropdown.</summary>
+    /// <summary>Companies for the platform filter dropdown.</summary>
     [HttpGet("companies")]
-    [RequirePermission(PlatformPermissions.VehiclesViewAll)]
+    [RequirePermission(PlatformPermissions.TenantsView)]
     public async Task<IActionResult> GetCompanies(CancellationToken cancellationToken)
         => Ok(await Mediator.Send(new GetAdminCompaniesQuery(), cancellationToken));
 
@@ -26,7 +26,7 @@ public class AdminCrossTenantController : BaseApiController
     /// pass it for server-side filter to one company.
     /// </summary>
     [HttpGet("vehicles")]
-    [RequirePermission(PlatformPermissions.VehiclesViewAll)]
+    [RequirePermission(PlatformPermissions.TenantsDataRead)]
     public async Task<IActionResult> GetVehicles(
         [FromQuery] int? companyId,
         [FromQuery] int page = 1,

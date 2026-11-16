@@ -339,7 +339,7 @@ public class GetTenantsQueryHandler(
 {
     public async Task<ApiResponse<IReadOnlyList<TenantListDto>>> Handle(GetTenantsQuery request, CancellationToken cancellationToken)
     {
-        var rows = platformScope.IsSuperAdmin
+        var rows = platformScope.HasPermission(PlatformPermissions.TenantsView)
             ? await platformRepository.GetAllTenantsAsync(cancellationToken)
             : await platformRepository.GetTenantByScopeAsync(platformScope.TenantId, cancellationToken);
         return ApiResponse<IReadOnlyList<TenantListDto>>.SuccessResponse(rows.ToList());
@@ -394,7 +394,7 @@ public class GetTenantManagementStatsQueryHandler(
 {
     public async Task<ApiResponse<TenantManagementStatsDto>> Handle(GetTenantManagementStatsQuery request, CancellationToken cancellationToken)
     {
-        if (platformScope.IsSuperAdmin)
+        if (platformScope.HasPermission(PlatformPermissions.TenantsView))
         {
             var stats = await platformRepository.GetTenantManagementStatsGlobalAsync(cancellationToken);
             return ApiResponse<TenantManagementStatsDto>.SuccessResponse(stats);
@@ -469,17 +469,15 @@ public class GetUserMenuQueryHandler(
         var (modules, menus) = await platformRepository.LoadNavTablesAsync(activeMenusOnly: true, cancellationToken: cancellationToken);
 
         IReadOnlyList<string>? workspaceModuleKeys = null;
-        // Prefer JWT / platform-operator claim so company deep-links (X-Tenant-Id)
-        // do not lose SuperAdmin when tenant-scoped RolePermissions omit SUPER_ADMIN.
-        var isSuperAdmin = currentUser.IsPlatformSuperAdmin
-            || access.RoleCodes.Any(c =>
-                string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
+        // SG-05 B3: full menu catalog is Platform.Tenants.Manage — not a role name.
+        var grantFullCatalog = currentUser.HasPermission(PlatformPermissions.TenantsManage)
+            || currentUser.IsPlatformSuperAdmin;
         var isTenantAdmin = access.RoleCodes.Any(c =>
             string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase));
-        // SuperAdmin + TenantAdmin skip workspace soft-focus (operational roles only).
-        // SuperAdmin alone gets the full active/visible catalog (grantFullCatalog).
+        // Platform Manage + TenantAdmin skip workspace soft-focus (operational roles only).
+        // Manage alone gets the full active/visible catalog (grantFullCatalog).
         // TenantAdmin stays permission + plan/module gated.
-        if (!isSuperAdmin && !isTenantAdmin)
+        if (!grantFullCatalog && !isTenantAdmin)
         {
             try
             {
@@ -505,11 +503,11 @@ public class GetUserMenuQueryHandler(
             enabledModules,
             featureFlags,
             workspaceModuleKeys,
-            grantFullCatalog: isSuperAdmin);
-        var primaryRole = isSuperAdmin
+            grantFullCatalog: grantFullCatalog);
+        var primaryRole = grantFullCatalog
             ? PlatformRoles.SuperAdmin
             : RoleCodePriority.SelectPrimary(access.RoleCodes);
-        result = MenuBuilderQueries.FilterByPrimaryRole(result, primaryRole);
+        result = MenuBuilderQueries.FilterByPrimaryRole(result, primaryRole, grantFullCatalog);
         return ApiResponse<IReadOnlyList<MenuModuleDto>>.SuccessResponse(result);
     }
 }

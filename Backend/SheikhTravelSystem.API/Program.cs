@@ -65,7 +65,8 @@ builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")
     .AddCheck<RedisHealthCheck>("redis")
     .AddCheck<TraccarHealthCheck>("traccar")
-    .AddCheck<SignalRHealthCheck>("signalr");
+    .AddCheck<SignalRHealthCheck>("signalr")
+    .AddCheck<PlatformOperatorPermissionsHealthCheck>("platform-operator-permissions");
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

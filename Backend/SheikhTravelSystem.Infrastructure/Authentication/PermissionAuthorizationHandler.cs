@@ -15,17 +15,15 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.SuperAdmin))
+        // Platform-scope permissions: claim + JWT tenant_id == platform tenant (SG-05 A2).
+        if (PlatformPermissions.IsPlatformScopePermission(requirement.Permission))
         {
-            context.Succeed(requirement);
-            return Task.CompletedTask;
-        }
+            if (context.User.HasClaim("permission", requirement.Permission)
+                && PlatformPermissionClaims.IsPlatformTenantToken(context.User))
+            {
+                context.Succeed(requirement);
+            }
 
-        // SuperAdmin-only permissions (Gps.Command*, Platform.Tenants.*, Platform.Vehicles.*,
-        // Platform.Gps.*, Platform.Migrations.*, Platform.System.*) must never succeed for
-        // tenant roles, even if a stale token or legacy RolePermissions row carries the claim.
-        if (IsSuperAdminOnlyPermission(requirement.Permission))
-        {
             return Task.CompletedTask;
         }
 
@@ -66,61 +64,16 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
-        // Legacy Admin retains Platform.* bypass for platform-tenant operators still on Users.Role=Admin.
-        // New tenants should use SUPER_ADMIN / TENANT_ADMIN with explicit RolePermissions.
-        if (context.User.IsInRole("Admin") &&
-            requirement.Permission.StartsWith("Platform.", StringComparison.Ordinal))
-        {
-            context.Succeed(requirement);
-            return Task.CompletedTask;
-        }
-
-        // TENANT_ADMIN role claim also satisfies Platform tenant-admin surface when permissions lag seed.
-        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.TenantAdmin) &&
-            requirement.Permission.StartsWith("Platform.", StringComparison.Ordinal) &&
-            !requirement.Permission.StartsWith("Platform.Tenants.", StringComparison.Ordinal))
-        {
-            context.Succeed(requirement);
-            return Task.CompletedTask;
-        }
-
-        // Attendance / driver roster: management roles match mobile SettingsAccess gates when
-        // JWT permission claims lag RolePermissions seed (do not strip RequirePermission).
-        if (IsDriverOpsRoleBypass(context.User, requirement.Permission))
-        {
-            context.Succeed(requirement);
-            return Task.CompletedTask;
-        }
-
         return Task.CompletedTask;
     }
 
-    public static bool IsSuperAdminOnlyPermission(string permission)
-    {
-        if (string.IsNullOrWhiteSpace(permission)) return false;
-        return permission.StartsWith("Gps.Command", StringComparison.OrdinalIgnoreCase)
-            || permission.StartsWith("Platform.Tenants.", StringComparison.OrdinalIgnoreCase)
-            || permission.StartsWith("Platform.Vehicles.", StringComparison.OrdinalIgnoreCase)
-            || permission.StartsWith("Platform.Gps.", StringComparison.OrdinalIgnoreCase)
-            || permission.StartsWith("Platform.Migrations.", StringComparison.OrdinalIgnoreCase)
-            || permission.StartsWith("Platform.System.", StringComparison.OrdinalIgnoreCase);
-    }
+    /// <summary>Obsolete name — use <see cref="PlatformPermissions.IsPlatformScopePermission"/>.</summary>
+    public static bool IsSuperAdminOnlyPermission(string permission) =>
+        PlatformPermissions.IsPlatformScopePermission(permission);
 
-    /// <summary>
-    /// TENANT_ADMIN / OWNER / FLEET_MANAGER / DRIVER_MANAGER may view or correct attendance
-    /// when they hold the matching management role even if Driver.View / Driver.Update claims
-    /// were omitted from an older token.
-    /// </summary>
-    private static bool IsDriverOpsRoleBypass(ClaimsPrincipal user, string permission)
-    {
-        if (permission is not (DriverPermissions.DriverView or DriverPermissions.DriverUpdate))
-            return false;
-
-        return PlatformRoleClaims.HasRole(user, PlatformRoles.TenantAdmin)
-            || PlatformRoleClaims.HasRole(user, "OWNER")
-            || PlatformRoleClaims.HasRole(user, "FLEET_MANAGER")
-            || PlatformRoleClaims.HasRole(user, "DRIVER_MANAGER");
-    }
+    /// <summary>Alias for call sites / tests migrating to SG-05 naming.</summary>
+    public static bool IsPlatformScopePermission(string permission) =>
+        PlatformPermissions.IsPlatformScopePermission(permission);
 }
 
 public static class PermissionPolicyRegistration

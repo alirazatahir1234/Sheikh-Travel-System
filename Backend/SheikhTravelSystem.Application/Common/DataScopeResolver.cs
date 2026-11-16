@@ -31,11 +31,6 @@ public static class DataScopeResolver
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (codes.Any(c => string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)))
-        {
-            return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "super_admin");
-        }
-
         if (codes.Any(c => string.Equals(c, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase)
                            || string.Equals(c, "OWNER", StringComparison.OrdinalIgnoreCase)))
         {
@@ -148,9 +143,21 @@ public static class DataScopeResolver
         return scopeLevel.Trim();
     }
 
+    /// <summary>
+    /// Company-wide scope when a platform operator acts in another tenant (SG-05 A7).
+    /// Source is <c>platform</c> — not a role name.
+    /// </summary>
+    public static DataScopeResult ResolvePlatformCrossTenant(
+        int userId,
+        int tenantId,
+        int? homeBranchId,
+        int? homeDepartmentId)
+        => CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "platform");
+
     public static string DefaultScopeLevelForRoleCode(string roleCode)
     {
         if (string.Equals(roleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, PlatformRoles.PlatformAuditor, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "OWNER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase) ||

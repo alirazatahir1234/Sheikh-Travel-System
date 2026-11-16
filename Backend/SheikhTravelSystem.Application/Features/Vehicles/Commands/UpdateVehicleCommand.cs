@@ -82,15 +82,11 @@ public class UpdateVehicleCommandHandler(
 
     private int ResolveTargetTenantId(int currentTenantId, int? companyId)
     {
-        if (!platformScope.IsSuperAdmin)
+        if (companyId is int cid && cid > 0 && cid != currentTenantId)
         {
-            if (companyId is int requested && requested > 0 && requested != currentTenantId)
-                throw new ForbiddenException("You cannot move vehicles to another company.");
-            return currentTenantId;
-        }
-
-        if (companyId is int cid && cid > 0)
+            platformScope.EnsureTenantAccess(cid);
             return cid;
+        }
 
         return currentTenantId;
     }

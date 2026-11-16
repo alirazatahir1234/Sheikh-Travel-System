@@ -50,21 +50,10 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
     public bool HasPermission(string permission)
     {
         var user = httpContextAccessor.HttpContext?.User;
-        if (user is null) return false;
-
-        return user.HasClaim("permission", permission)
-            || user.HasClaim("role", PlatformRoles.SuperAdmin)
-            || user.IsInRole(PlatformRoles.SuperAdmin);
+        if (user is null || string.IsNullOrWhiteSpace(permission)) return false;
+        return user.HasClaim("permission", permission);
     }
 
-    public bool IsPlatformSuperAdmin
-    {
-        get
-        {
-            var user = httpContextAccessor.HttpContext?.User;
-            if (user is null) return false;
-            return user.HasClaim("role", PlatformRoles.SuperAdmin)
-                   || user.IsInRole(PlatformRoles.SuperAdmin);
-        }
-    }
+    public bool IsPlatformSuperAdmin =>
+        PlatformPermissionClaims.IsPlatformOperator(httpContextAccessor.HttpContext?.User);
 }

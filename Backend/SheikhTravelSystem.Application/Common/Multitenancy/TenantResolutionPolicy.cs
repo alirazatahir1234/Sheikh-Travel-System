@@ -24,7 +24,7 @@ public static class TenantResolutionPolicy
         int? slugResolvedTenantId,
         string? slug,
         bool isAuthenticated,
-        bool isPlatformOperator,
+        bool canSwitchTenant,
         bool allowAnonymousDefaultTenant)
     {
         if (isAuthenticated)
@@ -33,7 +33,7 @@ public static class TenantResolutionPolicy
                 headerTenantId,
                 slugResolvedTenantId,
                 slug,
-                isPlatformOperator);
+                canSwitchTenant);
 
         return DecideAnonymous(
             headerTenantId,
@@ -47,13 +47,13 @@ public static class TenantResolutionPolicy
         int? headerTenantId,
         int? slugResolvedTenantId,
         string? slug,
-        bool isPlatformOperator)
+        bool canSwitchTenant)
     {
         string? warn = null;
 
         if (headerTenantId.HasValue)
         {
-            if (isPlatformOperator)
+            if (canSwitchTenant)
             {
                 if (jwtTenantId.HasValue && headerTenantId.Value != jwtTenantId.Value)
                 {
@@ -94,8 +94,8 @@ public static class TenantResolutionPolicy
 
         if (!jwtTenantId.HasValue)
         {
-            // Super Admin with no JWT tenant and no X-Tenant-Id → full cross-tenant mode.
-            if (isPlatformOperator)
+            // Platform DataRead with no JWT tenant and no X-Tenant-Id → full cross-tenant mode.
+            if (canSwitchTenant)
             {
                 return new TenantResolutionDecision(
                     null,
@@ -116,9 +116,9 @@ public static class TenantResolutionPolicy
 
         warn = AppendSlugWarn(warn, jwtTenantId, slugResolvedTenantId, slug);
 
-        // Super Admin without X-Tenant-Id: keep JWT tenant as working default for
+        // Platform DataRead without X-Tenant-Id: keep JWT tenant as working default for
         // legacy handlers, but mark cross-tenant bypass so admin APIs can list all companies.
-        if (isPlatformOperator)
+        if (canSwitchTenant)
         {
             warn = string.IsNullOrEmpty(warn)
                 ? "Platform operator cross-tenant bypass (JWT tenant kept as working default)."
