@@ -41,7 +41,8 @@ public class SubscriptionAddOnCatalogTests
             var entry = SubscriptionAddOnCatalog.Resolve(code);
             entry.Should().NotBeNull();
             entry!.MonthlyAmount.Should().BeNull();
-            entry.CurrencyCode.Should().Be("PKR");
+            // Platform catalog list currency is USD (fa9acbd3); Pakistan display converts via ToPkr.
+            entry.CurrencyCode.Should().Be(SubscriptionPlanPricing.CurrencyUsd);
             entry.Dependencies.Should().Contain(AlertModuleCatalog.AlertsModuleCode);
             entry.Category.Should().Be(AlertModuleCatalog.AlertsCategory);
             AlertModuleCatalog.IsPremium(code).Should().BeTrue();
@@ -51,10 +52,11 @@ public class SubscriptionAddOnCatalogTests
     }
 
     [Fact]
-    public void Ai_AlsoHasNullPlaceholderPrice()
+    public void Ai_HasUsdListPricePerVehicle()
     {
         var ai = SubscriptionAddOnCatalog.Resolve("AI");
         ai.Should().NotBeNull();
-        ai!.MonthlyAmount.Should().BeNull();
+        ai!.CurrencyCode.Should().Be(SubscriptionPlanPricing.CurrencyUsd);
+        ai.MonthlyAmount.Should().Be(4m);
     }
 }
