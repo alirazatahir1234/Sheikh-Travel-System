@@ -6,8 +6,8 @@ import { VehicleService } from '../../../../core/services/vehicle.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { PlatformService } from '../../../../core/services/platform.service';
 import { LookupService } from '../../../../core/services/lookup.service';
-import { CompanyScopeService } from '../../../../core/services/company-scope.service';
-import { CompanyScopeController } from '../../../../shared/components/company-scope/company-scope.controller';
+import { TenantContextService } from '../../../../core/services/tenant-context.service';
+
 import {
   CreateVehicleDto,
   FuelType,
@@ -69,8 +69,8 @@ export class VehicleWizardFacade {
   private readonly gpsService = inject(GpsTrackingService);
   private readonly platformService = inject(PlatformService);
   private readonly lookupService = inject(LookupService);
-  private readonly companyScopeService = inject(CompanyScopeService);
-  private readonly companyScope = inject(CompanyScopeController, { optional: true });
+  private readonly tenantContext = inject(TenantContextService);
+  
   private readonly router = inject(Router);
   private readonly toast = inject(UiToastService);
   private readonly destroy$ = new Subject<void>();
@@ -254,7 +254,7 @@ export class VehicleWizardFacade {
       this.vehicleService.getById(editId).pipe(
         switchMap(vehicle => {
           if (vehicle.companyId) {
-            this.companyScope?.syncTo(vehicle.companyId, vehicle.companyName ?? undefined);
+            this.syncTenantContext(vehicle.companyId, vehicle.companyName ?? undefined);
           }
           this.prefillVehicle(vehicle);
           return forkJoin({
@@ -749,6 +749,26 @@ export class VehicleWizardFacade {
     this.vehicleId.set(null);
   }
 
+  /** Align global tenant context (and interceptor X-Tenant-Id) with the vehicle's company. */
+  private syncTenantContext(companyId: number, companyName?: string): void {
+    if (!(companyId > 0) || !this.tenantContext.canUseSwitcher) return;
+    this.tenantContext.selectTenantById(companyId);
+    if (companyName) {
+      this.tenantContext.setTenantDetails({
+        id: companyId,
+        name: companyName,
+        slug: '',
+        isActive: true,
+        branchCount: 0,
+        departmentCount: 0,
+        roleCount: 0,
+        createdAt: '',
+        activeUserCount: 0,
+        activeVehicleCount: 0
+      });
+    }
+  }
+
   /**
    * Super Admin changed company on an existing vehicle: clear org fields that belong to the old
    * tenant, reload company-scoped lookups, and persist CompanyId immediately.
@@ -1011,7 +1031,7 @@ export class VehicleWizardFacade {
         }
       } else {
         const status = normalizeVehicleStatus(this.vehicleStatus(), VehicleStatus.Draft);
-        const companyId = this.companyScopeService.tenantId();
+        const companyId = this.tenantContext.currentTenantId;
         const updateDto: UpdateVehicleDto = {
           ...dto,
           status,

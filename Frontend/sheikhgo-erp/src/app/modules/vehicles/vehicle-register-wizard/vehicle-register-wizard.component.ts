@@ -21,10 +21,7 @@ import { WizardStepGpsComponent } from './components/steps/wizard-step-gps/wizar
 import { WizardStepDocumentsComponent } from './components/steps/wizard-step-documents/wizard-step-documents.component';
 import { WizardStepReviewComponent } from './components/steps/wizard-step-review/wizard-step-review.component';
 import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
-import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
-import { CompanyScopeGateComponent } from '../../../shared/components/company-scope/company-scope-gate.component';
-import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
-import { Tenant } from '../../../core/models/platform.model';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 
 @Component({
   selector: 'app-vehicle-register-wizard',
@@ -39,22 +36,22 @@ import { Tenant } from '../../../core/models/platform.model';
     WizardStepTechnicalComponent,
     WizardStepGpsComponent,
     WizardStepDocumentsComponent,
-    WizardStepReviewComponent,
-    CompanyScopeGateComponent,
-    CompanyScopeBannerComponent
+    WizardStepReviewComponent
   ],
-  providers: [CompanyScopeController, VehicleWizardFacade],
+  providers: [VehicleWizardFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './vehicle-register-wizard.component.html',
   styleUrls: ['./vehicle-register-wizard.component.scss']
 })
 export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   readonly facade = inject(VehicleWizardFacade);
-  readonly companyScope = inject(CompanyScopeController);
+  readonly tenantContext = inject(TenantContextService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly yearOptions = signal<UiSelectOption[]>(this.buildYearOptions());
+  /** Create blocked until header has a concrete company (SG-06). */
+  readonly needsCompany = signal(false);
 
   readonly previewImageUrl = computed(() => {
     const url = this.facade.primaryVehicleImageUrl();
@@ -66,46 +63,22 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.companyScope.beginExisting();
       this.facade.init(+id);
       return;
     }
-    // Super Admin picks the company first — the wizard creates a server draft on init.
-    if (this.companyScope.beginCreate()) this.facade.init(undefined);
-  }
-
-  onCompanyConfirmed(tenant: Tenant): void {
-    this.companyScope.confirm(tenant);
-    if (this.facade.isEditMode()) {
-      void this.facade.applyCompanyChange(tenant.id);
+    if (this.tenantContext.canUseSwitcher && !this.tenantContext.hasConcreteTenant) {
+      this.needsCompany.set(true);
       return;
     }
     this.facade.init(undefined);
   }
 
-  onCompanyGateCancelled(): void {
-    if (this.facade.isEditMode()) {
-      this.companyScope.cancelChange();
-      return;
-    }
-    void this.router.navigate(['/vehicles']);
-  }
-
-  /**
-   * Create: drop the empty draft, then pick again.
-   * Edit: re-open the company gate and persist the new company on confirm.
-   */
-  async changeCompany(): Promise<void> {
-    if (this.facade.isEditMode()) {
-      this.companyScope.beginChange();
-      return;
-    }
-    await this.facade.discardNewDraft();
-    this.companyScope.restart('/vehicles/new');
-  }
-
   ngOnDestroy(): void {
     this.facade.destroy();
+  }
+
+  backToList(): void {
+    void this.router.navigate(['/vehicles']);
   }
 
   onFileSelected(event: { index: number; file: File }): void {
@@ -125,11 +98,11 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   }
 
   private buildYearOptions(): UiSelectOption[] {
-    const current = new Date().getFullYear();
-    const years: UiSelectOption[] = [];
-    for (let y = current + 1; y >= current - 30; y--) {
-      years.push({ value: String(y), label: String(y) });
+    const current = new Date().getFullYear() + 1;
+    const options: UiSelectOption[] = [];
+    for (let y = current; y >= current - 40; y--) {
+      options.push({ value: String(y), label: String(y) });
     }
-    return years;
+    return options;
   }
 }

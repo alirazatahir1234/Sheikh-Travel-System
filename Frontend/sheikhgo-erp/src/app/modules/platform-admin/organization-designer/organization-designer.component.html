@@ -15,7 +15,6 @@
       </div>
     </div>
     <div class="header-right">
-      <app-tenant-picker></app-tenant-picker>
     </div>
   </header>
 
@@ -24,8 +23,8 @@
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!organizationTree">
       <mat-icon>account_tree</mat-icon>
-      <h3>Select a Tenant</h3>
-      <p>Choose a tenant from the picker above to view and edit their organization structure.</p>
+      <h3>Pick a company</h3>
+      <p>Choose a company from the header switcher to view and edit their organization structure.</p>
     </div>
 
     <div class="designer-layout" *ngIf="organizationTree">

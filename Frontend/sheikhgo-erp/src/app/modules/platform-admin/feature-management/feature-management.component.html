@@ -18,7 +18,6 @@
       </div>
     </div>
     <div class="header-right">
-      <app-tenant-picker></app-tenant-picker>
       <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!selectedTenant || loading">
         <mat-icon>refresh</mat-icon> Refresh
       </button>
@@ -31,7 +30,7 @@
     <div class="content-placeholder" *ngIf="!selectedTenant">
       <mat-icon>tune</mat-icon>
       <h3>Select a Company</h3>
-      <p>Choose a company from the picker above to manage feature configuration.</p>
+      <p>Pick a company from the header switcher to manage feature configuration. All companies mode is read-only.</p>
     </div>
 
     <mat-card class="features-card" *ngIf="selectedTenant">

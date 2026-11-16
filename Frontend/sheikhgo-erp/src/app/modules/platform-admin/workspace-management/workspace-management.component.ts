@@ -3,7 +3,7 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import {
   CompanyWorkspace,
@@ -41,7 +41,7 @@ export class WorkspaceManagementComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private platform: PlatformService
   ) {
     this.form = this.fb.group({

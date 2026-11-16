@@ -460,7 +460,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private applyDeepLinkParams(params: import('@angular/router').ParamMap): void {
     const companyIdParam = params.get('companyId') ?? params.get('tenantId');
-    if (companyIdParam && this.scopeFilter.isSuperAdmin) {
+    if (companyIdParam && this.scopeFilter.usesGlobalSwitcher) {
       const companyId = Number(companyIdParam);
       if (Number.isFinite(companyId) && companyId > 0) {
         this.scopeFilter.setCompany(companyId);
@@ -1212,7 +1212,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Device Commands UI — platform SUPER_ADMIN only (not fleet owner / manager). */
   get canUseGpsCommands(): boolean {
-    return this.scopeFilter.isSuperAdmin;
+    return this.scopeFilter.usesGlobalSwitcher;
   }
 
   setMobileNav(tab: 'map' | 'vehicles' | 'nearby' | 'commands'): void {

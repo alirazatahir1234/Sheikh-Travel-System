@@ -1,0 +1,17 @@
+<div class="tenant-switcher" *ngIf="visible" [matTooltip]="label" matTooltipShowDelay="400">
+  <mat-form-field appearance="outline" class="tenant-switcher__field" subscriptSizing="dynamic">
+    <mat-label>Company</mat-label>
+    <mat-select
+      [value]="selectedValue"
+      [disabled]="loading"
+      (selectionChange)="onSelectionChange($event.value)"
+      panelClass="tenant-switcher-panel"
+      aria-label="Switch company">
+      <mat-option [value]="null">Pick a company</mat-option>
+      <mat-option [value]="allValue">All companies (read-only)</mat-option>
+      <mat-option *ngFor="let t of tenants" [value]="t.id">
+        {{ optionLabel(t) }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>

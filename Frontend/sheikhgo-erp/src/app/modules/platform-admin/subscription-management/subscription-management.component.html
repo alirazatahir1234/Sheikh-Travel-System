@@ -15,7 +15,6 @@
       </div>
     </div>
     <div class="header-right">
-      <app-tenant-picker></app-tenant-picker>
       <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!overview || loading">
         <mat-icon>refresh</mat-icon> Refresh
       </button>
@@ -28,7 +27,7 @@
     <div class="content-placeholder" *ngIf="!overview">
       <mat-icon>subscriptions</mat-icon>
       <h3>Select a Company</h3>
-      <p>Choose a company from the picker above to manage their subscription and license.</p>
+      <p>Pick a company from the header switcher to manage their subscription and license.</p>
     </div>
 
     <div class="subscription-layout" *ngIf="overview && subscription">

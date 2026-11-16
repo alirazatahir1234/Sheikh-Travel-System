@@ -1,23 +1,5 @@
-<section class="gps-scope-bar" aria-label="Company and vehicle scope">
+<section class="gps-scope-bar" aria-label="Vehicle scope">
   <div class="gps-scope-bar__entities">
-    <div class="filter-entity filter-entity--company" *ngIf="scope.isSuperAdmin">
-      <span class="filter-entity__icon-wrap" aria-hidden="true">
-        <mat-icon class="filter-entity__icon">business</mat-icon>
-      </span>
-      <mat-form-field appearance="outline" class="filter-entity__field">
-        <mat-label>Company</mat-label>
-        <mat-select
-          [value]="scope.companyFilterId"
-          [disabled]="companiesLoading"
-          (selectionChange)="onCompanyChange($event.value)">
-          <mat-option [value]="null">Select a company</mat-option>
-          <mat-option *ngFor="let c of companies" [value]="c.id">
-            {{ c.name }}{{ c.status && c.status !== 'Active' ? ' — ' + c.status : '' }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
-    </div>
-
     <div class="filter-entity filter-entity--vehicle">
       <span class="filter-entity__icon-wrap" aria-hidden="true">
         <mat-icon class="filter-entity__icon">local_shipping</mat-icon>
@@ -37,14 +19,14 @@
     </div>
   </div>
 
-  <p class="gps-scope-bar__hint" *ngIf="scope.isSuperAdmin && !scope.isFleetScopeReady">
-    Select a company to view vehicles on Live Map, History, Alerts, and Driver Performance. Devices still loads your home tenant until a company is picked.
+  <p class="gps-scope-bar__hint" *ngIf="scope.usesGlobalSwitcher && !scope.isFleetScopeReady">
+    Pick a company from the header switcher to view Live Map, History, Alerts, and Driver Performance.
   </p>
 
   <div class="gps-scope-bar__applied" *ngIf="scope.hasActiveScope">
-    <button type="button" class="clear-scope" (click)="clearScope()" aria-label="Clear company and vehicle scope">
+    <button type="button" class="clear-scope" (click)="clearScope()" aria-label="Clear vehicle filter">
       <mat-icon aria-hidden="true">close</mat-icon>
-      Clear Scope
+      Clear vehicle
     </button>
   </div>
 </section>

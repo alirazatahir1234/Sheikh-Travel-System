@@ -6,7 +6,7 @@ import {
   EMPLOYEE_TYPES
 } from '../../../core/models/user.model';
 import { PlatformService } from '../../../core/services/platform.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserService } from '../../../core/services/user.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -85,7 +85,7 @@ export class UserListComponent implements OnInit, AfterViewInit {
   constructor(
     private userService: UserService,
     private platform: PlatformService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private auth: AuthService,
     private exportService: ExportService,
     private router: Router,

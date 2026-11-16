@@ -18,7 +18,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, Subscription, debounceTime, distinctUntilChanged, of, switchMap, catchError, finalize } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { PlatformService } from '../../../core/services/platform.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { TenantConfigService } from '../../../core/services/tenant-config.service';
 import { Tenant } from '../../../core/models/platform.model';
@@ -84,7 +84,7 @@ export class AiAssistantScopeComponent implements OnInit, OnDestroy {
   constructor(
     private auth: AuthService,
     private platform: PlatformService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private vehiclesApi: VehicleService,
     private tenantConfig: TenantConfigService,
     private scope: AiAssistantScopeService
@@ -106,7 +106,7 @@ export class AiAssistantScopeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.isSuperAdmin = this.detectSuperAdmin();
+    this.isSuperAdmin = this.tenantContext.canUseSwitcher;
 
     if (!this.visible) {
       this.emitReady();
@@ -115,6 +115,7 @@ export class AiAssistantScopeComponent implements OnInit, OnDestroy {
 
     this.subs.add(
       this.scope.changes$.subscribe(s => {
+        const prevId = this.selectedCompany?.id ?? null;
         this.selectedCompany = s.company;
         this.selectedVehicleId = s.vehicleId;
         this.scopeNotice = s.scopeNotice;
@@ -122,28 +123,23 @@ export class AiAssistantScopeComponent implements OnInit, OnDestroy {
           clearTimeout(this.noticeTimer);
           this.noticeTimer = setTimeout(() => this.scope.clearScopeNotice(), 4500);
         }
+        if (this.isSuperAdmin) {
+          const nextId = s.company?.id ?? null;
+          if (nextId != null && nextId !== prevId) {
+            this.loadVehicles(nextId);
+          } else if (nextId == null) {
+            this.vehicles = [];
+            this.filteredVehicles = [];
+          }
+        }
         this.emitReady();
       })
     );
 
-    if (this.isSuperAdmin) {
-      this.subs.add(
-        this.search$.pipe(
-          debounceTime(280),
-          distinctUntilChanged(),
-          switchMap(q => {
-            if (!this.companies.length && !this.companiesLoading) {
-              this.loadCompanies();
-            }
-            return of(q);
-          })
-        ).subscribe(q => this.applyCompanyFilter(q))
-      );
-      this.loadCompanies();
-    } else {
+    if (!this.isSuperAdmin) {
       this.loadCompanyLabel();
-      this.emitReady();
     }
+    this.emitReady();
   }
 
   ngOnDestroy(): void {
@@ -160,6 +156,8 @@ export class AiAssistantScopeComponent implements OnInit, OnDestroy {
   get canAskFleetQuestions(): boolean {
     return !this.isSuperAdmin || !!this.selectedCompany;
   }
+
+  // Company picker removed (SG-06) — header switcher owns company selection.
 
   onSearchInput(value: string): void {
     this.companySearch = value;

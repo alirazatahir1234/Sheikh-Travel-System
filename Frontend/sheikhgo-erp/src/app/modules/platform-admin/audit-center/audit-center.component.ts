@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import {
   AuditEventDetail,
@@ -51,7 +51,7 @@ export class AuditCenterComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private platform: PlatformService
   ) {}
 

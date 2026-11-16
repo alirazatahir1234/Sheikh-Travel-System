@@ -144,7 +144,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(state => {
       const companyId = state.companyId ?? null;
       const companyChanged =
-        this.scopeFilter.isSuperAdmin && companyId !== (this.lastLoadedCompanyId ?? null);
+        this.scopeFilter.usesGlobalSwitcher && companyId !== (this.lastLoadedCompanyId ?? null);
       if (companyChanged) {
         this.lastLoadedCompanyId = companyId;
         this.load(true);

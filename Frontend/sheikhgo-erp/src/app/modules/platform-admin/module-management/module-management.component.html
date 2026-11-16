@@ -18,7 +18,6 @@
       </div>
     </div>
     <div class="header-right">
-      <app-tenant-picker></app-tenant-picker>
       <button
         mat-stroked-button
         type="button"
@@ -35,7 +34,7 @@
     <div class="content-placeholder" *ngIf="!selectedTenantId">
       <mat-icon>extension</mat-icon>
       <h3>Select a Company</h3>
-      <p>Choose a company from the picker above to manage module configuration.</p>
+      <p>Pick a company from the header switcher to manage module configuration. All companies mode is read-only.</p>
     </div>
 
     <div class="content-placeholder content-placeholder--error" *ngIf="selectedTenantId && loadError && !overview">

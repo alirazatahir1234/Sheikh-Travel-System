@@ -1,4 +1,4 @@
-import { Injectable, NgZone } from '@angular/core';
+import { Injectable, Injector, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, map, tap } from 'rxjs';
 import { Router } from '@angular/router';
@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, LoginResponseDto } from '../models/auth.model';
 import { SecurityCompanySummary } from '../models/platform.model';
 import { isDriverPrimaryAccount, orderRolesByPrivilege } from '../auth/role-priority';
+import { TenantContextService } from './tenant-context.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -27,7 +28,8 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private injector: Injector
   ) {
     if (this.isLoggedIn()) {
       // Restore idle watch after refresh if policy was previously applied via login.
@@ -109,6 +111,11 @@ export class AuthService {
     localStorage.removeItem('security_idle_minutes');
     localStorage.removeItem('security_absolute_minutes');
     this.currentUserSubject.next(null);
+    try {
+      this.injector.get(TenantContextService).clear();
+    } catch {
+      /* tenant context optional during early bootstrap */
+    }
     // Always leave the app shell when the session ends (401 / idle / absolute).
     this.zone.run(() => {
       void this.router.navigateByUrl('/auth/login', { replaceUrl: true });

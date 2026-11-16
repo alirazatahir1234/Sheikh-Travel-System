@@ -22,7 +22,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { COMPANY_NAME } from '../../../../core/constants/app-brand';
 import { vehicleUploadSizeError, resolveDriverPhotoUrl, resolveUploadUrl } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
-import { CompanyScopeService } from '../../../../core/services/company-scope.service';
+import { TenantContextService } from '../../../../core/services/tenant-context.service';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import {
   DRIVER_DOC_SLOTS,
@@ -97,7 +97,7 @@ export class DriverWizardFacade {
   private readonly router = inject(Router);
   private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly companyScope = inject(CompanyScopeService);
+  private readonly tenantContext = inject(TenantContextService);
 
   readonly steps = DRIVER_WIZARD_STEPS;
   readonly phoneCountryCodes = PHONE_COUNTRY_CODES;
@@ -864,13 +864,13 @@ export class DriverWizardFacade {
 
   /** Super Admin acting for another company keeps one draft per company. */
   private draftKey(): string {
-    const scoped = this.companyScope.tenantId();
+    const scoped = this.tenantContext.currentTenantId;
     return scoped != null ? `${DRIVER_WIZARD_DRAFT_KEY}:t${scoped}` : DRIVER_WIZARD_DRAFT_KEY;
   }
 
   /** Back to the driver list — for the same company the driver was added to. */
   private navigateToList(): void {
-    const scoped = this.companyScope.tenantId();
+    const scoped = this.tenantContext.currentTenantId;
     void this.router.navigate(['/drivers'], scoped != null ? { queryParams: { tenantId: scoped } } : {});
   }
 

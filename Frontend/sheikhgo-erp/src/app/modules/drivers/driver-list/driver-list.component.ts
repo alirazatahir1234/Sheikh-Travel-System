@@ -7,7 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DriverService } from '../../../core/services/driver.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import {
   Driver,
@@ -77,7 +77,7 @@ export class DriverListComponent implements OnInit {
     private auth: AuthService,
     private router: Router,
     private route: ActivatedRoute,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private toast: UiToastService,
     private dialog: MatDialog,
     private exportService: ExportService,

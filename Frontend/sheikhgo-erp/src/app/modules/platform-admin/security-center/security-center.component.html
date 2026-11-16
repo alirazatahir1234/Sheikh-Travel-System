@@ -28,7 +28,7 @@
   <div class="loading" *ngIf="loading">Loading policies…</div>
 
   <div class="empty" *ngIf="!loading && !selectedTenant">
-    Select a company from the platform tenant switcher to manage security policies.
+    Pick a company from the header switcher to manage security policies. All companies mode is read-only.
   </div>
 
   <div class="empty" *ngIf="!loading && selectedTenant && policies.length === 0">

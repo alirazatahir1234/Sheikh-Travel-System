@@ -1208,9 +1208,12 @@ export class GpsTrackingService {
     );
   }
 
-  private tenantScopedHttpOptions(tenantScopeId?: number | null): { headers?: HttpHeaders } {
-    if (tenantScopeId == null) return {};
-    return { headers: new HttpHeaders({ 'X-Tenant-Id': String(tenantScopeId) }) };
+  /**
+   * SG-06: X-Tenant-Id is set only by AuthInterceptor from TenantContextService.
+   * Kept as a no-op so call sites can drop the arg later without a mass rename.
+   */
+  private tenantScopedHttpOptions(_tenantScopeId?: number | null): { headers?: HttpHeaders } {
+    return {};
   }
 
   getAlertNotificationSettings(): Observable<GpsAlertNotificationSetting[]> {

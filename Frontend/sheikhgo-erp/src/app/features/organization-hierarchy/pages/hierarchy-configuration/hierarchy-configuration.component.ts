@@ -5,16 +5,18 @@ import {
   signal,
   computed,
   OnInit,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 
 import { OrganizationHierarchyService } from '../../services/organization-hierarchy.service';
 import { ViewMode, OrganizationNode, Department } from '../../models/organization.models';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { AuthService } from '../../../../core/services/auth.service';
-import { PlatformTenantContextService } from '../../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../../core/services/tenant-context.service';
 
 import { TopNavbarComponent, BreadcrumbItem } from '../../components/top-navbar/top-navbar.component';
 import { OrganizationTreeComponent } from '../../components/organization-tree/organization-tree.component';
@@ -25,7 +27,6 @@ import { StructuralLineageComponent } from '../../components/structural-lineage/
 import { OperationalLogsComponent } from '../../components/operational-logs/operational-logs.component';
 import { UserPreviewComponent } from '../../components/user-preview/user-preview.component';
 import { FooterActionBarComponent } from '../../components/footer-action-bar/footer-action-bar.component';
-import { TenantSelectorComponent } from '../../components/tenant-selector/tenant-selector.component';
 import { OverviewDashboardComponent } from '../../components/overview-dashboard/overview-dashboard.component';
 import { DepartmentsTabComponent } from '../../components/tab-content/departments-tab.component';
 import { UsersTabComponent } from '../../components/tab-content/users-tab.component';
@@ -46,7 +47,6 @@ import { DiagramViewComponent } from '../../components/diagram-view/diagram-view
     OperationalLogsComponent,
     UserPreviewComponent,
     FooterActionBarComponent,
-    TenantSelectorComponent,
     OverviewDashboardComponent,
     DepartmentsTabComponent,
     UsersTabComponent,
@@ -68,25 +68,14 @@ import { DiagramViewComponent } from '../../components/diagram-view/diagram-view
 
       <!-- Main Content -->
       <div class="px-4 py-4 md:px-6 md:py-6">
-        <!-- Tenant Selector Row -->
-        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div class="w-full sm:w-72 max-w-full">
-            <app-tenant-selector
-              [tenants]="orgService.tenants()"
-              [selectedTenantId]="selectedTenantId()"
-              [loading]="tenantsLoading()"
-              (tenantSelected)="onTenantSelected($event)"
-            />
+        @if (orgService.loading()) {
+          <div class="mb-5 flex items-center gap-2 text-sm text-text-muted" role="status" aria-live="polite">
+            <svg class="w-4 h-4 animate-spin text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Loading organization data…
           </div>
-          @if (orgService.loading()) {
-            <div class="flex items-center gap-2 text-sm text-text-muted" role="status" aria-live="polite">
-              <svg class="w-4 h-4 animate-spin text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Loading organization data…
-            </div>
-          }
-        </div>
+        }
 
         @if (orgService.error(); as error) {
           <div class="mb-5 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
@@ -104,9 +93,9 @@ import { DiagramViewComponent } from '../../components/diagram-view/diagram-view
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <p class="text-sm font-semibold text-text">Select a company to design its hierarchy</p>
+            <p class="text-sm font-semibold text-text">Pick a company to design its hierarchy</p>
             <p class="text-sm text-text-muted mt-1 max-w-md mx-auto">
-              Use the company picker above to load branches and departments.
+              Use the header company switcher to load branches and departments.
             </p>
           </div>
         }
@@ -292,13 +281,14 @@ import { DiagramViewComponent } from '../../components/diagram-view/diagram-view
     </div>
   `,
 })
-export class HierarchyConfigurationComponent implements OnInit {
+export class HierarchyConfigurationComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(UiToastService);
   private readonly auth = inject(AuthService);
-  private readonly tenantContext = inject(PlatformTenantContextService);
+  private readonly tenantContext = inject(TenantContextService);
   protected readonly orgService = inject(OrganizationHierarchyService);
+  private readonly destroy$ = new Subject<void>();
 
   readonly viewMode = signal<ViewMode>('tree');
   readonly tenantsLoading = signal(true);
@@ -365,9 +355,23 @@ export class HierarchyConfigurationComponent implements OnInit {
     if (tenantIdParam) {
       const id = parseInt(tenantIdParam, 10);
       if (Number.isFinite(id)) {
-        this.orgService.selectTenantById(id);
+        this.tenantContext.selectTenantById(id);
       }
     }
+
+    this.tenantContext.tenantId$.pipe(takeUntil(this.destroy$)).subscribe(id => {
+      if (id != null && this.tenantContext.hasConcreteTenant) {
+        this.orgService.selectTenantById(id);
+      } else if (this.tenantContext.canUseSwitcher) {
+        // All / unset: never silently show JWT-home company data.
+        this.orgService.clearSelection();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private requireBranchManage(): boolean {
@@ -410,15 +414,6 @@ export class HierarchyConfigurationComponent implements OnInit {
       case 'branch':
         break;
     }
-  }
-
-  onTenantSelected(tenantId: number): void {
-    this.orgService.selectTenantById(tenantId);
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { tenantId },
-      queryParamsHandling: 'merge',
-    });
   }
 
   onNodeSelected(node: OrganizationNode): void {

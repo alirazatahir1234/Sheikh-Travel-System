@@ -12,7 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PagedResult } from '../../../core/models/common.model';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -52,19 +52,12 @@ import {
   vehicleHasTracker
 } from '../utils/vehicle-filter.util';
 
-import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
-import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
-import { CompanyScopeGateComponent } from '../../../shared/components/company-scope/company-scope-gate.component';
-import { Tenant } from '../../../core/models/platform.model';
-
 @Component({
   selector: 'app-vehicle-inventory-page',
   standalone: true,
   imports: [
     RouterModule,
     MatIconModule,
-    CompanyScopeBannerComponent,
-    CompanyScopeGateComponent,
     MatMenuModule,
     MatButtonModule,
     MatDialogModule,
@@ -80,7 +73,7 @@ import { Tenant } from '../../../core/models/platform.model';
     VehicleAdvancedFiltersComponent,
     VehicleRegistryFabComponent
   ],
-  providers: [DatePipe, DecimalPipe, CompanyScopeController],
+  providers: [DatePipe, DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './vehicle-inventory-page.component.html',
   styleUrls: ['./vehicle-inventory-page.component.scss']
@@ -89,20 +82,23 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly vehicleService = inject(VehicleService);
   private readonly fleetService = inject(FleetService);
   private readonly platformService = inject(PlatformService);
-  private readonly tenantContext = inject(PlatformTenantContextService);
+  private readonly tenantContext = inject(TenantContextService);
   private readonly driverService = inject(DriverService);
   private readonly exportService = inject(ExportService);
   private readonly confirm = inject(UiConfirmService);
   private readonly toast = inject(UiToastService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
-  readonly companyScope = inject(CompanyScopeController);
   private readonly route = inject(ActivatedRoute);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Company filter from /vehicles?tenantId= (platform tenant detail deep-link). */
+  /**
+   * When the switcher is available: only load for a concrete company (never JWT-home while
+   * All/unset). Ordinary tenant users keep null and rely on JWT + interceptor (no override).
+   */
   private companyTenantId: number | null = null;
+  readonly needsCompanyPick = signal(false);
 
   @ViewChild(VehicleAssignDialogComponent) assignDialog!: VehicleAssignDialogComponent;
 
@@ -263,6 +259,19 @@ export class VehicleInventoryPageComponent implements OnInit {
     this.load();
     interval(30_000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.syncTick.set(Date.now()));
 
+    this.tenantContext.tenantId$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.resolveCompanyTenantFromRoute();
+      this.loadBranches();
+      this.loadDrivers();
+      this.load();
+    });
+    this.tenantContext.isAllCompanies$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.resolveCompanyTenantFromRoute();
+      this.loadBranches();
+      this.loadDrivers();
+      this.load();
+    });
+
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       filter(event => event.urlAfterRedirects === '/vehicles' || event.urlAfterRedirects.startsWith('/vehicles?')),
@@ -276,37 +285,36 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   private resolveCompanyTenantFromRoute(): void {
-    if (this.companyScope.isSuperAdmin) {
-      // Scope every call on this page (list, dashboard, branches, drivers) to the same company.
-      this.companyScope.beginList();
-      this.companyTenantId = this.companyScope.company()?.id ?? null;
-      return;
-    }
     const raw = this.route.snapshot.queryParamMap.get('tenantId');
-    const id = raw ? Number(raw) : NaN;
-    if (Number.isFinite(id) && id > 0) {
-      this.companyTenantId = id;
-      this.tenantContext.selectTenantById(id);
-    } else {
-      this.companyTenantId = this.tenantContext.currentTenantId;
+    const fromRoute = raw ? Number(raw) : NaN;
+    if (Number.isFinite(fromRoute) && fromRoute > 0) {
+      this.tenantContext.selectTenantById(fromRoute);
     }
-  }
 
-  /** Super Admin picked a company filter on this list — scope + reload via ?tenantId=. */
-  onCompanyFilter(tenant: Tenant): void {
-    this.companyScope.confirm(tenant);
-  }
-
-  onCompanyFilterCancel(): void {
-    if (this.companyScope.company()) {
-      this.companyScope.cancelChange();
+    if (this.tenantContext.canUseSwitcher) {
+      if (this.tenantContext.hasConcreteTenant) {
+        this.companyTenantId = this.tenantContext.currentTenantId;
+        this.needsCompanyPick.set(false);
+      } else {
+        this.companyTenantId = null;
+        this.needsCompanyPick.set(true);
+      }
       return;
     }
-    // No company in scope yet — stay on the list without a gate.
-    this.companyScope.cancelChange();
+
+    this.companyTenantId = null;
+    this.needsCompanyPick.set(false);
   }
 
   load(): void {
+    if (this.needsCompanyPick()) {
+      this.allRows.set([]);
+      this.dashboard.set(null);
+      this.loading.set(false);
+      this.error.set(null);
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
 
@@ -418,9 +426,11 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   onEdit(row: VehicleListItem): void {
-    void this.router.navigate(['/vehicles', row.id, 'edit'], {
-      queryParams: this.companyScope.queryParams()
-    });
+    const q =
+      this.tenantContext.canUseSwitcher && this.tenantContext.currentTenantId != null
+        ? { tenantId: this.tenantContext.currentTenantId }
+        : undefined;
+    void this.router.navigate(['/vehicles', row.id, 'edit'], { queryParams: q });
   }
 
   onTrack(row: VehicleListItem): void {

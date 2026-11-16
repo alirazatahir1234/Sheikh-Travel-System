@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import { catchError, filter, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { AuthService } from '../../../core/services/auth.service';
 import {
@@ -44,7 +44,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private platform: PlatformService,
     private auth: AuthService
   ) {}

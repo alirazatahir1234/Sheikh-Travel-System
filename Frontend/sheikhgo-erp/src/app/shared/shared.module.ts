@@ -46,7 +46,7 @@ import {
 
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { HelpDialogComponent } from './components/help-dialog/help-dialog.component';
-import { TenantPickerComponent } from './components/tenant-picker/tenant-picker.component';
+import { TenantSwitcherComponent } from './components/tenant-switcher/tenant-switcher.component';
 import { CompanySelectComponent } from './components/company-select/company-select.component';
 import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand-loader.component';
 import { SgProgressLoaderComponent } from './components/sg-progress-loader/sg-progress-loader.component';
@@ -81,7 +81,7 @@ const UI = [
     ...UI,
     ConfirmDialogComponent,
     HelpDialogComponent,
-    TenantPickerComponent,
+    TenantSwitcherComponent,
     CompanySelectComponent
   ],
   imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, PositiveIntegerOnlyDirective, ...MATERIAL],
@@ -91,7 +91,7 @@ const UI = [
     ...UI,
     ConfirmDialogComponent,
     HelpDialogComponent,
-    TenantPickerComponent,
+    TenantSwitcherComponent,
     CompanySelectComponent,
     AppBrandLoaderComponent,
     SgProgressLoaderComponent,

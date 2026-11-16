@@ -15,6 +15,7 @@ import { DriverService, DriverListParams } from '../../../core/services/driver.s
 import { AuthService } from '../../../core/services/auth.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { PlatformService } from '../../../core/services/platform.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels, DriversAvailabilitySummary } from '../../../core/models/driver.model';
 import { PagedResult } from '../../../core/models/common.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -34,18 +35,15 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { DriverScore } from '../../../core/models/gps-tracking.model';
 import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, blendDriverTopScore, computeDriverScore, exclusiveLicenseWindows, scoreTone, TopDriverRankItem } from '../models/driver-inventory.model';
 
-import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
-import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
 
 @Component({
   selector: 'app-driver-inventory-page',
   standalone: true,
-  providers: [DatePipe, CompanyScopeController],
+  providers: [DatePipe],
   imports: [
     NgClass,
     RouterModule,
-    CompanyScopeBannerComponent,
-    MatIconModule,
+        MatIconModule,
     MatMenuModule,
     MatButtonModule,
     MatDialogModule,
@@ -72,6 +70,7 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly driverService = inject(DriverService);
   private readonly gpsTracking = inject(GpsTrackingService);
   private readonly auth = inject(AuthService);
+  private readonly tenantContext = inject(TenantContextService);
   private readonly exportService = inject(ExportService);
   private readonly platformService = inject(PlatformService);
   private readonly confirm = inject(UiConfirmService);
@@ -79,7 +78,6 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
-  readonly companyScope = inject(CompanyScopeController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
   /** Cancels in-flight Top Drivers / compliance fetches when the page reloads. */
@@ -279,7 +277,12 @@ export class DriverInventoryPageComponent implements OnInit {
   ];
 
   get canCreateDriver(): boolean {
-    return this.auth.hasPermission('Driver.Create');
+    return this.auth.hasPermission('Driver.Create') && this.tenantContext.canMutate;
+  }
+
+  /** Platform switcher without a concrete company — do not load JWT-home drivers. */
+  get needsCompanyPick(): boolean {
+    return this.tenantContext.canUseSwitcher && !this.tenantContext.hasConcreteTenant;
   }
 
   get canUpdateDriver(): boolean {
@@ -319,8 +322,6 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Super Admin: scope every call on this page to the chosen company (no-op for everyone else).
-    this.companyScope.beginList();
     this.platformService.getBranches().pipe(
       catchError(() => of([])),
       takeUntilDestroyed(this.destroyRef)
@@ -330,6 +331,9 @@ export class DriverInventoryPageComponent implements OnInit {
         ...branches.map(b => ({ value: String(b.id), label: b.name }))
       ]);
     });
+
+    this.tenantContext.tenantId$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.reload$.next());
+    this.tenantContext.isAllCompanies$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.reload$.next());
 
     this.searchInput$.pipe(
       debounceTime(300),
@@ -398,6 +402,13 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   private fetchPage() {
+    if (this.needsCompanyPick) {
+      this.loading.set(false);
+      this.error.set(null);
+      this.rows.set([]);
+      return of(null);
+    }
+
     this.loading.set(true);
     this.error.set(null);
     const p = this.pagination();

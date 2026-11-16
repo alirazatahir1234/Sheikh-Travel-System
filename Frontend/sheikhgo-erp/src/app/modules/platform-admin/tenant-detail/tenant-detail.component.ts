@@ -6,7 +6,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { PlatformService } from '../../../core/services/platform.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -104,7 +104,7 @@ export class TenantDetailComponent implements OnInit {
     private lookup: LookupService,
     private toast: UiToastService,
     private auth: AuthService,
-    private tenantContext: PlatformTenantContextService
+    private tenantContext: TenantContextService
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],

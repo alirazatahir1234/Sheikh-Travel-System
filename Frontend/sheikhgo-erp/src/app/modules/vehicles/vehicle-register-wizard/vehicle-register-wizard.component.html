@@ -6,14 +6,7 @@
     <p class="mt-1 text-sm text-fleet-text-muted">
       {{ facade.pageSubtitle() }}
     </p>
-    @if (!companyScope.needsGate()) {
-      @if (companyScope.company(); as company) {
-        <app-company-scope-banner
-          [companyName]="company.name"
-          [prefix]="facade.isEditMode() ? 'Editing vehicle in' : 'Adding vehicle to'"
-          actionLabel="Change company"
-          (action)="changeCompany()" />
-      }
+    @if (!needsCompany()) {
       <div class="mt-5">
         <app-wizard-stepper
           [steps]="facade.steps"
@@ -23,16 +16,20 @@
     }
   </header>
 
-  @if (companyScope.needsGate()) {
-    <app-company-scope-gate
-      entityLabel="vehicle"
-      [mode]="facade.isEditMode() ? 'move' : 'create'"
-      [initialTenantId]="companyScope.initialTenantId()"
-      (confirmed)="onCompanyConfirmed($event)"
-      (cancelled)="onCompanyGateCancelled()" />
+  @if (needsCompany()) {
+    <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+      <p class="text-base font-semibold text-slate-800">Pick a company first</p>
+      <p class="mt-2 text-sm text-slate-600">
+        Use the header company switcher to choose a concrete company before creating a vehicle.
+        All companies mode is read-only.
+      </p>
+      <button type="button" class="mt-4 text-sm font-medium text-primary-700 underline" (click)="backToList()">
+        Back to vehicles
+      </button>
+    </div>
   } @else if (facade.loading()) {
     <app-brand-loader size="lg" />
-  }   @else {
+  } @else {
     <div class="vehicle-wizard__body grid gap-6 lg:grid-cols-[1fr_320px]">
       <main class="vehicle-wizard__main min-w-0">
         @switch (facade.currentStep()) {

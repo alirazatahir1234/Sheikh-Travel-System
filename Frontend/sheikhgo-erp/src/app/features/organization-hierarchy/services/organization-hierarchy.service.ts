@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { Observable, forkJoin, of, catchError, tap, map } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import {
   OrganizationTree as BackendOrgTree,
   OrganizationBranch as BackendBranch,
@@ -45,7 +45,7 @@ export interface TenantOverviewStats {
 })
 export class OrganizationHierarchyService {
   private readonly platform = inject(PlatformService);
-  private readonly tenantContext = inject(PlatformTenantContextService);
+  private readonly tenantContext = inject(TenantContextService);
 
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);

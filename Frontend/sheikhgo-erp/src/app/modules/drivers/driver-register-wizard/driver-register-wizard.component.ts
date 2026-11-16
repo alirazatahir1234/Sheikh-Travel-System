@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, DestroyRef, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,10 +14,7 @@ import { WizardStepOrganizationComponent } from './components/wizard-step-organi
 import { DriverWizardSidebarComponent } from './components/driver-wizard-sidebar/driver-wizard-sidebar.component';
 import { DriverDocType } from './models/driver-wizard.model';
 import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
-import { CompanyScopeController } from '../../../shared/components/company-scope/company-scope.controller';
-import { CompanyScopeGateComponent } from '../../../shared/components/company-scope/company-scope-gate.component';
-import { CompanyScopeBannerComponent } from '../../../shared/components/company-scope/company-scope-banner.component';
-import { Tenant } from '../../../core/models/platform.model';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 
 @Component({
   selector: 'app-driver-register-wizard',
@@ -32,22 +29,21 @@ import { Tenant } from '../../../core/models/platform.model';
     WizardStepPersonalComponent,
     WizardStepLicenseComponent,
     WizardStepOrganizationComponent,
-    DriverWizardSidebarComponent,
-    CompanyScopeGateComponent,
-    CompanyScopeBannerComponent
+    DriverWizardSidebarComponent
   ],
-  // CompanyScopeController before the facade: the facade reads the scoped company for drafts/navigation.
-  providers: [CompanyScopeController, DriverWizardFacade],
+  providers: [DriverWizardFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './driver-register-wizard.component.html',
   styleUrls: ['./driver-register-wizard.component.scss']
 })
 export class DriverRegisterWizardComponent implements OnInit {
   readonly facade = inject(DriverWizardFacade);
-  readonly companyScope = inject(CompanyScopeController);
+  readonly tenantContext = inject(TenantContextService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly needsCompany = signal(false);
 
   readonly breadcrumbs = computed<UiBreadcrumb[]>(() =>
     this.facade.isEditMode()
@@ -60,26 +56,21 @@ export class DriverRegisterWizardComponent implements OnInit {
       const id = pm.get('id');
       const isEditRoute = this.route.snapshot.url.some(s => s.path === 'edit');
       if (isEditRoute && id) {
-        this.companyScope.beginExisting();
+        this.needsCompany.set(false);
         this.facade.init(+id);
         return;
       }
-      // Super Admin picks the company first; init (lookups, draft restore) runs after confirmation.
-      if (this.companyScope.beginCreate()) this.facade.init(undefined);
+      if (this.tenantContext.canUseSwitcher && !this.tenantContext.hasConcreteTenant) {
+        this.needsCompany.set(true);
+        return;
+      }
+      this.needsCompany.set(false);
+      this.facade.init(undefined);
     });
   }
 
-  onCompanyConfirmed(tenant: Tenant): void {
-    this.companyScope.confirm(tenant);
-    this.facade.init(undefined);
-  }
-
-  onCompanyGateCancelled(): void {
+  backToList(): void {
     void this.router.navigate(['/drivers']);
-  }
-
-  changeCompany(): void {
-    this.companyScope.restart('/drivers/new');
   }
 
   photoPreview(): string | undefined {

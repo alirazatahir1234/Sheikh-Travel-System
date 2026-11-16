@@ -1,10 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
-import { AuthService } from '../../core/services/auth.service';
-import { PlatformService } from '../../core/services/platform.service';
+import { TenantContextService } from '../../core/services/tenant-context.service';
 import { VehicleService } from '../../core/services/vehicle.service';
-import { Tenant } from '../../core/models/platform.model';
 import { VehicleListItem, VehicleStatus } from '../../core/models/vehicle.model';
 
 export interface GpsScopeState {
@@ -15,75 +13,67 @@ export interface GpsScopeState {
 const STORAGE_KEY = 'stb-gps-scope-filters';
 
 /**
- * Shared Company (Super Admin) + Vehicle filters for the GPS module.
- * Survives tab switches (live / history / alerts) via root singleton + localStorage.
- *
- * Super Admin must select a company before any fleet data loads (empty map until then).
- * Tenant users are always scoped by JWT — no company picker required.
+ * GPS vehicle filter (and company readiness) driven by the global {@link TenantContextService}.
+ * Company dropdown lives in the header switcher — this service only keeps the vehicle filter.
  */
 @Injectable({ providedIn: 'root' })
 export class GpsScopeFilterService {
-  readonly isSuperAdmin: boolean;
+  private readonly tenantContext = inject(TenantContextService);
+  private readonly vehiclesApi = inject(VehicleService);
 
-  private readonly companyIdSubject = new BehaviorSubject<number | null>(null);
   private readonly vehicleIdSubject = new BehaviorSubject<number | null>(null);
-  private readonly companiesSubject = new BehaviorSubject<Tenant[]>([]);
   private readonly vehiclesSubject = new BehaviorSubject<VehicleListItem[]>([]);
-  private readonly companiesLoadingSubject = new BehaviorSubject(false);
   private readonly vehiclesLoadingSubject = new BehaviorSubject(false);
 
-  readonly companyId$ = this.companyIdSubject.asObservable().pipe(distinctUntilChanged());
   readonly vehicleId$ = this.vehicleIdSubject.asObservable().pipe(distinctUntilChanged());
-  readonly companies$ = this.companiesSubject.asObservable();
   readonly vehicles$ = this.vehiclesSubject.asObservable();
-  readonly companiesLoading$ = this.companiesLoadingSubject.asObservable();
   readonly vehiclesLoading$ = this.vehiclesLoadingSubject.asObservable();
 
   /** Emits whenever company and/or vehicle scope changes. */
   readonly scope$: Observable<GpsScopeState> = combineLatest([
-    this.companyId$,
+    this.tenantContext.tenantId$,
     this.vehicleId$
   ]).pipe(
-    map(([companyId, vehicleId]) => ({ companyId, vehicleId })),
+    map(([companyId, vehicleId]) => ({
+      companyId: this.tenantContext.canUseSwitcher
+        ? (this.tenantContext.hasConcreteTenant ? companyId : null)
+        : null,
+      vehicleId
+    })),
     distinctUntilChanged(
       (a, b) => a.companyId === b.companyId && a.vehicleId === b.vehicleId
     )
   );
 
   /** Emits only when company (tenant) scope changes — live map must clear other-tenant cars. */
-  readonly companyScope$ = this.companyId$;
+  readonly companyScope$ = this.scope$.pipe(
+    map(s => s.companyId),
+    distinctUntilChanged()
+  );
 
-  constructor(
-    private auth: AuthService,
-    private platform: PlatformService,
-    private vehiclesApi: VehicleService
-  ) {
-    this.isSuperAdmin = this.auth.hasRole('SUPER_ADMIN');
-    this.restore();
-    if (this.isSuperAdmin) {
-      this.loadCompanies();
-    }
+  constructor() {
+    this.restoreVehicleOnly();
+    this.tenantContext.tenantId$.subscribe(() => this.onCompanyChanged());
+    this.tenantContext.isAllCompanies$.subscribe(() => this.onCompanyChanged());
     this.loadVehicles();
   }
 
+  /** True when the header switcher is available (platform act-as). */
+  get usesGlobalSwitcher(): boolean {
+    return this.tenantContext.canUseSwitcher;
+  }
+
   get companyFilterId(): number | null {
-    return this.companyIdSubject.value;
+    if (!this.tenantContext.canUseSwitcher) return null;
+    return this.tenantContext.hasConcreteTenant ? this.tenantContext.currentTenantId : null;
   }
 
   get vehicleFilterId(): number | null {
     return this.vehicleIdSubject.value;
   }
 
-  get companies(): Tenant[] {
-    return this.companiesSubject.value;
-  }
-
   get vehicles(): VehicleListItem[] {
     return this.vehiclesSubject.value;
-  }
-
-  get companiesLoading(): boolean {
-    return this.companiesLoadingSubject.value;
   }
 
   get vehiclesLoading(): boolean {
@@ -92,42 +82,38 @@ export class GpsScopeFilterService {
 
   /**
    * True when fleet APIs may run.
-   * Super Admin: only after a company is selected.
+   * Switcher users: only after a concrete company is selected (never All / unset → JWT home).
    * Tenant users: always (JWT tenant is implicit).
    */
   get isFleetScopeReady(): boolean {
-    return !this.isSuperAdmin || this.companyFilterId != null;
+    return !this.tenantContext.canUseSwitcher || this.tenantContext.hasConcreteTenant;
   }
 
-  /** Vehicle dropdown is empty/disabled until Super Admin picks a company. */
   get vehicleFilterDisabled(): boolean {
-    return this.isSuperAdmin && this.companyFilterId == null;
+    return this.tenantContext.canUseSwitcher && !this.tenantContext.hasConcreteTenant;
   }
 
   /**
-   * X-Tenant-Id override for Super Admin when a company is selected.
-   * Undefined for tenant users (JWT tenant applies).
-   * Null for Super Admin with no company — callers must not fetch fleet.
+   * Concrete tenant id for callers that still accept an optional scope arg.
+   * Interceptor owns X-Tenant-Id; this is only for readiness / local filtering.
    */
   get tenantScopeId(): number | null | undefined {
-    return this.isSuperAdmin ? this.companyFilterId : undefined;
+    if (!this.tenantContext.canUseSwitcher) return undefined;
+    return this.tenantContext.hasConcreteTenant ? this.tenantContext.currentTenantId : null;
   }
 
   get hasActiveScope(): boolean {
-    return (
-      this.vehicleFilterId != null ||
-      (this.isSuperAdmin && this.companyFilterId != null)
-    );
+    return this.vehicleFilterId != null;
   }
 
+  /** Deep-link helper: update the global header tenant context. */
   setCompany(tenantId: number | null): void {
-    if (!this.isSuperAdmin) return;
-    if (this.companyFilterId === tenantId) return;
-    this.companyIdSubject.next(tenantId);
-    // Vehicle list is tenant-scoped — clear selection until options reload.
-    this.vehicleIdSubject.next(null);
-    this.persist();
-    this.loadVehicles();
+    if (!this.tenantContext.canUseSwitcher) return;
+    if (tenantId == null) {
+      this.tenantContext.clear();
+      return;
+    }
+    this.tenantContext.selectTenantById(tenantId);
   }
 
   setVehicle(vehicleId: number | null): void {
@@ -138,23 +124,8 @@ export class GpsScopeFilterService {
   }
 
   clearScope(): void {
-    const hadCompany = this.isSuperAdmin && this.companyFilterId != null;
     this.vehicleIdSubject.next(null);
-    if (this.isSuperAdmin) {
-      this.companyIdSubject.next(null);
-    }
     this.persist();
-    if (hadCompany || this.isSuperAdmin) {
-      this.loadVehicles();
-    }
-  }
-
-  companyLabel(): string {
-    if (this.companyFilterId == null) return 'Select a company';
-    return (
-      this.companies.find(c => c.id === this.companyFilterId)?.name ??
-      `Company #${this.companyFilterId}`
-    );
   }
 
   vehicleLabel(): string {
@@ -164,33 +135,10 @@ export class GpsScopeFilterService {
     return `Vehicle #${this.vehicleFilterId}`;
   }
 
-  private loadCompanies(): void {
-    this.companiesLoadingSubject.next(true);
-    this.platform.getSwitchableTenants().subscribe({
-      next: list => {
-        // SG-11: include suspended/expired/deactivated for inspect workflows.
-        const mapped: Tenant[] = (list ?? []).map(t => ({
-          id: t.id,
-          name: t.name,
-          slug: t.slug,
-          code: t.code,
-          isActive: t.isActive,
-          status: t.status,
-          subscriptionStatus: t.subscriptionStatus,
-          branchCount: 0,
-          departmentCount: 0,
-          roleCount: 0,
-          createdAt: '',
-          activeUserCount: 0,
-          activeVehicleCount: 0
-        }));
-        this.companiesSubject.next(mapped);
-        this.companiesLoadingSubject.next(false);
-      },
-      error: () => {
-        this.companiesLoadingSubject.next(false);
-      }
-    });
+  private onCompanyChanged(): void {
+    this.vehicleIdSubject.next(null);
+    this.persist();
+    this.loadVehicles();
   }
 
   private loadVehicles(): void {
@@ -204,9 +152,8 @@ export class GpsScopeFilterService {
       return;
     }
 
-    const tenantScope = this.isSuperAdmin ? this.companyFilterId : undefined;
     this.vehiclesLoadingSubject.next(true);
-    this.vehiclesApi.getAll(1, 500, false, tenantScope ?? undefined).subscribe({
+    this.vehiclesApi.getAll(1, 500, false).subscribe({
       next: r => {
         const items = r.items.filter(v => v.status !== VehicleStatus.Retired);
         this.vehiclesSubject.next(items);
@@ -231,7 +178,6 @@ export class GpsScopeFilterService {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          companyFilterId: this.isSuperAdmin ? this.companyFilterId : null,
           vehicleFilterId: this.vehicleFilterId
         })
       );
@@ -240,26 +186,16 @@ export class GpsScopeFilterService {
     }
   }
 
-  private restore(): void {
+  private restoreVehicleOnly(): void {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
-        companyFilterId?: number | null;
         vehicleFilterId?: number | null;
       };
       if (
-        this.isSuperAdmin &&
-        typeof parsed.companyFilterId === 'number' &&
-        parsed.companyFilterId > 0
-      ) {
-        this.companyIdSubject.next(parsed.companyFilterId);
-      }
-      // Only restore vehicle when company scope is ready (or non-SA).
-      if (
-        this.isFleetScopeReady &&
-        (parsed.vehicleFilterId == null ||
-          (typeof parsed.vehicleFilterId === 'number' && parsed.vehicleFilterId > 0))
+        parsed.vehicleFilterId == null ||
+        (typeof parsed.vehicleFilterId === 'number' && parsed.vehicleFilterId > 0)
       ) {
         this.vehicleIdSubject.next(parsed.vehicleFilterId ?? null);
       }

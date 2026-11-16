@@ -31,10 +31,9 @@ export class TripService {
 
   constructor(private http: HttpClient) {}
 
-  /** Super Admin company override via X-Tenant-Id (same as GPS scope). */
-  private tenantScopedHttpOptions(tenantScopeId?: number | null): { headers?: HttpHeaders } {
-    if (tenantScopeId == null) return {};
-    return { headers: new HttpHeaders({ 'X-Tenant-Id': String(tenantScopeId) }) };
+  /** SG-06: X-Tenant-Id is interceptor-only; this helper is a no-op. */
+  private tenantScopedHttpOptions(_tenantScopeId?: number | null): { headers?: HttpHeaders } {
+    return {};
   }
 
   getDashboard(): Observable<TripDashboard> {

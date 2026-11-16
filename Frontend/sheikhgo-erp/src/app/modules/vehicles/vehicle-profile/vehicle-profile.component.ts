@@ -8,7 +8,7 @@ import { BookingService } from '../../../core/services/booking.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
-import { CompanyScopeService } from '../../../core/services/company-scope.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import {
   Vehicle,
   VehicleStatus,
@@ -168,7 +168,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     private driverService: DriverService,
     private gpsService: GpsTrackingService,
     private realtime: GpsRealtimeService,
-    private companyScopeService: CompanyScopeService,
+    private tenantContext: TenantContextService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef
   ) {}
@@ -1047,7 +1047,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   // ─── Navigation actions ────────────────────────────────────────────────
 
   editVehicle(): void {
-    const tenantId = this.companyScopeService.tenantId();
+    const tenantId = this.tenantContext.currentTenantId;
     this.router.navigate(['/vehicles', this.vehicle?.id, 'edit'], {
       queryParams: tenantId != null ? { tenantId } : {}
     });
@@ -1119,7 +1119,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   }
 
   renewCompliance(item: ComplianceItem): void {
-    const tenantId = this.companyScopeService.tenantId();
+    const tenantId = this.tenantContext.currentTenantId;
     this.router.navigate(['/vehicles', this.vehicle?.id, 'edit'], {
       queryParams: tenantId != null ? { tenantId } : {}
     });

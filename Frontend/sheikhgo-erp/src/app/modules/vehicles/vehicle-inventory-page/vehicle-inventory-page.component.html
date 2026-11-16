@@ -26,33 +26,21 @@
         </button>
       </mat-menu>
 
-      <ui-button class="header-add-btn" variant="primary" icon="add" routerLink="/vehicles/new">Add Vehicle</ui-button>
+      <ui-button
+        class="header-add-btn"
+        variant="primary"
+        icon="add"
+        routerLink="/vehicles/new"
+        [disabled]="needsCompanyPick()">Add Vehicle</ui-button>
     </div>
   </ui-page-header>
 
-  @if (companyScope.isSuperAdmin && companyScope.needsGate()) {
-    <app-company-scope-gate
-      entityLabel="vehicles"
-      mode="filter"
-      [initialTenantId]="companyScope.initialTenantId()"
-      (confirmed)="onCompanyFilter($event)"
-      (cancelled)="onCompanyFilterCancel()" />
-  } @else if (companyScope.company(); as company) {
-    <app-company-scope-banner
-      [companyName]="company.name"
-      prefix="Viewing vehicles of"
-      actionLabel="Change company"
-      (action)="companyScope.beginChange()" />
-    <div class="company-scope-exit">
-      <button type="button" class="company-scope-exit__btn" (click)="companyScope.exitToOwnCompany('/vehicles')">
-        Back to my company
-      </button>
-    </div>
-  } @else if (companyScope.isSuperAdmin) {
-    <div class="company-scope-exit">
-      <button type="button" class="company-scope-exit__btn" (click)="companyScope.beginChange()">
-        Filter by company
-      </button>
+  @if (needsCompanyPick()) {
+    <div class="company-scope-exit" style="margin: 1rem 0; padding: 1.25rem; border: 1px dashed #cbd5e1; border-radius: 0.5rem; text-align: center;">
+      <p style="margin: 0; font-weight: 600;">Pick a company</p>
+      <p style="margin: 0.35rem 0 0; color: #64748b; font-size: 0.875rem;">
+        Use the header company switcher. All companies mode does not load fleet data (to avoid showing your home tenant by mistake).
+      </p>
     </div>
   }
 

@@ -149,7 +149,7 @@
 
   <div class="loading" *ngIf="loading">Loading events…</div>
   <div class="empty" *ngIf="!loading && !selectedTenant">
-    Select a company from the platform tenant switcher.
+    Pick a company from the header switcher. Audit Center requires a single company (platform-wide audit is SG-07).
   </div>
   <div class="empty" *ngIf="!loading && selectedTenant && items.length === 0">
     No audit events match these filters.

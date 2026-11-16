@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Subject, forkJoin, takeUntil, catchError, of } from 'rxjs';
-import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
+import { TenantContextService } from '../../../core/services/tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { UserService } from '../../../core/services/user.service';
 import {
@@ -183,7 +183,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     private router: Router,
     private fb: FormBuilder,
     private toast: UiToastService,
-    private tenantContext: PlatformTenantContextService,
+    private tenantContext: TenantContextService,
     private platform: PlatformService,
     private usersApi: UserService
   ) {

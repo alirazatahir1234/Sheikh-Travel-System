@@ -4,21 +4,18 @@
     [subtitle]="facade.pageSubtitle()"
     [breadcrumbs]="breadcrumbs()" />
 
-  @if (companyScope.needsGate()) {
-    <app-company-scope-gate
-      entityLabel="driver"
-      [initialTenantId]="companyScope.initialTenantId()"
-      (confirmed)="onCompanyConfirmed($event)"
-      (cancelled)="onCompanyGateCancelled()" />
+  @if (needsCompany()) {
+    <div class="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+      <p class="text-base font-semibold text-slate-800">Pick a company first</p>
+      <p class="mt-2 text-sm text-slate-600">
+        Use the header company switcher to choose a concrete company before creating a driver.
+        All companies mode is read-only.
+      </p>
+      <button type="button" class="mt-4 text-sm font-medium text-primary-700 underline" (click)="backToList()">
+        Back to drivers
+      </button>
+    </div>
   } @else {
-  @if (companyScope.company(); as company) {
-    <app-company-scope-banner
-      [companyName]="company.name"
-      [prefix]="facade.isEditMode() ? 'Editing driver in' : 'Adding driver to'"
-      [actionLabel]="facade.isEditMode() ? null : 'Change company'"
-      (action)="changeCompany()" />
-  }
-
   <div class="mt-5 mb-6">
     <app-wizard-stepper
       [steps]="facade.steps"

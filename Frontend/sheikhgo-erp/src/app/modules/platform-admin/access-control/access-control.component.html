@@ -15,7 +15,6 @@
       </div>
     </div>
     <div class="header-right">
-      <app-tenant-picker></app-tenant-picker>
       <button mat-stroked-button type="button" (click)="refreshTab()" [disabled]="!tenantId || tabLoading">
         <mat-icon>refresh</mat-icon> Refresh
       </button>
@@ -27,8 +26,8 @@
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!selectedTenant">
       <mat-icon>admin_panel_settings</mat-icon>
-      <h3>Select a Tenant</h3>
-      <p>Choose a tenant from the picker above to manage access control settings.</p>
+      <h3>Pick a company</h3>
+      <p>Choose a company from the header switcher to manage access control. All companies mode is read-only.</p>
     </div>
 
     <ng-template #roleDetailPanel>

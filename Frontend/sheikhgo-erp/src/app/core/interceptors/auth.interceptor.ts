@@ -8,7 +8,7 @@ import { AuthService } from '../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { resolveTenantSlug } from '../utils/tenant-slug';
 import { UiToastService } from '../../shared/components/ui/toast/ui-toast.service';
-import { CompanyScopeService } from '../services/company-scope.service';
+import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -19,24 +19,29 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private auth: AuthService,
     private injector: Injector,
-    private companyScope: CompanyScopeService) {}
+    private tenantContext: TenantContextService) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     const token = this.auth.getToken();
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    let authReq = req;
     if (req.url.includes('/api')) {
       // Backend prefers JWT tenant_id; slug is for branding / unauthenticated fallback.
       headers['X-Tenant-Slug'] = resolveTenantSlug(environment.tenantSlug);
-      // Super Admin acting for another company (driver/vehicle wizards). Explicit per-call headers win.
-      const scopedTenantId = this.companyScope.tenantId();
-      if (scopedTenantId != null && !req.headers.has('X-Tenant-Id')) {
-        headers['X-Tenant-Id'] = String(scopedTenantId);
+      // SG-06: interceptor is the only place that sets X-Tenant-Id (no explicit wins).
+      const overrideId = this.tenantContext.overrideTenantId;
+      let nextHeaders = req.headers;
+      if (nextHeaders.has('X-Tenant-Id')) {
+        nextHeaders = nextHeaders.delete('X-Tenant-Id');
       }
+      if (overrideId != null) {
+        headers['X-Tenant-Id'] = String(overrideId);
+      }
+      authReq = req.clone({ headers: nextHeaders, setHeaders: headers });
+    } else if (Object.keys(headers).length) {
+      authReq = req.clone({ setHeaders: headers });
     }
-    const authReq = Object.keys(headers).length
-      ? req.clone({ setHeaders: headers })
-      : req;
 
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {
