@@ -1,0 +1,41 @@
+# Audit trail (SG-07)
+
+## TargetTenantId semantics (write model A)
+
+| Scenario | `TenantId` | `TargetTenantId` | Payload |
+|----------|------------|------------------|---------|
+| One tenant’s data read/mutated (e.g. company 7) | **7** (subject/home for retention + tenant search) | **7** | optional details |
+| Aggregate / all-companies list | **1** (`PlatformTenant.Id`) | **NULL** | `count` + `tenantIds` — **one row**, never N rows |
+| Login (known user) | user’s tenant | user’s tenant | — |
+| Login (unknown user) | platform `1` | **NULL** | — |
+
+**NULL means “platform aggregate / no single target”.** It must never mean “forgot to set”.
+
+Rejected option C: burying targets only in JSON under `TenantId = 1` for single-tenant reads.
+
+Tenant-scoped `SearchAsync` matches `TenantId = X OR TargetTenantId = X` so the company whose data was read can see the event.
+
+## Fail policy
+
+| Category | Policy | Same DB transaction? |
+|----------|--------|----------------------|
+| Permission change (`roles.permissions`) | Fail-closed | **Yes** — replace + audit in one TX |
+| Role assignment (`roles.assignment`) | Fail-closed | **Yes** — replace + audit in one TX |
+| Cross-tenant read | Fail-closed at API boundary | **No** — SELECT then audit INSERT; response withheld if audit throws |
+| PII reveal (`privacy.pii.reveal`) | Fail-closed (via `IPiiRevealAudit`) | Callers must enroll; no reveal endpoint yet |
+| Subscription/billing change | Fail-closed at API boundary | **No** — mutate then audit; audit failure throws (mutation may already be committed) |
+| Impersonation | Fail-closed (key reserved) | No endpoint yet (`Platform.Tenants.Impersonate` seeded) |
+| Login success / failure | Fail-open + **loud** (`LogError` + `audit.write.failures`) | N/A |
+| Normal CRUD (`IAuditableCommand` pipeline) | Fail-open + loud | N/A |
+
+Silent `LogDebug` on audit failure is banned.
+
+## Read path
+
+- `Platform.Tenants.AuditReadAll` + no concrete tenant → all-companies search (`AllCompanies=true`), no throw for missing tenant.
+- ERP Audit Center uses SG-06 `isAllCompanies` and omits `tenantId` in that mode.
+- Canonical route: `/platform/audit-center` (SG-36). `/audit-logs` redirects.
+
+## Append-only
+
+Triggers `TR_AuditEvents_NoUpdate` / `TR_AuditEvents_NoDelete` reject UPDATE/DELETE.
