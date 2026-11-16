@@ -564,7 +564,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 
 ## Issue register
 
-48 findings. P0 = fix before onboarding a paying company. P1 = this quarter. P2 = backlog with a date. P3 = housekeeping.
+49 findings. P0 = fix before onboarding a paying company. P1 = this quarter. P2 = backlog with a date. P3 = housekeeping.
 
 ### P0 — blocking (8)
 
@@ -579,7 +579,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-07 | Audit | Audit Center and /audit-logs return 0 rows, blocked by the missing switcher, despite audit level Always | Unblock the page; add platform-wide view; verify events are actually being written |
 | SG-08 | Security | MFA, trusted devices, password history and IP restriction are display-only; no policy ever changed | Implement TOTP MFA; enable password complexity; mark non-enforcing toggles clearly until built |
 
-### P1 — fix this quarter (14)
+### P1 — fix this quarter (15)
 
 | ID | Module | Finding | Fix |
 | --- | --- | --- | --- |
@@ -598,6 +598,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-21 | Compliance | All 39 documents UNKNOWN with no expiry; KPIs read 0/0/0 while the dashboard raises an expiry alert | Make expiry mandatory on upload; backfill; drive the dashboard alert from the same source |
 | SG-22 | Platform | MCP console (14 servers, 117 tools, Connect Client) exposed in the production ERP | Environment-gate to non-production, or require a dedicated permission plus MFA, with audited invocations |
 | SG-42 | Users | /users shows 5 of 9 platform users; 4 invisible to the super admin | Cross-tenant user directory for platform roles |
+| SG-50 | Billing / FX | Subscription pricing uses a hardcoded USD→PKR constant (280) in Backend `SubscriptionBilling:UsdToPkr` / `ToPkr` and ERP `USD_TO_PKR_DEFAULT`; no live rate, no drift alert | Fix with money chain SG-02/03/14 — live or Key Vault FX + drift alert; not a one-off patch |
 
 ### P2 — backlog with a date (19)
 
@@ -640,7 +641,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | Module | P0 | P1 | P2 | P3 |
 | --- | --- | --- | --- | --- |
 | Platform & Access Control | 4 | 4 | 4 | 3 |
-| Finance (invoices, payments, settlements) | 2 | 2 | 2 | 0 |
+| Finance (invoices, payments, settlements) | 2 | 3 | 2 | 0 |
 | GPS & tracking | 1 | 1 | 3 | 1 |
 | Fleet (vehicles, drivers, compliance, maintenance) | 1 | 3 | 4 | 0 |
 | Operations (bookings, trips, routes) | 0 | 1 | 2 | 0 |
