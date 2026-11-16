@@ -29,6 +29,7 @@ import {
   CompanyFeature,
   ModuleRegistryEntry,
   CompanyLicense,
+  LicenseSummary,
   MenuCatalog,
   UpdateMenuModulePayload,
   UpdateMenuItemPayload,
@@ -327,8 +328,13 @@ export class PlatformService {
     return this.http.get<CompanyLicense>(`${this.base}/tenants/${tenantId}/license`);
   }
 
-  getLicenseSummary(tenantId: number): Observable<CompanyLicense> {
-    return this.http.get<CompanyLicense>(`${this.base}/tenants/${tenantId}/license/summary`);
+  getLicenseSummary(tenantId: number): Observable<LicenseSummary> {
+    return this.http.get<LicenseSummary>(`${this.base}/tenants/${tenantId}/license/summary`);
+  }
+
+  /** Current tenant license / billing soft-lock summary (Settings.View). */
+  getMyLicenseSummary(): Observable<LicenseSummary> {
+    return this.http.get<LicenseSummary>(`${this.base}/license/summary`);
   }
 
   getSubscriptionCatalog(): Observable<unknown[]> {

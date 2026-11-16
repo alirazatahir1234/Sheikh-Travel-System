@@ -5,7 +5,7 @@ namespace SheikhTravelSystem.Application.Common;
 /// <summary>
 /// Stage 4 Subscription plan catalog seed (migration + API fallback).
 /// Aligns with ERP PLAN_DEFINITIONS (Starter / Pro / Enterprise).
-/// <see cref="Entry.MaxGpsDevices"/> is the default licensed device count (billed per device — see
+/// <see cref="Entry.MaxGpsDevices"/> is the default licensed vehicle/GPS seat count (billed per vehicle — see
 /// <see cref="SubscriptionPlanPricing"/>); admins raise it per company.
 /// </summary>
 public static class SubscriptionPlanCatalog
@@ -36,19 +36,19 @@ public static class SubscriptionPlanCatalog
         new(
             SubscriptionCode: "STARTER",
             DisplayName: "Starter",
-            Description: "Core fleet & GPS operations — 1 user, PKR 20,000 per GPS device / year",
+            Description: "Starter (Track) — live GPS & theft protection, USD 6 / vehicle / month",
             PlanType: "Standard",
             Status: "Active",
             SortOrder: 10,
-            DurationMonths: 12,
+            DurationMonths: 1,
             IsDefault: false,
             Visible: true,
             DocumentationUrl: null,
             DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes, "ACCESS"],
-            MaxUsers: 1,
-            MaxVehicles: 50,
-            MaxDrivers: 50,
-            MaxBranches: 5,
+            MaxUsers: 3,
+            MaxVehicles: 10,
+            MaxDrivers: 10,
+            MaxBranches: 1,
             MaxGpsDevices: 1,
             StorageQuotaGb: 50,
             AICredits: 1000,
@@ -56,19 +56,19 @@ public static class SubscriptionPlanCatalog
         new(
             SubscriptionCode: "PRO",
             DisplayName: "Pro",
-            Description: "Full operations suite — PKR 45,000 per GPS device / year",
+            Description: "Pro (Optimize) — USD 12 / vehicle / month + USD 25 platform fee (waived annually)",
             PlanType: "Standard",
             Status: "Active",
             SortOrder: 20,
-            DurationMonths: 12,
+            DurationMonths: 1,
             IsDefault: false,
             Visible: true,
             DocumentationUrl: null,
             DefaultModuleCodes: ["DASHBOARD", "FLEET", "GPS", ..AlertModuleCatalog.DefaultModuleCodes, "RENTAL", "CRM", "FINANCE", "ANALYTICS", "ACCESS"],
-            MaxUsers: 50,
-            MaxVehicles: 250,
-            MaxDrivers: 250,
-            MaxBranches: 15,
+            MaxUsers: 10,
+            MaxVehicles: 50,
+            MaxDrivers: 50,
+            MaxBranches: 5,
             MaxGpsDevices: 1,
             StorageQuotaGb: 250,
             AICredits: 10000,
@@ -76,11 +76,11 @@ public static class SubscriptionPlanCatalog
         new(
             SubscriptionCode: "ENTERPRISE",
             DisplayName: "Enterprise",
-            Description: "All modules — PKR 70,000 per GPS device / year",
+            Description: "Enterprise (ERP) — USD 20 / vehicle / month, full RBAC & ERP modules",
             PlanType: "Enterprise",
             Status: "Active",
             SortOrder: 30,
-            DurationMonths: 12,
+            DurationMonths: 1,
             IsDefault: true,
             Visible: true,
             DocumentationUrl: null,

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../auth/data/auth_repository.dart';
+import '../data/admin_cross_tenant_api.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
 import '../services/fleet_realtime_service.dart';
 import 'fleet_vehicle_filters.dart';
+import 'platform_company_filter.dart';
 
 class FleetHubState {
   const FleetHubState({
@@ -126,6 +128,11 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       _pollTimer?.cancel();
       unawaited(FleetRealtimeService.instance.disconnect());
     });
+    // Rebuild roster when Super Admin company filter changes.
+    ref.listen<int?>(platformCompanyFilterProvider, (prev, next) {
+      if (prev == next) return;
+      unawaited(refresh());
+    });
     final hub = await _load();
     _startRealtime();
     // SignalR-first: HTTP poll starts only if hub is not connected after connect attempt.
@@ -169,8 +176,17 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       }(),
       () async {
         try {
-          // Prefer /gps/live/fleet (GPS.View + data-scope) over Vehicles+live merge.
-          locations = await api.getLiveFleet();
+          final session = ref.read(fleetSessionProvider);
+          if (session?.canCrossTenantVehicles == true) {
+            // Platform Super Admin: cross-company admin vehicles API.
+            final companyId = ref.read(platformCompanyFilterProvider);
+            locations = await ref
+                .read(adminCrossTenantApiProvider)
+                .getVehicles(companyId: companyId);
+          } else {
+            // Prefer /gps/live/fleet (GPS.View + data-scope) over Vehicles+live merge.
+            locations = await api.getLiveFleet();
+          }
         } catch (fleetErr) {
           try {
             final vehicles = await api.getVehicles();

@@ -108,6 +108,9 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         if (decision.TenantId.HasValue)
             tenantContext.SetTenant(decision.TenantId.Value, decision.Slug);
 
+        if (decision.CrossTenantBypass)
+            tenantContext.SetCrossTenantBypass(true);
+
         if (!string.IsNullOrEmpty(decision.WarnReason))
         {
             logger.LogWarning(

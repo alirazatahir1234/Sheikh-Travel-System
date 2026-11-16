@@ -92,14 +92,17 @@
             android:foregroundServiceType="location"
             android:exported="false"/>
 
-        <!-- FCM message receiver -->
-        <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="false">
-            <intent-filter android:priority="-500">
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
-            </intent-filter>
-        </service>
+        <!-- FCM: FlutterFire registers FlutterFirebaseMessagingService via manifest merge.
+             Default channel used when the payload omits android_channel_id. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sheikhgo_default"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ic_launcher_background"/>
 
         <meta-data
             android:name="flutterEmbedding"

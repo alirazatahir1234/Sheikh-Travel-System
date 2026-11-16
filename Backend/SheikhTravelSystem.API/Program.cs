@@ -30,6 +30,11 @@ using SheikhTravelSystem.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Nexus commercial FX (USD → PKR) for Pakistan market display / invoices.
+var usdToPkr = builder.Configuration.GetValue("SubscriptionBilling:UsdToPkr", SubscriptionPlanPricing.DefaultUsdToPkr);
+if (usdToPkr > 0)
+    SubscriptionPlanPricing.UsdToPkrRate = usdToPkr;
+
 // Fail closed in non-Development when required secrets are missing/placeholders.
 ProductionSecretsValidator.EnsureValidOrThrow(builder.Configuration, builder.Environment);
 
@@ -451,6 +456,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseMiddleware<TenantSubscriptionAccessMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<DriverMobileIdempotencyMiddleware>();
 app.MapControllers();

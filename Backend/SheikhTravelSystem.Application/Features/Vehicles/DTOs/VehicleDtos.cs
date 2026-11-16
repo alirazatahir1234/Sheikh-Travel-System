@@ -14,6 +14,26 @@ public record VehicleListItemDto(
     DateTime? NextServiceDue, decimal? NextDueMileage, string? ServiceAlert,
     string? ImageUrl);
 
+/// <summary>Platform Super Admin vehicle row including owning company.</summary>
+public record AdminCrossTenantVehicleDto(
+    int Id,
+    int CompanyId,
+    string CompanyName,
+    string Name,
+    string RegistrationNumber,
+    string? Make,
+    string? Model,
+    string? VehicleType,
+    VehicleStatus Status,
+    string? DriverName,
+    int? DriverId,
+    bool GpsOnline,
+    bool HasGpsDevice,
+    DateTime? GpsLastSeenAt,
+    double? LocationLatitude,
+    double? LocationLongitude,
+    DateTime CreatedAt);
+
 public record VehicleDto(
     int Id, string Name, string RegistrationNumber, string? VehicleCode, string? VIN,
     string? Make, string? Model, int? Year, string? Color, string? VehicleType,

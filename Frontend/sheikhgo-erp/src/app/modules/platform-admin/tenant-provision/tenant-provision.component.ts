@@ -23,8 +23,11 @@ import {
   TenantModuleDefinition,
   applyPlanDefaults,
   formatCurrency,
+  planMonthlyAmountUsd,
   planYearlyAmount,
   subscriptionPeriodEnd,
+  usdToPkr,
+  USD_TO_PKR_DEFAULT,
   tenantPlanMeta,
   toIsoDate
 } from '../../../core/models/platform.model';
@@ -266,16 +269,33 @@ export class TenantProvisionComponent implements OnInit {
     return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
   }
 
-  get pricePerDevice(): number {
-    return applyPlanDefaults(this.summaryPlanName).yearlyPricePerDevice;
+  get pricePerVehicleMonthlyUsd(): number {
+    return applyPlanDefaults(this.summaryPlanName).monthlyPricePerVehicleUsd;
+  }
+
+  get monthlyTotalUsd(): number {
+    return planMonthlyAmountUsd(this.summaryPlanName, this.licensedDevices, 'Monthly');
   }
 
   get yearlyTotal(): number {
     return planYearlyAmount(this.summaryPlanName, this.licensedDevices);
   }
 
+  /** @deprecated alias — templates may still call pricePerDevice */
+  get pricePerDevice(): number {
+    return this.pricePerVehicleMonthlyUsd;
+  }
+
+  formatUsd(amount: number): string {
+    return formatCurrency(amount, 'USD');
+  }
+
   formatPkr(amount: number): string {
     return formatCurrency(amount, 'PKR');
+  }
+
+  formatUsdWithPkr(usd: number): string {
+    return `${this.formatUsd(usd)} (~${this.formatPkr(usdToPkr(usd, USD_TO_PKR_DEFAULT))})`;
   }
 
   get summaryUserQuota(): string | number {

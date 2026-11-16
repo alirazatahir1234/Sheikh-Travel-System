@@ -38,14 +38,22 @@
           <mat-card-title>Current Plan</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <div class="plan-banner danger" *ngIf="subscription.featuresLocked">
+          <div class="plan-banner danger" *ngIf="subscription.featuresLocked && !isExpired()">
             <mat-icon>lock</mat-icon>
-            <span>Premium modules are locked until overdue subscription invoices are paid.</span>
+            <span>Premium modules are locked (PastDue). Mark a renewal invoice paid to restore access.</span>
           </div>
 
           <div class="plan-banner" [class.warn]="isExpiringSoon()" [class.danger]="isExpired()" *ngIf="isExpiringSoon() || isExpired()">
             <mat-icon>{{ isExpired() ? 'error' : 'warning' }}</mat-icon>
-            <span>{{ isExpired() ? 'This subscription has expired.' : 'This subscription expires within 30 days.' }}</span>
+            <span>
+              <ng-container *ngIf="isExpired(); else graceHint">
+                Subscription expired — tenant {{ subscription.tenantIsActive === false ? 'deactivated' : 'inactive' }}.
+                Login is blocked until a paid invoice extends paid-through.
+              </ng-container>
+              <ng-template #graceHint>
+                Access expires in {{ subscription.remainingAccessDays }} day(s) (paid-through + 7-day grace).
+              </ng-template>
+            </span>
           </div>
 
           <div class="plan-details">
@@ -56,20 +64,20 @@
 
             <div class="plan-info">
               <div class="info-item">
-                <span class="label">Price per GPS device</span>
-                <span class="value">{{ formatMoney(subscription.yearlyPricePerDevice) }} / year</span>
+                <span class="label">Price per vehicle</span>
+                <span class="value">{{ formatMoney(subscription.monthlyPricePerVehicleUsd, 'USD') }} / month</span>
               </div>
               <div class="info-item">
-                <span class="label">Licensed GPS devices</span>
+                <span class="label">Licensed vehicles</span>
                 <span class="value">{{ subscription.billableGpsDevices ?? '—' }}</span>
               </div>
               <div class="info-item">
-                <span class="label">Yearly Amount</span>
-                <span class="value">{{ formatMoney(subscription.yearlyAmount) }}</span>
+                <span class="label">Annual prepaid (15% off)</span>
+                <span class="value">{{ formatMoney(subscription.yearlyAmount, 'USD') }}</span>
               </div>
-              <div class="info-item" *ngIf="!isYearly">
-                <span class="label">Monthly Amount (legacy)</span>
-                <span class="value">{{ formatMoney(subscription.cycleAmount) }}</span>
+              <div class="info-item">
+                <span class="label">Cycle amount</span>
+                <span class="value">{{ formatMoney(subscription.cycleAmount, subscription.currencyCode) }}</span>
               </div>
               <div class="info-item">
                 <span class="label">Billing Cycle</span>
@@ -80,11 +88,27 @@
                 <span class="value">{{ subscription.nextBillingDate | date:'mediumDate' }}</span>
               </div>
               <div class="info-item">
+                <span class="label">Paid through</span>
+                <span class="value">{{ (subscription.paidThroughUtc | date:'mediumDate') || '—' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Access expires</span>
+                <span class="value">{{ (subscription.accessExpiresAtUtc | date:'mediumDate') || '—' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Remaining access</span>
+                <span class="value">{{ subscription.remainingAccessDays ?? '—' }} day(s)</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Tenant active</span>
+                <span class="value">{{ subscription.tenantIsActive === false ? 'No' : 'Yes' }}</span>
+              </div>
+              <div class="info-item">
                 <span class="label">Start Date</span>
                 <span class="value">{{ subscription.subscriptionStartDate | date:'mediumDate' }}</span>
               </div>
               <div class="info-item">
-                <span class="label">Expiry Date</span>
+                <span class="label">Period end</span>
                 <span class="value">{{ (subscription.subscriptionEndDate | date:'mediumDate') || '—' }}</span>
               </div>
               <div class="info-item">
@@ -104,6 +128,12 @@
               <mat-label>Change Plan</mat-label>
               <mat-select [(ngModel)]="upgradePlan">
                 <mat-option *ngFor="let p of planOptions" [value]="p">{{ p }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="plan-select">
+              <mat-label>Billing cycle</mat-label>
+              <mat-select [(ngModel)]="upgradeCycle">
+                <mat-option *ngFor="let c of billingCycles" [value]="c">{{ c }}</mat-option>
               </mat-select>
             </mat-form-field>
             <button mat-raised-button color="primary" type="button" (click)="upgrade()"

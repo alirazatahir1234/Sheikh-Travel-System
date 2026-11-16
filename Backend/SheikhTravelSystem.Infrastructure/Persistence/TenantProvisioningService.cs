@@ -90,21 +90,25 @@ public class TenantProvisioningService(
                 cancellationToken: cancellationToken));
         }
 
-        // Subscription period: start (default today) → start + one billing cycle (Yearly by default).
+        // Subscription period: start (default today) → start + one billing cycle (Monthly by default).
         // NextBillingDate = start date, so the billing job raises the first-period invoice on the start date;
         // each renewal invoice then advances NextBillingDate / SubscriptionEndDate by one cycle.
         var billingCycle = SubscriptionBillingCycle.Normalize(request.BillingCycle, SubscriptionBillingCycle.Default);
         var startDate = (request.SubscriptionStartDate ?? DateTime.UtcNow).Date;
         var endDate = request.SubscriptionEndDate?.Date ?? SubscriptionBillingCycle.PeriodEnd(startDate, billingCycle);
         var plan = SubscriptionPlanCatalog.Resolve(request.PlanName);
-        // Billed per licensed GPS device per year; blank ⇒ plan default (1 device).
+        // Billed per licensed vehicle/GPS seat / month (USD); Pakistan market stores PKR equivalent.
         var licensedDevices = request.MaxGpsDevices ?? plan.MaxGpsDevices ?? 1;
+        var brandingCurrency = request.CurrencyCode ?? AppConstants.DefaultCurrency;
+        var billingCurrency = SubscriptionPlanPricing.ResolveBillingCurrency(request.Country, brandingCurrency);
+        var monthlyAmount = SubscriptionPlanPricing.ResolveMonthlyAmountInCurrency(
+            request.PlanName, licensedDevices, billingCurrency);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO TenantSubscriptions (TenantId, PlanName, SubscriptionCode, MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices,
                 Status, SubscriptionStartDate, SubscriptionEndDate, NextBillingDate, BillingCycle, MonthlyAmount, CurrencyCode, AutoRenew)
             VALUES (@TenantId, @PlanName, @SubscriptionCode, @MaxUsers, @MaxVehicles, @MaxDrivers, @MaxBranches, @MaxGpsDevices,
-                @Status, @StartDate, @EndDate, @StartDate, @BillingCycle, @MonthlyAmount, N'PKR', 1);
+                @Status, @StartDate, @EndDate, @StartDate, @BillingCycle, @MonthlyAmount, @CurrencyCode, 1);
             """, new
         {
             TenantId = tenantId,
@@ -119,7 +123,8 @@ public class TenantProvisioningService(
             StartDate = startDate,
             EndDate = endDate,
             BillingCycle = billingCycle,
-            MonthlyAmount = SubscriptionPlanPricing.ResolveMonthlyAmount(request.PlanName, licensedDevices)
+            MonthlyAmount = monthlyAmount,
+            CurrencyCode = billingCurrency
         }, transaction: transaction, cancellationToken: cancellationToken));
 
         foreach (var code in moduleCodes)

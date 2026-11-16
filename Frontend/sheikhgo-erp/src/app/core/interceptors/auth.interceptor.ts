@@ -43,9 +43,42 @@ export class AuthInterceptor implements HttpInterceptor {
         if (error.status === 401 && !req.url.includes('/auth/')) {
           return this.handle401(authReq, next, error);
         }
+        if (error.status === 402 || error.status === 403) {
+          this.notifyBillingGateIfNeeded(error);
+        }
         return throwError(() => error);
       })
     );
+  }
+
+  private notifyBillingGateIfNeeded(error: HttpErrorResponse): void {
+    const body = error.error;
+    const code = body && typeof body === 'object'
+      ? String((body as Record<string, unknown>)['code'] ?? '')
+      : '';
+    const message = body && typeof body === 'object'
+      ? String((body as Record<string, unknown>)['message'] ?? '')
+      : '';
+
+    if (error.status === 402
+      || code === 'tenant_deactivated'
+      || code === 'subscription_expired'
+      || /overdue|expired|deactivated|payment/i.test(message)) {
+      try {
+        const toast = this.injector.get(UiToastService);
+        toast.warning(
+          message || (error.status === 402
+            ? 'Subscription payment required. Premium modules are locked.'
+            : 'Account access is restricted. Contact SheikhGo billing.')
+        );
+      } catch {
+        /* toast optional */
+      }
+    }
+
+    if (code === 'tenant_deactivated' || code === 'subscription_expired') {
+      this.auth.logout();
+    }
   }
 
   private handle401(

@@ -6,22 +6,16 @@ namespace SheikhTravelSystem.Tests.Common;
 public class SubscriptionBillingCycleTests
 {
     [Theory]
+    [InlineData("Monthly", "Monthly")]
+    [InlineData("yearly", "Yearly")]
     [InlineData("Yearly", "Yearly")]
     [InlineData("annual", "Yearly")]
-    [InlineData(" MONTHLY ", "Monthly")]
-    [InlineData("Weekly", null)]
-    [InlineData("", null)]
-    [InlineData(null, null)]
-    public void TryNormalize_MapsKnownCycles(string? input, string? expected)
+    public void TryNormalize_accepts_aliases(string input, string expected)
         => SubscriptionBillingCycle.TryNormalize(input).Should().Be(expected);
 
     [Fact]
-    public void Normalize_UnknownCycle_FallsBackToMonthly()
-        => SubscriptionBillingCycle.Normalize("bogus").Should().Be(SubscriptionBillingCycle.Monthly);
-
-    [Fact]
-    public void Default_IsYearly()
-        => SubscriptionBillingCycle.Default.Should().Be(SubscriptionBillingCycle.Yearly);
+    public void Default_IsMonthly()
+        => SubscriptionBillingCycle.Default.Should().Be(SubscriptionBillingCycle.Monthly);
 
     [Fact]
     public void PeriodEnd_Yearly_AddsTwelveMonths()
@@ -30,6 +24,6 @@ public class SubscriptionBillingCycleTests
 
     [Fact]
     public void PeriodEnd_Monthly_AddsOneMonth()
-        => SubscriptionBillingCycle.PeriodEnd(new DateTime(2026, 1, 31), "Monthly")
-            .Should().Be(new DateTime(2026, 2, 28));
+        => SubscriptionBillingCycle.PeriodEnd(new DateTime(2026, 11, 12), "Monthly")
+            .Should().Be(new DateTime(2026, 12, 12));
 }

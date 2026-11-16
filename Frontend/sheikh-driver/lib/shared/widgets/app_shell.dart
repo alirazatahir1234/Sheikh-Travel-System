@@ -120,8 +120,10 @@ class _TabIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showBadge =
-        unread > 0 && (tab.id == 'more' || tab.id == 'notifications');
+    // Overview header already shows the unread bell — avoid a duplicate 99+
+    // on More for fleet-management shells. Drivers with a Notifications tab
+    // still get the badge there.
+    final showBadge = unread > 0 && tab.id == 'notifications';
     final icon = Icon(
       active ? tab.activeIcon : tab.icon,
       size: 22,

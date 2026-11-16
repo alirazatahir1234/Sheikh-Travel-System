@@ -7,6 +7,7 @@ import { WEBSITE_BRAND } from '../../core/brand';
 import { INDUSTRY_ITEMS, SERVICE_ITEMS } from '../../core/site-catalog';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteMarketService } from '../../core/website-market.service';
 import { WebsiteLanguageSwitcherComponent } from '../../shared/website-language-switcher/website-language-switcher.component';
 import { WebsiteTranslatePipe } from '../../shared/website-translate.pipe';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
@@ -29,6 +30,7 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 export class SiteHeaderComponent implements OnInit, OnDestroy {
   readonly brand = WEBSITE_BRAND;
   readonly i18n = inject(WebsiteI18nService);
+  readonly market = inject(WebsiteMarketService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);

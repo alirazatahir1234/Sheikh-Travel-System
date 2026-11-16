@@ -22,7 +22,12 @@
       <mat-card class="kpi">
         <span class="kpi-label">MRR (listed)</span>
         <strong class="kpi-value">{{ money(dashboard.monthlyRecurringRevenue) }}</strong>
-        <span class="kpi-hint">Yearly packages ÷ 12</span>
+        <span class="kpi-hint">MonthlyAmount · yearly ÷ 12</span>
+      </mat-card>
+      <mat-card class="kpi">
+        <span class="kpi-label">ARR</span>
+        <strong class="kpi-value">{{ money(dashboard.annualRecurringRevenue ?? (dashboard.monthlyRecurringRevenue * 12)) }}</strong>
+        <span class="kpi-hint">MRR × 12</span>
       </mat-card>
       <mat-card class="kpi">
         <span class="kpi-label">Outstanding</span>
@@ -33,6 +38,11 @@
         <span class="kpi-label">Collected (30d)</span>
         <strong class="kpi-value">{{ money(dashboard.collectedLast30Days) }}</strong>
         <span class="kpi-hint">TenantBillingHistory</span>
+      </mat-card>
+      <mat-card class="kpi">
+        <span class="kpi-label">Expired</span>
+        <strong class="kpi-value">{{ dashboard.expiredSubscriptions ?? 0 }}</strong>
+        <span class="kpi-hint">{{ dashboard.deactivatedTenants ?? 0 }} deactivated tenants</span>
       </mat-card>
     </div>
 

@@ -342,6 +342,34 @@
     z-index: 30;
   }
 
+  .market-switch {
+    display: inline-flex;
+    gap: 0.2rem;
+    padding: 0.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(7, 29, 46, 0.12);
+    background: rgba(7, 29, 46, 0.03);
+  }
+
+  .market-chip {
+    appearance: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    color: #334155;
+    background: transparent;
+  }
+
+  .market-chip.active {
+    background: #0d9488;
+    color: #fff;
+  }
+
   .lang-switch-desktop {
     flex-shrink: 0;
     position: relative;

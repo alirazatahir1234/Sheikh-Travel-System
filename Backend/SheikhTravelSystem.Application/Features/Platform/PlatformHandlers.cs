@@ -1011,13 +1011,33 @@ public class GetLicenseSummaryQueryHandler(
 
         var locked = await subscriptionBilling.AreFeaturesLockedAsync(tenantId, cancellationToken);
         var overdue = await platformRepository.SumOverdueSubscriptionInvoicesAsync(tenantId, cancellationToken);
+        var access = await platformRepository.GetTenantSubscriptionAccessAsync(tenantId, cancellationToken);
+        var remaining = SubscriptionBillingLifecycle.RemainingAccessDays(
+            access?.AccessExpiresAtUtc ?? SubscriptionBillingLifecycle.ComputeAccessExpiry(access?.PaidThroughUtc),
+            DateTime.UtcNow);
+        string? billingMessage = null;
+        if (access is not null
+            && string.Equals(access.Value.SubscriptionStatus, SubscriptionBillingLifecycle.StatusExpired,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            billingMessage = "Subscription expired. Account access is blocked until payment is verified.";
+        }
+        else if (locked)
+        {
+            billingMessage = remaining > 0
+                ? $"Subscription payment overdue. Premium modules locked — {remaining} day(s) of grace remaining."
+                : "Subscription payment is overdue. Premium modules are locked until the invoice is settled.";
+        }
+        else if (remaining is >= 0 and <= 7)
+        {
+            billingMessage = $"Subscription access expires in {remaining} day(s). Arrange renewal to avoid interruption.";
+        }
+
         var summary = LicenseQueries.ToSummary(license) with
         {
             FeaturesLocked = locked,
             OverdueAmount = overdue,
-            BillingMessage = locked
-                ? "Subscription payment is overdue. Premium modules are locked until the invoice is settled."
-                : null
+            BillingMessage = billingMessage
         };
         return ApiResponse<LicenseSummaryDto>.SuccessResponse(summary);
     }

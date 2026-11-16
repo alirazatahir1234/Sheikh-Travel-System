@@ -94,9 +94,12 @@ public interface IPlatformRepository
     Task<decimal> SumOverdueSubscriptionInvoicesAsync(int tenantId, CancellationToken cancellationToken = default);
     Task<int?> CreateSubscriptionRenewalInvoiceAsync(int tenantId, CancellationToken cancellationToken = default);
     Task<bool> MarkSubscriptionInvoicePaidAsync(int tenantId, int invoiceId, string? paymentMethod, string? reference, CancellationToken cancellationToken = default);
+    Task ProcessSubscriptionExpiryAndDeactivationAsync(int tenantId, DateTime asOfUtc, CancellationToken cancellationToken = default);
+    Task<(bool TenantIsActive, string SubscriptionStatus, DateTime? PaidThroughUtc, DateTime? AccessExpiresAtUtc)?> GetTenantSubscriptionAccessAsync(int tenantId, CancellationToken cancellationToken = default);
     Task<(int Id, string InvoiceNumber, decimal Amount, string CurrencyCode, string? PlanName, DateTime? DueDate)?> GetSubscriptionInvoiceAsync(int tenantId, int invoiceId, CancellationToken cancellationToken = default);
     Task RecordSubscriptionInvoiceEmailSentAsync(int invoiceId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<int>> ListActiveTenantIdsForBillingAsync(CancellationToken cancellationToken = default);
+    Task<bool> WasSubscriptionLifecycleEmailSentAsync(int tenantId, string templateKey, string reference, CancellationToken cancellationToken = default);
 
     // ── Feature registry ──────────────────────────────────────────────────
     Task<IReadOnlyList<FeatureRegistryQueries.FeatureRow>> LoadVisibleFeaturesAsync(bool activeOnly = false, CancellationToken cancellationToken = default);

@@ -2,9 +2,8 @@ namespace SheikhTravelSystem.Application.Common;
 
 /// <summary>
 /// Paid / premium subscription add-ons — opt-in modules not included in Starter/Pro/Enterprise
-/// <see cref="SubscriptionPlanCatalog"/> defaults. Tenants "subscribe" by enabling the module
-/// (Platform Module Management / Company Profile Modules). No invented list prices —
-/// <see cref="Entry.MonthlyAmount"/> stays null until commercial pricing is configured.
+/// <see cref="SubscriptionPlanCatalog"/> defaults. Amounts are USD list prices (convert with
+/// <see cref="SubscriptionPlanPricing.ToPkr"/> for Pakistan display).
 /// </summary>
 public static class SubscriptionAddOnCatalog
 {
@@ -22,13 +21,14 @@ public static class SubscriptionAddOnCatalog
     [
         new(
             ModuleCode: TenantModuleCatalog.AiAssistantModuleCode,
-            DisplayName: "SheikhGo AI Assistant",
-            Description: "Premium SheikhGo AI Assistant for operations chat and tools",
+            DisplayName: "AI Document OCR & Smart Fleet Assistant",
+            Description: "OCR for registration/fuel receipts and natural-language fleet queries — USD 4 / vehicle / month",
             Category: "Platform",
             Dependencies: ["DASHBOARD"],
-            CurrencyCode: "PKR",
-            MonthlyAmount: null,
+            CurrencyCode: SubscriptionPlanPricing.CurrencyUsd,
+            MonthlyAmount: 4m,
             SortOrder: 10),
+        // SMS / WhatsApp packs ($5 / 250) are metered commercially (see pricing page / docs) — not a TenantModule.
         // Speed / geofence / playback are TenantFeatures (GpsAddOnFeatureCatalog), not module add-ons.
         new(
             ModuleCode: "ALERT_GPS_LOST",
@@ -36,7 +36,7 @@ public static class SubscriptionAddOnCatalog
             Description: "Premium GPS signal lost / antenna fault alerts",
             Category: AlertModuleCatalog.AlertsCategory,
             Dependencies: [AlertModuleCatalog.AlertsModuleCode],
-            CurrencyCode: "PKR",
+            CurrencyCode: SubscriptionPlanPricing.CurrencyUsd,
             MonthlyAmount: null,
             SortOrder: 22),
         new(
@@ -45,7 +45,7 @@ public static class SubscriptionAddOnCatalog
             Description: "Premium fuel level below configured threshold alerts",
             Category: AlertModuleCatalog.AlertsCategory,
             Dependencies: [AlertModuleCatalog.AlertsModuleCode],
-            CurrencyCode: "PKR",
+            CurrencyCode: SubscriptionPlanPricing.CurrencyUsd,
             MonthlyAmount: null,
             SortOrder: 23),
     ];

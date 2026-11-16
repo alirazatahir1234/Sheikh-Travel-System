@@ -435,8 +435,7 @@
           <p class="subscription-plan-fleet">{{ tier.fleet }}</p>
           <p class="subscription-plan-price">
             <span class="amount">{{ tier.price }}</span>
-            <span class="currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
-            <span class="period">{{ 'pages.pricing.perDeviceYear' | wsTranslate }}</span>
+            <span class="period">{{ 'pages.pricing.perVehicleMonth' | wsTranslate }}</span>
           </p>
           @if (tier.priceNote) {
             <p class="subscription-plan-note">{{ tier.priceNote }}</p>
@@ -445,6 +444,7 @@
       }
     </div>
     <p class="subscription-plans-footnote">{{ 'home.subscriptionPlans.footnote' | wsTranslate }}</p>
+    <p class="subscription-plans-footnote calc-hint">{{ 'home.subscriptionPlans.calcHint' | wsTranslate }}</p>
     <div class="subscription-plans-cta">
       <a routerLink="/pricing" class="btn btn-ghost">{{ 'home.subscriptionPlans.viewPricing' | wsTranslate }}</a>
       <a routerLink="/request-demo" class="btn btn-primary">{{ 'common.requestDemoArrow' | wsTranslate }}</a>

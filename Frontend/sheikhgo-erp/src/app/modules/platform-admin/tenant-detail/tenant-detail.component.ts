@@ -556,14 +556,18 @@ export class TenantDetailComponent implements OnInit {
     this.form.markAsDirty();
   }
 
-  /** Live yearly price for the plan + licensed devices currently in the form. */
+  /** Live monthly price for the plan + licensed vehicles currently in the form. */
   get yearlyPriceLabel(): string {
     const plan = this.form.controls.subscriptionPlan.value;
     const devices = this.form.controls.maxGpsDevices.value;
-    const perDevice = applyPlanDefaults(plan ?? 'Enterprise').yearlyPricePerDevice;
+    const def = applyPlanDefaults(plan ?? 'Enterprise');
     const count = Math.max(1, Math.floor(devices ?? 1));
-    return `${formatCurrency(perDevice, 'PKR')} × ${count} device${count === 1 ? '' : 's'} = `
-      + `${formatCurrency(planYearlyAmount(plan, count), 'PKR')} / year`;
+    const monthly = def.monthlyPricePerVehicleUsd * count + def.platformFeeMonthlyUsd;
+    const yearly = planYearlyAmount(plan, count);
+    return `${formatCurrency(def.monthlyPricePerVehicleUsd, 'USD')}/veh × ${count}`
+      + (def.platformFeeMonthlyUsd ? ` + ${formatCurrency(def.platformFeeMonthlyUsd, 'USD')} fee` : '')
+      + ` = ${formatCurrency(monthly, 'USD')}/mo`
+      + ` · annual ${formatCurrency(yearly, 'USD')} (15% off)`;
   }
 
   applyPlan(planName: string): void {

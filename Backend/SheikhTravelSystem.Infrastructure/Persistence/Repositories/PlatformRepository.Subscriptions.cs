@@ -179,12 +179,22 @@ public sealed partial class PlatformRepository
         if (detail is null) return null;
 
         var planKey = detail.SubscriptionCode ?? detail.PlanName;
+        var currency = string.IsNullOrWhiteSpace(detail.CurrencyCode)
+            ? SubscriptionPlanPricing.CurrencyUsd
+            : detail.CurrencyCode;
+        var accessExpires = detail.AccessExpiresAtUtc
+            ?? SubscriptionBillingLifecycle.ComputeAccessExpiry(detail.PaidThroughUtc);
         return detail with
         {
+            MonthlyPricePerVehicleUsd = SubscriptionPlanPricing.ResolveMonthlyPerVehicleUsd(planKey),
             YearlyPricePerDevice = SubscriptionPlanPricing.ResolveYearlyPerDevice(planKey),
             BillableGpsDevices = SubscriptionPlanPricing.BillableDevices(detail.MaxGpsDevices),
             YearlyAmount = SubscriptionPlanPricing.ResolveYearlyAmount(planKey, detail.MaxGpsDevices),
-            CycleAmount = SubscriptionPlanPricing.ResolveCycleAmount(planKey, detail.MaxGpsDevices, detail.BillingCycle)
+            CycleAmount = SubscriptionPlanPricing.ResolveCycleAmountInCurrency(
+                planKey, detail.MaxGpsDevices, detail.BillingCycle, currency),
+            CurrencyCode = currency,
+            AccessExpiresAtUtc = accessExpires,
+            RemainingAccessDays = SubscriptionBillingLifecycle.RemainingAccessDays(accessExpires, DateTime.UtcNow)
         };
     }
 
@@ -202,13 +212,16 @@ public sealed partial class PlatformRepository
                     COALESCE(s.Status, N'Active') AS Status,
                     COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
                     s.MonthlyAmount,
-                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.CurrencyCode, N'USD') AS CurrencyCode,
                     COALESCE(s.AutoRenew, 1) AS AutoRenew,
                     s.SubscriptionStartDate,
                     s.SubscriptionEndDate,
                     s.TrialEndDate,
                     s.NextBillingDate,
                     COALESCE(s.FeaturesLocked, 0) AS FeaturesLocked,
+                    s.PaidThroughUtc,
+                    s.AccessExpiresAtUtc,
+                    COALESCE(t.IsActive, 0) AS TenantIsActive,
                     s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices,
                     s.StorageQuotaGb, s.AICredits, COALESCE(s.GPSEnabled, 1) AS GPSEnabled
                 FROM Tenants t
@@ -226,11 +239,12 @@ public sealed partial class PlatformRepository
                     COALESCE(s.Status, N'Active') AS Status,
                     COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
                     s.MonthlyAmount,
-                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.CurrencyCode, N'USD') AS CurrencyCode,
                     COALESCE(s.AutoRenew, 1) AS AutoRenew,
                     s.SubscriptionStartDate,
                     s.SubscriptionEndDate,
                     s.TrialEndDate,
+                    COALESCE(t.IsActive, 0) AS TenantIsActive,
                     s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices
                 FROM Tenants t
                 LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
@@ -355,21 +369,32 @@ public sealed partial class PlatformRepository
             }
 
             case SubscriptionAction.Suspend:
-                await connection.ExecuteAsync(new CommandDefinition(
-                    "UPDATE TenantSubscriptions SET Status = N'Suspended', UpdatedAt = GETUTCDATE() WHERE TenantId = @TenantId",
-                    new { TenantId = tenantId }, cancellationToken: cancellationToken));
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE TenantSubscriptions
+                    SET Status = N'Suspended', FeaturesLocked = 1, UpdatedAt = GETUTCDATE()
+                    WHERE TenantId = @TenantId
+                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
                 break;
 
             case SubscriptionAction.Cancel:
-                await connection.ExecuteAsync(new CommandDefinition(
-                    "UPDATE TenantSubscriptions SET Status = N'Cancelled', AutoRenew = 0, UpdatedAt = GETUTCDATE() WHERE TenantId = @TenantId",
-                    new { TenantId = tenantId }, cancellationToken: cancellationToken));
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE TenantSubscriptions
+                    SET Status = N'Cancelled', AutoRenew = 0, FeaturesLocked = 1, UpdatedAt = GETUTCDATE()
+                    WHERE TenantId = @TenantId
+                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
                 break;
 
             case SubscriptionAction.Reactivate:
-                await connection.ExecuteAsync(new CommandDefinition(
-                    "UPDATE TenantSubscriptions SET Status = N'Active', UpdatedAt = GETUTCDATE() WHERE TenantId = @TenantId",
-                    new { TenantId = tenantId }, cancellationToken: cancellationToken));
+                // Admin soft-reactivate only for Suspended — Expired requires verified payment (mark paid).
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE TenantSubscriptions
+                    SET Status = N'Active',
+                        FeaturesLocked = 0,
+                        UpdatedAt = GETUTCDATE()
+                    WHERE TenantId = @TenantId
+                      AND Status = N'Suspended'
+                      AND (PaidThroughUtc IS NULL OR PaidThroughUtc >= GETUTCDATE())
+                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
                 break;
         }
 
@@ -385,11 +410,21 @@ public sealed partial class PlatformRepository
     {
         var inserted = await connection.ExecuteAsync(new CommandDefinition("""
             IF NOT EXISTS (SELECT 1 FROM TenantSubscriptions WHERE TenantId = @TenantId)
-            INSERT INTO TenantSubscriptions (TenantId, PlanName, Status, SubscriptionStartDate, SubscriptionEndDate, AutoRenew, BillingCycle, CurrencyCode, MaxGpsDevices, NextBillingDate)
+            INSERT INTO TenantSubscriptions (
+                TenantId, PlanName, Status, SubscriptionStartDate, SubscriptionEndDate,
+                AutoRenew, BillingCycle, CurrencyCode, MaxGpsDevices, NextBillingDate,
+                PaidThroughUtc, AccessExpiresAtUtc)
             SELECT @TenantId, COALESCE(t.SubscriptionPlan, N'Enterprise'), N'Active', GETUTCDATE(), DATEADD(month, 12, GETUTCDATE()), 1, @Cycle, N'PKR', 1,
-                   DATEADD(month, 12, GETUTCDATE())
+                   DATEADD(month, 12, GETUTCDATE()),
+                   DATEADD(month, 12, GETUTCDATE()),
+                   DATEADD(day, @Grace, DATEADD(month, 12, GETUTCDATE()))
             FROM Tenants t WHERE t.Id = @TenantId;
-            """, new { TenantId = tenantId, Cycle = SubscriptionBillingCycle.Default }, cancellationToken: ct));
+            """, new
+        {
+            TenantId = tenantId,
+            Cycle = SubscriptionBillingCycle.Default,
+            Grace = SubscriptionPlanPricing.OverdueGraceDays
+        }, cancellationToken: ct));
         if (inserted > 0)
             await RefreshSubscriptionPriceAsync(connection, tenantId, ct);
     }

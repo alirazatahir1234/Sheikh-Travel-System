@@ -186,9 +186,9 @@ export const ALWAYS_ON_MODULE_CODES = ['GPS', 'FLEET', 'DASHBOARD'] as const;
 export const TENANT_PLAN_TIERS = ['Enterprise', 'Pro', 'Starter'] as const;
 
 export type BillingCycle = 'Monthly' | 'Yearly';
-/** All plans are sold as one-year packages; Monthly survives only on legacy subscriptions. */
-export const BILLING_CYCLES: readonly BillingCycle[] = ['Yearly'];
-export const DEFAULT_BILLING_CYCLE: BillingCycle = 'Yearly';
+/** Platform admins may set Monthly or Yearly; default for new provisions is Monthly. */
+export const BILLING_CYCLES: readonly BillingCycle[] = ['Monthly', 'Yearly'];
+export const DEFAULT_BILLING_CYCLE: BillingCycle = 'Monthly';
 
 export function billingCycleMonths(cycle: string | null | undefined): number {
   return (cycle ?? '').trim().toLowerCase() === 'yearly' ? 12 : 1;
@@ -221,34 +221,58 @@ export interface PlanQuotas {
   maxGpsDevices: number | null;
 }
 
+/** Default FX for Pakistan display (mirrors SubscriptionBilling:UsdToPkr). */
+export const USD_TO_PKR_DEFAULT = 280;
+export const ANNUAL_DISCOUNT_PERCENT = 15;
+export const PRO_PLATFORM_FEE_MONTHLY_USD = 25;
+
 export interface PlanDefinition {
   quotas: PlanQuotas;
   moduleCodes: string[];
   description: string;
   bestFor: string;
-  /** PKR list price per licensed GPS device per year (mirrors backend SubscriptionPlanPricing). */
+  /** USD list price per licensed vehicle / month (mirrors backend SubscriptionPlanPricing). */
+  monthlyPricePerVehicleUsd: number;
+  /** Yearly prepaid USD per vehicle after 15% annual discount. */
+  yearlyPricePerVehicleUsd: number;
+  /** @deprecated Use yearlyPricePerVehicleUsd — kept as alias for older templates. */
   yearlyPricePerDevice: number;
+  /** Pro-only monthly platform fee (USD); waived on annual. */
+  platformFeeMonthlyUsd: number;
+}
+
+function yearlyFromMonthly(monthlyUsd: number): number {
+  return Math.round(monthlyUsd * 12 * (1 - ANNUAL_DISCOUNT_PERCENT / 100) * 100) / 100;
 }
 
 export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
   Starter: {
-    description: 'Core fleet & GPS operations — 1 user',
-    bestFor: 'Small companies',
-    yearlyPricePerDevice: 20_000,
-    quotas: { maxUsers: 1, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 1 },
+    description: 'Starter (Track) — live GPS & theft protection',
+    bestFor: 'Small fleets (1–10 vehicles)',
+    monthlyPricePerVehicleUsd: 6,
+    yearlyPricePerVehicleUsd: yearlyFromMonthly(6),
+    yearlyPricePerDevice: yearlyFromMonthly(6),
+    platformFeeMonthlyUsd: 0,
+    quotas: { maxUsers: 3, maxVehicles: 10, maxDrivers: 10, maxBranches: 1, maxGpsDevices: 1 },
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'ACCESS']
   },
   Pro: {
-    description: 'Full operations suite',
-    bestFor: 'Growing businesses',
-    yearlyPricePerDevice: 45_000,
-    quotas: { maxUsers: 50, maxVehicles: 250, maxDrivers: 250, maxBranches: 15, maxGpsDevices: 1 },
+    description: 'Pro (Optimize) — ops suite + platform fee on monthly',
+    bestFor: 'Growing logistics & service fleets (10–50)',
+    monthlyPricePerVehicleUsd: 12,
+    yearlyPricePerVehicleUsd: yearlyFromMonthly(12),
+    yearlyPricePerDevice: yearlyFromMonthly(12),
+    platformFeeMonthlyUsd: PRO_PLATFORM_FEE_MONTHLY_USD,
+    quotas: { maxUsers: 10, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 1 },
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
   },
   Enterprise: {
-    description: 'All modules, unlimited users',
-    bestFor: 'Large organizations',
-    yearlyPricePerDevice: 70_000,
+    description: 'Enterprise (ERP) — full RBAC & ERP modules',
+    bestFor: 'Large transport & corporate fleets (50+)',
+    monthlyPricePerVehicleUsd: 20,
+    yearlyPricePerVehicleUsd: yearlyFromMonthly(20),
+    yearlyPricePerDevice: yearlyFromMonthly(20),
+    platformFeeMonthlyUsd: 0,
     quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: 1 },
     // Routes (TRAVEL) included; Bookings & Trips + Road Speed Alerts + SheikhGo AI Assistant stay manual opt-in.
     moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', ...DEFAULT_ALERT_MODULE_CODES, 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
@@ -259,10 +283,26 @@ export function applyPlanDefaults(planName: string): PlanDefinition {
   return PLAN_DEFINITIONS[planName] ?? PLAN_DEFINITIONS['Enterprise'];
 }
 
-/** Yearly package = per-device price × licensed devices (minimum 1). */
+export function planMonthlyAmountUsd(
+  planName: string | null | undefined,
+  devices: number | null | undefined,
+  billingCycle: 'Monthly' | 'Yearly' = 'Monthly'
+): number {
+  const def = applyPlanDefaults(planName ?? 'Enterprise');
+  const seats = Math.max(1, Math.floor(devices ?? 1));
+  const vehicles = def.monthlyPricePerVehicleUsd * seats;
+  const fee = billingCycle === 'Yearly' ? 0 : def.platformFeeMonthlyUsd;
+  return Math.round((vehicles + fee) * 100) / 100;
+}
+
+/** Yearly prepaid USD package = yearly per-vehicle × seats (platform fee waived). */
 export function planYearlyAmount(planName: string | null | undefined, devices: number | null | undefined): number {
-  const perDevice = applyPlanDefaults(planName ?? 'Enterprise').yearlyPricePerDevice;
-  return perDevice * Math.max(1, Math.floor(devices ?? 1));
+  const per = applyPlanDefaults(planName ?? 'Enterprise').yearlyPricePerVehicleUsd;
+  return Math.round(per * Math.max(1, Math.floor(devices ?? 1)) * 100) / 100;
+}
+
+export function usdToPkr(usd: number, rate = USD_TO_PKR_DEFAULT): number {
+  return Math.round(usd * rate * 100) / 100;
 }
 
 export const TENANT_TYPES = [
@@ -1210,6 +1250,11 @@ export interface SubscriptionDetail {
   licensedModuleCodes?: string[];
   featuresLocked?: boolean;
   nextBillingDate?: string | null;
+  paidThroughUtc?: string | null;
+  accessExpiresAtUtc?: string | null;
+  remainingAccessDays?: number;
+  tenantIsActive?: boolean;
+  monthlyPricePerVehicleUsd?: number;
   yearlyPricePerDevice?: number;
   billableGpsDevices?: number;
   yearlyAmount?: number;
@@ -1225,6 +1270,23 @@ export interface SubscriptionRevenueDashboard {
   collectedLast30Days: number;
   upcomingRenewals: SubscriptionRenewalRow[];
   overdueAccountRows: SubscriptionOverdueRow[];
+  annualRecurringRevenue?: number;
+  expiredSubscriptions?: number;
+  deactivatedTenants?: number;
+}
+
+export interface LicenseSummary {
+  subscriptionCode?: string | null;
+  planName?: string | null;
+  planDisplayName?: string | null;
+  status: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  autoRenew: boolean;
+  licensedModuleCodes?: string[];
+  featuresLocked?: boolean;
+  overdueAmount?: number;
+  billingMessage?: string | null;
 }
 
 export interface SubscriptionRenewalRow {

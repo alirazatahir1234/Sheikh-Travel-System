@@ -8,6 +8,7 @@ import '../../../shared/widgets/sg_ui.dart';
 import '../../auth/data/auth_repository.dart';
 import 'fleet_hub_notifier.dart';
 import 'fleet_vehicle_filters.dart';
+import 'platform_company_filter.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/fleet_vehicle_filter_sheet.dart';
 import 'widgets/fleet_vehicle_tile.dart';
@@ -46,16 +47,23 @@ class FleetHubScreen extends ConsumerWidget {
       });
     }
 
+    final session = ref.watch(fleetSessionProvider);
+    final crossTenant = session?.canCrossTenantVehicles == true;
+
     return Scaffold(
       backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: Text(
-          ref.watch(fleetSessionProvider)?.isGpsOperator == true
-              ? 'Vehicles'
-              : 'Fleet',
+          session?.isGpsOperator == true ? 'Vehicles' : 'Fleet',
         ),
         actions: [
-          if (ref.watch(fleetSessionProvider)?.canSeeFleetAssignments == true)
+          if (crossTenant)
+            IconButton(
+              tooltip: 'Company filter',
+              icon: const Icon(Icons.business_rounded),
+              onPressed: () => _showCompanyFilterSheet(context, ref),
+            ),
+          if (session?.canSeeFleetAssignments == true)
             IconButton(
               tooltip: 'Assignments',
               icon: const Icon(Icons.event_available_outlined),
@@ -98,6 +106,15 @@ class FleetHubScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (crossTenant)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: _PlatformCompanyFilterChip(
+                        onTap: () => _showCompanyFilterSheet(context, ref),
+                      ),
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: FleetKpiStrip(
                     kpis: hub.kpis,
@@ -497,4 +514,170 @@ class _LiveBadgeState extends State<_LiveBadge>
       ),
     );
   }
+}
+
+class _PlatformCompanyFilterChip extends ConsumerWidget {
+  const _PlatformCompanyFilterChip({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedId = ref.watch(platformCompanyFilterProvider);
+    final companies = ref.watch(adminCompaniesProvider).valueOrNull ?? const [];
+    String label = 'All Companies';
+    if (selectedId != null) {
+      final match = companies.where((c) => c.id == selectedId).toList();
+      label = match.isEmpty ? 'Company #$selectedId' : match.first.name;
+    }
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: context.sg.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.apartment_rounded,
+                  size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: context.sg.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                'Filter',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: context.sg.textMuted,
+                ),
+              ),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  color: context.sg.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showCompanyFilterSheet(BuildContext context, WidgetRef ref) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final async = ref.watch(adminCompaniesProvider);
+          final selected = ref.watch(platformCompanyFilterProvider);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Filter by company',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: context.sg.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Default: All Companies (cross-tenant)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.sg.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    leading: Icon(
+                      selected == null
+                          ? Icons.check_circle_rounded
+                          : Icons.circle_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('All Companies'),
+                    onTap: () async {
+                      await ref
+                          .read(platformCompanyFilterProvider.notifier)
+                          .select(null);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ),
+                  Flexible(
+                    child: async.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: SgBrandLoader()),
+                      ),
+                      error: (e, _) => Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(ErrorHandler.message(e)),
+                      ),
+                      data: (companies) {
+                        if (companies.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text('No companies available.'),
+                          );
+                        }
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: companies.length,
+                          itemBuilder: (_, i) {
+                            final c = companies[i];
+                            final active = selected == c.id;
+                            return ListTile(
+                              leading: Icon(
+                                active
+                                    ? Icons.check_circle_rounded
+                                    : Icons.circle_outlined,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(c.name),
+                              subtitle: Text(
+                                '${c.activeVehicleCount} vehicles'
+                                '${c.isActive ? '' : ' · inactive'}',
+                              ),
+                              onTap: () async {
+                                await ref
+                                    .read(
+                                        platformCompanyFilterProvider.notifier)
+                                    .select(c.id);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
 }

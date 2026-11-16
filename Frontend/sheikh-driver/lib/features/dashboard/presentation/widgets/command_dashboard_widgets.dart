@@ -310,23 +310,30 @@ class UniversalSearchBarCard extends StatelessWidget {
     final p = context.sg;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadii.md),
+      borderRadius: BorderRadius.circular(18),
       elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        borderRadius: BorderRadius.circular(18),
         onTap: () => showUniversalSearchSheet(context),
         child: Container(
-          height: 44,
+          height: 42,
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: p.chipBg,
-            borderRadius: BorderRadius.circular(AppRadii.md),
+            color: p.card,
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: p.border.withValues(alpha: 0.85)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Icon(Icons.search_rounded, color: p.textMuted, size: 20),
+              Icon(Icons.search_rounded, color: p.textMuted, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -335,12 +342,19 @@ class UniversalSearchBarCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: p.textMuted,
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              Icon(Icons.tune_rounded, size: 18, color: p.textSecondary),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: p.chipBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.tune_rounded, size: 16, color: p.textSecondary),
+              ),
             ],
           ),
         ),

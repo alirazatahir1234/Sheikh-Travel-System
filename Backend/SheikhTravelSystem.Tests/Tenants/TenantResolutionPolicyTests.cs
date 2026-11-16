@@ -71,7 +71,26 @@ public class TenantResolutionPolicyTests
 
         d.Reject.Should().BeFalse();
         d.TenantId.Should().Be(2);
+        d.CrossTenantBypass.Should().BeFalse();
         d.WarnReason.Should().Contain("Platform operator");
+    }
+
+    [Fact]
+    public void SuperAdmin_NoHeader_MarksCrossTenantBypass_KeepsJwtWorkingTenant()
+    {
+        var d = TenantResolutionPolicy.Decide(
+            jwtTenantId: 1,
+            headerTenantId: null,
+            slugResolvedTenantId: null,
+            slug: null,
+            isAuthenticated: true,
+            isPlatformOperator: true,
+            allowAnonymousDefaultTenant: true);
+
+        d.Reject.Should().BeFalse();
+        d.TenantId.Should().Be(1);
+        d.CrossTenantBypass.Should().BeTrue();
+        d.WarnReason.Should().Contain("cross-tenant bypass");
     }
 
     [Fact]

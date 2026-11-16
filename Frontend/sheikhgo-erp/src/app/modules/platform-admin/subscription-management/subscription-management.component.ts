@@ -13,6 +13,8 @@ import {
   SubscriptionAction,
   CompanyLicense,
   TENANT_PLAN_TIERS,
+  BILLING_CYCLES,
+  BillingCycle,
   billingCycleMonths,
   formatCurrency
 } from '../../../core/models/platform.model';
@@ -31,7 +33,9 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
   overview: SubscriptionOverview | null = null;
 
   upgradePlan = '';
+  upgradeCycle: BillingCycle = 'Monthly';
   readonly planOptions = TENANT_PLAN_TIERS;
+  readonly billingCycles = BILLING_CYCLES;
 
   private destroy$ = new Subject<void>();
 
@@ -80,6 +84,8 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
       next: (overview) => {
         this.overview = overview;
         this.upgradePlan = overview.subscription.planName ?? '';
+        const cycle = (overview.subscription.billingCycle || 'Monthly') as BillingCycle;
+        this.upgradeCycle = cycle === 'Yearly' ? 'Yearly' : 'Monthly';
         this.loading = false;
       },
       error: (err) => {
@@ -123,6 +129,8 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
   statusClass(status: string): string {
     const s = status.toLowerCase();
     if (s === 'active') return 'status-active';
+    if (s === 'pastdue') return 'status-suspended';
+    if (s === 'expired') return 'status-cancelled';
     if (s === 'suspended') return 'status-suspended';
     if (s === 'cancelled') return 'status-cancelled';
     return 'status-default';
@@ -137,32 +145,36 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
   }
 
   isExpiringSoon(): boolean {
-    const end = this.subscription?.subscriptionEndDate;
-    if (!end) return false;
-    const days = (new Date(end).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-    return days >= 0 && days <= 30;
+    const days = this.subscription?.remainingAccessDays;
+    if (days == null) return false;
+    return days >= 0 && days <= 7;
   }
 
   isExpired(): boolean {
-    const end = this.subscription?.subscriptionEndDate;
-    if (!end) return false;
-    return new Date(end).getTime() < Date.now();
+    const status = (this.subscription?.status || '').toLowerCase();
+    if (status === 'expired' || this.subscription?.tenantIsActive === false) return true;
+    const days = this.subscription?.remainingAccessDays;
+    return days != null && days < 0;
   }
 
   get isYearly(): boolean {
     return billingCycleMonths(this.subscription?.billingCycle) === 12;
   }
 
-  /** Legacy monthly subscriptions move to the yearly package when a plan is applied. */
   get planChangePending(): boolean {
     const sub = this.subscription;
     if (!sub || !this.upgradePlan) return false;
-    return this.upgradePlan !== sub.planName || !this.isYearly;
+    const cycleChanged = this.upgradeCycle !== (this.isYearly ? 'Yearly' : 'Monthly');
+    return this.upgradePlan !== sub.planName || cycleChanged;
   }
 
   upgrade(): void {
     if (!this.subscription || !this.upgradePlan) return;
-    this.runAction({ action: 'Upgrade', planName: this.upgradePlan, billingCycle: 'Yearly' });
+    this.runAction({
+      action: 'Upgrade',
+      planName: this.upgradePlan,
+      billingCycle: this.upgradeCycle
+    });
   }
 
   renew(): void {

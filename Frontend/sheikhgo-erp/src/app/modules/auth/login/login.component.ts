@@ -85,11 +85,16 @@ export class LoginComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        const message =
+        const code = err?.error?.code || err?.error?.Code || '';
+        let message =
           err?.error?.message ||
           err?.error?.Message ||
           err?.message ||
           'Invalid email or password';
+        if (code === 'subscription_expired' || code === 'tenant_deactivated') {
+          message = err?.error?.message
+            || 'Your company subscription has expired and access is blocked. Contact SheikhGo billing to renew.';
+        }
         this.serverError = message;
         this.toast.error(message);
       }

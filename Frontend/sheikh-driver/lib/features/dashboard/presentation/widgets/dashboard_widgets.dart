@@ -8,8 +8,10 @@ import '../../../../core/constants/app_brand.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../alerts/domain/gps_alert_models.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../../fleet/domain/fleet_models.dart';
 import '../../../fleet/domain/fleet_status.dart';
+import '../../../fleet/presentation/platform_company_filter.dart';
 import '../../../fleet/presentation/widgets/vehicle_pulse_icons.dart';
 import '../../../notifications/presentation/notifications_notifier.dart';
 import '../../../ops_trips/domain/ops_trip_models.dart';
@@ -135,39 +137,159 @@ class OpsHeaderCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Mockup: official mark + dark navy wordmark on light header.
-                Image.asset(
-                  AppBrand.logoOnLightAsset,
-                  height: 36,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    AppBrand.logoAsset,
-                    height: 36,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Image.asset(
+                        AppBrand.logoOnLightAsset,
+                        height: 36,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppBrand.logoAsset,
+                          height: 36,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    AppBrand.productName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 18,
+                                      letterSpacing: -0.3,
+                                      color: p.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'FLEET',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.4,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final cross = ref
+                                        .watch(fleetSessionProvider)
+                                        ?.canCrossTenantVehicles ==
+                                    true;
+                                final filterId =
+                                    ref.watch(platformCompanyFilterProvider);
+                                final companies = cross
+                                    ? (ref
+                                            .watch(adminCompaniesProvider)
+                                            .valueOrNull ??
+                                        const [])
+                                    : const [];
+                                String chipLabel = tenantLabel;
+                                if (cross) {
+                                  if (filterId == null) {
+                                    chipLabel = 'All Companies';
+                                  } else {
+                                    final match = companies
+                                        .where((c) => c.id == filterId)
+                                        .toList();
+                                    chipLabel = match.isEmpty
+                                        ? 'Company #$filterId'
+                                        : match.first.name;
+                                  }
+                                }
+                                return InkWell(
+                                  onTap: () {
+                                    if (cross) {
+                                      // Fleet hub owns the filter sheet; push Vehicles tab.
+                                      context.go('/fleet');
+                                      return;
+                                    }
+                                    _showTenantSheet(context, tenantLabel);
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.apartment_rounded,
+                                        size: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          chipLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: p.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        size: 16,
+                                        color: p.textMuted,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  AppBrand.productName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    letterSpacing: -0.3,
-                    color: p.textPrimary,
-                  ),
-                ),
-                const Spacer(),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: 'Settings',
                   visualDensity: VisualDensity.compact,
+                  style: IconButton.styleFrom(
+                    backgroundColor: p.card,
+                    side: BorderSide(color: p.border.withValues(alpha: 0.85)),
+                  ),
                   onPressed: () => context.push('/settings'),
                   icon: Icon(Icons.settings_outlined, color: p.textPrimary),
                 ),
                 IconButton(
                   tooltip: 'Notifications',
                   visualDensity: VisualDensity.compact,
+                  style: IconButton.styleFrom(
+                    backgroundColor: p.card,
+                    side: BorderSide(color: p.border.withValues(alpha: 0.85)),
+                  ),
                   onPressed: () => context.go('/notifications'),
                   icon: SgNotificationBellIcon(
                     unreadCount: unread,
@@ -176,82 +298,67 @@ class OpsHeaderCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            InkWell(
-              onTap: () => _showTenantSheet(context, tenantLabel),
-              borderRadius: BorderRadius.circular(22),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: p.card,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.border.withValues(alpha: 0.85)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$greeting, $first',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: p.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.4,
+                                  height: 1.15,
+                                  fontSize: 20,
+                                ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        role == DashboardRole.driver
+                            ? "Here's what's on your schedule"
+                            : 'Fleet command overview.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: p.textSecondary,
+                              fontSize: 12,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.apartment_rounded,
-                        size: 16, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 180),
-                      child: Text(
-                        tenantLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.sync_rounded,
+                        size: 12,
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        syncLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: p.textPrimary,
+                          color: AppColors.primaryDark,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18, color: p.textMuted),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$greeting, $first',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: p.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    height: 1.15,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              role == DashboardRole.driver
-                  ? "Here's what's on your schedule"
-                  : 'Fleet command overview.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: p.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.check_circle_rounded,
-                    size: 14, color: AppColors.success),
-                const SizedBox(width: 5),
-                Text(
-                  syncLabel,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    ],
                   ),
                 ),
               ],
@@ -428,27 +535,36 @@ class _PrimaryKpiTile extends StatelessWidget {
     final p = context.sg;
     final color = _colorKey(cell.colorKey);
     return SgCard(
-      padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
       onTap: cell.route == null ? null : () => context.push(cell.route!),
       child: SizedBox(
-        // Owner/fleet mockup: tall enough for icon + label + value (~tappable).
-        height: 128,
+        // Compact bento so Fleet Activity + map stay above the fold.
+        height: 100,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(_icon(cell.label), color: color, size: 20),
+                  child: Icon(_icon(cell.label), color: color, size: 18),
                 ),
                 const Spacer(),
-                Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right_rounded, size: 16, color: p.textMuted),
               ],
             ),
             const Spacer(),
@@ -457,7 +573,7 @@ class _PrimaryKpiTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: p.textSecondary,
               ),
@@ -468,11 +584,12 @@ class _PrimaryKpiTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
                 color: p.textPrimary,
-                height: 1.1,
+                height: 1.05,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -521,7 +638,7 @@ class FleetActivityDistributionCard extends StatelessWidget {
               child: Text(
                 'Fleet Activity',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: p.textPrimary,
                 ),
@@ -554,7 +671,7 @@ class FleetActivityDistributionCard extends StatelessWidget {
           child: Column(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(999),
                 child: SizedBox(
                   height: 10,
                   child: total <= 0
@@ -908,9 +1025,11 @@ class LiveMapPreviewCard extends StatefulWidget {
     super.key,
     required this.positions,
     this.movingCount = 0,
+    this.idleCount = 0,
   });
   final List<GpsPosition> positions;
   final int movingCount;
+  final int idleCount;
 
   @override
   State<LiveMapPreviewCard> createState() => _LiveMapPreviewCardState();
@@ -1031,6 +1150,7 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
   Widget build(BuildContext context) {
     final p = context.sg;
     final moving = widget.movingCount < 0 ? 0 : widget.movingCount;
+    final idle = widget.idleCount < 0 ? 0 : widget.idleCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1040,7 +1160,7 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
               child: Text(
                 'Live Fleet Map',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: p.textPrimary,
                 ),
@@ -1071,9 +1191,9 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
         SgCard(
           padding: EdgeInsets.zero,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             child: SizedBox(
-              height: 168,
+              height: 176,
               child: Stack(
                 children: [
                   IgnorePointer(
@@ -1103,31 +1223,49 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
                       ),
                     ),
                   ),
+                  // Top-left status pill — avoids Google watermark collision.
                   Positioned(
-                    left: 12,
-                    bottom: 12,
+                    left: 10,
+                    top: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.28),
+                          color: p.border.withValues(alpha: 0.85),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.sensors_rounded,
-                              size: 14, color: AppColors.primary),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: moving > 0
+                                  ? AppColors.primary
+                                  : AppColors.warning,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            '$moving vehicle${moving == 1 ? '' : 's'} moving',
-                            style: const TextStyle(
-                              fontSize: 12,
+                            '$moving moving · $idle idle',
+                            style: TextStyle(
+                              fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                              color: p.textPrimary,
                             ),
                           ),
                         ],
@@ -1275,7 +1413,7 @@ class CriticalAlertsCard extends StatelessWidget {
               child: Text(
                 'Alerts Requiring Attention',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: p.textPrimary,
                 ),
@@ -1408,21 +1546,46 @@ class _AlertRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _humanize(event.eventType),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: p.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _humanize(event.eventType),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (alert.count > 1) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'x${alert.count}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    alert.count > 1
-                        ? '$vehicleName · x${alert.count}'
-                        : vehicleName,
+                    vehicleName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1666,11 +1829,26 @@ class RecentActivitiesCard extends StatelessWidget {
         _ => AppColors.info,
       };
 
+  /// Collapse consecutive identical titles into one row with a count pill.
+  List<({ActivityItem item, int count})> _dedupe(List<ActivityItem> source) {
+    final out = <({ActivityItem item, int count})>[];
+    for (final item in source) {
+      if (out.isNotEmpty &&
+          out.last.item.title.trim().toLowerCase() ==
+              item.title.trim().toLowerCase()) {
+        final prev = out.removeLast();
+        out.add((item: prev.item, count: prev.count + 1));
+      } else {
+        out.add((item: item, count: 1));
+      }
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.sg;
-    // Mockup shows 2–3 rows; View All opens the full activities list screen.
-    final visible = items.take(3).toList();
+    final grouped = _dedupe(items).take(3).toList();
     final badge = totalCount ?? items.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1681,7 +1859,7 @@ class RecentActivitiesCard extends StatelessWidget {
               child: Text(
                 'Recent Activity',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: p.textPrimary,
                 ),
@@ -1711,19 +1889,19 @@ class RecentActivitiesCard extends StatelessWidget {
         const SizedBox(height: 8),
         SgCard(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: visible.isEmpty
+          child: grouped.isEmpty
               ? const SgInlineEmpty(
                   message: 'No recent activity yet',
                   icon: Icons.timeline_outlined,
                 )
               : Column(
                   children: [
-                    for (var i = 0; i < visible.length; i++) ...[
+                    for (var i = 0; i < grouped.length; i++) ...[
                       if (i > 0) Divider(height: 1, color: p.divider),
                       InkWell(
-                        onTap: visible[i].route == null
+                        onTap: grouped[i].item.route == null
                             ? null
-                            : () => context.push(visible[i].route!),
+                            : () => context.push(grouped[i].item.route!),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Row(
@@ -1732,14 +1910,14 @@ class RecentActivitiesCard extends StatelessWidget {
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: _color(visible[i].kind)
+                                  color: _color(grouped[i].item.kind)
                                       .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
-                                  _icon(visible[i].kind),
+                                  _icon(grouped[i].item.kind),
                                   size: 18,
-                                  color: _color(visible[i].kind),
+                                  color: _color(grouped[i].item.kind),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -1747,20 +1925,52 @@ class RecentActivitiesCard extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      visible[i].title,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: p.textPrimary,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            grouped[i].item.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: p.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                        if (grouped[i].count > 1) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.warning
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${grouped[i].count}x',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.warning,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
-                                    if (visible[i].subtitle.isNotEmpty)
+                                    if (grouped[i].item.subtitle.isNotEmpty)
                                       Text(
-                                        visible[i].subtitle,
+                                        grouped[i].item.subtitle,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           color: p.textSecondary,
                                         ),
                                       ),
@@ -1768,7 +1978,7 @@ class RecentActivitiesCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _relativeTime(visible[i].at),
+                                _relativeTime(grouped[i].item.at),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: p.textSecondary,
@@ -1819,6 +2029,9 @@ class LiveFleetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LiveMapPreviewCard(
       positions: data.livePositions,
+      idleCount: (data.gps?.idle ?? 0) +
+          (data.gps?.parked ?? 0) +
+          (data.gps?.sos ?? 0),
       movingCount: data.gps?.moving ?? 0,
     );
   }

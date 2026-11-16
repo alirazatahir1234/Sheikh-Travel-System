@@ -21,9 +21,9 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
-        // SuperAdmin-only permissions (Gps.Command*, Platform.Tenants.*, Platform.Gps.*,
-        // Platform.Migrations.*, Platform.System.*) must never succeed for tenant roles,
-        // even if a stale token or legacy RolePermissions row carries the claim.
+        // SuperAdmin-only permissions (Gps.Command*, Platform.Tenants.*, Platform.Vehicles.*,
+        // Platform.Gps.*, Platform.Migrations.*, Platform.System.*) must never succeed for
+        // tenant roles, even if a stale token or legacy RolePermissions row carries the claim.
         if (IsSuperAdminOnlyPermission(requirement.Permission))
         {
             return Task.CompletedTask;
@@ -100,6 +100,7 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         if (string.IsNullOrWhiteSpace(permission)) return false;
         return permission.StartsWith("Gps.Command", StringComparison.OrdinalIgnoreCase)
             || permission.StartsWith("Platform.Tenants.", StringComparison.OrdinalIgnoreCase)
+            || permission.StartsWith("Platform.Vehicles.", StringComparison.OrdinalIgnoreCase)
             || permission.StartsWith("Platform.Gps.", StringComparison.OrdinalIgnoreCase)
             || permission.StartsWith("Platform.Migrations.", StringComparison.OrdinalIgnoreCase)
             || permission.StartsWith("Platform.System.", StringComparison.OrdinalIgnoreCase);

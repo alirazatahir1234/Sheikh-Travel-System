@@ -136,7 +136,10 @@
             {{ formatQuota(planDef.quotas.maxVehicles) }} vehicles,
             {{ formatQuota(planDef.quotas.maxDrivers) }} drivers,
             {{ formatQuota(planDef.quotas.maxBranches) }} branches
-            · {{ formatPkr(planDef.yearlyPricePerDevice) }} per GPS device / year
+            · {{ formatUsdWithPkr(planDef.monthlyPricePerVehicleUsd) }} per vehicle / month
+            <span *ngIf="planDef.platformFeeMonthlyUsd">
+              · + {{ formatUsdWithPkr(planDef.platformFeeMonthlyUsd) }} platform fee (waived on annual)
+            </span>
           </p>
         </div>
         <p class="section-label">Subscription Period</p>
@@ -144,7 +147,7 @@
           <div class="stb-field">
             <label for="billing-cycle">Billing Cycle</label>
             <input id="billing-cycle" class="stb-input stb-input--readonly" type="text" readonly tabindex="-1"
-              value="Yearly · 1-year package" />
+              value="Monthly · USD per vehicle (15% off annual)" />
           </div>
           <div class="stb-field">
             <label for="subscription-start">Start Date <span class="req" aria-hidden="true">*</span></label>
@@ -157,14 +160,15 @@
           </div>
         </div>
         <span id="subscription-end-hint" class="stb-hint period-hint">
-          End date is set automatically to one year after the start date. The first invoice is raised on the
-          start date, then the subscription renews yearly.
+          End date follows the billing cycle (1 month by default). The first invoice is raised on the
+          start date; annual prepaid is 15% off vehicle seats (Pro platform fee waived).
         </span>
         <div class="price-summary" aria-live="polite">
           <span class="price-summary__calc">
-            {{ formatPkr(pricePerDevice) }} × {{ licensedDevices }} GPS device{{ licensedDevices === 1 ? '' : 's' }}
+            {{ formatUsdWithPkr(pricePerVehicleMonthlyUsd) }} × {{ licensedDevices }} vehicle{{ licensedDevices === 1 ? '' : 's' }} / mo
           </span>
-          <strong class="price-summary__total">{{ formatPkr(yearlyTotal) }} / year</strong>
+          <strong class="price-summary__total">{{ formatUsdWithPkr(monthlyTotalUsd) }} / month</strong>
+          <span class="price-summary__calc">Annual prepaid: {{ formatUsdWithPkr(yearlyTotal) }}</span>
         </div>
         <p class="section-label">Select Modules</p>
         <p class="stb-hint">
@@ -474,7 +478,8 @@
           <div><dt>Active Modules</dt><dd>{{ activeModuleCount }}</dd></div>
           <div><dt>User Quota</dt><dd>{{ summaryUserQuota }}</dd></div>
           <div><dt>GPS Devices</dt><dd>{{ licensedDevices }}</dd></div>
-          <div><dt>Yearly Price</dt><dd>{{ formatPkr(yearlyTotal) }}</dd></div>
+          <div><dt>Monthly Price</dt><dd>{{ formatUsdWithPkr(monthlyTotalUsd) }}</dd></div>
+          <div><dt>Annual (15% off)</dt><dd>{{ formatUsdWithPkr(yearlyTotal) }}</dd></div>
           <div><dt>Starts</dt><dd>{{ (planGroup.get('subscriptionStartDate')?.value | date:'mediumDate') || '—' }}</dd></div>
           <div><dt>Ends</dt><dd>{{ (subscriptionEndDate | date:'mediumDate') || '—' }}</dd></div>
         </dl>

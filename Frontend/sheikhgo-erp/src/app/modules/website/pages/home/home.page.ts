@@ -7,6 +7,7 @@ import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { WebsiteI18nService } from '../../core/website-i18n.service';
+import { WebsiteMarketService } from '../../core/website-market.service';
 import {
   BUSINESS_BENEFITS,
   BUSINESS_BENEFITS_VISUAL,
@@ -41,6 +42,7 @@ import { WebsiteGoogleAnalyticsService } from '../../core/website-google-analyti
 export class HomePage implements OnInit, AfterViewInit, OnDestroy {
   readonly brand = WEBSITE_BRAND;
   readonly i18n = inject(WebsiteI18nService);
+  readonly market = inject(WebsiteMarketService);
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
   private readonly route = inject(ActivatedRoute);
@@ -138,19 +140,28 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
 
   readonly subscriptionTiers = computed(() => {
     this.i18n.lang();
+    this.market.market();
+    this.market.usdToPkrRate();
+    this.market.billingPeriod();
+    const apiTiers = this.market.tiers();
+    const price = (code: string, fallback: number) =>
+      this.market.formatMonthlyPerVehicle(apiTiers.find(t => t.code === code)?.monthlyPerVehicleUsd ?? fallback);
+    const annualNote = this.i18n.t('pages.pricing.annualNote');
     return [
       {
         id: 'starter',
         name: this.i18n.t('pages.pricing.starter.name'),
         fleet: this.i18n.t('pages.pricing.starter.fleet'),
-        price: '20,000',
+        price: price('STARTER', 6),
+        priceNote: this.i18n.t('pages.pricing.starter.priceNote'),
         featured: false,
       },
       {
         id: 'pro',
         name: this.i18n.t('pages.pricing.pro.name'),
         fleet: this.i18n.t('pages.pricing.pro.fleet'),
-        price: '45,000',
+        price: price('PRO', 12),
+        priceNote: this.i18n.t('pages.pricing.pro.priceNote'),
         featured: true,
         badge: this.i18n.t('pages.pricing.pro.badge'),
       },
@@ -158,8 +169,8 @@ export class HomePage implements OnInit, AfterViewInit, OnDestroy {
         id: 'enterprise',
         name: this.i18n.t('pages.pricing.enterprise.name'),
         fleet: this.i18n.t('pages.pricing.enterprise.fleet'),
-        price: '70,000',
-        priceNote: this.i18n.t('pages.pricing.enterprise.priceNote'),
+        price: price('ENTERPRISE', 20),
+        priceNote: `${this.i18n.t('pages.pricing.enterprise.priceNote')} ${annualNote}`,
         featured: false,
       },
     ];

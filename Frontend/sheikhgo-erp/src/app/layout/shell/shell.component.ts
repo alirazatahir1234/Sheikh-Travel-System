@@ -7,6 +7,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { SmartAlertService } from '../../core/services/smart-alert.service';
 import { GlobalSearchService, SearchResult } from '../../core/services/global-search.service';
+import { PlatformService } from '../../core/services/platform.service';
+import { LicenseSummary } from '../../core/models/platform.model';
 import {
   Notification,
   NotificationType,
@@ -79,6 +81,9 @@ export class ShellComponent implements OnInit, OnDestroy {
   mobileNavOpen = false;
   menuLoading = true;
   menu: ResolvedMenu | null = null;
+  /** Soft billing warning from license summary (PastDue / nearing expiry). */
+  billingBanner: string | null = null;
+  billingBannerCritical = false;
   readonly skeletonNavRows = [1, 2, 3, 4, 5, 6, 7, 8];
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
@@ -105,6 +110,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     private tenantConfig: TenantConfigService,
     private menuService: MenuService,
     private http: HttpClient,
+    private platform: PlatformService,
     private aiAssistantOpenSound: AiAssistantOpenSoundService
   ) {
     this.currentUser$ = auth.currentUser$;
@@ -153,6 +159,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.isSidebarPinned = this.readSidebarPinnedPreference();
+    this.loadBillingBanner();
 
     this.tenantConfig.loadBranding().subscribe(b => {
       if (b?.enabledModules?.length) {
@@ -719,5 +726,21 @@ export class ShellComponent implements OnInit, OnDestroy {
       .get<{ timeZone?: string | null }>(`${environment.apiUrl}/users/profile`)
       .pipe(take(1), catchError(() => of(null)))
       .subscribe(profile => this.localTime.setUserTimeZone(profile?.timeZone));
+  }
+
+  private loadBillingBanner(): void {
+    if (!this.auth.isLoggedIn() || this.isDriverUser) return;
+    this.platform.getMyLicenseSummary().pipe(
+      take(1),
+      catchError(() => of(null as LicenseSummary | null))
+    ).subscribe(summary => {
+      if (!summary?.billingMessage) {
+        this.billingBanner = null;
+        return;
+      }
+      this.billingBanner = summary.billingMessage;
+      this.billingBannerCritical = !!summary.featuresLocked
+        || /expired|blocked/i.test(summary.billingMessage);
+    });
   }
 }

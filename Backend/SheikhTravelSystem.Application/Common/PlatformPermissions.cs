@@ -10,6 +10,8 @@ public static class PlatformPermissions
     public const string RolesManage = "Platform.Roles.Manage";
     public const string TenantsView = "Platform.Tenants.View";
     public const string TenantsManage = "Platform.Tenants.Manage";
+    /// <summary>Cross-company vehicle read for platform SUPER_ADMIN (admin vehicles API).</summary>
+    public const string VehiclesViewAll = "Platform.Vehicles.ViewAll";
     public const string BranchesView = "Platform.Branches.View";
     public const string BranchesManage = "Platform.Branches.Manage";
     public const string DepartmentsManage = "Platform.Departments.Manage";
@@ -44,7 +46,7 @@ public static class PlatformPermissions
     public static readonly string[] All =
     [
         DashboardView, UsersView, UsersCreate, UsersEdit,
-        RolesView, RolesManage, TenantsView, TenantsManage,
+        RolesView, RolesManage, TenantsView, TenantsManage, VehiclesViewAll,
         BranchesView, BranchesManage, DepartmentsManage, AuditLogsView, AuditView, AuditManage, MenusManage, WorkspacesManage,
         DashboardsView, DashboardsManage, SecurityView, SecurityManage,
         SettingsView, SettingsManage, MigrationsView, MigrationsManage, SystemReset,

@@ -896,6 +896,35 @@
   background: linear-gradient(180deg, #f4f7fa 0%, #e8eef4 55%, #eef4f8 100%);
 }
 
+.stb-billing-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff8e6;
+  border: 1px solid #f0d78c;
+  color: #7a5b00;
+  font-size: 0.92rem;
+  line-height: 1.4;
+
+  mat-icon {
+    flex: 0 0 auto;
+    color: #c79100;
+  }
+
+  &.critical {
+    background: #fdecec;
+    border-color: #f0b4b4;
+    color: #8a1f1f;
+
+    mat-icon {
+      color: #c62828;
+    }
+  }
+}
+
 /* Tablet: keep compact rail footprint when not expanded via hover/pin */
 @media (min-width: 768px) and (max-width: 1199px) {
   .stb-rail:not(.is-expanded):not(.is-pinned) {

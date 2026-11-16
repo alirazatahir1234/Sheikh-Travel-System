@@ -514,7 +514,8 @@ public record SubscriptionDetailDto
     public string Status { get; init; } = "Active";
     public string BillingCycle { get; init; } = "Monthly";
     public decimal? MonthlyAmount { get; init; }
-    public string CurrencyCode { get; init; } = "PKR";
+    /// <summary>Subscription currency (USD or PKR).</summary>
+    public string CurrencyCode { get; init; } = "USD";
     public bool AutoRenew { get; init; }
     public DateTime? SubscriptionStartDate { get; init; }
     public DateTime? SubscriptionEndDate { get; init; }
@@ -530,14 +531,24 @@ public record SubscriptionDetailDto
     public IReadOnlyList<string> LicensedModuleCodes { get; init; } = [];
     public bool FeaturesLocked { get; init; }
     public DateTime? NextBillingDate { get; init; }
+    /// <summary>End of last verified paid period (UTC). Invoice creation does not advance this.</summary>
+    public DateTime? PaidThroughUtc { get; init; }
+    /// <summary>Hard access cut-off = PaidThrough + 7-day grace (UTC).</summary>
+    public DateTime? AccessExpiresAtUtc { get; init; }
+    /// <summary>Whole days remaining until AccessExpiresAtUtc (negative when expired).</summary>
+    public int RemainingAccessDays { get; init; }
+    /// <summary>Tenants.IsActive — false after access expiry deactivation.</summary>
+    public bool TenantIsActive { get; init; } = true;
 
-    /// <summary>List price per GPS device per year for this plan (PKR).</summary>
+    /// <summary>List price per vehicle / month (USD).</summary>
+    public decimal MonthlyPricePerVehicleUsd { get; init; }
+    /// <summary>Yearly prepaid USD per vehicle (15% annual discount).</summary>
     public decimal YearlyPricePerDevice { get; init; }
-    /// <summary>Devices billed (licensed MaxGpsDevices, minimum 1).</summary>
+    /// <summary>Vehicles/GPS seats billed (licensed MaxGpsDevices, minimum 1).</summary>
     public int BillableGpsDevices { get; init; }
-    /// <summary>Yearly package total = per-device price × billable devices.</summary>
+    /// <summary>Yearly package total USD = yearly per-vehicle × billable seats.</summary>
     public decimal YearlyAmount { get; init; }
-    /// <summary>Amount of the next invoice for the current billing cycle.</summary>
+    /// <summary>Amount of the next invoice for the current billing cycle (subscription currency).</summary>
     public decimal CycleAmount { get; init; }
 }
 
@@ -692,7 +703,10 @@ public record SubscriptionRevenueDashboardDto(
     decimal OutstandingAmount,
     decimal CollectedLast30Days,
     IReadOnlyList<SubscriptionRenewalRowDto> UpcomingRenewals,
-    IReadOnlyList<SubscriptionOverdueAccountDto> OverdueAccountRows);
+    IReadOnlyList<SubscriptionOverdueAccountDto> OverdueAccountRows,
+    decimal AnnualRecurringRevenue = 0,
+    int ExpiredSubscriptions = 0,
+    int DeactivatedTenants = 0);
 
 public record GetSubscriptionRevenueDashboardQuery : IRequest<ApiResponse<SubscriptionRevenueDashboardDto>>;
 

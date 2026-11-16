@@ -1,74 +1,221 @@
 <section class="page-hero pricing-hero">
   <div class="container">
-    <span class="section-kicker" style="color:#99f6e4">{{ 'pages.pricing.kicker' | wsTranslate }}</span>
+    <span class="section-kicker pricing-kicker">{{ 'pages.pricing.kicker' | wsTranslate }}</span>
     <h1>{{ 'pages.pricing.title' | wsTranslate }}</h1>
     <p>{{ 'pages.pricing.lead' | wsTranslate }}</p>
   </div>
 </section>
 
-<section class="section section-band-white pricing-tiers" aria-labelledby="pricing-tiers-heading">
-  <div class="container">
+<section class="section pricing-calculator-band" aria-labelledby="pricing-tiers-heading">
+  <div class="container pricing-calc">
     <h2 id="pricing-tiers-heading" class="visually-hidden">{{ 'pages.pricing.title' | wsTranslate }}</h2>
+
+    <div class="pricing-controls">
+      <div class="market-toggle" role="group" [attr.aria-label]="'pages.pricing.marketLabel' | wsTranslate">
+        <button
+          type="button"
+          class="market-btn"
+          [class.active]="market.market() === 'intl'"
+          (click)="setMarket('intl')">
+          {{ 'pages.pricing.marketIntlShort' | wsTranslate }}
+        </button>
+        <button
+          type="button"
+          class="market-btn"
+          [class.active]="market.market() === 'aed'"
+          (click)="setMarket('aed')">
+          {{ 'pages.pricing.marketAedShort' | wsTranslate }}
+        </button>
+        <button
+          type="button"
+          class="market-btn"
+          [class.active]="market.market() === 'pk'"
+          (click)="setMarket('pk')">
+          {{ 'pages.pricing.marketPkShort' | wsTranslate }}
+        </button>
+      </div>
+
+      <div class="billing-toggle" role="group" [attr.aria-label]="'pages.pricing.billingLabel' | wsTranslate">
+        <span class="billing-label" [class.active]="!market.isAnnual()">{{ 'pages.pricing.billingMonthly' | wsTranslate }}</span>
+        <button
+          type="button"
+          class="billing-switch"
+          [class.on]="market.isAnnual()"
+          (click)="market.toggleBillingPeriod()"
+          [attr.aria-pressed]="market.isAnnual()"
+          [attr.aria-label]="'pages.pricing.billingToggle' | wsTranslate">
+          <span class="billing-knob" aria-hidden="true"></span>
+        </button>
+        <span class="billing-label" [class.active]="market.isAnnual()">{{ 'pages.pricing.billingAnnual' | wsTranslate }}</span>
+        <span class="save-badge">{{ 'pages.pricing.saveBadge' | wsTranslate }}</span>
+      </div>
+    </div>
+
+    <div class="fleet-scaler">
+      <div class="fleet-scaler-head">
+        <div class="fleet-scaler-title">
+          <mat-icon aria-hidden="true">local_shipping</mat-icon>
+          <div>
+            <h3>{{ 'pages.pricing.scaler.title' | wsTranslate }}</h3>
+            <p>{{ 'pages.pricing.scaler.lead' | wsTranslate }}</p>
+          </div>
+        </div>
+        <div class="fleet-scaler-count">
+          <span class="count">{{ market.vehicleCount() }}</span>
+          <span class="unit">{{ 'pages.pricing.scaler.unit' | wsTranslate }}</span>
+        </div>
+      </div>
+      <input
+        type="range"
+        class="fleet-range"
+        min="1"
+        max="150"
+        [value]="market.vehicleCount()"
+        (input)="onVehicleInput($event)"
+        [attr.aria-label]="'pages.pricing.scaler.title' | wsTranslate" />
+      <div class="fleet-range-marks">
+        <span>1</span>
+        <span>50</span>
+        <span>100</span>
+        <span>150+</span>
+      </div>
+    </div>
+
     <div class="pricing-grid">
       @for (tier of tiers(); track tier.id) {
-        <article class="pricing-card premium-card" [class.featured]="tier.featured">
+        <article class="pricing-card dark-card" [class.featured]="tier.featured">
           @if (tier.featured && tier.badge) {
-            <span class="pricing-badge">{{ tier.badge }}</span>
+            <span class="pricing-badge">
+              <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+              {{ tier.badge }}
+            </span>
           }
           <header class="pricing-card-head">
-            <h3>{{ tier.name }}</h3>
-            <p class="pricing-fleet">{{ tier.fleet }}</p>
+            <div>
+              <h3>{{ tier.name }}</h3>
+              <p class="pricing-fleet">{{ tier.fleet }}</p>
+            </div>
+            <span class="tier-icon" aria-hidden="true">
+              <mat-icon>
+                {{ tier.id === 'starter' ? 'shield' : tier.id === 'pro' ? 'bolt' : 'apartment' }}
+              </mat-icon>
+            </span>
           </header>
+
           <div class="pricing-amount">
-            <span class="pricing-currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
             <span class="pricing-value">{{ tier.price }}</span>
-            <span class="pricing-period">{{ 'pages.pricing.perDeviceYear' | wsTranslate }}</span>
+            <span class="pricing-period">
+              {{ (market.isAnnual() ? 'pages.pricing.perMonthAnnual' : 'pages.pricing.perMonth') | wsTranslate }}
+            </span>
           </div>
-          @if (tier.priceNote) {
-            <p class="pricing-note">{{ tier.priceNote }}</p>
+          <p class="pricing-note">{{ tier.perVehicleLabel }}</p>
+          @if (tier.feeNote) {
+            <p class="pricing-note fee-note">{{ tier.feeNote }}</p>
           }
+
+          <p class="features-label">
+            {{ (tier.id === 'pro'
+              ? 'pages.pricing.includesPlus'
+              : tier.id === 'enterprise'
+                ? 'pages.pricing.includesProPlus'
+                : 'pages.pricing.includes') | wsTranslate }}
+          </p>
           <ul class="pricing-features">
-            @for (f of tier.features; track f) {
-              <li>
-                <mat-icon aria-hidden="true">check_circle</mat-icon>
-                {{ f }}
+            @for (f of tier.features; track f.text) {
+              <li [class.highlight]="f.highlight">
+                <mat-icon aria-hidden="true">check</mat-icon>
+                {{ f.text }}
               </li>
             }
           </ul>
+
           <div class="pricing-actions">
-            <a routerLink="/request-demo" class="btn btn-primary">{{ 'nav.bookDemo' | wsTranslate }}</a>
-            <a routerLink="/contact" class="btn btn-outline">{{ 'nav.contact' | wsTranslate }}</a>
+            <a [routerLink]="tier.ctaLink" class="btn" [class.btn-primary]="tier.featured" [class.btn-ghost-dark]="!tier.featured">
+              {{ tier.ctaLabel }}
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            </a>
           </div>
         </article>
       }
     </div>
+
+    <ul class="pricing-guarantees">
+      <li>
+        <mat-icon aria-hidden="true">check</mat-icon>
+        {{ 'pages.pricing.guarantee.trial' | wsTranslate }}
+      </li>
+      <li>
+        <mat-icon aria-hidden="true">check</mat-icon>
+        {{ 'pages.pricing.guarantee.hardware' | wsTranslate }}
+      </li>
+      <li>
+        <mat-icon aria-hidden="true">check</mat-icon>
+        {{ 'pages.pricing.guarantee.scale' | wsTranslate }}
+      </li>
+    </ul>
+
     <p class="pricing-enterprise-note">{{ 'pages.pricing.enterpriseCustom' | wsTranslate }}</p>
+    <p class="pricing-enterprise-note">{{ 'pages.pricing.annualNote' | wsTranslate }}</p>
+    <p class="pricing-enterprise-note muted">{{ 'pages.pricing.aedDisplayNote' | wsTranslate }}</p>
   </div>
 </section>
 
-<section class="section section-band-alt pricing-tracker-annual" aria-labelledby="pricing-tracker-heading">
+<section class="section section-band-alt pricing-matrix" aria-labelledby="pricing-matrix-heading">
+  <div class="container">
+    <header class="section-head">
+      <span class="section-kicker">{{ 'pages.pricing.matrix.kicker' | wsTranslate }}</span>
+      <h2 id="pricing-matrix-heading" class="section-title">{{ 'pages.pricing.matrix.title' | wsTranslate }}</h2>
+      <p class="section-lead">{{ 'pages.pricing.matrix.lead' | wsTranslate }}</p>
+    </header>
+    <div class="matrix-wrap premium-card">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'pages.pricing.matrix.capability' | wsTranslate }}</th>
+            <th scope="col">{{ 'pages.pricing.starter.name' | wsTranslate }}</th>
+            <th scope="col">{{ 'pages.pricing.pro.name' | wsTranslate }}</th>
+            <th scope="col">{{ 'pages.pricing.enterprise.name' | wsTranslate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of matrixRows(); track row.label) {
+            <tr>
+              <th scope="row">{{ row.label }}</th>
+              <td>{{ row.starter }}</td>
+              <td>{{ row.pro }}</td>
+              <td>{{ row.enterprise }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="pricing-enterprise-note">{{ 'pages.pricing.matrix.roadmapNote' | wsTranslate }}</p>
+  </div>
+</section>
+
+<section class="section section-band-white pricing-tracker-annual" aria-labelledby="pricing-tracker-heading">
   <div class="container">
     <header class="section-head">
       <span class="section-kicker">{{ 'pages.pricing.tracker.kicker' | wsTranslate }}</span>
       <h2 id="pricing-tracker-heading" class="section-title">{{ 'pages.pricing.tracker.title' | wsTranslate }}</h2>
       <p class="section-lead">{{ 'pages.pricing.tracker.lead' | wsTranslate }}</p>
     </header>
-    <div class="pricing-grid">
+    <div class="pricing-grid tracker-grid">
       @for (tier of trackerAnnualTiers(); track tier.id) {
         <article class="pricing-card premium-card" [class.featured]="tier.featured">
           @if (tier.featured && tier.badge) {
-            <span class="pricing-badge">{{ tier.badge }}</span>
+            <span class="pricing-badge light-badge">{{ tier.badge }}</span>
           }
           <header class="pricing-card-head">
             <h3>{{ tier.name }}</h3>
             <p class="pricing-fleet">{{ tier.subtitle }}</p>
           </header>
           <div class="pricing-amount">
-            <span class="pricing-currency">{{ 'pages.pricing.currency' | wsTranslate }}</span>
-            <span class="pricing-value">{{ tier.price }}</span>
-            <span class="pricing-period">{{ 'pages.pricing.perYear' | wsTranslate }}</span>
+            <span class="pricing-currency">PKR</span>
+            <span class="pricing-value light-value">{{ tier.price }}</span>
+            <span class="pricing-period light-period">{{ 'pages.pricing.perYear' | wsTranslate }}</span>
           </div>
-          <ul class="pricing-features">
+          <ul class="pricing-features light-features">
             @for (f of tier.features; track f) {
               <li>
                 <mat-icon aria-hidden="true">check_circle</mat-icon>
@@ -83,7 +230,7 @@
         </article>
       }
     </div>
-    <p class="pricing-enterprise-note">{{ 'pages.pricing.tracker.note' | wsTranslate }}</p>
+    <p class="pricing-enterprise-note light-note">{{ 'pages.pricing.tracker.note' | wsTranslate }}</p>
   </div>
 </section>
 
@@ -98,19 +245,10 @@
       <div class="basis-stat">
         <span class="basis-label">{{ 'pages.pricing.basis.opsBandLabel' | wsTranslate }}</span>
         <strong class="basis-value">{{ 'pages.pricing.basis.opsBandValue' | wsTranslate }}</strong>
-        <span class="basis-hint">{{ 'pages.pricing.basis.opsBandHint' | wsTranslate }}</span>
       </div>
-      <p class="basis-per-vehicle">{{ 'pages.pricing.basis.perVehicle' | wsTranslate }}</p>
-      <p class="basis-disclaimer">{{ 'pages.pricing.basis.disclaimer' | wsTranslate }}</p>
+      <p class="basis-copy">{{ 'pages.pricing.basis.copy' | wsTranslate }}</p>
     </div>
   </div>
 </section>
 
-<app-cta-band
-  [title]="'pages.pricing.cta.title' | wsTranslate"
-  [lead]="'pages.pricing.cta.lead' | wsTranslate"
-  [primaryText]="'nav.bookDemo' | wsTranslate"
-  primaryUrl="/request-demo"
-  [secondaryText]="'common.contactUsArrow' | wsTranslate"
-  secondaryUrl="/contact"
-/>
+<app-cta-band />

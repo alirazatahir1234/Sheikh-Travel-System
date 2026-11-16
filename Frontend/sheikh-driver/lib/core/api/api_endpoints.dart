@@ -138,6 +138,10 @@ abstract class ApiEndpoints {
   static String gpsCommandApprove(int id) => '/gps/commands/$id/approve';
   static String gpsCommandCancel(int id) => '/gps/commands/$id/cancel';
 
+  // Platform Super Admin — cross-company read
+  static const adminCompanies = '/admin/companies';
+  static const adminVehicles = '/admin/vehicles';
+
   // Fleet ops (staff)
   static const fleetDashboard = '/Fleet/dashboard';
   static const vehicles = '/Vehicles';

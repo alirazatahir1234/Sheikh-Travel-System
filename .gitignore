@@ -37,11 +37,13 @@ appsettings.Staging.json
 **/build/
 **/.dart_tool/
 **/ios/Pods/
-
-# Frontend build output and dependencies
-**/node_modules/
-**/dist/
-**/.angular/
-**/build/
-**/.dart_tool/
 **/ios/Pods/
+
+# Release builds and large media — never commit
+*.aab
+*.apk
+*.ipa
+*.keystore
+**/releases/
+docs/marketing/**/*.mp4
+docs/marketing/**/*.mov

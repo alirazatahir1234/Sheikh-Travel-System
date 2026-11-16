@@ -6,7 +6,8 @@ public sealed record TenantResolutionDecision(
     string? Slug,
     bool Reject,
     string? RejectReason,
-    string? WarnReason);
+    string? WarnReason,
+    bool CrossTenantBypass = false);
 
 /// <summary>
 /// Enforces JWT-authoritative tenant identity for authenticated users.
@@ -60,12 +61,14 @@ public static class TenantResolutionPolicy
                 }
 
                 warn = AppendSlugWarn(warn, jwtTenantId: headerTenantId, slugResolvedTenantId, slug);
+                // Explicit company scope — not a cross-tenant bypass.
                 return new TenantResolutionDecision(
                     headerTenantId.Value,
                     PreferSlug(slug, headerTenantId),
                     Reject: false,
                     RejectReason: null,
-                    WarnReason: warn);
+                    WarnReason: warn,
+                    CrossTenantBypass: false);
             }
 
             if (!jwtTenantId.HasValue)
@@ -91,6 +94,18 @@ public static class TenantResolutionPolicy
 
         if (!jwtTenantId.HasValue)
         {
+            // Super Admin with no JWT tenant and no X-Tenant-Id → full cross-tenant mode.
+            if (isPlatformOperator)
+            {
+                return new TenantResolutionDecision(
+                    null,
+                    slug,
+                    Reject: false,
+                    RejectReason: null,
+                    WarnReason: "Platform operator cross-tenant bypass (no working tenant).",
+                    CrossTenantBypass: true);
+            }
+
             return new TenantResolutionDecision(
                 null,
                 slug,
@@ -100,6 +115,23 @@ public static class TenantResolutionPolicy
         }
 
         warn = AppendSlugWarn(warn, jwtTenantId, slugResolvedTenantId, slug);
+
+        // Super Admin without X-Tenant-Id: keep JWT tenant as working default for
+        // legacy handlers, but mark cross-tenant bypass so admin APIs can list all companies.
+        if (isPlatformOperator)
+        {
+            warn = string.IsNullOrEmpty(warn)
+                ? "Platform operator cross-tenant bypass (JWT tenant kept as working default)."
+                : warn + " Platform operator cross-tenant bypass.";
+            return new TenantResolutionDecision(
+                jwtTenantId.Value,
+                PreferSlug(slug, jwtTenantId),
+                Reject: false,
+                RejectReason: null,
+                WarnReason: warn,
+                CrossTenantBypass: true);
+        }
+
         return new TenantResolutionDecision(
             jwtTenantId.Value,
             PreferSlug(slug, jwtTenantId),

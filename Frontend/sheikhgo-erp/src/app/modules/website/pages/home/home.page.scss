@@ -1880,6 +1880,12 @@
   line-height: 1.45;
 }
 
+.subscription-plans-footnote.calc-hint {
+  margin-top: 0.35rem;
+  font-weight: 600;
+  color: var(--sg-teal, #0d9488);
+}
+
 .subscription-plans-footnote {
   margin: 1.25rem 0 0;
   color: #64748b;

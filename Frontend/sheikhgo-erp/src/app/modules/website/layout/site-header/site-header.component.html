@@ -102,6 +102,29 @@
     </nav>
 
     <div class="actions">
+      <div class="market-switch" role="group" [attr.aria-label]="'pages.pricing.marketLabel' | wsTranslate">
+        <button
+          type="button"
+          class="market-chip"
+          [class.active]="market.market() === 'intl'"
+          (click)="market.setMarket('intl')">
+          {{ 'pages.pricing.marketIntlShort' | wsTranslate }}
+        </button>
+        <button
+          type="button"
+          class="market-chip"
+          [class.active]="market.market() === 'aed'"
+          (click)="market.setMarket('aed')">
+          {{ 'pages.pricing.marketAedShort' | wsTranslate }}
+        </button>
+        <button
+          type="button"
+          class="market-chip"
+          [class.active]="market.market() === 'pk'"
+          (click)="market.setMarket('pk')">
+          {{ 'pages.pricing.marketPkShort' | wsTranslate }}
+        </button>
+      </div>
       <app-website-language-switcher class="lang-switch-desktop" />
       <a routerLink="/request-demo" class="btn btn-primary header-cta">
         {{ 'nav.requestDemo' | wsTranslate }}

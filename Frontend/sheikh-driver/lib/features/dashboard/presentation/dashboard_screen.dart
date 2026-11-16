@@ -101,7 +101,8 @@ class DashboardScreen extends ConsumerWidget {
                   AppSpacing.lg,
                   AppSpacing.sm,
                   AppSpacing.lg,
-                  100 + MediaQuery.of(context).padding.bottom,
+                  // Extra clearance so AI FAB never covers Open Map / section links.
+                  120 + MediaQuery.of(context).padding.bottom,
                 ),
                 children: [
                   ..._buildOrdered(
@@ -227,6 +228,9 @@ class DashboardScreen extends ConsumerWidget {
         return LiveMapPreviewCard(
           positions: data.livePositions,
           movingCount: data.gps?.moving ?? 0,
+          idleCount: (data.gps?.idle ?? 0) +
+              (data.gps?.parked ?? 0) +
+              (data.gps?.sos ?? 0),
         );
       case DashboardWidgetId.criticalAlertsList:
       case DashboardWidgetId.recentAlerts:

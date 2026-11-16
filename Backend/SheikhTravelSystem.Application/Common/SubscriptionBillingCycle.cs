@@ -1,8 +1,9 @@
 namespace SheikhTravelSystem.Application.Common;
 
 /// <summary>
-/// Billing-cycle rules for Nexus subscriptions. All plans are sold as one-year packages; Monthly is kept
-/// only for legacy tenants. Amounts come from <see cref="SubscriptionPlanPricing.ResolveCycleAmount"/>.
+/// Billing-cycle rules for Nexus subscriptions. Default commercial cycle is <see cref="Monthly"/>
+/// (USD per vehicle). Yearly is prepaid with <see cref="SubscriptionPlanPricing.AnnualDiscountPercent"/> off.
+/// Amounts come from <see cref="SubscriptionPlanPricing.ResolveCycleAmount"/>.
 /// </summary>
 public static class SubscriptionBillingCycle
 {
@@ -10,7 +11,7 @@ public static class SubscriptionBillingCycle
     public const string Yearly = "Yearly";
 
     /// <summary>Cycle applied to newly provisioned companies.</summary>
-    public const string Default = Yearly;
+    public const string Default = Monthly;
 
     public static bool IsValid(string? cycle) => TryNormalize(cycle) is not null;
 

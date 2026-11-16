@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.Platform;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
@@ -15,6 +16,7 @@ public class RefreshTokenCommandHandler(
     IAuthSessionService authSessions,
     IJwtTokenService jwtTokenService,
     IUserAccessService userAccessService,
+    IPlatformRepository platformRepository,
     IConfiguration configuration) : IRequestHandler<RefreshTokenCommand, ApiResponse<LoginResponse>>
 {
     public async Task<ApiResponse<LoginResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -44,6 +46,30 @@ public class RefreshTokenCommandHandler(
         }
 
         var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
+        var isPlatformSuperAdmin = access.RoleCodes.Any(c =>
+            string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase));
+        if (!isPlatformSuperAdmin)
+        {
+            var gate = await platformRepository.GetTenantSubscriptionAccessAsync(user.TenantId, cancellationToken);
+            if (gate is not null)
+            {
+                if (!gate.Value.TenantIsActive)
+                {
+                    return ApiResponse<LoginResponse>.FailResponse(
+                        "This company account is deactivated. Contact SheikhGo billing to restore access.",
+                        code: "tenant_deactivated");
+                }
+
+                if (string.Equals(gate.Value.SubscriptionStatus, SubscriptionBillingLifecycle.StatusExpired,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<LoginResponse>.FailResponse(
+                        "Your subscription has expired. Contact SheikhGo billing to renew.",
+                        code: "subscription_expired");
+                }
+            }
+        }
+
         var newRefreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
         var refreshExpiry = DateTime.UtcNow.AddDays(expiryDays);

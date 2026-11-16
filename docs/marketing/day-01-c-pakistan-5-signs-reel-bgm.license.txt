@@ -1,0 +1,8 @@
+Background music — Day 1 (C) Pakistan reel (day-01-c-pakistan-5-signs-reel-bgm.mp4)
+
+Track: Motivating Mornings (Mixkit item #33) — Ahjay Stelino
+Source file: docs/demo/audio-src/mixkit-motivating-mornings-33.mp3
+Download: https://mixkit.co/free-stock-music/download/33/
+License: Mixkit Free License — https://mixkit.co/license/ (royalty-free; commercial use allowed; attribution not required)
+
+Mix: volume 20%, 1.5s fade-in, 1.5s fade-out; AAC 192k stereo under 1080×1920 H.264 video (12s).

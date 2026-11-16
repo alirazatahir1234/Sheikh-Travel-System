@@ -191,6 +191,7 @@ public static class DatabaseMigrationRegistry
             M("HarshBrakingSmsAlertsMigration", HarshBrakingSmsAlertsMigration.ApplyAsync),
             M("GpsDuplicateTraccarDeviceIdMigration", GpsDuplicateTraccarDeviceIdMigration.ApplyAsync),
             M("VehicleDocumentTenantAlignMigration", VehicleDocumentTenantAlignMigration.ApplyAsync),
+            M("SubscriptionAccessExpiryMigration", SubscriptionAccessExpiryMigration.ApplyAsync),
         ];
     }
 }

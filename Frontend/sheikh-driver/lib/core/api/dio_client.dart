@@ -16,6 +16,7 @@ const _refreshTokenKey = 'fleet_refresh_token';
 const _legacyAccessTokenKey = 'driver_access_token';
 const _legacyRefreshTokenKey = 'driver_refresh_token';
 const _sessionKey = 'fleet_session';
+const _platformCompanyFilterKey = 'platform_company_filter_id';
 
 /// Signals that the server rejected the saved refresh token. Keeping this
 /// separate from the HTTP client avoids a dependency cycle with AuthRepository.
@@ -233,6 +234,17 @@ class _AuthInterceptor extends QueuedInterceptor {
       options.cancelToken = cancelToken;
       _authSessionCancelTokens.add(cancelToken);
     }
+
+    // Super Admin company filter → X-Tenant-Id (omit = cross-tenant bypass).
+    final scopedCompany =
+        await _storage.read(key: _platformCompanyFilterKey);
+    final companyId = int.tryParse(scopedCompany ?? '');
+    if (companyId != null && companyId > 0) {
+      options.headers['X-Tenant-Id'] = '$companyId';
+    } else {
+      options.headers.remove('X-Tenant-Id');
+    }
+
     handler.next(options);
   }
 

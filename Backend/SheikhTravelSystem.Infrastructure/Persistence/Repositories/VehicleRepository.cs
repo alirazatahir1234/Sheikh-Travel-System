@@ -58,6 +58,83 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
         return (vehicles, totalCount);
     }
 
+    public async Task<(IReadOnlyList<AdminCrossTenantVehicleDto> Items, int TotalCount)> GetCrossTenantPagedAsync(
+        int? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var offset = Math.Max(0, (page - 1) * pageSize);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var clauses = new List<string> { "v.IsDeleted = 0", "v.Status <> 5" };
+        var parameters = new DynamicParameters(new
+        {
+            Offset = offset,
+            PageSize = pageSize,
+        });
+
+        if (companyId is int cid and > 0)
+        {
+            clauses.Add("v.TenantId = @CompanyId");
+            parameters.Add("CompanyId", cid);
+        }
+
+        var whereClause = string.Join(" AND ", clauses);
+
+        var items = (await connection.QueryAsync<AdminCrossTenantVehicleDto>(
+            new CommandDefinition(
+                $"""
+                SELECT
+                    v.Id,
+                    v.TenantId AS CompanyId,
+                    COALESCE(t.Name, N'Tenant ' + CAST(v.TenantId AS nvarchar(20))) AS CompanyName,
+                    v.Name,
+                    v.RegistrationNumber,
+                    v.Make,
+                    v.Model,
+                    v.VehicleType,
+                    v.Status,
+                    d.FullName AS DriverName,
+                    activeAssign.DriverId AS DriverId,
+                    CASE
+                        WHEN (gd.LastSeenAt IS NOT NULL AND gd.LastSeenAt > DATEADD(minute, -30, GETUTCDATE()))
+                          OR (vcl.LastUpdate IS NOT NULL AND vcl.LastUpdate > DATEADD(minute, -30, GETUTCDATE()))
+                        THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT)
+                    END AS GpsOnline,
+                    CASE WHEN v.GpsDeviceId IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS HasGpsDevice,
+                    gd.LastSeenAt AS GpsLastSeenAt,
+                    vcl.Latitude AS LocationLatitude,
+                    vcl.Longitude AS LocationLongitude,
+                    v.CreatedAt
+                FROM Vehicles v
+                LEFT JOIN Tenants t ON t.Id = v.TenantId
+                OUTER APPLY (
+                    SELECT TOP 1 ah.DriverId
+                    FROM AssignmentHistory ah
+                    WHERE ah.VehicleId = v.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
+                    ORDER BY ah.StartAt DESC
+                ) activeAssign
+                LEFT JOIN Drivers d ON d.Id = activeAssign.DriverId AND d.IsDeleted = 0
+                LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0
+                LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                WHERE {whereClause}
+                ORDER BY t.Name, v.Name
+                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                """,
+                parameters,
+                cancellationToken: cancellationToken))).ToList();
+
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(
+                $@"SELECT COUNT(*) FROM Vehicles v WHERE {whereClause}",
+                parameters,
+                cancellationToken: cancellationToken));
+
+        return (items, totalCount);
+    }
+
     public async Task<VehicleDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

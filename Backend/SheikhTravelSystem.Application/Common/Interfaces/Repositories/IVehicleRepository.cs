@@ -18,6 +18,16 @@ public interface IVehicleRepository
         DataScopeResult? scope,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Platform Super Admin cross-company vehicle list.
+    /// When <paramref name="companyId"/> is null, returns vehicles for all tenants (server-side).
+    /// </summary>
+    Task<(IReadOnlyList<AdminCrossTenantVehicleDto> Items, int TotalCount)> GetCrossTenantPagedAsync(
+        int? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<VehicleDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task<int?> GetTenantIdAsync(int id, CancellationToken cancellationToken = default);
