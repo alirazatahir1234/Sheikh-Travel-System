@@ -11,10 +11,10 @@
 
 | Classification | Count |
 |---|---:|
-| LEAK | 41 |
+| LEAK | 50 |
 | AUTHORIZATION BUG | 8 |
 | OK | 152 |
-| **Total paths reviewed** | **201** |
+| **Total paths reviewed** | **210** |
 
 ## Smoking gun — compliance (Hannan 1 driver / 39 docs)
 
@@ -23,13 +23,15 @@
 Likely blast radius is **not** a missing `WHERE` on ComplianceDocuments itself, but:
 1. **Tenant source mismatch:** `GetDriversQuery` accepts `request.TenantId` (UI company filter / AUTHORIZATION BUG pattern) while `/fleet/compliance` uses JWT/`ITenantContext` only — a platform operator can see company A drivers and company B (JWT home) documents at once.
 2. **Join LEAK:** `LEFT JOIN Drivers/Vehicles` on `EntityId` without `d.TenantId` / `v.TenantId`, so contaminated `EntityId` values disclose other tenants' names.
-3. **Data contamination risk:** docs written under the wrong `TenantId` (upload path must be checked in Pass 2).
+3. **Data contamination risk:** docs written under the wrong `TenantId` (upload path must be checked in Pass 2; `ComplianceDocuments.TenantId` nullability also matters).
+
+Follow-up from late Pass 1 explore: Customer Portal route/vehicle catalog helpers (`GetRoutesAsync`, Id-only labels/existence) are additional clear LEAKs — ranked with compliance for Pass 2.
 
 Pass 2 must print full SQL for compliance list + driver list tenant resolution + document upload INSERT.
 
 ## Pass 2 size estimate
 
-- **~3 days** to close all **41 LEAK** + **8 AUTHORIZATION BUG** paths cleanly (Trip child-table reads, portal, AI health, user-by-id, WhatsApp).
+- **~3 days** to close all **50 LEAK** + **8 AUTHORIZATION BUG** paths cleanly (Trip child-table reads, portal catalogs, AI health, user-by-id, WhatsApp).
 - **~1 day** if Pass 2 is scoped to compliance + Drivers/Vehicles tenant-source unification + top portal/AI LEAKs only.
 - Recommendation: start Pass 2 with compliance (1 day critical path), then continue remaining LEAKs on the same branch.
 
@@ -41,6 +43,15 @@ Pass 2 must print full SQL for compliance list + driver list tenant resolution +
 | FleetRepository.cs | GetComplianceDocumentsAsync (JOIN Vehicles/Drivers) | Vehicles, Drivers | LEAK | LEFT JOIN Vehicles/Drivers on EntityId only — no `v.TenantId`/`d.TenantId`; EntityName can disclose other tenants' names if EntityId is contaminated |
 | CustomerPortalRepository.cs | GetBookedSeatsNearPickupAsync | Bookings | LEAK | vehicle/time window only — no TenantId |
 | CustomerPortalRepository.cs | GetVehiclesAsync | Vehicles | LEAK | `WHERE IsDeleted = 0 AND Status <> @Retired` — NONE on TenantId (lists all companies' vehicles) |
+| CustomerPortalRepository.cs | GetRoutesAsync | Routes | LEAK | `WHERE IsDeleted = 0 AND IsActive = 1` — NONE on TenantId (all companies' routes) |
+| CustomerPortalRepository.cs | GetRouteBasePriceAsync | Routes | LEAK | `Id = @Id AND IsDeleted = 0 AND IsActive = 1` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetPerKmBasePriceAsync | Routes | LEAK | `IsDeleted = 0 AND IsActive = 1 AND Distance > 0` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetFirstActiveRouteIdAsync | Routes | LEAK | `IsDeleted = 0 AND IsActive = 1` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetRouteLabelAsync | Routes | LEAK | `Id = @Id` — NONE on TenantId |
+| CustomerPortalRepository.cs | VehicleExistsAndNotRetiredAsync | Vehicles | LEAK | `Id = @Id AND IsDeleted = 0 AND Status <> 4` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetVehicleSeatingCapacityAsync | Vehicles | LEAK | `Id = @Id AND IsDeleted = 0` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetVehicleLabelAsync | Vehicles | LEAK | `Id = @Id AND IsDeleted = 0` — NONE on TenantId |
+| CustomerPortalRepository.cs | GetBookingNumberAsync | Bookings | LEAK | `Id = @Id AND IsDeleted = 0` — NONE on TenantId |
 | CustomerPortalRepository.cs | IsSeatTakenAsync | Bookings | LEAK | vehicle/seat/time — no TenantId |
 | DriverAppRepository.cs | GetDashboardStatsAsync (earnings subquery) | Payments, Bookings | LEAK | bookings/earnings path omits `TenantId` on Payments join |
 | DriverAppRepository.cs | GetDriverFullNameAsync | Drivers | LEAK | `Id = @Id` — NONE on TenantId |
