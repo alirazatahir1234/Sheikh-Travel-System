@@ -364,6 +364,17 @@ The security-review risk is sharper than the technical one. An enterprise or gov
 
 So: the system is probably writing audit events and nobody can read any of them. There is also no "all companies" option, so even with a working switcher a super admin could never see a platform-wide trail — which is exactly what an audit trail is for. Several features ("Changes are audited" on driver score weights, GDPR logging = true) make promises this backs.
 
+### SG-52 — Cross-tenant read / subscription audit is fail-loud, not fail-closed (P1)
+
+Cross-tenant read and subscription change audit writes throw at the API boundary but are not in the same transaction as the action, so the action can commit without an audit row. Labelled **fail-loud**, not fail-closed.
+
+True fail-closed remains only where the audit INSERT shares the SQL transaction (permission change, role assignment).
+
+Future fixes (do not implement in the SG-07 pass):
+
+- **Reads:** write + commit the audit row first, then perform the read (only practical way to fail-closed reads).
+- **Subscription:** can move into the same SQL transaction as the subscription mutate.
+
 ### SG-16 — Menu visibility gated on the wrong permission (P1)
 
 Menu Management shows the **Vehicles** item at /vehicles guarded by `Vehicle.Create`. Every sibling uses a View permission (`Driver.View`, `Maintenance.View`, `Fuel.View`, `GPS.View`). Any read-only role — Accountant, Driver, GPS Operator, a future auditor role — loses the Vehicles menu entirely despite being able to open the page by URL. One-line fix, but it is the kind of thing that makes a role test fail in UAT.
@@ -579,7 +590,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-07 | Audit | Audit Center and /audit-logs return 0 rows, blocked by the missing switcher, despite audit level Always | Unblock the page; add platform-wide view; verify events are actually being written |
 | SG-08 | Security | MFA, trusted devices, password history and IP restriction are display-only; no policy ever changed | Implement TOTP MFA; enable password complexity; mark non-enforcing toggles clearly until built |
 
-### P1 — fix this quarter (15)
+### P1 — fix this quarter (16)
 
 | ID | Module | Finding | Fix |
 | --- | --- | --- | --- |
@@ -599,6 +610,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-22 | Platform | MCP console (14 servers, 117 tools, Connect Client) exposed in the production ERP | Environment-gate to non-production, or require a dedicated permission plus MFA, with audited invocations |
 | SG-42 | Users | /users shows 5 of 9 platform users; 4 invisible to the super admin | Cross-tenant user directory for platform roles |
 | SG-50 | Billing / FX | Subscription pricing uses a hardcoded USD→PKR constant (280) in Backend `SubscriptionBilling:UsdToPkr` / `ToPkr` and ERP `USD_TO_PKR_DEFAULT`; no live rate, no drift alert | Fix with money chain SG-02/03/14 — live or Key Vault FX + drift alert; not a one-off patch |
+| SG-52 | Audit | Cross-tenant read + subscription audit throws at API boundary but is not same-TX (action can commit without audit row); labelled fail-loud, not fail-closed | Reads: audit-first then read; subscription: shared TX later — do not pretend either is fail-closed today |
 
 ### P2 — backlog with a date (20)
 

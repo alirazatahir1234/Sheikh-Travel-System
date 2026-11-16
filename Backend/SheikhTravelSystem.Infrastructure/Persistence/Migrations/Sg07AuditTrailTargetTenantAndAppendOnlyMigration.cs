@@ -18,23 +18,29 @@ public static class Sg07AuditTrailTargetTenantAndAppendOnlyMigration
     {
         using var connection = dbFactory.CreateConnection();
 
+        // Separate batches: SQL Server compiles each batch before execution, so ADD COLUMN
+        // and any statement that references TargetTenantId cannot share one batch.
         await connection.ExecuteAsync(new CommandDefinition("""
             IF COL_LENGTH('AuditEvents', 'TargetTenantId') IS NULL
-            BEGIN
                 ALTER TABLE AuditEvents ADD TargetTenantId INT NULL;
-                -- NULL = platform aggregate / no single target (never "forgot to set").
-                -- FK optional: aggregates park under platform TenantId with TargetTenantId NULL.
-                IF NOT EXISTS (
-                    SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_AuditEvents_TargetTenant')
-                    ALTER TABLE AuditEvents WITH CHECK
-                    ADD CONSTRAINT FK_AuditEvents_TargetTenant
-                    FOREIGN KEY (TargetTenantId) REFERENCES Tenants(Id);
-            END
+            """, cancellationToken: cancellationToken));
 
-            IF NOT EXISTS (
-                SELECT 1 FROM sys.indexes
-                WHERE name = 'IX_AuditEvents_TargetTenant_CreatedOn'
-                  AND object_id = OBJECT_ID('AuditEvents'))
+        // NULL = platform aggregate / no single target (never "forgot to set").
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF COL_LENGTH('AuditEvents', 'TargetTenantId') IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_AuditEvents_TargetTenant')
+                ALTER TABLE AuditEvents WITH CHECK
+                ADD CONSTRAINT FK_AuditEvents_TargetTenant
+                FOREIGN KEY (TargetTenantId) REFERENCES Tenants(Id);
+            """, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF COL_LENGTH('AuditEvents', 'TargetTenantId') IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'IX_AuditEvents_TargetTenant_CreatedOn'
+                      AND object_id = OBJECT_ID('AuditEvents'))
                 CREATE INDEX IX_AuditEvents_TargetTenant_CreatedOn
                 ON AuditEvents (TargetTenantId, CreatedOn DESC)
                 WHERE TargetTenantId IS NOT NULL;
@@ -64,25 +70,41 @@ public static class Sg07AuditTrailTargetTenantAndAppendOnlyMigration
             """, cancellationToken: cancellationToken));
 
         // SG-36: keep /platform/audit-center; hide/redirect legacy /audit-logs menu rows.
+        // Do NOT rename multiple rows to Name='Audit Center' in one shot — UX_PlatformMenus_ModuleId_Name.
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PlatformMenus')
             BEGIN
+                -- Retarget legacy routes only (leave Name alone to avoid unique-index collisions).
                 UPDATE PlatformMenus
                 SET Route = N'/platform/audit-center',
-                    DisplayName = COALESCE(DisplayName, N'Audit Center'),
-                    Name = CASE WHEN Name IN (N'Audit Logs', N'Audit') THEN N'Audit Center' ELSE Name END,
+                    DisplayName = COALESCE(NULLIF(DisplayName, N''), N'Audit Center'),
                     UpdatedAt = SYSUTCDATETIME()
-                WHERE Route IN (N'/audit-logs', N'/AuditLogs', N'/audit-log')
-                   OR FeatureKey = N'audit-logs';
+                WHERE Route IN (N'/audit-logs', N'/AuditLogs', N'/audit-log');
+
+                -- Prefer FeatureKey=audit-logs as the canonical Audit Center name when free.
+                UPDATE pm
+                SET Name = N'Audit Center',
+                    DisplayName = COALESCE(NULLIF(pm.DisplayName, N''), N'Audit Center'),
+                    Route = N'/platform/audit-center',
+                    UpdatedAt = SYSUTCDATETIME()
+                FROM PlatformMenus pm
+                WHERE pm.FeatureKey = N'audit-logs'
+                  AND pm.Name <> N'Audit Center'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM PlatformMenus other
+                      WHERE other.ModuleId = pm.ModuleId
+                        AND other.Name = N'Audit Center'
+                        AND other.Id <> pm.Id);
 
                 -- Prefer a single visible Audit Center under platform module.
                 ;WITH ranked AS (
                     SELECT Id,
                            ROW_NUMBER() OVER (
                                PARTITION BY Route
-                               ORDER BY CASE WHEN ModuleKey = N'platform' OR ModuleId IN (
-                                   SELECT Id FROM PlatformModules WHERE ModuleKey = N'platform') THEN 0 ELSE 1 END,
-                                   Id) AS rn
+                               ORDER BY CASE WHEN FeatureKey = N'audit-logs' THEN 0 ELSE 1 END,
+                                        CASE WHEN ModuleKey = N'platform' OR ModuleId IN (
+                                            SELECT Id FROM PlatformModules WHERE ModuleKey = N'platform') THEN 0 ELSE 1 END,
+                                        Id) AS rn
                     FROM PlatformMenus
                     WHERE Route = N'/platform/audit-center' AND IsActive = 1
                 )

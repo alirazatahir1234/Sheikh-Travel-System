@@ -59,7 +59,8 @@ public class GetAdminCompaniesQueryHandler(
             TenantId: PlatformTenant.Id,
             TargetTenantId: null,
             ActorTenantId: tenantContext.TenantId,
-            FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+            // Fail-loud (SG-52): throws if audit INSERT fails, but not same-TX as the read.
+            FailPolicy: AuditFailPolicy.FailLoud), cancellationToken);
 
         return ApiResponse<IReadOnlyList<AdminCompanyOptionDto>>.SuccessResponse(options);
     }
@@ -107,7 +108,8 @@ public class GetAdminVehiclesQueryHandler(
                 TenantId: subjectTenantId,
                 TargetTenantId: subjectTenantId,
                 ActorTenantId: tenantContext.TenantId,
-                FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+                // Fail-loud (SG-52): not same-TX; read already executed.
+                FailPolicy: AuditFailPolicy.FailLoud), cancellationToken);
         }
         else
         {
@@ -130,7 +132,8 @@ public class GetAdminVehiclesQueryHandler(
                 TenantId: PlatformTenant.Id,
                 TargetTenantId: null,
                 ActorTenantId: tenantContext.TenantId,
-                FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+                // Fail-loud (SG-52): not same-TX; read already executed.
+                FailPolicy: AuditFailPolicy.FailLoud), cancellationToken);
         }
 
         return ApiResponse<AdminVehiclesPageDto>.SuccessResponse(

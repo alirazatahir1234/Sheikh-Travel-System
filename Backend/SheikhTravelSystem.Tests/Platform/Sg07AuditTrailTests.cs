@@ -69,7 +69,7 @@ public class Sg07AuditTrailTests
             EventKey: AuditEventKeys.CrossTenantRead,
             TenantId: 7,
             TargetTenantId: 7,
-            FailPolicy: AuditFailPolicy.FailClosed);
+            FailPolicy: AuditFailPolicy.FailLoud);
         single.TenantId.Should().Be(7);
         single.TargetTenantId.Should().Be(7);
 
@@ -78,20 +78,23 @@ public class Sg07AuditTrailTests
             EventKey: AuditEventKeys.CrossTenantRead,
             TenantId: PlatformTenant.Id,
             TargetTenantId: null,
-            FailPolicy: AuditFailPolicy.FailClosed);
+            FailPolicy: AuditFailPolicy.FailLoud);
         aggregate.TenantId.Should().Be(PlatformTenant.Id);
         aggregate.TargetTenantId.Should().BeNull();
     }
 
     [Fact]
-    public void FailClosed_Categories_Are_Named()
+    public void FailClosed_And_FailLoud_Categories_Are_Named()
     {
+        // True fail-closed (same TX).
         AuditEventKeys.RolePermissions.Should().NotBeNullOrWhiteSpace();
         AuditEventKeys.RoleAssignment.Should().NotBeNullOrWhiteSpace();
+        // Fail-loud at API boundary (not same TX) — SG-52.
         AuditEventKeys.CrossTenantRead.Should().NotBeNullOrWhiteSpace();
         AuditEventKeys.SubscriptionChange.Should().NotBeNullOrWhiteSpace();
         AuditEventKeys.PiiReveal.Should().NotBeNullOrWhiteSpace();
         AuditEventKeys.Impersonation.Should().NotBeNullOrWhiteSpace();
+        AuditFailPolicy.FailLoud.Should().NotBe(AuditFailPolicy.FailClosed);
     }
 
     [Fact]

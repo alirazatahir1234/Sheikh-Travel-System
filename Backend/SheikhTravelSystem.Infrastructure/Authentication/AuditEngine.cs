@@ -88,7 +88,7 @@ public class AuditEngine(
             var isCritical = eventKey.Contains("delete", StringComparison.OrdinalIgnoreCase)
                 || eventKey.Contains("lockout", StringComparison.OrdinalIgnoreCase)
                 || eventKey.Contains("security", StringComparison.OrdinalIgnoreCase)
-                || write.FailPolicy == AuditFailPolicy.FailClosed
+                || write.FailPolicy is AuditFailPolicy.FailClosed or AuditFailPolicy.FailLoud
                 || string.Equals(write.EntityType, "SecurityPolicy", StringComparison.OrdinalIgnoreCase);
 
             if (!securityEngine.ShouldWriteAudit(level, isError, isCritical))
@@ -97,7 +97,7 @@ public class AuditEngine(
         catch (Exception ex)
         {
             // Policy gate failure must not silently skip security events.
-            if (write.FailPolicy == AuditFailPolicy.FailClosed)
+            if (write.FailPolicy is AuditFailPolicy.FailClosed or AuditFailPolicy.FailLoud)
             {
                 HandleWriteFailure(write.FailPolicy, eventKey, "policy_gate", ex);
                 return;
@@ -388,6 +388,16 @@ public class AuditEngine(
                 eventKey, reason);
             throw new InvalidOperationException(
                 $"Fail-closed audit write failed for '{eventKey}' ({reason}).", ex);
+        }
+
+        if (policy == AuditFailPolicy.FailLoud)
+        {
+            // Throws at API boundary, but preceding action may already be committed (SG-52).
+            logger.LogError(ex,
+                "Fail-loud audit write failed for {EventKey} reason={Reason}",
+                eventKey, reason);
+            throw new InvalidOperationException(
+                $"Fail-loud audit write failed for '{eventKey}' ({reason}).", ex);
         }
 
         logger.LogError(ex,

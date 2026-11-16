@@ -1218,8 +1218,9 @@ public class UpdateSubscriptionCommandHandler(
         await platformRepository.EnsureTenantExistsAsync(request.TenantId, cancellationToken);
 
         // ApplySubscriptionActionAsync opens its own connection — not the same SQL TX as the audit
-        // INSERT. Fail-closed at application boundary: if audit fails after mutate, throw so the
-        // caller does not treat the change as a clean audited success. Prefer shared TX in a follow-up.
+        // INSERT. Fail-loud (SG-52): if audit fails after mutate, throw so the caller does not treat
+        // the change as a clean audited success — but the mutation may already be committed.
+        // Future: shared TX (true fail-closed).
         await platformRepository.ApplySubscriptionActionAsync(
             request.TenantId,
             request.Action,
@@ -1247,7 +1248,7 @@ public class UpdateSubscriptionCommandHandler(
             TenantId: request.TenantId,
             TargetTenantId: request.TenantId,
             ActorTenantId: tenantContext.TenantId,
-            FailPolicy: AuditFailPolicy.FailClosed), cancellationToken);
+            FailPolicy: AuditFailPolicy.FailLoud), cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, $"Subscription {request.Action.ToString().ToLowerInvariant()}d.");
     }

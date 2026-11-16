@@ -8,7 +8,7 @@ namespace SheikhTravelSystem.Application.Common.Behaviors;
 /// <summary>
 /// MediatR pipeline behavior that records AuditEvents after <see cref="IAuditableCommand"/> CRUD.
 /// Fail-open + loud (LogError + <see cref="AuditWriteMetrics"/>). Security events use explicit
-/// fail-closed writes in their handlers instead of relying on this pipeline.
+/// fail-closed (same TX) or fail-loud (API boundary) writes in their handlers instead.
 /// </summary>
 public class AuditLoggingBehavior<TRequest, TResponse>(
     IAuditEngine auditEngine,

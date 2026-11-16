@@ -19,16 +19,27 @@ Tenant-scoped `SearchAsync` matches `TenantId = X OR TargetTenantId = X` so the 
 
 | Category | Policy | Same DB transaction? |
 |----------|--------|----------------------|
-| Permission change (`roles.permissions`) | Fail-closed | **Yes** — replace + audit in one TX |
-| Role assignment (`roles.assignment`) | Fail-closed | **Yes** — replace + audit in one TX |
-| Cross-tenant read | Fail-closed at API boundary | **No** — SELECT then audit INSERT; response withheld if audit throws |
-| PII reveal (`privacy.pii.reveal`) | Fail-closed (via `IPiiRevealAudit`) | Callers must enroll; no reveal endpoint yet |
-| Subscription/billing change | Fail-closed at API boundary | **No** — mutate then audit; audit failure throws (mutation may already be committed) |
-| Impersonation | Fail-closed (key reserved) | No endpoint yet (`Platform.Tenants.Impersonate` seeded) |
+| Permission change (`roles.permissions`) | **Fail-closed** | **Yes** — replace + audit in one TX |
+| Role assignment (`roles.assignment`) | **Fail-closed** | **Yes** — replace + audit in one TX |
+| Cross-tenant read | **Fail-loud** (throws at API boundary) | **No** — SELECT then audit INSERT; response withheld if audit throws, but the read already happened (SG-52) |
+| PII reveal (`privacy.pii.reveal`) | Fail-closed when enrolled via `IPiiRevealAudit` | Callers must enroll in the same TX; no reveal endpoint yet |
+| Subscription/billing change | **Fail-loud** (throws at API boundary) | **No** — mutate then audit; audit failure throws after mutation may already be committed (SG-52; can go same-TX later) |
+| Impersonation | Fail-closed (key reserved; same TX required) | No endpoint yet (`Platform.Tenants.Impersonate` seeded) |
 | Login success / failure | Fail-open + **loud** (`LogError` + `audit.write.failures`) | N/A |
 | Normal CRUD (`IAuditableCommand` pipeline) | Fail-open + loud | N/A |
 
+**Fail-closed** = same SQL transaction; action rolls back with the audit INSERT.
+**Fail-loud** = throw at the API boundary so the caller does not see a clean success, but the preceding action can still commit without an audit row. Do not call that fail-closed.
+
 Silent `LogDebug` on audit failure is banned.
+
+### SG-52 gap (honest)
+
+Cross-tenant read and subscription change are labelled **fail-loud**, not fail-closed.
+Future fixes (not implemented yet):
+
+- **Reads:** write + commit the audit row first, then perform the read (only practical fail-closed path for reads).
+- **Subscription:** can move into the same SQL transaction as `ApplySubscriptionActionAsync`.
 
 ## Read path
 
