@@ -601,6 +601,7 @@ public sealed class WhatsAppAutomationRepository(IDbConnectionFactory dbFactory)
         }
     }
 
+    // PLATFORM-SCOPE: WhatsApp automation dispatch helper — scans started trips for vehicle targeting.
     public async Task<IReadOnlyList<int>> ListActiveEnRouteTripVehicleIdsAsync(CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();

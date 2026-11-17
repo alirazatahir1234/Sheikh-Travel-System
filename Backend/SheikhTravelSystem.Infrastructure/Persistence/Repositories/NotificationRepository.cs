@@ -430,6 +430,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         }
     }
 
+    // PLATFORM-SCOPE: retention job estimates across notification inbox rows (not tenant ERP list).
     public async Task<NotificationRetentionEstimateDto> GetRetentionEstimateAsync(
         DateTime archiveCutoff,
         int archivedDeleteDays,
@@ -467,6 +468,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         return new NotificationRetentionEstimateDto(eligibleArchive, eligibleDelete, protectedCritical);
     }
 
+    // PLATFORM-SCOPE: recipient inbox scoped by UserId (not tenant catalog read).
     public async Task MarkReadAsync(
         int userId,
         IReadOnlyList<int>? notificationIds,
@@ -511,6 +513,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         }
     }
 
+    // PLATFORM-SCOPE: recipient inbox scoped by UserId (not tenant catalog read).
     public async Task<int> SoftDeleteAsync(
         int userId,
         IReadOnlyList<int> ids,
@@ -599,6 +602,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         return Math.Max(recipientRows, ownerRows);
     }
 
+    // PLATFORM-SCOPE: recipient inbox scoped by UserId (not tenant catalog read).
     public async Task<int> EmptyTrashAsync(
         int userId,
         CancellationToken cancellationToken = default)
@@ -630,6 +634,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         return recipientDeleted + ownerDeleted;
     }
 
+    // PLATFORM-SCOPE: recipient inbox scoped by UserId (not tenant catalog read).
     public async Task<int> ArchiveAsync(
         int userId,
         IReadOnlyList<int> ids,
@@ -661,6 +666,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         return rows > 0 ? distinct.Count : rows;
     }
 
+    // PLATFORM-SCOPE: recipient inbox scoped by UserId (not tenant catalog read).
     public async Task<int> RestoreAsync(
         int userId,
         IReadOnlyList<int> ids,

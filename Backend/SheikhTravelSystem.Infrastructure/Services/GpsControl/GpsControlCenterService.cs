@@ -5,6 +5,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.GpsControl;
 
 public sealed class GpsControlCenterService(IDbConnectionFactory dbFactory) : IGpsControlCenterService
 {
+    // PLATFORM-SCOPE: platform GPS Control Center catalog/queue KPIs (not tenant ERP reads).
     public async Task<GpsControlDashboardDto> GetDashboardAsync(CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

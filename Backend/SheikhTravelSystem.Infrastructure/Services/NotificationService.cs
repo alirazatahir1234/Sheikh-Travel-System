@@ -300,6 +300,7 @@ public class NotificationService : INotificationService
         }
     }
 
+    // PLATFORM-SCOPE: outbox dispatcher peeks pending rows across tenants by design.
     public async Task<int> PeekHighestPendingPriorityAsync(CancellationToken cancellationToken = default)
     {
         using var connection = _dbFactory.CreateConnection();
@@ -441,6 +442,7 @@ public class NotificationService : INotificationService
             cancellationToken: ct));
     }
 
+    // PLATFORM-SCOPE: outbox retry by notification Id (dispatcher path).
     private async Task ScheduleRetryAsync(int id, int retryCount, CancellationToken ct)
     {
         using var connection = _dbFactory.CreateConnection();
