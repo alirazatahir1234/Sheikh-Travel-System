@@ -53,7 +53,7 @@ public class ResetUserPasswordCommandHandler(
         var temporaryPassword = GenerateTemporaryPassword();
         var passwordHash = passwordHasher.Hash(temporaryPassword);
 
-        await userRepository.AdminResetPasswordAsync(request.Id, passwordHash, cancellationToken);
+        await userRepository.AdminResetPasswordAsync(request.Id, tenantId.Value, passwordHash, cancellationToken);
 
         var response = new ResetUserPasswordResponse(temporaryPassword);
         return ApiResponse<ResetUserPasswordResponse>.SuccessResponse(response, "Password reset successfully.");

@@ -19,9 +19,12 @@ public class GetUserByIdQueryHandler(
         if (user is null)
             throw new NotFoundException("User", request.Id);
 
-        var tenantId = user.CompanyId ?? 0;
-        if (tenantId > 0)
+        if (user.CompanyId is > 0 and var tenantId)
             platformScope.EnsureTenantAccess(tenantId);
+        else if (!platformScope.HasPermission(PlatformPermissions.TenantsDataRead))
+            // SG-01: a user with no company belongs to no tenant, so only a platform-level reader may
+            // see it. Previously this branch skipped the check and returned the user to anyone.
+            throw new ForbiddenException("Cross-tenant access is not allowed.");
 
         return ApiResponse<UserDto>.SuccessResponse(user);
     }

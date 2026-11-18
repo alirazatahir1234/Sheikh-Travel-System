@@ -234,14 +234,17 @@ public sealed partial class PlatformRepository
         }
     }
 
-    public async Task<int> CountUsersWithRoleAsync(int roleId, CancellationToken cancellationToken = default)
+    public async Task<int> CountUsersWithRoleAsync(int tenantId, int roleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        // Role is anchored to the tenant; every assignment of it is counted so a role still
+        // referenced anywhere can never be deleted out from under a user.
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             SELECT COUNT(*) FROM UserRoles ur
+            INNER JOIN Roles r ON r.Id = ur.RoleId AND r.TenantId = @TenantId
             INNER JOIN Users u ON u.Id = ur.UserId AND u.IsDeleted = 0
             WHERE ur.RoleId = @RoleId
-            """, new { RoleId = roleId }, cancellationToken: cancellationToken));
+            """, new { RoleId = roleId, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
     public async Task<int> DeleteRoleAsync(int tenantId, int roleId, CancellationToken cancellationToken = default)

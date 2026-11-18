@@ -503,39 +503,43 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         }
     }
 
-    public async Task SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task SoftDeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
+        var affected = await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Users SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { UpdatedAt = DateTime.UtcNow, Id = id },
+                "UPDATE Users SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                new { UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
+        if (affected == 0) throw new NotFoundException("User", id);
     }
 
     public async Task UpdateStatusAsync(
         int id,
+        int tenantId,
         bool isActive,
         string status,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        int affected;
         try
         {
-            await connection.ExecuteAsync(
+            affected = await connection.ExecuteAsync(
                 new CommandDefinition(
-                    "UPDATE Users SET IsActive = @IsActive, Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                    new { IsActive = isActive, Status = status, UpdatedAt = DateTime.UtcNow, Id = id },
+                    "UPDATE Users SET IsActive = @IsActive, Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                    new { IsActive = isActive, Status = status, UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                     cancellationToken: cancellationToken));
         }
         catch
         {
-            await connection.ExecuteAsync(
+            affected = await connection.ExecuteAsync(
                 new CommandDefinition(
-                    "UPDATE Users SET IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                    new { IsActive = isActive, UpdatedAt = DateTime.UtcNow, Id = id },
+                    "UPDATE Users SET IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                    new { IsActive = isActive, UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                     cancellationToken: cancellationToken));
         }
+        if (affected == 0) throw new NotFoundException("User", id);
     }
 
     public async Task UpdateProfileAsync(
@@ -617,11 +621,12 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
 
     public async Task AdminResetPasswordAsync(
         int userId,
+        int tenantId,
         string passwordHash,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
+        var affected = await connection.ExecuteAsync(
             new CommandDefinition(
                 @"UPDATE Users
                   SET PasswordHash = @PasswordHash,
@@ -631,15 +636,17 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
                       FailedLoginAttempts = 0,
                       LockoutEndUtc = NULL,
                       UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id",
+                  WHERE Id = @Id AND TenantId = @TenantId",
                 new
                 {
                     PasswordHash = passwordHash,
                     PasswordChangedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
-                    Id = userId
+                    Id = userId,
+                    TenantId = tenantId
                 },
                 cancellationToken: cancellationToken));
+        if (affected == 0) throw new NotFoundException("User", userId);
     }
 
     public async Task<IReadOnlyList<AssignedRoleDto>> GetAssignedRolesAsync(
@@ -781,8 +788,12 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM UserRoles WHERE UserId = @UserId",
-            new { UserId = userId },
+            """
+            DELETE FROM UserRoles
+            WHERE UserId = @UserId
+              AND EXISTS (SELECT 1 FROM Users u WHERE u.Id = @UserId AND u.TenantId = @TenantId)
+            """,
+            new { UserId = userId, TenantId = tenantId },
             transaction: transaction,
             cancellationToken: cancellationToken));
 
@@ -814,7 +825,8 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
                            COALESCE(r.RoleType, CASE WHEN r.IsSystem = 1 THEN N'System' ELSE N'Custom' END) AS RoleType,
                            ur.BranchId, ur.DepartmentId
                     FROM UserRoles ur
-                    INNER JOIN Roles r ON r.Id = ur.RoleId
+                    INNER JOIN Users u ON u.Id = ur.UserId
+                    INNER JOIN Roles r ON r.Id = ur.RoleId AND r.TenantId = u.TenantId
                     WHERE ur.UserId IN @UserIds
                     ORDER BY COALESCE(r.SortOrder, 0), r.Name
                     """,
@@ -861,7 +873,8 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
                        r.Category, COALESCE(r.RoleType, CASE WHEN r.IsSystem = 1 THEN N'System' ELSE N'Custom' END) AS RoleType,
                        ur.BranchId, ur.DepartmentId
                 FROM UserRoles ur
-                INNER JOIN Roles r ON r.Id = ur.RoleId
+                INNER JOIN Users u ON u.Id = ur.UserId
+                INNER JOIN Roles r ON r.Id = ur.RoleId AND r.TenantId = u.TenantId
                 WHERE ur.UserId = @UserId
                 ORDER BY COALESCE(r.SortOrder, 0), r.Name
                 """, new { UserId = userId }, cancellationToken: cancellationToken))).ToList();
@@ -876,7 +889,8 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
                        CAST(NULL AS INT) AS BranchId,
                        CAST(NULL AS INT) AS DepartmentId
                 FROM UserRoles ur
-                INNER JOIN Roles r ON r.Id = ur.RoleId
+                INNER JOIN Users u ON u.Id = ur.UserId
+                INNER JOIN Roles r ON r.Id = ur.RoleId AND r.TenantId = u.TenantId
                 WHERE ur.UserId = @UserId
                 ORDER BY r.Name
                 """, new { UserId = userId }, cancellationToken: cancellationToken))).ToList();
@@ -904,11 +918,17 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         int? assignedBy,
         CancellationToken cancellationToken)
     {
+        // Insert only when the user and the role belong to the same tenant; a cross-tenant
+        // pairing inserts nothing and is rejected below instead of granting another tenant's role.
+        int affected;
         try
         {
-            await connection.ExecuteAsync(new CommandDefinition("""
+            affected = await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO UserRoles (UserId, RoleId, BranchId, DepartmentId, AssignedAt, AssignedBy)
-                VALUES (@UserId, @RoleId, @BranchId, @DepartmentId, SYSUTCDATETIME(), @AssignedBy)
+                SELECT u.Id, r.Id, @BranchId, @DepartmentId, SYSUTCDATETIME(), @AssignedBy
+                FROM Users u
+                INNER JOIN Roles r ON r.Id = @RoleId AND r.TenantId = u.TenantId
+                WHERE u.Id = @UserId
                 """,
                 new
                 {
@@ -923,12 +943,19 @@ public sealed class UserRepository(IDbConnectionFactory dbFactory) : IUserReposi
         }
         catch
         {
-            await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO UserRoles (UserId, RoleId) VALUES (@UserId, @RoleId)
+            affected = await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO UserRoles (UserId, RoleId)
+                SELECT u.Id, r.Id
+                FROM Users u
+                INNER JOIN Roles r ON r.Id = @RoleId AND r.TenantId = u.TenantId
+                WHERE u.Id = @UserId
                 """, new { UserId = userId, RoleId = roleId },
                 transaction: transaction,
                 cancellationToken: cancellationToken));
         }
+
+        if (affected == 0)
+            throw new ConflictException("Role does not belong to the user's company.");
     }
 
     private static UserDto ToDto(

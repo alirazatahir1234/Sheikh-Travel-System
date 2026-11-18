@@ -50,7 +50,7 @@ public interface IPlatformRepository
     Task<int> CreateRoleForTenantAsync(int tenantId, string name, string code, CancellationToken cancellationToken = default);
     Task<(bool IsSystem, string? Code)?> GetRoleMetaAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task UpdateRoleForTenantAsync(int tenantId, int roleId, string name, bool isActive, string displayName, string? description, string? category, CancellationToken cancellationToken = default);
-    Task<int> CountUsersWithRoleAsync(int roleId, CancellationToken cancellationToken = default);
+    Task<int> CountUsersWithRoleAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task<int> DeleteRoleAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task<bool> RoleExistsAsync(int tenantId, int roleId, CancellationToken cancellationToken = default);
     Task ReplaceRolePermissionsAsync(int roleId, IEnumerable<string> permissionCodes, CancellationToken cancellationToken = default);

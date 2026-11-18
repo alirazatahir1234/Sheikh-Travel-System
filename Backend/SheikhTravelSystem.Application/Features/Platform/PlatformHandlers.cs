@@ -790,7 +790,7 @@ public class DeleteRoleForTenantCommandHandler(IPlatformRepository platformRepos
         if (role is null) throw new NotFoundException("Role", request.RoleId);
         if (role.Value.IsSystem) throw new ConflictException("System roles cannot be deleted.");
 
-        var userCount = await platformRepository.CountUsersWithRoleAsync(request.RoleId, cancellationToken);
+        var userCount = await platformRepository.CountUsersWithRoleAsync(request.TenantId, request.RoleId, cancellationToken);
         if (userCount > 0) throw new ConflictException("Cannot delete a role that is assigned to users.");
 
         var affected = await platformRepository.DeleteRoleAsync(request.TenantId, request.RoleId, cancellationToken);

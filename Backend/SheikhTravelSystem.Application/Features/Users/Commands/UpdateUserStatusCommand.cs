@@ -42,7 +42,7 @@ public class UpdateUserStatusCommandHandler(
         var status = UserLifecycle.Normalize(request.Status, request.IsActive);
         var isActive = UserLifecycle.IsActiveStatus(status);
 
-        await userRepository.UpdateStatusAsync(request.Id, isActive, status, cancellationToken);
+        await userRepository.UpdateStatusAsync(request.Id, tenantId.Value, isActive, status, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, $"User status set to {status}.");
     }

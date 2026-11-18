@@ -58,10 +58,11 @@ public interface IUserRepository
 
     Task UpdateAsync(int id, UserUpdateModel model, CancellationToken cancellationToken = default);
 
-    Task SoftDeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task SoftDeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task UpdateStatusAsync(
         int id,
+        int tenantId,
         bool isActive,
         string status,
         CancellationToken cancellationToken = default);
@@ -84,6 +85,7 @@ public interface IUserRepository
 
     Task AdminResetPasswordAsync(
         int userId,
+        int tenantId,
         string passwordHash,
         CancellationToken cancellationToken = default);
 

@@ -25,7 +25,7 @@ public class DeleteUserCommandHandler(
 
         platformScope.EnsureTenantAccess(tenantId.Value);
 
-        await userRepository.SoftDeleteAsync(request.Id, cancellationToken);
+        await userRepository.SoftDeleteAsync(request.Id, tenantId.Value, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "User deleted successfully.");
     }
