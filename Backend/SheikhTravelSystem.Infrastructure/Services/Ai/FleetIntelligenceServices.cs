@@ -26,8 +26,10 @@ public sealed class FleetHealthService(IDbConnectionFactory dbFactory) : IFleetH
             SELECT CASE WHEN COUNT(*) = 0 THEN 100
                 ELSE CAST(100.0 * SUM(CASE WHEN NextDueDate IS NULL OR NextDueDate > DATEADD(DAY, 7, GETUTCDATE()) THEN 1 ELSE 0 END)
                      / COUNT(*) AS DECIMAL(5,2)) END
-            FROM Maintenance WHERE IsDeleted = 0
-            """, cancellationToken: cancellationToken));
+            FROM Maintenance m
+            INNER JOIN Vehicles v ON v.Id = m.VehicleId AND v.TenantId = @TenantId
+            WHERE m.IsDeleted = 0
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var compliance = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
             SELECT CASE WHEN COUNT(*) = 0 THEN 100
@@ -37,21 +39,23 @@ public sealed class FleetHealthService(IDbConnectionFactory dbFactory) : IFleetH
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var critical = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM GpsAlertEvents
-            WHERE IsDeleted = 0 AND IsAcknowledged = 0
-              AND Severity = 'critical'
-              AND Timestamp > DATEADD(DAY, -1, GETUTCDATE())
-            """, cancellationToken: cancellationToken));
+            SELECT COUNT(*) FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+            WHERE e.IsDeleted = 0 AND e.IsAcknowledged = 0
+              AND e.Severity = 'critical'
+              AND e.Timestamp > DATEADD(DAY, -1, GETUTCDATE())
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var driverScore = 80m;
         try
         {
             // Prefer recent overspeed pressure as inverse proxy when dedicated score table is absent.
             var overspeedPressure = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-                SELECT COUNT(*) FROM GpsAlertEvents
-                WHERE IsDeleted = 0 AND EventType = 'speed_exceeded'
-                  AND Timestamp > DATEADD(DAY, -7, GETUTCDATE())
-                """, cancellationToken: cancellationToken));
+                SELECT COUNT(*) FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.IsDeleted = 0 AND e.EventType = 'speed_exceeded'
+                  AND e.Timestamp > DATEADD(DAY, -7, GETUTCDATE())
+                """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
             driverScore = Math.Clamp(100 - overspeedPressure * 2, 40, 100);
         }
         catch { /* keep default */ }
@@ -115,20 +119,23 @@ public sealed class AiDigestService(
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var maintenanceDue = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM Maintenance
-            WHERE IsDeleted = 0 AND NextDueDate IS NOT NULL AND NextDueDate <= DATEADD(DAY, 7, GETUTCDATE())
-            """, cancellationToken: cancellationToken));
+            SELECT COUNT(*) FROM Maintenance m
+            INNER JOIN Vehicles v ON v.Id = m.VehicleId AND v.TenantId = @TenantId
+            WHERE m.IsDeleted = 0 AND m.NextDueDate IS NOT NULL AND m.NextDueDate <= DATEADD(DAY, 7, GETUTCDATE())
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var overspeed = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM GpsAlertEvents
-            WHERE IsDeleted = 0 AND EventType = 'speed_exceeded'
-              AND Timestamp >= CAST(GETUTCDATE() AS DATE)
-            """, cancellationToken: cancellationToken));
+            SELECT COUNT(*) FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+            WHERE e.IsDeleted = 0 AND e.EventType = 'speed_exceeded'
+              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var critical = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM GpsAlertEvents
-            WHERE IsDeleted = 0 AND IsAcknowledged = 0 AND Severity = 'critical'
-            """, cancellationToken: cancellationToken));
+            SELECT COUNT(*) FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+            WHERE e.IsDeleted = 0 AND e.IsAcknowledged = 0 AND e.Severity = 'critical'
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var title = "Morning Fleet Summary";
         var body =
@@ -196,9 +203,10 @@ public sealed class AiRecommendationService(IDbConnectionFactory dbFactory) : IA
         }
 
         var overdue = await connection.QueryAsync<(int Id, int VehicleId)>(new CommandDefinition("""
-            SELECT TOP 20 Id, VehicleId FROM Maintenance
-            WHERE IsDeleted = 0 AND NextDueDate IS NOT NULL AND NextDueDate < GETUTCDATE()
-            """, cancellationToken: cancellationToken));
+            SELECT TOP 20 m.Id, m.VehicleId FROM Maintenance m
+            INNER JOIN Vehicles v ON v.Id = m.VehicleId AND v.TenantId = @TenantId
+            WHERE m.IsDeleted = 0 AND m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE()
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         foreach (var m in overdue)
         {

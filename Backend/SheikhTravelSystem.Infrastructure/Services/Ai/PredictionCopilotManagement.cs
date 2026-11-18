@@ -25,8 +25,12 @@ public sealed class AiPredictionService(
         foreach (var v in vehicles)
         {
             var maintCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT COUNT(*) FROM Maintenance WHERE VehicleId = @Id AND IsDeleted = 0",
-                new { v.Id }, cancellationToken: cancellationToken));
+                """
+                SELECT COUNT(*) FROM Maintenance m
+                INNER JOIN Vehicles v ON v.Id = m.VehicleId AND v.TenantId = @TenantId
+                WHERE m.VehicleId = @Id AND m.IsDeleted = 0
+                """,
+                new { v.Id, TenantId = tenantId }, cancellationToken: cancellationToken));
 
             var features = JsonSerializer.Serialize(new
             {
@@ -100,11 +104,13 @@ public sealed class AiPredictionService(
         var drivers = await connection.QueryAsync<(int DriverId, int OverspeedCount)>(new CommandDefinition("""
             SELECT TOP 50 a.DriverId, COUNT(*) AS OverspeedCount
             FROM GpsAlertEvents a
+            INNER JOIN Vehicles v ON v.Id = a.VehicleId AND v.TenantId = @TenantId
+            INNER JOIN Drivers d ON d.Id = a.DriverId AND d.TenantId = @TenantId
             WHERE a.IsDeleted = 0 AND a.EventType = 'speed_exceeded' AND a.DriverId IS NOT NULL
               AND a.Timestamp > DATEADD(DAY, -7, GETUTCDATE())
             GROUP BY a.DriverId
             HAVING COUNT(*) >= 3
-            """, cancellationToken: cancellationToken));
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         foreach (var d in drivers)
         {
@@ -180,8 +186,12 @@ public sealed class AiPredictionService(
             "SELECT COUNT(*) FROM AiPredictions WHERE TenantId = @TenantId",
             new { TenantId = tenantId }, cancellationToken: cancellationToken));
         var alertCount = await connection.ExecuteScalarAsync<long>(new CommandDefinition(
-            "SELECT COUNT(*) FROM GpsAlertEvents WHERE IsDeleted = 0 AND Timestamp > DATEADD(DAY, -90, GETUTCDATE())",
-            cancellationToken: cancellationToken));
+            """
+            SELECT COUNT(*) FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+            WHERE e.IsDeleted = 0 AND e.Timestamp > DATEADD(DAY, -90, GETUTCDATE())
+            """,
+            new { TenantId = tenantId }, cancellationToken: cancellationToken));
         var tripCount = await connection.ExecuteScalarAsync<long>(new CommandDefinition(
             "SELECT COUNT(*) FROM GpsTrips",
             cancellationToken: cancellationToken));
