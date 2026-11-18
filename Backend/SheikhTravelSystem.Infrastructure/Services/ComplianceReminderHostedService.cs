@@ -150,7 +150,7 @@ public class ComplianceReminderHostedService(
                 SELECT d.UserId, v.Name, x.DocumentType, x.ExpiryDate, v.TenantId
                 FROM Drivers d
                 INNER JOIN AssignmentHistory ah ON ah.DriverId = d.Id AND ah.Status = N'Active' AND ah.IsDeleted = 0
-                INNER JOIN Vehicles v ON v.Id = ah.VehicleId
+                INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.TenantId = d.TenantId
                 CROSS APPLY (
                     SELECT DocumentType, ExpiryDate FROM (
                         SELECT N'Insurance' AS DocumentType, v.InsuranceExpiryDate AS ExpiryDate
@@ -160,7 +160,7 @@ public class ComplianceReminderHostedService(
                     UNION ALL
                     SELECT c.DocumentType, c.ExpiryDate
                     FROM ComplianceDocuments c
-                    WHERE c.EntityType = N'Vehicle' AND c.EntityId = v.Id AND c.IsDeleted = 0
+                    WHERE c.EntityType = N'Vehicle' AND c.EntityId = v.Id AND c.TenantId = v.TenantId AND c.IsDeleted = 0
                       AND c.ExpiryDate IS NOT NULL AND c.ExpiryDate <= @Threshold
                 ) x
                 WHERE d.IsDeleted = 0 AND d.IsActive = 1 AND d.UserId IS NOT NULL

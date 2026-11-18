@@ -40,8 +40,8 @@ public sealed class FleetRepository(IDbConnectionFactory dbFactory) : IFleetRepo
                    CASE WHEN c.EntityType = 'Vehicle' THEN v.Name ELSE d.FullName END AS EntityName,
                    c.DocumentType, c.DocumentNumber, c.IssuedDate, c.ExpiryDate, c.Status, c.FileUrl
             FROM ComplianceDocuments c
-            LEFT JOIN Vehicles v ON c.EntityType = 'Vehicle' AND c.EntityId = v.Id
-            LEFT JOIN Drivers d ON c.EntityType = 'Driver' AND c.EntityId = d.Id
+            LEFT JOIN Vehicles v ON c.EntityType = 'Vehicle' AND c.EntityId = v.Id AND v.TenantId = c.TenantId
+            LEFT JOIN Drivers d ON c.EntityType = 'Driver' AND c.EntityId = d.Id AND d.TenantId = c.TenantId
             WHERE c.IsDeleted = 0 AND c.TenantId = @TenantId
             ORDER BY c.ExpiryDate ASC
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
@@ -77,7 +77,7 @@ public sealed class FleetRepository(IDbConnectionFactory dbFactory) : IFleetRepo
                    a.AssignmentType, a.Status, a.StartAt, a.EndAt
             FROM AssignmentHistory a
             INNER JOIN Vehicles v ON a.VehicleId = v.Id
-            LEFT JOIN Drivers d ON a.DriverId = d.Id
+            LEFT JOIN Drivers d ON a.DriverId = d.Id AND d.TenantId = v.TenantId
             WHERE a.IsDeleted = 0 AND v.TenantId = @TenantId
             ORDER BY a.StartAt DESC
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
