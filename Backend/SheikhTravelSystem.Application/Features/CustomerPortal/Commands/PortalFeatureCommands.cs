@@ -21,6 +21,7 @@ public class PortalPointToPointQuoteCommandValidator : AbstractValidator<PortalP
 public class PortalPointToPointQuoteCommandHandler(
     IPortalPricingService pricingService,
     ICustomerPortalRepository portalRepository,
+    ITenantContext tenantContext,
     ISender mediator)
     : IRequestHandler<PortalPointToPointQuoteCommand, ApiResponse<PortalQuoteResultDto>>
 {
@@ -49,7 +50,8 @@ public class PortalPointToPointQuoteCommandHandler(
 
         string? routeLabel = null;
         if (r.RouteId is > 0)
-            routeLabel = await portalRepository.GetRouteLabelAsync(r.RouteId.Value, cancellationToken);
+            routeLabel = await portalRepository.GetRouteLabelAsync(
+                tenantContext.GetRequiredTenantId(), r.RouteId.Value, cancellationToken);
 
         return ApiResponse<PortalQuoteResultDto>.SuccessResponse(
             new PortalQuoteResultDto(quote.Data, distanceKm, duration, routeLabel),

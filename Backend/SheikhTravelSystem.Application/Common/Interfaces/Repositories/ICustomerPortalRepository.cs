@@ -6,6 +6,7 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 /// <summary>
 /// Persistence for customer portal. SQL lives in Infrastructure.
+/// TenantId must come from ITenantContext at the handler — never from the request body.
 /// </summary>
 public interface ICustomerPortalRepository
 {
@@ -31,25 +32,25 @@ public interface ICustomerPortalRepository
     Task AddLoyaltyPointsAsync(int customerId, int points, CancellationToken cancellationToken = default);
 
     // ── Catalog ─────────────────────────────────────────────────────────────
-    Task<IReadOnlyList<PortalRouteDto>> GetRoutesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PortalRouteDto>> GetRoutesAsync(int tenantId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<PortalVehicleDto>> GetVehiclesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PortalVehicleDto>> GetVehiclesAsync(int tenantId, CancellationToken cancellationToken = default);
 
-    Task<decimal?> GetRouteBasePriceAsync(int routeId, CancellationToken cancellationToken = default);
+    Task<decimal?> GetRouteBasePriceAsync(int tenantId, int routeId, CancellationToken cancellationToken = default);
 
-    Task<bool> VehicleExistsAndNotRetiredAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<bool> VehicleExistsAndNotRetiredAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 
-    Task<decimal?> GetPerKmBasePriceAsync(CancellationToken cancellationToken = default);
+    Task<decimal?> GetPerKmBasePriceAsync(int tenantId, CancellationToken cancellationToken = default);
 
-    Task<int> GetFirstActiveRouteIdAsync(CancellationToken cancellationToken = default);
+    Task<int> GetFirstActiveRouteIdAsync(int tenantId, CancellationToken cancellationToken = default);
 
-    Task<string?> GetRouteLabelAsync(int routeId, CancellationToken cancellationToken = default);
+    Task<string?> GetRouteLabelAsync(int tenantId, int routeId, CancellationToken cancellationToken = default);
 
-    Task<int?> GetVehicleSeatingCapacityAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<int?> GetVehicleSeatingCapacityAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 
-    Task<string?> GetVehicleLabelAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<string?> GetVehicleLabelAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 
-    Task<string?> GetBookingNumberAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<string?> GetBookingNumberAsync(int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
     Task<int?> GetPromoCodeIdAsync(string code, CancellationToken cancellationToken = default);
 
@@ -57,37 +58,45 @@ public interface ICustomerPortalRepository
 
     // ── Bookings ────────────────────────────────────────────────────────────
     Task<IReadOnlyList<PortalBookingCardRow>> GetBookingCardsAsync(
-        IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default);
+        int tenantId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default);
 
     Task<PortalBookingDetailHeadRow?> GetBookingDetailHeadAsync(
-        int bookingId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default);
+        int tenantId, int bookingId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PortalPaymentLineDto>> GetBookingPaymentsAsync(
-        int bookingId, CancellationToken cancellationToken = default);
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<string>> GetBookingSeatsAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetBookingSeatsAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task ApplyPortalBookingExtrasAsync(PortalBookingExtrasUpdate update, CancellationToken cancellationToken = default);
+    Task ApplyPortalBookingExtrasAsync(
+        int tenantId, PortalBookingExtrasUpdate update, CancellationToken cancellationToken = default);
 
     Task<bool> IsSeatTakenAsync(
-        int vehicleId, string seatLabel, DateTime windowStart, DateTime windowEnd,
+        int tenantId, int vehicleId, string seatLabel, DateTime windowStart, DateTime windowEnd,
         CancellationToken cancellationToken = default);
 
     Task InsertBookingSeatAsync(int bookingId, string seatLabel, CancellationToken cancellationToken = default);
 
-    Task<(int Status, int? VehicleId)?> GetBookingStatusVehicleAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<(int Status, int? VehicleId)?> GetBookingStatusVehicleAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task<(decimal? Speed, DateTime? UpdatedAt)?> GetVehicleLiveLocationAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<(decimal? Speed, DateTime? UpdatedAt)?> GetVehicleLiveLocationAsync(
+        int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 
-    Task<string?> GetStartedBookingDriverPhoneAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<string?> GetStartedBookingDriverPhoneAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task<PortalInvoiceRow?> GetInvoiceRowAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<PortalInvoiceRow?> GetInvoiceRowAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task<(int Status, DateTime PickupTime)?> GetBookingStatusPickupAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<(int Status, DateTime PickupTime)?> GetBookingStatusPickupAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task CancelBookingAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task CancelBookingAsync(int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
-    Task<PortalCheckoutBookingRow?> GetCheckoutBookingAsync(int bookingId, CancellationToken cancellationToken = default);
+    Task<PortalCheckoutBookingRow?> GetCheckoutBookingAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default);
 
     // ── Addresses / notifications / loyalty / wallet / favorites ────────────
     Task<int> SaveAddressAsync(
@@ -95,25 +104,27 @@ public interface ICustomerPortalRepository
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PortalSavedAddressDto>> GetSavedAddressesAsync(
-        int customerId, CancellationToken cancellationToken = default);
+        int tenantId, int customerId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PortalCustomerNotificationDto>> GetCustomerNotificationsAsync(
-        int customerId, CancellationToken cancellationToken = default);
+        int tenantId, int customerId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<(string SeatLabel, int RowIndex, int ColIndex)>> GetVehicleSeatLayoutsAsync(
-        int vehicleId, CancellationToken cancellationToken = default);
+        int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<string>> GetBookedSeatsNearPickupAsync(
-        int vehicleId, DateTime pickupTime, CancellationToken cancellationToken = default);
+        int tenantId, int vehicleId, DateTime pickupTime, CancellationToken cancellationToken = default);
 
-    Task<(int Points, string Tier)> GetLoyaltyAsync(int customerId, CancellationToken cancellationToken = default);
+    Task<(int Points, string Tier)> GetLoyaltyAsync(
+        int tenantId, int customerId, CancellationToken cancellationToken = default);
 
     Task EnsureWalletRowAsync(int customerId, CancellationToken cancellationToken = default);
 
-    Task<decimal> GetWalletBalanceAsync(int customerId, CancellationToken cancellationToken = default);
+    Task<decimal> GetWalletBalanceAsync(
+        int tenantId, int customerId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PortalFavoriteRouteDto>> GetFavoriteRoutesAsync(
-        int customerId, CancellationToken cancellationToken = default);
+        int tenantId, int customerId, CancellationToken cancellationToken = default);
 
     Task<int> AddFavoriteRouteAsync(
         int customerId, int routeId, string? label, CancellationToken cancellationToken = default);

@@ -29,13 +29,14 @@ public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository port
         GetPortalBookingTrackingQuery request,
         CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantId, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found for this phone number.");
         }
 
-        var head = await portalRepository.GetBookingStatusVehicleAsync(request.BookingId, cancellationToken);
+        var head = await portalRepository.GetBookingStatusVehicleAsync(tenantId, request.BookingId, cancellationToken);
         if (head is null)
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found.");
 
@@ -80,8 +81,8 @@ public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository port
         }
 
         var d = eta.Data;
-        var live = await portalRepository.GetVehicleLiveLocationAsync(d.VehicleId, cancellationToken);
-        var driverPhone = await portalRepository.GetStartedBookingDriverPhoneAsync(request.BookingId, cancellationToken);
+        var live = await portalRepository.GetVehicleLiveLocationAsync(tenantId, d.VehicleId, cancellationToken);
+        var driverPhone = await portalRepository.GetStartedBookingDriverPhoneAsync(tenantId, request.BookingId, cancellationToken);
 
         string? masked = null;
         if (!string.IsNullOrWhiteSpace(driverPhone) && driverPhone.Length >= 4)
@@ -124,13 +125,14 @@ public class GetPortalBookingInvoiceQueryHandler(ICustomerPortalRepository porta
 {
     public async Task<ApiResponse<byte[]>> Handle(GetPortalBookingInvoiceQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantId, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<byte[]>.FailResponse("Booking not found for this phone number.");
         }
 
-        var row = await portalRepository.GetInvoiceRowAsync(request.BookingId, cancellationToken);
+        var row = await portalRepository.GetInvoiceRowAsync(tenantId, request.BookingId, cancellationToken);
         if (row is null || string.IsNullOrEmpty(row.BookingNumber))
             return ApiResponse<byte[]>.FailResponse("Booking not found.");
 
@@ -169,13 +171,14 @@ public class CancelPortalBookingCommandHandler(ICustomerPortalRepository portalR
 {
     public async Task<ApiResponse<bool>> Handle(CancelPortalBookingCommand request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantId, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<bool>.FailResponse("Booking not found for this phone number.");
         }
 
-        var row = await portalRepository.GetBookingStatusPickupAsync(request.BookingId, cancellationToken);
+        var row = await portalRepository.GetBookingStatusPickupAsync(tenantId, request.BookingId, cancellationToken);
         if (row is null)
             return ApiResponse<bool>.FailResponse("Booking not found.");
 
@@ -186,7 +189,7 @@ public class CancelPortalBookingCommandHandler(ICustomerPortalRepository portalR
         if (row.Value.PickupTime <= DateTime.UtcNow.AddHours(-1))
             return ApiResponse<bool>.FailResponse("Pickup time has passed; contact support to cancel.");
 
-        await portalRepository.CancelBookingAsync(request.BookingId, cancellationToken);
+        await portalRepository.CancelBookingAsync(tenantId, request.BookingId, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Booking cancelled.");
     }
 }

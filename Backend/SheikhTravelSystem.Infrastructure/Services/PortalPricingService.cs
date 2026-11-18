@@ -8,7 +8,9 @@ using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
 
-public sealed class PortalPricingService(ICustomerPortalRepository portalRepository) : IPortalPricingService
+public sealed class PortalPricingService(
+    ICustomerPortalRepository portalRepository,
+    ITenantContext tenantContext) : IPortalPricingService
 {
     public async Task<ApiResponse<PriceBreakdown>> CalculateQuoteAsync(
         ISender mediator,
@@ -17,7 +19,8 @@ public sealed class PortalPricingService(ICustomerPortalRepository portalReposit
         bool isRoundTrip,
         CancellationToken cancellationToken = default)
     {
-        var basePrice = await portalRepository.GetRouteBasePriceAsync(routeId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var basePrice = await portalRepository.GetRouteBasePriceAsync(tenantId, routeId, cancellationToken);
 
         if (basePrice is null)
             return ApiResponse<PriceBreakdown>.FailResponse(
@@ -47,6 +50,7 @@ public sealed class PortalPricingService(ICustomerPortalRepository portalReposit
         int? routeId,
         CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         var distanceKm = PortalDynamicPricingHelper.HaversineDistanceKm(pickupLat, pickupLng, dropLat, dropLng);
         if (distanceKm <= 0)
             return ApiResponse<PriceBreakdown>.FailResponse("Pickup and drop-off must be different locations.");
@@ -55,7 +59,7 @@ public sealed class PortalPricingService(ICustomerPortalRepository portalReposit
             return ApiResponse<PriceBreakdown>.FailResponse(
                 $"Trips over {PortalDynamicPricingHelper.MaxTripDistanceKm} km require a custom quote. Contact support.");
 
-        var vehicleOk = await portalRepository.VehicleExistsAndNotRetiredAsync(vehicleId, cancellationToken);
+        var vehicleOk = await portalRepository.VehicleExistsAndNotRetiredAsync(tenantId, vehicleId, cancellationToken);
         if (!vehicleOk)
             return ApiResponse<PriceBreakdown>.FailResponse("Selected vehicle was not found.");
 
@@ -64,9 +68,9 @@ public sealed class PortalPricingService(ICustomerPortalRepository portalReposit
             return await CalculateQuoteAsync(mediator, routeId.Value, vehicleId, isRoundTrip, cancellationToken);
         }
 
-        var perKmBase = await portalRepository.GetPerKmBasePriceAsync(cancellationToken);
+        var perKmBase = await portalRepository.GetPerKmBasePriceAsync(tenantId, cancellationToken);
         var baseComponent = Math.Round(distanceKm * (perKmBase ?? 25m), 0);
-        var effectiveRouteId = await portalRepository.GetFirstActiveRouteIdAsync(cancellationToken);
+        var effectiveRouteId = await portalRepository.GetFirstActiveRouteIdAsync(tenantId, cancellationToken);
 
         if (effectiveRouteId <= 0)
             return ApiResponse<PriceBreakdown>.FailResponse("No active routes configured for pricing.");

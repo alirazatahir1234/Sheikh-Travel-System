@@ -17,11 +17,12 @@ public class GetPortalSavedAddressesQueryHandler(ICustomerPortalRepository porta
         GetPortalSavedAddressesQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantId, request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalSavedAddressDto>>.SuccessResponse([], "No saved addresses.");
 
-        var rows = await portalRepository.GetSavedAddressesAsync(customerId.Value, cancellationToken);
+        var rows = await portalRepository.GetSavedAddressesAsync(tenantId, customerId.Value, cancellationToken);
         return ApiResponse<IReadOnlyList<PortalSavedAddressDto>>.SuccessResponse(rows.ToList());
     }
 }
@@ -36,11 +37,12 @@ public class GetPortalCustomerNotificationsQueryHandler(ICustomerPortalRepositor
         GetPortalCustomerNotificationsQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantId, request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>.SuccessResponse([]);
 
-        var rows = await portalRepository.GetCustomerNotificationsAsync(customerId.Value, cancellationToken);
+        var rows = await portalRepository.GetCustomerNotificationsAsync(tenantId, customerId.Value, cancellationToken);
         return ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>.SuccessResponse(rows.ToList());
     }
 }
@@ -48,24 +50,25 @@ public class GetPortalCustomerNotificationsQueryHandler(ICustomerPortalRepositor
 public record GetPortalVehicleSeatsQuery(int VehicleId, DateTime PickupTime)
     : IRequest<ApiResponse<IReadOnlyList<PortalSeatLayoutDto>>>;
 
-public class GetPortalVehicleSeatsQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalVehicleSeatsQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalVehicleSeatsQuery, ApiResponse<IReadOnlyList<PortalSeatLayoutDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalSeatLayoutDto>>> Handle(
         GetPortalVehicleSeatsQuery request,
         CancellationToken cancellationToken)
     {
-        var layoutList = (await portalRepository.GetVehicleSeatLayoutsAsync(request.VehicleId, cancellationToken)).ToList();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var layoutList = (await portalRepository.GetVehicleSeatLayoutsAsync(tenantId, request.VehicleId, cancellationToken)).ToList();
         if (layoutList.Count == 0)
         {
-            var cap = await portalRepository.GetVehicleSeatingCapacityAsync(request.VehicleId, cancellationToken) ?? 6;
+            var cap = await portalRepository.GetVehicleSeatingCapacityAsync(tenantId, request.VehicleId, cancellationToken) ?? 6;
             layoutList = Enumerable.Range(1, Math.Min(cap, 12))
                 .Select(i => ($"{i}", (i - 1) / 2, (i - 1) % 2))
                 .ToList();
         }
 
         var booked = (await portalRepository.GetBookedSeatsNearPickupAsync(
-            request.VehicleId, request.PickupTime, cancellationToken))
+            tenantId, request.VehicleId, request.PickupTime, cancellationToken))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var dtos = layoutList.Select(l => new PortalSeatLayoutDto(l.SeatLabel, l.RowIndex, l.ColIndex, booked.Contains(l.SeatLabel))).ToList();
@@ -80,12 +83,13 @@ public class GetPortalLoyaltyQueryHandler(ICustomerPortalRepository portalReposi
 {
     public async Task<ApiResponse<PortalLoyaltyDto>> Handle(GetPortalLoyaltyQuery request, CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantId, request.Phone, cancellationToken);
         if (customerId is null)
             return ApiResponse<PortalLoyaltyDto>.SuccessResponse(new PortalLoyaltyDto(0, "Bronze"));
 
         await portalRepository.EnsureLoyaltyRowAsync(customerId.Value, cancellationToken);
-        var row = await portalRepository.GetLoyaltyAsync(customerId.Value, cancellationToken);
+        var row = await portalRepository.GetLoyaltyAsync(tenantId, customerId.Value, cancellationToken);
         return ApiResponse<PortalLoyaltyDto>.SuccessResponse(new PortalLoyaltyDto(row.Points, row.Tier));
     }
 }
@@ -97,12 +101,13 @@ public class GetPortalWalletQueryHandler(ICustomerPortalRepository portalReposit
 {
     public async Task<ApiResponse<PortalWalletDto>> Handle(GetPortalWalletQuery request, CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantId, request.Phone, cancellationToken);
         if (customerId is null)
             return ApiResponse<PortalWalletDto>.SuccessResponse(new PortalWalletDto(0));
 
         await portalRepository.EnsureWalletRowAsync(customerId.Value, cancellationToken);
-        var balance = await portalRepository.GetWalletBalanceAsync(customerId.Value, cancellationToken);
+        var balance = await portalRepository.GetWalletBalanceAsync(tenantId, customerId.Value, cancellationToken);
         return ApiResponse<PortalWalletDto>.SuccessResponse(new PortalWalletDto(balance));
     }
 }
@@ -118,11 +123,12 @@ public class GetPortalFavoriteRoutesQueryHandler(ICustomerPortalRepository porta
         GetPortalFavoriteRoutesQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantId, request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>.SuccessResponse([]);
 
-        var rows = await portalRepository.GetFavoriteRoutesAsync(customerId.Value, cancellationToken);
+        var rows = await portalRepository.GetFavoriteRoutesAsync(tenantId, customerId.Value, cancellationToken);
         return ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>.SuccessResponse(rows.ToList());
     }
 }

@@ -34,7 +34,8 @@ public class CreatePortalPaymentCheckoutCommandHandler(
                 tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Booking not found for this phone number.");
 
-        var booking = await portalRepository.GetCheckoutBookingAsync(request.BookingId, cancellationToken);
+        var booking = await portalRepository.GetCheckoutBookingAsync(
+            tenantContext.GetRequiredTenantId(), request.BookingId, cancellationToken);
 
         if (booking is null)
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Booking not found.");

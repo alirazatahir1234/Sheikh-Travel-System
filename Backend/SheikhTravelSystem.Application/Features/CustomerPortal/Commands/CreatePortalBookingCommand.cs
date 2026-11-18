@@ -57,8 +57,9 @@ public class CreatePortalBookingCommandHandler(
     public async Task<ApiResponse<PortalBookingCreatedDto>> Handle(CreatePortalBookingCommand request, CancellationToken cancellationToken)
     {
         var r = request.Request;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
-        var seating = await portalRepository.GetVehicleSeatingCapacityAsync(r.VehicleId, cancellationToken);
+        var seating = await portalRepository.GetVehicleSeatingCapacityAsync(tenantId, r.VehicleId, cancellationToken);
         if (seating is null or <= 0)
             return ApiResponse<PortalBookingCreatedDto>.FailResponse("Selected vehicle was not found.");
 
@@ -114,13 +115,13 @@ public class CreatePortalBookingCommandHandler(
 
         var effectiveRouteId = r.RouteId;
         if (effectiveRouteId is null or <= 0)
-            effectiveRouteId = await portalRepository.GetFirstActiveRouteIdAsync(cancellationToken);
+            effectiveRouteId = await portalRepository.GetFirstActiveRouteIdAsync(tenantId, cancellationToken);
 
         var (customerOk, customerId, customerError) = await TryResolveCustomerIdAsync(mediator, r, cancellationToken);
         if (!customerOk)
             return ApiResponse<PortalBookingCreatedDto>.FailResponse(customerError ?? "Could not save your contact details.");
 
-        var vehicleLabel = await portalRepository.GetVehicleLabelAsync(r.VehicleId, cancellationToken);
+        var vehicleLabel = await portalRepository.GetVehicleLabelAsync(tenantId, r.VehicleId, cancellationToken);
         var combinedNotes = BuildNotes(r.Notes, r.VehicleId, vehicleLabel);
 
         var bookingResult = await mediator.Send(
@@ -138,10 +139,11 @@ public class CreatePortalBookingCommandHandler(
             return ApiResponse<PortalBookingCreatedDto>.FailResponse(bookingResult.Message ?? "Booking could not be created.");
 
         var bookingId = bookingResult.Data;
-        var bookingNumber = await portalRepository.GetBookingNumberAsync(bookingId, cancellationToken);
+        var bookingNumber = await portalRepository.GetBookingNumberAsync(tenantId, bookingId, cancellationToken);
 
         await mediator.Send(new AssignVehicleCommand(bookingId, r.VehicleId), cancellationToken);
         await portalRepository.ApplyPortalBookingExtrasAsync(
+            tenantId,
             new PortalBookingExtrasUpdate
             {
                 BookingId = bookingId,
@@ -169,7 +171,7 @@ public class CreatePortalBookingCommandHandler(
             foreach (var seat in r.SeatLabels.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var taken = await portalRepository.IsSeatTakenAsync(
-                    r.VehicleId, seat, windowStart, windowEnd, cancellationToken);
+                    tenantId, r.VehicleId, seat, windowStart, windowEnd, cancellationToken);
 
                 if (taken)
                     return ApiResponse<PortalBookingCreatedDto>.FailResponse($"Seat {seat} is already booked for this vehicle and time.");

@@ -74,6 +74,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
             cancellationToken: cancellationToken));
     }
 
+    // PLATFORM-SCOPE: startup phone normalize across customers (seed path).
     public async Task NormalizeCustomerPhonesAsync(CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -159,7 +160,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<IReadOnlyList<PortalRouteDto>> GetRoutesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PortalRouteDto>> GetRoutesAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalRouteDto>(
@@ -174,13 +175,14 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                          COALESCE(EstimatedMinutes,
                              CASE WHEN Distance > 0 THEN CAST(CEILING(Distance / 70.0 * 60) AS INT) ELSE 120 END) AS EstimatedDurationMinutes
                   FROM Routes
-                  WHERE IsDeleted = 0 AND IsActive = 1
+                  WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId
                   ORDER BY Source, Destination",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return rows.AsList();
     }
 
-    public async Task<IReadOnlyList<PortalVehicleDto>> GetVehiclesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PortalVehicleDto>> GetVehiclesAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalVehicleDto>(
@@ -195,88 +197,90 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                          FuelType,
                          Status
                   FROM Vehicles
-                  WHERE IsDeleted = 0 AND Status <> @Retired
+                  WHERE IsDeleted = 0 AND Status <> @Retired AND TenantId = @TenantId
                   ORDER BY Name",
-                new { Retired = (int)VehicleStatus.Retired },
+                new { Retired = (int)VehicleStatus.Retired, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return rows.AsList();
     }
 
-    public async Task<decimal?> GetRouteBasePriceAsync(int routeId, CancellationToken cancellationToken = default)
+    public async Task<decimal?> GetRouteBasePriceAsync(int tenantId, int routeId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal?>(
             new CommandDefinition(
-                "SELECT BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-                new { Id = routeId },
+                "SELECT BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId",
+                new { Id = routeId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<bool> VehicleExistsAndNotRetiredAsync(int vehicleId, CancellationToken cancellationToken = default)
+    public async Task<bool> VehicleExistsAndNotRetiredAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0 AND Status <> 4) THEN 1 ELSE 0 END",
-                new { Id = vehicleId },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0 AND Status <> 4 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
+                new { Id = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<decimal?> GetPerKmBasePriceAsync(CancellationToken cancellationToken = default)
+    public async Task<decimal?> GetPerKmBasePriceAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal?>(
             new CommandDefinition(
-                "SELECT TOP 1 BasePrice / NULLIF(Distance, 0) FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 AND Distance > 0 ORDER BY Id",
+                "SELECT TOP 1 BasePrice / NULLIF(Distance, 0) FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 AND Distance > 0 AND TenantId = @TenantId ORDER BY Id",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<int> GetFirstActiveRouteIdAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetFirstActiveRouteIdAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT TOP 1 Id FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 ORDER BY Id",
+                "SELECT TOP 1 Id FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId ORDER BY Id",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<string?> GetRouteLabelAsync(int routeId, CancellationToken cancellationToken = default)
+    public async Task<string?> GetRouteLabelAsync(int tenantId, int routeId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<string?>(
             new CommandDefinition(
-                "SELECT Source + N' → ' + Destination FROM Routes WHERE Id = @Id",
-                new { Id = routeId },
+                "SELECT Source + N' → ' + Destination FROM Routes WHERE Id = @Id AND TenantId = @TenantId",
+                new { Id = routeId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<int?> GetVehicleSeatingCapacityAsync(int vehicleId, CancellationToken cancellationToken = default)
+    public async Task<int?> GetVehicleSeatingCapacityAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT SeatingCapacity FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = vehicleId },
+                "SELECT SeatingCapacity FROM Vehicles WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<string?> GetVehicleLabelAsync(int vehicleId, CancellationToken cancellationToken = default)
+    public async Task<string?> GetVehicleLabelAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<string?>(
             new CommandDefinition(
-                "SELECT Name + N' (' + RegistrationNumber + N')' FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = vehicleId },
+                "SELECT Name + N' (' + RegistrationNumber + N')' FROM Vehicles WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<string?> GetBookingNumberAsync(int bookingId, CancellationToken cancellationToken = default)
+    public async Task<string?> GetBookingNumberAsync(int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<string?>(
             new CommandDefinition(
-                "SELECT BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
@@ -306,7 +310,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<IReadOnlyList<PortalBookingCardRow>> GetBookingCardsAsync(
-        IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default)
+        int tenantId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalBookingCardRow>(
@@ -325,11 +329,12 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                              AND p.IsDeleted = 0
                          ), 0) AS PaidAmount
                   FROM Bookings b
-                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
-                  WHERE b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds
+                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0 AND r.TenantId = b.TenantId
+                  WHERE b.IsDeleted = 0 AND b.TenantId = @TenantId AND b.CustomerId IN @CustomerIds
                   ORDER BY b.PickupTime DESC",
                 new
                 {
+                    TenantId = tenantId,
                     CustomerIds = customerIds,
                     Paid = (int)PaymentStatus.Paid,
                     Partial = (int)PaymentStatus.PartiallyPaid
@@ -339,7 +344,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<PortalBookingDetailHeadRow?> GetBookingDetailHeadAsync(
-        int bookingId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, IReadOnlyList<int> customerIds, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<PortalBookingDetailHeadRow>(
@@ -366,13 +371,14 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                          d.Rating AS DriverRating,
                          d.YearsExperience AS DriverYears
                   FROM Bookings b
-                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
-                  LEFT JOIN Vehicles v ON v.Id = b.VehicleId AND v.IsDeleted = 0
-                  LEFT JOIN Drivers d ON d.Id = b.DriverId AND d.IsDeleted = 0
-                  WHERE b.Id = @Id AND b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds",
+                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0 AND r.TenantId = b.TenantId
+                  LEFT JOIN Vehicles v ON v.Id = b.VehicleId AND v.IsDeleted = 0 AND v.TenantId = b.TenantId
+                  LEFT JOIN Drivers d ON d.Id = b.DriverId AND d.IsDeleted = 0 AND d.TenantId = b.TenantId
+                  WHERE b.Id = @Id AND b.IsDeleted = 0 AND b.TenantId = @TenantId AND b.CustomerId IN @CustomerIds",
                 new
                 {
                     Id = bookingId,
+                    TenantId = tenantId,
                     CustomerIds = customerIds,
                     Paid = (int)PaymentStatus.Paid,
                     Partial = (int)PaymentStatus.PartiallyPaid
@@ -381,30 +387,39 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<IReadOnlyList<PortalPaymentLineDto>> GetBookingPaymentsAsync(
-        int bookingId, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var payments = await connection.QueryAsync<PortalPaymentLineDto>(
             new CommandDefinition(
-                @"SELECT Id, Amount, Status, PaymentDate, PaymentMethod
-                  FROM Payments WHERE BookingId = @BookingId AND IsDeleted = 0 ORDER BY PaymentDate DESC",
-                new { BookingId = bookingId },
+                @"SELECT p.Id, p.Amount, p.Status, p.PaymentDate, p.PaymentMethod
+                  FROM Payments p
+                  INNER JOIN Bookings b ON b.Id = p.BookingId AND b.TenantId = @TenantId AND b.IsDeleted = 0
+                  WHERE p.BookingId = @BookingId AND p.IsDeleted = 0
+                  ORDER BY p.PaymentDate DESC",
+                new { BookingId = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return payments.ToList();
     }
 
-    public async Task<IReadOnlyList<string>> GetBookingSeatsAsync(int bookingId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetBookingSeatsAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var seats = await connection.QueryAsync<string>(
             new CommandDefinition(
-                "SELECT SeatLabel FROM BookingSeats WHERE BookingId = @BookingId ORDER BY SeatLabel",
-                new { BookingId = bookingId },
+                @"SELECT bs.SeatLabel
+                  FROM BookingSeats bs
+                  INNER JOIN Bookings b ON b.Id = bs.BookingId AND b.TenantId = @TenantId AND b.IsDeleted = 0
+                  WHERE bs.BookingId = @BookingId
+                  ORDER BY bs.SeatLabel",
+                new { BookingId = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return seats.ToList();
     }
 
-    public async Task ApplyPortalBookingExtrasAsync(PortalBookingExtrasUpdate update, CancellationToken cancellationToken = default)
+    public async Task ApplyPortalBookingExtrasAsync(
+        int tenantId, PortalBookingExtrasUpdate update, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(
@@ -425,10 +440,11 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                     PromoCodeId = @PromoCodeId,
                     DiscountAmount = @DiscountAmount,
                     UpdatedAt = SYSUTCDATETIME()
-                  WHERE Id = @Id",
+                  WHERE Id = @Id AND TenantId = @TenantId",
                 new
                 {
                     Id = update.BookingId,
+                    TenantId = tenantId,
                     update.PreferredPaymentMethod,
                     update.PickupAddress,
                     update.DropoffAddress,
@@ -448,7 +464,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<bool> IsSeatTakenAsync(
-        int vehicleId, string seatLabel, DateTime windowStart, DateTime windowEnd,
+        int tenantId, int vehicleId, string seatLabel, DateTime windowStart, DateTime windowEnd,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -458,11 +474,13 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                 INNER JOIN Bookings b ON b.Id = bs.BookingId
                 WHERE b.VehicleId = @VehicleId AND bs.SeatLabel = @SeatLabel
                   AND b.IsDeleted = 0 AND b.Status <> @Cancelled
+                  AND b.TenantId = @TenantId
                   AND b.PickupTime BETWEEN @Start AND @End) THEN 1 ELSE 0 END",
             new
             {
                 VehicleId = vehicleId,
                 SeatLabel = seatLabel,
+                TenantId = tenantId,
                 Cancelled = (int)BookingStatus.Cancelled,
                 Start = windowStart,
                 End = windowEnd
@@ -481,41 +499,46 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<(int Status, int? VehicleId)?> GetBookingStatusVehicleAsync(
-        int bookingId, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var head = await connection.QuerySingleOrDefaultAsync<(int Status, int? VehicleId)?>(
             new CommandDefinition(
-                "SELECT Status, VehicleId FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT Status, VehicleId FROM Bookings WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return head;
     }
 
     public async Task<(decimal? Speed, DateTime? UpdatedAt)?> GetVehicleLiveLocationAsync(
-        int vehicleId, CancellationToken cancellationToken = default)
+        int tenantId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<(decimal? Speed, DateTime? UpdatedAt)?>(
             new CommandDefinition(
-                @"SELECT Speed, Timestamp FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
-                new { VehicleId = vehicleId },
+                @"SELECT loc.Speed, loc.Timestamp
+                  FROM VehicleCurrentLocation loc
+                  INNER JOIN Vehicles v ON v.Id = loc.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                  WHERE loc.VehicleId = @VehicleId",
+                new { VehicleId = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<string?> GetStartedBookingDriverPhoneAsync(int bookingId, CancellationToken cancellationToken = default)
+    public async Task<string?> GetStartedBookingDriverPhoneAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<string?>(
             new CommandDefinition(
                 @"SELECT d.Phone FROM Bookings b
-                  INNER JOIN Drivers d ON d.Id = b.DriverId
-                  WHERE b.Id = @Id AND b.Status = @Started",
-                new { Id = bookingId, Started = (int)BookingStatus.Started },
+                  INNER JOIN Drivers d ON d.Id = b.DriverId AND d.TenantId = b.TenantId
+                  WHERE b.Id = @Id AND b.Status = @Started AND b.TenantId = @TenantId",
+                new { Id = bookingId, Started = (int)BookingStatus.Started, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<PortalInvoiceRow?> GetInvoiceRowAsync(int bookingId, CancellationToken cancellationToken = default)
+    public async Task<PortalInvoiceRow?> GetInvoiceRowAsync(
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<PortalInvoiceRow>(
@@ -534,12 +557,13 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                          c.FullName AS CustomerName,
                          c.Phone AS CustomerPhone
                   FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId
-                  LEFT JOIN Routes r ON r.Id = b.RouteId
-                  WHERE b.Id = @Id AND b.IsDeleted = 0",
+                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.TenantId = b.TenantId
+                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.TenantId = b.TenantId
+                  WHERE b.Id = @Id AND b.IsDeleted = 0 AND b.TenantId = @TenantId",
                 new
                 {
                     Id = bookingId,
+                    TenantId = tenantId,
                     Paid = (int)PaymentStatus.Paid,
                     Partial = (int)PaymentStatus.PartiallyPaid
                 },
@@ -547,28 +571,28 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<(int Status, DateTime PickupTime)?> GetBookingStatusPickupAsync(
-        int bookingId, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<(int Status, DateTime PickupTime)?>(
             new CommandDefinition(
-                "SELECT Status, PickupTime FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT Status, PickupTime FROM Bookings WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task CancelBookingAsync(int bookingId, CancellationToken cancellationToken = default)
+    public async Task CancelBookingAsync(int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Bookings SET Status = @Status, UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id",
-                new { Id = bookingId, Status = (int)BookingStatus.Cancelled },
+                "UPDATE Bookings SET Status = @Status, UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId, Status = (int)BookingStatus.Cancelled },
                 cancellationToken: cancellationToken));
     }
 
     public async Task<PortalCheckoutBookingRow?> GetCheckoutBookingAsync(
-        int bookingId, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<PortalCheckoutBookingRow>(
@@ -577,13 +601,14 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                          c.Email,
                          ISNULL(SUM(CASE WHEN p.Status IN (@Partial, @Paid) THEN p.Amount ELSE 0 END), 0) AS PaidAmount
                   FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
+                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0 AND c.TenantId = b.TenantId
                   LEFT JOIN Payments p ON p.BookingId = b.Id AND p.IsDeleted = 0
-                  WHERE b.Id = @BookingId AND b.IsDeleted = 0
+                  WHERE b.Id = @BookingId AND b.IsDeleted = 0 AND b.TenantId = @TenantId
                   GROUP BY b.TotalAmount, c.Email",
                 new
                 {
                     BookingId = bookingId,
+                    TenantId = tenantId,
                     Partial = (int)PaymentStatus.PartiallyPaid,
                     Paid = (int)PaymentStatus.Paid
                 },
@@ -612,58 +637,67 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<IReadOnlyList<PortalSavedAddressDto>> GetSavedAddressesAsync(
-        int customerId, CancellationToken cancellationToken = default)
+        int tenantId, int customerId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalSavedAddressDto>(
             new CommandDefinition(
-                @"SELECT Id, Label, AddressLine, Latitude, Longitude
-                  FROM CustomerSavedAddresses WHERE CustomerId = @Id AND IsDeleted = 0 ORDER BY Label",
-                new { Id = customerId },
+                @"SELECT a.Id, a.Label, a.AddressLine, a.Latitude, a.Longitude
+                  FROM CustomerSavedAddresses a
+                  INNER JOIN Customers c ON c.Id = a.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+                  WHERE a.CustomerId = @Id AND a.IsDeleted = 0
+                  ORDER BY a.Label",
+                new { Id = customerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
     public async Task<IReadOnlyList<PortalCustomerNotificationDto>> GetCustomerNotificationsAsync(
-        int customerId, CancellationToken cancellationToken = default)
+        int tenantId, int customerId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalCustomerNotificationDto>(
             new CommandDefinition(
-                @"SELECT Id, Title, Message, NotificationType, BookingId, IsRead, CreatedAt
-                  FROM CustomerNotifications WHERE CustomerId = @Id AND IsDeleted = 0
-                  ORDER BY CreatedAt DESC",
-                new { Id = customerId },
+                @"SELECT n.Id, n.Title, n.Message, n.NotificationType, n.BookingId, n.IsRead, n.CreatedAt
+                  FROM CustomerNotifications n
+                  INNER JOIN Customers c ON c.Id = n.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+                  WHERE n.CustomerId = @Id AND n.IsDeleted = 0
+                  ORDER BY n.CreatedAt DESC",
+                new { Id = customerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
     public async Task<IReadOnlyList<(string SeatLabel, int RowIndex, int ColIndex)>> GetVehicleSeatLayoutsAsync(
-        int vehicleId, CancellationToken cancellationToken = default)
+        int tenantId, int vehicleId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var layouts = await connection.QueryAsync<(string SeatLabel, int RowIndex, int ColIndex)>(
             new CommandDefinition(
-                @"SELECT SeatLabel, RowIndex, ColIndex FROM VehicleSeatLayouts
-                  WHERE VehicleId = @VehicleId AND IsActive = 1 ORDER BY RowIndex, ColIndex",
-                new { VehicleId = vehicleId },
+                @"SELECT s.SeatLabel, s.RowIndex, s.ColIndex
+                  FROM VehicleSeatLayouts s
+                  INNER JOIN Vehicles v ON v.Id = s.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                  WHERE s.VehicleId = @VehicleId AND s.IsActive = 1
+                  ORDER BY s.RowIndex, s.ColIndex",
+                new { VehicleId = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         return layouts.ToList();
     }
 
     public async Task<IReadOnlyList<string>> GetBookedSeatsNearPickupAsync(
-        int vehicleId, DateTime pickupTime, CancellationToken cancellationToken = default)
+        int tenantId, int vehicleId, DateTime pickupTime, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var booked = await connection.QueryAsync<string>(
             new CommandDefinition(
                 @"SELECT bs.SeatLabel FROM BookingSeats bs
-                  INNER JOIN Bookings b ON b.Id = bs.BookingId AND b.IsDeleted = 0
+                  INNER JOIN Bookings b ON b.Id = bs.BookingId AND b.IsDeleted = 0 AND b.TenantId = @TenantId
                   WHERE b.VehicleId = @VehicleId AND b.Status IN (@P, @C, @S)
                     AND ABS(DATEDIFF(MINUTE, b.PickupTime, @PickupTime)) < 180",
                 new
                 {
                     VehicleId = vehicleId,
+                    TenantId = tenantId,
                     PickupTime = pickupTime,
                     P = (int)BookingStatus.Pending,
                     C = (int)BookingStatus.Confirmed,
@@ -673,13 +707,17 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
         return booked.ToList();
     }
 
-    public async Task<(int Points, string Tier)> GetLoyaltyAsync(int customerId, CancellationToken cancellationToken = default)
+    public async Task<(int Points, string Tier)> GetLoyaltyAsync(
+        int tenantId, int customerId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleAsync<(int Points, string Tier)>(
             new CommandDefinition(
-                "SELECT Points, Tier FROM CustomerLoyalty WHERE CustomerId = @Id",
-                new { Id = customerId },
+                @"SELECT l.Points, l.Tier
+                  FROM CustomerLoyalty l
+                  INNER JOIN Customers c ON c.Id = l.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+                  WHERE l.CustomerId = @Id",
+                new { Id = customerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
@@ -694,28 +732,33 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<decimal> GetWalletBalanceAsync(int customerId, CancellationToken cancellationToken = default)
+    public async Task<decimal> GetWalletBalanceAsync(
+        int tenantId, int customerId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
-                "SELECT Balance FROM CustomerWallets WHERE CustomerId = @Id",
-                new { Id = customerId },
+                @"SELECT w.Balance
+                  FROM CustomerWallets w
+                  INNER JOIN Customers c ON c.Id = w.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+                  WHERE w.CustomerId = @Id",
+                new { Id = customerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
     public async Task<IReadOnlyList<PortalFavoriteRouteDto>> GetFavoriteRoutesAsync(
-        int customerId, CancellationToken cancellationToken = default)
+        int tenantId, int customerId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PortalFavoriteRouteDto>(new CommandDefinition(
             @"SELECT f.Id, f.RouteId,
                      r.Source + ' -> ' + r.Destination AS RouteName, f.Label
               FROM CustomerFavoriteRoutes f
-              INNER JOIN Routes r ON r.Id = f.RouteId
+              INNER JOIN Customers c ON c.Id = f.CustomerId AND c.TenantId = @TenantId AND c.IsDeleted = 0
+              INNER JOIN Routes r ON r.Id = f.RouteId AND r.TenantId = @TenantId
               WHERE f.CustomerId = @CustomerId AND f.IsDeleted = 0
               ORDER BY f.SortOrder, f.Id",
-            new { CustomerId = customerId },
+            new { CustomerId = customerId, TenantId = tenantId },
             cancellationToken: cancellationToken));
         return rows.ToList();
     }

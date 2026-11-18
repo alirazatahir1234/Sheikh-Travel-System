@@ -32,7 +32,7 @@ public class GetPortalBookingDetailQueryHandler(ICustomerPortalRepository portal
             return ApiResponse<PortalBookingDetailDto>.FailResponse("Booking not found for this phone number.");
 
         var head = await portalRepository.GetBookingDetailHeadAsync(
-            request.BookingId, customerIds, cancellationToken);
+            tenantId, request.BookingId, customerIds, cancellationToken);
 
         if (head is null)
             return ApiResponse<PortalBookingDetailDto>.FailResponse("Booking not found for this phone number.");
@@ -41,8 +41,8 @@ public class GetPortalBookingDetailQueryHandler(ICustomerPortalRepository portal
         if (remaining < 0) remaining = 0;
         var payState = PortalPayStateHelper.FromAmounts(head.TotalAmount, head.PaidAmount);
 
-        var payments = await portalRepository.GetBookingPaymentsAsync(request.BookingId, cancellationToken);
-        var seats = await portalRepository.GetBookingSeatsAsync(request.BookingId, cancellationToken);
+        var payments = await portalRepository.GetBookingPaymentsAsync(tenantId, request.BookingId, cancellationToken);
+        var seats = await portalRepository.GetBookingSeatsAsync(tenantId, request.BookingId, cancellationToken);
 
         PortalDriverPreviewDto? driver = null;
         if (head.DriverId.HasValue && !string.IsNullOrWhiteSpace(head.DriverName))

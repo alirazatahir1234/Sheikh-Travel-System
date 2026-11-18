@@ -30,7 +30,7 @@ public class GetPortalBookingsByPhoneQueryHandler(ICustomerPortalRepository port
         if (customerIds.Count == 0)
             return ApiResponse<IReadOnlyList<PortalBookingCardDto>>.SuccessResponse([], "Bookings loaded.");
 
-        var rows = await portalRepository.GetBookingCardsAsync(customerIds, cancellationToken);
+        var rows = await portalRepository.GetBookingCardsAsync(tenantId, customerIds, cancellationToken);
 
         var list = rows.Select(r =>
         {
