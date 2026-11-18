@@ -11,7 +11,11 @@ public interface IDriverAppRepository
 {
     // Auth / profile / dashboard
     Task<DriverLoginRow?> GetDriverLoginByPhoneAsync(string phone, int tenantId, CancellationToken ct = default);
-    Task UpdateUserRefreshTokenAsync(int userId, string token, DateTime expiry, CancellationToken ct = default);
+    /// <summary>
+    /// Currently unused by Application handlers (login uses AuthSessions). Tenant-scoped for SG-01;
+    /// see DriverAppRepository XML note for AuthSessionService / AuthRepository follow-up.
+    /// </summary>
+    Task UpdateUserRefreshTokenAsync(int tenantId, int userId, string token, DateTime expiry, CancellationToken ct = default);
     Task<DriverProfileDto?> GetProfileAsync(int driverId, int tenantId, CancellationToken ct = default);
     Task<DriverDashboardStatsRow?> GetDashboardStatsAsync(int driverId, int tenantId, int? userId, DateTime today, DateTime weekStart, CancellationToken ct = default);
     Task<int?> GetDriverStatusAsync(int driverId, int tenantId, CancellationToken ct = default);

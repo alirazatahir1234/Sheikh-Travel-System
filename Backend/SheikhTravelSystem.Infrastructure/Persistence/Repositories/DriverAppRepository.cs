@@ -1,4 +1,5 @@
 using Dapper;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
@@ -24,13 +25,22 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task UpdateUserRefreshTokenAsync(int userId, string token, DateTime expiry, CancellationToken ct = default)
+    /// <summary>
+    /// SG-01 Step 5 (L1): no Application caller today — driver login persists refresh via
+    /// <c>IAuthSessionService.CreateSessionAsync</c> / AuthSessions, not Users.RefreshToken.
+    /// Kept for IDriverAppRepository compatibility. Separate review: AuthSessionService + AuthRepository
+    /// ownership of refresh tokens vs this Users-column path.
+    /// </summary>
+    public async Task UpdateUserRefreshTokenAsync(int tenantId, int userId, string token, DateTime expiry, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE Users SET RefreshToken = @Token, RefreshTokenExpiryTime = @Expiry WHERE Id = @UserId",
-            new { Token = token, Expiry = expiry, UserId = userId },
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE Users SET RefreshToken = @Token, RefreshTokenExpiryTime = @Expiry
+              WHERE Id = @UserId AND TenantId = @TenantId",
+            new { Token = token, Expiry = expiry, UserId = userId, TenantId = tenantId },
             cancellationToken: ct));
+        if (affected == 0)
+            throw new NotFoundException("User", userId);
     }
 
     public async Task<DriverProfileDto?> GetProfileAsync(int driverId, int tenantId, CancellationToken ct = default)

@@ -131,12 +131,12 @@ public sealed class TripRepository(
                 transaction: tx,
                 cancellationToken: cancellationToken));
 
-            await TripLifecycleSql.RecordStatusAsync(connection, tx, id, null, initialStatus, actor, "Trip created", cancellationToken);
+            await TripLifecycleSql.RecordStatusAsync(connection, tx, tenantId, id, null, initialStatus, actor, "Trip created", cancellationToken);
 
             if (dto.Stops is { Count: > 0 })
             {
                 await TripLifecycleSql.ReplaceStopsAsync(
-                    connection, tx, id,
+                    connection, tx, tenantId, id,
                     dto.Stops.Select(s => (s.Sequence, s.Location, s.Latitude, s.Longitude, s.Eta)).ToList(),
                     cancellationToken);
             }
@@ -226,7 +226,7 @@ public sealed class TripRepository(
             if (dto.Stops is not null)
             {
                 await TripLifecycleSql.ReplaceStopsAsync(
-                    connection, tx, id,
+                    connection, tx, tenantId, id,
                     dto.Stops.Select(s => (s.Sequence, s.Location, s.Latitude, s.Longitude, s.Eta)).ToList(),
                     cancellationToken);
             }
@@ -338,7 +338,7 @@ public sealed class TripRepository(
                 cancellationToken: cancellationToken));
 
             await TripLifecycleSql.RecordStatusAsync(
-                connection, tx, id, current, status, actor,
+                connection, tx, tenantId, id, current, status, actor,
                 note ?? cancellationReason, cancellationToken);
 
             await TripLifecycleSql.SyncResourceStatusAsync(
@@ -474,7 +474,7 @@ public sealed class TripRepository(
                 cancellationToken: cancellationToken));
 
             if (nextStatus != current)
-                await TripLifecycleSql.RecordStatusAsync(connection, tx, tripId, current, nextStatus, actor, "Driver assigned", cancellationToken);
+                await TripLifecycleSql.RecordStatusAsync(connection, tx, tenantId, tripId, current, nextStatus, actor, "Driver assigned", cancellationToken);
 
             if (trip.VehicleId is int vehicleId)
             {
@@ -538,7 +538,7 @@ public sealed class TripRepository(
                 cancellationToken: cancellationToken));
 
             if (nextStatus != current)
-                await TripLifecycleSql.RecordStatusAsync(connection, tx, tripId, current, nextStatus, actor, "Driver cleared (smart reassignment)", cancellationToken);
+                await TripLifecycleSql.RecordStatusAsync(connection, tx, tenantId, tripId, current, nextStatus, actor, "Driver cleared (smart reassignment)", cancellationToken);
 
             var tripNumber = await connection.ExecuteScalarAsync<string>(new CommandDefinition(
                 "SELECT TripNumber FROM Trips WHERE Id = @Id",
@@ -673,7 +673,7 @@ public sealed class TripRepository(
                 cancellationToken: cancellationToken));
 
             if (nextStatus != current)
-                await TripLifecycleSql.RecordStatusAsync(connection, tx, tripId, current, nextStatus, actor, "Vehicle assigned", cancellationToken);
+                await TripLifecycleSql.RecordStatusAsync(connection, tx, tenantId, tripId, current, nextStatus, actor, "Vehicle assigned", cancellationToken);
 
             if (trip.DriverId is int driverId)
             {
@@ -770,15 +770,19 @@ public sealed class TripRepository(
     public async Task<int> AddExpenseAsync(int tripId, CreateTripExpenseDto expense, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var id = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
             INSERT INTO TripExpenses (TripId, ExpenseType, Amount, Description, ExpenseDate, CreatedAt, CreatedBy, IsDeleted)
-            VALUES (@TripId, @ExpenseType, @Amount, @Description, @ExpenseDate, GETUTCDATE(), @CreatedBy, 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            OUTPUT INSERTED.Id
+            SELECT @TripId, @ExpenseType, @Amount, @Description, @ExpenseDate, GETUTCDATE(), @CreatedBy, 0
+            FROM Trips t
+            WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
             """,
             new
             {
                 TripId = tripId,
+                TenantId = tenantId,
                 expense.ExpenseType,
                 expense.Amount,
                 expense.Description,
@@ -786,54 +790,76 @@ public sealed class TripRepository(
                 CreatedBy = currentUser.UserId?.ToString()
             },
             cancellationToken: cancellationToken));
+
+        if (id is null or <= 0)
+            throw new NotFoundException("Trip", tripId);
+        return id.Value;
     }
 
     public async Task SoftDeleteExpenseAsync(int tripId, int expenseId, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripExpenses SET IsDeleted = 1 WHERE Id = @ExpenseId AND TripId = @TripId AND IsDeleted = 0",
-            new { ExpenseId = expenseId, TripId = tripId },
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE TripExpenses SET IsDeleted = 1
+              WHERE Id = @ExpenseId AND TripId = @TripId AND IsDeleted = 0
+                AND EXISTS (
+                  SELECT 1 FROM Trips t
+                  WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0)",
+            new { ExpenseId = expenseId, TripId = tripId, TenantId = tenantId },
             cancellationToken: cancellationToken));
+        if (affected == 0)
+            throw new NotFoundException("TripExpense", expenseId);
     }
 
     public async Task<int> AddPassengerAsync(int tripId, CreateTripPassengerDto passenger, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var id = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
             INSERT INTO TripPassengers (TripId, FullName, Phone, BoardingStatus, DropStatus, Notes, CreatedAt, IsDeleted)
-            VALUES (@TripId, @FullName, @Phone, N'Pending', N'Pending', @Notes, GETUTCDATE(), 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            OUTPUT INSERTED.Id
+            SELECT @TripId, @FullName, @Phone, N'Pending', N'Pending', @Notes, GETUTCDATE(), 0
+            FROM Trips t
+            WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
             """,
-            new { TripId = tripId, passenger.FullName, passenger.Phone, passenger.Notes },
+            new { TripId = tripId, TenantId = tenantId, passenger.FullName, passenger.Phone, passenger.Notes },
             cancellationToken: cancellationToken));
+
+        if (id is null or <= 0)
+            throw new NotFoundException("Trip", tripId);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Trips SET PassengerCount = (
                 SELECT COUNT(*) FROM TripPassengers WHERE TripId = @TripId AND IsDeleted = 0
             ), UpdatedAt = GETUTCDATE()
-            WHERE Id = @TripId
-            """, new { TripId = tripId }, cancellationToken: cancellationToken));
-        return id;
+            WHERE Id = @TripId AND TenantId = @TenantId AND IsDeleted = 0
+            """, new { TripId = tripId, TenantId = tenantId }, cancellationToken: cancellationToken));
+        return id.Value;
     }
 
     public async Task UpdatePassengerAsync(int tripId, int passengerId, UpdateTripPassengerDto passenger, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition("""
+        var affected = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TripPassengers SET
                 FullName = @FullName, Phone = @Phone,
                 BoardingStatus = @BoardingStatus, DropStatus = @DropStatus,
                 Notes = @Notes, UpdatedAt = GETUTCDATE()
             WHERE Id = @PassengerId AND TripId = @TripId AND IsDeleted = 0
+              AND EXISTS (
+                SELECT 1 FROM Trips t
+                WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0)
             """,
             new
             {
                 PassengerId = passengerId,
                 TripId = tripId,
+                TenantId = tenantId,
                 passenger.FullName,
                 passenger.Phone,
                 passenger.BoardingStatus,
@@ -841,47 +867,78 @@ public sealed class TripRepository(
                 passenger.Notes
             },
             cancellationToken: cancellationToken));
+        if (affected == 0)
+            throw new NotFoundException("TripPassenger", passengerId);
     }
 
     public async Task SoftDeletePassengerAsync(int tripId, int passengerId, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripPassengers SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @PassengerId AND TripId = @TripId AND IsDeleted = 0",
-            new { PassengerId = passengerId, TripId = tripId },
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE TripPassengers SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+              WHERE Id = @PassengerId AND TripId = @TripId AND IsDeleted = 0
+                AND EXISTS (
+                  SELECT 1 FROM Trips t
+                  WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0)",
+            new { PassengerId = passengerId, TripId = tripId, TenantId = tenantId },
             cancellationToken: cancellationToken));
+        if (affected == 0)
+            throw new NotFoundException("TripPassenger", passengerId);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Trips SET PassengerCount = (
                 SELECT COUNT(*) FROM TripPassengers WHERE TripId = @TripId AND IsDeleted = 0
             ), UpdatedAt = GETUTCDATE()
-            WHERE Id = @TripId
-            """, new { TripId = tripId }, cancellationToken: cancellationToken));
+            WHERE Id = @TripId AND TenantId = @TenantId AND IsDeleted = 0
+            """, new { TripId = tripId, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
     public async Task<int> AddDocumentAsync(
         int tripId, string documentType, string fileName, string storageKey, string? uploadedBy, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var id = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
             INSERT INTO TripDocuments (TripId, DocumentType, FileName, StorageKey, UploadedBy, CreatedAt, IsDeleted)
-            VALUES (@TripId, @DocumentType, @FileName, @StorageKey, @UploadedBy, GETUTCDATE(), 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            OUTPUT INSERTED.Id
+            SELECT @TripId, @DocumentType, @FileName, @StorageKey, @UploadedBy, GETUTCDATE(), 0
+            FROM Trips t
+            WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0
             """,
-            new { TripId = tripId, DocumentType = documentType, FileName = fileName, StorageKey = storageKey, UploadedBy = uploadedBy },
+            new
+            {
+                TripId = tripId,
+                TenantId = tenantId,
+                DocumentType = documentType,
+                FileName = fileName,
+                StorageKey = storageKey,
+                UploadedBy = uploadedBy
+            },
             cancellationToken: cancellationToken));
+
+        if (id is null or <= 0)
+            throw new NotFoundException("Trip", tripId);
+        return id.Value;
     }
 
     public async Task SoftDeleteDocumentAsync(int tripId, int documentId, CancellationToken cancellationToken = default)
     {
         await EnsureTripExistsAsync(tripId, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripDocuments SET IsDeleted = 1 WHERE Id = @DocumentId AND TripId = @TripId AND IsDeleted = 0",
-            new { DocumentId = documentId, TripId = tripId },
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE TripDocuments SET IsDeleted = 1
+              WHERE Id = @DocumentId AND TripId = @TripId AND IsDeleted = 0
+                AND EXISTS (
+                  SELECT 1 FROM Trips t
+                  WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0)",
+            new { DocumentId = documentId, TripId = tripId, TenantId = tenantId },
             cancellationToken: cancellationToken));
+        if (affected == 0)
+            throw new NotFoundException("TripDocument", documentId);
     }
 
     public async Task<TripDashboardDto> GetDashboardAsync(CancellationToken cancellationToken = default)

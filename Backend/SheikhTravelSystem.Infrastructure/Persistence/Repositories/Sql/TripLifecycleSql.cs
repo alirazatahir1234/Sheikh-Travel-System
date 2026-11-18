@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.Sql;
@@ -9,6 +10,7 @@ internal static class TripLifecycleSql
     internal static async Task RecordStatusAsync(
         IDbConnection connection,
         IDbTransaction? transaction,
+        int tenantId,
         int tripId,
         TripStatus? from,
         TripStatus to,
@@ -16,12 +18,16 @@ internal static class TripLifecycleSql
         string? note,
         CancellationToken ct)
     {
-        await connection.ExecuteAsync(new CommandDefinition(
+        // Child table has no TenantId — insert only when the trip belongs to the tenant.
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO TripStatusHistory (TripId, FromStatus, ToStatus, ChangedAtUtc, ChangedBy, Note)
-              VALUES (@TripId, @FromStatus, @ToStatus, GETUTCDATE(), @ChangedBy, @Note)",
+              SELECT @TripId, @FromStatus, @ToStatus, GETUTCDATE(), @ChangedBy, @Note
+              FROM Trips t
+              WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0",
             new
             {
                 TripId = tripId,
+                TenantId = tenantId,
                 FromStatus = (int?)from,
                 ToStatus = (int)to,
                 ChangedBy = changedBy,
@@ -29,29 +35,42 @@ internal static class TripLifecycleSql
             },
             transaction: transaction,
             cancellationToken: ct));
+
+        if (affected == 0)
+            throw new NotFoundException("Trip", tripId);
     }
 
     internal static async Task ReplaceStopsAsync(
         IDbConnection connection,
         IDbTransaction? transaction,
+        int tenantId,
         int tripId,
         IReadOnlyList<(int Sequence, string Location, double? Latitude, double? Longitude, DateTime? Eta)> stops,
         CancellationToken ct)
     {
+        // Soft-delete may affect 0 rows when the trip has no open stops — that is fine.
+        // The EXISTS still prevents clearing stops for another tenant's trip id.
         await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripStops SET IsDeleted = 1 WHERE TripId = @TripId AND IsDeleted = 0",
-            new { TripId = tripId },
+            @"UPDATE TripStops SET IsDeleted = 1
+              WHERE TripId = @TripId AND IsDeleted = 0
+                AND EXISTS (
+                  SELECT 1 FROM Trips t
+                  WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0)",
+            new { TripId = tripId, TenantId = tenantId },
             transaction: transaction,
             cancellationToken: ct));
 
         foreach (var stop in stops.OrderBy(s => s.Sequence))
         {
-            await connection.ExecuteAsync(new CommandDefinition(
+            var inserted = await connection.ExecuteAsync(new CommandDefinition(
                 @"INSERT INTO TripStops (TripId, Sequence, Location, Latitude, Longitude, Eta, IsDeleted)
-                  VALUES (@TripId, @Sequence, @Location, @Latitude, @Longitude, @Eta, 0)",
+                  SELECT @TripId, @Sequence, @Location, @Latitude, @Longitude, @Eta, 0
+                  FROM Trips t
+                  WHERE t.Id = @TripId AND t.TenantId = @TenantId AND t.IsDeleted = 0",
                 new
                 {
                     TripId = tripId,
+                    TenantId = tenantId,
                     stop.Sequence,
                     stop.Location,
                     stop.Latitude,
@@ -60,6 +79,9 @@ internal static class TripLifecycleSql
                 },
                 transaction: transaction,
                 cancellationToken: ct));
+
+            if (inserted == 0)
+                throw new NotFoundException("Trip", tripId);
         }
     }
 
