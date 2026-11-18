@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Infrastructure.Services.Gps;
 using System.Globalization;
 using System.Text;
 using SheikhTravelSystem.Application.Features.Notifications;
@@ -1975,14 +1976,19 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<GpsEtaDto>> GetGpsEtaAsync(GetGpsEtaQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        // SG-01 Step 6a: the booking, its route, trip, vehicle and live position must all be the caller's
+        // tenant. Another company's booking id gets the same "not found" answer as a missing one.
+        var tenantId = tenantContext.GetRequiredTenantId();
         var booking = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, string? RouteSource, double? PickupLat, double? PickupLng, double? DropLat, double? DropLng, int? TripStatus)>(
             new CommandDefinition(
                 @"SELECT b.Id, b.VehicleId, r.Source AS RouteSource, b.PickupLat, b.PickupLng, b.DropLat, b.DropLng,
-                         (SELECT TOP 1 t.Status FROM Trips t WHERE t.BookingId = b.Id AND t.IsDeleted = 0 ORDER BY t.Id DESC) AS TripStatus
+                         (SELECT TOP 1 t.Status FROM Trips t
+                          WHERE t.BookingId = b.Id AND t.TenantId = b.TenantId AND t.IsDeleted = 0
+                          ORDER BY t.Id DESC) AS TripStatus
                   FROM Bookings b
-                  LEFT JOIN Routes r ON r.Id = b.RouteId
-                  WHERE b.Id = @Id AND b.IsDeleted = 0",
-                new { Id = request.BookingId },
+                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.TenantId = b.TenantId
+                  WHERE b.Id = @Id AND b.TenantId = @TenantId AND b.IsDeleted = 0",
+                new { Id = request.BookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (booking.Id == 0 || !booking.VehicleId.HasValue)
@@ -1992,8 +1998,11 @@ public sealed partial class GpsTrackingRepository(
 
         var position = await connection.QueryFirstOrDefaultAsync<(double Lat, double Lng)>(
             new CommandDefinition(
-                @"SELECT Latitude, Longitude FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
-                new { VehicleId = booking.VehicleId.Value },
+                @"SELECT vcl.Latitude, vcl.Longitude
+                  FROM VehicleCurrentLocation vcl
+                  INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                  WHERE vcl.VehicleId = @VehicleId",
+                new { VehicleId = booking.VehicleId.Value, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (position.Lat == 0 && position.Lng == 0)
@@ -2017,8 +2026,8 @@ public sealed partial class GpsTrackingRepository(
         var etaMinutes = distanceKm > 0 ? (int)Math.Ceiling(distanceKm / 40.0 * 60) : 0;
 
         var vehicleName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT Name FROM Vehicles WHERE Id = @Id",
-            new { Id = booking.VehicleId.Value },
+            "SELECT Name FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId",
+            new { Id = booking.VehicleId.Value, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return ApiResponse<GpsEtaDto>.SuccessResponse(new GpsEtaDto(
@@ -2400,24 +2409,34 @@ public sealed partial class GpsTrackingRepository(
         var dto = request.Position;
         var qualityOptions = gpsSettings.Value.PositionQuality;
 
-        if (currentUser.Role == "Driver")
+        // SG-01 Step 6a: classify the caller (driver identity claim, not role name) and prove that the
+        // vehicle, device, booking and driver all belong to one tenant before anything is read or written.
+        var caller = GpsIngestScopePolicy.Classify(
+            currentUser.UserId,
+            currentUser.DriverId,
+            isTrustedTraccarIngest: SheikhTravelSystem.Infrastructure.Traccar.TraccarIngestProvenance.IsActive);
+
+        if (caller == GpsIngestCaller.Driver)
+            dto = dto with { DriverId = currentUser.DriverId!.Value };
+
+        var callerTenantId = caller is GpsIngestCaller.User or GpsIngestCaller.Driver
+            ? tenantContext.TenantId
+            : null;
+
+        var scope = GpsIngestScopePolicy.Decide(
+            caller,
+            callerTenantId,
+            await GpsIngestScopeSql.LoadAsync(connection, dto, cancellationToken));
+
+        if (!scope.Allowed)
         {
-            var driverId = currentUser.DriverId;
-            if (!driverId.HasValue)
-                return ApiResponse<bool>.FailResponse("Driver identity required.");
-
-            var allowed = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-                @"SELECT CASE WHEN EXISTS(
-                    SELECT 1 FROM Bookings
-                    WHERE DriverId = @DriverId AND VehicleId = @VehicleId AND Status = @Started AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { DriverId = driverId.Value, dto.VehicleId, Started = (int)BookingStatus.Started },
-                cancellationToken: cancellationToken));
-
-            if (!allowed)
-                return ApiResponse<bool>.FailResponse("GPS ingest only allowed during your active started trip for this vehicle.");
-
-            dto = dto with { DriverId = driverId.Value };
+            logger.LogWarning(
+                "GPS ingest rejected for vehicle {VehicleId} (caller {Caller}): {Reason}",
+                dto.VehicleId, caller, scope.Rejection);
+            return ApiResponse<bool>.FailResponse(scope.Rejection!);
         }
+
+        var tenantId = scope.TenantId;
 
         var recordedAt = request.Source?.FixTimeUtc is { } fixTime
             ? GpsUtcDateTime.AsUtc(fixTime)
@@ -2430,10 +2449,12 @@ public sealed partial class GpsTrackingRepository(
         var previous = await connection.QueryFirstOrDefaultAsync<(
             decimal? Speed, bool? Ignition, double? Latitude, double? Longitude, string? Address,
             int? IdenticalCoordinateStreak, bool? IsGpsValid, DateTime? LastUpdate, double? Heading)>(new CommandDefinition(
-            @"SELECT Speed, Ignition, Latitude, Longitude, Address,
-                     IdenticalCoordinateStreak, IsGpsValid, LastUpdate, Heading
-              FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
-            new { dto.VehicleId },
+            @"SELECT vcl.Speed, vcl.Ignition, vcl.Latitude, vcl.Longitude, vcl.Address,
+                     vcl.IdenticalCoordinateStreak, vcl.IsGpsValid, vcl.LastUpdate, vcl.Heading
+              FROM VehicleCurrentLocation vcl
+              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId
+              WHERE vcl.VehicleId = @VehicleId",
+            new { dto.VehicleId, TenantId = tenantId },
             cancellationToken: cancellationToken));
         var previousSpeed = previous.Speed;
         var previousIgnition = previous.Ignition;
@@ -2476,6 +2497,7 @@ public sealed partial class GpsTrackingRepository(
                     dto.BatteryLevel,
                     dto.GsmSignal,
                     clearStickyIgnition: ingestPlan.ClearStickyIgnition,
+                    expectedVehicleId: dto.VehicleId,
                     cancellationToken: cancellationToken);
             }
 
@@ -2538,7 +2560,7 @@ public sealed partial class GpsTrackingRepository(
         }
 
         var bookingId = await positionIngestion.ResolveActiveBookingIdAsync(
-            connection, dto.VehicleId, dto.BookingId, cancellationToken);
+            connection, tenantId, dto.VehicleId, dto.BookingId, cancellationToken);
 
         if (dto.GpsDeviceId.HasValue)
         {
@@ -2549,6 +2571,7 @@ public sealed partial class GpsTrackingRepository(
                 dto.Ignition,
                 dto.Speed,
                 clearStickyIgnition: ingestPlan.ClearStickyIgnition,
+                expectedVehicleId: dto.VehicleId,
                 cancellationToken: cancellationToken);
         }
 
@@ -2565,7 +2588,7 @@ public sealed partial class GpsTrackingRepository(
                     ingestPlan.IdenticalCoordinateStreak);
             }
 
-            await EvaluateGpsUnreliableAsync(connection, ingestDto, ingestPlan, recordedAt, cancellationToken);
+            await EvaluateGpsUnreliableAsync(connection, tenantId, ingestDto, ingestPlan, recordedAt, cancellationToken);
         }
 
         if (!ingestPlan.SkipMovementAlerts)
@@ -2583,7 +2606,7 @@ public sealed partial class GpsTrackingRepository(
             await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
             await EvaluateHarshBrakingFromPositionAsync(connection, ingestDto, recordedAt, cancellationToken);
             await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
-            await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluateLowFuelAsync(connection, tenantId, ingestDto, recordedAt, cancellationToken);
             try
             {
                 await fuelStationStopEvaluator.EvaluateAsync(connection, ingestDto, recordedAt, cancellationToken);
@@ -2600,9 +2623,9 @@ public sealed partial class GpsTrackingRepository(
             {
                 logger.LogWarning(ex, "Fuel fraud verification failed for vehicle {VehicleId}", dto.VehicleId);
             }
-            await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
-            await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
-            await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
+            await EvaluateLowBatteryAsync(connection, tenantId, ingestDto, recordedAt, cancellationToken);
+            await EvaluatePowerCutAsync(connection, tenantId, ingestDto, recordedAt, cancellationToken);
+            await EvaluateGpsLostAsync(connection, tenantId, ingestDto, recordedAt, cancellationToken);
             try
             {
                 await fleetAnomalyEvaluator.EvaluateAsync(
@@ -2630,8 +2653,9 @@ public sealed partial class GpsTrackingRepository(
                   ResolutionNotes = N'Vehicle back online'
               WHERE VehicleId = @VehicleId
                 AND EventType IN ('vehicle_offline', 'offline', 'device_offline', 'gps_offline')
-                AND IsAcknowledged = 0 AND IsDeleted = 0",
-            new { dto.VehicleId },
+                AND IsAcknowledged = 0 AND IsDeleted = 0
+                AND EXISTS (SELECT 1 FROM Vehicles v WHERE v.Id = @VehicleId AND v.TenantId = @TenantId)",
+            new { dto.VehicleId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (clearedOffline > 0)
@@ -3648,8 +3672,21 @@ public sealed partial class GpsTrackingRepository(
         if (format is not ("csv" or "gpx" or "geojson" or "kml"))
             return ApiResponse<HistoryExportFileDto>.FailResponse("Format must be csv, gpx, geojson, or kml.");
 
+        // SG-01 Step 6a: export only the caller's own vehicle. Another company's vehicle id gets the same
+        // answer as a non-existent one, before any position or Traccar call is made.
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using (var scopeConnection = dbFactory.CreateConnection())
+        {
+            var ownsVehicle = await scopeConnection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = request.VehicleId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+            if (!ownsVehicle)
+                return ApiResponse<HistoryExportFileDto>.FailResponse("Vehicle not found.");
+        }
+
         var positions = await LoadFullPositionsAsync(
-            dbFactory, traccar, traccarOptions.Value, request.VehicleId, fromDate, toDate, cancellationToken);
+            dbFactory, traccar, traccarOptions.Value, tenantId, request.VehicleId, fromDate, toDate, cancellationToken);
 
         if (positions.Count == 0)
             return ApiResponse<HistoryExportFileDto>.FailResponse("No tracking points in this period.");
@@ -3689,7 +3726,6 @@ public sealed partial class GpsTrackingRepository(
         // the client requests signed delivery (or when explicitly persisting for archival).
         if (request.PersistToBlob || string.Equals(request.Delivery, "signed", StringComparison.OrdinalIgnoreCase))
         {
-            var tenantId = tenantContext.GetRequiredTenantId();
             var folder = $"tenant-{tenantId}/vehicle-{request.VehicleId}/{fromDate:yyyy}/{fromDate:MM}";
             await using var stream = new MemoryStream(bytes);
             var stored = await playbackCoordinateStorage.SaveAsync(

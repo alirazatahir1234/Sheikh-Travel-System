@@ -29,8 +29,10 @@ namespace SheikhTravelSystem.API.Controllers;
 [Route("api/gps")]
 public partial class GpsTrackingController : BaseApiController
 {
+    // SG-01 Step 6a: GPS.View (class-level) is a read permission; writing a position also needs a GPS
+    // write permission. Drivers post through /api/driver-app/... and Traccar ingests server-side.
     [HttpPost("positions")]
-    [RequirePermission(AnalyticsPermissions.GpsView)]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> IngestPosition([FromBody] IngestPositionDto position)
         => Ok(await Mediator.Send(new IngestPositionCommand(position)));
 
@@ -484,8 +486,10 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> SyncTracker(int id)
         => Ok(await Mediator.Send(new SyncTrackerCommand(id)));
 
+    // SG-01 Step 6a (H1): runs the platform-wide Traccar sync (every company's devices and positions),
+    // so initiating it is a platform operation, not a company one.
     [HttpPost("trackers/sync-all")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(PlatformPermissions.GpsGatewaysManage)]
     public async Task<IActionResult> SyncAllTrackers()
         => Ok(await Mediator.Send(new SyncAllTrackersCommand()));
 
@@ -653,8 +657,9 @@ public partial class GpsTrackingController : BaseApiController
         return Ok(devices);
     }
 
+    // SG-01 Step 6a (H1): platform-wide manual sync — platform permission (see trackers/sync-all).
     [HttpPost("traccar/sync")]
-    [RequirePermission(GpsPermissions.DeviceManage)]
+    [RequirePermission(PlatformPermissions.GpsGatewaysManage)]
     public async Task<IActionResult> RunTraccarSync(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
         => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));
@@ -706,7 +711,9 @@ public sealed class PostHistoryReplayInsightsRequest
 [Route("api/tracking")]
 public class TrackingController : BaseApiController
 {
+    // SG-01 Step 6a: same write requirement as POST /api/gps/positions.
     [HttpPost("location")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateLocation([FromBody] UpdateLocationCommand command)
     {
         var dto = command.Location;

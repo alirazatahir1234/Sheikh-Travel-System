@@ -502,6 +502,7 @@ public sealed partial class GpsTrackingRepository
 
     private async Task EvaluateLowFuelAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         IngestPositionDto dto,
         DateTime timestamp,
         CancellationToken cancellationToken)
@@ -515,11 +516,12 @@ public sealed partial class GpsTrackingRepository
         // fuel level changes slowly, unlike SOS's 60-second window for an active incident.
         var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM GpsAlertEvents
-                WHERE VehicleId = @VehicleId AND EventType = 'low_fuel' AND IsDeleted = 0
-                AND Timestamp > DATEADD(HOUR, -1, @Timestamp)
+                SELECT 1 FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.VehicleId = @VehicleId AND e.EventType = 'low_fuel' AND e.IsDeleted = 0
+                AND e.Timestamp > DATEADD(HOUR, -1, @Timestamp)
               ) THEN 1 ELSE 0 END",
-            new { dto.VehicleId, Timestamp = timestamp },
+            new { dto.VehicleId, TenantId = tenantId, Timestamp = timestamp },
             cancellationToken: cancellationToken));
 
         if (recentAlert)
@@ -533,6 +535,7 @@ public sealed partial class GpsTrackingRepository
 
     private async Task EvaluateLowBatteryAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         IngestPositionDto dto,
         DateTime timestamp,
         CancellationToken cancellationToken)
@@ -546,11 +549,12 @@ public sealed partial class GpsTrackingRepository
         // 1h dedup — mirrors EvaluateLowFuelAsync, since battery level also changes slowly.
         var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM GpsAlertEvents
-                WHERE VehicleId = @VehicleId AND EventType = 'low_battery' AND IsDeleted = 0
-                AND Timestamp > DATEADD(HOUR, -1, @Timestamp)
+                SELECT 1 FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.VehicleId = @VehicleId AND e.EventType = 'low_battery' AND e.IsDeleted = 0
+                AND e.Timestamp > DATEADD(HOUR, -1, @Timestamp)
               ) THEN 1 ELSE 0 END",
-            new { dto.VehicleId, Timestamp = timestamp },
+            new { dto.VehicleId, TenantId = tenantId, Timestamp = timestamp },
             cancellationToken: cancellationToken));
 
         if (recentAlert)
@@ -567,6 +571,7 @@ public sealed partial class GpsTrackingRepository
 
     private async Task EvaluatePowerCutAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         IngestPositionDto dto,
         DateTime timestamp,
         CancellationToken cancellationToken)
@@ -579,11 +584,12 @@ public sealed partial class GpsTrackingRepository
 
         var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM GpsAlertEvents
-                WHERE VehicleId = @VehicleId AND EventType = 'power_cut' AND IsDeleted = 0
-                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                SELECT 1 FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.VehicleId = @VehicleId AND e.EventType = 'power_cut' AND e.IsDeleted = 0
+                AND e.Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
               ) THEN 1 ELSE 0 END",
-            new { dto.VehicleId, Minutes = PowerCutDedupMinutes, Timestamp = timestamp },
+            new { dto.VehicleId, TenantId = tenantId, Minutes = PowerCutDedupMinutes, Timestamp = timestamp },
             cancellationToken: cancellationToken));
 
         if (recentAlert)
@@ -600,6 +606,7 @@ public sealed partial class GpsTrackingRepository
 
     private async Task EvaluateGpsUnreliableAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         IngestPositionDto dto,
         GpsPositionIngestPlan plan,
         DateTime timestamp,
@@ -611,11 +618,12 @@ public sealed partial class GpsTrackingRepository
 
         var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM GpsAlertEvents
-                WHERE VehicleId = @VehicleId AND EventType = 'gps_unreliable' AND IsDeleted = 0
-                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                SELECT 1 FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.VehicleId = @VehicleId AND e.EventType = 'gps_unreliable' AND e.IsDeleted = 0
+                AND e.Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
               ) THEN 1 ELSE 0 END",
-            new { dto.VehicleId, Minutes = dedup, Timestamp = timestamp },
+            new { dto.VehicleId, TenantId = tenantId, Minutes = dedup, Timestamp = timestamp },
             cancellationToken: cancellationToken));
 
         if (recentAlert)
@@ -639,6 +647,7 @@ public sealed partial class GpsTrackingRepository
 
     private async Task EvaluateGpsLostAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         IngestPositionDto dto,
         DateTime timestamp,
         CancellationToken cancellationToken)
@@ -651,11 +660,12 @@ public sealed partial class GpsTrackingRepository
 
         var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM GpsAlertEvents
-                WHERE VehicleId = @VehicleId AND EventType = 'gps_lost' AND IsDeleted = 0
-                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                SELECT 1 FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.VehicleId = @VehicleId AND e.EventType = 'gps_lost' AND e.IsDeleted = 0
+                AND e.Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
               ) THEN 1 ELSE 0 END",
-            new { dto.VehicleId, Minutes = GpsLostDedupMinutes, Timestamp = timestamp },
+            new { dto.VehicleId, TenantId = tenantId, Minutes = GpsLostDedupMinutes, Timestamp = timestamp },
             cancellationToken: cancellationToken));
 
         if (recentAlert)

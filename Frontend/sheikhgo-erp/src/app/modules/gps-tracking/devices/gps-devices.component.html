@@ -11,7 +11,7 @@
         <select class="refresh-select" (change)="setRefreshInterval(+$any($event.target).value)" [attr.aria-label]="'Auto-refresh interval'">
           <option *ngFor="let o of refreshOptions" [value]="o.value" [selected]="refreshIntervalMs === o.value">{{ o.label }}</option>
         </select>
-        <button class="btn btn-icon" type="button" (click)="syncNow()" [disabled]="syncing || !traccarStatus?.connected"
+        <button *ngIf="canRunTraccarSync" class="btn btn-icon" type="button" (click)="syncNow()" [disabled]="syncing || !traccarStatus?.connected"
           matTooltip="Sync now from Traccar">
           <mat-spinner *ngIf="syncing" diameter="18"></mat-spinner>
           <mat-icon *ngIf="!syncing">cloud_sync</mat-icon>

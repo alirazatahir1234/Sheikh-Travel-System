@@ -10,13 +10,18 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
 {
     public async Task<int?> ResolveActiveBookingIdAsync(
         IDbConnection connection,
+        int tenantId,
         int vehicleId,
         int? explicitBookingId,
         CancellationToken cancellationToken)
     {
         if (explicitBookingId.HasValue)
         {
-            return explicitBookingId;
+            // SG-01 Step 6a: an explicit booking is used only when it is this tenant's booking.
+            return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                @"SELECT Id FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = explicitBookingId.Value, TenantId = tenantId },
+                cancellationToken: cancellationToken));
         }
 
         var confirmed = (int)BookingStatus.Confirmed;
@@ -24,12 +29,12 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
 
         return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
             @"SELECT TOP 1 Id FROM Bookings
-              WHERE VehicleId = @VehicleId AND IsDeleted = 0
+              WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0
               AND Status IN (@Confirmed, @Started)
               AND PickupTime <= DATEADD(HOUR, 2, GETUTCDATE())
               AND (DropoffTime IS NULL OR DropoffTime >= DATEADD(HOUR, -1, GETUTCDATE()))
               ORDER BY PickupTime DESC",
-            new { VehicleId = vehicleId, Confirmed = confirmed, Started = started },
+            new { VehicleId = vehicleId, TenantId = tenantId, Confirmed = confirmed, Started = started },
             cancellationToken: cancellationToken));
     }
 
@@ -48,21 +53,24 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
         var streak = plan?.IdenticalCoordinateStreak ?? 0;
         var clearStickyIgnition = plan?.ClearStickyIgnition == true;
 
-        var bookingId = await ResolveActiveBookingIdAsync(connection, dto.VehicleId, dto.BookingId, cancellationToken);
+        // SG-01 Step 6a: resolve the vehicle's tenant first and bind the booking / driver lookups to it.
+        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = dto.VehicleId },
+            cancellationToken: cancellationToken));
+
+        var bookingId = tenantId is int vehicleTenantId
+            ? await ResolveActiveBookingIdAsync(connection, vehicleTenantId, dto.VehicleId, dto.BookingId, cancellationToken)
+            : null;
         var driverId = dto.DriverId;
 
         if (driverId is null && bookingId.HasValue)
         {
             driverId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-                "SELECT DriverId FROM Bookings WHERE Id = @Id",
-                new { Id = bookingId.Value },
+                "SELECT DriverId FROM Bookings WHERE Id = @Id AND TenantId = @TenantId",
+                new { Id = bookingId.Value, TenantId = tenantId },
                 cancellationToken: cancellationToken));
         }
-
-        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = dto.VehicleId },
-            cancellationToken: cancellationToken));
 
         await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO GpsPositions

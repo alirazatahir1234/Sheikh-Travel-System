@@ -15,6 +15,7 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
         decimal? batteryLevel = null,
         int? rssi = null,
         bool clearStickyIgnition = false,
+        int? expectedVehicleId = null,
         CancellationToken cancellationToken = default)
     {
         return connection.ExecuteAsync(new CommandDefinition(
@@ -28,7 +29,8 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
                 LastBatteryLevel = COALESCE(@BatteryLevel, LastBatteryLevel),
                 LastRssi = COALESCE(@Rssi, LastRssi),
                 UpdatedAt = @Timestamp
-              WHERE Id = @Id AND IsDeleted = 0",
+              WHERE Id = @Id AND IsDeleted = 0
+                AND (@ExpectedVehicleId IS NULL OR VehicleId = @ExpectedVehicleId)",
             new
             {
                 Id = gpsDeviceId,
@@ -37,7 +39,10 @@ public sealed class GpsDeviceTelemetryUpdater : IGpsDeviceTelemetryUpdater
                 Speed = speed,
                 BatteryLevel = batteryLevel,
                 Rssi = rssi,
-                ClearStickyIgnition = clearStickyIgnition
+                ClearStickyIgnition = clearStickyIgnition,
+                // SG-01 Step 6a: ingest passes the validated vehicle so a device id cannot touch another
+                // vehicle's device. Traccar provisioning of unassigned devices passes null (unchanged).
+                ExpectedVehicleId = expectedVehicleId
             },
             cancellationToken: cancellationToken));
     }

@@ -22,7 +22,8 @@ public sealed class TraccarSyncOrchestrator(
     IOptions<TraccarOptions> options,
     ILogger<TraccarSyncOrchestrator> logger) : ITraccarSyncOrchestrator
 {
-    private readonly ConcurrentDictionary<int, DateTime> _lastIngested = new();
+    // Shared by background and manual sync; advanced only for accepted (or failed-with-exception) positions.
+    private readonly TraccarPositionWatermark _watermark = new();
     private readonly ConcurrentDictionary<int, DateTime> _lastEventSync = new();
 
     private bool IsTraccarActive => options.Value.Enabled && options.Value.IsConfigured;
@@ -146,8 +147,10 @@ public sealed class TraccarSyncOrchestrator(
                 try
                 {
                     var source = TraccarPositionIngestMapper.ToSourceContext(pos, movingThreshold);
-                    await mediator.Send(new IngestPositionCommand(dto, source), ct);
-                    telemetryUpdated = 1;
+                    if (await TraccarTrustedIngest.SendAsync(mediator, dto, source, ct))
+                        telemetryUpdated = 1;
+                    else
+                        logger.LogWarning("Tracker sync position rejected by ingest scope for device {Id}", gpsDeviceId);
                 }
                 catch (Exception ex)
                 {
@@ -327,6 +330,9 @@ public sealed class TraccarSyncOrchestrator(
                 .ToDictionary(kv => kv.Key, kv => (kv.Value.GpsDeviceId, VehicleId: kv.Value.VehicleId!.Value));
 
             int ingested = 0;
+            int rejected = 0;
+            int failed = 0;
+            int failedPermanently = 0;
             int telemetryOnly = 0;
             int heartbeats = 0;
             var adaptiveSamples = new List<TraccarAdaptiveInterval.Sample>(positions.Count);
@@ -351,7 +357,7 @@ public sealed class TraccarSyncOrchestrator(
                 // Online badge uses VCL.LastUpdate / GpsDevices.LastSeenAt — must follow connectivity, not only GNSS fix.
                 var seenAt = MaxUtc(pos.ServerTime, pos.DeviceTime, pos.FixTime);
 
-                if (_lastIngested.TryGetValue(pos.DeviceId, out var last) && pos.FixTime <= last)
+                if (_watermark.AlreadyProcessed(pos.DeviceId, pos.FixTime))
                 {
                     int? heartbeatVehicleId = linkedDevices.TryGetValue(pos.DeviceId, out var linkedHb)
                         ? linkedHb.VehicleId
@@ -390,19 +396,36 @@ public sealed class TraccarSyncOrchestrator(
                     try
                     {
                         var source = TraccarPositionIngestMapper.ToSourceContext(pos, movingThreshold);
-                        await mediator.Send(new IngestPositionCommand(dto, source), ct);
-                        await RefreshConnectivityAsync(
-                            connection, linked.GpsDeviceId, linked.VehicleId, seenAt, ct);
-                        ingested++;
+                        if (await TraccarTrustedIngest.SendAsync(mediator, dto, source, ct))
+                        {
+                            await RefreshConnectivityAsync(
+                                connection, linked.GpsDeviceId, linked.VehicleId, seenAt, ct);
+                            ingested++;
+                            _watermark.MarkProcessed(pos.DeviceId, pos.FixTime);
+                        }
+                        else
+                        {
+                            // SG-01 Step 6a (H1): a rejected position is not counted as ingested and does not
+                            // advance the watermark, so the next sync retries this fix.
+                            rejected++;
+                        }
                     }
                     catch (Exception ex)
                     {
-                        logger.LogWarning(ex, "Failed to ingest position for Traccar device {DeviceId}", pos.DeviceId);
-                    }
-                    finally
-                    {
-                        // Always advance the watermark — prevents infinite retry of a permanently-failing position.
-                        _lastIngested[pos.DeviceId] = pos.FixTime;
+                        // SG-01 Step 6a: a thrown ingest (often transient: DB timeout, deadlock) does not advance the
+                        // watermark; the fix is retried on later polls and only given up after a bounded number of attempts.
+                        if (_watermark.RecordFailureAndShouldGiveUp(pos.DeviceId, pos.FixTime))
+                        {
+                            failedPermanently++;
+                            logger.LogError(ex,
+                                "Giving up on Traccar position for device {DeviceId} after {Attempts} failed ingest attempts",
+                                pos.DeviceId, TraccarPositionWatermark.MaxFailedAttempts);
+                        }
+                        else
+                        {
+                            failed++;
+                            logger.LogWarning(ex, "Failed to ingest position for Traccar device {DeviceId}; will retry", pos.DeviceId);
+                        }
                     }
                 }
                 else
@@ -413,7 +436,7 @@ public sealed class TraccarSyncOrchestrator(
                             connection, device.GpsDeviceId, seenAt, ignition,
                             speedKmh, battery, rssi,
                             clearStickyIgnition: clearSticky, cancellationToken: ct);
-                        _lastIngested[pos.DeviceId] = pos.FixTime;
+                        _watermark.MarkProcessed(pos.DeviceId, pos.FixTime);
                         telemetryOnly++;
                     }
                     catch (Exception ex)
@@ -426,13 +449,19 @@ public sealed class TraccarSyncOrchestrator(
             ApplyAdaptiveInterval(adaptiveSamples);
 
             var result = new TraccarSyncRunResult(DateTime.UtcNow, [
-                new TraccarSyncJobResult("positions", positions.Count, ingested, telemetryOnly + heartbeats, 0)
+                new TraccarSyncJobResult("positions", positions.Count, ingested, telemetryOnly + heartbeats, rejected + failed + failedPermanently)
             ]);
             syncState.RecordJobComplete("positions", result.Jobs[0]);
             if (ingested > 0 || telemetryOnly > 0 || heartbeats > 0)
                 logger.LogDebug(
                     "Traccar position sync: ingested {Ingested}, telemetry-only {TelemetryOnly}, heartbeats {Heartbeats}",
                     ingested, telemetryOnly, heartbeats);
+            if (rejected > 0)
+                logger.LogWarning("Traccar position sync: {Rejected} position(s) rejected by ingest scope; will retry", rejected);
+            if (failed > 0 || failedPermanently > 0)
+                logger.LogWarning(
+                    "Traccar position sync: {Failed} position(s) failed and will retry, {GivenUp} given up",
+                    failed, failedPermanently);
             return result;
         }
         catch (Exception ex)

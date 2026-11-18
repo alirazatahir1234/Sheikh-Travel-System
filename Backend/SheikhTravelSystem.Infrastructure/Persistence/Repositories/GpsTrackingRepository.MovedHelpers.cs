@@ -789,6 +789,7 @@ public sealed partial class GpsTrackingRepository
         IDbConnectionFactory dbFactory,
         ITraccarClient traccar,
         TraccarOptions opts,
+        int tenantId,
         int vehicleId,
         DateTime fromDate,
         DateTime toDate,
@@ -804,10 +805,12 @@ public sealed partial class GpsTrackingRepository
                     """
                     SELECT TOP 1 d.Id AS GpsDeviceId, d.TraccarDeviceId
                     FROM GpsDevices d
+                    INNER JOIN Vehicles v ON v.Id = d.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
                     WHERE d.VehicleId = @VehicleId AND d.IsDeleted = 0 AND d.TraccarDeviceId IS NOT NULL
+                      AND (d.TenantId = v.TenantId OR d.TenantId IS NULL)
                     ORDER BY d.Id DESC
                     """,
-                    new { VehicleId = vehicleId },
+                    new { VehicleId = vehicleId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
             if (link.TraccarDeviceId is int traccarDeviceId)
@@ -832,14 +835,15 @@ public sealed partial class GpsTrackingRepository
         }
 
         var localRows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
-            @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
-                     Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
-              FROM GpsPositions
-              WHERE VehicleId = @VehicleId
-                AND RecordedAt >= @FromDate
-                AND RecordedAt < @ToExclusive
-              ORDER BY RecordedAt ASC",
-            new { VehicleId = vehicleId, FromDate = fromDate, ToExclusive = toExclusive },
+            @"SELECT p.Id, p.VehicleId, p.DriverId, p.BookingId, p.GpsDeviceId, p.Latitude, p.Longitude, p.Speed,
+                     p.Heading, p.Altitude, p.Ignition, p.RecordedAt AS Timestamp, p.Address
+              FROM GpsPositions p
+              INNER JOIN Vehicles v ON v.Id = p.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+              WHERE p.VehicleId = @VehicleId
+                AND p.RecordedAt >= @FromDate
+                AND p.RecordedAt < @ToExclusive
+              ORDER BY p.RecordedAt ASC",
+            new { VehicleId = vehicleId, TenantId = tenantId, FromDate = fromDate, ToExclusive = toExclusive },
             cancellationToken: cancellationToken));
 
         return localRows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();

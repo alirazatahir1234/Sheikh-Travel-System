@@ -7,6 +7,7 @@ public interface IGpsPositionIngestionHelper
 {
     Task<int?> ResolveActiveBookingIdAsync(
         IDbConnection connection,
+        int tenantId,
         int vehicleId,
         int? explicitBookingId,
         CancellationToken cancellationToken);

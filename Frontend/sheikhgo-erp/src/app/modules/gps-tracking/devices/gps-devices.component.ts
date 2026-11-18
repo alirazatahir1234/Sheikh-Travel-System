@@ -59,6 +59,8 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   loadError: string | null = null;
   syncing = false;
   canManageDevices = false;
+  /** SG-01: manual Traccar sync is platform-wide, so the API requires a platform permission. */
+  canRunTraccarSync = false;
   traccarStatus: TraccarStatusDto | null = null;
   traccarSyncStatus: TraccarSyncStatusDto | null = null;
   clockNow = Date.now();
@@ -114,6 +116,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     private ngZone: NgZone
   ) {
     this.canManageDevices = this.auth.hasPermission('Gps.DeviceManage');
+    this.canRunTraccarSync = this.auth.hasPermission('Platform.Gps.Gateways.Manage');
   }
 
   /**

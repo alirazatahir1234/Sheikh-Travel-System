@@ -13,5 +13,6 @@ public interface IGpsDeviceTelemetryUpdater
         decimal? batteryLevel = null,
         int? rssi = null,
         bool clearStickyIgnition = false,
+        int? expectedVehicleId = null,
         CancellationToken cancellationToken = default);
 }
