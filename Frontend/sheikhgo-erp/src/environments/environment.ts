@@ -2,6 +2,8 @@ import { mapsSecrets } from './environment.secrets.local';
 
 export const environment = {
   production: false,
+  /** SG-22: MCP Console (/mcp) — on in local/dev; off in production builds. */
+  enableMcpConsole: true,
   // Proxied to http://127.0.0.1:5082 via proxy.conf.json when using ng serve
   apiUrl: '/api',
   /** Absolute base for uploaded files (API origin). Avoids resolving /uploads on :4200. */

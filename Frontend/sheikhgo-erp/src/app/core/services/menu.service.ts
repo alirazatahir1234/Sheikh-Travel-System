@@ -8,6 +8,7 @@ import { selectPrimaryRole } from '../auth/role-priority';
 import { normalizeNavMenuRoute } from '../navigation/nav-menu-route.util';
 import { resolveTenantType } from '../navigation/tenant-type';
 import { AuthService } from './auth.service';
+import { isMcpConsoleEnabled, stripMcpConsoleFromMenu } from '../navigation/mcp-console-access.util';
 
 export interface MenuModuleDto {
   id: string;
@@ -113,7 +114,9 @@ export class MenuService {
     const primaryRole = selectPrimaryRole(roles, '');
     const base = modules ? this.fromApi(modules) : this.fallbackMenu(roles, enabledModules);
     return this.filterMenuByRole(
-      this.ensureGpsAnalyticsNav(this.ensureMcpNav(base, enabledModules), enabledModules),
+      this.applyMcpConsoleGate(
+        this.ensureGpsAnalyticsNav(this.ensureMcpNav(base, enabledModules), enabledModules)
+      ),
       primaryRole
     );
   }
@@ -153,6 +156,7 @@ export class MenuService {
   /**
    * Align MCP / AI sidebar links with permissionGuard on /mcp and /ai
    * (Ai.View + tenant module legacy key `ai`).
+   * SG-22: MCP Console is only injected when environment.enableMcpConsole is true.
    */
   private ensureMcpNav(menu: ResolvedMenu, enabledModules: string[] = []): ResolvedMenu {
     if (menu.isDriverLayout) return menu;
@@ -161,10 +165,17 @@ export class MenuService {
     }
 
     const groups = menu.groups.map(g => ({ ...g, items: [...g.items] }));
+    const mcpAllowed = isMcpConsoleEnabled();
     const alreadyHasMcp = groups.some(g =>
       g.items.some(i => i.id === 'mcp-console' || i.route === '/mcp' || i.route.startsWith('/mcp/'))
     );
-    if (alreadyHasMcp) return { ...menu, groups };
+    if (alreadyHasMcp || !mcpAllowed) {
+      // Still ensure AI Assistant when MCP is env-gated off.
+      if (!mcpAllowed) {
+        return this.ensureAiAssistantNav({ ...menu, groups });
+      }
+      return { ...menu, groups };
+    }
 
     let admin = groups.find(g =>
       g.id === 'administration' ||
@@ -189,6 +200,37 @@ export class MenuService {
     }
     admin.items.push({ ...MCP_NAV_ITEM });
 
+    return { ...menu, groups };
+  }
+
+  /** SG-22 — drop API-seeded MCP Console rows when the console is env-gated off. */
+  private applyMcpConsoleGate(menu: ResolvedMenu): ResolvedMenu {
+    return isMcpConsoleEnabled() ? menu : stripMcpConsoleFromMenu(menu);
+  }
+
+  private ensureAiAssistantNav(menu: ResolvedMenu): ResolvedMenu {
+    const groups = menu.groups.map(g => ({ ...g, items: [...g.items] }));
+    const hasAi = groups.some(g =>
+      g.items.some(i => i.id === 'ai-center' || i.route === '/ai' || i.route?.startsWith('/ai/'))
+    );
+    if (hasAi) return { ...menu, groups };
+
+    let admin = groups.find(g =>
+      g.id === 'administration' ||
+      g.id === 'fleet-admin' ||
+      g.label.toLowerCase() === 'administration'
+    );
+    if (!admin) {
+      admin = {
+        id: 'administration',
+        label: 'Administration',
+        icon: 'admin_panel_settings',
+        collapsible: true,
+        items: []
+      };
+      groups.push(admin);
+    }
+    admin.items.push({ ...AI_NAV_ITEM });
     return { ...menu, groups };
   }
 

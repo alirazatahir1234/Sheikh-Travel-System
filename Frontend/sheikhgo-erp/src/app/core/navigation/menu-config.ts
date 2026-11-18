@@ -1,5 +1,6 @@
 import { NavGroup, NavItem, ResolvedMenu } from './nav-models';
 import { TenantType } from './tenant-type';
+import { isMcpConsoleEnabled, stripMcpConsoleFromMenu } from './mcp-console-access.util';
 
 const dashboardGroup: NavGroup = {
   id: 'dashboard',
@@ -580,7 +581,9 @@ export function resolveMenu(options: {
     groups.push({ ...group, items });
   }
 
-  return { groups, standaloneItems: [], isDriverLayout: false };
+  const menu: ResolvedMenu = { groups, standaloneItems: [], isDriverLayout: false };
+  // SG-22: strip MCP Console from static fallback layouts when env-gated off.
+  return isMcpConsoleEnabled() ? menu : stripMcpConsoleFromMenu(menu);
 }
 
 export function defaultExpandedGroupIds(_menu: ResolvedMenu): Set<string> {

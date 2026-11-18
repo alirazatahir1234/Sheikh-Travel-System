@@ -4,6 +4,7 @@ import { ShellComponent } from './layout/shell/shell.component';
 import { authGuard } from './core/guards/auth.guard';
 import { driverOnlyGuard, driverWorkspaceGuard } from './core/guards/driver-workspace.guard';
 import { permissionGuard } from './core/guards/permission.guard';
+import { mcpConsoleGuard } from './core/guards/mcp-console.guard';
 import { guestCanMatch } from './core/guards/guest.guard';
 import { WebsiteShellComponent } from './modules/website/website-shell.component';
 
@@ -434,7 +435,7 @@ const routes: Routes = [
       },
       {
         path: 'mcp',
-        canActivate: [permissionGuard],
+        canActivate: [mcpConsoleGuard, permissionGuard],
         data: { permissions: ['Ai.View', 'Ai.Chat'], modules: ['ai'] },
         loadChildren: () => import('./modules/mcp/mcp.module').then(m => m.McpModule)
       },

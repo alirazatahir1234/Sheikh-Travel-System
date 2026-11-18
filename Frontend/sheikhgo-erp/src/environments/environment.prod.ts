@@ -1,5 +1,7 @@
 export const environment = {
   production: true,
+  /** SG-22: MCP Console is a developer surface — keep out of production ERP. */
+  enableMcpConsole: false,
   /**
    * Fallback only. The real API host is read at startup from assets/config.json
    * (src/config/production/config.json, see src/config/README.md) — never bake a host here.
