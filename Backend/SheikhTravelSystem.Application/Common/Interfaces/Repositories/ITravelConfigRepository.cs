@@ -12,6 +12,9 @@ public interface ITravelConfigRepository
     Task<IReadOnlyList<TravelCountryDto>> GetCountriesAsync(CancellationToken cancellationToken = default);
     Task<bool> CountryExistsAsync(string code, CancellationToken cancellationToken = default);
 
+    /// <summary>Active branches and active users of the tenant (id + name only).</summary>
+    Task<TravelLookupsDto> GetLookupsAsync(int tenantId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<TravelVisaTypeDto>> GetVisaTypesAsync(int tenantId, string? countryCode, bool? isActive, CancellationToken cancellationToken = default);
     Task<TravelVisaTypeDto?> GetVisaTypeByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
     Task<bool> VisaTypeNameExistsAsync(int tenantId, string countryCode, string name, int? excludeId, CancellationToken cancellationToken = default);

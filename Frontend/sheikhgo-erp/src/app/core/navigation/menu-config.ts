@@ -71,6 +71,19 @@ const rentalGroup: NavGroup = {
   ]
 };
 
+/** TravelNexus — travel agency / visa / Umrah ERP (module TRAVEL_AGENCY, legacy key travel-agency).
+ *  Mirrors PlatformModules.travel-nexus; later phases add their items here and in their migration. */
+const travelNexusGroup: NavGroup = {
+  id: 'travel-nexus',
+  label: 'TravelNexus',
+  icon: 'flight_takeoff',
+  collapsible: true,
+  items: [
+    { id: 'travel-customers', label: 'Customers', icon: 'groups', route: '/travel/customers', moduleKey: 'travel-agency' },
+    { id: 'travel-settings', label: 'Settings', icon: 'tune', route: '/travel/settings', moduleKey: 'travel-agency' }
+  ]
+};
+
 const fleetOperationsGroup: NavGroup = {
   id: 'fleet-operations',
   label: 'Operations',
@@ -281,6 +294,7 @@ const allGroups: NavGroup[] = [
   travelFleetOperationsGroup,
   fleetGroup,
   rentalGroup,
+  travelNexusGroup,
   fleetOperationsGroup,
   fleetResourcesGroup,
   fleetAdminGroup,
@@ -306,7 +320,7 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-fleet-operations', 'rental', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'travel-nexus', 'travel-fleet-operations', 'rental', 'customers', 'finance', 'analytics', 'website', 'whatsapp', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.FleetOperator]: ['dashboard', 'fleet', 'rental', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'whatsapp', 'administration'],
   [TenantType.CorporateCustomer]: ['dashboard', 'travel-fleet-operations', 'customers', 'finance', 'analytics'],
   [TenantType.Driver]: []

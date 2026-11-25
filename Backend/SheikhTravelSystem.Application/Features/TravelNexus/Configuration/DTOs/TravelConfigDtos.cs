@@ -2,6 +2,19 @@ namespace SheikhTravelSystem.Application.Features.TravelNexus.Configuration.DTOs
 
 public record TravelCountryDto(string Code, string Name);
 
+public class TravelLookupItemDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>Tenant branches and staff users (id + name only) for TravelNexus dropdowns.</summary>
+public class TravelLookupsDto
+{
+    public IReadOnlyList<TravelLookupItemDto> Branches { get; set; } = [];
+    public IReadOnlyList<TravelLookupItemDto> Agents { get; set; } = [];
+}
+
 public class TravelVisaTypeDto
 {
     public int Id { get; set; }

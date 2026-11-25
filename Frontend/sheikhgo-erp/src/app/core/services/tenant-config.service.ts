@@ -34,7 +34,9 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   users: '/users',
   'audit-logs': '/platform/audit-center',
   /** Premium SheikhGo AI Assistant (TenantModuleCatalog code AI / legacy key ai). */
-  ai: '/ai'
+  ai: '/ai',
+  /** TravelNexus (TenantModuleCatalog code TRAVEL_AGENCY). */
+  'travel-agency': '/travel'
 };
 
 @Injectable({ providedIn: 'root' })

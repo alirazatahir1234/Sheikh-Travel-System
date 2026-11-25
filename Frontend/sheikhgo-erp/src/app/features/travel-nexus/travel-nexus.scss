@@ -1,0 +1,101 @@
+// TravelNexus page styles — built on global --stb-* tokens (teal/emerald brand). Shared by feature components.
+:host { display: block; }
+
+.tn-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  @media (max-width: 767px) { padding: 1rem; }
+}
+
+.tn-card {
+  background: var(--stb-surface);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow-sm);
+  overflow: hidden;
+}
+
+.tn-card-body { padding: 1.25rem; }
+
+.tn-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--stb-text);
+  margin: 0;
+}
+
+.tn-input {
+  width: 100%;
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius-sm);
+  background: var(--stb-surface);
+  color: var(--stb-text);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus { outline: none; border-color: var(--stb-primary); box-shadow: 0 0 0 3px var(--stb-primary-50); }
+  &.ng-invalid.ng-touched { border-color: var(--stb-danger); }
+  &:disabled { background: var(--stb-surface-alt); color: var(--stb-text-muted); }
+}
+
+textarea.tn-input { min-height: 84px; resize: vertical; }
+
+.tn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  label { font-size: 0.75rem; font-weight: 600; color: var(--stb-text-muted); }
+  .tn-required::after { content: ' *'; color: var(--stb-danger); }
+  .tn-error { font-size: 0.75rem; color: var(--stb-danger); }
+  .tn-hint { font-size: 0.72rem; color: var(--stb-text-soft); }
+}
+
+.tn-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.tn-segment {
+  display: inline-flex;
+  border: 1px solid var(--stb-border);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--stb-surface-alt);
+  button {
+    border: 0;
+    background: transparent;
+    border-radius: 999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--stb-text-muted);
+    cursor: pointer;
+    &.active { background: var(--stb-primary); color: #fff; }
+  }
+}
+
+.tn-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem 1.5rem;
+  dt { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--stb-text-soft); }
+  dd { margin: 0.2rem 0 0; font-size: 0.9rem; color: var(--stb-text); word-break: break-word; }
+}
+
+.tn-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+
+.tn-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--stb-radius-sm);
+  font-size: 0.85rem;
+  &.error { background: #FEF2F2; color: #B91C1C; }
+  &.info { background: var(--stb-primary-50); color: var(--stb-primary-600); }
+}

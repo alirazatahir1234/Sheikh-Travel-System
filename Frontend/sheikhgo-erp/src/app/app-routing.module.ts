@@ -294,6 +294,12 @@ const routes: Routes = [
         loadChildren: () => import('./modules/routes/routes.module').then(m => m.RoutesModule)
       },
       {
+        path: 'travel',
+        canActivate: [permissionGuard],
+        data: { permissions: ['Travel.View'], modules: ['travel-agency'] },
+        loadChildren: () => import('./features/travel-nexus/travel-nexus.routes').then(m => m.TRAVEL_NEXUS_ROUTES)
+      },
+      {
         path: 'rental',
         canActivate: [permissionGuard],
         data: { permissions: ['Rental.View'], modules: ['rental'] },

@@ -28,6 +28,18 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
             new { Code = code }, cancellationToken: cancellationToken)) > 0;
     }
 
+    public async Task<TravelLookupsDto> GetLookupsAsync(int tenantId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var branches = (await connection.QueryAsync<TravelLookupItemDto>(new CommandDefinition("""
+            SELECT Id, Name FROM Branches WHERE TenantId = @TenantId AND IsActive = 1 ORDER BY Name
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+        var agents = (await connection.QueryAsync<TravelLookupItemDto>(new CommandDefinition("""
+            SELECT Id, FullName AS Name FROM Users WHERE TenantId = @TenantId AND IsActive = 1 ORDER BY FullName
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+        return new TravelLookupsDto { Branches = branches, Agents = agents };
+    }
+
     // ── Visa types ──────────────────────────────────────────────────────────
 
     private const string VisaTypeSelect = """

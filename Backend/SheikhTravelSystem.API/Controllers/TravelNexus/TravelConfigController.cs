@@ -22,6 +22,10 @@ public class TravelConfigController : BaseApiController
     [HttpGet("countries")]
     public async Task<IActionResult> GetCountries() => Ok(await Mediator.Send(new GetTravelCountriesQuery()));
 
+    /// <summary>Active branches and staff of the caller's tenant (id + name) for dropdowns.</summary>
+    [HttpGet("lookups")]
+    public async Task<IActionResult> GetLookups() => Ok(await Mediator.Send(new GetTravelLookupsQuery()));
+
     /// <summary>Visa types, optionally filtered by country (ISO alpha-2) and active flag.</summary>
     [HttpGet("visa-types")]
     public async Task<IActionResult> GetVisaTypes([FromQuery] string? countryCode, [FromQuery] bool? isActive)
