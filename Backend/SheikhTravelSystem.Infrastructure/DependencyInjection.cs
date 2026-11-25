@@ -370,6 +370,7 @@ public static class DependencyInjection
         services.Configure<FatigueDetectionSettings>(configuration.GetSection(FatigueDetectionSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<TravelDocumentStorageOptions>(configuration.GetSection(TravelDocumentStorageOptions.SectionName));
         services.Configure<TranslatorOptions>(configuration.GetSection(TranslatorOptions.SectionName));
         services.AddHttpClient("PaddleOcr");
         services.AddHttpClient("AzureTranslator");
@@ -510,10 +511,14 @@ public static class DependencyInjection
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             // Dedicated private container + short SAS for GPS playback coordinates (never public).
             services.AddScoped<IPlaybackCoordinateStorage, AzurePlaybackCoordinateStorage>();
+            // TravelNexus passport/visa documents: own private container, streamed only via the API (no URLs).
+            services.AddScoped<ITravelDocumentStorage, AzureTravelDocumentStorage>();
             return;
         }
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IPlaybackCoordinateStorage, LocalPlaybackCoordinateStorage>();
+        // Private local root outside the publicly served uploads folder.
+        services.AddScoped<ITravelDocumentStorage, LocalTravelDocumentStorage>();
     }
 }

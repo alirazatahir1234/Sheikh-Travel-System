@@ -22,11 +22,23 @@ public static class TravelPermissions
     /// <summary>Record embassy decisions (approve / reject applicants). Separate from data entry.</summary>
     public const string VisaDecide = "Travel.Visa.Decide";
 
+    /// <summary>Upload documents, request ad-hoc documents, remove ad-hoc requirements.</summary>
+    public const string DocumentManage = "Travel.Document.Manage";
+
+    /// <summary>Verify, reject or waive applicant documents.</summary>
+    public const string DocumentVerify = "Travel.Document.Verify";
+
+    /// <summary>Open document files (passport scans etc.). Every download is audited.</summary>
+    public const string DocumentDownload = "Travel.Document.Download";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
     /// <summary>Phase 2 permissions (seeded by TravelNexusCrmVisaMigration).</summary>
     public static readonly string[] Phase2 = [EnquiryView, EnquiryManage, VisaView, VisaManage, VisaDecide];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2];
+    /// <summary>Phase 3 permissions (seeded by TravelNexusDocumentsMigration).</summary>
+    public static readonly string[] Phase3 = [DocumentManage, DocumentVerify, DocumentDownload];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3];
 }

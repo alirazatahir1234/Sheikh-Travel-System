@@ -35,7 +35,16 @@ public static partial class TravelValues
         ["Draft", "DocumentsPending", "DocumentsVerified", "Submitted", "InProcessing",
          "Approved", "PartiallyApproved", "Rejected", "OnHold", "Cancelled"];
     public static readonly string[] ApplicantDecisions = ["Pending", "Approved", "Rejected", "Withdrawn"];
-    public static readonly string[] VisaHistoryEventTypes = ["CaseStatus", "ApplicantAdded", "ApplicantRemoved", "ApplicantDecision"];
+    public static readonly string[] VisaHistoryEventTypes =
+        ["CaseStatus", "ApplicantAdded", "ApplicantRemoved", "ApplicantDecision",
+         "DocumentUploaded", "DocumentVerified", "DocumentRejected", "DocumentWaived", "DocumentRequested", "DocumentRemoved"];
+
+    // ── Phase 3: checklists & documents ──
+    public static readonly string[] ChecklistStatuses = ["Draft", "Active", "Retired"];
+    public static readonly string[] ApplicantConditions = ["All", "Adult", "Minor", "Male", "Female", "FemaleWithMahram"];
+    public static readonly string[] ApplicantDocumentStatuses = ["Missing", "Uploaded", "Verified", "Rejected", "Waived"];
+    public static readonly string[] DocumentHistoryEventTypes =
+        ["DocumentUploaded", "DocumentVerified", "DocumentRejected", "DocumentWaived", "DocumentRequested", "DocumentRemoved"];
 
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];

@@ -79,3 +79,5 @@ Thumbs.db
 # Local API uploads (dev file storage)
 SheikhTravelSystem.API/uploads/
 **/uploads/
+# TravelNexus private documents (passport scans) — never commit
+**/private-storage/
