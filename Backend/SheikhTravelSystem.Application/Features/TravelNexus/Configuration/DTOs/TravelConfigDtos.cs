@@ -1,0 +1,75 @@
+namespace SheikhTravelSystem.Application.Features.TravelNexus.Configuration.DTOs;
+
+public record TravelCountryDto(string Code, string Name);
+
+public class TravelVisaTypeDto
+{
+    public int Id { get; set; }
+    public string CountryCode { get; set; } = string.Empty;
+    public string CountryName { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string EntryType { get; set; } = string.Empty;
+    public int? ValidityDays { get; set; }
+    public int? StayDays { get; set; }
+    public int? ProcessingDays { get; set; }
+    public decimal? DefaultFee { get; set; }
+    public string? CurrencyCode { get; set; }
+    public bool IsActive { get; set; }
+    public string? Notes { get; set; }
+}
+
+public record SaveTravelVisaTypeDto(
+    string CountryCode,
+    string Name,
+    string Category,
+    string EntryType,
+    int? ValidityDays,
+    int? StayDays,
+    int? ProcessingDays,
+    decimal? DefaultFee,
+    string? CurrencyCode,
+    bool IsActive,
+    string? Notes);
+
+public class TravelDocumentTypeDto
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool RequiresExpiryDate { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public record SaveTravelDocumentTypeDto(
+    string Code,
+    string Name,
+    string? Description,
+    bool RequiresExpiryDate,
+    bool IsActive);
+
+public class TravelLeadSourceDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}
+
+public record SaveTravelLeadSourceDto(string Name, bool IsActive);
+
+public class TravelSettingsDto
+{
+    public string? DefaultCurrencyCode { get; set; }
+    public string EnquiryPrefix { get; set; } = "ENQ";
+    public string VisaCasePrefix { get; set; } = "VC";
+    public string InvoicePrefix { get; set; } = "TINV";
+    public int PassportExpiryWarningDays { get; set; } = 180;
+}
+
+public record UpdateTravelSettingsDto(
+    string? DefaultCurrencyCode,
+    string EnquiryPrefix,
+    string VisaCasePrefix,
+    string InvoicePrefix,
+    int PassportExpiryWarningDays);

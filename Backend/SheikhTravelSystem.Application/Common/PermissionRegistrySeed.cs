@@ -63,6 +63,7 @@ public static class PermissionRegistrySeed
             .Concat(NotificationPermissions.All)
             .Concat(SmartOpsPermissions.All)
             .Concat(RentalPermissions.All)
+            .Concat(TravelPermissions.All)
             .Concat(WebsitePermissions.All)
             .Concat(WhatsAppPermissions.All)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -130,6 +131,8 @@ public static class PermissionRegistrySeed
             return ("Finance", "FLEET", null);
         if (code.StartsWith("Rental.", StringComparison.OrdinalIgnoreCase))
             return ("Fleet", "RENTAL", null);
+        if (code.StartsWith("Travel.", StringComparison.OrdinalIgnoreCase))
+            return ("Travel Agency", TenantModuleCatalog.TravelAgencyModuleCode, null);
         if (code.StartsWith("Payment.", StringComparison.OrdinalIgnoreCase)
             || code.StartsWith("Invoice.", StringComparison.OrdinalIgnoreCase)
             || code.StartsWith("Settlement.", StringComparison.OrdinalIgnoreCase))

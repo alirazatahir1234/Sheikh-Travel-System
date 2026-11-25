@@ -22,6 +22,12 @@ public static class TenantModuleCatalog
     /// <summary>Vehicle hire rental — opt-in; depends on fleet vehicles + customers.</summary>
     public const string RentalModuleCode = "RENTAL";
 
+    /// <summary>TravelNexus — travel agency, visa and Umrah management. Opt-in; not in defaults.</summary>
+    public const string TravelAgencyModuleCode = "TRAVEL_AGENCY";
+
+    /// <summary>Legacy menu entitlement key for <see cref="TravelAgencyModuleCode"/>.</summary>
+    public const string TravelAgencyLegacyKey = "travel-agency";
+
     /// <summary>Major Fleet Alerts module — parent of per-type alert capabilities.</summary>
     public const string AlertsModuleCode = AlertModuleCatalog.AlertsModuleCode;
 
@@ -68,6 +74,7 @@ public static class TenantModuleCatalog
         new("FLEET", "Fleet Management", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
         new(GpsModuleCode, "Fleet Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
+        new(TravelAgencyModuleCode, "TravelNexus", [TravelAgencyLegacyKey]),
         // Roads/routes only — bookings & trips are separate opt-in modules.
         // TRIPS stays catalog-only under BOOKINGS (not listed here → not separately enableable).
         new(TravelRoutesModuleCode, "Routes", ["routes"]),

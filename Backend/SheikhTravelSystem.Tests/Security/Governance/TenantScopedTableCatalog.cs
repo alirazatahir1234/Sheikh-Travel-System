@@ -45,6 +45,10 @@ public static class TenantScopedTableCatalog
         "GpsDeviceRepository.cs",
         "GpsTrackingRepository.cs",
         "VehicleRepository.cs",
-        "DriverRepository.cs"
+        "DriverRepository.cs",
+        // TravelNexus
+        "TravelConfigRepository.cs",
+        "TravelCustomerRepository.cs",
+        "TravelTravelerRepository.cs"
     ];
 }

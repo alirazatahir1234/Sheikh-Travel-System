@@ -49,6 +49,11 @@ public static class ModuleRegistrySeed
         // Opt-in: bookings + trips (not in DefaultModuleCodes — avoid over-provisioning)
         E("BOOKINGS", "Bookings & Trips", "Bookings & Trips", "Booking and trip workflows — enable per company", "Travel", "event_note", "/bookings", 51,
             ["DASHBOARD"], true, true, false, false, "Active", ["bookings", "trips"]),
+        // Opt-in: TravelNexus travel agency / visa / Umrah ERP.
+        E(TenantModuleCatalog.TravelAgencyModuleCode, "TravelNexus", "TravelNexus",
+            "Travel agency CRM, visa processing, Umrah groups, bookings and travel finance", "Travel",
+            "flight_takeoff", "/travel", 55, ["DASHBOARD"], true, false, false, false, "Active",
+            [TenantModuleCatalog.TravelAgencyLegacyKey]),
         E("CRM", "CRM", "Customers", "Customer relationship management", "CRM", "groups", "/customers", 60,
             [], true, false, false, false, "Active", ["customers"]),
         E("FINANCE", "Finance", "Finance", "Payments and financial operations", "Finance", "payments", "/payments", 70,

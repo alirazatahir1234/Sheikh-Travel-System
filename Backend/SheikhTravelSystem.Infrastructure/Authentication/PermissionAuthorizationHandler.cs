@@ -93,7 +93,8 @@ public static class PermissionPolicyRegistration
             .Concat(WebsitePermissions.All)
             .Concat(WhatsAppPermissions.All)
             .Concat(SmartOpsPermissions.All)
-            .Concat(RentalPermissions.All))
+            .Concat(RentalPermissions.All)
+            .Concat(TravelPermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

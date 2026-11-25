@@ -25,6 +25,10 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditLoggingBehavior<,>));
 
+        // TravelNexus application services
+        services.AddScoped<Features.TravelNexus.Common.ITravelBranchScopeResolver, Features.TravelNexus.Common.TravelBranchScopeResolver>();
+        services.AddScoped<Features.TravelNexus.Travelers.Commands.TravelTravelerGuard>();
+
         return services;
     }
 

@@ -13,7 +13,7 @@ public class ModuleRegistrySeedTests
         {
             "DASHBOARD", "FLEET", "GPS", "TRAVEL", "CRM", "FINANCE", "ANALYTICS", "ACCESS",
             "PLATFORM", "BOOKINGS", "TRIPS", "DRIVERS", "VEHICLES", "MAINTENANCE", "FUEL",
-            "PAYMENTS", "INVOICES", "SETTINGS", "AI", "RENTAL",
+            "PAYMENTS", "INVOICES", "SETTINGS", "AI", "RENTAL", "TRAVEL_AGENCY",
         }
         .Concat(AlertModuleCatalog.AllModuleCodes)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
