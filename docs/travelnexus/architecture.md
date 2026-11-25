@@ -4,7 +4,7 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 2 delivered** (Phase 1 foundation, configuration, customers, travelers; Phase 2 CRM enquiries and visa case pipeline).
+Status: **Phase 3 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -76,9 +76,17 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelVisaApplicants` | Travelers on a case, each with its own decision and visa details | unique (case, traveler); Rejected needs reason |
 | `TravelVisaStatusHistory` | Append-only case and applicant events | event type CHECK |
 
-**Later phases (planned)**
+**Phase 3 (built)**
 
-- Visa documents: `TravelVisaApplicantDocuments`.
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelChecklistTemplates` | Versioned checklist per country (+ optional visa type) | Draft / Active / Retired; one Active per (tenant, country, visa type); Active and Retired are read-only |
+| `TravelChecklistItems` | Document type, mandatory, applies-to condition, minimum validity after travel | unique (template, document type, condition) |
+| `TravelApplicantDocuments` | Per-applicant requirement snapshotted from the checklist or requested ad hoc | Missing / Uploaded / Verified / Rejected / Waived; reject and waive need a note; unique (applicant, document type) |
+| `TravelDocumentFiles` | Every uploaded version: storage key, original name, sniffed content type, size, SHA-256 | content type CHECK (PDF/JPEG/PNG); storage key unique |
+| `TravelVisaCases` (+ columns) | `ChecklistTemplateId`, `ChecklistVersion` the case was built from | |
+
+**Later phases (planned)**
 - Checklists: `TravelChecklistTemplates` (versioned), `TravelChecklistTemplateItems`.
 - Umrah: `TravelPackages`, `TravelPackagePrices`, `TravelGroups`, `TravelGroupMembers`, `TravelGroupHotels`,
   `TravelRooms`, `TravelRoomAssignments`, `TravelGroupTransport`, `TravelGroupStatusHistory`.
@@ -126,6 +134,18 @@ ERP never duplicates the rules.
 **KPIs.** Pipeline and enquiry counters come from `/summary` endpoints, zero-filled for every status, with
 `Total` = sum of buckets (tested). Labels state the window ("current, all time").
 
+**Documents and checklists (Phase 3).** "Request documents" (Draft → DocumentsPending) snapshots the Active
+checklist for the case's visa type (else the country-wide one) into per-applicant requirements, evaluating
+applicant conditions (adult/minor at the travel date, gender, travelling with a mahram) in the same transaction.
+Applicants added later get requirements from the case's own checklist version; a DocumentsVerified case returns to
+DocumentsPending when a newcomer brings mandatory documents. "Mark documents verified" is allowed only when every
+mandatory requirement of every active applicant is Verified or Waived; verifying a document with a minimum validity
+requires an expiry date that satisfies it. Documents change only while the case is DocumentsPending.
+
+**Passport scan.** `POST api/travel/passport/scan` runs the existing OCR service and an ICAO 9303 TD3 MRZ parser
+(check digits, OCR-noise correction, alpha-3 → alpha-2 countries). The image is not stored and OCR text is not
+logged; the traveler form is pre-filled for the user to confirm.
+
 ## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
@@ -136,10 +156,20 @@ ERP never duplicates the rules.
   the clamp are reported as not found, never as forbidden, so their existence is not revealed.
 - **Permissions.** Phase 1: `Travel.View`, `Travel.Settings`, `Travel.Customer.View`, `Travel.Customer.Manage`,
   `Travel.Traveler.ViewPII`. Phase 2: `Travel.Enquiry.View/Manage`, `Travel.Visa.View/Manage`, `Travel.Visa.Decide`.
+  Phase 3: `Travel.Document.Manage` (upload, request), `Travel.Document.Verify` (verify, reject, waive),
+  `Travel.Document.Download` (open files). Checklists are managed with `Travel.Settings`.
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
   (the same applies to RENTAL); a grant-on-module-enable hook is planned for Phase 8.
+- **Private documents.** Passport and visa files never use `IFileStorageService` or `/uploads`.
+  `ITravelDocumentStorage` writes to a dedicated private Azure container (`TravelDocuments:AzureContainerName`,
+  default `travel-documents`, no SAS ever issued) or, locally, to `private-storage/travel-documents` outside the
+  publicly served folder (git-ignored). Keys are `tenant-{id}/case-{id}/{guid}.{ext}` and validated before use.
+  Uploads are checked by magic bytes (must match the extension), capped at 10 MB and hashed (SHA-256). Files are only
+  streamed by `GET api/travel/documents/files/{id}` (`Travel.Document.Download`, `no-store`, `nosniff`), which writes
+  a **fail-closed** audit event before opening the file. The ERP fetches files as blobs and revokes object URLs on
+  close. nginx allows 12 MB bodies only on `/api/travel/(documents|passport)/`.
 - **PII.** Passport and CNIC numbers are never logged (the MediatR behaviours do not serialise payloads) and are
   masked in responses without `Travel.Traveler.ViewPII`.
 
@@ -160,6 +190,13 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | GET | `api/travel/visa-cases` (search, status, countryCode, visaTypeId, agentUserId, customerId, createdFrom/To) · `summary` · `by-customer/{id}` · `{id}` | Travel.Visa.View |
 | POST / PUT / DELETE | `api/travel/visa-cases`, `{id}`, `{id}/transition`, `{id}/submit`, `{id}/applicants[/{applicantId}]` | Travel.Visa.Manage |
 | POST | `api/travel/visa-cases/{id}/applicants/{applicantId}/decision` | Travel.Visa.Decide |
+| GET | `api/travel/checklists` · `{id}` | Travel.View |
+| POST / PUT / DELETE | `api/travel/checklists`, `{id}`, `{id}/items`, `{id}/activate`, `{id}/new-version` | Travel.Settings |
+| GET | `api/travel/documents/visa-cases/{caseId}` · `missing` | Travel.Visa.View |
+| POST / DELETE | `api/travel/documents/requirements/{id}/files` (multipart), `visa-cases/{caseId}/requests`, `requirements/{id}` | Travel.Document.Manage |
+| POST | `api/travel/documents/requirements/{id}/verify` · `reject` · `waive` | Travel.Document.Verify |
+| GET | `api/travel/documents/files/{fileId}` (stream, audited) | Travel.Document.Download |
+| POST | `api/travel/passport/scan` (multipart, image) | Travel.Customer.Manage |
 
 ## 7. Roadmap
 
@@ -168,7 +205,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 0 | Repository analysis and this document | Done |
 | 1 | Module, permissions, navigation, configuration, customers, travelers | Done |
 | 2 | Enquiries, follow-ups, conversion; visa cases, applicants, status pipeline + history | Done |
-| 3 | Checklist templates and versions, private document upload, verification, missing-document alerts, passport OCR | Planned |
+| 3 | Checklist templates and versions, private document upload, verification, missing-documents list, passport OCR | Done |
 | 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Planned |
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Planned |
 | 6 | Travel ledger, suppliers, supplier bills, commissions, profitability | Planned |
@@ -176,3 +213,16 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
 
 Each phase gets its own plan, migration, tests and commits on the feature branch.
+
+## 8. Finding outside TravelNexus (for the audit owner)
+
+Existing Nexus uploads (driver CNIC images, vehicle documents, trip files) are publicly readable:
+
+- `Program.cs` serves `{ContentRoot}/uploads` with `UseStaticFiles` **before** authentication, and nginx proxies
+  `/uploads/` — anyone with a file URL can download it, with no login.
+- `AzureBlobStorageService` returns read SAS links valid for `AzureSasExpiryDays` (default **365 days**), or a plain
+  public URL when `AzurePublicBaseUrl` is set.
+
+This is not part of SG-01..52. TravelNexus does not use that path. Fixing it (an authenticated, audited stream
+like TravelNexus's, short SAS lifetimes, removing the static `/uploads` mapping) needs its own SG issue because the
+ERP shows these URLs directly in `<img>` and `<a href>` in many places.

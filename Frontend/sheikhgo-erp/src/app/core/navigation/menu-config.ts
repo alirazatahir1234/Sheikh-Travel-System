@@ -82,6 +82,7 @@ const travelNexusGroup: NavGroup = {
     { id: 'travel-enquiries', label: 'CRM & Enquiries', icon: 'contact_phone', route: '/travel/enquiries', moduleKey: 'travel-agency' },
     { id: 'travel-customers', label: 'Customers', icon: 'groups', route: '/travel/customers', moduleKey: 'travel-agency' },
     { id: 'travel-visa-cases', label: 'Visa Management', icon: 'assignment_ind', route: '/travel/visa-cases', moduleKey: 'travel-agency' },
+    { id: 'travel-checklists', label: 'Document Checklists', icon: 'checklist', route: '/travel/checklists', moduleKey: 'travel-agency' },
     { id: 'travel-settings', label: 'Settings', icon: 'tune', route: '/travel/settings', moduleKey: 'travel-agency' }
   ]
 };

@@ -13,7 +13,10 @@ export const TRAVEL_PERMISSIONS = {
   enquiryManage: 'Travel.Enquiry.Manage',
   visaView: 'Travel.Visa.View',
   visaManage: 'Travel.Visa.Manage',
-  visaDecide: 'Travel.Visa.Decide'
+  visaDecide: 'Travel.Visa.Decide',
+  documentManage: 'Travel.Document.Manage',
+  documentVerify: 'Travel.Document.Verify',
+  documentDownload: 'Travel.Document.Download'
 } as const;
 
 export type TravelVisaCategory =
@@ -380,7 +383,8 @@ export type TravelVisaAction =
 /** Actions sent to POST /transition (Submit and decisions have their own endpoints). */
 export type TravelVisaTransitionAction =
   'StartDocuments' | 'VerifyDocuments' | 'ReopenDocuments' | 'StartProcessing' | 'Hold' | 'Resume' | 'Cancel';
-export type TravelVisaHistoryEvent = 'CaseStatus' | 'ApplicantAdded' | 'ApplicantRemoved' | 'ApplicantDecision';
+export type TravelVisaHistoryEvent = 'CaseStatus' | 'ApplicantAdded' | 'ApplicantRemoved' | 'ApplicantDecision'
+  | 'DocumentUploaded' | 'DocumentVerified' | 'DocumentRejected' | 'DocumentWaived' | 'DocumentRequested' | 'DocumentRemoved';
 
 export const VISA_STATUS_LABEL: Record<TravelVisaCaseStatus, string> = {
   Draft: 'Draft', DocumentsPending: 'Documents pending', DocumentsVerified: 'Documents verified', Submitted: 'Submitted',
@@ -465,6 +469,10 @@ export interface TravelVisaCase extends TravelVisaCaseListItem {
   currencyCode: string | null;
   cancelReason: string | null;
   notes: string | null;
+  checklistTemplateId: number | null;
+  checklistVersion: number | null;
+  documentsMandatoryTotal: number;
+  documentsMandatoryComplete: number;
   allowedActions: TravelVisaAction[];
   applicants: TravelVisaApplicant[];
   history: TravelVisaHistory[];
@@ -518,3 +526,129 @@ export interface TravelVisaCaseQuery {
   createdFrom?: string;
   createdTo?: string;
 }
+
+// ── Phase 3: checklists & documents ────────────────────────────────────
+
+export type TravelChecklistStatus = 'Draft' | 'Active' | 'Retired';
+export type TravelApplicantCondition = 'All' | 'Adult' | 'Minor' | 'Male' | 'Female' | 'FemaleWithMahram';
+export const TRAVEL_APPLICANT_CONDITIONS: TravelApplicantCondition[] = ['All', 'Adult', 'Minor', 'Male', 'Female', 'FemaleWithMahram'];
+export const APPLICANT_CONDITION_LABEL: Record<TravelApplicantCondition, string> = {
+  All: 'Everyone', Adult: 'Adults (18+)', Minor: 'Minors (under 18)', Male: 'Men', Female: 'Women', FemaleWithMahram: 'Women travelling with a mahram'
+};
+export const CHECKLIST_STATUS_VARIANT: Record<TravelChecklistStatus, BadgeVariant> = { Draft: 'pending', Active: 'success', Retired: 'inactive' };
+
+export type TravelDocumentStatus = 'Missing' | 'Uploaded' | 'Verified' | 'Rejected' | 'Waived';
+export const DOCUMENT_STATUS_VARIANT: Record<TravelDocumentStatus, BadgeVariant> = {
+  Missing: 'inactive', Uploaded: 'info', Verified: 'success', Rejected: 'error', Waived: 'warning'
+};
+
+export interface TravelChecklistItem {
+  id: number;
+  documentTypeId: number;
+  documentTypeCode: string;
+  documentTypeName: string;
+  isMandatory: boolean;
+  applicantCondition: TravelApplicantCondition;
+  minValidityDays: number | null;
+  instructions: string | null;
+  sortOrder: number;
+}
+
+export interface TravelChecklistListItem {
+  id: number;
+  countryCode: string;
+  countryName: string;
+  visaTypeId: number | null;
+  visaTypeName: string | null;
+  name: string;
+  version: number;
+  status: TravelChecklistStatus;
+  itemCount: number;
+  activatedAt: string | null;
+  createdAt: string;
+}
+
+export interface TravelChecklist extends TravelChecklistListItem { notes: string | null; items: TravelChecklistItem[]; }
+
+export interface SaveTravelChecklist { countryCode: string; visaTypeId: number | null; name: string; notes: string | null; }
+export interface SaveTravelChecklistItem {
+  documentTypeId: number;
+  isMandatory: boolean;
+  applicantCondition: TravelApplicantCondition;
+  minValidityDays: number | null;
+  instructions: string | null;
+}
+
+export interface TravelDocumentFile {
+  id: number;
+  applicantDocumentId: number;
+  originalFileName: string;
+  contentType: 'application/pdf' | 'image/jpeg' | 'image/png';
+  sizeBytes: number;
+  uploadedByName: string | null;
+  uploadedAt: string;
+}
+
+export interface TravelApplicantDocument {
+  id: number;
+  applicantId: number;
+  travelerId: number;
+  travelerName: string;
+  documentTypeId: number;
+  documentTypeCode: string;
+  documentTypeName: string;
+  isMandatory: boolean;
+  isAdHoc: boolean;
+  minValidityDays: number | null;
+  instructions: string | null;
+  status: TravelDocumentStatus;
+  expiryDate: string | null;
+  reviewNote: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  currentFileId: number | null;
+  files: TravelDocumentFile[];
+}
+
+export interface TravelCaseDocuments {
+  visaCaseId: number;
+  caseStatus: TravelVisaCaseStatus;
+  checklistTemplateId: number | null;
+  checklistName: string | null;
+  checklistVersion: number | null;
+  mandatoryTotal: number;
+  mandatoryComplete: number;
+  canEdit: boolean;
+  requirements: TravelApplicantDocument[];
+}
+
+export interface TravelMissingDocumentsItem {
+  visaCaseId: number;
+  caseNumber: string;
+  customerId: number;
+  customerName: string;
+  countryName: string;
+  visaTypeName: string;
+  status: TravelVisaCaseStatus;
+  intendedTravelDate: string | null;
+  mandatoryOutstanding: number;
+}
+
+export interface MrzPassportData {
+  surname: string;
+  givenNames: string;
+  passportNumber: string;
+  issuingCountryCode: string | null;
+  nationalityCode: string | null;
+  dateOfBirth: string | null;
+  gender: TravelGender | null;
+  expiryDate: string | null;
+  checksumValid: boolean;
+  invalidFields: string[];
+}
+
+export interface TravelPassportScanResult { available: boolean; found: boolean; passport: MrzPassportData | null; message: string; }
+
+/** Mirrors TravelDocumentFileValidator on the server (pre-check only; the server decides). */
+export const DOCUMENT_UPLOAD_ACCEPT = '.pdf,.jpg,.jpeg,.png';
+export const DOCUMENT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;

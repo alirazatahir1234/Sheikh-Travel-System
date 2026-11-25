@@ -11,7 +11,7 @@ describe('TravelNexus navigation', () => {
 
     const group = menu.groups.find(g => g.id === 'travel-nexus');
     expect(group?.label).toBe('TravelNexus');
-    expect(group!.items.map(i => i.route)).toEqual(['/travel/enquiries', '/travel/customers', '/travel/visa-cases', '/travel/settings']);
+    expect(group!.items.map(i => i.route)).toEqual(['/travel/enquiries', '/travel/customers', '/travel/visa-cases', '/travel/checklists', '/travel/settings']);
   });
 
   it('hides TravelNexus when the company does not have the module', () => {

@@ -12,6 +12,7 @@ import {
   TravelMahramRelation, TravelTraveler, isMasked
 } from '../models/travel.models';
 import { TravelCustomerService } from '../services/travel-customer.service';
+import { TravelDocumentService } from '../services/travel-document.service';
 
 /** Expiry must be after issue (both yyyy-MM-dd strings). */
 function passportDatesValidator(group: AbstractControl): ValidationErrors | null {
@@ -30,7 +31,17 @@ const toDateInput = (iso: string | null): string => (iso ? iso.substring(0, 10) 
   template: `
     <ui-drawer [(open)]="open" [title]="traveler() ? 'Edit traveler' : 'Add traveler'" width="560px">
       <form class="space-y-5" [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <p class="text-xs text-fleet-text-muted">Enter names exactly as printed in the passport (machine-readable zone).</p>
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-fleet-border p-3">
+          <p class="text-xs text-fleet-text-muted">Enter names exactly as printed in the passport, or scan the photo page to fill them in.</p>
+          <label class="inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-fleet-primary">
+            <input type="file" class="sr-only" accept=".jpg,.jpeg,.png" [disabled]="scanning()" (change)="scanPassport($event)" />
+            <mat-icon class="!text-[18px]">document_scanner</mat-icon> {{ scanning() ? 'Reading…' : 'Scan passport' }}
+          </label>
+        </div>
+        @if (scanMessage()) {
+          <div class="tn-banner" [class.error]="scanWarning()" [class.info]="!scanWarning()">
+            <mat-icon>{{ scanWarning() ? 'warning' : 'info' }}</mat-icon>{{ scanMessage() }}</div>
+        }
 
         <div class="tn-grid">
           <div class="tn-field">
@@ -174,6 +185,10 @@ export class TravelerFormDrawerComponent {
   protected readonly today = new Date().toISOString().substring(0, 10);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly scanning = signal(false);
+  protected readonly scanMessage = signal<string | null>(null);
+  protected readonly scanWarning = signal(false);
+  private readonly documents = inject(TravelDocumentService);
 
   protected readonly passportMasked = computed(() => isMasked(this.traveler()?.passportNumber));
   protected readonly cnicMasked = computed(() => isMasked(this.traveler()?.cnic));
@@ -211,6 +226,37 @@ export class TravelerFormDrawerComponent {
     // Reset the form whenever the drawer opens.
     effect(() => {
       if (this.open()) this.reset(this.traveler());
+    });
+  }
+
+  /** Reads the passport MRZ and pre-fills the form; nothing is saved until the user clicks Save. */
+  protected scanPassport(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.scanning.set(true);
+    this.scanMessage.set(null);
+    this.documents.scanPassport(file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: r => {
+        this.scanning.set(false);
+        this.scanMessage.set(r.message);
+        this.scanWarning.set(!r.found || !(r.passport?.checksumValid ?? false));
+        const p = r.passport;
+        if (!p) return;
+        this.form.patchValue({
+          givenNames: p.givenNames || this.form.controls.givenNames.value,
+          surname: p.surname || this.form.controls.surname.value,
+          gender: p.gender ?? this.form.controls.gender.value,
+          dateOfBirth: p.dateOfBirth ? p.dateOfBirth.substring(0, 10) : this.form.controls.dateOfBirth.value,
+          nationalityCode: p.nationalityCode ?? this.form.controls.nationalityCode.value,
+          passportNumber: p.passportNumber || this.form.controls.passportNumber.value,
+          passportIssuingCountryCode: p.issuingCountryCode ?? this.form.controls.passportIssuingCountryCode.value,
+          passportExpiryDate: p.expiryDate ? p.expiryDate.substring(0, 10) : this.form.controls.passportExpiryDate.value
+        });
+        this.form.markAsDirty();
+      },
+      error: err => { this.scanning.set(false); this.scanWarning.set(true); this.scanMessage.set(apiErrorMessage(err, 'Could not read the passport.')); }
     });
   }
 
@@ -284,6 +330,7 @@ export class TravelerFormDrawerComponent {
 
   private reset(t: TravelTraveler | null): void {
     this.error.set(null);
+    this.scanMessage.set(null);
     this.form.reset({
       givenNames: t?.givenNames ?? '',
       surname: t?.surname ?? '',

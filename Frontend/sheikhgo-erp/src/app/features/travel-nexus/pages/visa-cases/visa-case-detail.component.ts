@@ -18,6 +18,7 @@ import {
 } from '../../models/travel.models';
 import { asUtc, fromDateTimeLocal, toDateTimeLocal } from '../../models/travel-date.util';
 import { TravelCustomerService } from '../../services/travel-customer.service';
+import { VisaCaseDocumentsComponent } from '../../components/visa-case-documents.component';
 import { TravelVisaService } from '../../services/travel-visa.service';
 
 /** Transition buttons in display order; Hold and Cancel ask for a note. */
@@ -35,7 +36,7 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
   selector: 'app-travel-visa-case-detail',
   standalone: true,
   imports: [DatePipe, CurrencyPipe, ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent,
-    UiStatusBadgeComponent, UiDrawerComponent, UiModalComponent, HasPermissionDirective],
+    UiStatusBadgeComponent, UiDrawerComponent, UiModalComponent, HasPermissionDirective, VisaCaseDocumentsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -51,8 +52,14 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
           [breadcrumbs]="[{ label: 'TravelNexus' }, { label: 'Visa cases', route: '/travel/visa-cases' }, { label: c.caseNumber }]">
           <ng-container *appHasPermission="perms.visaManage">
             @for (t of transitions(); track t.action) {
-              <button mat-stroked-button [color]="t.warn ? 'warn' : undefined" [disabled]="busy()" (click)="startTransition(t.action)">
+              <button mat-stroked-button [color]="t.warn ? 'warn' : undefined"
+                [disabled]="busy() || (t.action === 'VerifyDocuments' && documentsOutstanding() > 0)"
+                [title]="t.action === 'VerifyDocuments' && documentsOutstanding() > 0 ? documentsOutstanding() + ' mandatory document(s) still need verifying or waiving' : ''"
+                (click)="startTransition(t.action)">
                 <mat-icon>{{ t.icon }}</mat-icon> {{ transitionLabel[t.action] }}
+                @if (t.action === 'VerifyDocuments' && c.documentsMandatoryTotal) {
+                  <span class="text-xs">({{ c.documentsMandatoryComplete }}/{{ c.documentsMandatoryTotal }})</span>
+                }
               </button>
             }
             @if (can('Submit')) { <button mat-flat-button color="primary" [disabled]="busy()" (click)="openSubmit()"><mat-icon>send</mat-icon> Submit</button> }
@@ -141,6 +148,8 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
                 </div>
               }
             </div>
+
+            <app-visa-case-documents [caseId]="c.id" [caseStatus]="c.status" [applicants]="c.applicants" (changed)="load()" />
 
             <div class="tn-card">
               <div class="border-b border-fleet-border px-5 py-4"><h3 class="tn-section-title">History</h3></div>
@@ -273,6 +282,10 @@ export class TravelVisaCaseDetailComponent {
   protected readonly busy = signal(false);
   protected readonly dialogError = signal<string | null>(null);
   protected readonly transitions = computed(() => TRANSITIONS.filter(t => this.can(t.action)));
+  protected readonly documentsOutstanding = computed(() => {
+    const c = this.visaCase();
+    return c ? c.documentsMandatoryTotal - c.documentsMandatoryComplete : 0;
+  });
 
   protected readonly noteOpen = signal(false);
   protected readonly pendingAction = signal<TravelVisaTransitionAction | null>(null);
@@ -426,6 +439,7 @@ export class TravelVisaCaseDetailComponent {
   }
 
   protected historyIcon(type: string): string {
+    if (type.startsWith('Document')) return 'description';
     return type === 'ApplicantAdded' ? 'person_add' : type === 'ApplicantRemoved' ? 'person_remove' : type === 'ApplicantDecision' ? 'gavel' : 'swap_horiz';
   }
 
@@ -435,11 +449,17 @@ export class TravelVisaCaseDetailComponent {
       case 'ApplicantAdded': return `${applicant ?? 'Applicant'} added`;
       case 'ApplicantRemoved': return `${applicant ?? 'Applicant'} removed`;
       case 'ApplicantDecision': return `${applicant ?? 'Applicant'}: ${to}`;
+      case 'DocumentUploaded': return `${applicant ?? 'Applicant'}: document uploaded`;
+      case 'DocumentVerified': return `${applicant ?? 'Applicant'}: document verified`;
+      case 'DocumentRejected': return `${applicant ?? 'Applicant'}: document rejected`;
+      case 'DocumentWaived': return `${applicant ?? 'Applicant'}: document waived`;
+      case 'DocumentRequested': return `${applicant ?? 'Applicant'}: document requested`;
+      case 'DocumentRemoved': return `${applicant ?? 'Applicant'}: requirement removed`;
       default: return from ? `${label(from)} → ${label(to)}` : label(to);
     }
   }
 
-  private load(): void {
+  protected load(): void {
     this.api.getCase(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: c => this.visaCase.set(c),
       error: err => this.error.set(apiErrorMessage(err, 'Visa case not found.'))

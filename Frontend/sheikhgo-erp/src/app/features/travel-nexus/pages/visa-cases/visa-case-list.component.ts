@@ -16,6 +16,9 @@ import {
 import { asUtc } from '../../models/travel-date.util';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelVisaService } from '../../services/travel-visa.service';
+import { TravelDocumentService } from '../../services/travel-document.service';
+import { ActivatedRoute } from '@angular/router';
+import { TravelMissingDocumentsItem } from '../../models/travel.models';
 
 @Component({
   selector: 'app-travel-visa-case-list',
@@ -63,6 +66,9 @@ import { TravelVisaService } from '../../services/travel-visa.service';
             <input type="date" class="tn-input" [ngModel]="from()" (ngModelChange)="from.set($event); reset()" /></label>
           <label class="tn-field lg:w-40"><span class="text-xs">Created to</span>
             <input type="date" class="tn-input" [ngModel]="to()" (ngModelChange)="to.set($event); reset()" /></label>
+          <button mat-stroked-button [color]="missingDocs() ? 'primary' : undefined" (click)="toggleMissing()">
+            <mat-icon>{{ missingDocs() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon> Missing documents
+          </button>
           @if (status(); as s) { <button mat-stroked-button (click)="setStatus('')"><mat-icon>close</mat-icon> {{ statusLabel[s] }}</button> }
           <span class="text-sm text-fleet-text-muted lg:ml-auto">{{ total() }} shown</span>
         </div>
@@ -70,6 +76,35 @@ import { TravelVisaService } from '../../services/travel-visa.service';
         @if (error()) {
           <div class="tn-card-body"><div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ error() }}
             <button mat-stroked-button class="ml-auto" (click)="reload()">Retry</button></div></div>
+        } @else if (missingDocs()) {
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[760px] text-left text-sm">
+              <thead class="bg-fleet-surface-alt/60">
+                <tr class="text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">
+                  <th class="px-5 py-3">Case</th><th class="px-5 py-3">Customer</th><th class="px-5 py-3">Visa</th>
+                  <th class="px-5 py-3">Status</th><th class="px-5 py-3 text-center">Outstanding</th><th class="px-5 py-3">Travel</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-fleet-border">
+                @if (loading()) {
+                  @for (s of [1,2,3]; track s) { <tr>@for (c of [1,2,3,4,5,6]; track c) { <td class="px-5 py-4"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td> }</tr> }
+                } @else if (!missingRows().length) {
+                  <tr><td colspan="6"><ui-empty-state icon="task_alt" title="Nothing outstanding" description="No open case is waiting for mandatory documents."></ui-empty-state></td></tr>
+                } @else {
+                  @for (m of missingRows(); track m.visaCaseId) {
+                    <tr class="cursor-pointer hover:bg-fleet-surface-alt/40" (click)="openCase(m.visaCaseId)">
+                      <td class="px-5 py-3 font-mono text-xs">{{ m.caseNumber }}</td>
+                      <td class="px-5 py-3 font-semibold">{{ m.customerName }}</td>
+                      <td class="px-5 py-3">{{ m.countryName }} · {{ m.visaTypeName }}</td>
+                      <td class="px-5 py-3"><ui-status-badge [status]="m.status" [label]="statusLabel[m.status]" [variant]="statusVariant[m.status]"></ui-status-badge></td>
+                      <td class="px-5 py-3 text-center font-semibold text-red-600">{{ m.mandatoryOutstanding }}</td>
+                      <td class="px-5 py-3">{{ m.intendedTravelDate ? (m.intendedTravelDate | date: 'mediumDate': 'UTC') : '—' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
         } @else {
           <div class="overflow-x-auto">
             <table class="w-full min-w-[900px] text-left">
@@ -145,6 +180,9 @@ export class TravelVisaCaseListComponent {
   protected readonly to = signal('');
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  private readonly documentsApi = inject(TravelDocumentService);
+  protected readonly missingDocs = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('missingDocs') === 'true');
+  protected readonly missingRows = signal<TravelMissingDocumentsItem[]>([]);
 
   protected readonly searchInput$ = new Subject<string>();
   private readonly load$ = new Subject<void>();
@@ -152,13 +190,21 @@ export class TravelVisaCaseListComponent {
   constructor() {
     this.load$.pipe(
       tap(() => { this.loading.set(true); this.error.set(null); }),
-      switchMap(() => this.api.getCases({
+      switchMap(() => this.missingDocs()
+        ? this.documentsApi.getMissing(this.page(), 20).pipe(
+            tap(r => this.missingRows.set(r.items)),
+            catchError(err => { this.error.set(apiErrorMessage(err, 'Could not load cases with missing documents.')); return of(null); }))
+        : this.api.getCases({
         page: this.page(), pageSize: 20, search: this.search(), status: this.status(), countryCode: this.country() || undefined,
         createdFrom: this.from() || undefined, createdTo: this.to() || undefined
       }).pipe(catchError(err => { this.error.set(apiErrorMessage(err, 'Could not load visa cases.')); return of(null); }))),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(r => {
-      if (r) { this.rows.set(r.items); this.total.set(r.totalCount); this.totalPages.set(r.totalPages); }
+      if (r) {
+        if (!this.missingDocs()) this.rows.set(r.items as TravelVisaCaseListItem[]);
+        this.total.set(r.totalCount);
+        this.totalPages.set(r.totalPages);
+      }
       this.loading.set(false);
     });
 
@@ -169,7 +215,9 @@ export class TravelVisaCaseListComponent {
     this.reload();
   }
 
-  protected setStatus(s: TravelVisaCaseStatus | ''): void { this.status.set(s); this.reset(); }
+  protected setStatus(s: TravelVisaCaseStatus | ''): void { this.status.set(s); this.missingDocs.set(false); this.reset(); }
+  protected toggleMissing(): void { this.missingDocs.set(!this.missingDocs()); this.reset(); }
+  protected openCase(id: number): void { this.router.navigate(['/travel/visa-cases', id]); }
   protected reset(): void { this.page.set(1); this.reload(); }
   protected goTo(p: number): void { this.page.set(p); this.reload(); }
   protected reload(): void { this.load$.next(); }

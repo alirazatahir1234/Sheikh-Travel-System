@@ -93,6 +93,20 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     title: 'Edit visa case'
   },
   {
+    path: 'checklists',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.view] },
+    loadComponent: () => import('./pages/checklists/checklist-list.component').then(m => m.TravelChecklistListComponent),
+    title: 'Document checklists'
+  },
+  {
+    path: 'checklists/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.view] },
+    loadComponent: () => import('./pages/checklists/checklist-editor.component').then(m => m.TravelChecklistEditorComponent),
+    title: 'Document checklist'
+  },
+  {
     path: 'settings',
     canActivate: [permissionGuard],
     data: { permissions: [TRAVEL_PERMISSIONS.settings] },
