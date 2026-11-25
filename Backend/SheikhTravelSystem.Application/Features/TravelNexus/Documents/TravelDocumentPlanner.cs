@@ -59,8 +59,7 @@ public sealed class TravelDocumentPlanner(ITravelChecklistRepository checklists,
         TravelVisaCaseState state, int tenantId, IReadOnlyCollection<int> travelerIds, CancellationToken ct)
     {
         if (items.Count == 0 || travelerIds.Count == 0) return [];
-        var profiles = (await travelers.GetByCustomerAsync(state.CustomerId, tenantId, ct))
-            .Where(t => travelerIds.Contains(t.Id))
+        var profiles = (await travelers.GetByIdsAsync(travelerIds.ToList(), tenantId, ct))
             .Select(t => new TravelApplicantProfile(t.Id, t.Gender, t.DateOfBirth, t.MahramTravelerId));
         return TravelChecklistPlanner.Plan(items, profiles, (state.IntendedTravelDate ?? DateTime.UtcNow).Date);
     }

@@ -309,6 +309,30 @@ public static class TravelNexusUmrahMigration
             END
             """, cancellationToken: cancellationToken));
 
+        // Group visa cases: a case belongs to a customer OR an Umrah group (pilgrims from many customers).
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF COL_LENGTH(N'dbo.TravelVisaCases', N'GroupId') IS NULL
+            BEGIN
+                ALTER TABLE dbo.TravelVisaCases ADD GroupId INT NULL
+                    CONSTRAINT FK_TravelVisaCases_Group FOREIGN KEY REFERENCES dbo.TravelGroups(Id);
+            END
+
+            IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.TravelVisaCases') AND name = N'CustomerId' AND is_nullable = 0)
+            BEGIN
+                DROP INDEX IX_TravelVisaCases_Tenant_Customer ON dbo.TravelVisaCases;
+                ALTER TABLE dbo.TravelVisaCases ALTER COLUMN CustomerId INT NULL;
+                CREATE INDEX IX_TravelVisaCases_Tenant_Customer ON dbo.TravelVisaCases (TenantId, CustomerId) WHERE IsDeleted = 0;
+            END
+
+            IF OBJECT_ID(N'dbo.CK_TravelVisaCases_Owner', N'C') IS NULL
+                ALTER TABLE dbo.TravelVisaCases ADD CONSTRAINT CK_TravelVisaCases_Owner
+                    CHECK ((CustomerId IS NOT NULL AND GroupId IS NULL) OR (CustomerId IS NULL AND GroupId IS NOT NULL));
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_TravelVisaCases_Tenant_Group')
+                CREATE UNIQUE INDEX UX_TravelVisaCases_Tenant_Group ON dbo.TravelVisaCases (TenantId, GroupId)
+                    WHERE GroupId IS NOT NULL AND IsDeleted = 0;
+            """, cancellationToken: cancellationToken));
+
         foreach (var (code, desc) in PermissionRows)
         {
             await connection.ExecuteAsync(new CommandDefinition("""

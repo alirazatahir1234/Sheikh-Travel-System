@@ -16,7 +16,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.TravelNexus
 public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : ITravelVisaCaseRepository
 {
     private const string ListSelect = """
-        SELECT v.Id, v.CaseNumber, v.CustomerId, c.FullName AS CustomerName,
+        SELECT v.Id, v.CaseNumber, v.CustomerId, v.GroupId, COALESCE(c.FullName, g.Name) AS CustomerName,
                v.CountryCode, co.Name AS CountryName, v.VisaTypeId, vt.Name AS VisaTypeName,
                v.Status, v.Priority,
                (SELECT COUNT(1) FROM TravelVisaApplicants a
@@ -29,7 +29,8 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
 
     private const string FromJoins = """
         FROM TravelVisaCases v
-        INNER JOIN Customers c ON c.Id = v.CustomerId AND c.TenantId = v.TenantId
+        LEFT JOIN Customers c ON c.Id = v.CustomerId AND c.TenantId = v.TenantId
+        LEFT JOIN TravelGroups g ON g.Id = v.GroupId AND g.TenantId = v.TenantId
         INNER JOIN TravelCountries co ON co.Code = v.CountryCode
         INNER JOIN TravelVisaTypes vt ON vt.Id = v.VisaTypeId AND vt.TenantId = v.TenantId
         LEFT JOIN Users u ON u.Id = v.AssignedAgentUserId AND u.TenantId = v.TenantId
@@ -47,7 +48,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
 
         if (f.Search is not null)
         {
-            clauses.Add("(v.CaseNumber LIKE @Search OR c.FullName LIKE @Search OR v.SubmissionReference LIKE @Search)");
+            clauses.Add("(v.CaseNumber LIKE @Search OR c.FullName LIKE @Search OR g.Name LIKE @Search OR v.SubmissionReference LIKE @Search)");
             p.Add("Search", $"%{TravelSql.EscapeLike(f.Search)}%");
         }
         if (f.Status is not null) { clauses.Add("v.Status = @Status"); p.Add("Status", f.Status); }
@@ -104,7 +105,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
         TravelSql.ApplyBranchScope(scope, "v.BranchId", clauses, p);
 
         return await connection.QuerySingleOrDefaultAsync<TravelVisaCaseState>(new CommandDefinition(
-            $"SELECT v.Id, v.CustomerId, v.Status, v.OnHoldFromStatus, v.BranchId, v.CountryCode, v.VisaTypeId, v.IntendedTravelDate, v.ChecklistTemplateId FROM TravelVisaCases v WHERE {string.Join(" AND ", clauses)}",
+            $"SELECT v.Id, v.CustomerId, v.Status, v.OnHoldFromStatus, v.BranchId, v.CountryCode, v.VisaTypeId, v.IntendedTravelDate, v.ChecklistTemplateId, v.GroupId FROM TravelVisaCases v WHERE {string.Join(" AND ", clauses)}",
             p, cancellationToken: cancellationToken));
     }
 
@@ -261,25 +262,30 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
         connection.Open();
         using var tx = connection.BeginTransaction();
 
-        var customerId = await LockCaseAsync(connection, tx, tenantId, caseId, expectedStatus, cancellationToken);
-        if (customerId is null)
+        var owner = await LockCaseAsync(connection, tx, tenantId, caseId, expectedStatus, cancellationToken);
+        if (owner is null)
         {
             tx.Rollback();
             return null;
         }
 
-        // Only travelers of the case's own customer, not already active applicants.
+        // Only travelers of the case's own customer (or active pilgrims of its group), not already active applicants.
         var added = (await connection.QueryAsync<(int ApplicantId, int TravelerId)>(new CommandDefinition("""
             INSERT INTO TravelVisaApplicants (TenantId, VisaCaseId, TravelerId, CreatedBy)
             OUTPUT inserted.Id, inserted.TravelerId
             SELECT @TenantId, @CaseId, t.Id, @UserId
             FROM TravelTravelers t
-            WHERE t.TenantId = @TenantId AND t.CustomerId = @CustomerId AND t.IsDeleted = 0 AND t.Id IN @TravelerIds
+            WHERE t.TenantId = @TenantId AND t.IsDeleted = 0 AND t.Id IN @TravelerIds
+              AND ((@GroupId IS NULL AND t.CustomerId = @CustomerId)
+                   OR (@GroupId IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM TravelGroupMembers m
+                        WHERE m.TenantId = @TenantId AND m.GroupId = @GroupId AND m.TravelerId = t.Id
+                          AND m.IsDeleted = 0 AND m.Status <> N'Cancelled')))
               AND NOT EXISTS (
                   SELECT 1 FROM TravelVisaApplicants x
                   WHERE x.TenantId = @TenantId AND x.VisaCaseId = @CaseId AND x.TravelerId = t.Id AND x.IsDeleted = 0)
             """,
-            new { TenantId = tenantId, CaseId = caseId, CustomerId = customerId, TravelerIds = travelerIds.ToArray(), UserId = userId },
+            new { TenantId = tenantId, CaseId = caseId, owner.Value.CustomerId, owner.Value.GroupId, TravelerIds = travelerIds.ToArray(), UserId = userId },
             tx, cancellationToken: cancellationToken))).ToList();
 
         foreach (var (applicantId, _) in added)
@@ -401,10 +407,10 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    /// <summary>Locks the case row in the expected status for the transaction; returns its CustomerId or null.</summary>
-    private static Task<int?> LockCaseAsync(IDbConnection connection, IDbTransaction tx, int tenantId, int caseId, string expectedStatus, CancellationToken ct)
-        => connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
-            SELECT CustomerId FROM TravelVisaCases WITH (UPDLOCK, ROWLOCK)
+    /// <summary>Locks the case row in the expected status for the transaction; returns its owner (customer or group) or null.</summary>
+    private static Task<(int? CustomerId, int? GroupId)?> LockCaseAsync(IDbConnection connection, IDbTransaction tx, int tenantId, int caseId, string expectedStatus, CancellationToken ct)
+        => connection.QuerySingleOrDefaultAsync<(int? CustomerId, int? GroupId)?>(new CommandDefinition("""
+            SELECT CustomerId, GroupId FROM TravelVisaCases WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @CaseId AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Expected
             """, new { CaseId = caseId, TenantId = tenantId, Expected = expectedStatus }, tx, cancellationToken: ct));
 

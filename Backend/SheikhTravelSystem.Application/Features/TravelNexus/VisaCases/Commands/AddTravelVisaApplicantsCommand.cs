@@ -30,6 +30,7 @@ public class AddTravelVisaApplicantsCommandValidator : AbstractValidator<AddTrav
 public class AddTravelVisaApplicantsCommandHandler(
     ITravelVisaCaseRepository repository,
     ITravelTravelerRepository travelers,
+    ITravelGroupRepository groups,
     TravelVisaCaseGuard guard,
     Documents.TravelDocumentPlanner planner,
     ITravelBranchScopeResolver scopeResolver,
@@ -46,11 +47,15 @@ public class AddTravelVisaApplicantsCommandHandler(
         if (!VisaCaseStateMachine.IsPreSubmission(state.Status))
             return ApiResponse<int>.FailResponse($"Applicants cannot be changed once a case is {state.Status}.");
 
-        var ownTravelers = (await travelers.GetByCustomerAsync(state.CustomerId, tenantId, cancellationToken))
-            .Select(t => t.Id).ToHashSet();
+        // Customer case: that customer's travelers. Group case: the group's active pilgrims.
+        var allowed = state.GroupId is int groupId
+            ? (await groups.GetActiveMemberTravelerIdsAsync(groupId, tenantId, cancellationToken)).ToHashSet()
+            : (await travelers.GetByCustomerAsync(state.CustomerId!.Value, tenantId, cancellationToken)).Select(t => t.Id).ToHashSet();
         var requested = request.Applicants.TravelerIds.Distinct().ToList();
-        if (requested.Any(id => !ownTravelers.Contains(id)))
-            return ApiResponse<int>.FailResponse("Only travelers of this case's customer can be added.");
+        if (requested.Any(id => !allowed.Contains(id)))
+            return ApiResponse<int>.FailResponse(state.GroupId is null
+                ? "Only travelers of this case's customer can be added."
+                : "Only active pilgrims of this group can be added.");
 
         // Once documents have started, new applicants get the case's checklist requirements immediately; a verified
         // case falls back to DocumentsPending when a newcomer brings mandatory documents.

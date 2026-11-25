@@ -44,6 +44,16 @@ public sealed class TravelTravelerRepository(IDbConnectionFactory dbFactory) : I
             """, new { Id = id, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
+    public async Task<IReadOnlyList<TravelTravelerDto>> GetByIdsAsync(IReadOnlyList<int> ids, int tenantId, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0) return [];
+        using var connection = dbFactory.CreateConnection();
+        return (await connection.QueryAsync<TravelTravelerDto>(new CommandDefinition($$"""
+            {{Select}}
+            WHERE t.Id IN @Ids AND t.TenantId = @TenantId AND t.IsDeleted = 0
+            """, new { Ids = ids.ToArray(), TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+    }
+
     public async Task<TravelTravelerIdentity?> GetIdentityAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

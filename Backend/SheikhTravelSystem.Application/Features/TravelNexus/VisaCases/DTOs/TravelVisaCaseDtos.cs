@@ -6,7 +6,11 @@ public class TravelVisaCaseListItemDto
 {
     public int Id { get; set; }
     public string CaseNumber { get; set; } = string.Empty;
-    public int CustomerId { get; set; }
+    /// <summary>Customer that owns the case; null for an Umrah group case (see <see cref="GroupId"/>).</summary>
+    public int? CustomerId { get; set; }
+    /// <summary>Umrah group that owns the case (group visa case), or null.</summary>
+    public int? GroupId { get; set; }
+    /// <summary>Customer name, or the group name for a group case.</summary>
     public string CustomerName { get; set; } = string.Empty;
     public string CountryCode { get; set; } = string.Empty;
     public string CountryName { get; set; } = string.Empty;
@@ -144,8 +148,8 @@ public sealed record TravelVisaCaseListFilter(
     DateTime? CreatedTo);
 
 /// <summary>Minimal case facts used by command handlers for state-machine and checklist checks.</summary>
-public sealed record TravelVisaCaseState(int Id, int CustomerId, string Status, string? OnHoldFromStatus, int? BranchId,
-    string CountryCode, int VisaTypeId, DateTime? IntendedTravelDate, int? ChecklistTemplateId);
+public sealed record TravelVisaCaseState(int Id, int? CustomerId, string Status, string? OnHoldFromStatus, int? BranchId,
+    string CountryCode, int VisaTypeId, DateTime? IntendedTravelDate, int? ChecklistTemplateId, int? GroupId = null);
 
 /// <summary>Atomic status change + history row. Optional fields are written only when supplied.</summary>
 public sealed record TravelVisaCaseStatusChange(

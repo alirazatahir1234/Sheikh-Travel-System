@@ -289,12 +289,13 @@ public class TravelDocumentHandlerTests
                 new TravelChecklistItemDto { Id = 1, DocumentTypeId = 100, IsMandatory = true, ApplicantCondition = "All" },
                 new TravelChecklistItemDto { Id = 2, DocumentTypeId = 200, IsMandatory = true, ApplicantCondition = "Minor" }
             ]));
-        _travelers.Setup(t => t.GetByCustomerAsync(CustomerId, Tenant, It.IsAny<CancellationToken>())).ReturnsAsync(
-        [
-            new TravelTravelerDto { Id = 101, Gender = "Male", DateOfBirth = new DateTime(1980, 1, 1) },
-            new TravelTravelerDto { Id = 102, Gender = "Female", DateOfBirth = new DateTime(2015, 1, 1) },
-            new TravelTravelerDto { Id = 103, Gender = "Male" } // not an applicant
-        ]);
+        _travelers.Setup(t => t.GetByIdsAsync(It.IsAny<IReadOnlyList<int>>(), Tenant, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<int> ids, int _, CancellationToken _) => new List<TravelTravelerDto>
+            {
+                new() { Id = 101, Gender = "Male", DateOfBirth = new DateTime(1980, 1, 1) },
+                new() { Id = 102, Gender = "Female", DateOfBirth = new DateTime(2015, 1, 1) },
+                new() { Id = 103, Gender = "Male" } // not an applicant: filtered out because it is not requested
+            }.Where(t => ids.Contains(t.Id)).ToList());
         _cases.Setup(c => c.ChangeStatusAsync(Tenant, It.IsAny<TravelVisaCaseStatusChange>(), 4, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         await TransitionHandler().Handle(new TransitionTravelVisaCaseCommand(CaseId, new TransitionTravelVisaCaseDto(A.StartDocuments, null)), CancellationToken.None);
@@ -315,9 +316,11 @@ public class TravelDocumentHandlerTests
             .ReturnsAsync([new TravelChecklistItemDto { Id = 1, DocumentTypeId = 100, IsMandatory = true, ApplicantCondition = "All" }]);
         _travelers.Setup(t => t.GetByCustomerAsync(CustomerId, Tenant, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TravelTravelerDto { Id = 101, Gender = "Male" }, new TravelTravelerDto { Id = 102, Gender = "Male" }]);
+        _travelers.Setup(t => t.GetByIdsAsync(It.IsAny<IReadOnlyList<int>>(), Tenant, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TravelTravelerDto { Id = 102, Gender = "Male" }]);
         _cases.Setup(c => c.AddApplicantsAsync(Tenant, CaseId, "DocumentsVerified", It.IsAny<IReadOnlyList<int>>(), 4,
             It.IsAny<IReadOnlyList<TravelRequirementSeed>>(), true, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = new AddTravelVisaApplicantsCommandHandler(_cases.Object, _travelers.Object, new TravelVisaCaseGuard(_cases.Object),
+        var handler = new AddTravelVisaApplicantsCommandHandler(_cases.Object, _travelers.Object, new Mock<ITravelGroupRepository>().Object, new TravelVisaCaseGuard(_cases.Object),
             new TravelDocumentPlanner(_checklists.Object, _travelers.Object), _scope.Object, _tenant.Object, _user.Object);
 
         var result = await handler.Handle(new AddTravelVisaApplicantsCommand(CaseId, new AddTravelVisaApplicantsDto([102])), CancellationToken.None);

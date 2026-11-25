@@ -54,7 +54,7 @@ public class TravelMissingDocumentsItemDto
 {
     public int VisaCaseId { get; set; }
     public string CaseNumber { get; set; } = string.Empty;
-    public int CustomerId { get; set; }
+    public int? CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CountryName { get; set; } = string.Empty;
     public string VisaTypeName { get; set; } = string.Empty;

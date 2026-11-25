@@ -10,6 +10,8 @@ public interface ITravelTravelerRepository
 {
     Task<IReadOnlyList<TravelTravelerDto>> GetByCustomerAsync(int customerId, int tenantId, CancellationToken cancellationToken = default);
     Task<TravelTravelerDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
+    /// <summary>Travelers of the tenant with the given ids (unknown / other-tenant ids are simply absent).</summary>
+    Task<IReadOnlyList<TravelTravelerDto>> GetByIdsAsync(IReadOnlyList<int> ids, int tenantId, CancellationToken cancellationToken = default);
     Task<TravelTravelerIdentity?> GetIdentityAsync(int id, int tenantId, CancellationToken cancellationToken = default);
     Task<bool> PassportExistsAsync(int tenantId, string issuingCountryCode, string passportNumber, int? excludeId, CancellationToken cancellationToken = default);
 

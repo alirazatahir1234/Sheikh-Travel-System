@@ -251,11 +251,12 @@ public sealed class TravelDocumentRepository(IDbConnectionFactory dbFactory) : I
         p.Add("Offset", (page - 1) * pageSize);
         p.Add("PageSize", pageSize);
         var items = (await connection.QueryAsync<TravelMissingDocumentsItemDto>(new CommandDefinition($"""
-            SELECT v.Id AS VisaCaseId, v.CaseNumber, v.CustomerId, c.FullName AS CustomerName, co.Name AS CountryName,
+            SELECT v.Id AS VisaCaseId, v.CaseNumber, v.CustomerId, COALESCE(c.FullName, g.Name) AS CustomerName, co.Name AS CountryName,
                    vt.Name AS VisaTypeName, v.Status, v.IntendedTravelDate, x.Outstanding AS MandatoryOutstanding
             FROM (SELECT v.Id, COUNT(1) AS Outstanding {outstanding} GROUP BY v.Id) x
             INNER JOIN TravelVisaCases v ON v.Id = x.Id AND v.TenantId = @TenantId
-            INNER JOIN Customers c ON c.Id = v.CustomerId AND c.TenantId = v.TenantId
+            LEFT JOIN Customers c ON c.Id = v.CustomerId AND c.TenantId = v.TenantId
+            LEFT JOIN TravelGroups g ON g.Id = v.GroupId AND g.TenantId = v.TenantId
             INNER JOIN TravelCountries co ON co.Code = v.CountryCode
             INNER JOIN TravelVisaTypes vt ON vt.Id = v.VisaTypeId AND vt.TenantId = v.TenantId
             ORDER BY CASE WHEN v.IntendedTravelDate IS NULL THEN 1 ELSE 0 END, v.IntendedTravelDate, v.Id

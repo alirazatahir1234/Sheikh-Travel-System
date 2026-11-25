@@ -192,7 +192,7 @@ public class TravelVisaCaseHandlerTests
     // ── Applicants ─────────────────────────────────────────────────────────
 
     private AddTravelVisaApplicantsCommandHandler AddHandler()
-        => new(_cases.Object, _travelers.Object, Guard, Planner, _scope.Object, _tenant.Object, _user.Object);
+        => new(_cases.Object, _travelers.Object, new Mock<ITravelGroupRepository>().Object, Guard, Planner, _scope.Object, _tenant.Object, _user.Object);
 
     [Fact]
     public async Task Applicants_must_be_travelers_of_the_same_customer()
