@@ -13,6 +13,7 @@ public record GetTravelVisaCaseByIdQuery(int Id) : IRequest<ApiResponse<TravelVi
 
 public class GetTravelVisaCaseByIdQueryHandler(
     ITravelVisaCaseRepository repository,
+    ITravelDocumentRepository documents,
     ITravelBranchScopeResolver scopeResolver,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
@@ -34,6 +35,11 @@ public class GetTravelVisaCaseByIdQueryHandler(
         }
 
         visaCase.Applicants = applicants;
+        var progress = Documents.TravelChecklistRules.Progress(
+            await documents.GetRequirementStatesAsync(request.Id, tenantId, cancellationToken),
+            applicants.Where(a => a.Decision != "Withdrawn").Select(a => a.Id).ToHashSet());
+        visaCase.DocumentsMandatoryTotal = progress.MandatoryTotal;
+        visaCase.DocumentsMandatoryComplete = progress.MandatoryComplete;
         visaCase.History = await repository.GetHistoryAsync(request.Id, tenantId, cancellationToken);
         visaCase.AllowedActions = VisaCaseStateMachine.AllowedActions(visaCase.Status, visaCase.OnHoldFromStatus);
         return ApiResponse<TravelVisaCaseDto>.SuccessResponse(visaCase);

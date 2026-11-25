@@ -35,7 +35,12 @@ public interface ITravelVisaCaseRepository
     /// Adds travelers of the case's own customer that are not yet applicants, only while the case is in
     /// <paramref name="expectedStatus"/>. Returns the number added, or null on a concurrent status change.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="requirementSeeds"/> (keyed by traveler) are inserted for the new applicants in the same transaction.
+    /// When <paramref name="revertVerifiedToPending"/> is set, a DocumentsVerified case returns to DocumentsPending.
+    /// </remarks>
     Task<int?> AddApplicantsAsync(int tenantId, int caseId, string expectedStatus, IReadOnlyList<int> travelerIds, int? userId,
+        IReadOnlyList<Features.TravelNexus.Documents.DTOs.TravelRequirementSeed> requirementSeeds, bool revertVerifiedToPending,
         CancellationToken cancellationToken = default);
 
     Task<bool> RemoveApplicantAsync(int tenantId, int caseId, int applicantId, string expectedStatus, int? userId,

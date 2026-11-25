@@ -7,6 +7,8 @@ using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.TravelNexus.Common;
 using SheikhTravelSystem.Application.Features.TravelNexus.Configuration.DTOs;
 using SheikhTravelSystem.Application.Features.TravelNexus.Customers.DTOs;
+using SheikhTravelSystem.Application.Features.TravelNexus.Documents;
+using SheikhTravelSystem.Application.Features.TravelNexus.Documents.DTOs;
 using SheikhTravelSystem.Application.Features.TravelNexus.Travelers.DTOs;
 using SheikhTravelSystem.Application.Features.TravelNexus.VisaCases.Commands;
 using SheikhTravelSystem.Application.Features.TravelNexus.VisaCases.DTOs;
@@ -29,6 +31,8 @@ public class TravelVisaCaseHandlerTests
     private readonly Mock<ITravelBranchScopeResolver> _scope = new();
     private readonly Mock<ITenantContext> _tenant = new();
     private readonly Mock<ICurrentUserService> _user = new();
+    private readonly Mock<ITravelDocumentRepository> _documents = new();
+    private readonly Mock<ITravelChecklistRepository> _checklists = new();
 
     public TravelVisaCaseHandlerTests()
     {
@@ -38,16 +42,18 @@ public class TravelVisaCaseHandlerTests
     }
 
     private TravelVisaCaseGuard Guard => new(_cases.Object);
+    private TravelDocumentPlanner Planner => new(_checklists.Object, _travelers.Object);
 
     private void GivenCase(string status, string? onHoldFrom = null, int applicants = 1)
     {
         _cases.Setup(c => c.GetStateAsync(CaseId, Tenant, It.IsAny<TravelBranchScope>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TravelVisaCaseState(CaseId, CustomerId, status, onHoldFrom, null));
+            .ReturnsAsync(new TravelVisaCaseState(CaseId, CustomerId, status, onHoldFrom, null, "SA", 3, null, null));
         _cases.Setup(c => c.GetApplicantsAsync(CaseId, Tenant, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Enumerable.Range(1, applicants).Select(i => new TravelVisaApplicantDto { Id = i, Decision = "Pending" }).ToList());
     }
 
-    private TransitionTravelVisaCaseCommandHandler TransitionHandler() => new(_cases.Object, Guard, _scope.Object, _tenant.Object, _user.Object);
+    private TransitionTravelVisaCaseCommandHandler TransitionHandler()
+        => new(_cases.Object, _documents.Object, Guard, Planner, _scope.Object, _tenant.Object, _user.Object);
 
     // ── Create ─────────────────────────────────────────────────────────────
 
@@ -185,7 +191,8 @@ public class TravelVisaCaseHandlerTests
 
     // ── Applicants ─────────────────────────────────────────────────────────
 
-    private AddTravelVisaApplicantsCommandHandler AddHandler() => new(_cases.Object, _travelers.Object, Guard, _scope.Object, _tenant.Object, _user.Object);
+    private AddTravelVisaApplicantsCommandHandler AddHandler()
+        => new(_cases.Object, _travelers.Object, Guard, Planner, _scope.Object, _tenant.Object, _user.Object);
 
     [Fact]
     public async Task Applicants_must_be_travelers_of_the_same_customer()
@@ -197,7 +204,7 @@ public class TravelVisaCaseHandlerTests
         var result = await AddHandler().Handle(new AddTravelVisaApplicantsCommand(CaseId, new AddTravelVisaApplicantsDto([1, 99])), CancellationToken.None);
 
         result.Success.Should().BeFalse();
-        _cases.Verify(c => c.AddApplicantsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _cases.Verify(c => c.AddApplicantsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TravelRequirementSeed>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -214,14 +221,16 @@ public class TravelVisaCaseHandlerTests
         GivenCase("DocumentsPending");
         _travelers.Setup(t => t.GetByCustomerAsync(CustomerId, Tenant, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TravelTravelerDto { Id = 1 }, new TravelTravelerDto { Id = 2 }]);
-        _cases.Setup(c => c.AddApplicantsAsync(Tenant, CaseId, "DocumentsPending", It.IsAny<IReadOnlyList<int>>(), 2, It.IsAny<CancellationToken>()))
+        _cases.Setup(c => c.AddApplicantsAsync(Tenant, CaseId, "DocumentsPending", It.IsAny<IReadOnlyList<int>>(), 2,
+                It.IsAny<IReadOnlyList<TravelRequirementSeed>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
 
         var result = await AddHandler().Handle(new AddTravelVisaApplicantsCommand(CaseId, new AddTravelVisaApplicantsDto([1, 2, 2])), CancellationToken.None);
 
         result.Data.Should().Be(2);
         _cases.Verify(c => c.AddApplicantsAsync(Tenant, CaseId, "DocumentsPending",
-            It.Is<IReadOnlyList<int>>(ids => ids.Count == 2), 2, It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<IReadOnlyList<int>>(ids => ids.Count == 2), 2, It.IsAny<IReadOnlyList<TravelRequirementSeed>>(), It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── Decisions ──────────────────────────────────────────────────────────
@@ -303,7 +312,8 @@ public class TravelVisaCaseHandlerTests
         ]);
         _cases.Setup(c => c.GetHistoryAsync(CaseId, Tenant, It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _user.Setup(u => u.HasPermission(TravelPermissions.TravelerViewPii)).Returns(false);
-        var handler = new GetTravelVisaCaseByIdQueryHandler(_cases.Object, _scope.Object, _tenant.Object, _user.Object);
+        _documents.Setup(d => d.GetRequirementStatesAsync(CaseId, Tenant, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var handler = new GetTravelVisaCaseByIdQueryHandler(_cases.Object, _documents.Object, _scope.Object, _tenant.Object, _user.Object);
 
         var dto = (await handler.Handle(new GetTravelVisaCaseByIdQuery(CaseId), CancellationToken.None)).Data!;
 

@@ -37,5 +37,8 @@ public sealed class TravelVisaCaseGuard(ITravelVisaCaseRepository cases)
         => await cases.GetStateAsync(id, tenantId, scope, ct) ?? throw new NotFoundException("TravelVisaCase", id);
 
     public async Task<int> ActiveApplicantCountAsync(int caseId, int tenantId, CancellationToken ct)
-        => (await cases.GetApplicantsAsync(caseId, tenantId, ct)).Count(a => a.Decision != "Withdrawn");
+        => (await ActiveApplicantIdsAsync(caseId, tenantId, ct)).Count;
+
+    public async Task<IReadOnlySet<int>> ActiveApplicantIdsAsync(int caseId, int tenantId, CancellationToken ct)
+        => (await cases.GetApplicantsAsync(caseId, tenantId, ct)).Where(a => a.Decision != "Withdrawn").Select(a => a.Id).ToHashSet();
 }

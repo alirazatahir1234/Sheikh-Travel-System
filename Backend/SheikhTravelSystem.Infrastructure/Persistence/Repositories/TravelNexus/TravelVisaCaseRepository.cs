@@ -4,6 +4,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.TravelNexus.Common;
+using SheikhTravelSystem.Application.Features.TravelNexus.Documents.DTOs;
 using SheikhTravelSystem.Application.Features.TravelNexus.VisaCases.DTOs;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.TravelNexus;
@@ -85,7 +86,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
             {ListSelect},
                    v.EnquiryId, e.EnquiryNumber, v.SubmissionReference, v.ExpectedDecisionDate, v.DecidedAt,
                    v.OnHoldFromStatus, v.BranchId, b.Name AS BranchName, v.QuotedServiceFee, v.QuotedEmbassyFee,
-                   v.CurrencyCode, v.CancelReason, v.Notes
+                   v.CurrencyCode, v.CancelReason, v.Notes, v.ChecklistTemplateId, v.ChecklistVersion
             {FromJoins}
             LEFT JOIN TravelEnquiries e ON e.Id = v.EnquiryId AND e.TenantId = v.TenantId
             LEFT JOIN Branches b ON b.Id = v.BranchId AND b.TenantId = v.TenantId
@@ -103,7 +104,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
         TravelSql.ApplyBranchScope(scope, "v.BranchId", clauses, p);
 
         return await connection.QuerySingleOrDefaultAsync<TravelVisaCaseState>(new CommandDefinition(
-            $"SELECT v.Id, v.CustomerId, v.Status, v.OnHoldFromStatus, v.BranchId FROM TravelVisaCases v WHERE {string.Join(" AND ", clauses)}",
+            $"SELECT v.Id, v.CustomerId, v.Status, v.OnHoldFromStatus, v.BranchId, v.CountryCode, v.VisaTypeId, v.IntendedTravelDate, v.ChecklistTemplateId FROM TravelVisaCases v WHERE {string.Join(" AND ", clauses)}",
             p, cancellationToken: cancellationToken));
     }
 
@@ -226,6 +227,8 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
                 SubmissionReference = COALESCE(@SubmissionReference, SubmissionReference),
                 ExpectedDecisionDate = COALESCE(@ExpectedDecisionDate, ExpectedDecisionDate),
                 CancelReason = COALESCE(@CancelReason, CancelReason),
+                ChecklistTemplateId = COALESCE(@ChecklistTemplateId, ChecklistTemplateId),
+                ChecklistVersion = COALESCE(@ChecklistVersion, ChecklistVersion),
                 UpdatedAt = SYSUTCDATETIME()
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Expected
             """,
@@ -233,13 +236,17 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
             {
                 Id = change.CaseId, TenantId = tenantId, Expected = change.ExpectedStatus, change.NewStatus,
                 OnHoldFrom = change.NewOnHoldFromStatus, change.SubmittedAt, change.SubmissionReference,
-                change.ExpectedDecisionDate, change.CancelReason
+                change.ExpectedDecisionDate, change.CancelReason, change.ChecklistTemplateId, change.ChecklistVersion
             }, tx, cancellationToken: cancellationToken));
         if (rows == 0)
         {
             tx.Rollback();
             return false;
         }
+
+        // Checklist snapshot (StartDocuments) is written in the same transaction as the status change.
+        if (change.RequirementSeeds is { Count: > 0 } seeds)
+            await TravelDocumentSql.InsertSeedsAsync(connection, tx, tenantId, change.CaseId, seeds, userId, cancellationToken);
 
         await InsertHistoryAsync(connection, tx, tenantId, change.CaseId, null, "CaseStatus",
             change.ExpectedStatus, change.NewStatus, change.Note, userId, cancellationToken);
@@ -248,7 +255,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<int?> AddApplicantsAsync(int tenantId, int caseId, string expectedStatus, IReadOnlyList<int> travelerIds, int? userId,
-        CancellationToken cancellationToken = default)
+        IReadOnlyList<TravelRequirementSeed> requirementSeeds, bool revertVerifiedToPending, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         connection.Open();
@@ -280,6 +287,21 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
             await InsertHistoryAsync(connection, tx, tenantId, caseId, applicantId, "ApplicantAdded", null, "Pending", null, userId, cancellationToken);
         }
 
+        var addedTravelers = added.Select(a => a.TravelerId).ToHashSet();
+        var seeds = requirementSeeds.Where(s => addedTravelers.Contains(s.TravelerId)).ToList();
+        if (seeds.Count > 0)
+            await TravelDocumentSql.InsertSeedsAsync(connection, tx, tenantId, caseId, seeds, userId, cancellationToken);
+
+        if (revertVerifiedToPending && expectedStatus == "DocumentsVerified" && seeds.Any(s => s.IsMandatory))
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE TravelVisaCases SET Status = N'DocumentsPending', UpdatedAt = SYSUTCDATETIME()
+                WHERE Id = @CaseId AND TenantId = @TenantId AND Status = N'DocumentsVerified'
+                """, new { CaseId = caseId, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
+            await InsertHistoryAsync(connection, tx, tenantId, caseId, null, "CaseStatus", "DocumentsVerified", "DocumentsPending",
+                "New applicant needs documents", userId, cancellationToken);
+        }
+
         tx.Commit();
         return added.Count;
     }
@@ -306,6 +328,11 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
             tx.Rollback();
             return false;
         }
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE TravelApplicantDocuments SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME()
+            WHERE ApplicantId = @ApplicantId AND VisaCaseId = @CaseId AND TenantId = @TenantId AND IsDeleted = 0
+            """, new { ApplicantId = applicantId, CaseId = caseId, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
 
         await InsertHistoryAsync(connection, tx, tenantId, caseId, applicantId, "ApplicantRemoved", "Pending", null, null, userId, cancellationToken);
         tx.Commit();

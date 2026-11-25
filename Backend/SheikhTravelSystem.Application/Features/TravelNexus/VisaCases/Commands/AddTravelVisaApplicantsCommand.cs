@@ -31,6 +31,7 @@ public class AddTravelVisaApplicantsCommandHandler(
     ITravelVisaCaseRepository repository,
     ITravelTravelerRepository travelers,
     TravelVisaCaseGuard guard,
+    Documents.TravelDocumentPlanner planner,
     ITravelBranchScopeResolver scopeResolver,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
@@ -51,7 +52,16 @@ public class AddTravelVisaApplicantsCommandHandler(
         if (requested.Any(id => !ownTravelers.Contains(id)))
             return ApiResponse<int>.FailResponse("Only travelers of this case's customer can be added.");
 
-        var added = await repository.AddApplicantsAsync(tenantId, request.CaseId, state.Status, requested, currentUser.UserId, cancellationToken)
+        // Once documents have started, new applicants get the case's checklist requirements immediately; a verified
+        // case falls back to DocumentsPending when a newcomer brings mandatory documents.
+        var documentsStarted = state.Status is "DocumentsPending" or "DocumentsVerified";
+        var seeds = documentsStarted
+            ? await planner.PlanForNewApplicantsAsync(state, tenantId, requested, cancellationToken)
+            : [];
+        var revert = state.Status == "DocumentsVerified" && seeds.Any(s => s.IsMandatory);
+
+        var added = await repository.AddApplicantsAsync(tenantId, request.CaseId, state.Status, requested, currentUser.UserId,
+                seeds, revert, cancellationToken)
             ?? throw new ConflictException(TravelVisaCaseRules.ConflictMessage);
 
         return ApiResponse<int>.SuccessResponse(added, added == 0

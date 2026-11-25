@@ -37,7 +37,9 @@ public class TransitionTravelVisaCaseCommandValidator : AbstractValidator<Transi
 
 public class TransitionTravelVisaCaseCommandHandler(
     ITravelVisaCaseRepository repository,
+    ITravelDocumentRepository documents,
     TravelVisaCaseGuard guard,
+    Documents.TravelDocumentPlanner planner,
     ITravelBranchScopeResolver scopeResolver,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
@@ -54,16 +56,41 @@ public class TransitionTravelVisaCaseCommandHandler(
         if (target is null)
             return ApiResponse<string>.FailResponse($"Cannot {action} a case that is {state.Status}.");
 
-        if (action == VisaCaseStateMachine.Actions.VerifyDocuments
-            && await guard.ActiveApplicantCountAsync(request.Id, tenantId, cancellationToken) == 0)
-            return ApiResponse<string>.FailResponse("Add at least one applicant before verifying documents.");
+        if (action == VisaCaseStateMachine.Actions.VerifyDocuments)
+        {
+            var applicants = await guard.ActiveApplicantIdsAsync(request.Id, tenantId, cancellationToken);
+            if (applicants.Count == 0)
+                return ApiResponse<string>.FailResponse("Add at least one applicant before verifying documents.");
+            var progress = Documents.TravelChecklistRules.Progress(
+                await documents.GetRequirementStatesAsync(request.Id, tenantId, cancellationToken), applicants);
+            if (!progress.IsComplete)
+                return ApiResponse<string>.FailResponse(
+                    $"{progress.MandatoryOutstanding} mandatory document(s) are not verified or waived yet " +
+                    $"({progress.MandatoryComplete} of {progress.MandatoryTotal} complete).");
+        }
+
+        // Starting documents snapshots the active checklist into per-applicant requirements (same transaction).
+        IReadOnlyList<Documents.DTOs.TravelRequirementSeed>? seeds = null;
+        int? checklistId = null, checklistVersion = null;
+        if (action == VisaCaseStateMachine.Actions.StartDocuments)
+        {
+            var travelerIds = (await repository.GetApplicantsAsync(request.Id, tenantId, cancellationToken))
+                .Where(a => a.Decision != "Withdrawn").Select(a => a.TravelerId).ToList();
+            var (source, planned) = await planner.PlanForStartAsync(state, tenantId, travelerIds, cancellationToken);
+            seeds = planned;
+            checklistId = source?.TemplateId;
+            checklistVersion = source?.Version;
+        }
 
         var note = string.IsNullOrWhiteSpace(request.Transition.Note) ? null : request.Transition.Note.Trim();
         var change = new TravelVisaCaseStatusChange(
             request.Id, state.Status, target,
             NewOnHoldFromStatus: target == "OnHold" ? state.Status : null,
             Note: note,
-            CancelReason: target == "Cancelled" ? note : null);
+            CancelReason: target == "Cancelled" ? note : null,
+            RequirementSeeds: seeds,
+            ChecklistTemplateId: checklistId,
+            ChecklistVersion: checklistVersion);
 
         if (!await repository.ChangeStatusAsync(tenantId, change, currentUser.UserId, cancellationToken))
             throw new ConflictException(TravelVisaCaseRules.ConflictMessage);

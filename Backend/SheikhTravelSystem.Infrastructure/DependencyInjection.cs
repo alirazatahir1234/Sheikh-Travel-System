@@ -123,6 +123,8 @@ public static class DependencyInjection
         services.AddScoped<ITravelTravelerRepository, Persistence.Repositories.TravelNexus.TravelTravelerRepository>();
         services.AddScoped<ITravelEnquiryRepository, Persistence.Repositories.TravelNexus.TravelEnquiryRepository>();
         services.AddScoped<ITravelVisaCaseRepository, Persistence.Repositories.TravelNexus.TravelVisaCaseRepository>();
+        services.AddScoped<ITravelChecklistRepository, Persistence.Repositories.TravelNexus.TravelChecklistRepository>();
+        services.AddScoped<ITravelDocumentRepository, Persistence.Repositories.TravelNexus.TravelDocumentRepository>();
         services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
         services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();
         services.AddScoped<IPricingRepository, PricingRepository>();

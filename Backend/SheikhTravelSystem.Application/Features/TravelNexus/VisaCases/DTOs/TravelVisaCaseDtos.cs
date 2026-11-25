@@ -1,3 +1,5 @@
+using SheikhTravelSystem.Application.Features.TravelNexus.Documents.DTOs;
+
 namespace SheikhTravelSystem.Application.Features.TravelNexus.VisaCases.DTOs;
 
 public class TravelVisaCaseListItemDto
@@ -37,6 +39,11 @@ public class TravelVisaCaseDto : TravelVisaCaseListItemDto
     public string? CurrencyCode { get; set; }
     public string? CancelReason { get; set; }
     public string? Notes { get; set; }
+    public int? ChecklistTemplateId { get; set; }
+    public int? ChecklistVersion { get; set; }
+    /// <summary>Mandatory document requirements of active applicants, and how many are Verified or Waived.</summary>
+    public int DocumentsMandatoryTotal { get; set; }
+    public int DocumentsMandatoryComplete { get; set; }
     /// <summary>Actions the state machine allows now (Edit, StartDocuments, …, RecordDecision).</summary>
     public IReadOnlyList<string> AllowedActions { get; set; } = [];
     public IReadOnlyList<TravelVisaApplicantDto> Applicants { get; set; } = [];
@@ -136,8 +143,9 @@ public sealed record TravelVisaCaseListFilter(
     DateTime? CreatedFrom,
     DateTime? CreatedTo);
 
-/// <summary>Minimal case facts used by command handlers for state-machine checks.</summary>
-public sealed record TravelVisaCaseState(int Id, int CustomerId, string Status, string? OnHoldFromStatus, int? BranchId);
+/// <summary>Minimal case facts used by command handlers for state-machine and checklist checks.</summary>
+public sealed record TravelVisaCaseState(int Id, int CustomerId, string Status, string? OnHoldFromStatus, int? BranchId,
+    string CountryCode, int VisaTypeId, DateTime? IntendedTravelDate, int? ChecklistTemplateId);
 
 /// <summary>Atomic status change + history row. Optional fields are written only when supplied.</summary>
 public sealed record TravelVisaCaseStatusChange(
@@ -149,6 +157,9 @@ public sealed record TravelVisaCaseStatusChange(
     DateTime? SubmittedAt = null,
     string? SubmissionReference = null,
     DateTime? ExpectedDecisionDate = null,
-    string? CancelReason = null);
+    string? CancelReason = null,
+    IReadOnlyList<TravelRequirementSeed>? RequirementSeeds = null,
+    int? ChecklistTemplateId = null,
+    int? ChecklistVersion = null);
 
 public sealed record TravelVisaDecisionResult(bool Applied, string? NewCaseStatus);
