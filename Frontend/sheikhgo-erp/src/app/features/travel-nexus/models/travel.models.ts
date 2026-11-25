@@ -8,7 +8,12 @@ export const TRAVEL_PERMISSIONS = {
   settings: 'Travel.Settings',
   customerView: 'Travel.Customer.View',
   customerManage: 'Travel.Customer.Manage',
-  travelerViewPii: 'Travel.Traveler.ViewPII'
+  travelerViewPii: 'Travel.Traveler.ViewPII',
+  enquiryView: 'Travel.Enquiry.View',
+  enquiryManage: 'Travel.Enquiry.Manage',
+  visaView: 'Travel.Visa.View',
+  visaManage: 'Travel.Visa.Manage',
+  visaDecide: 'Travel.Visa.Decide'
 } as const;
 
 export type TravelVisaCategory =
@@ -204,3 +209,312 @@ export const PASSPORT_STATUS_VARIANT: Record<TravelPassportStatus, 'inactive' | 
 /** Masked values from the API contain this character; never send them back as new values. */
 export const PII_MASK_CHAR = '•';
 export const isMasked = (v: string | null | undefined): boolean => !!v && v.includes(PII_MASK_CHAR);
+
+export interface TravelLostReason { id: number; name: string; isActive: boolean; }
+export type SaveTravelLostReason = Omit<TravelLostReason, 'id'>;
+
+export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'pending' | 'active' | 'inactive';
+
+// ── Phase 2: enquiries ─────────────────────────────────────────────────
+
+export type TravelServiceType = 'Visa' | 'Umrah' | 'Hajj' | 'Flight' | 'Hotel' | 'Package' | 'Other';
+export const TRAVEL_SERVICE_TYPES: TravelServiceType[] = ['Visa', 'Umrah', 'Hajj', 'Flight', 'Hotel', 'Package', 'Other'];
+
+export type TravelEnquiryStatus = 'New' | 'Contacted' | 'Qualified' | 'Quoted' | 'Won' | 'Lost';
+export const TRAVEL_ENQUIRY_STATUSES: TravelEnquiryStatus[] = ['New', 'Contacted', 'Qualified', 'Quoted', 'Won', 'Lost'];
+
+export type TravelPriority = 'Low' | 'Normal' | 'High';
+export const TRAVEL_PRIORITIES: TravelPriority[] = ['Low', 'Normal', 'High'];
+
+export type TravelActivityType = 'Call' | 'WhatsApp' | 'Sms' | 'Email' | 'Meeting' | 'Note' | 'StatusChange';
+/** Types a user may log (StatusChange is written by the server). */
+export const TRAVEL_USER_ACTIVITY_TYPES: Exclude<TravelActivityType, 'StatusChange'>[] = ['Call', 'WhatsApp', 'Sms', 'Email', 'Meeting', 'Note'];
+
+export type TravelActivityDirection = 'Inbound' | 'Outbound' | 'Internal';
+export const TRAVEL_ACTIVITY_DIRECTIONS: TravelActivityDirection[] = ['Inbound', 'Outbound', 'Internal'];
+
+export type TravelEnquiryAction =
+  | 'Edit' | 'LogActivity' | 'MarkContacted' | 'MarkQualified' | 'MarkQuoted' | 'MarkLost' | 'Reopen' | 'Convert';
+
+export const ENQUIRY_STATUS_LABEL: Record<TravelEnquiryStatus, string> = {
+  New: 'New', Contacted: 'Contacted', Qualified: 'Qualified', Quoted: 'Quoted', Won: 'Won', Lost: 'Lost'
+};
+export const ENQUIRY_STATUS_VARIANT: Record<TravelEnquiryStatus, BadgeVariant> = {
+  New: 'info', Contacted: 'pending', Qualified: 'active', Quoted: 'warning', Won: 'success', Lost: 'inactive'
+};
+export const ACTIVITY_ICON: Record<TravelActivityType, string> = {
+  Call: 'call', WhatsApp: 'chat', Sms: 'sms', Email: 'mail', Meeting: 'groups', Note: 'sticky_note_2', StatusChange: 'swap_horiz'
+};
+
+export interface TravelEnquiryListItem {
+  id: number;
+  enquiryNumber: string;
+  customerId: number | null;
+  displayName: string;
+  displayPhone: string | null;
+  serviceType: TravelServiceType;
+  destinationCountryCode: string | null;
+  destinationCountryName: string | null;
+  status: TravelEnquiryStatus;
+  priority: TravelPriority;
+  assignedAgentUserId: number | null;
+  assignedAgentName: string | null;
+  nextFollowUpAt: string | null;
+  createdAt: string;
+}
+
+export interface TravelEnquiryActivity {
+  id: number;
+  activityType: TravelActivityType;
+  direction: TravelActivityDirection;
+  summary: string;
+  outcome: string | null;
+  occurredAt: string;
+  nextFollowUpAt: string | null;
+  createdByName: string | null;
+}
+
+export interface TravelEnquiry extends TravelEnquiryListItem {
+  leadName: string | null;
+  leadPhone: string | null;
+  leadEmail: string | null;
+  visaTypeId: number | null;
+  visaTypeName: string | null;
+  travelDateFrom: string | null;
+  travelDateTo: string | null;
+  adults: number;
+  children: number;
+  infants: number;
+  budget: number | null;
+  currencyCode: string | null;
+  leadSourceId: number | null;
+  leadSourceName: string | null;
+  branchId: number | null;
+  branchName: string | null;
+  lostReasonId: number | null;
+  lostReasonName: string | null;
+  lostNotes: string | null;
+  convertedVisaCaseId: number | null;
+  convertedVisaCaseNumber: string | null;
+  closedAt: string | null;
+  notes: string | null;
+  allowedActions: TravelEnquiryAction[];
+  activities: TravelEnquiryActivity[];
+}
+
+export interface SaveTravelEnquiry {
+  customerId: number | null;
+  leadName: string | null;
+  leadPhone: string | null;
+  leadEmail: string | null;
+  serviceType: TravelServiceType;
+  destinationCountryCode: string | null;
+  visaTypeId: number | null;
+  travelDateFrom: string | null;
+  travelDateTo: string | null;
+  adults: number;
+  children: number;
+  infants: number;
+  budget: number | null;
+  currencyCode: string | null;
+  leadSourceId: number | null;
+  assignedAgentUserId: number | null;
+  branchId: number | null;
+  priority: TravelPriority;
+  /** ISO UTC timestamp. */
+  nextFollowUpAt: string | null;
+  notes: string | null;
+}
+
+export interface LogTravelEnquiryActivity {
+  activityType: Exclude<TravelActivityType, 'StatusChange'>;
+  direction: TravelActivityDirection;
+  summary: string;
+  outcome: string | null;
+  occurredAt: string | null;
+  nextFollowUpAt: string | null;
+}
+
+export interface ConvertTravelEnquiry {
+  existingCustomerId: number | null;
+  newCustomerKind: TravelCustomerKind | null;
+  createVisaCase: boolean;
+  visaCountryCode: string | null;
+  visaTypeId: number | null;
+  intendedTravelDate: string | null;
+}
+
+export interface TravelEnquiryConversionResult { customerId: number; visaCaseId: number | null; visaCaseNumber: string | null; }
+
+export interface TravelEnquirySummary { counts: Record<TravelEnquiryStatus, number>; total: number; followUpsDue: number; }
+
+export interface TravelEnquiryQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: TravelEnquiryStatus | '';
+  serviceType?: TravelServiceType | '';
+  agentUserId?: number | null;
+  /** yyyy-MM-dd */
+  createdFrom?: string;
+  /** yyyy-MM-dd */
+  createdTo?: string;
+  followUpDue?: boolean;
+}
+
+// ── Phase 2: visa cases ────────────────────────────────────────────────
+
+export type TravelVisaCaseStatus =
+  | 'Draft' | 'DocumentsPending' | 'DocumentsVerified' | 'Submitted' | 'InProcessing'
+  | 'Approved' | 'PartiallyApproved' | 'Rejected' | 'OnHold' | 'Cancelled';
+export const TRAVEL_VISA_CASE_STATUSES: TravelVisaCaseStatus[] =
+  ['Draft', 'DocumentsPending', 'DocumentsVerified', 'Submitted', 'InProcessing', 'Approved', 'PartiallyApproved', 'Rejected', 'OnHold', 'Cancelled'];
+/** Stages shown as the pipeline strip, in order. */
+export const VISA_PIPELINE_STAGES: TravelVisaCaseStatus[] =
+  ['Draft', 'DocumentsPending', 'DocumentsVerified', 'Submitted', 'InProcessing', 'Approved', 'PartiallyApproved', 'Rejected', 'OnHold', 'Cancelled'];
+
+export type TravelApplicantDecision = 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn';
+export type TravelVisaAction =
+  | 'Edit' | 'StartDocuments' | 'VerifyDocuments' | 'ReopenDocuments' | 'Submit' | 'StartProcessing'
+  | 'Hold' | 'Resume' | 'Cancel' | 'ManageApplicants' | 'RecordDecision';
+/** Actions sent to POST /transition (Submit and decisions have their own endpoints). */
+export type TravelVisaTransitionAction =
+  'StartDocuments' | 'VerifyDocuments' | 'ReopenDocuments' | 'StartProcessing' | 'Hold' | 'Resume' | 'Cancel';
+export type TravelVisaHistoryEvent = 'CaseStatus' | 'ApplicantAdded' | 'ApplicantRemoved' | 'ApplicantDecision';
+
+export const VISA_STATUS_LABEL: Record<TravelVisaCaseStatus, string> = {
+  Draft: 'Draft', DocumentsPending: 'Documents pending', DocumentsVerified: 'Documents verified', Submitted: 'Submitted',
+  InProcessing: 'In processing', Approved: 'Approved', PartiallyApproved: 'Partly approved', Rejected: 'Rejected',
+  OnHold: 'On hold', Cancelled: 'Cancelled'
+};
+export const VISA_STATUS_VARIANT: Record<TravelVisaCaseStatus, BadgeVariant> = {
+  Draft: 'inactive', DocumentsPending: 'pending', DocumentsVerified: 'info', Submitted: 'active', InProcessing: 'warning',
+  Approved: 'success', PartiallyApproved: 'warning', Rejected: 'error', OnHold: 'pending', Cancelled: 'inactive'
+};
+export const APPLICANT_DECISION_VARIANT: Record<TravelApplicantDecision, BadgeVariant> = {
+  Pending: 'pending', Approved: 'success', Rejected: 'error', Withdrawn: 'inactive'
+};
+export const VISA_TRANSITION_LABEL: Record<TravelVisaTransitionAction, string> = {
+  StartDocuments: 'Request documents', VerifyDocuments: 'Mark documents verified', ReopenDocuments: 'Reopen documents',
+  StartProcessing: 'Mark in processing', Hold: 'Put on hold', Resume: 'Resume', Cancel: 'Cancel case'
+};
+
+export interface TravelVisaCaseListItem {
+  id: number;
+  caseNumber: string;
+  customerId: number;
+  customerName: string;
+  countryCode: string;
+  countryName: string;
+  visaTypeId: number;
+  visaTypeName: string;
+  status: TravelVisaCaseStatus;
+  priority: TravelPriority;
+  applicantCount: number;
+  approvedCount: number;
+  intendedTravelDate: string | null;
+  appointmentAt: string | null;
+  submittedAt: string | null;
+  assignedAgentUserId: number | null;
+  assignedAgentName: string | null;
+  createdAt: string;
+}
+
+export interface TravelVisaApplicant {
+  id: number;
+  travelerId: number;
+  travelerName: string;
+  gender: TravelGender;
+  dateOfBirth: string | null;
+  passportNumber: string | null;
+  passportExpiryDate: string | null;
+  passportWarning: boolean;
+  decision: TravelApplicantDecision;
+  visaNumber: string | null;
+  visaIssueDate: string | null;
+  visaValidFrom: string | null;
+  visaExpiryDate: string | null;
+  rejectionReason: string | null;
+  decidedAt: string | null;
+  notes: string | null;
+}
+
+export interface TravelVisaHistory {
+  id: number;
+  eventType: TravelVisaHistoryEvent;
+  applicantId: number | null;
+  applicantName: string | null;
+  fromValue: string | null;
+  toValue: string | null;
+  note: string | null;
+  changedByName: string | null;
+  changedAt: string;
+}
+
+export interface TravelVisaCase extends TravelVisaCaseListItem {
+  enquiryId: number | null;
+  enquiryNumber: string | null;
+  submissionReference: string | null;
+  expectedDecisionDate: string | null;
+  decidedAt: string | null;
+  onHoldFromStatus: TravelVisaCaseStatus | null;
+  branchId: number | null;
+  branchName: string | null;
+  quotedServiceFee: number | null;
+  quotedEmbassyFee: number | null;
+  currencyCode: string | null;
+  cancelReason: string | null;
+  notes: string | null;
+  allowedActions: TravelVisaAction[];
+  applicants: TravelVisaApplicant[];
+  history: TravelVisaHistory[];
+}
+
+export interface UpdateTravelVisaCase {
+  intendedTravelDate: string | null;
+  appointmentAt: string | null;
+  expectedDecisionDate: string | null;
+  priority: TravelPriority;
+  assignedAgentUserId: number | null;
+  quotedServiceFee: number | null;
+  quotedEmbassyFee: number | null;
+  currencyCode: string | null;
+  notes: string | null;
+}
+
+export interface CreateTravelVisaCase extends UpdateTravelVisaCase {
+  customerId: number;
+  visaTypeId: number;
+  enquiryId: number | null;
+}
+
+export interface SubmitTravelVisaCase {
+  submittedAt: string;
+  submissionReference: string | null;
+  expectedDecisionDate: string | null;
+  note: string | null;
+}
+
+export interface RecordTravelVisaDecision {
+  decision: Exclude<TravelApplicantDecision, 'Pending'>;
+  visaNumber: string | null;
+  visaIssueDate: string | null;
+  visaValidFrom: string | null;
+  visaExpiryDate: string | null;
+  rejectionReason: string | null;
+  notes: string | null;
+}
+
+export interface TravelVisaDecisionResult { applied: boolean; newCaseStatus: TravelVisaCaseStatus | null; }
+
+export interface TravelVisaCaseSummary { counts: Record<TravelVisaCaseStatus, number>; total: number; }
+
+export interface TravelVisaCaseQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: TravelVisaCaseStatus | '';
+  countryCode?: string;
+  createdFrom?: string;
+  createdTo?: string;
+}

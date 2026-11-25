@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, shareReplay } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import {
-  SaveTravelDocumentType, SaveTravelLeadSource, SaveTravelVisaType, TravelCountry, TravelLookups,
+  SaveTravelDocumentType, SaveTravelLeadSource, SaveTravelLostReason, SaveTravelVisaType, TravelCountry, TravelLookups, TravelLostReason,
   TravelDocumentType, TravelLeadSource, TravelSettings, TravelVisaType
 } from '../models/travel.models';
 
@@ -65,6 +65,20 @@ export class TravelConfigService {
   }
   deleteLeadSource(id: number): Observable<boolean> {
     return this.http.delete<boolean>(`${this.base}/lead-sources/${id}`);
+  }
+
+  getLostReasons(isActive?: boolean): Observable<TravelLostReason[]> {
+    const params = isActive === undefined ? undefined : new HttpParams().set('isActive', isActive);
+    return this.http.get<TravelLostReason[]>(`${this.base}/lost-reasons`, { params });
+  }
+  createLostReason(dto: SaveTravelLostReason): Observable<number> {
+    return this.http.post<number>(`${this.base}/lost-reasons`, dto);
+  }
+  updateLostReason(id: number, dto: SaveTravelLostReason): Observable<number> {
+    return this.http.put<number>(`${this.base}/lost-reasons/${id}`, dto);
+  }
+  deleteLostReason(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/lost-reasons/${id}`);
   }
 
   getSettings(): Observable<TravelSettings> {

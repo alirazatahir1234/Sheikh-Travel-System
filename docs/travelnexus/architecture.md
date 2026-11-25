@@ -4,7 +4,7 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 1 delivered** (module foundation, configuration, customers, travelers).
+Status: **Phase 2 delivered** (Phase 1 foundation, configuration, customers, travelers; Phase 2 CRM enquiries and visa case pipeline).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -64,10 +64,21 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelCustomerProfiles` | Travel data for a `Customers` row: kind, company, agent, branch, lead source | unique (tenant, customer); corporate requires company name |
 | `TravelTravelers` | Passport holders of a customer, with mahram link | unique (tenant, issuing country, passport no.); expiry after issue; not own mahram |
 
+**Phase 2 (built)**
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelNumberSequences` | Per-tenant, per-year counters (`ENQ-2026`, `VC-2026`) | PK (tenant, key) |
+| `TravelLostReasons` | Why enquiries are lost | unique (tenant, name) |
+| `TravelEnquiries` | Leads / enquiries; lead fields or linked customer | lead name+phone or customer; Lost needs reason; Won needs customer; budget needs currency |
+| `TravelEnquiryActivities` | Follow-ups and communication history (append-only, includes system StatusChange rows) | type / direction CHECKs |
+| `TravelVisaCases` | One case per customer, country and visa type | status CHECK; OnHold ⇔ OnHoldFromStatus; Cancelled needs reason; submitted statuses need SubmittedAt; fees need currency |
+| `TravelVisaApplicants` | Travelers on a case, each with its own decision and visa details | unique (case, traveler); Rejected needs reason |
+| `TravelVisaStatusHistory` | Append-only case and applicant events | event type CHECK |
+
 **Later phases (planned)**
 
-- CRM: `TravelEnquiries`, `TravelEnquiryFollowUps`, `TravelCommunicationLogs`, `TravelLostReasons`.
-- Visa: `TravelVisaCases`, `TravelVisaApplicants`, `TravelVisaApplicantDocuments`, `TravelVisaStatusHistory` (append-only).
+- Visa documents: `TravelVisaApplicantDocuments`.
 - Checklists: `TravelChecklistTemplates` (versioned), `TravelChecklistTemplateItems`.
 - Umrah: `TravelPackages`, `TravelPackagePrices`, `TravelGroups`, `TravelGroupMembers`, `TravelGroupHotels`,
   `TravelRooms`, `TravelRoomAssignments`, `TravelGroupTransport`, `TravelGroupStatusHistory`.
@@ -81,7 +92,41 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 
 Every status change writes a history row in the same transaction as the status update.
 
-## 4. Security model
+## 4. Workflows (Phase 2)
+
+**Numbering.** `TravelNumberAllocator` increments `TravelNumberSequences` under `UPDLOCK, HOLDLOCK` inside the
+transaction that inserts the document: numbers are unique, gap-free for committed rows and restart each year
+(`{prefix}-{yyyy}-{00001}`, prefixes from `TravelSettings`).
+
+**Enquiry state machine** (`EnquiryStateMachine`):
+
+```
+New → Contacted → Qualified → Quoted
+any open → Lost (reason required)      Lost → Contacted (Reopen)
+any open → Won   (only through Convert)
+```
+
+Logging an outbound activity on a New enquiry moves it to Contacted. Conversion runs in one transaction: link an
+existing customer or create one from the lead fields, optionally open a Draft visa case, set Won, write an activity.
+
+**Visa case state machine** (`VisaCaseStateMachine`):
+
+```
+Draft → DocumentsPending → DocumentsVerified → Submitted → InProcessing
+              ↑______ReopenDocuments_____↓
+any open ↔ OnHold (Resume returns to the held status)     any open → Cancelled (reason)
+Approved / PartiallyApproved / Rejected: derived when every non-withdrawn applicant is decided
+```
+
+Applicants change only before submission and must be travelers of the case's customer. Decisions are recorded only
+in Submitted / InProcessing and need `Travel.Visa.Decide`. Every status-dependent write checks the expected status
+(409 on a concurrent change) and writes history in the same transaction. The API returns `allowedActions`, so the
+ERP never duplicates the rules.
+
+**KPIs.** Pipeline and enquiry counters come from `/summary` endpoints, zero-filled for every status, with
+`Total` = sum of buckets (tested). Labels state the window ("current, all time").
+
+## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
   on a parent use `INSERT … SELECT … WHERE parent.TenantId = @TenantId`. Travel tables are listed in the SG-01
@@ -89,13 +134,16 @@ Every status change writes a history row in the same transaction as the status u
   TravelNexus statement misses the predicate.
 - **Branch scope.** `ITravelBranchScopeResolver` turns the user's data scope into a branch clamp. Records outside
   the clamp are reported as not found, never as forbidden, so their existence is not revealed.
-- **Permissions (Phase 1).** `Travel.View`, `Travel.Settings`, `Travel.Customer.View`, `Travel.Customer.Manage`,
-  `Travel.Traveler.ViewPII`. Granted by the migration to SUPER_ADMIN, TENANT_ADMIN and OWNER. Every permission maps
-  to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
+- **Permissions.** Phase 1: `Travel.View`, `Travel.Settings`, `Travel.Customer.View`, `Travel.Customer.Manage`,
+  `Travel.Traveler.ViewPII`. Phase 2: `Travel.Enquiry.View/Manage`, `Travel.Visa.View/Manage`, `Travel.Visa.Decide`.
+  Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
+  runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
+  **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
+  (the same applies to RENTAL); a grant-on-module-enable hook is planned for Phase 8.
 - **PII.** Passport and CNIC numbers are never logged (the MediatR behaviours do not serialise payloads) and are
   masked in responses without `Travel.Traveler.ViewPII`.
 
-## 5. API (Phase 1)
+## 6. API
 
 All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiResponse<T>` envelope.
 
@@ -106,14 +154,20 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | GET | `api/travel/customers` (page, pageSize, search, customerKind, agentUserId, branchId) · `{customerId}` · `{customerId}/travelers` | Travel.Customer.View |
 | POST / PUT / DELETE | `api/travel/customers[/{customerId}]`, POST `{customerId}/travelers` | Travel.Customer.Manage |
 | GET / PUT / DELETE | `api/travel/travelers/{id}` | View / Manage |
+| GET / POST / PUT / DELETE | `api/travel/config/lost-reasons[/{id}]` | View / Settings |
+| GET | `api/travel/enquiries` (search, status, serviceType, agentUserId, branchId, customerId, createdFrom/To, followUpDue) · `summary` · `by-customer/{id}` · `{id}` | Travel.Enquiry.View |
+| POST / PUT | `api/travel/enquiries`, `{id}`, `{id}/status`, `{id}/lost`, `{id}/activities`, `{id}/convert` | Travel.Enquiry.Manage |
+| GET | `api/travel/visa-cases` (search, status, countryCode, visaTypeId, agentUserId, customerId, createdFrom/To) · `summary` · `by-customer/{id}` · `{id}` | Travel.Visa.View |
+| POST / PUT / DELETE | `api/travel/visa-cases`, `{id}`, `{id}/transition`, `{id}/submit`, `{id}/applicants[/{applicantId}]` | Travel.Visa.Manage |
+| POST | `api/travel/visa-cases/{id}/applicants/{applicantId}/decision` | Travel.Visa.Decide |
 
-## 6. Roadmap
+## 7. Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Repository analysis and this document | Done |
 | 1 | Module, permissions, navigation, configuration, customers, travelers | Done |
-| 2 | Enquiries, follow-ups, conversion; visa cases, applicants, status pipeline + history | Planned |
+| 2 | Enquiries, follow-ups, conversion; visa cases, applicants, status pipeline + history | Done |
 | 3 | Checklist templates and versions, private document upload, verification, missing-document alerts, passport OCR | Planned |
 | 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Planned |
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Planned |

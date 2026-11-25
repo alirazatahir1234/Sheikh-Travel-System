@@ -37,6 +37,62 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     title: 'Edit travel customer'
   },
   {
+    path: 'enquiries',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.enquiryView] },
+    loadComponent: () => import('./pages/enquiries/enquiry-list.component').then(m => m.TravelEnquiryListComponent),
+    title: 'Enquiries'
+  },
+  {
+    path: 'enquiries/new',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.enquiryManage] },
+    loadComponent: () => import('./pages/enquiries/enquiry-form.component').then(m => m.TravelEnquiryFormComponent),
+    title: 'New enquiry'
+  },
+  {
+    path: 'enquiries/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.enquiryView] },
+    loadComponent: () => import('./pages/enquiries/enquiry-detail.component').then(m => m.TravelEnquiryDetailComponent),
+    title: 'Enquiry'
+  },
+  {
+    path: 'enquiries/:id/edit',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.enquiryManage] },
+    loadComponent: () => import('./pages/enquiries/enquiry-form.component').then(m => m.TravelEnquiryFormComponent),
+    title: 'Edit enquiry'
+  },
+  {
+    path: 'visa-cases',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.visaView] },
+    loadComponent: () => import('./pages/visa-cases/visa-case-list.component').then(m => m.TravelVisaCaseListComponent),
+    title: 'Visa cases'
+  },
+  {
+    path: 'visa-cases/new',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.visaManage] },
+    loadComponent: () => import('./pages/visa-cases/visa-case-form.component').then(m => m.TravelVisaCaseFormComponent),
+    title: 'New visa case'
+  },
+  {
+    path: 'visa-cases/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.visaView] },
+    loadComponent: () => import('./pages/visa-cases/visa-case-detail.component').then(m => m.TravelVisaCaseDetailComponent),
+    title: 'Visa case'
+  },
+  {
+    path: 'visa-cases/:id/edit',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.visaManage] },
+    loadComponent: () => import('./pages/visa-cases/visa-case-form.component').then(m => m.TravelVisaCaseFormComponent),
+    title: 'Edit visa case'
+  },
+  {
     path: 'settings',
     canActivate: [permissionGuard],
     data: { permissions: [TRAVEL_PERMISSIONS.settings] },

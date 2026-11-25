@@ -13,8 +13,12 @@ import { HasPermissionDirective } from '../../../../shared/directives/has-permis
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { TravelerFormDrawerComponent } from '../../components/traveler-form-drawer.component';
 import {
-  PASSPORT_STATUS_LABEL, PASSPORT_STATUS_VARIANT, TRAVEL_PERMISSIONS, TravelCustomer, TravelTraveler
+  ENQUIRY_STATUS_LABEL, ENQUIRY_STATUS_VARIANT, PASSPORT_STATUS_LABEL, PASSPORT_STATUS_VARIANT, TRAVEL_PERMISSIONS, TravelCustomer,
+  TravelEnquiryListItem, TravelTraveler, TravelVisaCaseListItem, VISA_STATUS_LABEL, VISA_STATUS_VARIANT
 } from '../../models/travel.models';
+import { TravelEnquiryService } from '../../services/travel-enquiry.service';
+import { TravelVisaService } from '../../services/travel-visa.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
 
@@ -115,6 +119,43 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
           }
         </div>
 
+        <div class="grid gap-5 lg:grid-cols-2">
+          <div class="tn-card" *appHasPermission="perms.enquiryView">
+            <div class="flex items-center justify-between border-b border-fleet-border px-5 py-4">
+              <h3 class="tn-section-title">Enquiries</h3>
+              <a mat-stroked-button *appHasPermission="perms.enquiryManage" routerLink="/travel/enquiries/new"><mat-icon>add</mat-icon> New</a>
+            </div>
+            @if (!enquiries().length) {
+              <p class="px-5 py-6 text-sm text-fleet-text-muted">No enquiries for this customer.</p>
+            } @else {
+              <ul class="divide-y divide-fleet-border">
+                @for (q of enquiries(); track q.id) {
+                  <li><a class="flex items-center justify-between px-5 py-3 text-sm hover:bg-fleet-surface-alt/40" [routerLink]="['/travel/enquiries', q.id]">
+                    <span><span class="font-mono text-xs">{{ q.enquiryNumber }}</span> · {{ q.serviceType }}{{ q.destinationCountryName ? ' · ' + q.destinationCountryName : '' }}</span>
+                    <ui-status-badge [status]="q.status" [label]="enquiryLabel[q.status]" [variant]="enquiryVariant[q.status]"></ui-status-badge></a></li>
+                }
+              </ul>
+            }
+          </div>
+          <div class="tn-card" *appHasPermission="perms.visaView">
+            <div class="flex items-center justify-between border-b border-fleet-border px-5 py-4">
+              <h3 class="tn-section-title">Visa cases</h3>
+              <a mat-stroked-button *appHasPermission="perms.visaManage" routerLink="/travel/visa-cases/new" [queryParams]="{ customerId: c.customerId }"><mat-icon>add</mat-icon> New</a>
+            </div>
+            @if (!visaCases().length) {
+              <p class="px-5 py-6 text-sm text-fleet-text-muted">No visa cases for this customer.</p>
+            } @else {
+              <ul class="divide-y divide-fleet-border">
+                @for (v of visaCases(); track v.id) {
+                  <li><a class="flex items-center justify-between px-5 py-3 text-sm hover:bg-fleet-surface-alt/40" [routerLink]="['/travel/visa-cases', v.id]">
+                    <span><span class="font-mono text-xs">{{ v.caseNumber }}</span> · {{ v.countryName }} · {{ v.visaTypeName }} · {{ v.applicantCount }} applicant(s)</span>
+                    <ui-status-badge [status]="v.status" [label]="visaLabel[v.status]" [variant]="visaVariant[v.status]"></ui-status-badge></a></li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+
         <app-traveler-form-drawer [(open)]="drawerOpen" [customerId]="c.customerId" [traveler]="editing()"
           [siblings]="travelers()" [countries]="countries()" (saved)="onTravelerSaved()"></app-traveler-form-drawer>
       }
@@ -134,6 +175,15 @@ export class TravelCustomerDetailComponent {
   protected readonly perms = TRAVEL_PERMISSIONS;
   protected readonly statusLabel = PASSPORT_STATUS_LABEL;
   protected readonly statusVariant = PASSPORT_STATUS_VARIANT;
+  protected readonly enquiryLabel = ENQUIRY_STATUS_LABEL;
+  protected readonly enquiryVariant = ENQUIRY_STATUS_VARIANT;
+  protected readonly visaLabel = VISA_STATUS_LABEL;
+  protected readonly visaVariant = VISA_STATUS_VARIANT;
+  private readonly enquiryApi = inject(TravelEnquiryService);
+  private readonly visaApi = inject(TravelVisaService);
+  private readonly auth = inject(AuthService);
+  protected readonly enquiries = signal<TravelEnquiryListItem[]>([]);
+  protected readonly visaCases = signal<TravelVisaCaseListItem[]>([]);
   private readonly customerId = Number(this.route.snapshot.paramMap.get('id'));
 
   protected readonly customer = signal<TravelCustomer | null>(null);
@@ -148,6 +198,15 @@ export class TravelCustomerDetailComponent {
   constructor() {
     this.loadCustomer();
     this.loadTravelers();
+    // Related records are optional panels: only fetched with the matching View permission; failures leave them empty.
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.enquiryView)) {
+      this.enquiryApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe(r => this.enquiries.set(r));
+    }
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.visaView)) {
+      this.visaApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe(r => this.visaCases.set(r));
+    }
   }
 
   protected loadTravelers(): void {
