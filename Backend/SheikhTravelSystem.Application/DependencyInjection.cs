@@ -28,6 +28,8 @@ public static class DependencyInjection
         // TravelNexus application services
         services.AddScoped<Features.TravelNexus.Common.ITravelBranchScopeResolver, Features.TravelNexus.Common.TravelBranchScopeResolver>();
         services.AddScoped<Features.TravelNexus.Travelers.Commands.TravelTravelerGuard>();
+        services.AddScoped<Features.TravelNexus.Enquiries.Commands.TravelEnquiryGuard>();
+        services.AddScoped<Features.TravelNexus.VisaCases.Commands.TravelVisaCaseGuard>();
 
         return services;
     }

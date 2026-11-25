@@ -49,6 +49,8 @@ public static class TenantScopedTableCatalog
         // TravelNexus
         "TravelConfigRepository.cs",
         "TravelCustomerRepository.cs",
-        "TravelTravelerRepository.cs"
+        "TravelTravelerRepository.cs",
+        "TravelEnquiryRepository.cs",
+        "TravelVisaCaseRepository.cs"
     ];
 }

@@ -81,6 +81,24 @@ public class TravelConfigController : BaseApiController
     [HttpDelete("lead-sources/{id:int}")]
     public async Task<IActionResult> DeleteLeadSource(int id) => Ok(await Mediator.Send(new DeleteTravelLeadSourceCommand(id)));
 
+    [HttpGet("lost-reasons")]
+    public async Task<IActionResult> GetLostReasons([FromQuery] bool? isActive)
+        => Ok(await Mediator.Send(new GetTravelLostReasonsQuery(isActive)));
+
+    [RequirePermission(TravelPermissions.Settings)]
+    [HttpPost("lost-reasons")]
+    public async Task<IActionResult> CreateLostReason([FromBody] SaveTravelLostReasonDto dto)
+        => Created(string.Empty, await Mediator.Send(new SaveTravelLostReasonCommand(null, dto)));
+
+    [RequirePermission(TravelPermissions.Settings)]
+    [HttpPut("lost-reasons/{id:int}")]
+    public async Task<IActionResult> UpdateLostReason(int id, [FromBody] SaveTravelLostReasonDto dto)
+        => Ok(await Mediator.Send(new SaveTravelLostReasonCommand(id, dto)));
+
+    [RequirePermission(TravelPermissions.Settings)]
+    [HttpDelete("lost-reasons/{id:int}")]
+    public async Task<IActionResult> DeleteLostReason(int id) => Ok(await Mediator.Send(new DeleteTravelLostReasonCommand(id)));
+
     /// <summary>Tenant TravelNexus settings (defaults when never saved).</summary>
     [HttpGet("settings")]
     public async Task<IActionResult> GetSettings() => Ok(await Mediator.Send(new GetTravelSettingsQuery()));

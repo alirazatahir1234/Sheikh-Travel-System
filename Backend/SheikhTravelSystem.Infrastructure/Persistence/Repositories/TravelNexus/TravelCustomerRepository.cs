@@ -41,12 +41,12 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
         var p = new DynamicParameters();
         p.Add("TenantId", tenantId);
         var clauses = new List<string> { "p.TenantId = @TenantId", "p.IsDeleted = 0" };
-        ApplyBranchScope(scope, clauses, p);
+        TravelSql.ApplyBranchScope(scope, "p.BranchId", clauses, p);
 
         if (search is not null)
         {
             clauses.Add("(c.FullName LIKE @Search OR c.Phone LIKE @Search OR c.Email LIKE @Search OR p.ContactPerson LIKE @Search)");
-            p.Add("Search", $"%{EscapeLike(search)}%");
+            p.Add("Search", $"%{TravelSql.EscapeLike(search)}%");
         }
         if (customerKind is not null) { clauses.Add("p.CustomerKind = @Kind"); p.Add("Kind", customerKind); }
         if (agentUserId.HasValue) { clauses.Add("p.AssignedAgentUserId = @AgentId"); p.Add("AgentId", agentUserId); }
@@ -76,7 +76,7 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
         p.Add("TenantId", tenantId);
         p.Add("CustomerId", customerId);
         var clauses = new List<string> { "p.TenantId = @TenantId", "p.CustomerId = @CustomerId", "p.IsDeleted = 0" };
-        ApplyBranchScope(scope, clauses, p);
+        TravelSql.ApplyBranchScope(scope, "p.BranchId", clauses, p);
 
         return await connection.QuerySingleOrDefaultAsync<TravelCustomerDto>(new CommandDefinition($"""
             {ListSelect},
@@ -170,31 +170,14 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
         }
         else
         {
-            customerId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-                INSERT INTO Customers (TenantId, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt, IsDeleted)
-                VALUES (@TenantId, @FullName, @Phone, @Email, @Address, @Cnic, 1, SYSUTCDATETIME(), 0);
-                SELECT CAST(SCOPE_IDENTITY() AS INT);
-                """, new { TenantId = tenantId, dto.FullName, dto.Phone, dto.Email, dto.Address, dto.Cnic },
-                tx, cancellationToken: cancellationToken));
+            customerId = await TravelCustomerSql.InsertCustomerAsync(
+                connection, tx, tenantId, dto.FullName, dto.Phone, dto.Email, dto.Address, dto.Cnic, cancellationToken);
         }
 
-        // Re-activate an archived profile (unique on TenantId+CustomerId) or insert a new one.
-        var profileParams = ProfileParams(tenantId, customerId, dto.CustomerKind, dto.FullName, dto.ContactPerson,
-            dto.TaxNumber, dto.AlternatePhone, dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes);
-        profileParams.Add("UserId", userId);
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE TravelCustomerProfiles SET
-                CustomerKind = @Kind, CompanyName = @CompanyName, ContactPerson = @ContactPerson, TaxNumber = @TaxNumber,
-                AlternatePhone = @AlternatePhone, City = @City, AssignedAgentUserId = @AgentId, BranchId = @BranchId,
-                LeadSourceId = @LeadSourceId, Notes = @Notes, IsDeleted = 0, UpdatedAt = SYSUTCDATETIME()
-            WHERE TenantId = @TenantId AND CustomerId = @CustomerId AND IsDeleted = 1;
-
-            IF @@ROWCOUNT = 0
-                INSERT INTO TravelCustomerProfiles (TenantId, CustomerId, CustomerKind, CompanyName, ContactPerson, TaxNumber,
-                    AlternatePhone, City, AssignedAgentUserId, BranchId, LeadSourceId, Notes, CreatedBy)
-                VALUES (@TenantId, @CustomerId, @Kind, @CompanyName, @ContactPerson, @TaxNumber,
-                    @AlternatePhone, @City, @AgentId, @BranchId, @LeadSourceId, @Notes, @UserId);
-            """, profileParams, tx, cancellationToken: cancellationToken));
+        await TravelCustomerSql.UpsertProfileAsync(connection, tx, tenantId, customerId,
+            new TravelProfileValues(dto.CustomerKind, dto.FullName, dto.ContactPerson, dto.TaxNumber, dto.AlternatePhone,
+                dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes),
+            userId, cancellationToken);
 
         tx.Commit();
         return customerId;
@@ -206,8 +189,9 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
         connection.Open();
         using var tx = connection.BeginTransaction();
 
-        var p = ProfileParams(tenantId, customerId, dto.CustomerKind, dto.FullName, dto.ContactPerson,
-            dto.TaxNumber, dto.AlternatePhone, dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes);
+        var p = TravelCustomerSql.ProfileParams(tenantId, customerId,
+            new TravelProfileValues(dto.CustomerKind, dto.FullName, dto.ContactPerson, dto.TaxNumber, dto.AlternatePhone,
+                dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes));
         var profileRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TravelCustomerProfiles SET
                 CustomerKind = @Kind, CompanyName = @CompanyName, ContactPerson = @ContactPerson, TaxNumber = @TaxNumber,
@@ -253,41 +237,4 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
             "SELECT CNIC FROM Customers WHERE Id = @CustomerId AND TenantId = @TenantId AND IsDeleted = 0",
             new { CustomerId = customerId, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
-
-    // ── Helpers ─────────────────────────────────────────────────────────────
-
-    private static void ApplyBranchScope(TravelBranchScope scope, List<string> clauses, DynamicParameters p)
-    {
-        if (scope.IsCompanyWide) return;
-        if (scope.BranchIds.Count == 0)
-        {
-            clauses.Add("p.BranchId IS NULL");
-            return;
-        }
-        clauses.Add("(p.BranchId IS NULL OR p.BranchId IN @ScopeBranchIds)");
-        p.Add("ScopeBranchIds", scope.BranchIds.ToArray());
-    }
-
-    private static DynamicParameters ProfileParams(
-        int tenantId, int customerId, string kind, string fullName, string? contactPerson, string? taxNumber,
-        string? alternatePhone, string? city, int? agentId, int? branchId, int? leadSourceId, string? notes)
-    {
-        var p = new DynamicParameters();
-        p.Add("TenantId", tenantId);
-        p.Add("CustomerId", customerId);
-        p.Add("Kind", kind);
-        p.Add("CompanyName", kind == "Corporate" ? fullName : null);
-        p.Add("ContactPerson", contactPerson);
-        p.Add("TaxNumber", taxNumber);
-        p.Add("AlternatePhone", alternatePhone);
-        p.Add("City", city);
-        p.Add("AgentId", agentId);
-        p.Add("BranchId", branchId);
-        p.Add("LeadSourceId", leadSourceId);
-        p.Add("Notes", notes);
-        return p;
-    }
-
-    private static string EscapeLike(string s)
-        => s.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 }
