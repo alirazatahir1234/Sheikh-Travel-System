@@ -31,6 +31,15 @@ public static class TravelPermissions
     /// <summary>Open document files (passport scans etc.). Every download is audited.</summary>
     public const string DocumentDownload = "Travel.Document.Download";
 
+    public const string PackageView = "Travel.Package.View";
+    /// <summary>Packages and the hotel catalog.</summary>
+    public const string PackageManage = "Travel.Package.Manage";
+    public const string GroupView = "Travel.Group.View";
+    /// <summary>Groups, pilgrims, hotel stays, rooms and transport.</summary>
+    public const string GroupManage = "Travel.Group.Manage";
+    /// <summary>Pilgrim manifest (PII; every fetch is audited).</summary>
+    public const string GroupManifest = "Travel.Group.Manifest";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
@@ -40,5 +49,8 @@ public static class TravelPermissions
     /// <summary>Phase 3 permissions (seeded by TravelNexusDocumentsMigration).</summary>
     public static readonly string[] Phase3 = [DocumentManage, DocumentVerify, DocumentDownload];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3];
+    /// <summary>Phase 4 permissions (seeded by TravelNexusUmrahMigration).</summary>
+    public static readonly string[] Phase4 = [PackageView, PackageManage, GroupView, GroupManage, GroupManifest];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4];
 }

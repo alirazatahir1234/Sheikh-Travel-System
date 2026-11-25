@@ -10,13 +10,17 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.TravelNexus
 /// </summary>
 internal static class TravelNumberAllocator
 {
-    public enum Kind { Enquiry, VisaCase }
+    public enum Kind { Enquiry, VisaCase, Group }
 
     public static async Task<string> NextAsync(
         IDbConnection connection, IDbTransaction transaction, int tenantId, Kind kind, DateTime utcNow, CancellationToken ct)
     {
-        var prefixColumn = kind == Kind.Enquiry ? "EnquiryPrefix" : "VisaCasePrefix";
-        var defaultPrefix = kind == Kind.Enquiry ? "ENQ" : "VC";
+        var (prefixColumn, defaultPrefix) = kind switch
+        {
+            Kind.Enquiry => ("EnquiryPrefix", "ENQ"),
+            Kind.VisaCase => ("VisaCasePrefix", "VC"),
+            _ => ("GroupPrefix", "GRP")
+        };
         var prefix = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
             $"SELECT {prefixColumn} FROM TravelSettings WHERE TenantId = @TenantId",
             new { TenantId = tenantId }, transaction, cancellationToken: ct)) ?? defaultPrefix;

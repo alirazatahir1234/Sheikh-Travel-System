@@ -310,7 +310,7 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<TravelSettingsDto>(new CommandDefinition("""
-            SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, PassportExpiryWarningDays
+            SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, GroupPrefix, PassportExpiryWarningDays
             FROM TravelSettings WHERE TenantId = @TenantId
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken))
             ?? new TravelSettingsDto();
@@ -323,15 +323,16 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
             UPDATE TravelSettings SET
                 DefaultCurrencyCode = @DefaultCurrencyCode, EnquiryPrefix = @EnquiryPrefix,
                 VisaCasePrefix = @VisaCasePrefix, InvoicePrefix = @InvoicePrefix,
+                GroupPrefix = COALESCE(@GroupPrefix, GroupPrefix),
                 PassportExpiryWarningDays = @PassportExpiryWarningDays,
                 UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @UserId
             WHERE TenantId = @TenantId;
 
             IF @@ROWCOUNT = 0
                 INSERT INTO TravelSettings (TenantId, DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix,
-                    PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
+                    GroupPrefix, PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
                 VALUES (@TenantId, @DefaultCurrencyCode, @EnquiryPrefix, @VisaCasePrefix, @InvoicePrefix,
-                    @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
+                    COALESCE(@GroupPrefix, N'GRP'), @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
             """,
             new
             {
@@ -340,6 +341,7 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 dto.EnquiryPrefix,
                 dto.VisaCasePrefix,
                 dto.InvoicePrefix,
+                GroupPrefix = string.IsNullOrWhiteSpace(dto.GroupPrefix) ? null : dto.GroupPrefix,
                 dto.PassportExpiryWarningDays,
                 UserId = userId
             },

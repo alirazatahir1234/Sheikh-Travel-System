@@ -46,6 +46,23 @@ public static partial class TravelValues
     public static readonly string[] DocumentHistoryEventTypes =
         ["DocumentUploaded", "DocumentVerified", "DocumentRejected", "DocumentWaived", "DocumentRequested", "DocumentRemoved"];
 
+    // ── Phase 4: Umrah ──
+    public static readonly string[] HotelCities = ["Makkah", "Madinah", "Jeddah", "Taif", "Other"];
+    public static readonly string[] PackageTypes = ["Umrah", "Hajj"];
+    public static readonly string[] PackageStatuses = ["Draft", "Published", "Archived"];
+    public static readonly string[] RoomTypes = ["Quad", "Triple", "Double", "Single"];
+    public static readonly string[] PriceCategories = ["Adult", "Child", "Infant"];
+    public static readonly string[] GroupStatuses =
+        ["Draft", "Open", "RegistrationClosed", "VisaProcessing", "Ready", "Departed", "Returned", "Closed", "Cancelled"];
+    public static readonly string[] MemberStatuses = ["Registered", "Confirmed", "Cancelled"];
+    public static readonly string[] GenderPolicies = ["Male", "Female", "Family"];
+    public static readonly string[] TransportLegTypes = ["AirportTransfer", "IntercityTransfer", "Ziyarat", "Other"];
+    public static readonly string[] GroupHistoryEventTypes =
+        ["GroupStatus", "MemberRegistered", "MemberConfirmed", "MemberCancelled", "RoomAssigned", "RoomUnassigned", "LeaderChanged", "ManifestGenerated"];
+
+    /// <summary>Beds per room type.</summary>
+    public static int RoomCapacity(string roomType) => roomType switch { "Quad" => 4, "Triple" => 3, "Double" => 2, "Single" => 1, _ => 0 };
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 
