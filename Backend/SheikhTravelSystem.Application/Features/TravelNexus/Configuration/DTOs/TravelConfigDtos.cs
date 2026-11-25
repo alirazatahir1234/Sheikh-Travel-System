@@ -71,6 +71,15 @@ public class TravelLeadSourceDto
 
 public record SaveTravelLeadSourceDto(string Name, bool IsActive);
 
+public class TravelLostReasonDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}
+
+public record SaveTravelLostReasonDto(string Name, bool IsActive);
+
 public class TravelSettingsDto
 {
     public string? DefaultCurrencyCode { get; set; }

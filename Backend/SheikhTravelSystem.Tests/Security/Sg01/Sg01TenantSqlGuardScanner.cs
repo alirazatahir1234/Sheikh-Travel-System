@@ -24,7 +24,9 @@ public static class Sg01TenantSqlGuardScanner
         "WebsiteContactRequests", "WebsiteDemoRequests",
         // TravelNexus (TravelCountries is platform-scope reference data)
         "TravelSettings", "TravelVisaTypes", "TravelDocumentTypes", "TravelLeadSources",
-        "TravelCustomerProfiles", "TravelTravelers"
+        "TravelCustomerProfiles", "TravelTravelers",
+        "TravelNumberSequences", "TravelLostReasons", "TravelEnquiries", "TravelEnquiryActivities",
+        "TravelVisaCases", "TravelVisaApplicants", "TravelVisaStatusHistory"
     ];
 
     private static readonly Regex SqlTableTouch = BuildTableTouchRegex();

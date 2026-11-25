@@ -250,6 +250,60 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
     public Task<bool> DeleteLeadSourceAsync(int id, int tenantId, CancellationToken cancellationToken = default)
         => SoftDeleteAsync("TravelLeadSources", id, tenantId, cancellationToken);
 
+    // ── Lost reasons ────────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<TravelLostReasonDto>> GetLostReasonsAsync(int tenantId, bool? isActive, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return (await connection.QueryAsync<TravelLostReasonDto>(new CommandDefinition("""
+            SELECT Id, Name, IsActive FROM TravelLostReasons
+            WHERE TenantId = @TenantId AND IsDeleted = 0 AND (@IsActive IS NULL OR IsActive = @IsActive)
+            ORDER BY Name
+            """, new { TenantId = tenantId, IsActive = isActive }, cancellationToken: cancellationToken))).ToList();
+    }
+
+    public async Task<TravelLostReasonDto?> GetLostReasonByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<TravelLostReasonDto>(new CommandDefinition("""
+            SELECT Id, Name, IsActive FROM TravelLostReasons
+            WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+            """, new { Id = id, TenantId = tenantId }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> LostReasonNameExistsAsync(int tenantId, string name, int? excludeId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(1) FROM TravelLostReasons
+            WHERE TenantId = @TenantId AND Name = @Name AND IsDeleted = 0
+              AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
+            """, new { TenantId = tenantId, Name = name, ExcludeId = excludeId },
+            cancellationToken: cancellationToken)) > 0;
+    }
+
+    public async Task<int> CreateLostReasonAsync(int tenantId, SaveTravelLostReasonDto dto, int? userId, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            INSERT INTO TravelLostReasons (TenantId, Name, IsActive, CreatedBy)
+            VALUES (@TenantId, @Name, @IsActive, @UserId);
+            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            """, new { TenantId = tenantId, dto.Name, dto.IsActive, UserId = userId }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> UpdateLostReasonAsync(int id, int tenantId, SaveTravelLostReasonDto dto, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE TravelLostReasons SET Name = @Name, IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
+            WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+            """, new { Id = id, TenantId = tenantId, dto.Name, dto.IsActive }, cancellationToken: cancellationToken)) > 0;
+    }
+
+    public Task<bool> DeleteLostReasonAsync(int id, int tenantId, CancellationToken cancellationToken = default)
+        => SoftDeleteAsync("TravelLostReasons", id, tenantId, cancellationToken);
+
     // ── Settings ────────────────────────────────────────────────────────────
 
     public async Task<TravelSettingsDto> GetSettingsAsync(int tenantId, CancellationToken cancellationToken = default)

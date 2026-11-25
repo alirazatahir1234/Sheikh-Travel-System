@@ -192,6 +192,7 @@ public static class DatabaseMigrationRegistry
             M("GpsDuplicateTraccarDeviceIdMigration", GpsDuplicateTraccarDeviceIdMigration.ApplyAsync),
             M("VehicleDocumentTenantAlignMigration", VehicleDocumentTenantAlignMigration.ApplyAsync),
             M("TravelNexusFoundationMigration", TravelNexusFoundationMigration.ApplyAsync),
+            M("TravelNexusCrmVisaMigration", TravelNexusCrmVisaMigration.ApplyAsync),
             M("SubscriptionAccessExpiryMigration", SubscriptionAccessExpiryMigration.ApplyAsync),
             M("PlatformOperatorPermissionsMigration", PlatformOperatorPermissionsMigration.ApplyAsync),
             M("Sg07AuditTrailTargetTenantAndAppendOnlyMigration", Sg07AuditTrailTargetTenantAndAppendOnlyMigration.ApplyAsync),

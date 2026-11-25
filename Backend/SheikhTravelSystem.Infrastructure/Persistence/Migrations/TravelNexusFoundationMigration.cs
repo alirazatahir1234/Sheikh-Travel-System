@@ -278,7 +278,7 @@ public static class TravelNexusFoundationMigration
         foreach (var role in new[] { "SUPER_ADMIN", "TENANT_ADMIN", "OWNER" })
         {
             await TenantRolePermissionSeeder.AssignRolePermissionsForAllTenantsAsync(
-                connection, role, TravelPermissions.All, cancellationToken);
+                connection, role, TravelPermissions.Phase1, cancellationToken);
         }
 
         // ── ERP menu (only screens that exist; later phases add their own rows) ──

@@ -36,6 +36,13 @@ public interface ITravelConfigRepository
     Task<bool> UpdateLeadSourceAsync(int id, int tenantId, SaveTravelLeadSourceDto dto, CancellationToken cancellationToken = default);
     Task<bool> DeleteLeadSourceAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<TravelLostReasonDto>> GetLostReasonsAsync(int tenantId, bool? isActive, CancellationToken cancellationToken = default);
+    Task<TravelLostReasonDto?> GetLostReasonByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
+    Task<bool> LostReasonNameExistsAsync(int tenantId, string name, int? excludeId, CancellationToken cancellationToken = default);
+    Task<int> CreateLostReasonAsync(int tenantId, SaveTravelLostReasonDto dto, int? userId, CancellationToken cancellationToken = default);
+    Task<bool> UpdateLostReasonAsync(int id, int tenantId, SaveTravelLostReasonDto dto, CancellationToken cancellationToken = default);
+    Task<bool> DeleteLostReasonAsync(int id, int tenantId, CancellationToken cancellationToken = default);
+
     /// <summary>Returns defaults when the tenant has never saved settings.</summary>
     Task<TravelSettingsDto> GetSettingsAsync(int tenantId, CancellationToken cancellationToken = default);
     Task UpsertSettingsAsync(int tenantId, UpdateTravelSettingsDto dto, int? userId, CancellationToken cancellationToken = default);

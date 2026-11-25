@@ -21,6 +21,22 @@ public static partial class TravelValues
     public static readonly string[] MahramRelations =
         ["Husband", "Father", "Son", "Brother", "Grandfather", "Grandson", "Uncle", "Nephew", "FatherInLaw", "SonInLaw", "Other"];
 
+    // ── Phase 2: CRM ──
+    public static readonly string[] EnquiryServiceTypes = ["Visa", "Umrah", "Hajj", "Flight", "Hotel", "Package", "Other"];
+    public static readonly string[] EnquiryStatuses = ["New", "Contacted", "Qualified", "Quoted", "Won", "Lost"];
+    public static readonly string[] Priorities = ["Low", "Normal", "High"];
+    public static readonly string[] ActivityTypes = ["Call", "WhatsApp", "Sms", "Email", "Meeting", "Note", "StatusChange"];
+    /// <summary>Activity types a user may log (StatusChange is written by the system).</summary>
+    public static readonly string[] UserActivityTypes = ["Call", "WhatsApp", "Sms", "Email", "Meeting", "Note"];
+    public static readonly string[] ActivityDirections = ["Inbound", "Outbound", "Internal"];
+
+    // ── Phase 2: visa cases ──
+    public static readonly string[] VisaCaseStatuses =
+        ["Draft", "DocumentsPending", "DocumentsVerified", "Submitted", "InProcessing",
+         "Approved", "PartiallyApproved", "Rejected", "OnHold", "Cancelled"];
+    public static readonly string[] ApplicantDecisions = ["Pending", "Approved", "Rejected", "Withdrawn"];
+    public static readonly string[] VisaHistoryEventTypes = ["CaseStatus", "ApplicantAdded", "ApplicantRemoved", "ApplicantDecision"];
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 
