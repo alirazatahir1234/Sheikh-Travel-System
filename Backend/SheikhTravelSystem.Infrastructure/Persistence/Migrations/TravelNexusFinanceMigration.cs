@@ -201,6 +201,7 @@ public static class TravelNexusFinanceMigration
                     Status NVARCHAR(8) NOT NULL CONSTRAINT DF_TravelCreditNotes_Status DEFAULT (N'Issued'),
                     IssuedOn DATE NOT NULL,
                     VoidReason NVARCHAR(500) NULL,
+                    IdempotencyKey UNIQUEIDENTIFIER NULL,
                     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_TravelCreditNotes_CreatedAt DEFAULT (SYSUTCDATETIME()),
                     CreatedBy INT NULL,
                     UpdatedAt DATETIME2 NULL,
@@ -213,6 +214,7 @@ public static class TravelNexusFinanceMigration
                     CONSTRAINT CK_TravelCreditNotes_Void CHECK (Status <> N'Void' OR VoidReason IS NOT NULL)
                 );
                 CREATE UNIQUE INDEX UX_TravelCreditNotes_Tenant_Number ON dbo.TravelCreditNotes (TenantId, CreditNoteNumber);
+                CREATE UNIQUE INDEX UX_TravelCreditNotes_Tenant_Idempotency ON dbo.TravelCreditNotes (TenantId, IdempotencyKey) WHERE IdempotencyKey IS NOT NULL;
                 CREATE INDEX IX_TravelCreditNotes_Tenant_Invoice ON dbo.TravelCreditNotes (TenantId, InvoiceId);
             END
 
@@ -232,6 +234,7 @@ public static class TravelNexusFinanceMigration
                     PaidOn DATE NOT NULL,
                     CancellationId INT NULL,
                     Notes NVARCHAR(1000) NULL,
+                    IdempotencyKey UNIQUEIDENTIFIER NULL,
                     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_TravelRefunds_CreatedAt DEFAULT (SYSUTCDATETIME()),
                     CreatedBy INT NULL,
                     CONSTRAINT FK_TravelRefunds_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(Id),
@@ -244,6 +247,7 @@ public static class TravelNexusFinanceMigration
                     CONSTRAINT CK_TravelRefunds_Method CHECK (Method IN (N'Cash', N'BankTransfer', N'Card', N'Cheque', N'Online', N'Other'))
                 );
                 CREATE UNIQUE INDEX UX_TravelRefunds_Tenant_Number ON dbo.TravelRefunds (TenantId, RefundNumber);
+                CREATE UNIQUE INDEX UX_TravelRefunds_Tenant_Idempotency ON dbo.TravelRefunds (TenantId, IdempotencyKey) WHERE IdempotencyKey IS NOT NULL;
                 CREATE INDEX IX_TravelRefunds_Tenant_Invoice ON dbo.TravelRefunds (TenantId, InvoiceId) WHERE InvoiceId IS NOT NULL;
                 CREATE INDEX IX_TravelRefunds_Tenant_Payment ON dbo.TravelRefunds (TenantId, PaymentId) WHERE PaymentId IS NOT NULL;
             END
