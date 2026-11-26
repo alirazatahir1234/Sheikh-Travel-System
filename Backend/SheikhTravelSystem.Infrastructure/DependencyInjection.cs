@@ -393,7 +393,7 @@ public static class DependencyInjection
 
         // Traccar GPS integration
         services.Configure<TraccarOptions>(configuration.GetSection(TraccarOptions.SectionName));
-        services.AddHttpClient<ITraccarClient, TraccarClient>((sp, client) =>
+        services.AddHttpClient<TraccarClient>((sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<TraccarOptions>>().Value;
             if (opts.TryGetBaseUri(out var baseUri))
@@ -414,6 +414,12 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.Timeout = TimeSpan.FromSeconds(90);
         });
+        // Trackers with a wrong clock (whole hours off) are corrected for every Traccar read.
+        services.AddSingleton<ITrackerClockSkewRegistry, TrackerClockSkewRegistry>();
+        services.AddTransient<ITraccarClient>(sp => new ClockSkewCorrectingTraccarClient(
+            sp.GetRequiredService<TraccarClient>(),
+            sp.GetRequiredService<ITrackerClockSkewRegistry>(),
+            sp.GetRequiredService<ILogger<ClockSkewCorrectingTraccarClient>>()));
         services.AddHostedService<TraccarSyncService>();
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
         // Singleton: FixTime watermark (_lastIngested) must survive each scoped poll tick.
