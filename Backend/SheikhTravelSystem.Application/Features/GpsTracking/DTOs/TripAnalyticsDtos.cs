@@ -24,7 +24,9 @@ public record TripReplayBundleDto(
     IReadOnlyList<TripReplayPositionDto> Playback,
     IReadOnlyList<TripStopDto> Stops,
     IReadOnlyList<TripEventDto> Events,
-    TripReplaySummaryDto? Summary);
+    TripReplaySummaryDto? Summary,
+    /// <summary>IANA zone to display times in: vehicle's branch → tenant → platform default.</summary>
+    string? TimeZoneId = null);
 
 public record TripDetailBundleDto(
     GpsTripDto Trip,
@@ -168,7 +170,9 @@ public record HistoryReplayBundleDto(
     DateTime? To = null,
     HistoryDisplaySummaryDto? DisplaySummary = null,
     IReadOnlyList<HistoryPositionDto>? Positions = null,
-    IReadOnlyList<TripStopDto>? Parking = null);
+    IReadOnlyList<TripStopDto>? Parking = null,
+    /// <summary>IANA zone to display times in: vehicle's branch → tenant → platform default.</summary>
+    string? TimeZoneId = null);
 
 public record TripStopDto(
     DateTime StartTime,

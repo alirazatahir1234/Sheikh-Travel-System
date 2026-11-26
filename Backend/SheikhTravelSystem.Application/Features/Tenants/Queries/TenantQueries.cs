@@ -2,6 +2,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Application.Features.Tenants.Queries;
 
@@ -20,7 +21,9 @@ public record TenantBrandingDto(
     string Name,
     string Slug,
     IReadOnlyList<string> EnabledModules,
-    string? TimeZone = null)
+    string? TimeZone = null,
+    /// <summary>Timezone to display company times in: <see cref="TimeZone"/> when valid, else the platform default.</summary>
+    string? EffectiveTimeZone = null)
 {
     /// <summary>Company alias for product language (persistence remains Tenant).</summary>
     public int CompanyId => Id;
@@ -31,7 +34,8 @@ public record TenantBrandingDto(
 public class GetTenantBrandingQueryHandler(
     ITenantRepository tenantRepository,
     ITenantContext tenantContext,
-    ITenantModuleService tenantModuleService)
+    ITenantModuleService tenantModuleService,
+    ITenantTimeZoneResolver timeZoneResolver)
     : IRequestHandler<GetTenantBrandingQuery, ApiResponse<TenantBrandingDto>>
 {
     public async Task<ApiResponse<TenantBrandingDto>> Handle(GetTenantBrandingQuery request, CancellationToken cancellationToken)
@@ -44,7 +48,8 @@ public class GetTenantBrandingQueryHandler(
 
         var modules = await tenantModuleService.GetLegacyModuleKeysAsync(tenantId, cancellationToken);
         return ApiResponse<TenantBrandingDto>.SuccessResponse(
-            new TenantBrandingDto(row.Id, row.Name, row.Slug, modules, row.TimeZone));
+            new TenantBrandingDto(row.Id, row.Name, row.Slug, modules, row.TimeZone,
+                TenantTimeZoneHelper.IsValid(row.TimeZone) ? row.TimeZone!.Trim() : timeZoneResolver.DefaultTimeZoneId));
     }
 }
 

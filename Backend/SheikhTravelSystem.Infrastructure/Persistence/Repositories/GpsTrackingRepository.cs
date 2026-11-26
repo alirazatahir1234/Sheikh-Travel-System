@@ -3659,7 +3659,7 @@ public sealed partial class GpsTrackingRepository(
 
         var cacheKey = $"gps:history-replay:{tenantId}:{vehicleId}:{fromDate:O}:{toDate:O}:{routeMaxPoints?.ToString() ?? "default"}:{playbackMaxPoints?.ToString() ?? "default"}:{includeRaw}";
 
-        return await cache.GetOrCreateAsync(
+        var response = await cache.GetOrCreateAsync(
             cacheKey,
             ReplayCacheTtl,
             async ct => await BuildReplayResponseAsync(
@@ -3673,6 +3673,13 @@ public sealed partial class GpsTrackingRepository(
                 includeRaw,
                 ct),
             cancellationToken);
+
+        // New object: never mutate the cached response.
+        return response.Success && response.Data is { } data
+            ? ApiResponse<HistoryReplayBundleDto>.SuccessResponse(
+                data with { TimeZoneId = await timeZoneResolver.GetVehicleTimeZoneIdAsync(vehicleId, tenantId, cancellationToken) },
+                response.Message)
+            : response;
         }
 
     public async Task<ApiResponse<HistoryExportFileDto>> GetHistoryExportAsync(GetHistoryExportQuery request, CancellationToken cancellationToken = default)
@@ -3835,7 +3842,11 @@ public sealed partial class GpsTrackingRepository(
                 bundle,
                 geocoder,
                 cancellationToken);
-            return ApiResponse<TripReplayBundleDto>.SuccessResponse(bundle);
+            return ApiResponse<TripReplayBundleDto>.SuccessResponse(bundle with
+            {
+                TimeZoneId = await timeZoneResolver.GetVehicleTimeZoneIdAsync(
+                    vehicleId, tenantContext.GetRequiredTenantId(), cancellationToken)
+            });
         }
 
         var localBundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
@@ -3853,7 +3864,11 @@ public sealed partial class GpsTrackingRepository(
             geocoder,
             cancellationToken);
 
-        return ApiResponse<TripReplayBundleDto>.SuccessResponse(localBundle);
+        return ApiResponse<TripReplayBundleDto>.SuccessResponse(localBundle with
+        {
+            TimeZoneId = await timeZoneResolver.GetVehicleTimeZoneIdAsync(
+                vehicleId, tenantContext.GetRequiredTenantId(), cancellationToken)
+        });
         }
 
     public async Task<ApiResponse<TripAnalyticsSummaryDto>> GetFleetTripSummaryAsync(GetFleetTripSummaryQuery request, CancellationToken cancellationToken = default)

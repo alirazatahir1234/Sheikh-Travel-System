@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.Reports.Fleet;
@@ -116,6 +117,30 @@ public class TenantTimeZoneTests
 
         toExclusive.Should().Be(localToday.AddDays(1));
         from.Should().Be(new DateTime(localToday.Year, localToday.Month, 1));
+    }
+
+    [Theory]
+    [InlineData(null, Karachi)]
+    [InlineData("Not/AZone", Karachi)]
+    [InlineData(Dubai, Dubai)]
+    public async Task Branding_exposes_effective_timezone(string? stored, string expected)
+    {
+        var tenants = new Moq.Mock<SheikhTravelSystem.Application.Common.Interfaces.Repositories.ITenantRepository>();
+        tenants.Setup(r => r.GetBrandingAsync(7, Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SheikhTravelSystem.Application.Common.Interfaces.Repositories.TenantBrandingRow(7, "Demo", "demo", stored));
+        var tenantContext = new Moq.Mock<SheikhTravelSystem.Application.Common.Interfaces.ITenantContext>();
+        tenantContext.Setup(t => t.GetRequiredTenantId()).Returns(7);
+        var modules = new Moq.Mock<SheikhTravelSystem.Application.Common.Interfaces.ITenantModuleService>();
+        modules.Setup(m => m.GetLegacyModuleKeysAsync(7, Moq.It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var resolver = new Moq.Mock<SheikhTravelSystem.Application.Common.Interfaces.ITenantTimeZoneResolver>();
+        resolver.SetupGet(r => r.DefaultTimeZoneId).Returns(Karachi);
+        var handler = new SheikhTravelSystem.Application.Features.Tenants.Queries.GetTenantBrandingQueryHandler(
+            tenants.Object, tenantContext.Object, modules.Object, resolver.Object);
+
+        var result = await handler.Handle(new SheikhTravelSystem.Application.Features.Tenants.Queries.GetTenantBrandingQuery(), CancellationToken.None);
+
+        result.Data!.TimeZone.Should().Be(stored);
+        result.Data.EffectiveTimeZone.Should().Be(expected);
     }
 
     [Fact]
