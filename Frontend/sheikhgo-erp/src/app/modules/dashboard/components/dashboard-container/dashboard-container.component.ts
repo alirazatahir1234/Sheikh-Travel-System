@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { DashboardService } from '../../services/dashboard.service';
@@ -9,11 +9,14 @@ import { DefaultDashboardComponent } from '../../dashboards/default-dashboard/de
 /**
  * Route component for `/dashboard` (ops overview).
  * Fleet asset-health hub is only at `/fleet/dashboard` — not duplicated via selector.
+ *
+ * Deliberately NOT OnPush: the hosted dashboards use default change detection and set
+ * fields from HTTP callbacks. Under an OnPush host nothing marks this view dirty, so the
+ * dashboard could stay on its loading skeleton until some unrelated event re-rendered it.
  */
 @Component({
   selector: 'app-dashboard-container',
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, DashboardSelectorComponent],
   template: `
     <div class="dashboard-container">
