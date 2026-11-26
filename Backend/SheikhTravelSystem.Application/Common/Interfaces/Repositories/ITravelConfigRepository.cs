@@ -45,5 +45,9 @@ public interface ITravelConfigRepository
 
     /// <summary>Returns defaults when the tenant has never saved settings.</summary>
     Task<TravelSettingsDto> GetSettingsAsync(int tenantId, CancellationToken cancellationToken = default);
+
+    /// <summary>Active airports (platform reference data): by search text, or exactly the given IATA codes.</summary>
+    Task<IReadOnlyList<Features.TravelNexus.Suppliers.DTOs.TravelAirportDto>> GetAirportsAsync(string? search, IReadOnlyList<string>? codes,
+        CancellationToken cancellationToken = default);
     Task UpsertSettingsAsync(int tenantId, UpdateTravelSettingsDto dto, int? userId, CancellationToken cancellationToken = default);
 }

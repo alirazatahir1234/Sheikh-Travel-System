@@ -206,6 +206,7 @@ public class TransitionTravelGroupCommandHandler(
                         { VisaCaseDecided: false } => "The group visa case has no approval yet.",
                         { MembersWithoutVisa: > 0 } => $"{readiness.MembersWithoutVisa} pilgrim(s) have no approved visa — cancel them or wait for approval.",
                         { MembersWithoutRoom: > 0 } => $"{readiness.MembersWithoutRoom} pilgrim(s) have no room in every hotel stay.",
+                        { MembersWithoutTickets: > 0 } => $"{readiness.MembersWithoutTickets} pilgrim(s) have no issued ticket on an outbound and a return flight — ticket them in the group's booking.",
                         _ => "The group is not ready yet."
                     });
                 break;
@@ -244,7 +245,8 @@ public class TransitionTravelGroupCommandHandler(
             visaStatus = (await visaCases.GetStateAsync(caseId, tenantId, TravelBranchScope.CompanyWide, ct))?.Status;
         return TravelGroupReadiness.Evaluate(
             await repository.GetMembersAsync(state.Id, tenantId, ct), visaStatus,
-            await repository.GetStaysAsync(state.Id, tenantId, ct), await repository.GetRoomsAsync(state.Id, tenantId, ct));
+            await repository.GetStaysAsync(state.Id, tenantId, ct), await repository.GetRoomsAsync(state.Id, tenantId, ct),
+            await repository.GetTicketFactsAsync(state.Id, tenantId, ct) ?? []);
     }
 
     private static ApiResponse<string> Fail(string message) => ApiResponse<string>.FailResponse(message);

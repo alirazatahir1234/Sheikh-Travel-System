@@ -32,7 +32,7 @@ public class TravelNexusTenantGuardTests
     public void Every_TravelNexus_repository_statement_filters_by_tenant()
     {
         // Each SQL literal in the TravelNexus repositories that references a Travel* tenant table must
-        // carry a TenantId predicate (TravelCountries is platform-scope reference data).
+        // carry a TenantId predicate (TravelCountries and TravelAirports are platform-scope reference data).
         var dir = Path.Combine(FindBackendRoot(), "SheikhTravelSystem.Infrastructure", "Persistence", "Repositories", "TravelNexus");
         var offenders = new List<string>();
         foreach (var file in Directory.EnumerateFiles(dir, "*.cs"))
@@ -46,7 +46,7 @@ public class TravelNexusTenantGuardTests
                 var isStatement = System.Text.RegularExpressions.Regex.IsMatch(sql, @"\b(WHERE|INSERT|UPDATE)\b");
                 if (!isStatement) continue;
                 var touchesTenantTable = System.Text.RegularExpressions.Regex.IsMatch(
-                    sql, @"\b(FROM|JOIN|UPDATE|INTO)\s+(Travel(?!Countries)\w+|Customers|Users|Branches)\b");
+                    sql, @"\b(FROM|JOIN|UPDATE|INTO)\s+(Travel(?!Countries\b|Airports\b)\w+|Customers|Users|Branches)\b");
                 if (touchesTenantTable && !sql.Contains("TenantId", StringComparison.Ordinal))
                     offenders.Add($"{Path.GetFileName(file)}: {sql.Trim().Split('\n')[0]}");
             }

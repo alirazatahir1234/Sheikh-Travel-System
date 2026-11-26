@@ -108,7 +108,8 @@ public class GetTravelGroupByIdQueryHandler(ITravelGroupRepository repository, I
         group.Rooms = await repository.GetRoomsAsync(group.Id, tenantId, cancellationToken);
         group.Transport = await repository.GetTransportAsync(group.Id, tenantId, cancellationToken);
         group.History = await repository.GetHistoryAsync(group.Id, tenantId, cancellationToken);
-        group.Readiness = TravelGroupReadiness.Evaluate(members, group.VisaCaseStatus, group.Stays, group.Rooms);
+        group.Readiness = TravelGroupReadiness.Evaluate(members, group.VisaCaseStatus, group.Stays, group.Rooms,
+            await repository.GetTicketFactsAsync(group.Id, tenantId, cancellationToken) ?? []);
         group.AllowedActions = TravelGroupStateMachine.AllowedActions(group.Status);
         return ApiResponse<TravelGroupDto>.SuccessResponse(group);
     }

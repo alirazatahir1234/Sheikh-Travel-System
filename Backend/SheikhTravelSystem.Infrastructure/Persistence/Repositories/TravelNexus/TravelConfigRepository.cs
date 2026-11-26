@@ -19,6 +19,26 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
             cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<IReadOnlyList<Application.Features.TravelNexus.Suppliers.DTOs.TravelAirportDto>> GetAirportsAsync(string? search,
+        IReadOnlyList<string>? codes, CancellationToken cancellationToken = default)
+    {
+        // PLATFORM-SCOPE: TravelAirports is shared IATA reference data with no TenantId.
+        using var connection = dbFactory.CreateConnection();
+        var p = new DynamicParameters();
+        var clauses = new List<string> { "IsActive = 1" };
+        if (codes is not null) { clauses.Add("IataCode IN @Codes"); p.Add("Codes", codes.ToArray()); }
+        else if (search is not null)
+        {
+            clauses.Add("(IataCode LIKE @Search OR City LIKE @Search OR Name LIKE @Search)");
+            p.Add("Search", $"%{TravelSql.EscapeLike(search)}%");
+        }
+        return (await connection.QueryAsync<Application.Features.TravelNexus.Suppliers.DTOs.TravelAirportDto>(new CommandDefinition($"""
+            SELECT TOP (200) IataCode, Name, City, CountryCode, IanaTimeZone FROM TravelAirports
+            WHERE {string.Join(" AND ", clauses)}
+            ORDER BY CountryCode, City, IataCode
+            """, p, cancellationToken: cancellationToken))).ToList();
+    }
+
     public async Task<bool> CountryExistsAsync(string code, CancellationToken cancellationToken = default)
     {
         // PLATFORM-SCOPE: TravelCountries is shared ISO reference data with no TenantId.

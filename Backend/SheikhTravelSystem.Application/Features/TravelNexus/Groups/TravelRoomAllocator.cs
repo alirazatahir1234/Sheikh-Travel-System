@@ -114,8 +114,13 @@ public static class TravelRoomAllocator
 /// <summary>Readiness for "Mark ready": every confirmed pilgrim has an approved visa and a bed in every stay.</summary>
 public static class TravelGroupReadiness
 {
+    /// <summary>
+    /// <paramref name="tickets"/>: issued tickets on ticketed flights of the group's booking files. Every confirmed pilgrim needs
+    /// a round trip, or an outbound and a return flight (Phase 5 flight confirmation).
+    /// </summary>
     public static TravelGroupReadinessDto Evaluate(IReadOnlyList<TravelGroupMemberDto> members, string? visaCaseStatus,
-        IReadOnlyList<TravelGroupStayDto> stays, IReadOnlyList<TravelGroupRoomDto> rooms)
+        IReadOnlyList<TravelGroupStayDto> stays, IReadOnlyList<TravelGroupRoomDto> rooms,
+        IReadOnlyList<Bookings.DTOs.TravelGroupTicketFact> tickets)
     {
         var confirmed = members.Where(m => m.Status == "Confirmed").ToList();
         var assignedByStay = rooms.GroupBy(r => r.GroupHotelId)
@@ -129,6 +134,7 @@ public static class TravelGroupReadiness
             UnconfirmedMembers = members.Count(m => m.Status == "Registered"),
             MembersWithApprovedVisa = confirmed.Count(m => m.VisaDecision == "Approved"),
             MembersWithoutRoom = withoutRoom,
+            MembersWithoutTickets = Bookings.TravelBookingRules.UncoveredTravelers(confirmed.Select(m => m.TravelerId), tickets).Count,
             Stays = stays.Count,
             VisaCaseDecided = visaCaseStatus is "Approved" or "PartiallyApproved"
         };

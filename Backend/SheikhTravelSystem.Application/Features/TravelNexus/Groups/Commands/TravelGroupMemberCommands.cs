@@ -179,7 +179,10 @@ public class CancelTravelGroupMemberCommandHandler(ITravelGroupRepository reposi
             throw new ConflictException(TravelGroupGuard.ConflictMessage);
 
         var visaNote = await WithdrawFromVisaCaseAsync(state, member.TravelerId, reason, tenantId, cancellationToken);
-        return ApiResponse<bool>.SuccessResponse(true, "Pilgrim cancelled." + visaNote);
+        // Bookings are never changed implicitly: tickets carry penalties and refunds the agent must record.
+        var ticketNote = (await repository.GetTicketFactsAsync(state.Id, tenantId, cancellationToken) ?? []).Any(t => t.TravelerId == member.TravelerId)
+            ? " The pilgrim still holds an issued ticket — cancel it in the group's booking." : string.Empty;
+        return ApiResponse<bool>.SuccessResponse(true, "Pilgrim cancelled." + visaNote + ticketNote);
     }
 
     private async Task<string> WithdrawFromVisaCaseAsync(TravelGroupState state, int travelerId, string reason, int tenantId, CancellationToken ct)

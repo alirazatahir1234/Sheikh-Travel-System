@@ -147,6 +147,19 @@ public sealed class TravelGroupRepository(IDbConnectionFactory dbFactory) : ITra
             """, new { GroupId = groupId, TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<IReadOnlyList<Application.Features.TravelNexus.Bookings.DTOs.TravelGroupTicketFact>> GetTicketFactsAsync(int groupId, int tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return (await connection.QueryAsync<Application.Features.TravelNexus.Bookings.DTOs.TravelGroupTicketFact>(new CommandDefinition("""
+            SELECT DISTINCT fp.TravelerId, f.Direction
+            FROM TravelBookings b
+            INNER JOIN TravelFlightBookings f ON f.BookingId = b.Id AND f.TenantId = b.TenantId AND f.IsDeleted = 0 AND f.Status = N'Ticketed'
+            INNER JOIN TravelFlightPassengers fp ON fp.FlightBookingId = f.Id AND fp.TenantId = b.TenantId AND fp.TicketStatus = N'Issued'
+            WHERE b.GroupId = @GroupId AND b.TenantId = @TenantId AND b.IsDeleted = 0 AND b.Status <> N'Cancelled'
+            """, new { GroupId = groupId, TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+    }
+
     public async Task<IReadOnlyList<int>> GetActiveMemberTravelerIdsAsync(int groupId, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();

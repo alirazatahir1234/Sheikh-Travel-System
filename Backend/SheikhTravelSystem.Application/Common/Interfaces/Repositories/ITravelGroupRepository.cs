@@ -20,6 +20,10 @@ public interface ITravelGroupRepository
     /// <summary>Members with raw passport numbers and their decision on the group visa case.</summary>
     Task<IReadOnlyList<TravelGroupMemberDto>> GetMembersAsync(int groupId, int tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TravelGroupMemberFacts>> GetMemberFactsAsync(int groupId, int tenantId, CancellationToken cancellationToken = default);
+
+    /// <summary>Issued tickets on ticketed flights of the group's non-cancelled booking files (input of the ticket gate).</summary>
+    Task<IReadOnlyList<Features.TravelNexus.Bookings.DTOs.TravelGroupTicketFact>> GetTicketFactsAsync(int groupId, int tenantId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<int>> GetActiveMemberTravelerIdsAsync(int groupId, int tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TravelGroupStayDto>> GetStaysAsync(int groupId, int tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TravelGroupRoomDto>> GetRoomsAsync(int groupId, int tenantId, CancellationToken cancellationToken = default);

@@ -132,10 +132,12 @@ public class TravelGroupReadinessDto
     public int MembersWithoutVisa => ConfirmedMembers - MembersWithApprovedVisa;
     /// <summary>Confirmed members missing a room in at least one stay.</summary>
     public int MembersWithoutRoom { get; set; }
+    /// <summary>Confirmed pilgrims without an issued ticket on an outbound and a return flight (or a round trip).</summary>
+    public int MembersWithoutTickets { get; set; }
     public int Stays { get; set; }
     public bool VisaCaseDecided { get; set; }
     public bool IsReady => ConfirmedMembers > 0 && UnconfirmedMembers == 0 && VisaCaseDecided
-                           && MembersWithoutVisa == 0 && MembersWithoutRoom == 0 && Stays > 0;
+                           && MembersWithoutVisa == 0 && MembersWithoutRoom == 0 && MembersWithoutTickets == 0 && Stays > 0;
 }
 
 public class TravelGroupSummaryDto

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using SheikhTravelSystem.Application.Features.TravelNexus.Bookings.DTOs;
 using SheikhTravelSystem.Application.Features.TravelNexus.Common;
 using SheikhTravelSystem.Application.Features.TravelNexus.Groups;
 using SheikhTravelSystem.Application.Features.TravelNexus.Groups.Commands;
@@ -115,9 +116,9 @@ public class TravelGroupRulesTests
     {
         var members = new List<TravelGroupMemberDto>
         {
-            new() { Id = 1, Status = "Confirmed", VisaDecision = "Approved" },
-            new() { Id = 2, Status = "Confirmed", VisaDecision = "Approved" },
-            new() { Id = 3, Status = "Cancelled" }
+            new() { Id = 1, TravelerId = 101, Status = "Confirmed", VisaDecision = "Approved" },
+            new() { Id = 2, TravelerId = 102, Status = "Confirmed", VisaDecision = "Approved" },
+            new() { Id = 3, TravelerId = 103, Status = "Cancelled" }
         };
         var stays = new List<TravelGroupStayDto> { new() { Id = 11 }, new() { Id = 12 } };
         var rooms = new List<TravelGroupRoomDto>
@@ -125,16 +126,39 @@ public class TravelGroupRulesTests
             new() { GroupHotelId = 11, MemberIds = [1, 2] },
             new() { GroupHotelId = 12, MemberIds = [1] }
         };
+        var tickets = new List<TravelGroupTicketFact> { new(101, "RoundTrip"), new(102, "Outbound"), new(102, "Return") };
 
-        var r = TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms);
+        var r = TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms, tickets);
         r.MembersWithoutRoom.Should().Be(1);
         r.IsReady.Should().BeFalse();
 
         rooms.Add(new TravelGroupRoomDto { GroupHotelId = 12, MemberIds = [2] });
-        TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms).IsReady.Should().BeTrue();
-        TravelGroupReadiness.Evaluate(members, "Submitted", stays, rooms).IsReady.Should().BeFalse();
+        TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms, tickets).IsReady.Should().BeTrue();
+        TravelGroupReadiness.Evaluate(members, "Submitted", stays, rooms, tickets).IsReady.Should().BeFalse();
         members[1].VisaDecision = "Rejected";
-        TravelGroupReadiness.Evaluate(members, "PartiallyApproved", stays, rooms).MembersWithoutVisa.Should().Be(1);
+        TravelGroupReadiness.Evaluate(members, "PartiallyApproved", stays, rooms, tickets).MembersWithoutVisa.Should().Be(1);
+    }
+
+    [Fact]
+    public void Ready_requires_every_confirmed_pilgrim_ticketed_out_and_back()
+    {
+        var members = new List<TravelGroupMemberDto>
+        {
+            new() { Id = 1, TravelerId = 101, Status = "Confirmed", VisaDecision = "Approved" },
+            new() { Id = 2, TravelerId = 102, Status = "Confirmed", VisaDecision = "Approved" },
+            new() { Id = 3, TravelerId = 103, Status = "Cancelled" }
+        };
+        var stays = new List<TravelGroupStayDto> { new() { Id = 11 } };
+        var rooms = new List<TravelGroupRoomDto> { new() { GroupHotelId = 11, MemberIds = [1, 2] } };
+
+        // 102 is only ticketed outbound; the cancelled pilgrim does not count.
+        var partial = TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms, [new(101, "RoundTrip"), new(102, "Outbound")]);
+        partial.MembersWithoutTickets.Should().Be(1);
+        partial.IsReady.Should().BeFalse();
+
+        TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms, []).MembersWithoutTickets.Should().Be(2);
+        TravelGroupReadiness.Evaluate(members, "Approved", stays, rooms,
+            [new(101, "RoundTrip"), new(102, "Outbound"), new(102, "Return")]).IsReady.Should().BeTrue();
     }
 
     [Fact]

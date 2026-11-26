@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<Features.TravelNexus.Documents.Commands.TravelDocumentGuard>();
         services.AddScoped<Features.TravelNexus.Checklists.Commands.TravelChecklistGuard>();
         services.AddScoped<Features.TravelNexus.Groups.Commands.TravelGroupGuard>();
+        services.AddScoped<Features.TravelNexus.Bookings.Commands.TravelBookingGuard>();
 
         return services;
     }
