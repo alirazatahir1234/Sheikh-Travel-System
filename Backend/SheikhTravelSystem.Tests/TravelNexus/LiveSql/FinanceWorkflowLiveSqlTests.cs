@@ -141,4 +141,47 @@ public class FinanceWorkflowLiveSqlTests(TravelNexusLiveDbFixture fx)
         (await b.Ok(new GetTravelCommissionBalancesQuery(null, null))).Should().BeEmpty();
         (await b.Ok(new GetTravelReportQuery(TravelReportGroup.Profit, "profit-loss", Today.AddDays(-1), Today.AddDays(60), null, null, null, null))).Rows.Should().BeEmpty();
     }
+
+    [TravelLiveSqlFact]
+    public async Task Two_concurrent_payouts_at_the_cap_let_exactly_one_through()
+    {
+        using var a = fx.Open(fx.A);
+        const decimal sell = 100000m;
+        const decimal rate = 5m;
+        var payable = sell * rate / 100m;
+        var depart = Today.AddDays(40).AddHours(7);
+
+        // A sub-agent referred the customer; their 5 % of sell becomes payable once the invoice is settled.
+        var subAgentId = await a.Ok(new SaveTravelSubAgentCommand(null, new SaveTravelSubAgentDto("Haramain Tours (E2E)", null, null, null, true)));
+        var customerId = await a.Ok(new CreateTravelCustomerCommand(new CreateTravelCustomerDto(
+            null, "Individual", "Zain Raza", "+92 333 0000002", null, null, "Karachi", null, null, null, null, fx.A.UserId, fx.A.BranchId, null, null, subAgentId)));
+        var travelerId = await a.Ok(new CreateTravelTravelerCommand(customerId, new SaveTravelTravelerDto(
+            null, "Zain", "Raza", "Male", new DateTime(1992, 7, 7), null, "PK", "FIN000002", "PK",
+            new DateTime(2022, 1, 1), new DateTime(2032, 1, 1), null, null, null, null, null, null)));
+        var bookingId = await a.Ok(new CreateTravelBookingCommand(new CreateTravelBookingDto(customerId, null, "KHI–JED one way (E2E cap)", null, null, fx.A.UserId, fx.A.BranchId, null)));
+        var flightId = await a.Ok(new SaveTravelFlightCommand(bookingId, null, new SaveTravelFlightDto(
+            null, "OneWay", null, null, sell, null, "PKR", null,
+            [new SaveTravelFlightSegmentDto("PK", "743", "KHI", "JED", depart, depart.AddHours(5), "Economy", null, null)],
+            [new SaveTravelFlightPassengerDto(travelerId, null, "Adult")])));
+        await a.Ok(new SaveTravelCommissionRuleCommand(null,
+            new SaveTravelCommissionRuleDto("SubAgent", null, subAgentId, "All", "PercentOfSell", rate, Today.AddDays(-30), null, true)));
+        var invoiceId = await a.Ok(new CreateTravelInvoiceCommand(new CreateTravelInvoiceDto(customerId, "PKR", Today, Today.AddDays(7), 0m, null,
+            [new SaveTravelInvoiceLineDto(string.Empty, 1, sell, "Flight", flightId)], [], null, subAgentId)));
+        await a.Ok(new IssueTravelInvoiceCommand(invoiceId, new IssueTravelInvoiceDto(Today, Today.AddDays(7))));
+        await a.Ok(new RecordTravelPaymentCommand(new RecordTravelPaymentDto(Guid.NewGuid(), customerId, Today, "Cash", null, sell, "PKR", true, null,
+            [new TravelAllocationInputDto(invoiceId, sell, null)])));
+        (await a.Ok(new GetTravelCommissionBalancesQuery("SubAgent", subAgentId))).Single(x => x.CurrencyCode == "PKR").Payable.Should().Be(payable);
+
+        // Two requests race for the whole payable: both pass the handler's read, only one survives the repository's lock.
+        using var s1 = fx.Open(fx.A);
+        using var s2 = fx.Open(fx.A);
+        RecordTravelCommissionPayoutCommand Payout() => new(new RecordTravelCommissionPayoutDto(Guid.NewGuid(), "SubAgent", subAgentId, Today, "Cash", null, payable, "PKR", null));
+        var results = await Task.WhenAll(s1.Send(Payout()), s2.Send(Payout()));
+
+        results.Count(r => r.Success).Should().Be(1, string.Join(" | ", results.Select(r => r.Message)));
+        results.Single(r => !r.Success).Message.Should().MatchRegex("payable|already");
+        var paid = (await a.Ok(new GetTravelCommissionPayoutsQuery("SubAgent", subAgentId))).Sum(p => p.Amount);
+        paid.Should().Be(payable, "never more than the payable commission leaves the company");
+        (await a.Ok(new GetTravelCommissionBalancesQuery("SubAgent", subAgentId))).Single(x => x.CurrencyCode == "PKR").Balance.Should().Be(0m);
+    }
 }

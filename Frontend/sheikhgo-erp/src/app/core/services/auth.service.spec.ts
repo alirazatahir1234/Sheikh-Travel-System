@@ -147,3 +147,49 @@ describe('AuthService session storage', () => {
     expect(localStorage.getItem('refresh_token')).toBe('refresh-2');
   });
 });
+
+/** Phase 8 security review: authorization is by permission only — a role name never grants anything in the UI. */
+describe('AuthService permission checks', () => {
+  const KEYS = ['access_token', 'refresh_token', 'current_user', 'home_route', 'session_login_at'];
+
+  function createWithUser(user: object): AuthService {
+    localStorage.setItem('current_user', JSON.stringify(user));
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: AppConfigService, useValue: { authMode: 'bearer' as AuthMode } },
+        { provide: Router, useValue: { navigateByUrl: () => Promise.resolve(true) } },
+        { provide: TenantContextService, useValue: { clear: () => undefined } }
+      ]
+    });
+    return TestBed.inject(AuthService);
+  }
+
+  beforeEach(() => KEYS.forEach(k => localStorage.removeItem(k)));
+  afterEach(() => KEYS.forEach(k => localStorage.removeItem(k)));
+
+  it('grants only what the token lists', () => {
+    const service = createWithUser({ fullName: 'Agent', role: 'Agent', roles: ['AGENT'], permissions: ['Travel.Visa.View'] });
+    expect(service.hasPermission('Travel.Visa.View')).toBeTrue();
+    expect(service.hasPermission('Travel.Visa.Manage')).toBeFalse();
+    expect(service.hasAnyPermission(['Travel.Visa.Manage', 'Travel.Visa.View'])).toBeTrue();
+    expect(service.hasAnyPermission(['Travel.Finance.View'])).toBeFalse();
+    expect(service.hasAnyPermission([])).toBeTrue();
+  });
+
+  it('never grants by role name, not even to the platform operator', () => {
+    for (const role of ['SUPER_ADMIN', 'SuperAdmin', 'SUPERADMIN', 'Super-Admin', 'TENANT_ADMIN']) {
+      KEYS.forEach(k => localStorage.removeItem(k));
+      TestBed.resetTestingModule();
+      const service = createWithUser({ fullName: 'Op', role: role, roles: [role], permissions: [] });
+      expect(service.hasPermission('Travel.Visa.View')).withContext(role).toBeFalse();
+      expect(service.hasAnyPermission(['Travel.Visa.View'])).withContext(role).toBeFalse();
+    }
+  });
+
+  it('is false with no signed-in user', () => {
+    const service = createWithUser({});
+    localStorage.removeItem('current_user');
+    expect(service.hasPermission('Travel.Visa.View')).toBeFalse();
+  });
+});

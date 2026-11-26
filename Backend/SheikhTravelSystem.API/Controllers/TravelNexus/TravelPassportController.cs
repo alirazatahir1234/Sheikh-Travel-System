@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.TravelNexus.Documents;
@@ -9,6 +10,7 @@ namespace SheikhTravelSystem.API.Controllers.TravelNexus;
 
 /// <summary>Passport photo-page scan (OCR + MRZ) to pre-fill a traveler. Nothing is stored.</summary>
 [Authorize]
+[EnableRateLimiting("general")] // uploads / OCR scans are the costliest TravelNexus calls; 60 req/min per IP outside Development
 [RequireModule(TenantModuleCatalog.TravelAgencyModuleCode)]
 [RequirePermission(TravelPermissions.CustomerManage)]
 [Route("api/travel/passport")]

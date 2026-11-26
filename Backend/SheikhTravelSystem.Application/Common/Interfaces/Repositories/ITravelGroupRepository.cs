@@ -55,7 +55,13 @@ public interface ITravelGroupRepository
         CancellationToken cancellationToken = default);
     Task<bool> ConfirmMemberAsync(int tenantId, int groupId, int memberId, int? userId, CancellationToken cancellationToken = default);
     /// <summary>Cancels the member and removes their room assignments.</summary>
-    Task<bool> CancelMemberAsync(int tenantId, int groupId, int memberId, string reason, int? userId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Cancels the member and, when <paramref name="withdrawal"/> is given, takes them off the group visa case in the same
+    /// transaction. False when the member is gone / already cancelled or the visa case is no longer in the expected status —
+    /// nothing is written in either case.
+    /// </summary>
+    Task<bool> CancelMemberAsync(int tenantId, int groupId, int memberId, string reason, int? userId, TravelVisaWithdrawal? withdrawal,
+        CancellationToken cancellationToken = default);
     Task<bool> UpdateMemberAsync(int tenantId, int groupId, int memberId, UpdateTravelGroupMemberDto dto, string? currencyCode,
         CancellationToken cancellationToken = default);
 

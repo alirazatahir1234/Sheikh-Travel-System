@@ -219,6 +219,13 @@ public sealed record TravelGroupMemberFacts(int MemberId, int TravelerId, int Cu
 
 public sealed record TravelGroupStatusChange(int GroupId, string ExpectedStatus, string NewStatus, string? Note, string? CancelReason = null);
 
+/// <summary>
+/// How a cancelled pilgrim leaves the group visa case, applied in the same transaction as the cancellation:
+/// removed while the case is pre-submission (<see cref="Remove"/>), otherwise recorded as a Withdrawn decision.
+/// <see cref="ExpectedCaseStatus"/> is the status the case was read in; a different status rolls the whole cancellation back.
+/// </summary>
+public sealed record TravelVisaWithdrawal(int CaseId, int ApplicantId, string ExpectedCaseStatus, bool Remove, string Note);
+
 public sealed record TravelGroupStayPlan(int HotelId, DateTime CheckIn, DateTime CheckOut, int Sequence);
 
 public sealed record TravelGroupNewMember(int TravelerId, int CustomerId, string RoomPreference, string PriceCategory, decimal? QuotedPrice, string? CurrencyCode);

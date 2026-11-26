@@ -219,7 +219,7 @@ public class TravelDashboardReportTests
         _facts.Setup(f => f.GetCostFactsAsync(Tenant, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new("Booking", 1, "PKR", 600, new DateTime(2027, 2, 1), false, "TSB-1", "Bill", 50)]);
         _facts.Setup(f => f.GetBillCreditsAsync(Tenant, It.IsAny<IReadOnlyList<int>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _commissions.Setup(c => c.GetAttributedInvoicesAsync(Tenant, null, null, null, null, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _commissions.Setup(c => c.GetAttributedInvoicesByIdsAsync(Tenant, It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _commissions.Setup(c => c.GetRulesAsync(Tenant, It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var result = await ReportHandler().Handle(new GetTravelReportQuery(TravelReportGroup.Profit, "profit-loss", new DateTime(2027, 1, 1), new DateTime(2027, 3, 31), null, null, null, null), default);

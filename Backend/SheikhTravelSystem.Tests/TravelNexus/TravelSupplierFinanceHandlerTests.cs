@@ -280,8 +280,43 @@ public class TravelSupplierFinanceHandlerTests
             .Handle(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(Guid.NewGuid(), "SubAgent", 3, DateTime.UtcNow, "Cash", null, 100, "PKR", null)), default);
 
         result.Success.Should().BeFalse();
-        _commissions.Verify(c => c.RecordPayoutAsync(It.IsAny<int>(), It.IsAny<RecordTravelCommissionPayoutDto>(), It.IsAny<int?>(), It.IsAny<DateTime>(),
+        _commissions.Verify(c => c.RecordPayoutAsync(It.IsAny<int>(), It.IsAny<RecordTravelCommissionPayoutDto>(), It.IsAny<decimal>(), It.IsAny<int?>(), It.IsAny<DateTime>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task A_payout_within_the_balance_is_recorded_with_the_gross_payable_as_its_cap()
+    {
+        // Sub-agent 3 earns 10 % of sell on a settled 1,000 PKR invoice (payable 100); 60 was paid out already.
+        _commissions.Setup(c => c.SubAgentExistsAsync(Tenant, 3, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _commissions.Setup(c => c.GetAttributedInvoicesAsync(Tenant, "SubAgent", 3, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TravelAttributedInvoiceFact(10, "TINV-1", new DateTime(2027, 2, 1), 5, "Khan family", "PKR", 0, null, null, 3, "Haramain Tours")]);
+        _facts.Setup(f => f.GetInvoiceContextKeysAsync(Tenant, It.IsAny<IReadOnlyList<int>>(), It.IsAny<CancellationToken>())).ReturnsAsync(["Booking:1"]);
+        _facts.Setup(f => f.GetContextsByKeyAsync(Tenant, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TravelContextFact("Booking", 1, "BKG-1", new DateTime(2027, 3, 1), null, null, null, null)]);
+        _facts.Setup(f => f.GetRevenueFactsAsync(Tenant, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TravelRevenueFact(10, "TINV-1", new DateTime(2027, 2, 1), "PKR", 1000, 0, 1000, "Flight", "Booking", 1, "Flight")]);
+        _facts.Setup(f => f.GetInvoiceCreditsAsync(Tenant, It.IsAny<IReadOnlyList<int>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _facts.Setup(f => f.GetCostFactsAsync(Tenant, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _facts.Setup(f => f.GetBillCreditsAsync(Tenant, It.IsAny<IReadOnlyList<int>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _commissions.Setup(c => c.GetRulesAsync(Tenant, It.IsAny<CancellationToken>())).ReturnsAsync(
+            [new TravelCommissionRuleDto { Id = 1, BeneficiaryType = "SubAgent", SubAgentId = 3, Scope = "All", Basis = "PercentOfSell", Rate = 10, ValidFrom = new DateTime(2027, 1, 1), IsActive = true }]);
+        _commissions.Setup(c => c.GetPayoutsAsync(Tenant, "SubAgent", 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TravelCommissionPayoutDto { Id = 1, BeneficiaryType = "SubAgent", BeneficiaryId = 3, CurrencyCode = "PKR", Amount = 60 }]);
+        _commissions.Setup(c => c.RecordPayoutAsync(Tenant, It.IsAny<RecordTravelCommissionPayoutDto>(), It.IsAny<decimal>(), 7, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TravelFinanceWriteResult(9, null));
+        var handler = new RecordTravelCommissionPayoutCommandHandler(_commissions.Object, Service, _tenant.Object, _user.Object);
+
+        var ok = await handler.Handle(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(Guid.NewGuid(), "SubAgent", 3, DateTime.UtcNow, "Cash", null, 40, "PKR", null)), default);
+        var tooMuch = await handler.Handle(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(Guid.NewGuid(), "SubAgent", 3, DateTime.UtcNow, "Cash", null, 41, "PKR", null)), default);
+
+        ok.Success.Should().BeTrue();
+        tooMuch.Success.Should().BeFalse();
+        tooMuch.Message.Should().Contain("40");
+        // The repository re-checks against committed payouts under its lock, so it gets the gross payable (100), not the remaining 40.
+        _commissions.Verify(c => c.RecordPayoutAsync(Tenant, It.Is<RecordTravelCommissionPayoutDto>(d => d.Amount == 40), 100m, 7, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+        _commissions.Verify(c => c.RecordPayoutAsync(It.IsAny<int>(), It.IsAny<RecordTravelCommissionPayoutDto>(), It.IsAny<decimal>(), It.IsAny<int?>(), It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

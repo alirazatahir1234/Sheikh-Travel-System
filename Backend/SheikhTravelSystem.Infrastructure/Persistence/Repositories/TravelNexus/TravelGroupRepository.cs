@@ -5,6 +5,7 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.TravelNexus.Common;
 using SheikhTravelSystem.Application.Features.TravelNexus.Groups.DTOs;
+using SheikhTravelSystem.Application.Features.TravelNexus.VisaCases.DTOs;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories.TravelNexus;
 
@@ -469,7 +470,8 @@ public sealed class TravelGroupRepository(IDbConnectionFactory dbFactory) : ITra
         return true;
     }
 
-    public async Task<bool> CancelMemberAsync(int tenantId, int groupId, int memberId, string reason, int? userId, CancellationToken cancellationToken = default)
+    public async Task<bool> CancelMemberAsync(int tenantId, int groupId, int memberId, string reason, int? userId, TravelVisaWithdrawal? withdrawal,
+        CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         connection.Open();
@@ -493,6 +495,23 @@ public sealed class TravelGroupRepository(IDbConnectionFactory dbFactory) : ITra
               AND GroupLeaderTravelerId = (SELECT TravelerId FROM TravelGroupMembers WHERE Id = @MemberId AND TenantId = @TenantId);
             """, new { MemberId = memberId, GroupId = groupId, TenantId = tenantId, Reason = reason }, tx, cancellationToken: cancellationToken));
         await HistoryAsync(connection, tx, tenantId, groupId, memberId, "MemberCancelled", previous, "Cancelled", reason, userId, cancellationToken);
+
+        if (withdrawal is not null)
+        {
+            // Same transaction as the cancellation: a visa case that moved meanwhile rolls the pilgrim's cancellation back too.
+            var ok = withdrawal.Remove
+                ? await TravelVisaCaseRepository.RemoveApplicantCoreAsync(connection, tx, tenantId, withdrawal.CaseId, withdrawal.ApplicantId,
+                    withdrawal.ExpectedCaseStatus, userId, cancellationToken)
+                : (await TravelVisaCaseRepository.RecordDecisionCoreAsync(connection, tx, tenantId, withdrawal.CaseId, withdrawal.ApplicantId,
+                    withdrawal.ExpectedCaseStatus, new RecordTravelVisaDecisionDto("Withdrawn", null, null, null, null, null, withdrawal.Note),
+                    userId, DateTime.UtcNow, cancellationToken)).Applied;
+            if (!ok)
+            {
+                tx.Rollback();
+                return false;
+            }
+        }
+
         tx.Commit();
         return true;
     }

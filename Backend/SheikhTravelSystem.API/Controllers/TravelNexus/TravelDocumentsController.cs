@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.TravelNexus.Documents;
@@ -14,6 +15,7 @@ namespace SheikhTravelSystem.API.Controllers.TravelNexus;
 /// <c>GET files/{fileId}</c> (Travel.Document.Download, audited fail-closed) — no URLs are returned.
 /// </summary>
 [Authorize]
+[EnableRateLimiting("general")] // uploads / OCR scans are the costliest TravelNexus calls; 60 req/min per IP outside Development
 [RequireModule(TenantModuleCatalog.TravelAgencyModuleCode)]
 [RequirePermission(TravelPermissions.VisaView)]
 [Route("api/travel/documents")]

@@ -178,11 +178,13 @@ public class RecordTravelCommissionPayoutCommandHandler(ITravelCommissionReposit
         if (fx is null) return ApiResponse<int>.FailResponse("Set the reporting currency in Travel settings first.");
         var (_, lines) = await profitability.CommissionLinesAsync(tenantId, fx, dto.BeneficiaryType, dto.BeneficiaryId, null, null, cancellationToken);
         var payouts = await repository.GetPayoutsAsync(tenantId, dto.BeneficiaryType, dto.BeneficiaryId, cancellationToken);
-        var balance = TravelCommissionEngine.Balances(lines, payouts).FirstOrDefault(b => b.CurrencyCode == dto.CurrencyCode)?.Balance ?? 0;
+        var row = TravelCommissionEngine.Balances(lines, payouts).FirstOrDefault(b => b.CurrencyCode == dto.CurrencyCode);
+        var balance = row?.Balance ?? 0;
         if (dto.Amount > balance)
             return ApiResponse<int>.FailResponse(balance > 0 ? $"Only {balance:0.##} {dto.CurrencyCode} is payable to this beneficiary."
                 : $"Nothing is payable to this beneficiary in {dto.CurrencyCode}.");
-        var result = await repository.RecordPayoutAsync(tenantId, dto, currentUser.UserId, DateTime.UtcNow, cancellationToken);
+        // The gross payable is the cap the repository re-checks under its lock against the payouts committed by then.
+        var result = await repository.RecordPayoutAsync(tenantId, dto, row?.Payable ?? 0, currentUser.UserId, DateTime.UtcNow, cancellationToken);
         if (result.Error is not null) return ApiResponse<int>.FailResponse(result.Error);
         return ApiResponse<int>.SuccessResponse(result.Id, result.Replayed ? "This payout was already recorded." : "Commission payout recorded.");
     }

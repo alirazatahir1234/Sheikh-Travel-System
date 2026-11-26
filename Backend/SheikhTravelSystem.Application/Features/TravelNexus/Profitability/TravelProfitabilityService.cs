@@ -31,8 +31,7 @@ public sealed class TravelProfitabilityService(ITravelProfitabilityRepository fa
         var billCredits = await facts.GetBillCreditsAsync(tenantId, costs.Where(c => c.BillId.HasValue).Select(c => c.BillId!.Value).Distinct().ToList(), ct);
         var profit = TravelProfitabilityEngine.Compute(contexts, revenue, credits, costs, billCredits, fx);
 
-        var invoiceSet = invoiceIds.ToHashSet();
-        var attributed = (await commissions.GetAttributedInvoicesAsync(tenantId, null, null, null, null, ct)).Where(i => invoiceSet.Contains(i.InvoiceId)).ToList();
+        var attributed = await commissions.GetAttributedInvoicesByIdsAsync(tenantId, invoiceIds, ct);
         var commission = TravelCommissionEngine.Compute(attributed, profit.Lines, await commissions.GetRulesAsync(tenantId, ct), fx);
         foreach (var (key, amount) in commission.CommissionByContext)
             if (profit.Contexts.TryGetValue(key, out var ctx)) ctx.Commission += amount;

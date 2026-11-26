@@ -20,8 +20,16 @@ public interface ITravelCommissionRepository
     /// <summary>Issued invoices attributed to a staff agent or sub-agent (optionally one beneficiary; issue date range applied).</summary>
     Task<IReadOnlyList<TravelAttributedInvoiceFact>> GetAttributedInvoicesAsync(int tenantId, string? beneficiaryType, int? beneficiaryId,
         DateTime? issuedFrom, DateTime? issuedTo, CancellationToken cancellationToken = default);
+    /// <summary>The attributed subset of the given invoices (used by profitability so only the contexts in hand are loaded).</summary>
+    Task<IReadOnlyList<TravelAttributedInvoiceFact>> GetAttributedInvoicesByIdsAsync(int tenantId, IReadOnlyCollection<int> invoiceIds,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TravelCommissionPayoutDto>> GetPayoutsAsync(int tenantId, string? beneficiaryType, int? beneficiaryId, CancellationToken cancellationToken = default);
-    Task<TravelFinanceWriteResult> RecordPayoutAsync(int tenantId, RecordTravelCommissionPayoutDto dto, int? userId, DateTime utcNow,
+    /// <summary>
+    /// Records a payout under a per-beneficiary lock: inside the transaction the payouts already recorded for the beneficiary
+    /// and currency are summed and the write is refused when <c>paid + Amount</c> would exceed <paramref name="payableCap"/>
+    /// (the gross payable commission the handler computed), so two concurrent payouts cannot both pass the balance check.
+    /// </summary>
+    Task<TravelFinanceWriteResult> RecordPayoutAsync(int tenantId, RecordTravelCommissionPayoutDto dto, decimal payableCap, int? userId, DateTime utcNow,
         CancellationToken cancellationToken = default);
     Task<bool> UpdateAttributionAsync(int tenantId, int invoiceId, int? agentUserId, int? subAgentId, int? userId, CancellationToken cancellationToken = default);
 }

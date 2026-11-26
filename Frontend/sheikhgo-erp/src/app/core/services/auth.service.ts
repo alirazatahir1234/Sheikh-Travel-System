@@ -219,17 +219,13 @@ export class AuthService {
   hasPermission(permission: string): boolean {
     const user = this.getCurrentUser();
     if (!user) return false;
-    // SUPER_ADMIN / SuperAdmin / SUPERADMIN — platform operator bypass.
-    if (user.roles?.some(r => {
-      const code = (r || '').toUpperCase().replace(/[\s-]/g, '_');
-      return code === 'SUPER_ADMIN' || code === 'SUPERADMIN';
-    })) return true;
+    // Authorization is by permission only (Backend/CLAUDE.md). The platform operator's permissions arrive in the
+    // token like everyone else's; a role name never grants anything here, so the UI can never show more than the API allows.
     return user.permissions?.includes(permission) ?? false;
   }
 
   hasAnyPermission(permissions: string[]): boolean {
     if (!permissions.length) return true;
-    if (this.hasRole('SUPER_ADMIN') || this.hasRole('SuperAdmin') || this.hasRole('SUPERADMIN')) return true;
     return permissions.some(p => this.hasPermission(p));
   }
 

@@ -141,8 +141,8 @@ public class UpdateTravelGroupMemberCommandHandler(ITravelGroupRepository reposi
 
 /// <summary>
 /// Cancels a pilgrim (reason required) and frees their beds. When the group visa case exists the pilgrim is also
-/// taken off it: removed before submission, recorded as Withdrawn after. The visa update is a second step; if it
-/// cannot be applied the response says so and the visa case must be updated manually.
+/// taken off it in the same transaction: removed before submission, recorded as Withdrawn after. If the case moved
+/// meanwhile nothing is written and the caller is told to reload.
 /// </summary>
 public record CancelTravelGroupMemberCommand(int GroupId, int MemberId, CancelTravelGroupMemberDto Cancellation) : IRequest<ApiResponse<bool>>, IAuditableCommand
 {
@@ -175,30 +175,32 @@ public class CancelTravelGroupMemberCommandHandler(ITravelGroupRepository reposi
         if (member.Status == "Cancelled") return ApiResponse<bool>.FailResponse("The pilgrim is already cancelled.");
 
         var reason = request.Cancellation.Reason.Trim();
-        if (!await repository.CancelMemberAsync(tenantId, state.Id, request.MemberId, reason, currentUser.UserId, cancellationToken))
-            throw new ConflictException(TravelGroupGuard.ConflictMessage);
+        var withdrawal = await PlanWithdrawalAsync(state, member.TravelerId, reason, tenantId, cancellationToken);
+        if (!await repository.CancelMemberAsync(tenantId, state.Id, request.MemberId, reason, currentUser.UserId, withdrawal, cancellationToken))
+            throw new ConflictException(withdrawal is null
+                ? TravelGroupGuard.ConflictMessage
+                : "The pilgrim or the group visa case changed meanwhile — nothing was cancelled. Reload and try again.");
 
-        var visaNote = await WithdrawFromVisaCaseAsync(state, member.TravelerId, reason, tenantId, cancellationToken);
         // Bookings are never changed implicitly: tickets carry penalties and refunds the agent must record.
         var ticketNote = (await repository.GetTicketFactsAsync(state.Id, tenantId, cancellationToken) ?? []).Any(t => t.TravelerId == member.TravelerId)
             ? " The pilgrim still holds an issued ticket — cancel it in the group's booking." : string.Empty;
+        var visaNote = withdrawal is null ? string.Empty : " Removed from the group visa case.";
         return ApiResponse<bool>.SuccessResponse(true, "Pilgrim cancelled." + visaNote + ticketNote);
     }
 
-    private async Task<string> WithdrawFromVisaCaseAsync(TravelGroupState state, int travelerId, string reason, int tenantId, CancellationToken ct)
+    /// <summary>What the cancellation must do to the group visa case, if anything; applied by the repository in the same transaction.</summary>
+    private async Task<TravelVisaWithdrawal?> PlanWithdrawalAsync(TravelGroupState state, int travelerId, string reason, int tenantId, CancellationToken ct)
     {
-        if (state.VisaCaseId is not int caseId) return string.Empty;
+        if (state.VisaCaseId is not int caseId) return null;
         var visa = await visaCases.GetStateAsync(caseId, tenantId, TravelBranchScope.CompanyWide, ct);
-        if (visa is null || VisaCaseStateMachine.IsTerminal(visa.Status)) return string.Empty;
+        if (visa is null || VisaCaseStateMachine.IsTerminal(visa.Status)) return null;
         var applicant = (await visaCases.GetApplicantsAsync(caseId, tenantId, ct)).FirstOrDefault(a => a.TravelerId == travelerId);
-        if (applicant is null || applicant.Decision == "Withdrawn") return string.Empty;
+        if (applicant is null || applicant.Decision == "Withdrawn") return null;
 
-        var ok = VisaCaseStateMachine.IsPreSubmission(visa.Status)
-            ? await visaCases.RemoveApplicantAsync(tenantId, caseId, applicant.Id, visa.Status, currentUser.UserId, ct)
-            : VisaCaseStateMachine.AcceptsDecisions(visa.Status)
-              && (await visaCases.RecordDecisionAsync(tenantId, caseId, applicant.Id, visa.Status,
-                  new VisaCases.DTOs.RecordTravelVisaDecisionDto("Withdrawn", null, null, null, null, null, $"Pilgrim cancelled: {reason}"),
-                  currentUser.UserId, DateTime.UtcNow, ct)).Applied;
-        return ok ? " Removed from the group visa case." : " The group visa case could not be updated — update it manually.";
+        if (VisaCaseStateMachine.IsPreSubmission(visa.Status))
+            return new TravelVisaWithdrawal(caseId, applicant.Id, visa.Status, Remove: true, $"Pilgrim cancelled: {reason}");
+        return VisaCaseStateMachine.AcceptsDecisions(visa.Status)
+            ? new TravelVisaWithdrawal(caseId, applicant.Id, visa.Status, Remove: false, $"Pilgrim cancelled: {reason}")
+            : null;
     }
 }

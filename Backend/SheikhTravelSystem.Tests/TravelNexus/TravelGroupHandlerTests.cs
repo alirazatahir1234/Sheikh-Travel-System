@@ -197,28 +197,69 @@ public class TravelGroupHandlerTests
     private CancelTravelGroupMemberCommandHandler CancelHandler()
         => new(_groups.Object, _visa.Object, Guard, _scope.Object, _tenant.Object, _user.Object);
 
-    [Theory]
-    [InlineData("Submitted", true)]
-    [InlineData("DocumentsPending", false)]
-    public async Task Cancelling_a_pilgrim_takes_them_off_the_group_visa_case(string visaStatus, bool expectWithdrawn)
+    private void GivenGroupVisaCase(string visaStatus, string applicantDecision = "Pending")
     {
-        GivenGroup("VisaProcessing", visaCaseId: 88);
-        GivenMembers(new TravelGroupMemberFacts(1, 101, 30, "Male", "Adult", "Quad", null, "Confirmed"));
-        _groups.Setup(g => g.CancelMemberAsync(Tenant, GroupId, 1, "Medical", 7, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _visa.Setup(v => v.GetStateAsync(88, Tenant, It.IsAny<TravelBranchScope>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TravelVisaCaseState(88, null, visaStatus, null, null, "SA", 3, null, null, GroupId));
         _visa.Setup(v => v.GetApplicantsAsync(88, Tenant, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new TravelVisaApplicantDto { Id = 500, TravelerId = 101, Decision = "Pending" }]);
-        _visa.Setup(v => v.RecordDecisionAsync(Tenant, 88, 500, visaStatus, It.IsAny<RecordTravelVisaDecisionDto>(), 7, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TravelVisaDecisionResult(true, null));
-        _visa.Setup(v => v.RemoveApplicantAsync(Tenant, 88, 500, visaStatus, 7, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            .ReturnsAsync([new TravelVisaApplicantDto { Id = 500, TravelerId = 101, Decision = applicantDecision }]);
+    }
+
+    [Theory]
+    [InlineData("Submitted", false)]
+    [InlineData("InProcessing", false)]
+    [InlineData("DocumentsPending", true)]
+    [InlineData("Draft", true)]
+    public async Task Cancelling_a_pilgrim_withdraws_them_from_the_group_visa_case_in_the_same_write(string visaStatus, bool expectRemoval)
+    {
+        GivenGroup("VisaProcessing", visaCaseId: 88);
+        GivenMembers(new TravelGroupMemberFacts(1, 101, 30, "Male", "Adult", "Quad", null, "Confirmed"));
+        GivenGroupVisaCase(visaStatus);
+        TravelVisaWithdrawal? passed = null;
+        _groups.Setup(g => g.CancelMemberAsync(Tenant, GroupId, 1, "Medical", 7, It.IsAny<TravelVisaWithdrawal?>(), It.IsAny<CancellationToken>()))
+            .Callback<int, int, int, string, int?, TravelVisaWithdrawal?, CancellationToken>((_, _, _, _, _, w, _) => passed = w)
+            .ReturnsAsync(true);
 
         var result = await CancelHandler().Handle(new CancelTravelGroupMemberCommand(GroupId, 1, new CancelTravelGroupMemberDto("Medical")), CancellationToken.None);
 
         result.Message.Should().Contain("Removed from the group visa case");
-        _visa.Verify(v => v.RecordDecisionAsync(Tenant, 88, 500, visaStatus, It.Is<RecordTravelVisaDecisionDto>(d => d.Decision == "Withdrawn"), 7,
-            It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), expectWithdrawn ? Times.Once() : Times.Never());
-        _visa.Verify(v => v.RemoveApplicantAsync(Tenant, 88, 500, visaStatus, 7, It.IsAny<CancellationToken>()), expectWithdrawn ? Times.Never() : Times.Once());
+        // The repository applies the withdrawal inside the cancellation's transaction; the handler never calls the visa repository to write.
+        passed.Should().Be(new TravelVisaWithdrawal(88, 500, visaStatus, expectRemoval, "Pilgrim cancelled: Medical"));
+        _visa.Verify(v => v.RecordDecisionAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<RecordTravelVisaDecisionDto>(),
+            It.IsAny<int?>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        _visa.Verify(v => v.RemoveApplicantAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Cancelled", "Pending")]
+    [InlineData("Approved", "Pending")]
+    [InlineData("Submitted", "Withdrawn")]
+    public async Task A_decided_case_or_an_already_withdrawn_applicant_needs_no_visa_step(string visaStatus, string decision)
+    {
+        GivenGroup("VisaProcessing", visaCaseId: 88);
+        GivenMembers(new TravelGroupMemberFacts(1, 101, 30, "Male", "Adult", "Quad", null, "Confirmed"));
+        GivenGroupVisaCase(visaStatus, decision);
+        _groups.Setup(g => g.CancelMemberAsync(Tenant, GroupId, 1, "Medical", 7, null, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var result = await CancelHandler().Handle(new CancelTravelGroupMemberCommand(GroupId, 1, new CancelTravelGroupMemberDto("Medical")), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().NotContain("visa case");
+        _groups.Verify(g => g.CancelMemberAsync(Tenant, GroupId, 1, "Medical", 7, null, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task A_visa_case_that_moved_meanwhile_rolls_the_cancellation_back_and_asks_to_reload()
+    {
+        GivenGroup("VisaProcessing", visaCaseId: 88);
+        GivenMembers(new TravelGroupMemberFacts(1, 101, 30, "Male", "Adult", "Quad", null, "Confirmed"));
+        GivenGroupVisaCase("Submitted");
+        _groups.Setup(g => g.CancelMemberAsync(Tenant, GroupId, 1, "Medical", 7, It.IsAny<TravelVisaWithdrawal?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false); // the repository found the case in another status and rolled everything back
+
+        var act = () => CancelHandler().Handle(new CancelTravelGroupMemberCommand(GroupId, 1, new CancelTravelGroupMemberDto("Medical")), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>()).Which.Message.Should().Contain("nothing was cancelled");
     }
 
     // ── Rooming & transport ────────────────────────────────────────────────

@@ -180,6 +180,30 @@ public sealed class TravelCommissionRepository(IDbConnectionFactory dbFactory) :
             """, p, cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<IReadOnlyList<TravelAttributedInvoiceFact>> GetAttributedInvoicesByIdsAsync(int tenantId, IReadOnlyCollection<int> invoiceIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (invoiceIds.Count == 0) return [];
+        using var connection = dbFactory.CreateConnection();
+        var result = new List<TravelAttributedInvoiceFact>();
+        foreach (var chunk in invoiceIds.Distinct().Chunk(1000))
+        {
+            result.AddRange(await connection.QueryAsync<TravelAttributedInvoiceFact>(new CommandDefinition($"""
+                SELECT i.Id AS InvoiceId, i.InvoiceNumber, i.IssueDate, i.CustomerId, c.FullName AS CustomerName, i.CurrencyCode, d.Balance,
+                       i.AgentUserId, u.FullName AS AgentName, i.SubAgentId, sa.Name AS SubAgentName
+                FROM TravelInvoices i
+                INNER JOIN Customers c ON c.Id = i.CustomerId AND c.TenantId = i.TenantId
+                LEFT JOIN Users u ON u.Id = i.AgentUserId AND u.TenantId = i.TenantId
+                LEFT JOIN TravelSubAgents sa ON sa.Id = i.SubAgentId AND sa.TenantId = i.TenantId
+                {TravelInvoiceRepository.Money}
+                WHERE i.TenantId = @TenantId AND i.IsDeleted = 0 AND i.Status = N'Issued'
+                  AND (i.AgentUserId IS NOT NULL OR i.SubAgentId IS NOT NULL) AND i.Id IN @Ids
+                ORDER BY i.IssueDate DESC, i.Id DESC
+                """, new { TenantId = tenantId, Today = DateTime.UtcNow.Date, Ids = chunk }, cancellationToken: cancellationToken)));
+        }
+        return result;
+    }
+
     public async Task<IReadOnlyList<TravelCommissionPayoutDto>> GetPayoutsAsync(int tenantId, string? beneficiaryType, int? beneficiaryId,
         CancellationToken cancellationToken = default)
     {
@@ -193,7 +217,7 @@ public sealed class TravelCommissionRepository(IDbConnectionFactory dbFactory) :
             """, new { TenantId = tenantId, Type = beneficiaryType, BeneficiaryId = beneficiaryId }, cancellationToken: cancellationToken))).ToList();
     }
 
-    public async Task<TravelFinanceWriteResult> RecordPayoutAsync(int tenantId, RecordTravelCommissionPayoutDto dto, int? userId, DateTime utcNow,
+    public async Task<TravelFinanceWriteResult> RecordPayoutAsync(int tenantId, RecordTravelCommissionPayoutDto dto, decimal payableCap, int? userId, DateTime utcNow,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -209,6 +233,32 @@ public sealed class TravelCommissionRepository(IDbConnectionFactory dbFactory) :
                 tx.Commit();
                 return new TravelFinanceWriteResult(replay, null, Replayed: true);
             }
+
+            // One payout at a time per beneficiary: the balance check in the handler runs outside this transaction, so the
+            // cap is re-checked here against the payouts already committed, under an application lock scoped to the transaction.
+            var locked = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                DECLARE @Result INT;
+                EXEC @Result = sp_getapplock @Resource = @Resource, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 5000;
+                SELECT @Result;
+                """, new { Resource = $"TravelPayout:{tenantId}:{dto.BeneficiaryType}:{dto.BeneficiaryId}" }, tx, cancellationToken: cancellationToken));
+            if (locked < 0)
+            {
+                tx.Rollback();
+                return TravelFinanceWriteResult.Fail("This payout is being recorded already. Reload the list.");
+            }
+            var paid = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
+                SELECT ISNULL(SUM(Amount), 0) FROM TravelCommissionPayouts
+                WHERE TenantId = @TenantId AND BeneficiaryType = @Type AND COALESCE(UserId, SubAgentId) = @BeneficiaryId AND CurrencyCode = @Currency
+                """, new { TenantId = tenantId, Type = dto.BeneficiaryType, dto.BeneficiaryId, Currency = dto.CurrencyCode }, tx, cancellationToken: cancellationToken));
+            var remaining = payableCap - paid;
+            if (dto.Amount > remaining)
+            {
+                tx.Rollback();
+                return TravelFinanceWriteResult.Fail(remaining > 0
+                    ? $"Only {remaining:0.##} {dto.CurrencyCode} is payable to this beneficiary."
+                    : $"Nothing is payable to this beneficiary in {dto.CurrencyCode}.");
+            }
+
             var number = await TravelNumberAllocator.NextAsync(connection, tx, tenantId, TravelNumberAllocator.Kind.Payout, utcNow, cancellationToken);
             var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
                 INSERT INTO TravelCommissionPayouts (TenantId, PayoutNumber, BeneficiaryType, UserId, SubAgentId, PaidOn, Method, Reference, Amount, CurrencyCode,

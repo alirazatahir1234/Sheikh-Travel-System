@@ -273,13 +273,11 @@ export class GroupPilgrimsTabComponent {
     const m = this.editing()!;
     this.busy.set(true);
     this.api.cancelMember(this.group().id, m.id, this.cancelReason.trim()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {
+      next: ({ message }) => {
         this.busy.set(false);
         this.cancelOpen.set(false);
-        // The visa-case withdrawal is a second step on the server; its outcome is not in the unwrapped response.
-        this.toast.success(this.group().visaCaseId
-          ? `${m.travelerName} cancelled. Check the group visa case shows them removed or withdrawn.`
-          : `${m.travelerName} cancelled.`);
+        // The server says what happened in the same write (visa case withdrawal, a ticket still held).
+        this.toast.success(message ?? `${m.travelerName} cancelled.`);
         this.changed.emit();
       },
       error: err => { this.busy.set(false); this.dialogError.set(apiErrorMessage(err, 'Could not cancel the pilgrim.')); }

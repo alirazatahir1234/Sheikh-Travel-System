@@ -63,13 +63,14 @@ export const permissionGuard: CanActivateFn = (
   );
 };
 
+/**
+ * Tenant administrators may open the AI module's routes before its permissions are assigned. The platform operator
+ * is deliberately not listed: their access comes from the permissions in their token, never from the role name.
+ */
 function isElevatedAdmin(auth: AuthService): boolean {
   const roles = auth.getCurrentUser()?.roles ?? [];
   return roles.some(r => {
     const code = r.toUpperCase();
-    return code === 'ADMIN'
-      || code === 'SUPER_ADMIN'
-      || code === 'TENANT_ADMIN'
-      || code === 'SUPERADMIN';
+    return code === 'ADMIN' || code === 'TENANT_ADMIN';
   });
 }

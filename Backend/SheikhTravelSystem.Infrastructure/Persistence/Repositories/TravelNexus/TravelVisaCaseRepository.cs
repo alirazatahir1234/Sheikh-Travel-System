@@ -318,22 +318,25 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
+        var ok = await RemoveApplicantCoreAsync(connection, tx, tenantId, caseId, applicantId, expectedStatus, userId, cancellationToken);
+        if (ok) tx.Commit(); else tx.Rollback();
+        return ok;
+    }
 
-        if (await LockCaseAsync(connection, tx, tenantId, caseId, expectedStatus, cancellationToken) is null)
-        {
-            tx.Rollback();
-            return false;
-        }
+    /// <summary>
+    /// The applicant-removal statements on a caller-owned transaction (also used by <see cref="TravelGroupRepository.CancelMemberAsync"/>
+    /// so a pilgrim's cancellation and their removal commit or roll back together). Returns false without touching the transaction.
+    /// </summary>
+    internal static async Task<bool> RemoveApplicantCoreAsync(IDbConnection connection, IDbTransaction tx, int tenantId, int caseId, int applicantId,
+        string expectedStatus, int? userId, CancellationToken cancellationToken)
+    {
+        if (await LockCaseAsync(connection, tx, tenantId, caseId, expectedStatus, cancellationToken) is null) return false;
 
         var rows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TravelVisaApplicants SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME()
             WHERE Id = @ApplicantId AND VisaCaseId = @CaseId AND TenantId = @TenantId AND IsDeleted = 0
             """, new { ApplicantId = applicantId, CaseId = caseId, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
-        if (rows == 0)
-        {
-            tx.Rollback();
-            return false;
-        }
+        if (rows == 0) return false;
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TravelApplicantDocuments SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME()
@@ -341,7 +344,6 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
             """, new { ApplicantId = applicantId, CaseId = caseId, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
 
         await InsertHistoryAsync(connection, tx, tenantId, caseId, applicantId, "ApplicantRemoved", "Pending", null, null, userId, cancellationToken);
-        tx.Commit();
         return true;
     }
 
@@ -351,22 +353,26 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
+        var result = await RecordDecisionCoreAsync(connection, tx, tenantId, caseId, applicantId, expectedCaseStatus, d, userId, nowUtc, cancellationToken);
+        if (result.Applied) tx.Commit(); else tx.Rollback();
+        return result;
+    }
 
+    /// <summary>
+    /// The decision statements on a caller-owned transaction (also used by <see cref="TravelGroupRepository.CancelMemberAsync"/> to
+    /// record a Withdrawn decision atomically with the cancellation). Never commits or rolls back.
+    /// </summary>
+    internal static async Task<TravelVisaDecisionResult> RecordDecisionCoreAsync(IDbConnection connection, IDbTransaction tx, int tenantId, int caseId,
+        int applicantId, string expectedCaseStatus, RecordTravelVisaDecisionDto d, int? userId, DateTime nowUtc, CancellationToken cancellationToken)
+    {
         if (await LockCaseAsync(connection, tx, tenantId, caseId, expectedCaseStatus, cancellationToken) is null)
-        {
-            tx.Rollback();
             return new TravelVisaDecisionResult(false, null);
-        }
 
         var previous = await connection.ExecuteScalarAsync<string?>(new CommandDefinition("""
             SELECT Decision FROM TravelVisaApplicants
             WHERE Id = @ApplicantId AND VisaCaseId = @CaseId AND TenantId = @TenantId AND IsDeleted = 0
             """, new { ApplicantId = applicantId, CaseId = caseId, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
-        if (previous is null)
-        {
-            tx.Rollback();
-            return new TravelVisaDecisionResult(false, null);
-        }
+        if (previous is null) return new TravelVisaDecisionResult(false, null);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TravelVisaApplicants SET
@@ -401,7 +407,6 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
                 "All applicants decided", userId, cancellationToken);
         }
 
-        tx.Commit();
         return new TravelVisaDecisionResult(true, outcome);
     }
 

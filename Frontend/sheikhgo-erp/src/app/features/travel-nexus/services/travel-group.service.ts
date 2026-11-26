@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../../environments/environment';
+import { apiMessageOf } from '../../../core/interceptors/api-envelope.interceptor';
 import { PagedResult, normalizePagedResult } from '../../../core/models/common.model';
 import {
   TravelGroup, TravelGroupListItem, TravelGroupManifest, TravelGroupStatus, TravelGroupSummary, TravelGroupTransitionAction,
@@ -46,8 +47,10 @@ export class TravelGroupService {
   updateMember(id: number, memberId: number, dto: { roomPreference: TravelRoomType; priceCategory: TravelPriceCategory; quotedPrice: number | null }): Observable<boolean> {
     return this.http.put<boolean>(`${this.base}/${id}/members/${memberId}`, dto);
   }
-  cancelMember(id: number, memberId: number, reason: string): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/${id}/members/${memberId}/cancel`, { reason });
+  /** The server's message says what else happened (visa case withdrawal, a ticket still held) — surface it. */
+  cancelMember(id: number, memberId: number, reason: string): Observable<{ ok: boolean; message: string | null }> {
+    return this.http.post<boolean>(`${this.base}/${id}/members/${memberId}/cancel`, { reason }, { observe: 'response' })
+      .pipe(map(res => ({ ok: res.body ?? true, message: apiMessageOf(res) })));
   }
 
   saveStay(id: number, stayId: number | null, dto: { hotelId: number; checkIn: string; checkOut: string; confirmationNumber: string | null }): Observable<number> {
