@@ -10,7 +10,8 @@ namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 
 public sealed class GpsTripPersistenceService(
     IFleetTripModeRepository fleetTripModeRepository,
-    IDbConnectionFactory dbFactory) : IGpsTripPersistenceService
+    IDbConnectionFactory dbFactory,
+    ITenantTimeZoneResolver timeZoneResolver) : IGpsTripPersistenceService
 {
     private const string DailyAutoSource = "DailyAuto";
     private const string SegmentSource = "Segment";
@@ -109,7 +110,10 @@ public sealed class GpsTripPersistenceService(
             return;
         }
 
-        var timeZone = TenantTimeZoneHelper.Resolve(ctx.TimeZoneId);
+        // Daily trip boundaries follow the vehicle's branch timezone, else the tenant's, else the platform default.
+        var timeZone = TenantTimeZoneHelper.Resolve(
+            await timeZoneResolver.GetVehicleTimeZoneIdAsync(vehicleId, ctx.TenantId, cancellationToken),
+            timeZoneResolver.DefaultTimeZoneId);
         var todayLocal = TenantTimeZoneHelper.UtcToLocalDate(DateTime.UtcNow, timeZone);
         var dates = new[] { todayLocal.AddDays(-1), todayLocal };
 

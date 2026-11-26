@@ -18,7 +18,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Gps;
 /// Vehicles without an assigned (non-deleted) tracker are Offline — never Online via orphan VCL.
 /// Ignition uses COALESCE(vcl.Ignition, gd.LastIgnition) — same as live fleet.
 /// </summary>
-public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
+public sealed class GpsFleetStatusCalculator(ITenantTimeZoneResolver timeZoneResolver) : IGpsFleetStatusCalculator
 {
     private static string BuildStatusBucketSql(IReadOnlyList<string> sosAlarmValues)
     {
@@ -117,7 +117,9 @@ public sealed class GpsFleetStatusCalculator : IGpsFleetStatusCalculator
                 parameters,
                 cancellationToken: cancellationToken));
 
-        var todayStart = DateTime.UtcNow.Date;
+        // Tenant-local midnight, not UTC midnight (05:00 in Asia/Karachi).
+        var todayStart = TenantTimeZoneHelper.LocalTodayStartUtc(
+            await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken), DateTime.UtcNow);
         var alertClauses = new List<string>
         {
             "v.TenantId = @TenantId",

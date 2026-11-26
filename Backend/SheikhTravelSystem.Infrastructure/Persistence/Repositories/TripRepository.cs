@@ -1,4 +1,5 @@
 using Dapper;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -18,8 +19,15 @@ public sealed class TripRepository(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
-    IDataScopeEngine dataScopeEngine) : ITripRepository
+    IDataScopeEngine dataScopeEngine,
+    ITenantTimeZoneResolver timeZoneResolver) : ITripRepository
 {
+    /// <summary>The tenant's local calendar date today (TripDate is a local date, not a UTC instant).</summary>
+    private async Task<DateTime> TenantTodayAsync(int tenantId, CancellationToken cancellationToken) =>
+        TenantTimeZoneHelper.UtcToLocalDate(
+                DateTime.UtcNow, await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken))
+            .ToDateTime(TimeOnly.MinValue);
+
     public async Task<int> CreateAsync(CreateTripDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -945,7 +953,7 @@ public sealed class TripRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var today = DateTime.UtcNow.Date;
+        var today = await TenantTodayAsync(tenantId, cancellationToken);
 
         var clauses = new List<string> { "t.IsDeleted = 0", "t.TenantId = @TenantId" };
         var parameters = new DynamicParameters(new
@@ -1029,19 +1037,20 @@ public sealed class TripRepository(
 
         DateTime? effectiveFrom = dateFrom;
         DateTime? dateToExclusive = dateTo?.Date.AddDays(1);
+        var tenantToday = await TenantTodayAsync(tenantId, cancellationToken);
         if (todayOnly)
         {
-            effectiveFrom = DateTime.UtcNow.Date;
+            effectiveFrom = tenantToday;
             dateToExclusive = effectiveFrom.Value.AddDays(1);
         }
         else if (tomorrowOnly)
         {
-            effectiveFrom = DateTime.UtcNow.Date.AddDays(1);
+            effectiveFrom = tenantToday.AddDays(1);
             dateToExclusive = effectiveFrom.Value.AddDays(1);
         }
         else if (upcomingOnly)
         {
-            effectiveFrom = DateTime.UtcNow.Date.AddDays(1);
+            effectiveFrom = tenantToday.AddDays(1);
             dateToExclusive = null;
             clauses.Add("t.Status NOT IN (@Completed, @Cancelled, @Failed)");
         }
@@ -1258,7 +1267,7 @@ public sealed class TripRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var today = DateTime.UtcNow.Date;
+        var today = await TenantTodayAsync(tenantId, cancellationToken);
 
         var clauses = new List<string>
         {
@@ -1302,7 +1311,7 @@ public sealed class TripRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var toDate = (to ?? DateTime.UtcNow).Date;
+        var toDate = (to ?? await TenantTodayAsync(tenantId, cancellationToken)).Date;
         var fromDate = (from ?? toDate.AddDays(-29)).Date;
         var toExclusive = toDate.AddDays(1);
 

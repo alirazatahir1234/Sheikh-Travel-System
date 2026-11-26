@@ -95,9 +95,16 @@ public static class AnalyticsReportHelper
         }
     }
 
-    public static DateTime ComputeNextRunAt(string frequency, DateTime? fromUtc = null)
+    /// <summary>
+    /// Next run at 06:00 local time in <paramref name="timeZone"/> (the tenant's), returned in UTC.
+    /// Without a timezone, 06:00 UTC (previous behaviour).
+    /// </summary>
+    public static DateTime ComputeNextRunAt(string frequency, DateTime? fromUtc = null, TimeZoneInfo? timeZone = null)
     {
-        var baseTime = (fromUtc ?? DateTime.UtcNow).Date.AddHours(6);
+        var from = fromUtc ?? DateTime.UtcNow;
+        var baseTime = timeZone is null
+            ? from.Date.AddHours(6)
+            : TenantTimeZoneHelper.LocalDayStartUtc(TenantTimeZoneHelper.UtcToLocalDate(from, timeZone), timeZone).AddHours(6);
         return frequency.ToLowerInvariant() switch
         {
             "daily" => baseTime.AddDays(1),

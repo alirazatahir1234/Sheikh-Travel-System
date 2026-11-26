@@ -31,6 +31,14 @@ public sealed partial class PlatformRepository
         using var connection = dbFactory.CreateConnection();
         await ValidateBranchAsync(connection, tenantId, null, payload, cancellationToken);
         var isActive = payload.Status == (int)BranchStatus.Active;
+        // New branch without a timezone inherits the tenant's (UAE tenant → Asia/Dubai), else the platform default.
+        if (string.IsNullOrWhiteSpace(payload.TimeZone))
+        {
+            payload = payload with
+            {
+                TimeZone = await timeZoneResolver.GetTenantTimeZoneIdAsync(tenantId, cancellationToken)
+            };
+        }
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO Branches (
                 TenantId, ParentBranchId, BranchCode, Name, BranchType, BranchManagerUserId,

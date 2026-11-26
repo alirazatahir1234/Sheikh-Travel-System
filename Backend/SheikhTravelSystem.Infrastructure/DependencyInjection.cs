@@ -101,6 +101,9 @@ public static class DependencyInjection
         services.AddScoped<IGpsTraccarFleetFetcher, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTraccarFleetFetcher>();
         services.AddScoped<IGpsTripPersistenceService, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTripPersistenceService>();
         services.AddScoped<IFleetTripModeRepository, FleetTripModeRepository>();
+        services.Configure<SheikhTravelSystem.Application.Common.LocalizationOptions>(
+            configuration.GetSection(SheikhTravelSystem.Application.Common.LocalizationOptions.SectionName));
+        services.AddScoped<ITenantTimeZoneResolver, SheikhTravelSystem.Infrastructure.Services.TenantTimeZoneResolver>();
         services.AddScoped<ITripVehicleQueryHelper, SheikhTravelSystem.Infrastructure.Services.Gps.TripVehicleQueryHelper>();
         services.AddScoped<IPublicLeadRepository, PublicLeadRepository>();
         services.AddScoped<ITrackingRepository, TrackingRepository>();

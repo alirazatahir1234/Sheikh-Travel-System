@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Common;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
@@ -23,15 +24,25 @@ public static class FleetReportHelper
     /// Resolves an inclusive calendar date range into a half-open [from, toExclusive) window.
     /// Date-only "to" values (midnight) are treated as that calendar day inclusive.
     /// </summary>
-    public static (DateTime From, DateTime ToExclusive) ResolveDateRange(DateTime? from, DateTime? to)
+    /// <param name="timeZone">
+    /// Tenant timezone for the defaults only (this month / through today in the tenant's calendar).
+    /// Explicit <paramref name="from"/>/<paramref name="to"/> values are used as sent.
+    /// </param>
+    public static (DateTime From, DateTime ToExclusive) ResolveDateRange(
+        DateTime? from, DateTime? to, TimeZoneInfo? timeZone = null)
     {
+        var today = timeZone is null
+            ? DateTime.UtcNow.Date
+            : DateTime.SpecifyKind(
+                TenantTimeZoneHelper.UtcToLocalDate(DateTime.UtcNow, timeZone).ToDateTime(TimeOnly.MinValue),
+                DateTimeKind.Utc);
         var resolvedFrom = from?.Date
-            ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            ?? new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         DateTime toExclusive;
         if (!to.HasValue)
         {
-            toExclusive = DateTime.UtcNow.Date.AddDays(1);
+            toExclusive = today.AddDays(1);
         }
         else if (to.Value.TimeOfDay == TimeSpan.Zero)
         {

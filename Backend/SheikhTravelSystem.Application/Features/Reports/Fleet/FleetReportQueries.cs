@@ -37,14 +37,16 @@ public partial class GetFleetReportQueryHandler(
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
     ICurrentUserService currentUser,
-    IDataScopeEngine dataScopeEngine)
+    IDataScopeEngine dataScopeEngine,
+    ITenantTimeZoneResolver timeZoneResolver)
     : IRequestHandler<GetFleetReportQuery, ApiResponse<ReportResponseDto>>
 {
     public async Task<ApiResponse<ReportResponseDto>> Handle(GetFleetReportQuery request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         var reportType = FleetReportHelper.NormalizeReportType(request.ReportType);
-        var (from, to) = FleetReportHelper.ResolveDateRange(request.From, request.To);
+        var (from, to) = FleetReportHelper.ResolveDateRange(
+            request.From, request.To, await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken));
 
         DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)

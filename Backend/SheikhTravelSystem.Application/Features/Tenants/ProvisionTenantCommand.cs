@@ -42,7 +42,8 @@ public record ProvisionTenantCommand : IRequest<ApiResponse<int>>
     // 4. Contact & localization
     public string? Country { get; init; } = "United Arab Emirates";
     public string? CurrencyCode { get; init; } = AppConstants.DefaultCurrency;
-    public string? TimeZone { get; init; } = "Asia/Dubai";
+    /// <summary>IANA timezone; null/blank → platform default (Localization:DefaultTimeZone).</summary>
+    public string? TimeZone { get; init; }
     public string? Website { get; init; }
     public string? SupportEmail { get; init; }
 

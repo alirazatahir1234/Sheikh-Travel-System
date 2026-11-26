@@ -7,7 +7,9 @@ using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
-public sealed class FleetTripModeRepository(IDbConnectionFactory dbFactory) : IFleetTripModeRepository
+public sealed class FleetTripModeRepository(
+    IDbConnectionFactory dbFactory,
+    ITenantTimeZoneResolver timeZoneResolver) : IFleetTripModeRepository
 {
     public async Task<FleetTripModeSettingsDto> GetSettingsAsync(int tenantId, CancellationToken cancellationToken = default)
     {
@@ -23,10 +25,10 @@ public sealed class FleetTripModeRepository(IDbConnectionFactory dbFactory) : IF
             LEFT JOIN TenantBranding b ON b.TenantId = t.Id
             WHERE t.Id = @TenantId
             """,
-            new { TenantId = tenantId, DefaultTz = TenantTimeZoneHelper.DefaultTimeZoneId },
+            new { TenantId = tenantId, DefaultTz = timeZoneResolver.DefaultTimeZoneId },
             cancellationToken: cancellationToken));
 
-        return ToDto(row.Mode, row.TimeZone);
+        return ToDto(row.Mode, row.TimeZone, timeZoneResolver.DefaultTimeZoneId);
     }
 
     public async Task<FleetTripModeSettingsDto> UpsertSettingsAsync(
@@ -82,7 +84,7 @@ public sealed class FleetTripModeRepository(IDbConnectionFactory dbFactory) : IF
             cancellationToken: cancellationToken));
     }
 
-    private static FleetTripModeSettingsDto ToDto(string modeStorage, string? timeZoneId)
+    private static FleetTripModeSettingsDto ToDto(string modeStorage, string? timeZoneId, string defaultTimeZoneId)
     {
         var mode = FleetTripCreationModeNames.Parse(modeStorage);
         var description = mode switch
@@ -95,7 +97,7 @@ public sealed class FleetTripModeRepository(IDbConnectionFactory dbFactory) : IF
 
         return new FleetTripModeSettingsDto(
             mode,
-            timeZoneId ?? TenantTimeZoneHelper.DefaultTimeZoneId,
+            timeZoneId ?? defaultTimeZoneId,
             description);
     }
 

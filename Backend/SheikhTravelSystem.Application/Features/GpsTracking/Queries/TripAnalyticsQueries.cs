@@ -131,7 +131,9 @@ public record GetGpsFleetStatusQuery : IRequest<ApiResponse<GpsFleetStatusDto>>;
 
 public class GetGpsFleetStatusQueryHandler(
     ITraccarClient traccarClient,
-    IOptions<TraccarOptions> traccarOptions)
+    IOptions<TraccarOptions> traccarOptions,
+    ITenantContext tenantContext,
+    ITenantTimeZoneResolver timeZoneResolver)
     : IRequestHandler<GetGpsFleetStatusQuery, ApiResponse<GpsFleetStatusDto>>
 {
     /// <summary>~10 km/h in knots (Traccar position speed unit).</summary>
@@ -192,7 +194,11 @@ public class GetGpsFleetStatusQueryHandler(
                 idle++;
         }
 
-        var todayStart = DateTime.UtcNow.Date;
+        // "Today" starts at the tenant's local midnight (platform default when no tenant is in context).
+        var todayZone = tenantContext.TenantId is int tid
+            ? await timeZoneResolver.GetTenantTimeZoneAsync(tid, cancellationToken)
+            : TenantTimeZoneHelper.Resolve(timeZoneResolver.DefaultTimeZoneId, timeZoneResolver.DefaultTimeZoneId);
+        var todayStart = TenantTimeZoneHelper.LocalTodayStartUtc(todayZone, DateTime.UtcNow);
         double? todayDistanceKm = null;
         if (devices.Count > 0)
         {

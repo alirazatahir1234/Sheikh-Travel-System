@@ -71,21 +71,19 @@ public sealed partial class GpsTrackingRepository
         return "Valid";
     }
 
-    private static (DateTime? From, DateTime? To) ResolveDateRange(string? datePreset, DateTime? from, DateTime? to)
+    /// <summary>Date presets use the tenant's local days (platform default timezone when no tenant is given).</summary>
+    private async Task<(DateTime? From, DateTime? To)> ResolveDateRangeAsync(
+        string? datePreset, DateTime? from, DateTime? to, int? tenantId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(datePreset))
             return (from, to);
 
-        var today = DateTime.UtcNow.Date;
-        return datePreset.Trim().ToLowerInvariant() switch
-        {
-            "today" => (today, today.AddDays(1).AddTicks(-1)),
-            "yesterday" => (today.AddDays(-1), today.AddTicks(-1)),
-            "last7" => (today.AddDays(-6), today.AddDays(1).AddTicks(-1)),
-            "last30" => (today.AddDays(-29), today.AddDays(1).AddTicks(-1)),
-            "last24" => (DateTime.UtcNow.AddHours(-24), DateTime.UtcNow),
-            _ => (from, to)
-        };
+        var zone = tenantId is int id
+            ? await timeZoneResolver.GetTenantTimeZoneAsync(id, cancellationToken)
+            : TenantTimeZoneHelper.Resolve(timeZoneResolver.DefaultTimeZoneId, timeZoneResolver.DefaultTimeZoneId);
+        return TenantTimeZoneHelper.ResolvePresetRangeUtc(datePreset, zone, DateTime.UtcNow) is { } range
+            ? (range.From, range.To)
+            : (from, to);
     }
 
     private static (double Lat, double Lng) ResolvePickupCoordinates(string? routeSource)

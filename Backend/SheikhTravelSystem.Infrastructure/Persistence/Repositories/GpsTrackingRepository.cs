@@ -53,8 +53,14 @@ public sealed partial class GpsTrackingRepository(
     ILocationBroadcastService broadcaster,
     IDriverPerformanceScoringRepository driverPerformanceScoring,
     IPlaybackCoordinateStorage playbackCoordinateStorage,
+    ITenantTimeZoneResolver timeZoneResolver,
     ILogger<GpsTrackingRepository> logger) : IGpsTrackingRepository
 {
+    /// <summary>UTC instant of local midnight "today" in the tenant's timezone (not UTC midnight).</summary>
+    private async Task<DateTime> TenantTodayStartUtcAsync(int tenantId, CancellationToken cancellationToken) =>
+        TenantTimeZoneHelper.LocalTodayStartUtc(
+            await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken), DateTime.UtcNow);
+
     private readonly IGpsAlertWriter _alertWriter = alertWriter;
     private readonly IDriverTelematicsEnforcementService _telematicsEnforcement = telematicsEnforcement;
     private readonly IOptions<TraccarOptions> _traccarOptions = traccarOptions;
@@ -85,7 +91,8 @@ public sealed partial class GpsTrackingRepository(
 
         var normalizedFrequency = AnalyticsReportHelper.NormalizeFrequency(body.Frequency);
         var recipients = AnalyticsReportHelper.NormalizeRecipients(body.Recipients);
-        var nextRun = AnalyticsReportHelper.ComputeNextRunAt(normalizedFrequency);
+        var nextRun = AnalyticsReportHelper.ComputeNextRunAt(
+            normalizedFrequency, timeZone: await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken));
         var filtersJson = AnalyticsReportHelper.SerializeFilters(body.Filters);
         var createdBy = currentUser.UserId?.ToString() ?? "system";
 
@@ -144,7 +151,8 @@ public sealed partial class GpsTrackingRepository(
         }
 
         var nextRun = normalizedFrequency is not null
-            ? AnalyticsReportHelper.ComputeNextRunAt(normalizedFrequency)
+            ? AnalyticsReportHelper.ComputeNextRunAt(
+                normalizedFrequency, timeZone: await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken))
             : (DateTime?)null;
 
         await connection.ExecuteAsync(new CommandDefinition("""
@@ -994,11 +1002,14 @@ public sealed partial class GpsTrackingRepository(
 
     public async Task<ApiResponse<TrendsDto>> GetAnalyticsTrendsAsync(GetAnalyticsTrendsQuery request, CancellationToken cancellationToken = default)
     {
-        var fromDate = (request.FromDate ?? DateTime.UtcNow.AddMonths(-3)).Date;
-        var toDate = (request.ToDate ?? DateTime.UtcNow).Date;
-
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        // StatDate is a tenant-local calendar date: default range ends on the tenant's local today.
+        var tenantToday = TenantTimeZoneHelper.UtcToLocalDate(
+                DateTime.UtcNow, await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken))
+            .ToDateTime(TimeOnly.MinValue);
+        var fromDate = (request.FromDate ?? tenantToday.AddMonths(-3)).Date;
+        var toDate = (request.ToDate ?? tenantToday).Date;
 
         var rows = (await connection.QueryAsync<(DateTime StatDate, decimal DistanceKm, int TripCount, int? OverspeedCount)>(
             new CommandDefinition(
@@ -1331,6 +1342,7 @@ public sealed partial class GpsTrackingRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        var todayStart = await TenantTodayStartUtcAsync(tenantId, cancellationToken);
 
         // Geofences.TenantId is added by TenantSchemaMigration — Total/Active are tenant-scoped.
         var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
@@ -1345,15 +1357,15 @@ public sealed partial class GpsTrackingRepository(
             @"SELECT COUNT(1) FROM GpsAlertEvents e
               INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
               WHERE e.EventType = 'geofence_enter' AND e.IsDeleted = 0
-              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)",
-            new { TenantId = tenantId },
+              AND e.Timestamp >= @TodayStart",
+            new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));
         var todayExits = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"SELECT COUNT(1) FROM GpsAlertEvents e
               INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
               WHERE e.EventType = 'geofence_exit' AND e.IsDeleted = 0
-              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)",
-            new { TenantId = tenantId },
+              AND e.Timestamp >= @TodayStart",
+            new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));
         var unacked = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"SELECT COUNT(*) FROM GpsAlertEvents e
@@ -1373,7 +1385,7 @@ public sealed partial class GpsTrackingRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var from = request.From ?? DateTime.UtcNow.Date.AddDays(-7);
+        var from = request.From ?? (await TenantTodayStartUtcAsync(tenantId, cancellationToken)).AddDays(-7);
         var to = request.To ?? DateTime.UtcNow.AddDays(1);
 
         var rows = await connection.QueryAsync<GpsAlertEventDto>(new CommandDefinition(
@@ -1518,7 +1530,7 @@ public sealed partial class GpsTrackingRepository(
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
         var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
-        var (from, to) = ResolveDateRange(request.DatePreset, request.From, request.To);
+        var (from, to) = await ResolveDateRangeAsync(request.DatePreset, request.From, request.To, tenantId, cancellationToken);
 
         var clauses = new List<string> { "e.IsDeleted = 0", "v.TenantId = @TenantId" };
         var parameters = new DynamicParameters();
@@ -1739,6 +1751,7 @@ public sealed partial class GpsTrackingRepository(
         };
         var parameters = new DynamicParameters();
         parameters.Add("TenantId", tenantId);
+        parameters.Add("TodayStart", await TenantTodayStartUtcAsync(tenantId, cancellationToken));
 
         if (currentUser.UserId is int userId)
         {
@@ -1755,7 +1768,7 @@ public sealed partial class GpsTrackingRepository(
         var sql = $"""
             SELECT
                 COUNT(*) AS Total,
-                SUM(CASE WHEN CAST(e.Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
+                SUM(CASE WHEN e.Timestamp >= @TodayStart THEN 1 ELSE 0 END) AS Today,
                 SUM(CASE WHEN e.ReadAt IS NULL AND e.Status <> 'archived' THEN 1 ELSE 0 END) AS Unread,
                 SUM(CASE WHEN e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Active,
                 SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
@@ -1786,7 +1799,7 @@ public sealed partial class GpsTrackingRepository(
 
         using var connection = dbFactory.CreateConnection();
         var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
-        var (from, to) = ResolveDateRange(request.DatePreset, request.From, request.To);
+        var (from, to) = await ResolveDateRangeAsync(request.DatePreset, request.From, request.To, request.TenantId, cancellationToken);
 
         var clauses = new List<string> { "e.IsDeleted = 0", "v.IsDeleted = 0" };
         var parameters = new DynamicParameters();
@@ -1921,6 +1934,12 @@ public sealed partial class GpsTrackingRepository(
             clauses.Add("v.TenantId = @TenantId");
             parameters.Add("TenantId", request.TenantId.Value);
         }
+        // Platform view across tenants uses the platform default timezone for "today".
+        parameters.Add("TodayStart", request.TenantId.HasValue
+            ? await TenantTodayStartUtcAsync(request.TenantId.Value, cancellationToken)
+            : TenantTimeZoneHelper.LocalTodayStartUtc(
+                TenantTimeZoneHelper.Resolve(timeZoneResolver.DefaultTimeZoneId, timeZoneResolver.DefaultTimeZoneId),
+                DateTime.UtcNow));
 
         if (allowedEventTypes is not null)
         {
@@ -1931,7 +1950,7 @@ public sealed partial class GpsTrackingRepository(
         var sql = $"""
             SELECT
                 COUNT(*) AS Total,
-                SUM(CASE WHEN CAST(e.Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
+                SUM(CASE WHEN e.Timestamp >= @TodayStart THEN 1 ELSE 0 END) AS Today,
                 SUM(CASE WHEN e.ReadAt IS NULL AND e.Status <> 'archived' THEN 1 ELSE 0 END) AS Unread,
                 SUM(CASE WHEN e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Active,
                 SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
@@ -2136,7 +2155,7 @@ public sealed partial class GpsTrackingRepository(
             gpsSettings,
             traccarOptions,
             cancellationToken);
-        var todayStart = DateTime.UtcNow.Date;
+        var todayStart = await TenantTodayStartUtcAsync(tenantId, cancellationToken);
 
         var health = await connection.QuerySingleAsync<(int Healthy, int Offline, int WeakGsm, int LowBattery, int NoGps, int IgnitionOn)>(
             new CommandDefinition(
@@ -2322,7 +2341,7 @@ public sealed partial class GpsTrackingRepository(
 
         if (key.Contains("alert") || key.Contains("summarize"))
         {
-            var todayStart = DateTime.UtcNow.Date;
+            var todayStart = await TenantTodayStartUtcAsync(tenantId, cancellationToken);
             var stats = await connection.QuerySingleAsync<(int Total, int Critical, int Unread)>(
                 new CommandDefinition(
                     """
@@ -2347,7 +2366,7 @@ public sealed partial class GpsTrackingRepository(
 
         if (key.Contains("geofence"))
         {
-            var todayStart = DateTime.UtcNow.Date;
+            var todayStart = await TenantTodayStartUtcAsync(tenantId, cancellationToken);
             var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 """
                 SELECT COUNT(*) FROM GpsAlertEvents e
@@ -3201,7 +3220,7 @@ public sealed partial class GpsTrackingRepository(
 
     public async Task<ApiResponse<AnalyticsOverviewDto>> GetAnalyticsOverviewAsync(GetAnalyticsOverviewQuery request, CancellationToken cancellationToken = default)
     {
-        var todayStart = DateTime.UtcNow.Date;
+        var todayStart = await TenantTodayStartUtcAsync(tenantContext.GetRequiredTenantId(), cancellationToken);
         var now = DateTime.UtcNow;
 
         var fleetStatusTask = mediator.Send(new GetGpsFleetStatusLocalQuery(), cancellationToken);

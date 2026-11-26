@@ -68,9 +68,9 @@ public sealed partial class GpsTrackingRepository
             SELECT COUNT(1) FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             WHERE e.EventType IN ('overspeed', 'speed_exceeded') AND e.IsDeleted = 0
-              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)
+              AND e.Timestamp >= @TodayStart
             """,
-            new { TenantId = tenantId },
+            new { TenantId = tenantId, TodayStart = await TenantTodayStartUtcAsync(tenantId, cancellationToken) },
             cancellationToken: cancellationToken));
     }
 

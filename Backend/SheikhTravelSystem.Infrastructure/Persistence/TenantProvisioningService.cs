@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Tenants;
@@ -10,7 +11,8 @@ namespace SheikhTravelSystem.Infrastructure.Persistence;
 
 public class TenantProvisioningService(
     IDbConnectionFactory dbFactory,
-    IPasswordHasher passwordHasher) : ITenantProvisioningService
+    IPasswordHasher passwordHasher,
+    IOptions<LocalizationOptions> localization) : ITenantProvisioningService
 {
     private static readonly (string Name, string Code)[] DefaultRoles =
     [
@@ -26,6 +28,15 @@ public class TenantProvisioningService(
 
     public async Task<int> ProvisionAsync(ProvisionTenantCommand request, int? createdByUserId, CancellationToken cancellationToken = default)
     {
+        // One timezone for branding, the General/Timezone setting and the HQ branch: the requested one,
+        // else the platform default (Localization:DefaultTimeZone). An explicit value (e.g. Asia/Dubai) is kept.
+        request = request with
+        {
+            TimeZone = string.IsNullOrWhiteSpace(request.TimeZone)
+                ? localization.Value.EffectiveDefaultTimeZone
+                : request.TimeZone.Trim()
+        };
+
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var transaction = connection.BeginTransaction();
@@ -232,7 +243,7 @@ public class TenantProvisioningService(
         {
             ("CompanyName", request.Name.Trim()),
             ("DefaultCurrency", request.CurrencyCode ?? AppConstants.DefaultCurrency),
-            ("Timezone", request.TimeZone ?? "Asia/Dubai"),
+            ("Timezone", request.TimeZone),
             ("Language", "en-AE"),
         };
 
