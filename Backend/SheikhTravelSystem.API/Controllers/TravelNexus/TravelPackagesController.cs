@@ -54,9 +54,10 @@ public class TravelPackagesController : BaseApiController
 
     /// <summary>Publish | Archive.</summary>
     [RequirePermission(TravelPermissions.PackageManage)]
-    [HttpPost("packages/{id:int}/{action:regex(^(publish|archive)$)}")]
-    public async Task<IActionResult> ChangeStatus(int id, string action)
-        => Ok(await Mediator.Send(new ChangeTravelPackageStatusCommand(id, action == "publish" ? "Publish" : "Archive")));
+    // "action" is a reserved route value name in ASP.NET Core — using it with a constraint crashes startup.
+    [HttpPost("packages/{id:int}/{statusAction:regex(^(publish|archive)$)}")]
+    public async Task<IActionResult> ChangeStatus(int id, string statusAction)
+        => Ok(await Mediator.Send(new ChangeTravelPackageStatusCommand(id, statusAction == "publish" ? "Publish" : "Archive")));
 
     [RequirePermission(TravelPermissions.PackageManage)]
     [HttpDelete("packages/{id:int}")]
