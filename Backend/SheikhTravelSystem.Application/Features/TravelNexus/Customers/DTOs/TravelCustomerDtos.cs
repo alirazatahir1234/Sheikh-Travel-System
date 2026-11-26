@@ -31,6 +31,9 @@ public class TravelCustomerDto : TravelCustomerListItemDto
     public string? AlternatePhone { get; set; }
     public int? LeadSourceId { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Sub-agent who referred the customer (default sub-agent on their invoices).</summary>
+    public int? SubAgentId { get; set; }
+    public string? SubAgentName { get; set; }
     /// <summary>True when <see cref="Cnic"/> was masked for this caller.</summary>
     public bool PiiMasked { get; set; }
 }
@@ -54,7 +57,8 @@ public record CreateTravelCustomerDto(
     int? AssignedAgentUserId,
     int? BranchId,
     int? LeadSourceId,
-    string? Notes);
+    string? Notes,
+    int? SubAgentId = null);
 
 /// <summary>Update payload. <c>Cnic</c> null or a masked value keeps the stored CNIC; empty string clears it.</summary>
 public record UpdateTravelCustomerDto(
@@ -71,7 +75,8 @@ public record UpdateTravelCustomerDto(
     int? AssignedAgentUserId,
     int? BranchId,
     int? LeadSourceId,
-    string? Notes);
+    string? Notes,
+    int? SubAgentId = null);
 
 /// <summary>Minimal reference used for scope checks by dependent features (travelers, enquiries…).</summary>
 public sealed record TravelCustomerRef(int CustomerId, int? BranchId);

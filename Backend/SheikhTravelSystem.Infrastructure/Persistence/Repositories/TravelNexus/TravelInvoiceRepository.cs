@@ -200,9 +200,12 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
         var args = new { Id = id, TenantId = tenantId, Today = DateTime.UtcNow.Date };
         var invoice = await connection.QuerySingleOrDefaultAsync<TravelInvoiceDto>(new CommandDefinition($"""
             {ListSelect},
-                   i.Subtotal, i.DiscountAmount, i.Notes, i.IssuedAt, i.VoidedAt, i.VoidReason, i.BranchId, br.Name AS BranchName
+                   i.Subtotal, i.DiscountAmount, i.Notes, i.IssuedAt, i.VoidedAt, i.VoidReason, i.BranchId, br.Name AS BranchName,
+                   i.AgentUserId, ag.FullName AS AgentName, i.SubAgentId, sa.Name AS SubAgentName
             {ListJoins}
             LEFT JOIN Branches br ON br.Id = i.BranchId AND br.TenantId = i.TenantId
+            LEFT JOIN Users ag ON ag.Id = i.AgentUserId AND ag.TenantId = i.TenantId
+            LEFT JOIN TravelSubAgents sa ON sa.Id = i.SubAgentId AND sa.TenantId = i.TenantId
             {Money}
             WHERE i.Id = @Id AND i.TenantId = @TenantId AND i.IsDeleted = 0
             """, args, cancellationToken: cancellationToken));
@@ -337,10 +340,18 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
         {
             var id = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
                 INSERT INTO TravelInvoices (TenantId, CustomerId, BookingId, VisaCaseId, GroupId, CurrencyCode, IssueDate, DueDate, Subtotal,
-                    DiscountAmount, Total, Status, BranchId, Notes, CreatedBy)
+                    DiscountAmount, Total, Status, BranchId, Notes, AgentUserId, SubAgentId, CreatedBy)
                 SELECT @TenantId, c.Id, @BookingId, @VisaCaseId, @GroupId, @CurrencyCode, @IssueDate, @DueDate, @Subtotal,
-                    @DiscountAmount, @Total, N'Draft', @BranchId, @Notes, @UserId
-                FROM Customers c WHERE c.Id = @CustomerId AND c.TenantId = @TenantId;
+                    @DiscountAmount, @Total, N'Draft', @BranchId, @Notes,
+                    COALESCE(@AgentUserId,
+                        (SELECT bk.AssignedAgentUserId FROM TravelBookings bk WHERE bk.Id = @BookingId AND bk.TenantId = @TenantId),
+                        (SELECT vc.AssignedAgentUserId FROM TravelVisaCases vc WHERE vc.Id = @VisaCaseId AND vc.TenantId = @TenantId),
+                        cp.AssignedAgentUserId),
+                    COALESCE(@SubAgentId, (SELECT sa.Id FROM TravelSubAgents sa WHERE sa.Id = cp.SubAgentId AND sa.TenantId = @TenantId AND sa.IsDeleted = 0)),
+                    @UserId
+                FROM Customers c
+                LEFT JOIN TravelCustomerProfiles cp ON cp.CustomerId = c.Id AND cp.TenantId = c.TenantId AND cp.IsDeleted = 0
+                WHERE c.Id = @CustomerId AND c.TenantId = @TenantId;
                 SELECT CAST(SCOPE_IDENTITY() AS INT);
                 """, HeaderArgs(tenantId, h, userId), tx, cancellationToken: cancellationToken)) ?? 0;
             if (id == 0)
@@ -373,7 +384,8 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
             args.Add("Id", id);
             var rows = await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE TravelInvoices SET BookingId = @BookingId, VisaCaseId = @VisaCaseId, GroupId = @GroupId, IssueDate = @IssueDate, DueDate = @DueDate,
-                    Subtotal = @Subtotal, DiscountAmount = @DiscountAmount, Total = @Total, Notes = @Notes, UpdatedAt = SYSUTCDATETIME()
+                    Subtotal = @Subtotal, DiscountAmount = @DiscountAmount, Total = @Total, Notes = @Notes,
+                    AgentUserId = COALESCE(@AgentUserId, AgentUserId), SubAgentId = COALESCE(@SubAgentId, SubAgentId), UpdatedAt = SYSUTCDATETIME()
                 WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Draft'
                 """, args, tx, cancellationToken: cancellationToken));
             if (rows == 0)
@@ -714,6 +726,8 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
         p.Add("Total", h.Total);
         p.Add("BranchId", h.BranchId);
         p.Add("Notes", h.Notes);
+        p.Add("AgentUserId", h.AgentUserId);
+        p.Add("SubAgentId", h.SubAgentId);
         p.Add("UserId", userId);
         return p;
     }

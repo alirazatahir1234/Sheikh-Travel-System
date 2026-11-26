@@ -31,6 +31,7 @@ public class UpdateTravelCustomerCommandValidator : AbstractValidator<UpdateTrav
 
 public class UpdateTravelCustomerCommandHandler(
     ITravelCustomerRepository repository,
+    ITravelCommissionRepository commissions,
     ITravelBranchScopeResolver scopeResolver,
     ITenantContext tenantContext)
     : IRequestHandler<UpdateTravelCustomerCommand, ApiResponse<bool>>
@@ -51,6 +52,8 @@ public class UpdateTravelCustomerCommandHandler(
             tenantId, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, cancellationToken);
         if (refError is not null)
             return ApiResponse<bool>.FailResponse(refError);
+        if (dto.SubAgentId is int subAgentId && !await commissions.SubAgentExistsAsync(tenantId, subAgentId, cancellationToken))
+            return ApiResponse<bool>.FailResponse("Referring sub-agent not found.");
 
         // null or a masked echo keeps the stored CNIC; "" clears it.
         string? cnic;

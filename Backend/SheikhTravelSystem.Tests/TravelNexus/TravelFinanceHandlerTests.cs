@@ -77,7 +77,7 @@ public class TravelFinanceHandlerTests
         var calls = new Func<Task>[]
         {
             () => new GetTravelInvoiceByIdQueryHandler(_invoices.Object, Guard, _tenant.Object).Handle(new GetTravelInvoiceByIdQuery(InvoiceId), default),
-            () => new UpdateTravelInvoiceCommandHandler(_invoices.Object, Guard, _tenant.Object, _user.Object)
+            () => new UpdateTravelInvoiceCommandHandler(_invoices.Object, Mock.Of<ITravelCommissionRepository>(), Guard, _tenant.Object, _user.Object)
                 .Handle(new UpdateTravelInvoiceCommand(InvoiceId, new UpdateTravelInvoiceDto(null, null, 0, null, [new("Fee", 1, 1, null, null)], [])), default),
             () => new IssueTravelInvoiceCommandHandler(_invoices.Object, _config.Object, Guard, _tenant.Object, _user.Object)
                 .Handle(new IssueTravelInvoiceCommand(InvoiceId, new IssueTravelInvoiceDto(null, null)), default),
@@ -95,7 +95,7 @@ public class TravelFinanceHandlerTests
                 .Handle(new IssueTravelCreditNoteCommand(new IssueTravelCreditNoteDto(Guid.NewGuid(), InvoiceId, 10, "x", null, null)), default),
             () => new RecordTravelRefundCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
                 .Handle(new RecordTravelRefundCommand(new RecordTravelRefundDto(Guid.NewGuid(), null, PaymentId, 10, "Cash", null, DateTime.UtcNow, null, null)), default),
-            () => new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, _scope.Object, _tenant.Object, _user.Object)
+            () => new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, Mock.Of<ITravelCommissionRepository>(), _scope.Object, _tenant.Object, _user.Object)
                 .Handle(new CreateTravelInvoiceCommand(new CreateTravelInvoiceDto(99, "PKR", null, null, 0, null, [new("Fee", 1, 1, null, null)], [])), default),
             () => new RecordTravelPaymentCommandHandler(_payments.Object, _invoices.Object, _customers.Object, _scope.Object, _tenant.Object, _user.Object)
                 .Handle(new RecordTravelPaymentCommand(new RecordTravelPaymentDto(Guid.NewGuid(), 99, DateTime.UtcNow, "Cash", null, 10, "PKR", true, null, [])), default),
@@ -124,7 +124,7 @@ public class TravelFinanceHandlerTests
     [Fact]
     public async Task Create_invoice_uses_billable_items_of_the_customer_in_the_invoice_currency()
     {
-        var handler = new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, _scope.Object, _tenant.Object, _user.Object);
+        var handler = new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, Mock.Of<ITravelCommissionRepository>(), _scope.Object, _tenant.Object, _user.Object);
         var dto = new CreateTravelInvoiceDto(CustomerId, "pkr", null, null, 0, null, [new("", 1, 160_000, "Flight", 300)], []);
 
         _invoices.Setup(i => i.GetBillableAsync(Tenant, It.IsAny<TravelBranchScope>(), CustomerId, "PKR", null, It.IsAny<CancellationToken>())).ReturnsAsync([]);
@@ -145,7 +145,7 @@ public class TravelFinanceHandlerTests
     public async Task Create_invoice_refuses_installments_that_do_not_add_up()
     {
         _invoices.Setup(i => i.GetBillableAsync(Tenant, It.IsAny<TravelBranchScope>(), CustomerId, "PKR", null, It.IsAny<CancellationToken>())).ReturnsAsync([Flight()]);
-        var result = await new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, _scope.Object, _tenant.Object, _user.Object)
+        var result = await new CreateTravelInvoiceCommandHandler(_invoices.Object, _customers.Object, Mock.Of<ITravelCommissionRepository>(), _scope.Object, _tenant.Object, _user.Object)
             .Handle(new CreateTravelInvoiceCommand(new CreateTravelInvoiceDto(CustomerId, "PKR", null, null, 0, null, [new("", 1, 160_000, "Flight", 300)],
                 [new(new DateTime(2027, 1, 15), 100_000), new(new DateTime(2027, 2, 15), 50_000)])), default);
         result.Message.Should().Contain("add up to 150000");
@@ -157,7 +157,7 @@ public class TravelFinanceHandlerTests
     public async Task Issued_invoices_are_not_editable()
     {
         GivenInvoice("Issued");
-        var result = await new UpdateTravelInvoiceCommandHandler(_invoices.Object, Guard, _tenant.Object, _user.Object)
+        var result = await new UpdateTravelInvoiceCommandHandler(_invoices.Object, Mock.Of<ITravelCommissionRepository>(), Guard, _tenant.Object, _user.Object)
             .Handle(new UpdateTravelInvoiceCommand(InvoiceId, new UpdateTravelInvoiceDto(null, null, 0, null, [new("Fee", 1, 1, null, null)], [])), default);
         result.Message.Should().Contain("credit note");
     }

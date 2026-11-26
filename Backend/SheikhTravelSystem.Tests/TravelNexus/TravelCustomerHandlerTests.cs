@@ -33,7 +33,7 @@ public class TravelCustomerHandlerTests
         new(existingId, "Individual", "Ahmed Khan", "+92 300 1234567", null, null, "Lahore", cnic,
             null, null, null, null, branchId, null, null);
 
-    private CreateTravelCustomerCommandHandler CreateHandler() => new(_repo.Object, _scope.Object, _tenant.Object, _user.Object);
+    private CreateTravelCustomerCommandHandler CreateHandler() => new(_repo.Object, Mock.Of<ITravelCommissionRepository>(), _scope.Object, _tenant.Object, _user.Object);
 
     [Fact]
     public async Task Create_uses_tenant_from_context_and_returns_customer_id()
@@ -137,7 +137,7 @@ public class TravelCustomerHandlerTests
 
         var dto = new UpdateTravelCustomerDto("Individual", "Ahmed Khan", "03001234567", null, null, null,
             TravelPii.Mask("3520212345671"), null, null, null, null, null, null, null);
-        var handler = new UpdateTravelCustomerCommandHandler(_repo.Object, _scope.Object, _tenant.Object);
+        var handler = new UpdateTravelCustomerCommandHandler(_repo.Object, Mock.Of<ITravelCommissionRepository>(), _scope.Object, _tenant.Object);
         var result = await handler.Handle(new UpdateTravelCustomerCommand(42, dto), CancellationToken.None);
 
         result.Success.Should().BeTrue();

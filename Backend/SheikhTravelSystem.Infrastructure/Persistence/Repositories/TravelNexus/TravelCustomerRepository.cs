@@ -80,8 +80,9 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
 
         return await connection.QuerySingleOrDefaultAsync<TravelCustomerDto>(new CommandDefinition($"""
             {ListSelect},
-               c.Address, c.CNIC AS Cnic, p.TaxNumber, p.AlternatePhone, p.LeadSourceId, p.Notes
+               c.Address, c.CNIC AS Cnic, p.TaxNumber, p.AlternatePhone, p.LeadSourceId, p.Notes, p.SubAgentId, sa.Name AS SubAgentName
             {FromJoins}
+            LEFT JOIN TravelSubAgents sa ON sa.Id = p.SubAgentId AND sa.TenantId = p.TenantId
             WHERE {string.Join(" AND ", clauses)}
             """, p, cancellationToken: cancellationToken));
     }
@@ -178,6 +179,11 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
             new TravelProfileValues(dto.CustomerKind, dto.FullName, dto.ContactPerson, dto.TaxNumber, dto.AlternatePhone,
                 dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes),
             userId, cancellationToken);
+        if (dto.SubAgentId is not null)
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE TravelCustomerProfiles SET SubAgentId = @SubAgentId
+                WHERE TenantId = @TenantId AND CustomerId = @CustomerId AND IsDeleted = 0
+                """, new { TenantId = tenantId, CustomerId = customerId, dto.SubAgentId }, tx, cancellationToken: cancellationToken));
 
         tx.Commit();
         return customerId;
@@ -192,11 +198,12 @@ public sealed class TravelCustomerRepository(IDbConnectionFactory dbFactory) : I
         var p = TravelCustomerSql.ProfileParams(tenantId, customerId,
             new TravelProfileValues(dto.CustomerKind, dto.FullName, dto.ContactPerson, dto.TaxNumber, dto.AlternatePhone,
                 dto.City, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, dto.Notes));
+        p.Add("SubAgentId", dto.SubAgentId);
         var profileRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TravelCustomerProfiles SET
                 CustomerKind = @Kind, CompanyName = @CompanyName, ContactPerson = @ContactPerson, TaxNumber = @TaxNumber,
                 AlternatePhone = @AlternatePhone, City = @City, AssignedAgentUserId = @AgentId, BranchId = @BranchId,
-                LeadSourceId = @LeadSourceId, Notes = @Notes, UpdatedAt = SYSUTCDATETIME()
+                LeadSourceId = @LeadSourceId, Notes = @Notes, SubAgentId = @SubAgentId, UpdatedAt = SYSUTCDATETIME()
             WHERE TenantId = @TenantId AND CustomerId = @CustomerId AND IsDeleted = 0
             """, p, tx, cancellationToken: cancellationToken));
         if (profileRows == 0)

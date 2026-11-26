@@ -105,7 +105,7 @@ public class CreateTravelInvoiceCommandValidator : AbstractValidator<CreateTrave
 }
 
 public class CreateTravelInvoiceCommandHandler(ITravelInvoiceRepository repository, ITravelCustomerRepository customers,
-    ITravelBranchScopeResolver scopeResolver, ITenantContext tenantContext, ICurrentUserService currentUser)
+    ITravelCommissionRepository commissions, ITravelBranchScopeResolver scopeResolver, ITenantContext tenantContext, ICurrentUserService currentUser)
     : IRequestHandler<CreateTravelInvoiceCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateTravelInvoiceCommand request, CancellationToken cancellationToken)
@@ -124,7 +124,9 @@ public class CreateTravelInvoiceCommandHandler(ITravelInvoiceRepository reposito
 
         var header = new TravelInvoiceHeaderWrite(customer.CustomerId, currency, dto.IssueDate?.Date, dto.DueDate?.Date, plan.Subtotal,
             TravelFinanceRules.Round(dto.DiscountAmount), plan.Total, string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
-            plan.BookingId, plan.VisaCaseId, plan.GroupId, customer.BranchId);
+            plan.BookingId, plan.VisaCaseId, plan.GroupId, customer.BranchId, dto.AgentUserId, dto.SubAgentId);
+        var attributionError = await TravelInvoiceAttribution.CheckAsync(commissions, tenantId, dto.AgentUserId, dto.SubAgentId, cancellationToken);
+        if (attributionError is not null) return ApiResponse<int>.FailResponse(attributionError);
         var id = await repository.CreateAsync(tenantId, header, plan.Lines, dto.Installments, currentUser.UserId, cancellationToken);
         if (id == 0) return ApiResponse<int>.FailResponse("One of the items was invoiced by someone else meanwhile. Reload the billable items.");
         return ApiResponse<int>.SuccessResponse(id, "Draft invoice saved.");
@@ -156,8 +158,8 @@ public class UpdateTravelInvoiceCommandValidator : AbstractValidator<UpdateTrave
     }
 }
 
-public class UpdateTravelInvoiceCommandHandler(ITravelInvoiceRepository repository, TravelFinanceGuard guard, ITenantContext tenantContext,
-    ICurrentUserService currentUser) : IRequestHandler<UpdateTravelInvoiceCommand, ApiResponse<bool>>
+public class UpdateTravelInvoiceCommandHandler(ITravelInvoiceRepository repository, ITravelCommissionRepository commissions, TravelFinanceGuard guard,
+    ITenantContext tenantContext, ICurrentUserService currentUser) : IRequestHandler<UpdateTravelInvoiceCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateTravelInvoiceCommand request, CancellationToken cancellationToken)
     {
@@ -174,7 +176,9 @@ public class UpdateTravelInvoiceCommandHandler(ITravelInvoiceRepository reposito
 
         var header = new TravelInvoiceHeaderWrite(state.CustomerId, state.CurrencyCode, dto.IssueDate?.Date, dto.DueDate?.Date, plan.Subtotal,
             TravelFinanceRules.Round(dto.DiscountAmount), plan.Total, string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
-            plan.BookingId, plan.VisaCaseId, plan.GroupId, state.BranchId);
+            plan.BookingId, plan.VisaCaseId, plan.GroupId, state.BranchId, dto.AgentUserId, dto.SubAgentId);
+        var attributionError = await TravelInvoiceAttribution.CheckAsync(commissions, tenantId, dto.AgentUserId, dto.SubAgentId, cancellationToken);
+        if (attributionError is not null) return ApiResponse<bool>.FailResponse(attributionError);
         if (!await repository.UpdateDraftAsync(tenantId, state.Id, header, plan.Lines, dto.Installments, currentUser.UserId, cancellationToken))
             throw new ConflictException(TravelFinanceGuard.ConflictMessage);
         return ApiResponse<bool>.SuccessResponse(true, "Draft invoice saved.");
@@ -273,5 +277,16 @@ public class DeleteTravelInvoiceCommandHandler(ITravelInvoiceRepository reposito
         if (state.Status != "Draft") return ApiResponse<bool>.FailResponse("Only drafts can be deleted — void an issued invoice.");
         if (!await repository.DeleteDraftAsync(tenantId, state.Id, cancellationToken)) throw new ConflictException(TravelFinanceGuard.ConflictMessage);
         return ApiResponse<bool>.SuccessResponse(true, "Draft deleted.");
+    }
+}
+
+/// <summary>A staff agent / sub-agent named on an invoice must belong to this tenant.</summary>
+internal static class TravelInvoiceAttribution
+{
+    public static async Task<string?> CheckAsync(ITravelCommissionRepository commissions, int tenantId, int? agentUserId, int? subAgentId, CancellationToken ct)
+    {
+        if (agentUserId is int userId && !await commissions.UserExistsAsync(tenantId, userId, ct)) return "The agent was not found.";
+        if (subAgentId is int id && !await commissions.SubAgentExistsAsync(tenantId, id, ct)) return "The sub-agent was not found.";
+        return null;
     }
 }

@@ -33,6 +33,7 @@ public class CreateTravelCustomerCommandValidator : AbstractValidator<CreateTrav
 
 public class CreateTravelCustomerCommandHandler(
     ITravelCustomerRepository repository,
+    ITravelCommissionRepository commissions,
     ITravelBranchScopeResolver scopeResolver,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
@@ -55,6 +56,8 @@ public class CreateTravelCustomerCommandHandler(
             tenantId, dto.AssignedAgentUserId, dto.BranchId, dto.LeadSourceId, cancellationToken);
         if (refError is not null)
             return ApiResponse<int>.FailResponse(refError);
+        if (dto.SubAgentId is int subAgentId && !await commissions.SubAgentExistsAsync(tenantId, subAgentId, cancellationToken))
+            return ApiResponse<int>.FailResponse("Referring sub-agent not found.");
 
         if (dto.ExistingCustomerId is int existingId)
         {

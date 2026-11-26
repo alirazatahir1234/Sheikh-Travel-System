@@ -50,6 +50,12 @@ public class TravelInvoiceDto : TravelInvoiceListItemDto
     public string? VoidReason { get; set; }
     public int? BranchId { get; set; }
     public string? BranchName { get; set; }
+    /// <summary>Staff agent the invoice's commission is attributed to.</summary>
+    public int? AgentUserId { get; set; }
+    public string? AgentName { get; set; }
+    /// <summary>Sub-agent the invoice's commission is attributed to.</summary>
+    public int? SubAgentId { get; set; }
+    public string? SubAgentName { get; set; }
     public IReadOnlyList<string> AllowedActions { get; set; } = [];
     public IReadOnlyList<TravelInvoiceLineDto> Lines { get; set; } = [];
     public IReadOnlyList<TravelInstallmentDto> Installments { get; set; } = [];
@@ -307,10 +313,14 @@ public class TravelGroupFinanceRowDto
 
 public record SaveTravelInvoiceLineDto(string Description, decimal Quantity, decimal UnitPrice, string? SourceType, int? SourceId);
 public record SaveTravelInstallmentDto(DateTime DueDate, decimal Amount);
+/// <summary>Agent / sub-agent left null default to the file's assigned agent (else the customer's) and the customer's "referred by".</summary>
 public record CreateTravelInvoiceDto(int CustomerId, string CurrencyCode, DateTime? IssueDate, DateTime? DueDate, decimal DiscountAmount,
-    string? Notes, IReadOnlyList<SaveTravelInvoiceLineDto> Lines, IReadOnlyList<SaveTravelInstallmentDto> Installments);
+    string? Notes, IReadOnlyList<SaveTravelInvoiceLineDto> Lines, IReadOnlyList<SaveTravelInstallmentDto> Installments,
+    int? AgentUserId = null, int? SubAgentId = null);
+/// <summary>Agent / sub-agent left null keep their current value (clearing goes through the attribution endpoint).</summary>
 public record UpdateTravelInvoiceDto(DateTime? IssueDate, DateTime? DueDate, decimal DiscountAmount, string? Notes,
-    IReadOnlyList<SaveTravelInvoiceLineDto> Lines, IReadOnlyList<SaveTravelInstallmentDto> Installments);
+    IReadOnlyList<SaveTravelInvoiceLineDto> Lines, IReadOnlyList<SaveTravelInstallmentDto> Installments,
+    int? AgentUserId = null, int? SubAgentId = null);
 public record IssueTravelInvoiceDto(DateTime? IssueDate, DateTime? DueDate);
 public record VoidTravelInvoiceDto(string Reason);
 
@@ -369,7 +379,8 @@ public sealed record TravelCreditNoteState(int Id, int InvoiceId, string Status,
 public sealed record TravelCancellationFacts(int Id, int BookingId, int? CustomerId, string RefundStatus, decimal RefundToCustomer, string? CurrencyCode);
 
 public sealed record TravelInvoiceHeaderWrite(int CustomerId, string CurrencyCode, DateTime? IssueDate, DateTime? DueDate, decimal Subtotal,
-    decimal DiscountAmount, decimal Total, string? Notes, int? BookingId, int? VisaCaseId, int? GroupId, int? BranchId);
+    decimal DiscountAmount, decimal Total, string? Notes, int? BookingId, int? VisaCaseId, int? GroupId, int? BranchId,
+    int? AgentUserId = null, int? SubAgentId = null);
 
 public sealed record TravelInvoiceLineWrite(int Sequence, string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal,
     string? SourceType, int? SourceId);
