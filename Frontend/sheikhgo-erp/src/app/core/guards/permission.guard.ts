@@ -6,6 +6,7 @@ import { selectPrimaryRole } from '../auth/role-priority';
 import { isAnyModuleEntitled } from '../navigation/module-entitlement.util';
 import { isRouteAllowedForPrimaryRole } from '../navigation/menu-config';
 import { AuthService } from '../services/auth.service';
+import { UiToastService } from '../../shared/components/ui/toast/ui-toast.service';
 import { TenantConfigService } from '../services/tenant-config.service';
 
 /**
@@ -21,6 +22,19 @@ export const permissionGuard: CanActivateFn = (
   const auth = inject(AuthService);
   const router = inject(Router);
   const tenantConfig = inject(TenantConfigService);
+  const toast = inject(UiToastService);
+  const deny = (reason: DenyReason): UrlTree => {
+    const home = auth.getHomeRoute();
+    // Bouncing off the home route itself would re-toast on every redirect.
+    if (!isSameRoute(state.url, home)) {
+      toast.warning(DENY_MESSAGES[reason], 'Page not opened');
+    }
+    console.warn(`[permissionGuard] ${state.url} blocked: ${reason}`, {
+      permissions: route.data?.['permissions'] ?? [],
+      modules: route.data?.['modules'] ?? []
+    });
+    return router.createUrlTree([home]);
+  };
 
   if (!auth.isLoggedIn()) {
     return router.createUrlTree(['/auth/login']);
@@ -28,13 +42,13 @@ export const permissionGuard: CanActivateFn = (
 
   const requiredRoles = (route.data?.['roles'] as string[] | undefined) ?? [];
   if (requiredRoles.length > 0 && !requiredRoles.some(r => auth.hasRole(r))) {
-    return router.createUrlTree([auth.getHomeRoute()]);
+    return deny('role');
   }
 
   const userRoles = auth.getCurrentUser()?.roles ?? [];
   const primaryRole = selectPrimaryRole(userRoles, '');
   if (primaryRole && !isRouteAllowedForPrimaryRole(state.url, primaryRole)) {
-    return router.createUrlTree([auth.getHomeRoute()]);
+    return deny('role');
   }
 
   const required = (route.data?.['permissions'] as string[] | undefined) ?? [];
@@ -46,7 +60,7 @@ export const permissionGuard: CanActivateFn = (
     || (isAiRoute && isElevatedAdmin(auth));
 
   if (!permissionOk) {
-    return router.createUrlTree([auth.getHomeRoute()]);
+    return deny('permission');
   }
 
   if (requiredModules.length === 0) {
@@ -58,10 +72,24 @@ export const permissionGuard: CanActivateFn = (
     map(branding => {
       const enabled = branding?.enabledModules ?? [];
       const entitled = isAnyModuleEntitled(enabled, requiredModules);
-      return entitled ? true : router.createUrlTree([auth.getHomeRoute()]);
+      return entitled ? true : deny('module');
     })
   );
 };
+
+type DenyReason = 'role' | 'permission' | 'module';
+
+/** Shown instead of a silent bounce to the home route, so a blocked menu click explains itself. */
+export const DENY_MESSAGES: Record<DenyReason, string> = {
+  role: 'Your role does not have access to this page.',
+  permission: 'You do not have permission to open this page. If access was granted recently, sign out and sign in again.',
+  module: 'This module is not enabled for the selected company. Switch company, or ask a platform administrator to enable it.'
+};
+
+function isSameRoute(url: string, home: string): boolean {
+  const path = url.split(/[?#]/)[0].replace(/\/+$/, '');
+  return path === home.replace(/\/+$/, '');
+}
 
 /**
  * Tenant administrators may open the AI module's routes before its permissions are assigned. The platform operator
