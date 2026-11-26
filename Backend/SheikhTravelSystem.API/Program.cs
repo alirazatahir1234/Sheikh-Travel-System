@@ -100,6 +100,10 @@ builder.Services.AddAuthentication(options =>
                 context.Token = accessToken;
             }
 
+            // SG-54: browser sessions carry the access token in an HttpOnly cookie. An explicit
+            // Authorization header (mobile) always wins — the cookie is only read without one.
+            SheikhTravelSystem.API.Authentication.AuthCookies.ApplyCookieToken(context);
+
             return Task.CompletedTask;
         },
         OnTokenValidated = async context =>
@@ -442,6 +446,11 @@ if (app.Environment.IsDevelopment())
 // TLS is terminated at Caddy/Cloudflare in production; local dev uses HTTP on :5082 via the Angular proxy.
 
 app.UseCors("AllowFrontendClients");
+
+// SG-54 CSRF guard: a write authenticated by the session cookie must carry X-Requested-With.
+// Bearer and anonymous requests (mobile, webhooks, device ingest) are not affected.
+SheikhTravelSystem.API.Authentication.AuthCookieApplicationBuilderExtensions.UseAuthCookieCsrfGuard(app);
+
 app.UseResponseCompression();
 app.UseRateLimiter();
 

@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using SheikhTravelSystem.API.Authentication;
+using SheikhTravelSystem.API.Models;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Auth.Commands;
 using SheikhTravelSystem.Application.Features.Auth.Queries;
 
@@ -17,10 +20,11 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<IActionResult> Login([FromBody] LoginCommand command)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-        return Ok(await Mediator.Send(command with { ClientIp = clientIp }));
+        var result = await Mediator.Send(new LoginCommand(request.Email, request.Password, clientIp));
+        return Ok(request.UseCookies ? MoveTokensToCookies(result) : result);
     }
 
     /// <summary>
@@ -28,16 +32,41 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("refresh-token")]
     [AllowAnonymous]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
-        => Ok(await Mediator.Send(command));
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? request)
+    {
+        var (token, fromCookie) = AuthCookies.ResolveRefreshToken(Request, request?.RefreshToken);
+        // The refresh cookie is ambient: require the custom header so another site cannot trigger it.
+        if (fromCookie && !AuthCookies.HasCsrfHeader(Request))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<LoginResponse>.FailResponse("Missing request header.", code: "CSRF_HEADER_REQUIRED"));
+
+        var result = await Mediator.Send(new RefreshTokenCommand(token ?? string.Empty));
+        var useCookies = fromCookie || request?.UseCookies == true;
+        if (useCookies && !result.Success)
+            AuthCookies.Clear(Response, UseSecureCookies());
+        return Ok(useCookies ? MoveTokensToCookies(result) : result);
+    }
 
     /// <summary>
     /// Invalidates the current authenticated session.
     /// </summary>
     [HttpPost("logout")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> Logout()
-        => Ok(await Mediator.Send(new LogoutCommand()));
+    {
+        var hadSessionCookie = AuthCookies.HasSessionCookie(Request);
+        // Always clear the browser cookies, even when the access token inside has already expired.
+        if (hadSessionCookie)
+            AuthCookies.Clear(Response, UseSecureCookies());
+
+        if (User.Identity?.IsAuthenticated == true)
+            return Ok(await Mediator.Send(new LogoutCommand()));
+
+        // Bearer clients keep the previous contract: no valid token → 401.
+        return hadSessionCookie
+            ? Ok(ApiResponse<bool>.SuccessResponse(true, "Signed out."))
+            : Unauthorized();
+    }
 
     /// <summary>
     /// Returns the authenticated user's profile (requires Bearer token).
@@ -58,4 +87,33 @@ public class AuthController : BaseApiController
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordWithTokenCommand command)
         => Ok(await Mediator.Send(command));
+
+    /// <summary>
+    /// Browser opt-in (SG-54): put the tokens in HttpOnly cookies and blank them in the JSON,
+    /// so page scripts can never read them.
+    /// </summary>
+    private ApiResponse<LoginResponse> MoveTokensToCookies(ApiResponse<LoginResponse> result)
+    {
+        if (!result.Success || result.Data is not { } data || string.IsNullOrEmpty(data.AccessToken))
+            return result;
+
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var days = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var d) ? d : 7;
+        AuthCookies.Write(Response, data.AccessToken, data.RefreshToken, UseSecureCookies(),
+            DateTimeOffset.UtcNow.AddDays(days));
+
+        return new ApiResponse<LoginResponse>
+        {
+            Success = result.Success,
+            Message = result.Message,
+            Errors = result.Errors,
+            Code = result.Code,
+            Data = data with { AccessToken = string.Empty, RefreshToken = string.Empty }
+        };
+    }
+
+    /// <summary>Secure everywhere except plain-HTTP local development (ng serve proxy on :4200).</summary>
+    private bool UseSecureCookies()
+        => Request.IsHttps
+           || !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
 }

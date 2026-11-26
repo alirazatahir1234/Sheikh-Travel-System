@@ -9,6 +9,7 @@ import { environment } from '../../../environments/environment';
 import { resolveTenantSlug } from '../utils/tenant-slug';
 import { UiToastService } from '../../shared/components/ui/toast/ui-toast.service';
 import { TenantContextService } from '../services/tenant-context.service';
+import { AppConfigService } from '../services/app-config.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -19,7 +20,8 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private auth: AuthService,
     private injector: Injector,
-    private tenantContext: TenantContextService) {}
+    private tenantContext: TenantContextService,
+    private config: AppConfigService) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     const token = this.auth.getToken();
@@ -38,7 +40,15 @@ export class AuthInterceptor implements HttpInterceptor {
       if (overrideId != null) {
         headers['X-Tenant-Id'] = String(overrideId);
       }
-      authReq = req.clone({ headers: nextHeaders, setHeaders: headers });
+      // SG-54 cookie session: send the HttpOnly session cookies to our own API, with the
+      // custom header the API requires on cookie-authenticated writes (CSRF guard).
+      const cookieSession = this.config.authMode === 'cookie' && this.isOwnApi(req.url);
+      if (cookieSession) headers['X-Requested-With'] = 'XMLHttpRequest';
+      authReq = req.clone({
+        headers: nextHeaders,
+        setHeaders: headers,
+        withCredentials: cookieSession || req.withCredentials
+      });
     } else if (Object.keys(headers).length) {
       authReq = req.clone({ setHeaders: headers });
     }
@@ -109,7 +119,8 @@ export class AuthInterceptor implements HttpInterceptor {
 
     return this.refreshInFlight$.pipe(
       switchMap(accessToken =>
-        next.handle(this.withBearerToken(req, accessToken)).pipe(
+        // Cookie session: there is no token to attach; the refreshed cookie rides along.
+        next.handle(accessToken ? this.withBearerToken(req, accessToken) : req).pipe(
           catchError((retryError: HttpErrorResponse) => {
             // Post-refresh 401 means the session is still invalid — do not leave the user in-app.
             if (retryError.status === 401) {
@@ -155,6 +166,11 @@ export class AuthInterceptor implements HttpInterceptor {
       }
     }
     return false;
+  }
+
+  /** Our API only — never send session cookies to another host whose URL happens to contain /api. */
+  private isOwnApi(url: string): boolean {
+    return url.startsWith(environment.apiUrl) || url.startsWith('/api');
   }
 
   private withBearerToken(req: HttpRequest<unknown>, accessToken: string): HttpRequest<unknown> {

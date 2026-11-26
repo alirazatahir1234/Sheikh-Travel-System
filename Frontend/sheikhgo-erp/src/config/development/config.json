@@ -1,4 +1,4 @@
 {
   "apiUrl": "/api",
-  "authMode": "bearer"
+  "authMode": "cookie"
 }

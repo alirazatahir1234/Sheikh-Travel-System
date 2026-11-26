@@ -153,8 +153,8 @@ export class NexusDemoModalComponent implements AfterViewInit, OnDestroy {
 
   async downloadDemoForOwner(): Promise<void> {
     if (!this.canDownloadDemo || this.downloadInProgress) return;
+    if (!this.auth.isLoggedIn()) return;
     const token = this.auth.getToken();
-    if (!token) return;
 
     this.downloadInProgress = true;
     try {
@@ -168,9 +168,10 @@ export class NexusDemoModalComponent implements AfterViewInit, OnDestroy {
       }
 
       const url = `${NEXUS_ERP_WALKTHROUGH_DEMO_STREAM}?download=1`;
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Cookie session: no script-readable token, the browser sends the session cookie instead.
+      const response = await fetch(url, token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : { credentials: 'include' });
       if (!response.ok) return;
 
       const blob = await response.blob();

@@ -66,7 +66,7 @@ export class NotificationService implements OnDestroy {
   }
 
   getAll(filter: NotificationFilter = {}): Observable<PagedResult<AppNotification>> {
-    if (!this.auth.getToken()) {
+    if (!this.auth.isLoggedIn()) {
       return of(this.emptyPaged(filter.page ?? 1, filter.pageSize ?? 20));
     }
 
@@ -100,7 +100,7 @@ export class NotificationService implements OnDestroy {
   }
 
   getUnreadCount(): Observable<number> {
-    if (!this.auth.getToken()) return of(0);
+    if (!this.auth.isLoggedIn()) return of(0);
     return this.http.get<number>(`${this.base}/unread-count`).pipe(
       catchError(err => {
         if (err instanceof HttpErrorResponse && err.status === 401) this.onUnauthorized(err);
@@ -248,7 +248,7 @@ export class NotificationService implements OnDestroy {
   }
 
   markAsRead(ids?: number[]): Observable<boolean> {
-    if (!this.auth.getToken()) return of(false);
+    if (!this.auth.isLoggedIn()) return of(false);
     return this.http.put<boolean>(`${this.base}/read`, ids ?? null).pipe(
       tap(() => this.refresh())
     );
@@ -259,7 +259,7 @@ export class NotificationService implements OnDestroy {
   }
 
   refresh(): void {
-    if (!this.auth.getToken()) {
+    if (!this.auth.isLoggedIn()) {
       this.notifications$.next([]);
       this.unreadCount$.next(0);
       return;
@@ -284,7 +284,7 @@ export class NotificationService implements OnDestroy {
 
   startPolling(intervalMs = 120000): void {
     this.stopPolling();
-    if (!this.auth.getToken()) {
+    if (!this.auth.isLoggedIn()) {
       this.notifications$.next([]);
       this.unreadCount$.next(0);
       return;
@@ -295,7 +295,7 @@ export class NotificationService implements OnDestroy {
 
     this.pollSub = interval(intervalMs).pipe(
       switchMap(() => {
-        if (!this.auth.getToken()) return of(this.emptyPaged(1, 50));
+        if (!this.auth.isLoggedIn()) return of(this.emptyPaged(1, 50));
         return this.getAll({ page: 1, pageSize: 50 }).pipe(
           catchError(() => of(this.emptyPaged(1, 50)))
         );

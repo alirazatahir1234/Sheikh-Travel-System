@@ -170,7 +170,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   /** Identity of the menu request: same key = same menu, so no new fetch. */
   private menuRequestKey(user: LoginResponse | null): { key: string; fetch: boolean } {
-    if (!user || !this.auth.getToken()) return { key: 'signed-out', fetch: false };
+    if (!user || !this.auth.isLoggedIn()) return { key: 'signed-out', fetch: false };
     const roles = (user.roles ?? []).join(',');
     if (this.auth.isDriverUser()) return { key: `driver|${user.userId ?? user.email ?? ''}|${roles}`, fetch: false };
     const permissions = (user.permissions ?? []).join(',');
@@ -197,7 +197,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     });
 
     this.sessionSub = this.auth.currentUser$.subscribe(user => {
-      if (user && this.auth.getToken()) {
+      if (user && this.auth.isLoggedIn()) {
         queueMicrotask(() => {
           this.notificationService.startPolling(120000);
           void this.notificationService.requestBrowserPermission();

@@ -43,7 +43,7 @@ export class SmartAlertService implements OnDestroy {
    * when the current one finishes, so an alert raised mid-request is not missed.
    */
   refresh(afterCurrent = false): void {
-    if (!this.auth.getToken()) {
+    if (!this.auth.isLoggedIn()) {
       this.summary$.next({ newCount: 0, activeCount: 0, items: [] });
       this.newCountSubject.next(0);
       return;

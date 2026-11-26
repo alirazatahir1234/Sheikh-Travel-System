@@ -1,12 +1,13 @@
 import { Injectable, Injector, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, map, tap } from 'rxjs';
+import { BehaviorSubject, Observable, finalize, map, shareReplay, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, LoginResponseDto } from '../models/auth.model';
 import { SecurityCompanySummary } from '../models/platform.model';
 import { isDriverPrimaryAccount, orderRolesByPrivilege } from '../auth/role-priority';
 import { TenantContextService } from './tenant-context.service';
+import { AppConfigService } from './app-config.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -25,12 +26,21 @@ export class AuthService {
   private absoluteMinutes = 0;
   private readonly activityHandler = (): void => this.resetIdleTimer();
 
+  /** One refresh at a time: the refresh token rotates, so a second concurrent call would fail. */
+  private refreshInFlight$: Observable<LoginResponse> | null = null;
+
   constructor(
     private http: HttpClient,
     private router: Router,
     private zone: NgZone,
-    private injector: Injector
+    private injector: Injector,
+    private config: AppConfigService
   ) {
+    if (this.usesCookieSession && this.getRefreshToken()) {
+      // Signed in before cookie sessions were switched on: trade the localStorage tokens for
+      // HttpOnly cookies now, so they do not sit in script-readable storage any longer.
+      setTimeout(() => this.refreshToken().subscribe({ error: () => { /* the 401 path handles it */ } }));
+    }
     if (this.isLoggedIn()) {
       // Restore idle watch after refresh if policy was previously applied via login.
       const storedIdle = Number(localStorage.getItem('security_idle_minutes') || 0);
@@ -41,9 +51,19 @@ export class AuthService {
     }
   }
 
+  /**
+   * SG-54: session tokens are HttpOnly cookies set by the API. Page scripts (and so any XSS)
+   * cannot read them; only the non-secret user profile is kept in localStorage.
+   */
+  get usesCookieSession(): boolean {
+    return this.config.authMode === 'cookie';
+  }
+
   login(request: LoginRequest): Observable<LoginResponse> {
     return this.http
-      .post<LoginResponseDto>(`${environment.apiUrl}/auth/login`, request)
+      .post<LoginResponseDto>(
+        `${environment.apiUrl}/auth/login`,
+        this.usesCookieSession ? { ...request, useCookies: true } : request)
       .pipe(
         map(dto => this.normalize(dto)),
         tap(user => {
@@ -98,7 +118,8 @@ export class AuthService {
   logout(): void {
     this.stopSessionWatch();
     const refreshToken = this.getRefreshToken();
-    if (refreshToken) {
+    // Cookie session: always tell the API, so it clears the HttpOnly cookies.
+    if (refreshToken || (this.usesCookieSession && this.getCurrentUser())) {
       this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken }).subscribe({
         error: () => { /* swallow — we still want to clear local state. */ }
       });
@@ -123,14 +144,23 @@ export class AuthService {
   }
 
   refreshToken(): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponseDto>(`${environment.apiUrl}/auth/refresh-token`, {
-        refreshToken: this.getRefreshToken()
-      })
-      .pipe(
-        map(dto => this.normalize(dto)),
-        tap(user => this.persistSession(user))
-      );
+    if (!this.refreshInFlight$) {
+      const storedToken = this.getRefreshToken();
+      // Cookie session: the API reads the refresh token from its cookie. A token still in
+      // localStorage (pre-cookie sign-in) is sent once so the API can swap it for cookies.
+      const body = this.usesCookieSession
+        ? { useCookies: true, ...(storedToken ? { refreshToken: storedToken } : {}) }
+        : { refreshToken: storedToken };
+      this.refreshInFlight$ = this.http
+        .post<LoginResponseDto>(`${environment.apiUrl}/auth/refresh-token`, body)
+        .pipe(
+          map(dto => this.normalize(dto)),
+          tap(user => this.persistSession(user)),
+          finalize(() => { this.refreshInFlight$ = null; }),
+          shareReplay({ bufferSize: 1, refCount: false })
+        );
+    }
+    return this.refreshInFlight$;
   }
 
   getToken(): string | null {
@@ -143,7 +173,11 @@ export class AuthService {
 
   isLoggedIn(): boolean {
     const token = this.getToken();
-    if (!token) return false;
+    if (!token) {
+      // Cookie session: the token is not readable here. The stored profile marks the session
+      // and the API has the final say (401 → refresh → sign out).
+      return this.usesCookieSession && !!this.getCurrentUser();
+    }
     const exp = this.readJwtExpSeconds(token);
     if (exp == null) return true; // opaque / non-JWT — defer to API
     // Access token expired: still treat as logged-in when refresh can recover the session.
@@ -201,7 +235,9 @@ export class AuthService {
 
   /** Backend sends role(s) and permissions; normalize for the rest of the app. */
   private normalize(dto: LoginResponseDto): LoginResponse {
-    if (!dto?.accessToken) {
+    // Cookie session: the tokens are in HttpOnly cookies, so a valid reply carries the profile only.
+    const cookieReply = this.usesCookieSession && !!dto && !!(dto.fullName || dto.role || dto.roles?.length);
+    if (!dto?.accessToken && !cookieReply) {
       throw new Error('Authentication failed.');
     }
     const rawRoles = dto.roles?.length
@@ -212,8 +248,8 @@ export class AuthService {
     // Highest privilege first — never Role.Id / insertion order (hides sidebar items).
     const roles = orderRolesByPrivilege(rawRoles);
     return {
-      accessToken:  dto.accessToken,
-      refreshToken: dto.refreshToken,
+      accessToken:  dto.accessToken ?? '',
+      refreshToken: dto.refreshToken ?? '',
       fullName:     dto.fullName,
       roles,
       permissions:  dto.permissions ?? [],
@@ -225,8 +261,16 @@ export class AuthService {
   }
 
   persistSession(user: LoginResponse): void {
-    localStorage.setItem(this.tokenKey,   user.accessToken);
-    localStorage.setItem(this.refreshKey, user.refreshToken);
+    // The API blanks both tokens when it has put them in HttpOnly cookies. If tokens still
+    // arrive (an API that predates cookie sessions), keep working the bearer way.
+    if (this.usesCookieSession && !user.accessToken) {
+      localStorage.removeItem(this.tokenKey);
+      localStorage.removeItem(this.refreshKey);
+      user = { ...user, accessToken: '', refreshToken: '' };
+    } else {
+      localStorage.setItem(this.tokenKey,   user.accessToken);
+      localStorage.setItem(this.refreshKey, user.refreshToken);
+    }
     localStorage.setItem(this.userKey,    JSON.stringify(user));
     this.currentUserSubject.next(user);
   }
