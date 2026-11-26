@@ -20,6 +20,7 @@ import 'widgets/vehicle_alerts_tab.dart';
 import 'widgets/vehicle_comms_buttons.dart';
 import 'widgets/vehicle_live_map_tab.dart';
 import 'widgets/vehicle_playback_tab.dart';
+import '../../../core/time/tenant_time.dart';
 
 final vehicleFuelProvider =
     FutureProvider.family<VehicleFuelSummary, int>((ref, id) {
@@ -260,9 +261,9 @@ class _OverviewTab extends StatelessWidget {
               _Row(
                 'Last comms',
                 live?.lastUpdated != null
-                    ? df.format(live!.lastUpdated!.toLocal())
+                    ? df.format(TenantTime.inZone(live!.lastUpdated!))
                     : vehicle.locationLastUpdate != null
-                        ? df.format(vehicle.locationLastUpdate!.toLocal())
+                        ? df.format(TenantTime.inZone(vehicle.locationLastUpdate!))
                         : '—',
               ),
               _Row(
@@ -714,7 +715,7 @@ class _DeviceTab extends ConsumerWidget {
                 _Row(
                   'Last packet',
                   info.lastUpdate != null
-                      ? df.format(info.lastUpdate!.toLocal())
+                      ? df.format(TenantTime.inZone(info.lastUpdate!))
                       : '—',
                 ),
               ],

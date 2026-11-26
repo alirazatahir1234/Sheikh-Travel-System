@@ -16,6 +16,7 @@ import '../vehicle_detail_screen.dart';
 import 'fleet_kpi_strip.dart';
 import 'live_map_location.dart';
 import 'vehicle_comms_buttons.dart';
+import '../../../../core/time/tenant_time.dart';
 
 /// Cached reverse-geocode lookup; keyed by rounded coordinate string so that
 /// small position drift does not trigger a new API call on every update.
@@ -84,7 +85,7 @@ final vehicleTodayAnalyticsProvider = FutureProvider.autoDispose
   ref.onDispose(timer.cancel);
 
   final now = DateTime.now();
-  final from = DateTime(now.year, now.month, now.day).toUtc();
+  final from = TenantTime.dayBoundsUtc(now).$1.toUtc();
   final bundle = await ref.read(fleetApiProvider).getTripAnalytics(
         vehicleId,
         from: from,

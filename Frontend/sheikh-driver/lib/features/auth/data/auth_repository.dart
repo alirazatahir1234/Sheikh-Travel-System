@@ -16,6 +16,7 @@ import '../../gps/services/gps_session_store.dart';
 import '../../gps/services/signalr_service.dart';
 import '../../../core/security/device_registration_service.dart';
 import '../../../core/analytics/analytics_service.dart';
+import '../../../core/time/tenant_time.dart';
 
 const _sessionKey = 'fleet_session';
 const _legacySessionKey = 'driver_session';
@@ -97,6 +98,10 @@ class AuthRepository extends ChangeNotifier {
     if (_session != null && _session!.companyContext == null) {
       // ignore: unawaited_futures
       _hydrateCompanyContext();
+    }
+    if (_session != null) {
+      // GPS times are shown in the company timezone, not the phone's.
+      unawaited(TenantTime.loadCompanyTimeZone(_dio));
     }
   }
 
@@ -214,6 +219,7 @@ class AuthRepository extends ChangeNotifier {
     DeviceRegistrationService(_dio).registerCurrentDevice();
     // ignore: unawaited_futures
     _hydrateCompanyContext();
+    unawaited(TenantTime.loadCompanyTimeZone(_dio));
   }
 
   Future<void> _hydrateCompanyContext() async {

@@ -5,6 +5,7 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../../core/time/tenant_time.dart';
 
 class GpsMileageDashboardScreen extends ConsumerStatefulWidget {
   const GpsMileageDashboardScreen({super.key});
@@ -38,7 +39,7 @@ class _GpsMileageDashboardScreenState
         return (now.subtract(const Duration(days: 365)), now);
       case 'today':
       default:
-        return (DateTime(now.year, now.month, now.day), now);
+        return (TenantTime.dayBoundsUtc(now).$1, now);
     }
   }
 

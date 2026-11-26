@@ -35,6 +35,7 @@ import 'playback/playback_scrub_footer.dart';
 import 'playback/playback_summary_card.dart';
 import 'playback/playback_timeline.dart';
 import 'widgets/pulse_vehicle_overlay.dart';
+import '../../../core/time/tenant_time.dart';
 
 enum _HistoryPreset {
   today,
@@ -289,6 +290,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     _refreshSpinController.dispose();
     _sheetController.dispose();
     _map?.dispose();
+    TenantTime.setScreenTimeZone(null);
     super.dispose();
   }
 
@@ -756,13 +758,14 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       case _HistoryPreset.days7:
         to = now;
         from = now.subtract(const Duration(days: 7));
+      // Day presets use the company's midnight, not the phone's.
       case _HistoryPreset.today:
         to = now;
-        from = DateTime(now.year, now.month, now.day);
+        from = TenantTime.dayBoundsUtc(now).$1;
       case _HistoryPreset.yesterday:
-        final startToday = DateTime(now.year, now.month, now.day);
+        final startToday = TenantTime.dayBoundsUtc(now).$1;
         to = startToday;
-        from = startToday.subtract(const Duration(days: 1));
+        from = TenantTime.dayBoundsUtc(startToday.subtract(const Duration(minutes: 1))).$1;
       case _HistoryPreset.custom:
         from = _from;
         to = _to;
@@ -781,10 +784,11 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   }
 
   Future<void> _pickCustomRange() async {
-    final now = DateTime.now();
+    // Pickers show and return wall-clock time in the company zone.
+    final now = TenantTime.inZone(DateTime.now());
     final fromDate = await showDatePicker(
       context: context,
-      initialDate: _from,
+      initialDate: TenantTime.inZone(_from),
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now,
       helpText: 'From date',
@@ -792,37 +796,37 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     if (fromDate == null || !mounted) return;
     final fromTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_from),
+      initialTime: TimeOfDay.fromDateTime(TenantTime.inZone(_from)),
       helpText: 'From time',
     );
     if (!mounted) return;
-    final from = DateTime(
+    final from = TenantTime.fromWallTime(
       fromDate.year,
       fromDate.month,
       fromDate.day,
-      fromTime?.hour ?? 0,
-      fromTime?.minute ?? 0,
+      hour: fromTime?.hour ?? 0,
+      minute: fromTime?.minute ?? 0,
     );
     final toDate = await showDatePicker(
       context: context,
-      initialDate: _to.isAfter(from) ? _to : from,
-      firstDate: from,
+      initialDate: TenantTime.inZone(_to.isAfter(from) ? _to : from),
+      firstDate: TenantTime.inZone(from),
       lastDate: now,
       helpText: 'To date',
     );
     if (toDate == null || !mounted) return;
     final toTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_to),
+      initialTime: TimeOfDay.fromDateTime(TenantTime.inZone(_to)),
       helpText: 'To time',
     );
     if (!mounted) return;
-    var to = DateTime(
+    var to = TenantTime.fromWallTime(
       toDate.year,
       toDate.month,
       toDate.day,
-      toTime?.hour ?? 23,
-      toTime?.minute ?? 59,
+      hour: toTime?.hour ?? 23,
+      minute: toTime?.minute ?? 59,
     );
     if (!to.isAfter(from)) to = from.add(const Duration(hours: 1));
     if (to.difference(from) > const Duration(days: 7)) {
@@ -885,7 +889,10 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       mileageKm: bundle.mileageKm,
       vehicle: bundle.vehicle,
       gpsDeviceId: bundle.gpsDeviceId,
+      timeZoneId: bundle.timeZoneId,
     );
+    // Nested playback widgets format times in this vehicle's zone.
+    TenantTime.setScreenTimeZone(bundle.timeZoneId);
     final playbackPoints = effectivePlaybackPoints(filtered);
     setState(() {
       _bundle = filtered;
@@ -1807,7 +1814,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     final plate =
         b.vehicle?.plateNumber ?? vehicleAsync.valueOrNull?.registrationNumber;
     final metrics = _tripMetrics;
-    final dateLabel = DateFormat('dd MMM').format(metrics.startTime.toLocal());
+    final dateLabel = DateFormat('dd MMM').format(TenantTime.inZone(metrics.startTime));
     final canExport = _canExportReports;
 
     return AnimatedOpacity(
@@ -2898,7 +2905,7 @@ class _DateBar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${rangeFmt.format(from.toLocal())} → ${rangeFmt.format(to.toLocal())}',
+                '${rangeFmt.format(TenantTime.inZone(from))} → ${rangeFmt.format(TenantTime.inZone(to))}',
                 textAlign: TextAlign.end,
                 maxLines: 1,
                 softWrap: false,
@@ -2936,8 +2943,8 @@ class _TripListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final start = trip.startTime.toLocal();
-    final end = trip.endTime.toLocal();
+    final start = TenantTime.inZone(trip.startTime);
+    final end = TenantTime.inZone(trip.endTime);
     final sameDay = start.year == end.year &&
         start.month == end.month &&
         start.day == end.day;

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/fleet_models.dart';
 import 'playback_helpers.dart';
+import '../../../../core/time/tenant_time.dart';
 
 /// User tapped a semantic playback marker (start, finish, stop, or event).
 class PlaybackMarkerTap {
@@ -788,7 +789,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
       icon: startIcon,
       infoWindow: InfoWindow(
         title:
-            'Start · ${markerTimeFmt.format(startPoint.timestamp.toLocal())}',
+            'Start · ${markerTimeFmt.format(TenantTime.inZone(startPoint.timestamp))}',
         snippet: playbackAddressLine(startPoint),
       ),
       zIndexInt: 1,
@@ -809,7 +810,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
       position: endPos,
       icon: finishIcon,
       infoWindow: InfoWindow(
-        title: 'End · ${markerTimeFmt.format(endPoint.timestamp.toLocal())}',
+        title: 'End · ${markerTimeFmt.format(TenantTime.inZone(endPoint.timestamp))}',
         snippet: playbackAddressLine(endPoint),
       ),
       zIndexInt: 1,

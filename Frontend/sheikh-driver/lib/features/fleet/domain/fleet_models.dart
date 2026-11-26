@@ -1162,6 +1162,7 @@ class HistoryReplayBundle {
     this.mileageKm,
     this.vehicle,
     this.gpsDeviceId,
+    this.timeZoneId,
   });
 
   final List<HistoryReplayPoint> route;
@@ -1173,6 +1174,9 @@ class HistoryReplayBundle {
   final double? mileageKm;
   final TripDeviceContext? vehicle;
   final int? gpsDeviceId;
+
+  /// IANA zone to display times in (vehicle branch → company → platform default).
+  final String? timeZoneId;
 
   List<HistoryReplayPoint> get points => playback.isNotEmpty ? playback : route;
 
@@ -1231,6 +1235,7 @@ class HistoryReplayBundle {
           (json['mileageKm'] as num? ?? json['MileageKm'] as num?)?.toDouble(),
       vehicle: vehicleCtx,
       gpsDeviceId: deviceId,
+      timeZoneId: (json['timeZoneId'] ?? json['TimeZoneId'])?.toString(),
     );
   }
 }

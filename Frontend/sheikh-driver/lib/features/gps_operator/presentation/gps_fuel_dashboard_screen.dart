@@ -7,6 +7,7 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../../core/time/tenant_time.dart';
 
 class GpsFuelDashboardScreen extends ConsumerStatefulWidget {
   const GpsFuelDashboardScreen({super.key});
@@ -35,7 +36,7 @@ class _GpsFuelDashboardScreenState
     });
     try {
       final now = DateTime.now();
-      final from = DateTime(now.year, now.month, now.day);
+      final from = TenantTime.dayBoundsUtc(now).$1;
       final res = await ref.read(dioProvider).get<Map<String, dynamic>>(
         ApiEndpoints.gpsFuelAnalytics,
         queryParameters: {

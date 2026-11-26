@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
@@ -8,6 +9,7 @@ import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import 'fleet_hub_notifier.dart';
 import '../../../shared/widgets/sg_brand_loader.dart';
+import '../../../core/time/tenant_time.dart';
 
 /// Opens the premium full-screen GPS Commands UI for [vehicleId].
 /// Kept name for call-site compatibility (detail / map / hub).
@@ -1219,7 +1221,7 @@ class _RecentCommandTile extends StatelessWidget {
   }
 
   String _formatWhen(DateTime dt) {
-    final local = dt.toLocal();
+    final local = TenantTime.inZone(dt);
     final now = DateTime.now();
     final sameDay = local.year == now.year &&
         local.month == now.month &&
@@ -1408,7 +1410,7 @@ class _CommandResponsePanel extends StatelessWidget {
     final body = d.responseBodyText.trim();
     final lines = <String>[
       'Status: ${cmd.status}',
-      'Requested: ${cmd.requestedAt.toLocal()}',
+      'Requested: ${TenantTime.format(cmd.requestedAt, DateFormat('dd MMM yyyy, HH:mm:ss'))}',
       if (cmd.reason != null && cmd.reason!.trim().isNotEmpty)
         'Reason: ${cmd.reason}',
       if (cmd.errorMessage != null && cmd.errorMessage!.trim().isNotEmpty)

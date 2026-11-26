@@ -7,6 +7,7 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../../core/time/tenant_time.dart';
 
 class GpsTripSummary {
   const GpsTripSummary({
@@ -88,7 +89,7 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
     final now = DateTime.now();
     switch (_range) {
       case 'yesterday':
-        final start = DateTime(now.year, now.month, now.day)
+        final start = TenantTime.dayBoundsUtc(now).$1
             .subtract(const Duration(days: 1));
         return (start, start.add(const Duration(days: 1)));
       case 'week':
@@ -97,7 +98,7 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
         return (now.subtract(const Duration(days: 30)), now);
       case 'today':
       default:
-        return (DateTime(now.year, now.month, now.day), now);
+        return (TenantTime.dayBoundsUtc(now).$1, now);
     }
   }
 
@@ -228,9 +229,9 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
                                       Text(
                                         [
                                           if (t.startAt != null)
-                                            df.format(t.startAt!.toLocal()),
+                                            df.format(TenantTime.inZone(t.startAt!)),
                                           if (t.endAt != null)
-                                            '→ ${df.format(t.endAt!.toLocal())}',
+                                            '→ ${df.format(TenantTime.inZone(t.endAt!))}',
                                         ].join(' '),
                                         style: TextStyle(
                                           fontSize: 12,

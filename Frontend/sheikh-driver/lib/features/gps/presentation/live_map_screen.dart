@@ -21,6 +21,7 @@ import '../../fleet/domain/fleet_models.dart';
 import '../services/background_gps_tracker.dart';
 import '../services/signalr_service.dart';
 import 'background_location_disclosure.dart';
+import '../../../core/time/tenant_time.dart';
 
 final backgroundGpsProvider = ChangeNotifierProvider<BackgroundGpsTracker>(
   (ref) {
@@ -315,7 +316,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       const Spacer(),
                       Text(
                         lastUpdate != null
-                            ? timeFmt.format(lastUpdate.toLocal())
+                            ? timeFmt.format(TenantTime.inZone(lastUpdate))
                             : '—',
                         style: TextStyle(color: p.textMuted, fontSize: 12),
                       ),

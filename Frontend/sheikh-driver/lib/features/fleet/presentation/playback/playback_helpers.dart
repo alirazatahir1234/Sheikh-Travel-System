@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/fleet_models.dart';
 import '../../domain/trip_display.dart';
+import '../../../../core/time/tenant_time.dart';
 
 const defaultOverspeedKmh = 90.0;
 
@@ -353,8 +354,9 @@ String formatStopWindow({
   required DateTime startTime,
   required DateTime endTime,
 }) {
-  final start = startTime.toLocal();
-  final end = endTime.toLocal();
+  // Company / vehicle zone, not the phone's.
+  final start = TenantTime.inZone(startTime);
+  final end = TenantTime.inZone(endTime);
   final dayFmt = DateFormat('MMM d');
   final timeFmt = DateFormat('h:mm a');
   final startDay = dayFmt.format(start);
@@ -743,8 +745,8 @@ class PlaybackTripMetrics {
   /// Compact window for collapsed panel: `9:14 AM → 10:02 AM`.
   String timeRangeLabel({DateFormat? timeFmt}) {
     final fmt = timeFmt ?? DateFormat('h:mm a');
-    final a = startTime.toLocal();
-    final b = endTime.toLocal();
+    final a = TenantTime.inZone(startTime);
+    final b = TenantTime.inZone(endTime);
     final sameDay = a.year == b.year && a.month == b.month && a.day == b.day;
     if (sameDay) {
       return '${fmt.format(a)} → ${fmt.format(b)}';
@@ -763,10 +765,12 @@ double? _positiveOrNull(double? v) {
 final playbackTimeFmt = DateFormat('h:mm a');
 final playbackDateTimeFmt = DateFormat('dd MMM, h:mm a');
 
-String formatPlaybackClock(DateTime dt) => playbackTimeFmt.format(dt.toLocal());
+/// Clock in the company / on-screen vehicle timezone (never the phone's).
+String formatPlaybackClock(DateTime dt, [String? zoneId]) =>
+    TenantTime.format(dt, playbackTimeFmt, zoneId);
 
-String formatPlaybackDateTime(DateTime dt) =>
-    playbackDateTimeFmt.format(dt.toLocal());
+String formatPlaybackDateTime(DateTime dt, [String? zoneId]) =>
+    TenantTime.format(dt, playbackDateTimeFmt, zoneId);
 
 String formatOptionalSpeedKmh(double? speedKmh) {
   if (speedKmh == null) return '—';

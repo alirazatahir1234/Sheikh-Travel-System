@@ -13,6 +13,7 @@ import '../../data/fleet_api.dart';
 import '../../domain/fleet_models.dart';
 import '../../domain/trip_display.dart';
 import '../playback/playback_helpers.dart';
+import '../../../../core/time/tenant_time.dart';
 
 enum PlaybackRangePreset {
   hours6,
@@ -92,9 +93,9 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
         from = now.subtract(const Duration(hours: 6));
       case PlaybackRangePreset.today:
         to = now;
-        from = DateTime(now.year, now.month, now.day);
+        from = TenantTime.dayBoundsUtc(now).$1;
       case PlaybackRangePreset.yesterday:
-        final startToday = DateTime(now.year, now.month, now.day);
+        final startToday = TenantTime.dayBoundsUtc(now).$1;
         to = startToday;
         from = startToday.subtract(const Duration(days: 1));
       case PlaybackRangePreset.days3:
@@ -145,10 +146,11 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
   }
 
   Future<void> _pickCustomRange() async {
-    final now = DateTime.now();
+    // Pickers show and return wall-clock time in the company zone.
+    final now = TenantTime.inZone(DateTime.now());
     final fromDate = await showDatePicker(
       context: context,
-      initialDate: _from,
+      initialDate: TenantTime.inZone(_from),
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now,
       helpText: 'From date',
@@ -156,37 +158,37 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
     if (fromDate == null || !mounted) return;
     final fromTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_from),
+      initialTime: TimeOfDay.fromDateTime(TenantTime.inZone(_from)),
       helpText: 'From time',
     );
     if (!mounted) return;
-    final from = DateTime(
+    final from = TenantTime.fromWallTime(
       fromDate.year,
       fromDate.month,
       fromDate.day,
-      fromTime?.hour ?? 0,
-      fromTime?.minute ?? 0,
+      hour: fromTime?.hour ?? 0,
+      minute: fromTime?.minute ?? 0,
     );
     final toDate = await showDatePicker(
       context: context,
-      initialDate: _to.isAfter(from) ? _to : from,
-      firstDate: from,
+      initialDate: TenantTime.inZone(_to.isAfter(from) ? _to : from),
+      firstDate: TenantTime.inZone(from),
       lastDate: now,
       helpText: 'To date',
     );
     if (toDate == null || !mounted) return;
     final toTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_to),
+      initialTime: TimeOfDay.fromDateTime(TenantTime.inZone(_to)),
       helpText: 'To time',
     );
     if (!mounted) return;
-    var to = DateTime(
+    var to = TenantTime.fromWallTime(
       toDate.year,
       toDate.month,
       toDate.day,
-      toTime?.hour ?? 23,
-      toTime?.minute ?? 59,
+      hour: toTime?.hour ?? 23,
+      minute: toTime?.minute ?? 59,
     );
     if (!to.isAfter(from)) {
       to = from.add(const Duration(hours: 1));
@@ -206,7 +208,7 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
         PlaybackRangePreset.days3 => 'Last 3 days',
         PlaybackRangePreset.days7 => 'Last 7 days',
         PlaybackRangePreset.custom =>
-          '${_dayFmt.format(_from.toLocal())} – ${_dayFmt.format(_to.toLocal())}',
+          '${_dayFmt.format(TenantTime.inZone(_from))} – ${_dayFmt.format(TenantTime.inZone(_to))}',
       };
 
   void _openHistory({String? tripKey, bool playFull = false}) {
@@ -322,7 +324,7 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
           const SizedBox(height: 12),
           _CustomRangeCard(
             label: _preset == PlaybackRangePreset.custom
-                ? '${_rangeFmt.format(_from.toLocal())} → ${_rangeFmt.format(_to.toLocal())}'
+                ? '${_rangeFmt.format(TenantTime.inZone(_from))} → ${_rangeFmt.format(TenantTime.inZone(_to))}'
                 : 'Pick custom date & time',
             selected: _preset == PlaybackRangePreset.custom,
             onTap: _pickCustomRange,
@@ -348,7 +350,7 @@ class _VehiclePlaybackTabState extends ConsumerState<VehiclePlaybackTab> {
               lastActivity: lastTrip == null
                   ? null
                   : (
-                      when: _lastActFmt.format(lastTrip.endTime.toLocal()),
+                      when: _lastActFmt.format(TenantTime.inZone(lastTrip.endTime)),
                       place: formatTripRoute(lastTrip).primary,
                       distanceKm: lastTrip.distanceKm,
                       minutes: lastTrip.durationMinutes,
@@ -679,8 +681,8 @@ class _PlaybackTripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final start = trip.startTime.toLocal();
-    final end = trip.endTime.toLocal();
+    final start = TenantTime.inZone(trip.startTime);
+    final end = TenantTime.inZone(trip.endTime);
     final sameDay = start.year == end.year &&
         start.month == end.month &&
         start.day == end.day;

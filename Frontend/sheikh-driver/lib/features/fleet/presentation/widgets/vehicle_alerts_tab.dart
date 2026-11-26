@@ -9,6 +9,7 @@ import '../../../../shared/widgets/sg_ui.dart';
 import '../../../alerts/data/gps_alerts_api.dart';
 import '../../../alerts/domain/alert_display.dart';
 import '../../../alerts/domain/gps_alert_models.dart';
+import '../../../../core/time/tenant_time.dart';
 
 final vehicleAlertsTabProvider = FutureProvider.family<List<GpsAlertEvent>,
     ({int vehicleId, String preset})>((ref, args) {
@@ -525,10 +526,10 @@ class _AlertIncidentCard extends StatelessWidget {
         ? meta.description
         : (a.message.trim().isNotEmpty ? a.message : 'Alert recorded.');
 
-    final startLocal = a.timestamp.toLocal();
+    final startLocal = TenantTime.inZone(a.timestamp);
     String whenLine;
     if (incident.isOfflineIncident && incident.endedAt != null) {
-      final endLocal = incident.endedAt!.toLocal();
+      final endLocal = TenantTime.inZone(incident.endedAt!);
       final sameDay = startLocal.year == endLocal.year &&
           startLocal.month == endLocal.month &&
           startLocal.day == endLocal.day;
@@ -651,7 +652,7 @@ class _AlertIncidentCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   a.acknowledgedAt != null
-                      ? 'Acknowledged · ${df.format(a.acknowledgedAt!.toLocal())}'
+                      ? 'Acknowledged · ${df.format(TenantTime.inZone(a.acknowledgedAt!))}'
                       : 'Acknowledged',
                   style: const TextStyle(
                     fontSize: 12,

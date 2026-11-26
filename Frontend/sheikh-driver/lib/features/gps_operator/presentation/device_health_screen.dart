@@ -7,6 +7,7 @@ import '../../../features/auth/data/auth_repository.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../../fleet/presentation/vehicle_commands_sheet.dart';
 import '../../fleet/presentation/vehicle_detail_screen.dart';
+import '../../../core/time/tenant_time.dart';
 
 class DeviceHealthScreen extends ConsumerWidget {
   const DeviceHealthScreen({super.key, required this.vehicleId});
@@ -55,7 +56,7 @@ class DeviceHealthScreen extends ConsumerWidget {
                     _row(
                       context,
                       'Last seen',
-                      seen != null ? df.format(seen.toLocal()) : '—',
+                      seen != null ? df.format(TenantTime.inZone(seen)) : '—',
                     ),
                     _row(
                       context,

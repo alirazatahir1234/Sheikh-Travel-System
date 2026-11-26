@@ -16,6 +16,7 @@ import 'fleet_kpi_strip.dart';
 import 'live_map_location.dart';
 import 'vehicle_live_map_sheet.dart';
 import 'vehicle_pulse_icons.dart';
+import '../../../../core/time/tenant_time.dart';
 
 String _formatUpdateAge(DateTime? at) {
   if (at == null) return 'No recent update';
@@ -703,7 +704,7 @@ class _TelemetryCard extends ConsumerWidget {
           _metric(
             context,
             'Last update',
-            last != null ? df.format(last.toLocal()) : '—',
+            last != null ? df.format(TenantTime.inZone(last)) : '—',
           ),
           _metric(
             context,
