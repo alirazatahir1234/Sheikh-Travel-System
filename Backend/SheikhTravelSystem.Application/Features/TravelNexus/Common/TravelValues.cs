@@ -78,6 +78,20 @@ public static partial class TravelValues
     public static readonly string[] BookingHistoryEventTypes =
         ["FileStatus", "FlightStatus", "HotelStatus", "TicketIssued", "TicketVoided", "Cancelled", "RefundStatus", "ServiceAdded", "ServiceUpdated"];
 
+    // ── Phase 6A: customer finance ──
+    public static readonly string[] InvoiceStatuses = ["Draft", "Issued", "Void"];
+    /// <summary>Derived from the balance, never stored.</summary>
+    public static readonly string[] InvoicePaymentStatuses = ["Unpaid", "PartiallyPaid", "Paid", "CreditDue"];
+    public static readonly string[] InvoiceSourceTypes = ["Flight", "Hotel", "VisaServiceFee", "VisaEmbassyFee", "GroupMember"];
+    public static readonly string[] PaymentMethods = ["Cash", "BankTransfer", "Card", "Cheque", "Online", "Other"];
+    /// <summary>The Nexus payment vocabulary (Backend/CLAUDE.md). Pending = cheque or transfer not yet cleared.</summary>
+    public static readonly string[] PaymentStatuses = ["Pending", "Completed", "Failed", "Refunded"];
+    public static readonly string[] CreditNoteStatuses = ["Issued", "Void"];
+    public static readonly string[] InstallmentStatuses = ["Paid", "PartlyPaid", "Due", "Overdue"];
+    public static readonly string[] FinanceHistoryEventTypes =
+        ["InvoiceCreated", "InvoiceUpdated", "InvoiceIssued", "InvoiceVoided", "PaymentRecorded", "PaymentStatus", "Allocated", "Unallocated",
+         "CreditNoteIssued", "CreditNoteVoided", "RefundPaid", "Reconciled"];
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 

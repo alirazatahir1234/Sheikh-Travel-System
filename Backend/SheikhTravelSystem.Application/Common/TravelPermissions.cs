@@ -49,6 +49,16 @@ public static class TravelPermissions
     /// <summary>Cancellations, penalties and refund tracking.</summary>
     public const string BookingCancel = "Travel.Booking.Cancel";
 
+    public const string FinanceView = "Travel.Finance.View";
+    /// <summary>Draft and issue customer invoices.</summary>
+    public const string InvoiceManage = "Travel.Invoice.Manage";
+    /// <summary>Record receipts, allocate them, clear or fail pending payments.</summary>
+    public const string PaymentManage = "Travel.Payment.Manage";
+    /// <summary>Financial adjustments: void invoices, credit notes, refunds.</summary>
+    public const string FinanceAdjust = "Travel.Finance.Adjust";
+    /// <summary>Mark payments reconciled against the bank.</summary>
+    public const string FinanceReconcile = "Travel.Finance.Reconcile";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
@@ -64,5 +74,8 @@ public static class TravelPermissions
     /// <summary>Phase 5 permissions (seeded by TravelNexusBookingsMigration).</summary>
     public static readonly string[] Phase5 = [SupplierView, SupplierManage, BookingView, BookingManage, BookingCancel];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5];
+    /// <summary>Phase 6A permissions (seeded by TravelNexusFinanceMigration).</summary>
+    public static readonly string[] Phase6 = [FinanceView, InvoiceManage, PaymentManage, FinanceAdjust, FinanceReconcile];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5, .. Phase6];
 }

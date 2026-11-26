@@ -88,6 +88,11 @@ public class TravelSettingsDto
     public string InvoicePrefix { get; set; } = "TINV";
     public string GroupPrefix { get; set; } = "GRP";
     public string BookingPrefix { get; set; } = "BKG";
+    public string ReceiptPrefix { get; set; } = "TRCP";
+    public string CreditNotePrefix { get; set; } = "TCN";
+    public string RefundPrefix { get; set; } = "TRF";
+    /// <summary>Days between issue and due date suggested for new invoices.</summary>
+    public int DefaultPaymentTermsDays { get; set; } = 7;
     public int PassportExpiryWarningDays { get; set; } = 180;
 }
 
@@ -98,4 +103,8 @@ public record UpdateTravelSettingsDto(
     string InvoicePrefix,
     int PassportExpiryWarningDays,
     string? GroupPrefix = null,
-    string? BookingPrefix = null);
+    string? BookingPrefix = null,
+    string? ReceiptPrefix = null,
+    string? CreditNotePrefix = null,
+    string? RefundPrefix = null,
+    int? DefaultPaymentTermsDays = null);
