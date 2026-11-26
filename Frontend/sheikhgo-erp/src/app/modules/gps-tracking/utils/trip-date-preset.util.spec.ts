@@ -28,6 +28,12 @@ describe('applyTripDatePreset', () => {
     expect(from.toISOString()).toBe('2026-07-12T20:00:00.000Z');
   });
 
+  it('resolves last 7 days as fully rolling, ending now (never in the future)', () => {
+    const { from, to } = applyTripDatePreset('last7Days', now);
+    expect(to.getTime()).toBe(now.getTime());
+    expect(to.getTime() - from.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
   it('resolves yesterday as the previous local calendar day', () => {
     setActiveTimeZone('Asia/Karachi');
     const { from, to } = applyTripDatePreset('yesterday', now);

@@ -143,7 +143,8 @@ export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): {
       range = { from: startOfWeek(now), to: endOfDay(now) };
       break;
     case 'last7Days':
-      range = { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
+      // Fully rolling: a rolling start with an end-of-day end would run into the future.
+      range = { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: now };
       break;
     case 'last30Days':
       // Inclusive 30-day window ending now — avoid now−30d → endOfDay(now) which exceeds MaxRange.

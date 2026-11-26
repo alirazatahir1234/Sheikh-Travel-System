@@ -689,9 +689,11 @@ public sealed partial class GpsTrackingRepository
         IReadOnlyDictionary<int, string>? geofenceNames = null;
         var opts = traccarOptions.Value;
         TripReplayBundleDto bundle;
+        var fromTraccar = false;
 
         if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
         {
+            fromTraccar = true;
             geofenceNames = await LoadGeofenceNamesAsync(traccar, cancellationToken);
             bundle = await TripReplayLoader.LoadFromTraccarAsync(
                 traccar,
@@ -714,6 +716,7 @@ public sealed partial class GpsTrackingRepository
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
         {
             // Traccar reports can lag or fail while sync keeps local history warm.
+            fromTraccar = false;
             bundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
                 mediator, vehicleId, fromDate, toDate, cancellationToken,
                 routeMaxPoints, playbackMaxPoints, includeRaw);
@@ -721,6 +724,11 @@ public sealed partial class GpsTrackingRepository
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
             return ApiResponse<HistoryReplayBundleDto>.FailResponse("No tracking points in this period.");
+
+        // Traccar's stops report can come back empty on sparse fixes, and the local
+        // fallback has none — detect from the route so STOPS/PARKING match NON-MOVING.
+        if (bundle.Stops.Count == 0 && bundle.Route.Count >= 2)
+            bundle = bundle with { Stops = ReplayStopDetector.Detect(bundle.Route, fromDate, toDate) };
 
         bundle = await TripReplayAddressEnricher.EnrichAsync(
             bundle,
@@ -739,7 +747,11 @@ public sealed partial class GpsTrackingRepository
             bundle.Stops,
             fromDate,
             toDate,
-            mileageKm);
+            mileageKm,
+            // Only a Traccar summary carries real max speed / engine hours; the local
+            // BuildReplaySummary derives engine hours from the route span.
+            traccarMaxSpeedKmh: fromTraccar ? bundle.Summary?.MaxSpeedKmh : null,
+            traccarEngineHours: fromTraccar ? bundle.Summary?.EngineHours : null);
 
         // Keep replay summary driving time consistent with clamped history stats.
         var summary = bundle.Summary is null

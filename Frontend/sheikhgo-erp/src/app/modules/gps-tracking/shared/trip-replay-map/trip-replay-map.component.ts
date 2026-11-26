@@ -34,6 +34,7 @@ import {
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { splitDisplayAddress } from '../../utils/gps-address.util';
+import { formatReplayTimeLabel } from '../../utils/replay-time-label.util';
 import { escapeHtml } from '../../../../core/utils/escape-html';
 import { formatInZone, formatTimeInZone, fromZonedDateTimeLocal, toZonedDateInput, toZonedDateTimeLocal, zonedParts } from '../../../../core/utils/zoned-time.util';
 
@@ -143,23 +144,30 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     return splitDisplayAddress(address).secondary;
   }
 
+  /** First→last fix span; labels carry the date once it exceeds 24 h. */
+  private get positionsSpanMs(): number {
+    if (this.positions.length < 2) return 0;
+    return new Date(this.positions[this.positions.length - 1].timestamp).getTime()
+      - new Date(this.positions[0].timestamp).getTime();
+  }
+
   get startTimeLabel(): string {
     return this.positions[0]
-      ? formatTimeInZone(this.positions[0].timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
+      ? formatReplayTimeLabel(this.positions[0].timestamp, this.positionsSpanMs, this.timeZoneId)
       : '—';
   }
 
   get endTimeLabel(): string {
     const last = this.positions[this.positions.length - 1];
     return last
-      ? formatTimeInZone(last.timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
+      ? formatReplayTimeLabel(last.timestamp, this.positionsSpanMs, this.timeZoneId)
       : '—';
   }
 
   get midTimeLabel(): string {
     if (this.positions.length < 2) return '—';
     const mid = this.positions[Math.floor(this.positions.length / 2)];
-    return formatTimeInZone(mid.timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId);
+    return formatReplayTimeLabel(mid.timestamp, this.positionsSpanMs, this.timeZoneId);
   }
 
   get totalDistanceKm(): number {
@@ -227,11 +235,10 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.positions.length < 2) return [];
     const n = Math.min(5, this.positions.length);
     const ticks: string[] = [];
+    const spanMs = this.positionsSpanMs;
     for (let i = 0; i < n; i++) {
       const idx = Math.floor((i / (n - 1)) * (this.positions.length - 1));
-      ticks.push(
-        formatTimeInZone(this.positions[idx].timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
-      );
+      ticks.push(formatReplayTimeLabel(this.positions[idx].timestamp, spanMs, this.timeZoneId));
     }
     return ticks;
   }

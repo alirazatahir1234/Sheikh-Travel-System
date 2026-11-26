@@ -3633,6 +3633,12 @@ public sealed partial class GpsTrackingRepository(
             request.VehicleId, fromDate, toDate, request.DeviceId);
         if (validation is not null) return validation;
 
+        // Stats run over the elapsed window: a range ending tonight must not count the
+        // hours that have not happened yet as non-moving time.
+        var effectiveTo = GpsUtcDateTime.ClampToNow(toDate, DateTime.UtcNow);
+        if (effectiveTo <= fromDate)
+            return ApiResponse<HistoryReplayBundleDto>.FailResponse("No tracking points in this period.");
+
         VehicleTripSource? source;
         if (request.VehicleId.HasValue)
         {
@@ -3667,7 +3673,7 @@ public sealed partial class GpsTrackingRepository(
                 vehicleContext!,
                 vehicleId,
                 fromDate,
-                toDate,
+                effectiveTo,
                 routeMaxPoints,
                 playbackMaxPoints,
                 includeRaw,

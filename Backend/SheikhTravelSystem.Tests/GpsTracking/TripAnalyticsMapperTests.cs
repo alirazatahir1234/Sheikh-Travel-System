@@ -1,3 +1,4 @@
+using FluentAssertions;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -159,7 +160,7 @@ public class TripAnalyticsMapperTests
     }
 
     [Fact]
-    public void BuildHistoryStatistics_AvgSpeed_IgnoresStationaryPoints()
+    public void BuildHistoryStatistics_AvgSpeed_IsDistanceOverMovingTime()
     {
         var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
         var to = from.AddHours(2);
@@ -171,8 +172,100 @@ public class TripAnalyticsMapperTests
             new(from.AddMinutes(30), 31.52, 74.32, 60m, null, true, null, null, null, null),
         };
 
-        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, to, null);
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, to, mileageKm: 10);
 
-        Assert.Equal(50.0m, stats.AvgSpeedKmh); // mean of 40 and 60 only
+        // Stationary first segment is not moving: moving = 20 min. 10 km / (20/60 h) = 30 km/h,
+        // not the 50 km/h mean of the point readings.
+        stats.DrivingMinutes.Should().Be(20);
+        stats.AvgSpeedKmh.Should().Be(30.0m);
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_AvgSpeed_NeverExceedsMaxSpeed()
+    {
+        var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
+        var route = MovingRoute(from, segments: 1, speed: 40m, ignition: true);
+
+        // Odometer distance covered during a data gap would otherwise give an impossible average.
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, from.AddHours(2), mileageKm: 500);
+
+        stats.AvgSpeedKmh.Should().Be(stats.MaxSpeedKmh);
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_MovingPlusIdle_EqualsClampedWindow()
+    {
+        var utcNow = new DateTime(2026, 11, 26, 12, 30, 0, DateTimeKind.Utc);
+        var from = utcNow.AddDays(-7);
+        var requestedTo = new DateTime(2026, 11, 26, 18, 59, 0, DateTimeKind.Utc); // 23:59 PKT, in the future
+        var effectiveTo = GpsUtcDateTime.ClampToNow(requestedTo, utcNow);
+        var route = MovingRoute(from.AddHours(1), segments: 12, speed: 50m, ignition: true);
+
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, effectiveTo, mileageKm: 100);
+
+        (stats.DrivingMinutes + stats.IdleMinutes).Should().Be((int)(utcNow - from).TotalMinutes);
+        stats.DrivingMinutes.Should().Be(120);
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_EngineHours_IsIgnitionOnTime_NotMovingTime()
+    {
+        var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
+        var route = new List<TripReplayPositionDto>();
+        // 50 min idling in place with the engine on…
+        for (var i = 0; i <= 5; i++)
+            route.Add(new(from.AddMinutes(i * 10), 31.5, 74.3, 0m, null, true, null, null, null, null));
+        // …then 20 min driving.
+        route.Add(new(from.AddMinutes(60), 31.51, 74.31, 40m, null, true, null, null, null, null));
+        route.Add(new(from.AddMinutes(70), 31.52, 74.32, 40m, null, false, null, null, null, null));
+
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, from.AddHours(2), mileageKm: 10);
+
+        stats.DrivingMinutes.Should().Be(20);
+        stats.EngineHours.Should().Be(1.2m); // 70 min ignition-on
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_EngineHours_NullWithoutIgnitionData()
+    {
+        var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
+        var route = MovingRoute(from, segments: 3, speed: 40m, ignition: null);
+
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(null, route, [], from, from.AddHours(2), mileageKm: 10);
+
+        stats.DrivingMinutes.Should().BeGreaterThan(0);
+        stats.EngineHours.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_EngineHours_PrefersTraccarSummary()
+    {
+        var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
+        var route = MovingRoute(from, segments: 3, speed: 40m, ignition: true);
+
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(
+            null, route, [], from, from.AddHours(6), mileageKm: 10, traccarEngineHours: 3.4m);
+
+        stats.EngineHours.Should().Be(3.4m);
+    }
+
+    [Fact]
+    public void BuildHistoryStatistics_MaxSpeed_UsesTraccarSummaryWhenHigher()
+    {
+        var from = new DateTime(2026, 8, 8, 0, 0, 0, DateTimeKind.Utc);
+        var route = MovingRoute(from, segments: 3, speed: 60m, ignition: true);
+
+        var stats = TripAnalyticsMapper.BuildHistoryStatistics(
+            null, route, [], from, from.AddHours(2), mileageKm: 10, traccarMaxSpeedKmh: 95m);
+
+        stats.MaxSpeedKmh.Should().Be(95m);
+    }
+
+    private static List<TripReplayPositionDto> MovingRoute(DateTime start, int segments, decimal speed, bool? ignition)
+    {
+        var route = new List<TripReplayPositionDto>();
+        for (var i = 0; i <= segments; i++)
+            route.Add(new(start.AddMinutes(i * 10), 31.5 + i * 0.01, 74.3 + i * 0.01, speed, null, ignition, null, null, null, null));
+        return route;
     }
 }

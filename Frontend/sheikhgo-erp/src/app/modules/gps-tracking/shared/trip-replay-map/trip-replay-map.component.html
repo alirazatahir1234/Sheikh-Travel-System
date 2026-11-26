@@ -55,7 +55,7 @@
       </div>
       <span class="loading-progress__pct">{{ loadingProgress | number:'1.0-0' }}%</span>
       <p class="loading-timeout" *ngIf="loadingTimedOut">
-        This is taking longer than expected. The server may be fetching a large route from Traccar.
+        This is taking longer than expected. Large ranges can take a little longer to load.
       </p>
       <button type="button" class="btn btn-secondary btn-sm" *ngIf="loadingTimedOut" (click)="requestRetry()">
         <mat-icon>refresh</mat-icon> Retry

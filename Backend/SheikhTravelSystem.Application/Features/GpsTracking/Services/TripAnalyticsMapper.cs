@@ -225,7 +225,9 @@ public static class TripAnalyticsMapper
         IReadOnlyList<TripStopDto> stops,
         DateTime fromDate,
         DateTime toDate,
-        double? mileageKm)
+        double? mileageKm,
+        decimal? traccarMaxSpeedKmh = null,
+        decimal? traccarEngineHours = null)
     {
         var rangeMinutes = Math.Max(1, (int)Math.Ceiling((toDate - fromDate).TotalMinutes));
         var motionDriving = ComputeMotionDrivingMinutes(route, rangeMinutes);
@@ -264,23 +266,25 @@ public static class TripAnalyticsMapper
             ?? replaySummary?.DistanceKm
             ?? 0;
 
-        decimal avgSpeed = baseSummary?.AvgSpeedKmh ?? 0;
-        decimal maxSpeed = baseSummary?.MaxSpeedKmh ?? 0;
-        if ((avgSpeed <= 0 || maxSpeed <= 0) && route.Count > 0)
-        {
-            if (avgSpeed <= 0)
-            {
-                var movingSpeeds = route
-                    .Where(p => p.SpeedKmh >= 3m)
-                    .Select(p => (double)p.SpeedKmh)
-                    .ToList();
-                avgSpeed = movingSpeeds.Count > 0
-                    ? Math.Round((decimal)movingSpeeds.Average(), 1)
-                    : 0;
-            }
-            if (maxSpeed <= 0)
-                maxSpeed = Math.Round((decimal)route.Max(p => (double)p.SpeedKmh), 1);
-        }
+        // Traccar's summary sees every raw fix; the route may be downsampled.
+        var routeMax = route.Count > 0 ? route.Max(p => p.SpeedKmh) : 0m;
+        var maxSpeed = Math.Round(Math.Max(Math.Max(routeMax, traccarMaxSpeedKmh ?? 0m), baseSummary?.MaxSpeedKmh ?? 0m), 1);
+
+        // Average speed is derived, not a mean of point readings, so the strip reconciles:
+        // DISTANCE ÷ MOVING = AVG SPEED. Capped at max speed so odometer distance covered
+        // during a skipped data gap cannot produce an impossible average.
+        var avgSpeed = drivingMinutes > 0
+            ? Math.Round((decimal)distanceKm / (drivingMinutes / 60m), 1)
+            : 0m;
+        if (maxSpeed > 0m && avgSpeed > maxSpeed)
+            avgSpeed = maxSpeed;
+
+        // Engine hours = ignition-on time, never moving time (idling with the engine running counts).
+        var engineHours = traccarEngineHours is > 0m
+            ? Math.Round(traccarEngineHours.Value, 1)
+            : ComputeIgnitionOnMinutes(route, rangeMinutes) is { } ignitionMinutes
+                ? Math.Round(ignitionMinutes / 60m, 1)
+                : (decimal?)null;
 
         return new TripAnalyticsSummaryDto(
             baseSummary?.TripCount ?? 0,
@@ -294,7 +298,34 @@ public static class TripAnalyticsMapper
             baseSummary?.OverspeedCount ?? 0,
             baseSummary?.HarshBrakeCount ?? 0,
             baseSummary?.HarshAccelCount ?? 0,
-            Math.Round(drivingMinutes / 60m, 1));
+            engineHours);
+    }
+
+    /// <summary>Segments longer than this are never counted as moving (sparse histories).</summary>
+    internal const double MaxMovingGapMinutes = 20;
+
+    /// <summary>
+    /// The single moving-segment rule shared by moving time and replay stop detection.
+    /// </summary>
+    internal static bool IsMovingSegment(TripReplayPositionDto prev, TripReplayPositionDto next)
+    {
+        var deltaMinutes = (next.Timestamp - prev.Timestamp).TotalMinutes;
+        if (deltaMinutes <= 0) return false;
+        // Ignore very large gaps so sparse histories don't inflate driving time.
+        if (deltaMinutes > MaxMovingGapMinutes) return false;
+
+        var segmentDistanceKm = HaversineKm(
+            prev.Latitude, prev.Longitude,
+            next.Latitude, next.Longitude);
+
+        var movingBySpeed =
+            prev.SpeedKmh >= 3m || next.SpeedKmh >= 3m;
+        var movingByIgnition =
+            (prev.Ignition == true || next.Ignition == true) &&
+            (prev.SpeedKmh > 0m || next.SpeedKmh > 0m);
+        var movingByDistance = segmentDistanceKm >= 0.03; // ~30m
+
+        return movingBySpeed || movingByIgnition || movingByDistance;
     }
 
     private static int ComputeMotionDrivingMinutes(
@@ -308,29 +339,36 @@ public static class TripAnalyticsMapper
         {
             var prev = route[i - 1];
             var next = route[i];
-            var deltaMinutes = (next.Timestamp - prev.Timestamp).TotalMinutes;
-            if (deltaMinutes <= 0) continue;
-            // Ignore very large gaps so sparse histories don't inflate driving time.
-            if (deltaMinutes > 20) continue;
-
-            var segmentDistanceKm = HaversineKm(
-                prev.Latitude, prev.Longitude,
-                next.Latitude, next.Longitude);
-
-            var movingBySpeed =
-                prev.SpeedKmh >= 3m || next.SpeedKmh >= 3m;
-            var movingByIgnition =
-                (prev.Ignition == true || next.Ignition == true) &&
-                (prev.SpeedKmh > 0m || next.SpeedKmh > 0m);
-            var movingByDistance = segmentDistanceKm >= 0.03; // ~30m
-
-            if (movingBySpeed || movingByIgnition || movingByDistance)
+            if (IsMovingSegment(prev, next))
             {
-                movingMinutes += deltaMinutes;
+                movingMinutes += (next.Timestamp - prev.Timestamp).TotalMinutes;
             }
         }
 
         return Math.Clamp((int)Math.Round(movingMinutes), 0, rangeMinutes);
+    }
+
+    /// <summary>
+    /// Minutes with ignition on, from the route. Null when no point carries ignition data,
+    /// so the UI shows "—" instead of a made-up figure.
+    /// </summary>
+    private static int? ComputeIgnitionOnMinutes(
+        IReadOnlyList<TripReplayPositionDto> route,
+        int rangeMinutes)
+    {
+        if (route.Count < 2 || route.All(p => p.Ignition is null)) return null;
+        var minutes = 0.0;
+
+        for (var i = 1; i < route.Count; i++)
+        {
+            var prev = route[i - 1];
+            var deltaMinutes = (route[i].Timestamp - prev.Timestamp).TotalMinutes;
+            if (deltaMinutes <= 0 || deltaMinutes > MaxMovingGapMinutes) continue;
+            if (prev.Ignition == true)
+                minutes += deltaMinutes;
+        }
+
+        return Math.Clamp((int)Math.Round(minutes), 0, rangeMinutes);
     }
 
     private static int CountEvents(IReadOnlyList<TraccarEvent> events, params string[] types)
@@ -426,7 +464,7 @@ public static class TripAnalyticsMapper
             null);
     }
 
-    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    internal static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
     {
         const double R = 6371;
         var dLat = (lat2 - lat1) * Math.PI / 180;

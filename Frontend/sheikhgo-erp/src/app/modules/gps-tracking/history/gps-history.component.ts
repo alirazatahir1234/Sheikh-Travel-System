@@ -361,7 +361,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (this.needsCompanySelection) return 'Select a company to view vehicles.';
     if (!this.vehicleId) return 'Select a vehicle from the list to begin.';
     if (!this.from || !this.to) return 'Choose a date range, then load history.';
-    if (this.loading) return 'Loading route from Traccar…';
+    if (this.loading) return 'Loading route…';
     if (this.noData) return 'No historical data for this period — try another range.';
     if (!this.bundle) return 'Press Load route to fetch GPS history.';
     return '';
@@ -619,7 +619,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         const status = (err as { status?: number })?.status;
         if (status === 0) {
           this.error =
-            'History request was interrupted or timed out. Wait for Traccar (can take up to a minute on first load), then Retry.';
+            'History request was interrupted or timed out. Large ranges can take up to a minute on first load — please Retry.';
           return;
         }
         this.error = err?.error?.message ?? 'Failed to load history.';

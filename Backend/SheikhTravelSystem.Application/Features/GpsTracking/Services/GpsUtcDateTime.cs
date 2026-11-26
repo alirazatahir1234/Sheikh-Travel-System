@@ -14,4 +14,11 @@ public static class GpsUtcDateTime
 
     public static DateTime? AsUtc(DateTime? value) =>
         value.HasValue ? AsUtc(value.Value) : null;
+
+    /// <summary>
+    /// A report window cannot end in the future: hours that have not happened yet
+    /// must not be counted as non-moving time.
+    /// </summary>
+    public static DateTime ClampToNow(DateTime to, DateTime utcNow) =>
+        to > utcNow ? utcNow : to;
 }
