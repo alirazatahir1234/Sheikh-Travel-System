@@ -55,6 +55,11 @@
                 "glob": "**/*",
                 "input": "public",
                 "output": "/"
+              },
+              {
+                "glob": "config.json",
+                "input": "src/config/development",
+                "output": "assets"
               }
             ],
             "styles": [
@@ -85,7 +90,19 @@
                   "maximumError": "48kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public",
+                  "output": "/"
+                },
+                {
+                  "glob": "config.json",
+                  "input": "src/config/production",
+                  "output": "assets"
+                }
+              ]
             },
             "development": {
               "optimization": false,

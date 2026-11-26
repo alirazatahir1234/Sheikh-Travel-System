@@ -227,6 +227,20 @@ EOF
         echo "ERROR: Non-HTTPS Azure VM API host still present in ERP build — refusing deploy." >&2
         exit 1
       fi
+      # SG-09: the ERP reads its API host at runtime from assets/config.json, not from the bundle.
+      # Without the file the SPA would call /api on its own host; over plain HTTP it is Mixed Content.
+      if [[ "$name" == "sheikhgo-erp" ]]; then
+        ERP_CONFIG="$(find .vercel/output/static -type f -name config.json -path '*assets*' 2>/dev/null | head -1 || true)"
+        if [[ -z "$ERP_CONFIG" ]]; then
+          echo "ERROR: assets/config.json missing from the ERP build — refusing deploy." >&2
+          exit 1
+        fi
+        if ! grep -qE '"apiUrl"[[:space:]]*:[[:space:]]*"https://' "$ERP_CONFIG"; then
+          echo "ERROR: ${ERP_CONFIG} apiUrl is not an absolute HTTPS URL — refusing deploy." >&2
+          exit 1
+        fi
+        echo "ERP runtime config: $(tr -d '\n' < "$ERP_CONFIG")"
+      fi
       # ERP must not ship an empty Maps key (live map init fails).
       if [[ "$name" == "sheikhgo-erp" ]]; then
         if ! grep -Rql 'AIzaSy' .vercel/output/static --include='*.js' 2>/dev/null; then

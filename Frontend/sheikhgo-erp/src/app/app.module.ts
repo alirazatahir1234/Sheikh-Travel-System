@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { APP_INITIALIZER, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
@@ -9,6 +9,7 @@ import { LayoutModule } from './layout/layout.module';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { ApiEnvelopeInterceptor } from './core/interceptors/api-envelope.interceptor';
 import { AppSplashComponent } from './shared/components/app-splash/app-splash.component';
+import { AppConfigService } from './core/services/app-config.service';
 
 @NgModule({
   declarations: [AppComponent],
@@ -21,6 +22,13 @@ import { AppSplashComponent } from './shared/components/app-splash/app-splash.co
     AppSplashComponent
   ],
   providers: [
+    // Runs before any other service is created: loads assets/config.json (API host, auth mode).
+    {
+      provide: APP_INITIALIZER,
+      multi: true,
+      deps: [AppConfigService],
+      useFactory: (config: AppConfigService) => () => config.load()
+    },
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     { provide: HTTP_INTERCEPTORS, useClass: ApiEnvelopeInterceptor, multi: true }
   ],
