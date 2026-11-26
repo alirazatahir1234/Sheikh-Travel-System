@@ -32,6 +32,8 @@ public class UpdateTravelSettingsCommandValidator : AbstractValidator<UpdateTrav
         RuleFor(x => x.Settings.InvoicePrefix).NotEmpty().MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage);
         RuleFor(x => x.Settings.GroupPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
             .When(x => !string.IsNullOrEmpty(x.Settings.GroupPrefix));
+        RuleFor(x => x.Settings.BookingPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.BookingPrefix));
         RuleFor(x => x.Settings.PassportExpiryWarningDays).InclusiveBetween(0, 730);
     }
 }

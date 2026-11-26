@@ -63,6 +63,21 @@ public static partial class TravelValues
     /// <summary>Beds per room type.</summary>
     public static int RoomCapacity(string roomType) => roomType switch { "Quad" => 4, "Triple" => 3, "Double" => 2, "Single" => 1, _ => 0 };
 
+    // ── Phase 5: suppliers and bookings ──
+    public static readonly string[] SupplierTypes = ["Airline", "Hotel", "BedBank", "Consolidator", "Transport", "Other"];
+    public static readonly string[] BookingStatuses = ["Open", "Completed", "Cancelled"];
+    public static readonly string[] FlightDirections = ["Outbound", "Return", "RoundTrip", "OneWay", "Internal"];
+    public static readonly string[] FlightStatuses = ["Requested", "OnHold", "Confirmed", "Ticketed", "Cancelled"];
+    public static readonly string[] CabinClasses = ["Economy", "PremiumEconomy", "Business", "First"];
+    public static readonly string[] PassengerTypes = ["Adult", "Child", "Infant"];
+    public static readonly string[] TicketStatuses = ["NotIssued", "Issued", "Voided", "Refunded"];
+    public static readonly string[] HotelBookingStatuses = ["Requested", "Confirmed", "CheckedIn", "CheckedOut", "NoShow", "Cancelled"];
+    public static readonly string[] MealPlans = ["RoomOnly", "Breakfast", "HalfBoard", "FullBoard"];
+    public static readonly string[] BookingServiceTypes = ["Flight", "Hotel"];
+    public static readonly string[] RefundStatuses = ["NotApplicable", "Pending", "ReceivedFromSupplier", "PaidToCustomer", "Closed"];
+    public static readonly string[] BookingHistoryEventTypes =
+        ["FileStatus", "FlightStatus", "HotelStatus", "TicketIssued", "TicketVoided", "Cancelled", "RefundStatus", "ServiceAdded", "ServiceUpdated"];
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 

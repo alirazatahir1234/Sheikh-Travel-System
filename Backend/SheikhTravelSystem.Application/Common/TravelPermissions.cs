@@ -40,6 +40,15 @@ public static class TravelPermissions
     /// <summary>Pilgrim manifest (PII; every fetch is audited).</summary>
     public const string GroupManifest = "Travel.Group.Manifest";
 
+    public const string SupplierView = "Travel.Supplier.View";
+    /// <summary>Supplier profiles (airlines, hotels, bed banks, consolidators, transport).</summary>
+    public const string SupplierManage = "Travel.Supplier.Manage";
+    public const string BookingView = "Travel.Booking.View";
+    /// <summary>Booking files, flights, hotels, passengers, tickets, check-in/out.</summary>
+    public const string BookingManage = "Travel.Booking.Manage";
+    /// <summary>Cancellations, penalties and refund tracking.</summary>
+    public const string BookingCancel = "Travel.Booking.Cancel";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
@@ -52,5 +61,8 @@ public static class TravelPermissions
     /// <summary>Phase 4 permissions (seeded by TravelNexusUmrahMigration).</summary>
     public static readonly string[] Phase4 = [PackageView, PackageManage, GroupView, GroupManage, GroupManifest];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4];
+    /// <summary>Phase 5 permissions (seeded by TravelNexusBookingsMigration).</summary>
+    public static readonly string[] Phase5 = [SupplierView, SupplierManage, BookingView, BookingManage, BookingCancel];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5];
 }

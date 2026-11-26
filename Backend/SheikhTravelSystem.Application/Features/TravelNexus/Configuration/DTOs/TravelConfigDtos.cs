@@ -87,6 +87,7 @@ public class TravelSettingsDto
     public string VisaCasePrefix { get; set; } = "VC";
     public string InvoicePrefix { get; set; } = "TINV";
     public string GroupPrefix { get; set; } = "GRP";
+    public string BookingPrefix { get; set; } = "BKG";
     public int PassportExpiryWarningDays { get; set; } = 180;
 }
 
@@ -96,4 +97,5 @@ public record UpdateTravelSettingsDto(
     string VisaCasePrefix,
     string InvoicePrefix,
     int PassportExpiryWarningDays,
-    string? GroupPrefix = null);
+    string? GroupPrefix = null,
+    string? BookingPrefix = null);

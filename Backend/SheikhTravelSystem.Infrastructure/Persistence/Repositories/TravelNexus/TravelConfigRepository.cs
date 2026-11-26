@@ -310,7 +310,7 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<TravelSettingsDto>(new CommandDefinition("""
-            SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, GroupPrefix, PassportExpiryWarningDays
+            SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, GroupPrefix, BookingPrefix, PassportExpiryWarningDays
             FROM TravelSettings WHERE TenantId = @TenantId
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken))
             ?? new TravelSettingsDto();
@@ -324,15 +324,16 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 DefaultCurrencyCode = @DefaultCurrencyCode, EnquiryPrefix = @EnquiryPrefix,
                 VisaCasePrefix = @VisaCasePrefix, InvoicePrefix = @InvoicePrefix,
                 GroupPrefix = COALESCE(@GroupPrefix, GroupPrefix),
+                BookingPrefix = COALESCE(@BookingPrefix, BookingPrefix),
                 PassportExpiryWarningDays = @PassportExpiryWarningDays,
                 UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @UserId
             WHERE TenantId = @TenantId;
 
             IF @@ROWCOUNT = 0
                 INSERT INTO TravelSettings (TenantId, DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix,
-                    GroupPrefix, PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
+                    GroupPrefix, BookingPrefix, PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
                 VALUES (@TenantId, @DefaultCurrencyCode, @EnquiryPrefix, @VisaCasePrefix, @InvoicePrefix,
-                    COALESCE(@GroupPrefix, N'GRP'), @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
+                    COALESCE(@GroupPrefix, N'GRP'), COALESCE(@BookingPrefix, N'BKG'), @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
             """,
             new
             {
@@ -342,6 +343,7 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 dto.VisaCasePrefix,
                 dto.InvoicePrefix,
                 GroupPrefix = string.IsNullOrWhiteSpace(dto.GroupPrefix) ? null : dto.GroupPrefix,
+                BookingPrefix = string.IsNullOrWhiteSpace(dto.BookingPrefix) ? null : dto.BookingPrefix,
                 dto.PassportExpiryWarningDays,
                 UserId = userId
             },
