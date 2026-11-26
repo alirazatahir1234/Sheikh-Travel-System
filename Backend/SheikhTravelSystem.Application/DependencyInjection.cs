@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<Features.TravelNexus.Finance.Commands.TravelFinanceGuard>();
         services.AddScoped<Features.TravelNexus.SupplierFinance.Commands.TravelSupplierFinanceGuard>();
         services.AddScoped<Features.TravelNexus.Profitability.TravelProfitabilityService>();
+        services.AddScoped<Features.TravelNexus.Reminders.ITravelReminderRunner, Features.TravelNexus.Reminders.TravelReminderDispatcher>();
 
         return services;
     }

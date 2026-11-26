@@ -140,6 +140,10 @@ public static class DependencyInjection
         services.AddScoped<ITravelSupplierPaymentRepository, Persistence.Repositories.TravelNexus.TravelSupplierPaymentRepository>();
         services.AddScoped<ITravelCommissionRepository, Persistence.Repositories.TravelNexus.TravelCommissionRepository>();
         services.AddScoped<ITravelProfitabilityRepository, Persistence.Repositories.TravelNexus.TravelProfitabilityRepository>();
+        services.AddScoped<ITravelReminderRepository, Persistence.Repositories.TravelNexus.TravelReminderRepository>();
+        services.AddScoped<ITravelDashboardRepository, Persistence.Repositories.TravelNexus.TravelDashboardRepository>();
+        services.AddScoped<ITravelReportRepository, Persistence.Repositories.TravelNexus.TravelReportRepository>();
+        services.AddHostedService<Services.TravelNexus.TravelReminderHostedService>();
         services.AddScoped<IDriverWalletRepository, DriverWalletRepository>();
         services.AddScoped<IDriverCashOutDisbursementService, StubDriverCashOutDisbursementService>();
         services.AddScoped<IPricingRepository, PricingRepository>();

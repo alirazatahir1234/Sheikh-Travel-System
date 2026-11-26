@@ -65,6 +65,9 @@ public static class TenantScopedTableCatalog
         "TravelSupplierBillRepository.cs",
         "TravelSupplierPaymentRepository.cs",
         "TravelCommissionRepository.cs",
-        "TravelProfitabilityRepository.cs"
+        "TravelProfitabilityRepository.cs",
+        "TravelReminderRepository.cs",
+        "TravelDashboardRepository.cs",
+        "TravelReportRepository.cs"
     ];
 }

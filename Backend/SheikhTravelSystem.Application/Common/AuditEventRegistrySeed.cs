@@ -123,6 +123,7 @@ public static class AuditEventRegistrySeed
         new("travel.trip.update", "Trip updated", "Travel", "Information", null, 520),
         new("travel.booking.create", "Booking created", "Bookings", "Information", null, 530),
         new("travel.booking.update", "Booking updated", "Bookings", "Information", null, 540),
+        new("travel.reminder.dispatch", "Travel reminders dispatched", "Travel", "Information", null, 550),
         new("finance.payment.create", "Payment recorded", "Finance", "Information", null, 610),
         new("ai.action.execute", "AI action executed", "AI", "Information", null, 710),
         new("reports.export", "Report exported", "Reports", "Information", null, 810),
