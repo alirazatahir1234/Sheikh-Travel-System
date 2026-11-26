@@ -227,11 +227,12 @@
 
       <div class="stb-topbar-actions">
         <app-tenant-switcher></app-tenant-switcher>
-        <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" (click)="openHelp()">
+        <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" aria-label="Help" (click)="openHelp()">
           <mat-icon>help_outline</mat-icon>
         </button>
         <button mat-icon-button class="stb-icon-btn stb-notif-bell"
                 matTooltip="Notifications &amp; ops alerts"
+                aria-label="Notifications and ops alerts"
                 type="button"
                 (click)="toggleNotifPanel($event)"
                 [class.has-unread]="!!(bellBadgeCount$ | async)"
@@ -399,7 +400,7 @@
               <button type="button" class="notif-btn notif-btn--ghost" *ngIf="!n.isRead" (click)="markAsRead(n, $event)">
                 Mark as Read
               </button>
-              <button mat-icon-button type="button" class="notif-btn-more" [matMenuTriggerFor]="notifMoreMenu" (click)="$event.stopPropagation()">
+              <button mat-icon-button type="button" class="notif-btn-more" aria-label="More notification actions" [matMenuTriggerFor]="notifMoreMenu" (click)="$event.stopPropagation()">
                 <mat-icon>more_horiz</mat-icon>
               </button>
               <mat-menu #notifMoreMenu="matMenu">

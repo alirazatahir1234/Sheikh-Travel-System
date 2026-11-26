@@ -1,6 +1,6 @@
 <div class="history-page">
   <!-- Single compact toolbar -->
-  <header class="history-toolbar">
+  <div class="history-toolbar">
     <div class="toolbar-search">
       <mat-icon>search</mat-icon>
       <input
@@ -84,7 +84,13 @@
         <mat-icon>picture_as_pdf</mat-icon> Report PDF
       </button>
 
-      <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="!bundle" class="action-btn">
+      <button
+        mat-stroked-button
+        type="button"
+        [matMenuTriggerFor]="exportMenu"
+        [disabled]="!bundle"
+        class="action-btn"
+        matTooltip="Download the raw GPS points: PDF, Excel, CSV, GPX, KML or GeoJSON">
         <mat-icon>download</mat-icon> Export
       </button>
       <mat-menu #exportMenu="matMenu">
@@ -97,7 +103,13 @@
         <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
       </mat-menu>
 
-      <button mat-stroked-button type="button" [matMenuTriggerFor]="shareMenu" [disabled]="!vehicleId" class="action-btn">
+      <button
+        mat-stroked-button
+        type="button"
+        [matMenuTriggerFor]="shareMenu"
+        [disabled]="!vehicleId"
+        class="action-btn"
+        matTooltip="Copy a link to this view or a text summary of the route">
         <mat-icon>share</mat-icon> Share
       </button>
       <mat-menu #shareMenu="matMenu">
@@ -125,7 +137,7 @@
       <mat-icon>error</mat-icon> {{ error }}
       <button mat-stroked-button type="button" (click)="retryLoad()">Retry</button>
     </div>
-  </header>
+  </div>
 
   <div class="offline-banner" *ngIf="showOfflineHistoryBanner">
     <mat-icon>cloud_off</mat-icon>
@@ -210,7 +222,7 @@
       </div>
     </aside>
 
-    <main class="history-panel history-panel--center">
+    <section class="history-panel history-panel--center" aria-label="Route map and playback">
       <app-trip-replay-map
         [timeZoneId]="bundle?.timeZoneId ?? null"
         [routePoints]="bundle?.route ?? []"
@@ -245,7 +257,7 @@
           <i [style.background]="o.color"></i>{{ o.label }}
         </span>
       </div>
-    </main>
+    </section>
 
     <aside
       class="history-panel history-panel--right"
@@ -303,7 +315,7 @@
             <dt>Battery</dt>
             <dd>{{ selectedPosition.batteryLevel != null ? selectedPosition.batteryLevel + '%' : '—' }}</dd>
             <dt>Altitude</dt>
-            <dd>{{ selectedPosition.altitude != null ? selectedPosition.altitude + ' m' : '—' }}</dd>
+            <dd>{{ selectedPosition.altitude ? selectedPosition.altitude + ' m' : '—' }}</dd>
             <dt>GSM signal</dt>
             <dd>{{ gsmLabel(selectedPosition) }}</dd>
             <dt>Odometer</dt>

@@ -122,12 +122,15 @@
         <mat-icon>last_page</mat-icon>
       </button>
 
-      <span class="speed-label">Speed</span>
-      <button type="button" class="btn btn-secondary btn-sm speed-btn"
-        *ngFor="let s of activeSpeedOptions"
-        [class.active]="replaySpeed === s"
-        (click)="setReplaySpeed(s)"
-        [matTooltip]="s + '× playback speed'">{{ s }}×</button>
+      <div class="speed-group" role="group" aria-label="Playback speed">
+        <span class="speed-label" aria-hidden="true">Speed</span>
+        <button type="button" class="btn btn-secondary btn-sm speed-btn"
+          *ngFor="let s of activeSpeedOptions"
+          [class.active]="replaySpeed === s"
+          [attr.aria-pressed]="replaySpeed === s"
+          (click)="setReplaySpeed(s)"
+          [matTooltip]="s + '× playback speed'">{{ s }}×</button>
+      </div>
 
       <label class="follow-toggle">
         <input type="checkbox" [(ngModel)]="followVehicle" />

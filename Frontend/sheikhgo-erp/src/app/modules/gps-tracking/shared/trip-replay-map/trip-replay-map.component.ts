@@ -457,6 +457,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: true,
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
         mapId: (environment as { googleMapsMapId?: string }).googleMapsMapId?.trim() || 'DEMO_MAP_ID'
       };
 

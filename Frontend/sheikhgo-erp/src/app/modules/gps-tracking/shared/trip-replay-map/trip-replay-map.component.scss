@@ -228,10 +228,23 @@
   background: #ecfdf5;
 }
 
+// Segmented control: the six speeds never wrap onto a second row.
+.speed-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+
+  .speed-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
 .speed-label {
   font-size: 11px;
   font-weight: 700;
-  color: #9ca3af;
+  color: #4b5563;
   text-transform: uppercase;
   align-self: center;
   margin-left: 4px;
