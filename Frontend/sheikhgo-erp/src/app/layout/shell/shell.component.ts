@@ -18,6 +18,7 @@ import {
 } from '../../core/models/notification.model';
 import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
 import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
+import { TenantTimeService } from '../../core/services/tenant-time.service';
 import { TenantConfigService } from '../../core/services/tenant-config.service';
 import { MenuService } from '../../core/services/menu.service';
 import { NavGroup, NavItem, ResolvedMenu } from '../../core/navigation/nav-models';
@@ -105,6 +106,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     private smartAlertService: SmartAlertService,
     private globalSearch: GlobalSearchService,
     private localTime: LocalTimeContextService,
+    private tenantTime: TenantTimeService,
     private router: Router,
     private dialog: MatDialog,
     private tenantConfig: TenantConfigService,
@@ -168,6 +170,8 @@ export class ShellComponent implements OnInit, OnDestroy {
       this.refreshAiAssistantGate(b?.enabledModules ?? []);
       // Company timezone wins over user preference for display clocks.
       this.localTime.setCompanyTimeZone(b?.timeZone);
+      // Shared date pipe / GPS screens: company zone, or the platform default when none is set.
+      this.tenantTime.setCompanyTimeZone(b?.effectiveTimeZone ?? b?.timeZone);
     });
 
     this.sessionSub = this.auth.currentUser$.subscribe(user => {

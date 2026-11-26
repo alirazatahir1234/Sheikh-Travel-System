@@ -34,6 +34,7 @@ import {
 import { blockNonOrgNameKey, orgNameListValidator, orgNameValidator } from './org-name.validator';
 import { parseOptionalPositiveInt } from '../../../core/utils/integer-input.util';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
+import { DEFAULT_TIME_ZONE } from '../../../core/constants/time-zone.constants';
 
 type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
 
@@ -147,7 +148,7 @@ export class TenantProvisionComponent implements OnInit {
       branding: this.fb.group({
         country: ['United Arab Emirates'],
         currencyCode: [DEFAULT_CURRENCY],
-        timeZone: ['Asia/Dubai'],
+        timeZone: [DEFAULT_TIME_ZONE],
         website: [''],
         supportEmail: ['', Validators.email]
       }),
@@ -327,7 +328,7 @@ export class TenantProvisionComponent implements OnInit {
     const timeZone = this.pickExistingOrDefault(
       this.brandingGroup.get('timeZone')?.value,
       this.timezones,
-      'Asia/Dubai'
+      DEFAULT_TIME_ZONE
     );
 
     this.brandingGroup.patchValue({ country, currencyCode, timeZone }, { emitEvent: false });

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, Subject, takeUntil } from 'rxjs';
@@ -6,6 +6,8 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { UserService } from '../../../core/services/user.service';
+import { TenantTimeService } from '../../../core/services/tenant-time.service';
+import { isValidTimeZone } from '../../../core/utils/zoned-time.util';
 import {
   Branch,
   BranchPayload,
@@ -61,6 +63,8 @@ export class BranchFormComponent implements OnInit, OnDestroy {
   form;
 
   private readonly destroy$ = new Subject<void>();
+  /** New branches default to their tenant's timezone (UAE tenant → Asia/Dubai), else the platform default. */
+  private defaultTimeZone = inject(TenantTimeService).timeZone();
 
   constructor(
     private fb: FormBuilder,
@@ -82,7 +86,7 @@ export class BranchFormComponent implements OnInit, OnDestroy {
       address: ['', [Validators.maxLength(BRANCH_ADDRESS_MAX_LENGTH), branchAddressValidator()]],
       city: ['', [Validators.maxLength(BRANCH_CITY_MAX_LENGTH), branchCityValidator()]],
       country: ['United Arab Emirates'],
-      timeZone: ['Asia/Dubai'],
+      timeZone: [this.defaultTimeZone],
       currencyCode: [DEFAULT_CURRENCY],
       status: [BranchStatus.Active as BranchStatus, Validators.required],
       isGpsEnabled: [true]
@@ -107,6 +111,17 @@ export class BranchFormComponent implements OnInit, OnDestroy {
     const tenantRaw = this.route.snapshot.queryParamMap.get('tenantId');
     const tenantParsed = tenantRaw != null && tenantRaw !== '' ? Number(tenantRaw) : NaN;
     this.tenantId = Number.isFinite(tenantParsed) && tenantParsed > 0 ? tenantParsed : null;
+    if (!this.isEdit && this.tenantId != null) {
+      this.platform.getTenantById(this.tenantId).pipe(takeUntil(this.destroy$)).subscribe({
+        next: tenant => {
+          if (!isValidTimeZone(tenant?.timeZone)) return;
+          const untouched = this.form.get('timeZone')?.value === this.defaultTimeZone;
+          this.defaultTimeZone = tenant.timeZone!.trim();
+          if (untouched) this.form.patchValue({ timeZone: this.defaultTimeZone }, { emitEvent: false });
+        },
+        error: () => { /* Keep the company / platform default. */ }
+      });
+    }
 
     forkJoin({
       countries: this.lookup.getCountryNames(),
@@ -211,7 +226,7 @@ export class BranchFormComponent implements OnInit, OnDestroy {
         address: branch.address ?? '',
         city: branch.city ?? '',
         country: branch.country ?? 'United Arab Emirates',
-        timeZone: branch.timeZone ?? 'Asia/Dubai',
+        timeZone: branch.timeZone ?? this.defaultTimeZone,
         currencyCode: branch.currencyCode ?? DEFAULT_CURRENCY,
         status: normalizeBranchStatus(branch.status),
         isGpsEnabled: !!branch.isGpsEnabled
@@ -238,7 +253,7 @@ export class BranchFormComponent implements OnInit, OnDestroy {
     const timeZone = this.pickExistingOrDefault(
       this.form.get('timeZone')?.value,
       this.timezones,
-      'Asia/Dubai'
+      this.defaultTimeZone
     );
     const currencyCode = this.pickExistingOrDefault(
       this.form.get('currencyCode')?.value,
@@ -301,7 +316,7 @@ export class BranchFormComponent implements OnInit, OnDestroy {
       address: '',
       city: '',
       country: 'United Arab Emirates',
-      timeZone: 'Asia/Dubai',
+      timeZone: this.defaultTimeZone,
       currencyCode: DEFAULT_CURRENCY,
       status: BranchStatus.Active,
       isGpsEnabled: true

@@ -35,6 +35,7 @@ import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-l
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { splitDisplayAddress } from '../../utils/gps-address.util';
 import { escapeHtml } from '../../../../core/utils/escape-html';
+import { formatInZone, formatTimeInZone, fromZonedDateTimeLocal, toZonedDateInput, toZonedDateTimeLocal, zonedParts } from '../../../../core/utils/zoned-time.util';
 
 export interface HistoryCompareRouteOverlay {
   label: string;
@@ -64,6 +65,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() showLegend = false;
   @Input() historyMode = false;
   @Input() mapHeight = '360px';
+  /** Display zone for this vehicle (API timeZoneId: branch → company → default). */
+  @Input() timeZoneId: string | null = null;
   @Input() vehicleName = '';
   @Input() plateNumber = '';
   @Input() vehicleType = '';
@@ -142,21 +145,21 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   get startTimeLabel(): string {
     return this.positions[0]
-      ? new Date(this.positions[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ? formatTimeInZone(this.positions[0].timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
       : '—';
   }
 
   get endTimeLabel(): string {
     const last = this.positions[this.positions.length - 1];
     return last
-      ? new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ? formatTimeInZone(last.timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
       : '—';
   }
 
   get midTimeLabel(): string {
     if (this.positions.length < 2) return '—';
     const mid = this.positions[Math.floor(this.positions.length / 2)];
-    return new Date(mid.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatTimeInZone(mid.timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId);
   }
 
   get totalDistanceKm(): number {
@@ -181,28 +184,23 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     return this.formatMs(end - start);
   }
 
+  // Picker values are wall-clock time in the vehicle's zone, not the browser's.
   get jumpInputValue(): string {
     const p = this.currentPosition;
-    if (!p) return '';
-    const d = new Date(p.timestamp);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return p ? toZonedDateTimeLocal(p.timestamp, this.timeZoneId) : '';
   }
 
   get jumpDateValue(): string {
     const p = this.currentPosition;
-    if (!p) return '';
-    const d = new Date(p.timestamp);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    return p ? toZonedDateInput(p.timestamp, this.timeZoneId) : '';
   }
 
   get jumpTimeValue(): string {
     const p = this.currentPosition;
-    if (!p) return '';
-    const d = new Date(p.timestamp);
+    const z = p ? zonedParts(p.timestamp, this.timeZoneId) : null;
+    if (!z) return '';
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return `${pad(z.hours)}:${pad(z.minutes)}:${pad(z.seconds)}`;
   }
 
   get routeSummary() {
@@ -232,7 +230,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     for (let i = 0; i < n; i++) {
       const idx = Math.floor((i / (n - 1)) * (this.positions.length - 1));
       ticks.push(
-        new Date(this.positions[idx].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        formatTimeInZone(this.positions[idx].timestamp, { hour: '2-digit', minute: '2-digit' }, this.timeZoneId)
       );
     }
     return ticks;
@@ -378,21 +376,22 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   onJumpToTime(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
     if (!raw || !this.positions.length) return;
-    this.jumpToTimestamp(new Date(raw).getTime());
+    this.jumpToTimestamp(fromZonedDateTimeLocal(raw, this.timeZoneId)?.getTime() ?? NaN);
   }
 
   onJumpDate(event: Event): void {
     const datePart = (event.target as HTMLInputElement).value;
     if (!datePart || !this.positions.length) return;
     const timePart = this.jumpTimeValue || '00:00:00';
-    this.jumpToTimestamp(new Date(`${datePart}T${timePart}`).getTime());
+    this.jumpToTimestamp(fromZonedDateTimeLocal(`${datePart}T${timePart}`, this.timeZoneId)?.getTime() ?? NaN);
   }
 
   onJumpTime(event: Event): void {
     const timePart = (event.target as HTMLInputElement).value;
     if (!timePart || !this.positions.length) return;
     const datePart = this.jumpDateValue || this.jumpInputValue.slice(0, 10);
-    this.jumpToTimestamp(new Date(`${datePart}T${timePart}`).getTime());
+    const time = timePart.length === 5 ? `${timePart}:00` : timePart;
+    this.jumpToTimestamp(fromZonedDateTimeLocal(`${datePart}T${time}`, this.timeZoneId)?.getTime() ?? NaN);
   }
 
   private jumpToTimestamp(target: number): void {
@@ -691,7 +690,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
           isGeofence ? 7 : 6,
           isGeofence ? '#7c3aed' : '#f59e0b',
           isGeofence ? '#a78bfa' : '#fbbf24',
-          `<strong>${evt.label ?? evt.type}</strong><br>${new Date(evt.time).toLocaleString()}`
+          `<strong>${evt.label ?? evt.type}</strong><br>${formatInZone(evt.time, {}, this.timeZoneId)}`
         );
       });
     }
@@ -706,10 +705,10 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       const secondary = lines.secondary
         ? `<br><span style="color:#64748b">${lines.secondary}</span>`
         : '';
-      const when = new Date(stop.startTime).toLocaleTimeString(undefined, {
+      const when = formatTimeInZone(stop.startTime, {
         hour: 'numeric',
         minute: '2-digit'
-      });
+      }, this.timeZoneId);
       this.addDotMarker(
         stop.latitude,
         stop.longitude,
@@ -777,12 +776,12 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     kind: 'flag-start' | 'flag-end' = 'flag-start'
   ): void {
     if (!this.map) return;
-    const time = new Date(p.timestamp).toLocaleString(undefined, {
+    const time = formatInZone(p.timestamp, {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit'
-    });
+    }, this.timeZoneId);
     const address = p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
     const lines = splitDisplayAddress(p.address);
     const primary = escapeHtml(lines.primary || address);
@@ -939,7 +938,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       speedKmh: p.speedKmh,
       headingLabel: p.heading != null ? `${Math.round(p.heading)}°` : null,
       address: p.address,
-      lastPing: new Date(p.timestamp).toLocaleString(),
+      lastPing: formatInZone(p.timestamp, {}, this.timeZoneId),
       statusLabel: statusLabels[status] ?? status
     });
   }
@@ -958,7 +957,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   private popupHtml(p: TripReplayPosition, label: string): string {
     return `<strong>${escapeHtml(label)}</strong><br>
-      ${escapeHtml(new Date(p.timestamp).toLocaleString())}<br>
+      ${escapeHtml(formatInZone(p.timestamp, {}, this.timeZoneId))}<br>
       ${Number(p.speedKmh) || 0} km/h · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}<br>
       ${escapeHtml(p.address ?? '')}`;
   }

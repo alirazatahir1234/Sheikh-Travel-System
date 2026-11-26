@@ -39,6 +39,7 @@ import {
   writeMutedEventTypes,
   writeQuietHours
 } from './gps-alerts.helpers';
+import { formatTimeInZone } from '../../../core/utils/zoned-time.util';
 
 @Component({
   standalone: false,
@@ -851,6 +852,6 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   lastUpdatedLabel(): string {
     if (!this.lastRefreshedAt) return 'Not loaded yet';
-    return this.lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return formatTimeInZone(this.lastRefreshedAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 }

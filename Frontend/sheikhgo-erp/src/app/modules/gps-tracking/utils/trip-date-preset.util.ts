@@ -1,3 +1,15 @@
+import {
+  formatInZone,
+  fromZonedDateTimeLocal,
+  toDate,
+  toZonedDateTimeLocal,
+  zonedAddDays,
+  zonedEndOfDay,
+  zonedParts,
+  zonedStartOfDay,
+  zonedWallTimeToUtc
+} from '../../../core/utils/zoned-time.util';
+
 export type TripDatePreset =
   | 'today'
   | 'yesterday'
@@ -56,11 +68,19 @@ export const ANALYTICS_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'custom', label: 'Custom' }
 ];
 
+/**
+ * Picker strings ('YYYY-MM-DDTHH:mm') are wall-clock time in the company timezone, not the browser's.
+ * ISO instants (with Z / offset) pass through unchanged.
+ */
+export function parseDatetimeLocalInput(value: string): Date {
+  return fromZonedDateTimeLocal(value) ?? toDate(value) ?? new Date(NaN);
+}
+
 /** Validate a custom analytics date range against the trip-backed 30-day API limit. */
 export function validateAnalyticsDateRange(from: string, to: string): string | null {
   if (!from || !to) return 'Select both From and To dates.';
-  const f = new Date(from);
-  const t = new Date(to);
+  const f = parseDatetimeLocalInput(from);
+  const t = parseDatetimeLocalInput(to);
   if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return 'Invalid date values.';
   if (t.getTime() < f.getTime()) return 'End date must be on or after the start date.';
   if (t.getTime() - f.getTime() > TRIP_DATE_MAX_RANGE_MS) {
@@ -69,34 +89,27 @@ export function validateAnalyticsDateRange(from: string, to: string): string | n
   return null;
 }
 
+/** `datetime-local` value for an instant, in the company timezone. */
 export function toDatetimeLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toZonedDateTimeLocal(d);
 }
 
 export function formatPeriodLabel(from: string, to: string): string {
   if (!from || !to) return '—';
-  const f = new Date(from);
-  const t = new Date(to);
-  const fmt = (d: Date) =>
-    d.toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  return `${fmt(f)} – ${fmt(t)}`;
+  const fmt = (raw: string) =>
+    formatInZone(parseDatetimeLocalInput(raw), { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return `${fmt(from)} – ${fmt(to)}`;
 }
 
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-}
-
-function endOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-}
+// Day / week / month boundaries in the company timezone (see zoned-time.util).
+const startOfDay = (d: Date): Date => zonedStartOfDay(d);
+const endOfDay = (d: Date): Date => zonedEndOfDay(d);
 
 function startOfWeek(d: Date): Date {
-  const day = d.getDay();
+  const p = zonedParts(d)!;
+  const day = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diff);
-  return startOfDay(monday);
+  return startOfDay(zonedAddDays(startOfDay(d), diff));
 }
 
 /** Clamp so (to - from) never exceeds the backend 30-day MaxRange. */
@@ -112,14 +125,14 @@ export function clampTripDateRange(from: Date, to: Date, maxMs = TRIP_DATE_MAX_R
 
 export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): { from: Date; to: Date } {
   const today = startOfDay(now);
+  const { year, month } = zonedParts(now)!;
   let range: { from: Date; to: Date };
   switch (preset) {
     case 'today':
       range = { from: today, to: endOfDay(now) };
       break;
     case 'yesterday': {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
+      const y = zonedAddDays(today, -1);
       range = { from: y, to: endOfDay(y) };
       break;
     }
@@ -137,23 +150,22 @@ export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): {
       range = { from: new Date(now.getTime() - TRIP_DATE_MAX_RANGE_MS), to: now };
       break;
     case 'lastWeek': {
-      const end = new Date(startOfWeek(now));
-      end.setDate(end.getDate() - 1);
+      const end = zonedAddDays(startOfWeek(now), -1);
       const start = startOfWeek(end);
       range = { from: start, to: endOfDay(end) };
       break;
     }
     case 'thisMonth':
-      range = { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+      range = { from: zonedWallTimeToUtc(year, month, 1), to: endOfDay(now) };
       break;
     case 'previousMonth': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const start = zonedWallTimeToUtc(year, month - 1, 1);
+      const end = new Date(zonedWallTimeToUtc(year, month, 1).getTime() - 1);
       range = { from: start, to: end };
       break;
     }
     case 'thisYear':
-      range = { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
+      range = { from: zonedWallTimeToUtc(year, 1, 1), to: endOfDay(now) };
       break;
     default:
       range = { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: now };

@@ -1,6 +1,7 @@
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { VehicleLocation } from '../../../core/models/gps-tracking.model';
 import { MOVING_THRESHOLD_KMH } from './tracker-status.util';
+import { formatInZone } from '../../../core/utils/zoned-time.util';
 
 export const HISTORY_STATIONARY_FILTER_MINUTES = 60;
 export const HISTORY_STATIONARY_ALERT_MINUTES = 24 * 60;
@@ -92,7 +93,7 @@ export function formatStalenessLabel(iso: string | null, nowMs: number): string 
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return 'Unknown';
   const diffMin = Math.floor((nowMs - at.getTime()) / 60_000);
-  const clock = at.toLocaleString(undefined, {
+  const clock = formatInZone(at, {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',

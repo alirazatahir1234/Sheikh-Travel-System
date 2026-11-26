@@ -444,6 +444,8 @@ export interface TripDetailBundle {
   events: TripEvent[];
   route: TripReplayPosition[];
   playback: TripReplayPosition[];
+  /** IANA zone to display times in: vehicle branch → company → platform default. */
+  timeZoneId?: string | null;
 }
 
 export interface TripListQuery {
@@ -532,6 +534,8 @@ export interface TripReplayBundle {
   stops: TripStop[];
   events: TripEvent[];
   summary?: TripReplaySummary | null;
+  /** IANA zone to display times in: vehicle branch → company → platform default. */
+  timeZoneId?: string | null;
 }
 
 /** Private-blob SAS delivery for history coordinate exports (gps-playbacks). */
@@ -580,6 +584,8 @@ export interface HistoryReplayBundle {
   displaySummary?: HistoryDisplaySummary | null;
   positions?: HistoryPosition[] | null;
   parking?: TripStop[] | null;
+  /** IANA zone to display times in: vehicle branch → company → platform default. */
+  timeZoneId?: string | null;
 }
 
 export interface GpsFleetStatus {

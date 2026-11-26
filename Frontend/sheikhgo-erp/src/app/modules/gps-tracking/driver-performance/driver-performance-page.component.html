@@ -490,7 +490,7 @@
                 <span [class.up]="h.delta > 0" [class.down]="h.delta < 0">
                   {{ h.delta > 0 ? '+' : '' }}{{ h.delta }}
                 </span>
-                <span class="muted">{{ h.computedAt | date:'medium' }}</span>
+                <span class="muted">{{ h.computedAt | tenantDate:'medium' }}</span>
                 <div class="dp-explain">{{ h.explanation }}</div>
               </li>
             }
@@ -505,7 +505,7 @@
             @for (e of d.supportingEvents; track e.id ?? e.timestamp) {
               <li>
                 <strong>{{ e.eventType }}</strong>
-                <span class="muted">{{ e.timestamp | date:'medium' }}</span>
+                <span class="muted">{{ e.timestamp | tenantDate:'medium' }}</span>
                 @if (e.description) {
                   <div>{{ e.description }}</div>
                 }

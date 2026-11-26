@@ -52,6 +52,7 @@ import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand
 import { SgProgressLoaderComponent } from './components/sg-progress-loader/sg-progress-loader.component';
 import { PhoneDigitsOnlyDirective } from './directives/phone-digits-only.directive';
 import { PositiveIntegerOnlyDirective } from './directives/positive-integer-only.directive';
+import { TenantDatePipe } from './pipes/tenant-date.pipe';
 
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
@@ -84,7 +85,7 @@ const UI = [
     TenantSwitcherComponent,
     CompanySelectComponent
   ],
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, PositiveIntegerOnlyDirective, ...MATERIAL],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, PositiveIntegerOnlyDirective, TenantDatePipe, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
     ...MATERIAL,
@@ -97,6 +98,7 @@ const UI = [
     SgProgressLoaderComponent,
     PhoneDigitsOnlyDirective,
     PositiveIntegerOnlyDirective,
+    TenantDatePipe,
   ]
 })
 export class SharedModule {}

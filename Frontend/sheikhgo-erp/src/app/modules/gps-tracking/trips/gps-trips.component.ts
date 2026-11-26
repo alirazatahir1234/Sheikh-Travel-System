@@ -20,10 +20,11 @@ import {
 } from '../../../core/models/gps-tracking.model';
 import { Branch, Department } from '../../../core/models/platform.model';
 import {
-  TripDatePreset,
   TRIP_DATE_PRESETS,
+  TripDatePreset,
   applyTripDatePreset,
   formatPeriodLabel,
+  parseDatetimeLocalInput,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
 import { eventIconsForTrip } from '../utils/trip-event.util';
@@ -40,6 +41,7 @@ import {
   mergeTripAnalyticsSummaries,
   summaryForSelectedTrip
 } from '../utils/trip-analytics.util';
+import { formatInZone, formatTimeInZone } from '../../../core/utils/zoned-time.util';
 
 const EMPTY_EVENTS: TripEvent[] = [];
 const EMPTY_REPLAY: TripReplayBundle = { route: [], playback: [], stops: [], events: [], summary: null };
@@ -105,6 +107,8 @@ export class GpsTripsComponent implements OnInit {
   private tripsFallbackSummary: TripAnalyticsSummary | null = null;
   context: TripDeviceContext | null = null;
   replayRoute: TripReplayPosition[] = [];
+  /** Display zone of the selected trip's vehicle (API timeZoneId). */
+  replayTimeZoneId: string | null = null;
   replayPlayback: TripReplayPosition[] = [];
   replayStops: TripStop[] = [];
   replayEvents: TripEvent[] = [];
@@ -384,7 +388,7 @@ export class GpsTripsComponent implements OnInit {
     if (secs < 60) return `${secs} seconds ago`;
     const mins = Math.floor(secs / 60);
     if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
-    return this.lastRefreshedAt.toLocaleTimeString();
+    return formatTimeInZone(this.lastRefreshedAt);
   }
 
   statusLabel(option: TripVehicleOption): string {
@@ -402,8 +406,8 @@ export class GpsTripsComponent implements OnInit {
   }
 
   load(): void {
-    const fromDate = this.from ? new Date(this.from) : undefined;
-    const toDate = this.to ? new Date(this.to) : undefined;
+    const fromDate = this.from ? parseDatetimeLocalInput(this.from) : undefined;
+    const toDate = this.to ? parseDatetimeLocalInput(this.to) : undefined;
     if (!fromDate || !toDate || fromDate > toDate) {
       this.error = 'End Date cannot be earlier than Start Date.';
       return;
@@ -633,6 +637,7 @@ export class GpsTripsComponent implements OnInit {
       })
     ).subscribe({
       next: bundle => {
+        this.replayTimeZoneId = bundle.timeZoneId ?? null;
         this.replayRoute = bundle.route ?? [];
         this.replayPlayback = bundle.playback?.length ? bundle.playback : bundle.route ?? [];
         this.replayStops = bundle.stops ?? [];
@@ -701,8 +706,8 @@ export class GpsTripsComponent implements OnInit {
   }
 
   private exportRows(kind: 'excel' | 'pdf' | 'csv'): void {
-    const fromDate = this.from ? new Date(this.from) : undefined;
-    const toDate = this.to ? new Date(this.to) : undefined;
+    const fromDate = this.from ? parseDatetimeLocalInput(this.from) : undefined;
+    const toDate = this.to ? parseDatetimeLocalInput(this.to) : undefined;
     const fleetFilters = { branchId: this.branchId, departmentId: this.departmentId, driverId: this.fleetDriverId };
     const listQuery = {
       page: 1,
@@ -766,7 +771,7 @@ export class GpsTripsComponent implements OnInit {
   formatTripDate(trip: GpsTrip): string {
     const start = new Date(trip.startTime);
     const end = new Date(trip.endTime);
-    const fmt = (d: Date) => d.toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const fmt = (d: Date) => formatInZone(d, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     return `${fmt(start)} – ${fmt(end)}`;
   }
 

@@ -147,7 +147,7 @@
           <span class="badge" [ngClass]="statusBadgeClass(detail.command.status)">{{ detail.command.status }}</span>
         </div>
         <div class="muted small">
-          {{ detail.command.requestedAt | date:'dd MMM yyyy, HH:mm:ss' }}
+          {{ detail.command.requestedAt | tenantDate:'dd MMM yyyy, HH:mm:ss' }}
           <span *ngIf="detail.command.reason"> · {{ detail.command.reason }}</span>
         </div>
       </div>
@@ -283,8 +283,8 @@
             <td class="muted small">{{ c.retryCount }}/{{ c.maxRetries }}</td>
             <td class="muted">{{ c.reason || '—' }}</td>
             <td class="muted">{{ c.requestedBy || '—' }}</td>
-            <td class="muted small">{{ c.requestedAt | date:'dd MMM, HH:mm:ss' }}</td>
-            <td class="muted small">{{ c.completedAt ? (c.completedAt | date:'dd MMM, HH:mm:ss') : '—' }}</td>
+            <td class="muted small">{{ c.requestedAt | tenantDate:'dd MMM, HH:mm:ss' }}</td>
+            <td class="muted small">{{ c.completedAt ? (c.completedAt | tenantDate:'dd MMM, HH:mm:ss') : '—' }}</td>
             <td class="row-actions">
               <button mat-stroked-button class="btn-sm" color="primary" *ngIf="canApprove(c)" (click)="approve(c)">Approve</button>
               <button mat-stroked-button class="btn-sm" *ngIf="canApprove(c)" (click)="reject(c)">Reject</button>

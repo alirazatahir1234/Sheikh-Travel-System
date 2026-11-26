@@ -11,6 +11,7 @@ import {
   TripStop
 } from '../../../core/models/gps-tracking.model';
 import { formatTripEventType } from '../utils/trip-event.util';
+import { formatTimeInZone } from '../../../core/utils/zoned-time.util';
 
 @Component({
   standalone: false,
@@ -142,7 +143,7 @@ export class TripDetailPageComponent implements OnInit {
 
   private buildCharts(positions: TripReplayPosition[]): void {
     const labels = positions.map(p =>
-      new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      formatTimeInZone(p.timestamp, { hour: '2-digit', minute: '2-digit' }, this.bundle?.timeZoneId));
     this.speedChartData = {
       labels,
       datasets: [{

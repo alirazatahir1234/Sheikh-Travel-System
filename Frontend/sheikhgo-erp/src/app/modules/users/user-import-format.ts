@@ -8,6 +8,7 @@ import {
 import { RoleSummary } from '../../core/models/platform.model';
 import { ExportColumn } from '../../core/services/export.service';
 import { resolveImportRole, ResolvedImportRole } from './user-import-role-resolver';
+import { DEFAULT_TIME_ZONE } from '../../core/constants/time-zone.constants';
 
 /** Canonical import/export headers — keep stable for re-import tooling. */
 export const USER_IMPORT_HEADERS = [
@@ -112,7 +113,7 @@ export const USER_IMPORT_SAMPLE: UserImportRow = {
   DefaultWorkspaceKey: '',
   DefaultDashboardKey: '',
   HomeRoute: '',
-  TimeZone: 'Asia/Dubai',
+  TimeZone: DEFAULT_TIME_ZONE,
   Language: 'en',
   Theme: 'system'
 };

@@ -81,7 +81,7 @@
         <strong>{{ vehicleName || 'Vehicle' }}</strong>
         <em *ngIf="plateNumber">{{ plateNumber }}</em>
       </span>
-      <span>{{ currentPosition.timestamp | date:'medium' }}</span>
+      <span>{{ currentPosition.timestamp | tenantDate:'medium':timeZoneId }}</span>
       <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
       <span *ngIf="currentPosition.address as addr; else hudNoAddr" class="hud-address">
         <strong>{{ addressPrimary(addr) }}</strong>
@@ -151,7 +151,7 @@
       <div class="timeline-labels">
         <span>{{ startTimeLabel }}</span>
         <span class="timeline-current" *ngIf="currentPosition">
-          {{ currentPosition.timestamp | date:'mediumTime' }} · {{ currentPosition.speedKmh | number:'1.0-0' }} km/h
+          {{ currentPosition.timestamp | tenantDate:'mediumTime':timeZoneId }} · {{ currentPosition.speedKmh | number:'1.0-0' }} km/h
         </span>
         <span>{{ endTimeLabel }}</span>
       </div>

@@ -148,7 +148,7 @@
       <div class="ctl-created" role="status">
         <div class="ctl-created__text">
           <strong>Link ready</strong>
-          <span>Expires {{ created.expiresAt | date:'medium' }}</span>
+          <span>Expires {{ created.expiresAt | tenantDate:'medium' }}</span>
         </div>
         <code class="ctl-created__url" [title]="createdAbsoluteUrl()">{{ createdAbsoluteUrl() }}</code>
         <button type="button" class="ctl-btn ctl-btn--ghost ctl-btn--sm" (click)="copyCreated()">
@@ -252,12 +252,12 @@
                     <span class="muted">Trip ID {{ r.tripId }}</span>
                   </div>
                 </td>
-                <td>{{ r.createdAt | date:'short' }}</td>
+                <td>{{ r.createdAt | tenantDate:'short' }}</td>
                 <td>
                   <div class="ctl-expires">
                     <span class="ctl-expires__main">
                       <mat-icon aria-hidden="true">schedule</mat-icon>
-                      {{ r.expiresAt | date:'short' }}
+                      {{ r.expiresAt | tenantDate:'short' }}
                     </span>
                     @if (linkStatus(r) === 'active') {
                       <span class="muted">{{ expiresRelative(r) }}</span>

@@ -38,7 +38,7 @@
         <tbody>
           @for (ev of events; track ev.id) {
             <tr [class.selected]="selectedEvent?.id === ev.id" (click)="selectedEvent = ev">
-              <td>{{ ev.createdAt | date: 'short' }}</td>
+              <td>{{ ev.createdAt | tenantDate:'short' }}</td>
               <td>{{ ev.driverName }}</td>
               <td><span class="pill" [class.auto]="ev.dispatchMode === 'AutoAssigned'">{{ ev.dispatchMode || '—' }}</span></td>
               <td>

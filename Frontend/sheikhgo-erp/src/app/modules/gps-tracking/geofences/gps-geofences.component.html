@@ -174,7 +174,7 @@
         <div class="event-row" *ngFor="let e of events.slice(0, 12)">
           <span class="ev-type" [class.enter]="e.eventType === 'geofence_enter'">{{ eventLabel(e) }}</span>
           <span class="ev-who">{{ e.vehicleName || ('#' + e.vehicleId) }}</span>
-          <span class="ev-when">{{ e.timestamp | date:'short' }}</span>
+          <span class="ev-when">{{ e.timestamp | tenantDate:'short' }}</span>
         </div>
 
         <h4 class="mt">Assignments</h4>

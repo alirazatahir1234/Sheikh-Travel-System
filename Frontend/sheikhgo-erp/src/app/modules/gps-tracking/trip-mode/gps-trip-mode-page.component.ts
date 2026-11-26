@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { FleetTripCreationMode } from '../../../core/models/gps-tracking.model';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { DEFAULT_TIME_ZONE } from '../../../core/constants/time-zone.constants';
 
 @Component({
   selector: 'app-gps-trip-mode-page',
@@ -87,7 +88,7 @@ export class GpsTripModePageComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly dirty = signal(false);
-  readonly timeZoneId = signal('Asia/Dubai');
+  readonly timeZoneId = signal(DEFAULT_TIME_ZONE);
   readonly message = signal('');
   readonly error = signal(false);
 

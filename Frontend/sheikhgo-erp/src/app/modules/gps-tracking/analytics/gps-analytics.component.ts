@@ -12,14 +12,16 @@ import { AccentColor } from '../../../shared/ui/ui.types';
 import { CriticalAlert, ActivityEvent } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
-  TripDatePreset,
   ANALYTICS_DATE_PRESETS,
+  TRIP_DATE_MAX_RANGE_MS,
+  TripDatePreset,
   applyTripDatePreset,
-  toDatetimeLocalInput,
   formatPeriodLabel,
-  validateAnalyticsDateRange,
-  TRIP_DATE_MAX_RANGE_MS
+  parseDatetimeLocalInput,
+  toDatetimeLocalInput,
+  validateAnalyticsDateRange
 } from '../utils/trip-date-preset.util';
+import { formatDateInZone, zonedParts, zonedWallTimeToUtc } from '../../../core/utils/zoned-time.util';
 
 interface KpiTile {
   label: string;
@@ -42,6 +44,9 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   datePreset: TripDatePreset = 'last7Days';
   from = '';
   to = '';
+  /** Picker values are company-zone wall time; parsed once for display. */
+  get fromInstant(): Date | null { return this.from ? parseDatetimeLocalInput(this.from) : null; }
+  get toInstant(): Date | null { return this.to ? parseDatetimeLocalInput(this.to) : null; }
   dateRangeError: string | null = null;
   rangeClampedNote: string | null = null;
 
@@ -318,13 +323,15 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private rawMonthSpanMs(preset: 'thisMonth' | 'previousMonth'): number {
+    // Month boundaries in the company timezone.
     const now = new Date();
+    const { year, month } = zonedParts(now)!;
     if (preset === 'thisMonth') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const start = zonedWallTimeToUtc(year, month, 1);
       return now.getTime() - start.getTime();
     }
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const start = zonedWallTimeToUtc(year, month - 1, 1);
+    const end = new Date(zonedWallTimeToUtc(year, month, 1).getTime() - 1);
     return end.getTime() - start.getTime();
   }
 
@@ -335,8 +342,8 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private buildFilters(): { from?: string; to?: string } {
     return {
-      from: this.from ? new Date(this.from).toISOString() : undefined,
-      to: this.to ? new Date(this.to).toISOString() : undefined
+      from: this.from ? parseDatetimeLocalInput(this.from).toISOString() : undefined,
+      to: this.to ? parseDatetimeLocalInput(this.to).toISOString() : undefined
     };
   }
 
@@ -365,7 +372,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.gps.getDistanceAnalytics(filters).subscribe({
       next: data => {
         this.distanceChartData = {
-          labels: data.daily.map(d => new Date(d.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })),
+          labels: data.daily.map(d => formatDateInZone(d.date, { day: '2-digit', month: 'short' })),
           datasets: [{
             label: 'Distance (km)',
             data: data.daily.map(d => d.distanceKm),
@@ -418,7 +425,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       next: data => {
         this.fuelAnalytics = data;
         this.fuelChartData = {
-          labels: data.daily.map(d => new Date(d.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })),
+          labels: data.daily.map(d => formatDateInZone(d.date, { day: '2-digit', month: 'short' })),
           datasets: [{
             label: 'Fuel (L)',
             data: data.daily.map(d => d.liters),
@@ -446,7 +453,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
           }]
         };
         this.eventTrendChartData = {
-          labels: data.daily.map(d => new Date(d.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })),
+          labels: data.daily.map(d => formatDateInZone(d.date, { day: '2-digit', month: 'short' })),
           datasets: [{
             label: 'Events',
             data: data.daily.map(d => d.count),
@@ -479,13 +486,13 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   loadTrends(): void {
     // Longer lookback for trend chart — independent of the KPI filter window.
     const lookbackDays = this.trendGranularity === 'monthly' ? 180 : this.trendGranularity === 'weekly' ? 90 : 30;
-    const toIso = this.to ? new Date(this.to).toISOString() : new Date().toISOString();
+    const toIso = this.to ? parseDatetimeLocalInput(this.to).toISOString() : new Date().toISOString();
     const toDate = new Date(toIso);
     const fromIso = new Date(toDate.getTime() - lookbackDays * 86_400_000).toISOString();
     this.gps.getAnalyticsTrends({ from: fromIso, to: toIso }, this.trendGranularity).subscribe({
       next: data => {
         this.trendsChartData = {
-          labels: data.points.map(p => new Date(p.period).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })),
+          labels: data.points.map(p => formatDateInZone(p.period, { day: '2-digit', month: 'short' })),
           datasets: [{
             label: 'Distance (km)',
             data: data.points.map(p => p.distanceKm),
@@ -513,9 +520,10 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   loadComparative(): void {
     const now = new Date();
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    const { year, month } = zonedParts(now)!;
+    const thisMonthStart = zonedWallTimeToUtc(year, month, 1);
+    const lastMonthStart = zonedWallTimeToUtc(year, month - 1, 1);
+    const lastMonthEnd = new Date(thisMonthStart.getTime() - 1000);
 
     this.gps.getComparativeAnalytics(
       thisMonthStart.toISOString(), now.toISOString(),

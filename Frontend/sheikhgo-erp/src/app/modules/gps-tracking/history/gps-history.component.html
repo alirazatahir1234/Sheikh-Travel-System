@@ -218,6 +218,7 @@
 
     <main class="history-panel history-panel--center">
       <app-trip-replay-map
+        [timeZoneId]="bundle?.timeZoneId ?? null"
         [routePoints]="bundle?.route ?? []"
         [positions]="playbackPositions"
         [rawPoints]="rawPositions"
@@ -275,7 +276,7 @@
         <ng-container *ngIf="selectedPosition; else noPosition">
           <dl class="detail-grid">
             <dt>Time</dt>
-            <dd>{{ selectedPosition.timestamp | date:'medium' }}</dd>
+            <dd>{{ selectedPosition.timestamp | tenantDate:'medium' }}</dd>
             <dt>Latitude</dt>
             <dd>{{ selectedPosition.latitude | number:'1.5-5' }}</dd>
             <dt>Longitude</dt>

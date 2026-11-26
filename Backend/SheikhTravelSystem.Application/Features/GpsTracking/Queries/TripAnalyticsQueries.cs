@@ -84,7 +84,8 @@ public class GetTripDetailQueryHandler(IMediator mediator)
             replay.Stops,
             replay.Events,
             replay.Route,
-            replay.Playback);
+            replay.Playback,
+            replay.TimeZoneId);
 
         return ApiResponse<TripDetailBundleDto>.SuccessResponse(detail);
     }

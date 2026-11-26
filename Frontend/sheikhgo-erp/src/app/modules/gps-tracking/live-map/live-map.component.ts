@@ -91,6 +91,7 @@ import {
 } from '../utils/gps-address.util';
 import { of, Subscription } from 'rxjs';
 import { catchError, skip } from 'rxjs/operators';
+import { formatDateInZone, toZonedDateInput, zonedParts, zonedWallTimeToUtc } from '../../../core/utils/zoned-time.util';
 
 type StatusFilter = 'all' | 'online' | FleetTrackStatus;
 type IgnitionFilter = 'all' | 'on' | 'off';
@@ -1687,7 +1688,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const to = new Date();
     let from: Date;
     if (this.fleetOverviewRangeDays === -1) {
-      from = new Date(to.getFullYear(), to.getMonth(), 1);
+      const { year, month } = zonedParts(to)!;
+      from = zonedWallTimeToUtc(year, month, 1);
     } else {
       from = new Date(to.getTime() - this.fleetOverviewRangeDays * 24 * 60 * 60 * 1000);
     }
@@ -1810,7 +1812,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private recomputeFleetOverviewChart(): void {
     const daily = this.rollupFleetStatusByDay(this.fleetStatusHistory);
     const labels = daily.map(s =>
-      new Date(s.snapshotAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }));
+      formatDateInZone(s.snapshotAt, { day: '2-digit', month: 'short' }));
     this.fleetOverviewChartData = {
       labels,
       datasets: [
@@ -1856,7 +1858,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     for (const s of rows) {
       const d = new Date(s.snapshotAt);
       if (Number.isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      const key = toZonedDateInput(d); // company-zone calendar day
       byDay.set(key, s);
     }
     return [...byDay.values()];

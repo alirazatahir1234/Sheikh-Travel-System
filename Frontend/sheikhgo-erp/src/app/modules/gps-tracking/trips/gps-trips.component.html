@@ -257,6 +257,7 @@
   <section class="analytics-main" *ngIf="!loading && selectedTrip">
     <div class="analytics-map">
       <app-trip-replay-map
+        [timeZoneId]="replayTimeZoneId"
         [routePoints]="replayRoute"
         [positions]="replayPlayback"
         [stops]="replayStops"
@@ -288,7 +289,7 @@
         <span class="status-dot" [class.online]="context.isOnline"></span>
         {{ context.isOnline ? 'Online' : 'Offline' }}
       </div>
-      <div><strong>Last GPS update:</strong> {{ context.lastPositionAt ? (context.lastPositionAt | date:'dd MMM yyyy, HH:mm') : '—' }}</div>
+      <div><strong>Last GPS update:</strong> {{ context.lastPositionAt ? (context.lastPositionAt | tenantDate:'dd MMM yyyy, HH:mm') : '—' }}</div>
       <div *ngIf="context.lastLatitude != null"><strong>Last position:</strong> {{ context.lastLatitude | number:'1.4-4' }}, {{ context.lastLongitude | number:'1.4-4' }}</div>
       <button type="button" class="btn btn-secondary btn-sm" (click)="goLiveTracking()">Open Live Tracking</button>
     </div>

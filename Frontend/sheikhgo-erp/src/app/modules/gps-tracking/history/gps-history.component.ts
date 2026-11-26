@@ -21,6 +21,7 @@ import {
   TripDatePreset,
   applyTripDatePreset,
   formatPeriodLabel,
+  parseDatetimeLocalInput,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
 import {
@@ -52,6 +53,7 @@ import {
   stationaryMinutes,
   storeHistoryPagePrefs
 } from '../utils/history-fleet-context.util';
+import { formatDateInZone, formatInZone, formatTimeInZone, fromZonedDateTimeLocal, toZonedDateInput } from '../../../core/utils/zoned-time.util';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
@@ -313,9 +315,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   get visibleStops(): TripStop[] {
     const stops = this.bundle?.stops ?? [];
     if (!this.hideRecordsBefore) return stops;
-    const cut = new Date(this.hideRecordsBefore);
+    // Start of that calendar day in the vehicle's zone.
+    const cut = fromZonedDateTimeLocal(String(this.hideRecordsBefore).slice(0, 10), this.bundle?.timeZoneId)
+      ?? new Date(NaN);
     if (Number.isNaN(cut.getTime())) return stops;
-    cut.setHours(0, 0, 0, 0);
     return stops.filter(s => new Date(s.endTime).getTime() >= cut.getTime());
   }
 
@@ -374,13 +377,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   get periodLabelDetailed(): string {
     if (!this.from || !this.to) return '—';
-    const fmt = (raw: string) => {
-      const d = new Date(raw);
-      return d.toLocaleString(undefined, {
+    // Picker values are company-zone wall time — show them as picked.
+    const fmt = (raw: string) =>
+      formatInZone(parseDatetimeLocalInput(raw), {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
       });
-    };
     return `${fmt(this.from)} → ${fmt(this.to)}`;
   }
 
@@ -440,14 +442,14 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   get showTodayMileageChip(): boolean {
     const { from, to } = applyTripDatePreset('today');
-    const rangeFrom = new Date(this.from).getTime();
-    const rangeTo = new Date(this.to).getTime();
+    const rangeFrom = parseDatetimeLocalInput(this.from).getTime();
+    const rangeTo = parseDatetimeLocalInput(this.to).getTime();
     return rangeFrom <= to.getTime() && rangeTo >= from.getTime();
   }
 
   get periodRangeLabel(): string {
     const short = (raw: string) =>
-      new Date(raw).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      formatDateInZone(raw, { month: 'short', day: 'numeric' }, this.bundle?.timeZoneId);
     if (this.preset === 'custom') {
       return `${short(this.from)} – ${short(this.to)}`;
     }
@@ -545,8 +547,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   load(): void {
     if (!this.vehicleId) return;
-    const fromDate = new Date(this.from);
-    const toDate = new Date(this.to);
+    const fromDate = parseDatetimeLocalInput(this.from);
+    const toDate = parseDatetimeLocalInput(this.to);
     if (fromDate > toDate) {
       this.error = 'Start date must be before end date.';
       return;
@@ -801,15 +803,16 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   stopTimeWindowLabel(stop: TripStop): string {
     const start = new Date(stop.startTime);
     const end = new Date(stop.endTime);
-    const day = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const startTime = start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const zone = this.bundle?.timeZoneId;
+    const day = formatDateInZone(start, { month: 'short', day: 'numeric' }, zone);
+    const startTime = formatTimeInZone(start, { hour: 'numeric', minute: '2-digit' }, zone);
     if (!(end instanceof Date) || Number.isNaN(end.getTime()) || end <= start) {
       return `${day} · ${startTime}`;
     }
-    const endTime = end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    const sameDay = start.toDateString() === end.toDateString();
+    const endTime = formatTimeInZone(end, { hour: 'numeric', minute: '2-digit' }, zone);
+    const sameDay = toZonedDateInput(start, zone) === toZonedDateInput(end, zone);
     if (sameDay) return `${day} · ${startTime} – ${endTime}`;
-    const endDay = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const endDay = formatDateInZone(end, { month: 'short', day: 'numeric' }, zone);
     return `${day} ${startTime} – ${endDay} ${endTime}`;
   }
 
@@ -1084,7 +1087,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       const vehicle = this.selectedVehicle;
       const label = vehicle ? `${vehicle.name}-${vehicle.registrationNumber}` : `vehicle-${this.vehicleId}`;
       const columns: ExportColumn<TripReplayPosition>[] = [
-        { header: 'Timestamp', accessor: r => new Date(r.timestamp).toLocaleString(), excelWidth: 22 },
+        { header: 'Timestamp', accessor: r => formatInZone(r.timestamp, {}, this.bundle?.timeZoneId), excelWidth: 22 },
         { header: 'Latitude', accessor: r => r.latitude, excelWidth: 14 },
         { header: 'Longitude', accessor: r => r.longitude, excelWidth: 14 },
         { header: 'Speed (km/h)', accessor: r => r.speedKmh, excelWidth: 12 },
@@ -1107,8 +1110,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   exportServer(format: 'gpx' | 'geojson' | 'kml'): void {
     if (!this.vehicleId) return;
-    const fromDate = new Date(this.from);
-    const toDate = new Date(this.to);
+    const fromDate = parseDatetimeLocalInput(this.from);
+    const toDate = parseDatetimeLocalInput(this.to);
     this.gps.exportHistorySignedUrl(this.vehicleId, fromDate, toDate, format, this.tenantScopeId).subscribe({
       next: result => {
         const fileName = result.fileName || `gps-history-${this.vehicleId}.${format}`;
@@ -1230,8 +1233,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   private reloadCompareRoutes(fromArg?: Date, toArg?: Date): void {
-    const fromDate = fromArg ?? new Date(this.from);
-    const toDate = toArg ?? new Date(this.to);
+    const fromDate = fromArg ?? parseDatetimeLocalInput(this.from);
+    const toDate = toArg ?? parseDatetimeLocalInput(this.to);
     const ids = [...this.compareSelectedIds].filter(id => id !== this.vehicleId);
     if (!ids.length) {
       this.compareOverlays = [];
@@ -1301,8 +1304,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   private ensureRawPositionsLoaded(fromArg?: Date, toArg?: Date): Promise<void> {
     if (!this.vehicleId) return Promise.resolve();
-    const from = fromArg ?? new Date(this.from);
-    const to = toArg ?? new Date(this.to);
+    const from = fromArg ?? parseDatetimeLocalInput(this.from);
+    const to = toArg ?? parseDatetimeLocalInput(this.to);
     const key = this.rawHistoryKey(this.vehicleId, from, to);
 
     if (this.rawCacheKey === key && this.rawPositions.length) {

@@ -33,6 +33,7 @@ import {
   AuditEventListItem
 } from '../../../core/models/platform.model';
 import { CompanyUserSummary } from '../../../core/models/user.model';
+import { DEFAULT_TIME_ZONE } from '../../../core/constants/time-zone.constants';
 
 const OPTIONAL_HTTP_URL = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/i;
 
@@ -121,7 +122,7 @@ export class TenantDetailComponent implements OnInit {
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
       currencyCode: [DEFAULT_CURRENCY],
-      timeZone: ['Asia/Dubai']
+      timeZone: [DEFAULT_TIME_ZONE]
     });
   }
 
@@ -361,7 +362,7 @@ export class TenantDetailComponent implements OnInit {
       supportEmail: tenant.supportEmail ?? '',
       country: tenant.country ?? 'United Arab Emirates',
       currencyCode: tenant.currencyCode ?? DEFAULT_CURRENCY,
-      timeZone: tenant.timeZone ?? 'Asia/Dubai'
+      timeZone: tenant.timeZone ?? DEFAULT_TIME_ZONE
     });
     if (this.canManage) {
       this.form.enable({ emitEvent: false });

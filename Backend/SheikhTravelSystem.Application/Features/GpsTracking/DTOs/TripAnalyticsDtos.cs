@@ -34,7 +34,9 @@ public record TripDetailBundleDto(
     IReadOnlyList<TripStopDto> Stops,
     IReadOnlyList<TripEventDto> Events,
     IReadOnlyList<TripReplayPositionDto> Route,
-    IReadOnlyList<TripReplayPositionDto> Playback);
+    IReadOnlyList<TripReplayPositionDto> Playback,
+    /// <summary>IANA zone to display times in: vehicle's branch → tenant → platform default.</summary>
+    string? TimeZoneId = null);
 
 public record TripReplaySummaryDto(
     double DistanceKm,

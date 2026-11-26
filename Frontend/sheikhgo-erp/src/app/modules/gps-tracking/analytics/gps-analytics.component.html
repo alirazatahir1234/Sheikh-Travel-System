@@ -6,7 +6,7 @@
       <p class="period-chip" *ngIf="from && to">
         <mat-icon>date_range</mat-icon>
         {{ periodLabel }}
-        <span class="period-range">{{ from | date: 'mediumDate' }} – {{ to | date: 'mediumDate' }}</span>
+        <span class="period-range">{{ fromInstant | tenantDate:'mediumDate' }} – {{ toInstant | tenantDate:'mediumDate' }}</span>
       </p>
     </div>
     <div class="header-actions" *ngIf="overview">

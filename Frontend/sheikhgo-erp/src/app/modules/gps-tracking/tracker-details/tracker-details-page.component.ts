@@ -15,6 +15,7 @@ import {
   isTrackerInstalled,
   normalizeInventoryStatus
 } from '../utils/tracker-status.util';
+import { formatDateInZone } from '../../../core/utils/zoned-time.util';
 
 @Component({
   standalone: false,
@@ -102,7 +103,7 @@ export class TrackerDetailsPageComponent implements OnInit {
 
   formatDate(value?: string | null): string {
     if (!value) return '—';
-    return new Date(value).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    return formatDateInZone(value, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   back(): void {

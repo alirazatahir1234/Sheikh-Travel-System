@@ -12,6 +12,8 @@ export interface TenantBranding {
   enabledModules: string[];
   /** Company IANA timezone from TenantBranding.TimeZone when set. */
   timeZone?: string | null;
+  /** Zone to display company times in: timeZone when valid, else the platform default (Asia/Karachi). */
+  effectiveTimeZone?: string | null;
 }
 
 const MODULE_ROUTE_MAP: Record<string, string> = {

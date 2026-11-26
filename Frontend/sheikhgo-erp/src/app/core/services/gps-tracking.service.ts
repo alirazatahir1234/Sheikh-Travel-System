@@ -94,6 +94,7 @@ import { DriverService } from './driver.service';
 import { VehicleStatus } from '../models/vehicle.model';
 import { resolveFleetStatus } from '../utils/gps-status.util';
 import { parseGpsTimestamp } from '../utils/gps-timestamp.util';
+import { DEFAULT_TIME_ZONE } from '../constants/time-zone.constants';
 
 const STALE_MS = 30 * 60 * 1000;
 const RECENT_MS = STALE_MS;
@@ -1660,7 +1661,7 @@ function normalizeFleetTripModeSettings(raw: FleetTripModeSettings | undefined |
     : FleetTripCreationMode.Booking;
   return {
     tripCreationMode: mode,
-    timeZoneId: raw?.timeZoneId ?? (raw as { TimeZoneId?: string })?.TimeZoneId ?? 'Asia/Dubai',
+    timeZoneId: raw?.timeZoneId ?? (raw as { TimeZoneId?: string })?.TimeZoneId ?? DEFAULT_TIME_ZONE,
     modeDescription: raw?.modeDescription ?? (raw as { ModeDescription?: string })?.ModeDescription ?? ''
   };
 }

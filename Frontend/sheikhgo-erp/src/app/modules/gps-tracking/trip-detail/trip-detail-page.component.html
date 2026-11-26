@@ -41,8 +41,8 @@
       <div class="summary-grid">
         <div><span class="label">Vehicle</span><strong>{{ trip.vehicleName }} <ng-container *ngIf="trip.plateNumber">({{ trip.plateNumber }})</ng-container></strong></div>
         <div><span class="label">Driver</span><strong>{{ trip.driverName || '—' }}</strong></div>
-        <div><span class="label">Start</span><strong>{{ trip.startTime | date:'medium' }}</strong></div>
-        <div><span class="label">End</span><strong>{{ trip.endTime | date:'medium' }}</strong></div>
+        <div><span class="label">Start</span><strong>{{ trip.startTime | tenantDate:'medium' }}</strong></div>
+        <div><span class="label">End</span><strong>{{ trip.endTime | tenantDate:'medium' }}</strong></div>
         <div><span class="label">Duration</span><strong>{{ formatDuration(trip.durationMinutes) }}</strong></div>
         <div><span class="label">Distance</span><strong>{{ trip.distanceKm }} km</strong></div>
         <div><span class="label">Avg Speed</span><strong>{{ trip.avgSpeedKmh }} km/h</strong></div>
@@ -57,6 +57,7 @@
     <mat-card class="section-card map-card">
       <h2>Route &amp; Replay</h2>
       <app-trip-replay-map
+        [timeZoneId]="bundle?.timeZoneId ?? null"
         [routePoints]="replayRoute"
         [positions]="replayPlayback"
         [stops]="stops"
@@ -87,7 +88,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let s of stops">
-                <td>{{ s.startTime | date:'short' }}</td>
+                <td>{{ s.startTime | tenantDate:'short' }}</td>
                 <td>{{ s.durationMinutes }} min</td>
                 <td>{{ s.address || '—' }}</td>
               </tr>
@@ -106,7 +107,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let e of events">
-                <td>{{ e.time | date:'short' }}</td>
+                <td>{{ e.time | tenantDate:'short' }}</td>
                 <td>{{ formatEventType(e.type) }}</td>
                 <td>{{ e.speedKmh != null ? (e.speedKmh | number:'1.0-0') + ' km/h' : '—' }}</td>
                 <td>{{ e.address || '—' }}</td>

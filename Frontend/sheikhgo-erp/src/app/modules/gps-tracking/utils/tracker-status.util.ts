@@ -1,5 +1,6 @@
 import { GpsDevice } from '../../../core/models/gps-tracking.model';
 import { MOVING_THRESHOLD_KMH, resolveFleetStatus } from '../../../core/utils/gps-status.util';
+import { formatDateInZone, formatTimeInZone } from '../../../core/utils/zoned-time.util';
 
 export type TrackerFleetStatus =
   | 'never_seen'
@@ -326,14 +327,14 @@ export function formatLastSeenLabel(lastSeenAt: string | undefined, nowMs: numbe
   if (days === 1) return 'Yesterday';
   if (days < 7)   return `${days}d ago`;
 
-  return when.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return formatDateInZone(when, { day: 'numeric', month: 'short' });
 }
 
 export function formatLastSeenTooltip(lastSeenAt: string | undefined): string {
   if (!lastSeenAt) return 'No telemetry received yet';
   const when = new Date(lastSeenAt);
-  const date = when.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  const time = when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const date = formatDateInZone(when, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const time = formatTimeInZone(when, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   return `${date}  ${time}`;
 }
 
