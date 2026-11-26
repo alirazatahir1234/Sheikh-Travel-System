@@ -35,7 +35,7 @@ public sealed class TenantLookupService(IDbConnectionFactory dbFactory) : ITenan
                 """
                 SELECT TOP 1 1
                 FROM Tenants
-                WHERE Id = @TenantId AND COALESCE(IsDeleted, 0) = 0
+                WHERE Id = @TenantId
                 """,
                 new { TenantId = tenantId },
                 cancellationToken: cancellationToken));

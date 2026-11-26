@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Moq;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 using SheikhTravelSystem.Tests.Security.Sg01;
 
@@ -29,6 +30,20 @@ public class PlatformTenantSqlLiveSqlTests
         if (string.IsNullOrWhiteSpace(cs))
             Assert.Fail($"{Sg01GpsIngestFactsLiveSqlTests.ConnectionEnvName} is not set.");
         return new PlatformRepository(new LiveFactory(cs!), Mock.Of<ITenantTimeZoneResolver>());
+    }
+
+    [LiveSqlFact]
+    public async Task Selected_company_check_executes_against_the_real_schema()
+    {
+        // TenantResolutionMiddleware treats a SqlException here as "not allowed" and answers 403,
+        // so with the bad column every request failed once a company was selected.
+        var cs = Environment.GetEnvironmentVariable(Sg01GpsIngestFactsLiveSqlTests.ConnectionEnvName);
+        if (string.IsNullOrWhiteSpace(cs))
+            Assert.Fail($"{Sg01GpsIngestFactsLiveSqlTests.ConnectionEnvName} is not set.");
+        var lookup = new TenantLookupService(new LiveFactory(cs!));
+
+        (await lookup.IsSwitchableTenantAsync(1)).Should().BeTrue("tenant 1 is the seeded platform tenant");
+        (await lookup.IsSwitchableTenantAsync(int.MaxValue)).Should().BeFalse();
     }
 
     [LiveSqlFact]
