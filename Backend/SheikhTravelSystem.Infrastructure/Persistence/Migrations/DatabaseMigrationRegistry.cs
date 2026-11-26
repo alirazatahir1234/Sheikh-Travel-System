@@ -198,6 +198,7 @@ public static class DatabaseMigrationRegistry
             M("TravelNexusBookingsMigration", TravelNexusBookingsMigration.ApplyAsync),
             M("TravelNexusFinanceMigration", TravelNexusFinanceMigration.ApplyAsync),
             M("TravelNexusSupplierFinanceMigration", TravelNexusSupplierFinanceMigration.ApplyAsync),
+            M("TravelNexusRemindersMigration", TravelNexusRemindersMigration.ApplyAsync),
             M("SubscriptionAccessExpiryMigration", SubscriptionAccessExpiryMigration.ApplyAsync),
             M("PlatformOperatorPermissionsMigration", PlatformOperatorPermissionsMigration.ApplyAsync),
             M("Sg07AuditTrailTargetTenantAndAppendOnlyMigration", Sg07AuditTrailTargetTenantAndAppendOnlyMigration.ApplyAsync),

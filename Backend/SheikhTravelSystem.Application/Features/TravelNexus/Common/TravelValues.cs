@@ -108,6 +108,14 @@ public static partial class TravelValues
         ["BillCreated", "BillUpdated", "BillPosted", "BillVoided", "PaymentRecorded", "PaymentStatus", "Allocated", "Unallocated",
          "CreditIssued", "CreditVoided", "RefundReceived", "Reconciled", "PayoutRecorded", "AttributionChanged"];
 
+    // ── Phase 7: reminders ──
+    public static readonly string[] ReminderRuleTypes =
+        ["PassportExpiry", "VisaAppointment", "MissingDocuments", "VisaDecisionOverdue", "VisaStatusChanged", "TicketingDeadline",
+         "FlightDeparture", "HotelCheckIn", "InvoiceDue", "InvoiceOverdue", "EnquiryFollowUp", "GroupDeparture"];
+    public static readonly string[] ReminderEntityTypes = ["Traveler", "VisaCase", "FlightBooking", "HotelBooking", "Invoice", "Enquiry", "Group"];
+    public static readonly string[] ReminderAudiences = ["Staff", "Customer"];
+    public static readonly string[] ReminderStatuses = ["Pending", "Sent", "Skipped", "Failed"];
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 

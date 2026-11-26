@@ -101,6 +101,9 @@ public class TravelSettingsDto
     public string SupplierRefundPrefix { get; set; } = "TSR";
     public string PayoutPrefix { get; set; } = "TCP";
     public int PassportExpiryWarningDays { get; set; } = 180;
+    /// <summary>Customer reminders are not sent between these tenant-local hours (start 21, end 8 = 21:00–08:00).</summary>
+    public int ReminderQuietStartHour { get; set; } = 21;
+    public int ReminderQuietEndHour { get; set; } = 8;
 }
 
 public record UpdateTravelSettingsDto(
@@ -120,4 +123,6 @@ public record UpdateTravelSettingsDto(
     string? SupplierPaymentPrefix = null,
     string? SupplierCreditPrefix = null,
     string? SupplierRefundPrefix = null,
-    string? PayoutPrefix = null);
+    string? PayoutPrefix = null,
+    int? ReminderQuietStartHour = null,
+    int? ReminderQuietEndHour = null);

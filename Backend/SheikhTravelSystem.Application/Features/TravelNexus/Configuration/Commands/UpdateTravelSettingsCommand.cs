@@ -54,6 +54,8 @@ public class UpdateTravelSettingsCommandValidator : AbstractValidator<UpdateTrav
         RuleFor(x => x.Settings.PayoutPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
             .When(x => !string.IsNullOrEmpty(x.Settings.PayoutPrefix));
         RuleFor(x => x.Settings.PassportExpiryWarningDays).InclusiveBetween(0, 730);
+        RuleFor(x => x.Settings.ReminderQuietStartHour).InclusiveBetween(0, 23).When(x => x.Settings.ReminderQuietStartHour.HasValue);
+        RuleFor(x => x.Settings.ReminderQuietEndHour).InclusiveBetween(0, 23).When(x => x.Settings.ReminderQuietEndHour.HasValue);
     }
 }
 

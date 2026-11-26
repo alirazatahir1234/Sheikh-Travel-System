@@ -69,6 +69,14 @@ public static class TravelPermissions
     /// <summary>Margins and profitability (sensitive).</summary>
     public const string ProfitabilityView = "Travel.Profitability.View";
 
+    /// <summary>Reminder rules and the reminder log.</summary>
+    public const string ReminderView = "Travel.Reminder.View";
+    /// <summary>Configure reminder rules, quiet hours; run reminders now.</summary>
+    public const string ReminderManage = "Travel.Reminder.Manage";
+    public const string DashboardView = "Travel.Dashboard.View";
+    /// <summary>Operational reports (finance and profit reports also need their own permission).</summary>
+    public const string ReportView = "Travel.Report.View";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
@@ -90,5 +98,8 @@ public static class TravelPermissions
     /// <summary>Phase 6B permissions (seeded by TravelNexusSupplierFinanceMigration).</summary>
     public static readonly string[] Phase6B = [SupplierBillManage, SupplierPaymentManage, CommissionView, CommissionManage, ProfitabilityView];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5, .. Phase6, .. Phase6B];
+    /// <summary>Phase 7 permissions (seeded by TravelNexusRemindersMigration).</summary>
+    public static readonly string[] Phase7 = [ReminderView, ReminderManage, DashboardView, ReportView];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5, .. Phase6, .. Phase6B, .. Phase7];
 }

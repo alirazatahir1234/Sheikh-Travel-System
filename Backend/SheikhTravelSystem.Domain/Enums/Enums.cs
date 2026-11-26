@@ -92,7 +92,8 @@ public enum NotificationType
     TripUpdated = 11,
     TripDriverArriving = 12,
     TripCreated = 13,
-    DriverFatigue = 14
+    DriverFatigue = 14,
+    TravelReminder = 15
 }
 
 public enum MaintenanceStatus

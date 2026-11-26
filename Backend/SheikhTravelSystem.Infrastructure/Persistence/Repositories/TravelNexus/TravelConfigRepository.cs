@@ -332,7 +332,7 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
         return await connection.QuerySingleOrDefaultAsync<TravelSettingsDto>(new CommandDefinition("""
             SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, GroupPrefix, BookingPrefix, ReceiptPrefix, CreditNotePrefix,
                    RefundPrefix, DefaultPaymentTermsDays, ReportingCurrencyCode, SupplierBillPrefix, SupplierPaymentPrefix,
-                   SupplierCreditPrefix, SupplierRefundPrefix, PayoutPrefix, PassportExpiryWarningDays
+                   SupplierCreditPrefix, SupplierRefundPrefix, PayoutPrefix, PassportExpiryWarningDays, ReminderQuietStartHour, ReminderQuietEndHour
             FROM TravelSettings WHERE TenantId = @TenantId
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken))
             ?? new TravelSettingsDto();
@@ -357,6 +357,8 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 SupplierCreditPrefix = COALESCE(@SupplierCreditPrefix, SupplierCreditPrefix),
                 SupplierRefundPrefix = COALESCE(@SupplierRefundPrefix, SupplierRefundPrefix),
                 PayoutPrefix = COALESCE(@PayoutPrefix, PayoutPrefix),
+                ReminderQuietStartHour = COALESCE(@ReminderQuietStartHour, ReminderQuietStartHour),
+                ReminderQuietEndHour = COALESCE(@ReminderQuietEndHour, ReminderQuietEndHour),
                 PassportExpiryWarningDays = @PassportExpiryWarningDays,
                 UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @UserId
             WHERE TenantId = @TenantId;
@@ -365,13 +367,13 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 INSERT INTO TravelSettings (TenantId, DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix,
                     GroupPrefix, BookingPrefix, ReceiptPrefix, CreditNotePrefix, RefundPrefix, DefaultPaymentTermsDays,
                     ReportingCurrencyCode, SupplierBillPrefix, SupplierPaymentPrefix, SupplierCreditPrefix, SupplierRefundPrefix, PayoutPrefix,
-                    PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
+                    ReminderQuietStartHour, ReminderQuietEndHour, PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
                 VALUES (@TenantId, @DefaultCurrencyCode, @EnquiryPrefix, @VisaCasePrefix, @InvoicePrefix,
                     COALESCE(@GroupPrefix, N'GRP'), COALESCE(@BookingPrefix, N'BKG'), COALESCE(@ReceiptPrefix, N'TRCP'),
                     COALESCE(@CreditNotePrefix, N'TCN'), COALESCE(@RefundPrefix, N'TRF'), COALESCE(@DefaultPaymentTermsDays, 7),
                     @ReportingCurrencyCode, COALESCE(@SupplierBillPrefix, N'TSB'), COALESCE(@SupplierPaymentPrefix, N'TSP'),
                     COALESCE(@SupplierCreditPrefix, N'TSC'), COALESCE(@SupplierRefundPrefix, N'TSR'), COALESCE(@PayoutPrefix, N'TCP'),
-                    @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
+                    COALESCE(@ReminderQuietStartHour, 21), COALESCE(@ReminderQuietEndHour, 8), @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
             """,
             new
             {
@@ -392,6 +394,8 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 SupplierCreditPrefix = string.IsNullOrWhiteSpace(dto.SupplierCreditPrefix) ? null : dto.SupplierCreditPrefix,
                 SupplierRefundPrefix = string.IsNullOrWhiteSpace(dto.SupplierRefundPrefix) ? null : dto.SupplierRefundPrefix,
                 PayoutPrefix = string.IsNullOrWhiteSpace(dto.PayoutPrefix) ? null : dto.PayoutPrefix,
+                dto.ReminderQuietStartHour,
+                dto.ReminderQuietEndHour,
                 dto.PassportExpiryWarningDays,
                 UserId = userId
             },
