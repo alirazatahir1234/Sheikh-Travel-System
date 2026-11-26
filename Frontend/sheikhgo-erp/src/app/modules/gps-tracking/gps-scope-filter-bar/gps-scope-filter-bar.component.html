@@ -1,6 +1,9 @@
 <section class="gps-scope-bar" aria-label="Vehicle scope">
   <div class="gps-scope-bar__entities">
-    <div class="filter-entity filter-entity--vehicle">
+    <div
+      class="filter-entity filter-entity--vehicle"
+      [matTooltip]="scope.vehicleFilterDisabled ? 'Pick a company in the header to choose a vehicle' : ''"
+      [matTooltipDisabled]="!scope.vehicleFilterDisabled">
       <span class="filter-entity__icon-wrap" aria-hidden="true">
         <mat-icon class="filter-entity__icon">local_shipping</mat-icon>
       </span>

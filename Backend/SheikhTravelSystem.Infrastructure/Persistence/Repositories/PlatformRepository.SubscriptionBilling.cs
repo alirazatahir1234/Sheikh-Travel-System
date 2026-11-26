@@ -33,7 +33,7 @@ public sealed partial class PlatformRepository
                      WHERE h.PaidAt >= DATEADD(day, -30, GETUTCDATE())
                        AND h.Status = N'Completed') AS Collected30,
                     (SELECT COUNT(*) FROM TenantSubscriptions WHERE Status = N'Expired') AS Expired,
-                    (SELECT COUNT(*) FROM Tenants WHERE IsActive = 0 AND IsDeleted = 0) AS Deactivated
+                    (SELECT COUNT(*) FROM Tenants WHERE IsActive = 0) AS Deactivated
                 """, cancellationToken: cancellationToken));
 
         var renewalRows = await connection.QueryAsync<(
@@ -75,9 +75,9 @@ public sealed partial class PlatformRepository
                 t.Name AS TenantName,
                 COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
                 COALESCE(SUM(i.Amount), 0) AS OverdueAmount,
-                MAX(i.DueDate) AS OldestDueDate,
+                MIN(i.DueDate) AS OldestDueDate,
                 COUNT(*) AS OverdueInvoiceCount,
-                COALESCE(MAX(CAST(s.FeaturesLocked AS INT)), 0) AS FeaturesLocked
+                CAST(COALESCE(MAX(CAST(s.FeaturesLocked AS INT)), 0) AS BIT) AS FeaturesLocked
             FROM TenantInvoices i
             INNER JOIN Tenants t ON t.Id = i.TenantId AND t.IsActive = 1
             LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
@@ -537,7 +537,7 @@ public sealed partial class PlatformRepository
                        s.AccessExpiresAtUtc AS AccessExpires
                 FROM Tenants t
                 LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
-                WHERE t.Id = @TenantId AND COALESCE(t.IsDeleted, 0) = 0
+                WHERE t.Id = @TenantId
                 """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
 
         if (row.TenantActive is null && row.Status is null)

@@ -17,6 +17,8 @@ export class TenantSwitcherComponent implements OnInit, OnDestroy {
 
   visible = false;
   loading = true;
+  /** The companies list failed to load — show it, never an empty list that looks like "no companies". */
+  loadError = false;
   tenants: SwitchableTenant[] = [];
   /** Selected mat-option value: tenant id, ALL_VALUE, or null (unset). */
   selectedValue: number | string | null = null;
@@ -65,6 +67,10 @@ export class TenantSwitcherComponent implements OnInit, OnDestroy {
     }
   }
 
+  retry(): void {
+    this.loadTenants();
+  }
+
   optionLabel(tenant: SwitchableTenant): string {
     const base = tenant.name;
     if (!tenant.status || tenant.status === 'Active') return base;
@@ -73,7 +79,8 @@ export class TenantSwitcherComponent implements OnInit, OnDestroy {
 
   private loadTenants(): void {
     this.loading = true;
-    this.platform.getSwitchableTenants().subscribe({
+    this.loadError = false;
+    this.platform.getSwitchableTenants().pipe(takeUntil(this.destroy$)).subscribe({
       next: list => {
         this.tenants = [...(list ?? [])].sort((a, b) => a.name.localeCompare(b.name));
         this.loading = false;
@@ -82,6 +89,8 @@ export class TenantSwitcherComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
+        this.label = "Couldn't load companies – Retry";
       }
     });
   }

@@ -1,6 +1,6 @@
 <div class="tenant-switcher" *ngIf="visible" [matTooltip]="label" matTooltipShowDelay="400">
   <mat-form-field appearance="outline" class="tenant-switcher__field" subscriptSizing="dynamic">
-    <mat-label>Company</mat-label>
+    <mat-label>{{ loadError ? "Couldn't load companies" : 'Company' }}</mat-label>
     <mat-select
       [value]="selectedValue"
       [disabled]="loading"
@@ -14,4 +14,14 @@
       </mat-option>
     </mat-select>
   </mat-form-field>
+  <button
+    type="button"
+    mat-icon-button
+    class="tenant-switcher__retry"
+    *ngIf="loadError"
+    (click)="retry()"
+    matTooltip="Retry loading companies"
+    aria-label="Retry loading companies">
+    <mat-icon aria-hidden="true">refresh</mat-icon>
+  </button>
 </div>

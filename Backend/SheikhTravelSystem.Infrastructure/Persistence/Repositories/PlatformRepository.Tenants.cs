@@ -61,7 +61,6 @@ public sealed partial class PlatformRepository
                    s.Status AS SubscriptionStatus
             FROM Tenants t
             LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
-            WHERE COALESCE(t.IsDeleted, 0) = 0
             ORDER BY t.Name
             """,
             cancellationToken: cancellationToken));

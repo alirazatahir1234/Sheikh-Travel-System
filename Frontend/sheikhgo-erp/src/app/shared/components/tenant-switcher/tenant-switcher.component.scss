@@ -24,6 +24,11 @@
   }
 }
 
+.tenant-switcher__retry {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
 @media (max-width: 767px) {
   .tenant-switcher {
     max-width: 140px;
