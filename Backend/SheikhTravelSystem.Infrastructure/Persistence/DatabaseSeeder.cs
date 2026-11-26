@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Enums;
@@ -13,23 +14,62 @@ namespace SheikhTravelSystem.Infrastructure.Persistence;
 public class DatabaseSeeder(
     IDbConnectionFactory dbFactory,
     IPasswordHasher passwordHasher,
+    IHostEnvironment environment,
     ILogger<DatabaseSeeder> logger) : IDatabaseSeeder
 {
+    // Demo passwords. This repository is public, so everyone knows them: they are written to a Development
+    // database only (see SeedAsync) and must never be a valid login anywhere else.
+    private const string DefaultDemoPassword = "Pass@123";
+    private const string OwnerDemoPassword = "PASS@123";
+
+    private static readonly string[] DemoPasswords = [DefaultDemoPassword, OwnerDemoPassword];
+
+    /// <summary>
+    /// Every account this seeder creates. A new demo account goes in this list too, so the check for
+    /// public passwords outside Development covers it.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> DemoAccountEmails =
+    [
+        "admin@sheikhtravel.com",
+        "dispatcher@sheikhtravel.com",
+        "driver@sheikhtravel.com",
+        "accountant@sheikhtravel.com",
+        "drivermanager@sheikhtravel.com",
+        "owner@sheikhtravel.com",
+        "owner@chandtravel.com",
+        "driver@chandtravel.com",
+    ];
+
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         await EnsureSchemaEvolutionAsync(connection, cancellationToken);
 
-        await SeedUsersAsync(connection, cancellationToken);
-        await SeedDriverManagerUserAsync(connection, cancellationToken);
-        await SeedSheikhTravelOwnerUserAsync(connection, cancellationToken);
-        await SeedChandTravelsDemoUsersAsync(connection, cancellationToken);
+        // The demo accounts get public passwords, and most are reset and re-activated on every start. That is
+        // for local work only: anywhere else it would hand out known logins and keep restoring them.
+        var seedDemoAccounts = environment.IsDevelopment();
+        if (seedDemoAccounts)
+        {
+            await SeedUsersAsync(connection, cancellationToken);
+            await SeedDriverManagerUserAsync(connection, cancellationToken);
+            await SeedSheikhTravelOwnerUserAsync(connection, cancellationToken);
+            await SeedChandTravelsDemoUsersAsync(connection, cancellationToken);
+        }
+        else
+        {
+            logger.LogInformation(
+                "Demo accounts are not seeded or reset in the {Environment} environment.",
+                environment.EnvironmentName);
+            await WarnAboutDemoPasswordsAsync(connection, cancellationToken);
+        }
+
         await SeedBranchesAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
         await SeedDriversAsync(connection, cancellationToken);
-        await LinkDriverAppUsersAsync(connection, cancellationToken);
+        if (seedDemoAccounts)
+            await LinkDriverAppUsersAsync(connection, cancellationToken);
         await SeedRoutesAsync(connection, cancellationToken);
         await SeedBookingsAsync(connection, cancellationToken);
         await SeedPaymentsAsync(connection, cancellationToken);
@@ -108,12 +148,73 @@ public class DatabaseSeeder(
     }
 
     // ---------------------------------------------------------------------
+    // Demo account check — every environment except Development
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Read-only. Names every active demo account whose password is still one of the public ones in this file, so
+    /// the exposure shows up in the startup log. It changes nothing and never makes seeding fail.
+    /// </summary>
+    private async Task WarnAboutDemoPasswordsAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        try
+        {
+            var accounts = (await connection.QueryAsync<(string Email, string? PasswordHash)>(new CommandDefinition(
+                "SELECT Email, PasswordHash FROM Users WHERE Email IN @Emails AND IsActive = 1 AND IsDeleted = 0",
+                new { Emails = DemoAccountEmails.ToArray() },
+                cancellationToken: ct))).ToList();
+
+            // bcrypt is slow on purpose, so the accounts are checked side by side.
+            var results = await Task.WhenAll(accounts.Select(account =>
+                Task.Run(() => (account.Email, Exposed: HasDemoPassword(account.PasswordHash)), ct)));
+
+            var exposed = results
+                .Where(result => result.Exposed)
+                .Select(result => result.Email)
+                .OrderBy(email => email, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (exposed.Count > 0)
+            {
+                logger.LogCritical(
+                    "{Count} active account(s) still use a demo password that is public in the source code: {Emails}. Change these passwords now.",
+                    exposed.Count, string.Join(", ", exposed));
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not check the demo accounts for public passwords.");
+        }
+    }
+
+    private bool HasDemoPassword(string? passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            return false;
+
+        foreach (var demoPassword in DemoPasswords)
+        {
+            try
+            {
+                if (passwordHasher.Verify(demoPassword, passwordHash))
+                    return true;
+            }
+            catch (Exception)
+            {
+                // A hash the hasher cannot read was not written by this seeder.
+            }
+        }
+
+        return false;
+    }
+
+    // ---------------------------------------------------------------------
     // Users
     // ---------------------------------------------------------------------
     private async Task SeedUsersAsync(System.Data.IDbConnection connection, CancellationToken ct)
     {
         // Default password for all seeded users
-        const string defaultPassword = "Pass@123";
+        const string defaultPassword = DefaultDemoPassword;
 
         // Admin may already exist from CreateDatabase.sql; insert only missing emails.
         var seedUsers = new[]
@@ -169,7 +270,7 @@ public class DatabaseSeeder(
     private async Task SeedDriverManagerUserAsync(System.Data.IDbConnection connection, CancellationToken ct)
     {
         const string email = "drivermanager@sheikhtravel.com";
-        const string password = "Pass@123";
+        const string password = DefaultDemoPassword;
 
         var hasTenantId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users' AND COLUMN_NAME = 'TenantId'",
@@ -264,7 +365,7 @@ public class DatabaseSeeder(
         const string tenantSlug = "default";
         const string ownerEmail = "owner@sheikhtravel.com";
         // Same credential as SeedChandTravelsDemoUsersAsync owner (do not diverge).
-        const string password = "PASS@123";
+        const string password = OwnerDemoPassword;
 
         var hasTenants = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT CASE WHEN OBJECT_ID(N'Tenants', N'U') IS NOT NULL THEN 1 ELSE 0 END",
@@ -310,7 +411,7 @@ public class DatabaseSeeder(
         const string tenantSlug = "chand-travels";
         const string ownerEmail = "owner@chandtravel.com";
         const string driverEmail = "driver@chandtravel.com";
-        const string password = "PASS@123";
+        const string password = OwnerDemoPassword;
         const string driverPhone = "03119990001";
 
         var hasTenants = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
