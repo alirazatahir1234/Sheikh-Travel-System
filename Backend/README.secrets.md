@@ -72,6 +72,14 @@ Alternatively, copy [`docs/local-dev-config.example.json`](docs/local-dev-config
 gitignored `SheikhTravelSystem.API/appsettings.Development.json` and add connection/JWT/Maps values
 locally (do not commit that file). Prefer user-secrets when possible.
 
+## TravelNexus (travel agency module)
+
+Configuration keys (`TravelDocuments:*`, `TravelNexus:Reminders:*`, `Ocr:*`, `Translator:*`, notification providers),
+migrations, enabling the module per company, storage and the post-deployment checklist are in
+[`docs/travelnexus/deployment.md`](../docs/travelnexus/deployment.md). Secrets among them (`Ocr:AzureApiKey`,
+`Translator:Key`, `FileStorage:AzureConnectionString`) follow the same rule as everything above: user-secrets or host
+environment, never a tracked file.
+
 ## Production / Railway / App Service
 
 Set the environment variables in the table above on the host. Do **not** rely on committed

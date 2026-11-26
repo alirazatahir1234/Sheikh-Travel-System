@@ -4,9 +4,11 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A;
+Status: **Phase 8 delivered — all phases complete** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A;
 supplier rate cards, bills, supplier payments, credits, refunds received, agent commissions and profitability — Phase 6B; reminder rules
-and dispatch, dashboard and the twelve reports — Phase 7).
+and dispatch, dashboard and the twelve reports — Phase 7; live-SQL end-to-end tests, security review and fixes, grant-on-module-enable,
+deployment notes and user guide — Phase 8). Companion documents: [`security-review.md`](security-review.md),
+[`deployment.md`](deployment.md), [`user-guide.md`](user-guide.md).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -365,7 +367,10 @@ Draft … Ready → Cancelled (reason)
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
   on a parent use `INSERT … SELECT … WHERE parent.TenantId = @TenantId`. Travel tables are listed in the SG-01
   guard (`Sg01TenantSqlGuardScanner.TenantOwnedTables`); `TravelNexusTenantGuardTests` fails the build if any
-  TravelNexus statement misses the predicate.
+  TravelNexus statement misses the predicate — raw literals, one-line interpolated statements, fragment constants
+  that JOIN tenant tables, and repository methods that take a branch scope without applying it (Phase 8). The live
+  end-to-end tests (`Tests/TravelNexus/LiveSql`, opt-in via `SHEIKHGO_TRAVELNEXUS_SQL_CONNECTION`) drive the three
+  brief workflows for two companies on a throwaway database and assert company B gets not-found for company A's ids.
 - **Branch scope.** `ITravelBranchScopeResolver` turns the user's data scope into a branch clamp. Records outside
   the clamp are reported as not found, never as forbidden, so their existence is not revealed.
 - **Permissions.** Phase 1: `Travel.View`, `Travel.Settings`, `Travel.Customer.View`, `Travel.Customer.Manage`,
@@ -387,8 +392,11 @@ Draft … Ready → Cancelled (reason)
   (operational reports; balance reports stay under `Travel.Finance.View`, margin and commission reports under `Travel.Profitability.View`).
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
-  **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
-  (the same applies to RENTAL); a grant-on-module-enable hook is planned for Phase 8.
+  **Grant on enable (Phase 8):** enabling `TRAVEL_AGENCY` (or `RENTAL`) for a company — from the platform module
+  switch, the tenant update or provisioning — grants the module's permissions to that company's TENANT_ADMIN and OWNER
+  roles (`ModulePermissionGrants`, `ITenantRoleSeedService.GrantModulePermissionsAsync`); disabling never revokes.
+  `TravelNexusModuleGrantBackfillMigration` did the same once for companies that already had the module. The role
+  templates stay free of opt-in module permissions.
 - **Private documents.** Passport and visa files never use `IFileStorageService` or `/uploads`.
   `ITravelDocumentStorage` writes to a dedicated private Azure container (`TravelDocuments:AzureContainerName`,
   default `travel-documents`, no SAS ever issued) or, locally, to `private-storage/travel-documents` outside the
@@ -467,7 +475,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 6A | Customer invoices, receipts, installments, credit notes, refunds, balances, statements, reconciliation | Done |
 | 6B | Supplier rates, bills and payments, supplier ledgers, commissions (earned and payable), profitability | Done |
 | 7 | Reminder rules and dispatch, dashboard, reports | Done |
-| 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
+| 8 | Live-SQL end-to-end tests, security review and fixes, grant-on-module-enable, deployment notes, user guide | Done |
 
 Each phase gets its own plan, migration, tests and commits on the feature branch.
 

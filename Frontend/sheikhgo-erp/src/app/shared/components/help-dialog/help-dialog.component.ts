@@ -114,6 +114,13 @@ export class HelpDialogComponent {
       icon: 'admin_panel_settings',
       heading: 'Users & Administration',
       subtitle: 'Manage users, access, and system settings.'
+    },
+    {
+      id: 'travel',
+      label: 'Travel',
+      icon: 'flight_takeoff',
+      heading: 'Travel (TravelNexus)',
+      subtitle: 'Enquiries, visa cases, Umrah groups, bookings, finance, reminders and reports for travel agencies.'
     }
   ];
 
@@ -262,6 +269,100 @@ export class HelpDialogComponent {
         'Configure roles and access control',
         'Review security and audit centers (Admin)',
         'Update organization settings in Settings'
+      ]
+    },
+    {
+      id: 'travel-visa-case',
+      categoryId: 'travel',
+      title: 'Working a visa case',
+      description: 'From enquiry to decision, with the document gate in between.',
+      icon: 'badge',
+      accent: 'blue',
+      checklist: [
+        'Travel → Enquiries → New enquiry; log follow-ups; Convert to open the customer and a Draft case',
+        'Add the applicants (the customer\'s travelers) — the active checklist lists their documents',
+        'Start documents; upload, verify, reject or waive each one; request extras if needed',
+        'Verify documents — submission is blocked until every mandatory document is verified or waived',
+        'Submit with date and reference, Start processing, set appointment and expected decision dates',
+        'Record a decision per applicant: approved (visa number, validity), rejected (reason) or withdrawn'
+      ]
+    },
+    {
+      id: 'travel-umrah-group',
+      categoryId: 'travel',
+      title: 'Running an Umrah group',
+      description: 'Package, pilgrims, rooms, group visa case and manifest.',
+      icon: 'groups',
+      accent: 'teal',
+      checklist: [
+        'Travel → Packages: hotels, nights, prices per room type; Publish the package',
+        'Travel → Groups → New group from the package; add hotel stays and transport legs; Open registration',
+        'Register pilgrims (customer + travelers, room preference, price category) and Confirm them',
+        'Rooms: Suggest, adjust, save — the readiness panel shows anyone without a bed',
+        'Close registration, Start visa processing (a group visa case opens with every confirmed pilgrim)',
+        'Cancelling a pilgrim frees the bed and withdraws them from the visa case in one step; tickets are never cancelled silently',
+        'Mark ready, Depart, Return, Close; export the manifest (audited, PII permission)'
+      ]
+    },
+    {
+      id: 'travel-booking-file',
+      categoryId: 'travel',
+      title: 'Flights and hotel bookings',
+      description: 'A booking file per customer or group with its flights, hotels and cancellations.',
+      icon: 'flight',
+      accent: 'sky',
+      checklist: [
+        'Travel → Bookings → New file for a customer or a group',
+        'Add flights: supplier, segments (airports, local times), passengers, sell and cost in the service currency',
+        'Hold (PNR + ticketing time limit) → Confirm → Ticketed (enter each ticket number)',
+        'Add hotel bookings: hotel, dates, meal plan, rooms, guests; Confirm with the confirmation number',
+        'Cancel a service or one passenger with penalties and expected refunds; track the refund status',
+        'Print vouchers and itineraries from the file'
+      ]
+    },
+    {
+      id: 'travel-invoice-receipt',
+      categoryId: 'travel',
+      title: 'Invoices, receipts and payables',
+      description: 'Bill what was sold, collect it, pay suppliers, keep balances right.',
+      icon: 'receipt_long',
+      accent: 'amber',
+      checklist: [
+        'Travel → Finance → Invoices: pick the customer and the billable items (each sold item once); add installments; Issue',
+        'Receipts: record the payment, allocate it to invoices, clear or fail cheques and transfers, reconcile with the bank reference',
+        'Credit notes and refunds adjust an issued invoice (separate permission)',
+        'Payables: enter supplier bills against the services, Post them, record supplier payments and credits',
+        'Balances and statements per customer, supplier and currency',
+        'Commissions: payouts can never exceed the payable balance'
+      ]
+    },
+    {
+      id: 'travel-reminders',
+      categoryId: 'travel',
+      title: 'Reminders',
+      description: 'Passport expiry, appointments, deadlines, dues and follow-ups — to staff and customers.',
+      icon: 'notifications_active',
+      accent: 'purple',
+      checklist: [
+        'Travel → Reminders → Rules: lead times, audience (staff in-app/email, customer email/SMS/WhatsApp) and customer text per kind',
+        'Placeholders: {{Name}}, {{Reference}}, {{Date}}, {{Amount}}',
+        'Customer WhatsApp outside the 24-hour window needs your approved template',
+        'Log: sent, skipped (with reason) and failed reminders; nothing is sent twice for the same due date',
+        'Run now runs the rules immediately for your company; quiet hours hold customer messages until morning'
+      ]
+    },
+    {
+      id: 'travel-reports',
+      categoryId: 'travel',
+      title: 'Dashboard and reports',
+      description: 'Pipelines, attention counts, deadlines and the twelve travel reports.',
+      icon: 'insights',
+      accent: 'slate',
+      checklist: [
+        'Travel → Dashboard: every card names its window; attention counts link to the filtered pages',
+        'Reports & Analytics: choose a report, the date range and filters',
+        'Export to PDF, Excel or CSV — money keeps its currency code; totals appear only for single-currency rows',
+        'Finance and profit reports need their own permissions'
       ]
     }
   ];
