@@ -2,6 +2,7 @@ using System.Data;
 using System.Globalization;
 using System.Text;
 using Dapper;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Application.Common.Interfaces;
@@ -684,12 +685,15 @@ public sealed partial class GpsTrackingRepository
         int? routeMaxPoints,
         int? playbackMaxPoints,
         bool includeRaw,
+        TimeZoneInfo timeZone,
         CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<int, string>? geofenceNames = null;
         var opts = traccarOptions.Value;
         TripReplayBundleDto bundle;
         var fromTraccar = false;
+        // Every fix of the window, before the route is thinned for drawing.
+        var fullRoute = new List<TripReplayPositionDto>();
 
         if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
         {
@@ -704,13 +708,14 @@ public sealed partial class GpsTrackingRepository
                 geofenceNames,
                 routeMaxPoints,
                 playbackMaxPoints,
-                includeRaw);
+                includeRaw,
+                fullRoute);
         }
         else
         {
             bundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
                 mediator, vehicleId, fromDate, toDate, cancellationToken,
-                routeMaxPoints, playbackMaxPoints, includeRaw);
+                routeMaxPoints, playbackMaxPoints, includeRaw, fullRoute);
         }
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
@@ -719,7 +724,7 @@ public sealed partial class GpsTrackingRepository
             fromTraccar = false;
             bundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
                 mediator, vehicleId, fromDate, toDate, cancellationToken,
-                routeMaxPoints, playbackMaxPoints, includeRaw);
+                routeMaxPoints, playbackMaxPoints, includeRaw, fullRoute);
         }
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
@@ -765,6 +770,15 @@ public sealed partial class GpsTrackingRepository
                 EngineHours = statistics.EngineHours
             };
 
+        var timeline = await BuildHistoryTimelineAsync(
+            fullRoute.Count > 0 ? fullRoute : bundle.Route,
+            bundle.Stops,
+            vehicleId,
+            fromDate,
+            toDate,
+            timeZone,
+            cancellationToken);
+
         return ApiResponse<HistoryReplayBundleDto>.SuccessResponse(
             HistoryReplayMapper.WithDisplayFields(
                 new HistoryReplayBundleDto(
@@ -779,7 +793,36 @@ public sealed partial class GpsTrackingRepository
                 source.TraccarDeviceId,
                 source.DeviceName ?? source.VehicleName,
                 fromDate,
-                toDate));
+                toDate) with { Timeline = timeline });
+    }
+
+    /// <summary>
+    /// The timeline is an addition to a response that already works. If it cannot be built the
+    /// replay is still returned without it, and the History page falls back to the legacy strip.
+    /// </summary>
+    private async Task<HistoryTimelineDto?> BuildHistoryTimelineAsync(
+        IReadOnlyList<TripReplayPositionDto> fixes,
+        IReadOnlyList<TripStopDto> namedStops,
+        int vehicleId,
+        DateTime fromDate,
+        DateTime toDate,
+        TimeZoneInfo timeZone,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var timeline = HistoryTimelineBuilder.Build(fixes, fromDate, toDate, timeZone);
+            return await HistoryTimelineBuilder.WithAddressesAsync(timeline, geocoder, cancellationToken, namedStops);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "History timeline could not be built for vehicle {VehicleId}", vehicleId);
+            return null;
+        }
     }
 
     private static async Task<IReadOnlyDictionary<int, string>> LoadGeofenceNamesAsync(

@@ -3663,7 +3663,11 @@ public sealed partial class GpsTrackingRepository(
         var playbackMaxPoints = request.PlaybackMaxPoints;
         var includeRaw = request.IncludeRaw;
 
-        var cacheKey = $"gps:history-replay:{tenantId}:{vehicleId}:{fromDate:O}:{toDate:O}:{routeMaxPoints?.ToString() ?? "default"}:{playbackMaxPoints?.ToString() ?? "default"}:{includeRaw}";
+        // The timeline's days are the vehicle's local days, so the zone is part of what is cached.
+        var timeZoneId = await timeZoneResolver.GetVehicleTimeZoneIdAsync(vehicleId, tenantId, cancellationToken);
+        var timeZone = TenantTimeZoneHelper.Resolve(timeZoneId, timeZoneResolver.DefaultTimeZoneId);
+
+        var cacheKey = $"gps:history-replay:{tenantId}:{vehicleId}:{fromDate:O}:{toDate:O}:{routeMaxPoints?.ToString() ?? "default"}:{playbackMaxPoints?.ToString() ?? "default"}:{includeRaw}:{timeZoneId}";
 
         var response = await cache.GetOrCreateAsync(
             cacheKey,
@@ -3677,13 +3681,14 @@ public sealed partial class GpsTrackingRepository(
                 routeMaxPoints,
                 playbackMaxPoints,
                 includeRaw,
+                timeZone,
                 ct),
             cancellationToken);
 
         // New object: never mutate the cached response.
         return response.Success && response.Data is { } data
             ? ApiResponse<HistoryReplayBundleDto>.SuccessResponse(
-                data with { TimeZoneId = await timeZoneResolver.GetVehicleTimeZoneIdAsync(vehicleId, tenantId, cancellationToken) },
+                data with { TimeZoneId = timeZoneId },
                 response.Message)
             : response;
         }

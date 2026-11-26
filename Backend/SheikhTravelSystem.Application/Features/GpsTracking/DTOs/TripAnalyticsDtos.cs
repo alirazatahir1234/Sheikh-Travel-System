@@ -174,7 +174,9 @@ public record HistoryReplayBundleDto(
     IReadOnlyList<HistoryPositionDto>? Positions = null,
     IReadOnlyList<TripStopDto>? Parking = null,
     /// <summary>IANA zone to display times in: vehicle's branch → tenant → platform default.</summary>
-    string? TimeZoneId = null);
+    string? TimeZoneId = null,
+    /// <summary>Trips, standstills, per-day roll-up and totals from one calculation (History workspace).</summary>
+    HistoryTimelineDto? Timeline = null);
 
 public record TripStopDto(
     DateTime StartTime,

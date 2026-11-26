@@ -29,7 +29,8 @@ public static class TripReplayLoader
         IReadOnlyDictionary<int, string>? geofenceNames = null,
         int? routeMaxPoints = null,
         int? playbackMaxPoints = null,
-        bool includeRaw = false)
+        bool includeRaw = false,
+        List<TripReplayPositionDto>? fullRouteSink = null)
     {
         var routeTask = traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
         var stopsTask = traccarClient.GetStopsAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
@@ -55,6 +56,10 @@ public static class TripReplayLoader
                 routeFull = fromPositions;
             }
         }
+
+        // Every fix, before thinning: the history timeline is worked out from these.
+        fullRouteSink?.Clear();
+        fullRouteSink?.AddRange(routeFull);
 
         var resolvedRouteMax = ResolveMaxPoints(routeMaxPoints, DefaultRouteMaxPoints);
         var resolvedPlaybackMax = ResolveMaxPoints(playbackMaxPoints, DefaultPlaybackMaxPoints);
@@ -96,8 +101,10 @@ public static class TripReplayLoader
         CancellationToken cancellationToken,
         int? routeMaxPoints = null,
         int? playbackMaxPoints = null,
-        bool includeRaw = false)
+        bool includeRaw = false,
+        List<TripReplayPositionDto>? fullRouteSink = null)
     {
+        fullRouteSink?.Clear();
         var history = await mediator.Send(new Queries.GetPositionHistoryQuery(vehicleId, fromDate, toDate), cancellationToken);
         if (!history.Success || history.Data is null)
         {
@@ -108,6 +115,7 @@ public static class TripReplayLoader
             .Select(TripAnalyticsMapper.ToReplayPosition)
             .OrderBy(p => p.Timestamp)
             .ToList();
+        fullRouteSink?.AddRange(routeFull);
         var resolvedRouteMax = ResolveMaxPoints(routeMaxPoints, DefaultRouteMaxPoints);
         var resolvedPlaybackMax = ResolveMaxPoints(playbackMaxPoints, DefaultPlaybackMaxPoints);
         var route = includeRaw
