@@ -163,6 +163,48 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     title: 'Suppliers'
   },
   {
+    path: 'finance',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/finance/finance-page.component').then(m => m.TravelFinancePageComponent),
+    title: 'Invoices & Payments'
+  },
+  {
+    path: 'finance/invoices/new',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.invoiceManage] },
+    loadComponent: () => import('./pages/finance/invoice-editor.component').then(m => m.TravelInvoiceEditorComponent),
+    title: 'New invoice'
+  },
+  {
+    path: 'finance/invoices/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/finance/invoice-detail.component').then(m => m.TravelInvoiceDetailComponent),
+    title: 'Invoice'
+  },
+  {
+    path: 'finance/invoices/:id/edit',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.invoiceManage] },
+    loadComponent: () => import('./pages/finance/invoice-editor.component').then(m => m.TravelInvoiceEditorComponent),
+    title: 'Edit invoice'
+  },
+  {
+    path: 'finance/payments/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/finance/payment-detail.component').then(m => m.TravelPaymentDetailComponent),
+    title: 'Payment'
+  },
+  {
+    path: 'finance/statements/:customerId',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/finance/statement.component').then(m => m.TravelStatementComponent),
+    title: 'Statement'
+  },
+  {
     path: 'settings',
     canActivate: [permissionGuard],
     data: { permissions: [TRAVEL_PERMISSIONS.settings] },

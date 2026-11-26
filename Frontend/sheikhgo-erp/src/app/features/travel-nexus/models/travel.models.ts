@@ -26,7 +26,12 @@ export const TRAVEL_PERMISSIONS = {
   supplierManage: 'Travel.Supplier.Manage',
   bookingView: 'Travel.Booking.View',
   bookingManage: 'Travel.Booking.Manage',
-  bookingCancel: 'Travel.Booking.Cancel'
+  bookingCancel: 'Travel.Booking.Cancel',
+  financeView: 'Travel.Finance.View',
+  invoiceManage: 'Travel.Invoice.Manage',
+  paymentManage: 'Travel.Payment.Manage',
+  financeAdjust: 'Travel.Finance.Adjust',
+  financeReconcile: 'Travel.Finance.Reconcile'
 } as const;
 
 export type TravelVisaCategory =
@@ -95,6 +100,10 @@ export interface TravelSettings {
   invoicePrefix: string;
   groupPrefix: string;
   bookingPrefix: string;
+  receiptPrefix: string;
+  creditNotePrefix: string;
+  refundPrefix: string;
+  defaultPaymentTermsDays: number;
   passportExpiryWarningDays: number;
 }
 
@@ -920,4 +929,134 @@ export interface SaveTravelHotelBooking {
 export interface CancelTravelService {
   reason: string; supplierPenalty: number; customerPenalty: number; refundFromSupplier: number; refundToCustomer: number;
   ticketOutcome: 'Voided' | 'Refunded' | null;
+}
+
+// ── Phase 6A: customer finance ──────────────────────────────────────────
+
+export type TravelInvoiceStatus = 'Draft' | 'Issued' | 'Void';
+export const TRAVEL_INVOICE_STATUSES: TravelInvoiceStatus[] = ['Draft', 'Issued', 'Void'];
+export type TravelInvoicePaymentStatus = 'Unpaid' | 'PartiallyPaid' | 'Paid' | 'CreditDue';
+export const TRAVEL_INVOICE_PAYMENT_STATUSES: TravelInvoicePaymentStatus[] = ['Unpaid', 'PartiallyPaid', 'Paid', 'CreditDue'];
+export type TravelInvoiceSourceType = 'Flight' | 'Hotel' | 'VisaServiceFee' | 'VisaEmbassyFee' | 'GroupMember';
+export type TravelPaymentMethod = 'Cash' | 'BankTransfer' | 'Card' | 'Cheque' | 'Online' | 'Other';
+export const TRAVEL_PAYMENT_METHODS: TravelPaymentMethod[] = ['Cash', 'BankTransfer', 'Card', 'Cheque', 'Online', 'Other'];
+export type TravelPaymentStatus = 'Pending' | 'Completed' | 'Failed' | 'Refunded';
+export const TRAVEL_PAYMENT_STATUSES: TravelPaymentStatus[] = ['Pending', 'Completed', 'Failed', 'Refunded'];
+export type TravelCreditNoteStatus = 'Issued' | 'Void';
+export type TravelInstallmentStatus = 'Paid' | 'PartlyPaid' | 'Due' | 'Overdue';
+export type TravelInvoiceAction = 'Edit' | 'Issue' | 'Delete' | 'Void' | 'RecordPayment' | 'CreditNote' | 'Refund';
+export type TravelPaymentAction = 'Clear' | 'Fail' | 'Allocate' | 'Refund' | 'Reconcile' | 'Unallocate';
+export type TravelFinanceHistoryEvent =
+  | 'InvoiceCreated' | 'InvoiceUpdated' | 'InvoiceIssued' | 'InvoiceVoided' | 'PaymentRecorded' | 'PaymentStatus' | 'Allocated' | 'Unallocated'
+  | 'CreditNoteIssued' | 'CreditNoteVoided' | 'RefundPaid' | 'Reconciled';
+export type TravelStatementEntryType = 'Invoice' | 'CreditNote' | 'Payment' | 'Refund' | 'Advance';
+
+export const INVOICE_STATUS_VARIANT: Record<TravelInvoiceStatus, BadgeVariant> = { Draft: 'pending', Issued: 'info', Void: 'inactive' };
+export const INVOICE_PAYMENT_STATUS_LABEL: Record<TravelInvoicePaymentStatus, string> = {
+  Unpaid: 'Unpaid', PartiallyPaid: 'Partly paid', Paid: 'Paid', CreditDue: 'Credit due'
+};
+export const INVOICE_PAYMENT_STATUS_VARIANT: Record<TravelInvoicePaymentStatus, BadgeVariant> = {
+  Unpaid: 'warning', PartiallyPaid: 'info', Paid: 'success', CreditDue: 'active'
+};
+export const PAYMENT_METHOD_LABEL: Record<TravelPaymentMethod, string> = {
+  Cash: 'Cash', BankTransfer: 'Bank transfer', Card: 'Card', Cheque: 'Cheque', Online: 'Online', Other: 'Other'
+};
+export const PAYMENT_STATUS_LABEL: Record<TravelPaymentStatus, string> = { Pending: 'Not cleared', Completed: 'Cleared', Failed: 'Failed', Refunded: 'Refunded' };
+export const PAYMENT_STATUS_VARIANT: Record<TravelPaymentStatus, BadgeVariant> = { Pending: 'pending', Completed: 'success', Failed: 'error', Refunded: 'inactive' };
+export const INSTALLMENT_STATUS_VARIANT: Record<TravelInstallmentStatus, BadgeVariant> = { Paid: 'success', PartlyPaid: 'info', Due: 'pending', Overdue: 'error' };
+export const SOURCE_TYPE_LABEL: Record<TravelInvoiceSourceType, string> = {
+  Flight: 'Flight', Hotel: 'Hotel', VisaServiceFee: 'Visa service fee', VisaEmbassyFee: 'Embassy fee', GroupMember: 'Umrah package'
+};
+export const FINANCE_EVENT_LABEL: Record<TravelFinanceHistoryEvent, string> = {
+  InvoiceCreated: 'Draft created', InvoiceUpdated: 'Draft edited', InvoiceIssued: 'Invoice issued', InvoiceVoided: 'Invoice voided',
+  PaymentRecorded: 'Payment recorded', PaymentStatus: 'Payment status', Allocated: 'Payment applied', Unallocated: 'Payment removed',
+  CreditNoteIssued: 'Credit note issued', CreditNoteVoided: 'Credit note voided', RefundPaid: 'Refund paid', Reconciled: 'Reconciled'
+};
+
+export interface TravelInvoiceMoney { total: number; paid: number; pendingPaid: number; credited: number; refunded: number; balance: number; }
+export interface TravelInvoiceListItem extends TravelInvoiceMoney {
+  id: number; invoiceNumber: string | null; customerId: number; customerName: string; currencyCode: string; issueDate: string | null;
+  dueDate: string | null; status: TravelInvoiceStatus; paymentStatus: TravelInvoicePaymentStatus | null; nextDueDate: string | null;
+  overdueAmount: number; bookingId: number | null; bookingNumber: string | null; visaCaseId: number | null; visaCaseNumber: string | null;
+  groupId: number | null; groupNumber: string | null; createdAt: string;
+}
+export interface TravelInvoiceLine {
+  id: number; invoiceId: number; sequence: number; description: string; quantity: number; unitPrice: number; lineTotal: number;
+  sourceType: TravelInvoiceSourceType | null; sourceId: number | null; currentSourceAmount: number | null; sourceChanged: boolean;
+}
+export interface TravelInstallment { invoiceId: number; sequence: number; dueDate: string; amount: number; covered: number; status: TravelInstallmentStatus; }
+export interface TravelAllocation {
+  paymentId: number; receiptNumber: string; receivedOn: string; method: TravelPaymentMethod; paymentStatus: TravelPaymentStatus; invoiceId: number;
+  invoiceNumber: string | null; invoiceCurrencyCode: string; amountFromPayment: number; paymentCurrencyCode: string; exchangeRate: number; amountApplied: number;
+}
+export interface TravelCreditNote {
+  id: number; creditNoteNumber: string; invoiceId: number; invoiceNumber: string | null; customerId: number; customerName: string; amount: number;
+  currencyCode: string; reason: string; cancellationId: number | null; status: TravelCreditNoteStatus; issuedOn: string; voidReason: string | null;
+}
+export interface TravelRefund {
+  id: number; refundNumber: string; customerId: number; customerName: string; invoiceId: number | null; invoiceNumber: string | null;
+  paymentId: number | null; receiptNumber: string | null; amount: number; currencyCode: string; method: TravelPaymentMethod; reference: string | null;
+  paidOn: string; cancellationId: number | null; notes: string | null;
+}
+export interface TravelFinanceHistory {
+  id: number; eventType: TravelFinanceHistoryEvent; fromValue: string | null; toValue: string | null; amount: number | null; currencyCode: string | null;
+  note: string | null; changedByName: string | null; changedAt: string;
+}
+export interface TravelInvoice extends TravelInvoiceListItem {
+  subtotal: number; discountAmount: number; notes: string | null; issuedAt: string | null; voidedAt: string | null; voidReason: string | null;
+  branchId: number | null; branchName: string | null; allowedActions: TravelInvoiceAction[]; lines: TravelInvoiceLine[];
+  installments: TravelInstallment[]; allocations: TravelAllocation[]; creditNotes: TravelCreditNote[]; refunds: TravelRefund[]; history: TravelFinanceHistory[];
+}
+export interface TravelBillableItem {
+  sourceType: TravelInvoiceSourceType; sourceId: number; customerId: number; customerName: string; description: string; amount: number;
+  currencyCode: string; contextType: 'Booking' | 'VisaCase' | 'Group'; contextId: number; contextLabel: string; serviceDate: string | null;
+  onInvoiceId: number | null;
+}
+export interface TravelPaymentListItem {
+  id: number; receiptNumber: string; customerId: number; customerName: string; receivedOn: string; method: TravelPaymentMethod; reference: string | null;
+  amount: number; currencyCode: string; status: TravelPaymentStatus; allocated: number; refunded: number; unallocated: number;
+  reconciledAt: string | null; bankReference: string | null; createdAt: string;
+}
+export interface TravelPayment extends TravelPaymentListItem {
+  notes: string | null; clearedAt: string | null; createdByName: string | null; allowedActions: TravelPaymentAction[];
+  allocations: TravelAllocation[]; refunds: TravelRefund[]; history: TravelFinanceHistory[];
+}
+export interface TravelFinanceCurrencySummary {
+  currencyCode: string; outstanding: number; overdue: number; creditDue: number; collectedThisMonth: number; unallocatedAdvances: number;
+}
+export interface TravelFinanceSummary { currencies: TravelFinanceCurrencySummary[]; invoiceCounts: Record<TravelInvoiceStatus, number>; invoiceTotal: number; }
+export interface TravelCustomerBalance {
+  customerId: number; customerName: string; currencyCode: string; openInvoices: number; invoiced: number; paid: number; credited: number;
+  refunded: number; balance: number; overdue: number; unallocatedAdvances: number;
+}
+export interface TravelStatementEntry {
+  date: string; entryType: TravelStatementEntryType; reference: string; description: string; debit: number; credit: number; balance: number;
+  invoiceId: number | null; paymentId: number | null;
+}
+export interface TravelStatement {
+  customerId: number; customerName: string; currencyCode: string; from: string | null; to: string | null; openingBalance: number;
+  entries: TravelStatementEntry[]; closingBalance: number; currencies: string[];
+}
+export interface TravelChangedInvoiceLine {
+  invoiceId: number; invoiceNumber: string | null; customerName: string; currencyCode: string; description: string; sourceType: TravelInvoiceSourceType;
+  invoiced: number; current: number | null;
+}
+export interface TravelGroupFinanceRow {
+  customerId: number; customerName: string; currencyCode: string; pilgrims: number; quoted: number; uninvoicedPilgrims: number; invoiced: number;
+  paid: number; credited: number; balance: number;
+}
+
+export interface SaveTravelInvoiceLine { description: string; quantity: number; unitPrice: number; sourceType: TravelInvoiceSourceType | null; sourceId: number | null; }
+export interface SaveTravelInstallment { dueDate: string; amount: number; }
+export interface SaveTravelInvoice {
+  issueDate: string | null; dueDate: string | null; discountAmount: number; notes: string | null; lines: SaveTravelInvoiceLine[]; installments: SaveTravelInstallment[];
+}
+export interface TravelAllocationInput { invoiceId: number; amountFromPayment: number; exchangeRate: number | null; }
+export interface RecordTravelPayment {
+  idempotencyKey: string; customerId: number; receivedOn: string; method: TravelPaymentMethod; reference: string | null; amount: number;
+  currencyCode: string; cleared: boolean; notes: string | null; allocations: TravelAllocationInput[];
+}
+export interface RecordTravelRefund {
+  idempotencyKey: string; invoiceId: number | null; paymentId: number | null; amount: number; method: TravelPaymentMethod; reference: string | null;
+  paidOn: string; cancellationId: number | null; notes: string | null;
 }

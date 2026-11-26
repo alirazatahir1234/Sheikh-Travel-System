@@ -87,6 +87,7 @@ const travelNexusGroup: NavGroup = {
     { id: 'travel-packages', label: 'Packages', icon: 'inventory_2', route: '/travel/packages', moduleKey: 'travel-agency' },
     { id: 'travel-bookings', label: 'Bookings', icon: 'airplane_ticket', route: '/travel/bookings', moduleKey: 'travel-agency' },
     { id: 'travel-suppliers', label: 'Suppliers', icon: 'storefront', route: '/travel/suppliers', moduleKey: 'travel-agency' },
+    { id: 'travel-finance', label: 'Invoices & Payments', icon: 'receipt_long', route: '/travel/finance', moduleKey: 'travel-agency' },
     { id: 'travel-settings', label: 'Settings', icon: 'tune', route: '/travel/settings', moduleKey: 'travel-agency' }
   ]
 };

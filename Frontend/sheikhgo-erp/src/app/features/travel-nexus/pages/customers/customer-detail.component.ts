@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,12 +15,13 @@ import { TravelerFormDrawerComponent } from '../../components/traveler-form-draw
 import {
   ENQUIRY_STATUS_LABEL, ENQUIRY_STATUS_VARIANT, PASSPORT_STATUS_LABEL, PASSPORT_STATUS_VARIANT, TRAVEL_PERMISSIONS, TravelCustomer,
   TravelEnquiryListItem, TravelGroupListItem, TravelTraveler, TravelVisaCaseListItem, VISA_STATUS_LABEL, VISA_STATUS_VARIANT,
-  GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT, BOOKING_STATUS_VARIANT, TravelBookingListItem
+  GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT, BOOKING_STATUS_VARIANT, TravelBookingListItem, TravelCustomerBalance
 } from '../../models/travel.models';
 import { TravelEnquiryService } from '../../services/travel-enquiry.service';
 import { TravelVisaService } from '../../services/travel-visa.service';
 import { TravelGroupService } from '../../services/travel-group.service';
 import { TravelBookingService } from '../../services/travel-booking.service';
+import { TravelFinanceService } from '../../services/travel-finance.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
@@ -28,7 +29,7 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
 @Component({
   selector: 'app-travel-customer-detail',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent,
+  imports: [CurrencyPipe, DatePipe, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent,
     UiEmptyStateComponent, HasPermissionDirective, TravelerFormDrawerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -171,6 +172,28 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
               </ul>
             }
           </div>
+          <div class="tn-card" *appHasPermission="perms.financeView">
+            <div class="flex items-center justify-between border-b border-fleet-border px-5 py-4">
+              <h3 class="tn-section-title">Finance</h3>
+              <a mat-stroked-button *appHasPermission="perms.invoiceManage" [routerLink]="['/travel/finance/invoices/new']" [queryParams]="{ customerId: c.customerId }">
+                <mat-icon>add</mat-icon> Invoice</a>
+            </div>
+            @if (!balances().length) {
+              <p class="px-5 py-6 text-sm text-fleet-text-muted">No invoices or payments yet.</p>
+            } @else {
+              <ul class="divide-y divide-fleet-border">
+                @for (fb of balances(); track fb.currencyCode) {
+                  <li class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+                    <span class="font-mono">{{ fb.currencyCode }}</span>
+                    <span>balance <strong [class.text-emerald-700]="fb.balance < 0">{{ fb.balance | currency: fb.currencyCode : 'code' : '1.2-2' }}</strong>
+                      @if (fb.overdue > 0) { · <span class="text-red-600">{{ fb.overdue | currency: fb.currencyCode : 'code' : '1.2-2' }} overdue</span> }
+                      @if (fb.unallocatedAdvances > 0) { · {{ fb.unallocatedAdvances | currency: fb.currencyCode : 'code' : '1.2-2' }} on account }</span>
+                    <a class="text-fleet-primary underline" [routerLink]="['/travel/finance/statements', c.customerId]" [queryParams]="{ currency: fb.currencyCode }">Statement</a>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
           <div class="tn-card" *appHasPermission="perms.groupView">
             <div class="border-b border-fleet-border px-5 py-4"><h3 class="tn-section-title">Umrah groups</h3></div>
             @if (!groups().length) {
@@ -222,6 +245,8 @@ export class TravelCustomerDetailComponent {
   private readonly bookingApi = inject(TravelBookingService);
   protected readonly bookings = signal<TravelBookingListItem[]>([]);
   protected readonly bookingVariant = BOOKING_STATUS_VARIANT;
+  private readonly financeApi = inject(TravelFinanceService);
+  protected readonly balances = signal<TravelCustomerBalance[]>([]);
   private readonly customerId = Number(this.route.snapshot.paramMap.get('id'));
 
   protected readonly customer = signal<TravelCustomer | null>(null);
@@ -248,6 +273,10 @@ export class TravelCustomerDetailComponent {
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.groupView)) {
       this.groupApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
         .subscribe(r => this.groups.set(r));
+    }
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.financeView)) {
+      this.financeApi.getBalances(this.customerId, false).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe(r => this.balances.set(r));
     }
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.bookingView)) {
       this.bookingApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))

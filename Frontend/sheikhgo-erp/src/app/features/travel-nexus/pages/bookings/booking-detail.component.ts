@@ -16,10 +16,11 @@ import {
   HOTEL_BOOKING_STATUS_VARIANT, HOTEL_TRANSITION_LABEL, MEAL_PLAN_LABEL, REFUND_STATUS_LABEL, REFUND_STATUS_VARIANT, TICKET_STATUS_VARIANT,
   TRAVEL_PERMISSIONS, TravelBooking, TravelBookingCancellation, TravelBookingTransitionAction, TravelFlightAction, TravelFlightBooking,
   TravelFlightPassenger, TravelGroup, TravelHotel, TravelHotelAction, TravelHotelBooking, TravelHotelTransitionAction, TravelRefundStatus,
-  TravelSupplier, TravelTraveler
+  TravelSupplier, TravelTraveler, TravelInvoiceListItem
 } from '../../models/travel.models';
 import { asUtc, fromDateTimeLocal, isDue, toDateTimeLocal } from '../../models/travel-date.util';
 import { TravelBookingService } from '../../services/travel-booking.service';
+import { TravelFinanceService, newRequestKey } from '../../services/travel-finance.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
 import { TravelGroupService } from '../../services/travel-group.service';
@@ -49,6 +50,10 @@ type CancelTarget =
         <ui-page-header [title]="b.title" eyebrow="TravelNexus · Bookings" icon="airplane_ticket" [subtitle]="b.bookingNumber + ' · ' + b.ownerName"
           [breadcrumbs]="[{ label: 'TravelNexus' }, { label: 'Bookings', route: '/travel/bookings' }, { label: b.bookingNumber }]">
           <ui-status-badge [status]="b.status" [variant]="statusVariant[b.status]"></ui-status-badge>
+          @if (b.customerId) {
+            <a mat-stroked-button *appHasPermission="perms.invoiceManage" [routerLink]="['/travel/finance/invoices/new']" [queryParams]="{ customerId: b.customerId }">
+              <mat-icon>receipt_long</mat-icon> Invoice</a>
+          }
           <ng-container *appHasPermission="perms.bookingManage">
             @if (can('Edit')) { <button mat-stroked-button (click)="openEdit()"><mat-icon>edit</mat-icon> Edit</button> }
             @if (can('Complete')) { <button mat-stroked-button [disabled]="busy()" (click)="askFile('Complete')"><mat-icon>task_alt</mat-icon> Complete</button> }
@@ -248,6 +253,9 @@ type CancelTarget =
                         <td class="px-4 py-3 text-right">{{ money(c.refundFromSupplier, c) }} / {{ money(c.refundToCustomer, c) }}</td>
                         <td class="px-4 py-3"><ui-status-badge [status]="c.refundStatus" [label]="refundLabel[c.refundStatus]" [variant]="refundVariant[c.refundStatus]"></ui-status-badge></td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">
+                          @if (b.customerId && c.refundToCustomer > 0 && c.refundStatus !== 'Closed' && c.refundStatus !== 'PaidToCustomer') {
+                            <button mat-button *appHasPermission="perms.financeAdjust" (click)="openCredit(c)">Credit note</button>
+                          }
                           <ng-container *appHasPermission="perms.bookingCancel">
                             @for (n of c.nextRefundStatuses; track n) { <button mat-button [disabled]="busy()" (click)="refund(c, n)">{{ refundLabel[n] }}</button> }
                           </ng-container>
@@ -284,6 +292,25 @@ type CancelTarget =
         <app-hotel-editor-drawer [(open)]="hotelOpen" [bookingId]="b.id" [hotel]="editingHotel()" [candidates]="candidates()"
           [suppliers]="suppliers()" [hotels]="hotelCatalog()" [groupStays]="group()?.stays ?? []" [groupRooms]="group()?.rooms ?? []"
           [defaultCurrency]="defaultCurrency()" (saved)="load()" />
+
+        <!-- Credit note from a cancellation -->
+        <ui-modal [(open)]="creditOpen" title="Credit note for the cancellation" size="sm">
+          <div class="space-y-3">
+            <p class="text-xs text-fleet-text-muted">Reduces the customer's invoice by the refund agreed in the cancellation. Refund the money from the invoice afterwards.</p>
+            <div class="tn-field"><label for="bc-inv" class="tn-required">Invoice</label>
+              <select id="bc-inv" class="tn-input" [(ngModel)]="creditInvoiceId">
+                <option [ngValue]="null">{{ creditInvoices().length ? 'Choose…' : 'No issued invoice in this currency' }}</option>
+                @for (i of creditInvoices(); track i.id) { <option [ngValue]="i.id">{{ i.invoiceNumber }} · {{ i.total | currency: i.currencyCode : 'code' : '1.2-2' }}</option> }
+              </select></div>
+            <div class="tn-field"><label for="bc-amount" class="tn-required">Amount</label><input id="bc-amount" type="number" min="0" step="0.01" class="tn-input" [(ngModel)]="creditAmount" /></div>
+            <div class="tn-field"><label for="bc-reason" class="tn-required">Reason</label><input id="bc-reason" class="tn-input" maxlength="500" [(ngModel)]="creditReason" /></div>
+            @if (dialogError()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ dialogError() }}</div> }
+          </div>
+          <div modal-footer class="tn-actions">
+            <button mat-stroked-button (click)="creditOpen.set(false)">Cancel</button>
+            <button mat-flat-button color="primary" [disabled]="busy() || !creditInvoiceId || !(creditAmount > 0) || !creditReason.trim()" (click)="issueCredit()">Issue credit note</button>
+          </div>
+        </ui-modal>
 
         <!-- File transition -->
         <ui-modal [(open)]="fileOpen" [title]="fileAction() === 'Cancel' ? 'Cancel booking file' : fileAction() === 'Complete' ? 'Complete booking file' : 'Reopen booking file'" size="sm">
@@ -472,6 +499,14 @@ export class TravelBookingDetailComponent {
   protected stepLimit = '';
   protected confirmationNo = '';
   protected cx: CancelTravelService = this.blankCancel();
+  private readonly finance = inject(TravelFinanceService);
+  protected readonly creditOpen = signal(false);
+  protected readonly creditInvoices = signal<TravelInvoiceListItem[]>([]);
+  private creditCancellation: TravelBookingCancellation | null = null;
+  private creditKey = newRequestKey();
+  protected creditInvoiceId: number | null = null;
+  protected creditAmount = 0;
+  protected creditReason = '';
 
   protected readonly cancelTitle = computed(() => {
     const t = this.cancelTarget();
@@ -662,6 +697,24 @@ export class TravelBookingDetailComponent {
       : this.api.cancelPassenger(this.id, t.flight.id, t.passenger.id, dto);
     this.run(obs, 'Cancellation recorded.', () => this.cancelOpen.set(false));
   }
+  protected openCredit(c: TravelBookingCancellation): void {
+    const b = this.booking()!;
+    this.creditCancellation = c;
+    this.creditKey = newRequestKey();
+    this.creditAmount = c.refundToCustomer;
+    this.creditReason = `Cancellation: ${c.serviceLabel} — ${c.reason}`.substring(0, 500);
+    this.creditInvoiceId = null;
+    this.creditInvoices.set([]);
+    this.dialogError.set(null);
+    this.creditOpen.set(true);
+    this.finance.getInvoices({ page: 1, pageSize: 50, customerId: b.customerId, status: 'Issued', currencyCode: c.currencyCode ?? undefined })
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef)).subscribe(r => this.creditInvoices.set(r?.items ?? []));
+  }
+  protected issueCredit(): void {
+    this.run(this.finance.issueCreditNote({ idempotencyKey: this.creditKey, invoiceId: this.creditInvoiceId!, amount: Number(this.creditAmount),
+      reason: this.creditReason.trim(), cancellationId: this.creditCancellation!.id, issuedOn: null }), 'Credit note issued.', () => this.creditOpen.set(false));
+  }
+
   protected refund(c: TravelBookingCancellation, next: TravelRefundStatus): void {
     this.run(this.api.updateRefundStatus(this.id, c.id, next, null), `Refund: ${REFUND_STATUS_LABEL[next]}.`, undefined, false);
   }

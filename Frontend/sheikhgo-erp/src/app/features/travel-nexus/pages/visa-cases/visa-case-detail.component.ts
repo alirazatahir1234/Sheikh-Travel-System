@@ -50,6 +50,10 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
         <ui-page-header [title]="c.countryName + ' · ' + c.visaTypeName" [eyebrow]="'Visa case ' + c.caseNumber" icon="assignment_ind"
           [subtitle]="c.customerName"
           [breadcrumbs]="[{ label: 'TravelNexus' }, { label: 'Visa cases', route: '/travel/visa-cases' }, { label: c.caseNumber }]">
+          @if (c.customerId && c.currencyCode && (c.quotedServiceFee || c.quotedEmbassyFee)) {
+            <a mat-stroked-button *appHasPermission="perms.invoiceManage" [routerLink]="['/travel/finance/invoices/new']"
+              [queryParams]="{ customerId: c.customerId, currency: c.currencyCode }"><mat-icon>receipt_long</mat-icon> Invoice fees</a>
+          }
           <ng-container *appHasPermission="perms.visaManage">
             @for (t of transitions(); track t.action) {
               <button mat-stroked-button [color]="t.warn ? 'warn' : undefined"

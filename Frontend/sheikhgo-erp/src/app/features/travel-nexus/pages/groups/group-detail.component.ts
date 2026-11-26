@@ -17,6 +17,7 @@ import {
 import { asUtc, toDateInput } from '../../models/travel-date.util';
 import { TravelGroupService } from '../../services/travel-group.service';
 import { GroupBookingsTabComponent } from './group-bookings-tab.component';
+import { GroupFinanceTabComponent } from './group-finance-tab.component';
 import { GroupManifestTabComponent } from './group-manifest-tab.component';
 import { GroupPilgrimsTabComponent } from './group-pilgrims-tab.component';
 import { GroupRoomsTabComponent } from './group-rooms-tab.component';
@@ -29,7 +30,7 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
   selector: 'app-travel-group-detail',
   standalone: true,
   imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent, UiTabsComponent,
-    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent, GroupBookingsTabComponent],
+    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent, GroupBookingsTabComponent, GroupFinanceTabComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -105,6 +106,7 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
           @case ('rooms') { <app-group-rooms-tab [group]="g" (changed)="load()" /> }
           @case ('transport') { <app-group-transport-tab [group]="g" (changed)="load()" /> }
           @case ('bookings') { <app-group-bookings-tab [group]="g" /> }
+          @case ('finance') { <app-group-finance-tab [group]="g" /> }
           @case ('manifest') { <app-group-manifest-tab [group]="g" (generated)="load()" /> }
           @case ('history') {
             <div class="tn-card tn-card-body">
@@ -211,6 +213,7 @@ export class TravelGroupDetailComponent {
       { id: 'transport', label: 'Transport', icon: 'directions_bus' }
     ];
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.bookingView)) t.push({ id: 'bookings', label: 'Bookings', icon: 'airplane_ticket' });
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.financeView)) t.push({ id: 'finance', label: 'Finance', icon: 'payments' });
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.groupManifest)) t.push({ id: 'manifest', label: 'Manifest', icon: 'list_alt' });
     t.push({ id: 'history', label: 'History', icon: 'history' });
     return t;

@@ -4,7 +4,7 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking).
+Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -120,10 +120,22 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelBookingHistory` | Append-only file and service events | event type CHECK |
 | `TravelSettings` (+ column) | `BookingPrefix` (default `BKG`) | |
 
+**Phase 6A (built)** — migration `TravelNexusFinanceMigration` (the travel ledger; fleet `CustomerInvoices` / `Payments` untouched)
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelInvoices` | Customer invoice in one currency; number allocated on issue (`TINV-yyyy-nnnnn`); optional booking / visa case / group context | Draft / Issued / Void; Total = Subtotal − Discount ≥ 0; issued needs number + dates; void needs reason |
+| `TravelInvoiceLines` | Snapshot lines; `SourceType` + `SourceId` for sold items (Flight, Hotel, VisaServiceFee, VisaEmbassyFee, GroupMember) | **unique (tenant, source) where not voided** — an item sits on one live invoice only |
+| `TravelInvoiceInstallments` | Schedule; must add up to the total | amount > 0 |
+| `TravelPayments` | Receipts (`TRCP-…`): method, reference, amount + currency, status Pending / Completed / Failed / Refunded, reconciliation | **idempotency key unique per tenant** |
+| `TravelPaymentAllocations` | Payment → invoice with the recorded exchange rate and the amount applied in invoice currency | unique (payment, invoice) |
+| `TravelCreditNotes` | `TCN-…` against an issued invoice, optional Phase 5 cancellation link | Issued / Void; idempotency key |
+| `TravelRefunds` | `TRF-…` against an invoice's credit balance **or** a payment's advance, optional cancellation link | invoice xor payment; idempotency key |
+| `TravelFinanceHistory` | Append-only invoice / payment / credit / refund events | event type CHECK |
+| `TravelSettings` (+ columns) | `ReceiptPrefix`, `CreditNotePrefix`, `RefundPrefix`, `DefaultPaymentTermsDays` | |
+
 **Later phases (planned)**
-- Finance: `TravelInvoices`, `TravelInvoiceLines`, `TravelInstallmentPlans`, `TravelPayments` (idempotency key),
-  `TravelPaymentAllocations`, `TravelCreditNotes`, `TravelRefunds`.
-- Suppliers (profiles exist since Phase 5): `TravelSupplierRates`, `TravelSupplierBills`, `TravelSupplierPayments`,
+- Suppliers (6B; profiles exist since Phase 5): `TravelSupplierRates`, `TravelSupplierBills`, `TravelSupplierPayments`,
   `TravelCommissionRules`, `TravelCommissions`; the supplier ledger is a view, not a copy.
 - Notifications: `TravelReminderRules`, `TravelReminders`.
 
@@ -233,6 +245,33 @@ Draft … Ready → Cancelled (reason)
 - **KPIs.** `/bookings/summary` returns files per status (zero-filled, total = sum, "all time") and flights on hold whose
   ticketing deadline falls within the next 72 hours (labelled as such). An inverted travel-date range returns an empty list.
 
+**Customer finance (Phase 6A).** Revenue is recognised from issued invoices, never from payment status.
+
+- **Invoices** are drafted from billable sources — a customer booking file's priced flights and hotels, a visa case's quoted
+  service and embassy fees, a customer's pilgrims in a group at their quoted package price — plus manual lines. Group-owned
+  booking files are not billable per service (the pilgrims' package price covers them). Every line's currency must be the
+  invoice currency. Drafts are editable; issuing allocates the gap-free number and fixes the dates (due = last installment,
+  or issue date + payment terms). Issued invoices are immutable — corrections are credit notes. Void only with no payments
+  (even pending), credit notes or refunds; voiding releases the source items.
+- **Balance** (always computed): `Total − Credited − (Paid − Refunded)`, where Paid counts Completed (cleared) payments only;
+  Pending payments reserve their amount. Payment status shown: Unpaid / PartiallyPaid / Paid / CreditDue (negative balance).
+  Installments — or, without a schedule, the whole invoice on its due date — are covered oldest-due first; overdue = what
+  fell due before today minus what is covered.
+- **Payments** may be in another currency: the cashier records the rate (invoice units per payment unit); the applied
+  amount is rounded to 2 dp half away from zero. Allocation is capped by the invoice's open balance (less pending
+  reservations) and by what is left on the payment; both are re-checked under `UPDLOCK` in the write transaction.
+  Unallocated money stays on account (advance). Pending → Completed / Failed; Completed → Failed while not reconciled or
+  refunded; Failed allocations stop counting. Reconciliation marks cleared non-cash payments with a bank reference.
+- **Credit notes** are capped by the invoice's uncredited total; **refunds** by an invoice's credit balance or a payment's
+  unallocated advance. A refund linked to a Phase 5 cancellation moves that cancellation to PaidToCustomer in the same
+  transaction. Receipts, credit notes and refunds carry the client's idempotency key — a retried submit returns the original.
+- **Reports**: per-currency summary (outstanding and credit due all time, overdue as of today, collected this month,
+  unallocated advances; invoice counts zero-filled, total = sum), customer balances, statement of account per currency
+  with opening and running balance (date range applied; inverted range → no entries), reconciliation lists (unreconciled
+  payments, sold-but-not-invoiced, changed-since-invoiced), group pilgrim payments per booking party. The ERP builds invoice,
+  receipt, credit note and statement PDFs client-side.
+- **Not in 6A**: taxes, supplier bills / payments, commissions, profitability (6B), gateway collection, reminders (Phase 7).
+
 ## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
@@ -249,6 +288,9 @@ Draft … Ready → Cancelled (reason)
   pilgrims, stays, rooms, transport), `Travel.Group.Manifest` (manifest — passport data, audited).
   Phase 5: `Travel.Supplier.View/Manage`, `Travel.Booking.View`, `Travel.Booking.Manage` (files, flights, passengers,
   tickets, hotels, check-in/out), `Travel.Booking.Cancel` (cancellations, penalties, refund status).
+  Phase 6A: `Travel.Finance.View`, `Travel.Invoice.Manage` (draft, issue), `Travel.Payment.Manage` (record, allocate,
+  clear / fail), `Travel.Finance.Adjust` (void, credit notes, refunds — financial authorisation kept separate),
+  `Travel.Finance.Reconcile`.
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
@@ -298,6 +340,11 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | GET | `api/travel/bookings` (search, status, ownerType, customerId, groupId, travelFrom/To, ticketingDue) · `summary` · `by-customer/{id}` · `by-group/{id}` · `{id}` | Travel.Booking.View |
 | POST / PUT / DELETE | `api/travel/bookings[/{id}]`, `{id}/transition`, `{id}/flights[/{fid}]`, `flights/{fid}/transition`, PUT `flights/{fid}/tickets`, `{id}/hotels[/{hid}]`, `hotels/{hid}/transition` | Travel.Booking.Manage |
 | POST / PUT | `api/travel/bookings/{id}/flights/{fid}/cancel`, `flights/{fid}/passengers/{pid}/cancel`, `hotels/{hid}/cancel`, PUT `cancellations/{cid}/refund-status` | Travel.Booking.Cancel |
+| GET | `api/travel/finance/invoices` (search, status, paymentStatus, customerId, currencyCode, issueFrom/To, dueFrom/To, overdue) · `invoices/{id}` · `billable` · `customers/{id}/open-invoices` · `payments` (receivedFrom/To, reconciled…) · `payments/{id}` · `credit-notes` · `refunds` · `summary` · `balances` · `customers/{id}/statement` · `reconciliation/uninvoiced` · `reconciliation/changed-lines` · `groups/{id}` | Travel.Finance.View |
+| POST / PUT / DELETE | `api/travel/finance/invoices[/{id}]`, `invoices/{id}/issue` | Travel.Invoice.Manage |
+| POST / DELETE | `api/travel/finance/payments`, `payments/{id}/allocations[/{invoiceId}]`, `payments/{id}/status` | Travel.Payment.Manage |
+| POST | `api/travel/finance/invoices/{id}/void`, `credit-notes`, `credit-notes/{id}/void`, `refunds` | Travel.Finance.Adjust |
+| POST | `api/travel/finance/payments/{id}/reconcile` | Travel.Finance.Reconcile |
 
 ## 7. Roadmap
 
@@ -309,7 +356,8 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 3 | Checklist templates and versions, private document upload, verification, missing-documents list, passport OCR | Done |
 | 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Done |
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Done |
-| 6 | Travel ledger, suppliers, supplier bills, commissions, profitability | Planned |
+| 6A | Customer invoices, receipts, installments, credit notes, refunds, balances, statements, reconciliation | Done |
+| 6B | Supplier rates, bills and payments, supplier ledgers, commissions (earned and payable), profitability | Planned |
 | 7 | Reminder rules and dispatch, dashboard, reports | Planned |
 | 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
 

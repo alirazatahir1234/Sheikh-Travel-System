@@ -43,6 +43,11 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
           <div class="tn-field"><label for="gs-inv">Invoice</label><input id="gs-inv" class="tn-input uppercase" formControlName="invoicePrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-grp">Umrah group</label><input id="gs-grp" class="tn-input uppercase" formControlName="groupPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-bkg">Booking file</label><input id="gs-bkg" class="tn-input uppercase" formControlName="bookingPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-rcp">Receipt</label><input id="gs-rcp" class="tn-input uppercase" formControlName="receiptPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-cn">Credit note</label><input id="gs-cn" class="tn-input uppercase" formControlName="creditNotePrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-rf">Refund</label><input id="gs-rf" class="tn-input uppercase" formControlName="refundPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-terms">Payment terms (days)</label><input id="gs-terms" type="number" min="0" max="365" class="tn-input" formControlName="defaultPaymentTermsDays" />
+            <span class="tn-hint">Due date suggested for new invoices.</span></div>
         </div>
         @if (form.invalid && form.touched) { <span class="text-xs text-red-600">Prefixes: 1–10 letters, digits or '-'.</span> }
         @if (saveError()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ saveError() }}</div> }
@@ -72,7 +77,11 @@ export class GeneralSettingsTabComponent {
     visaCasePrefix: ['VC', PREFIX],
     invoicePrefix: ['TINV', PREFIX],
     groupPrefix: ['GRP', PREFIX],
-    bookingPrefix: ['BKG', PREFIX]
+    bookingPrefix: ['BKG', PREFIX],
+    receiptPrefix: ['TRCP', PREFIX],
+    creditNotePrefix: ['TCN', PREFIX],
+    refundPrefix: ['TRF', PREFIX],
+    defaultPaymentTermsDays: [7 as number | null, [Validators.required, Validators.min(0), Validators.max(365)]]
   });
 
   constructor() { this.load(); }
@@ -97,7 +106,11 @@ export class GeneralSettingsTabComponent {
       visaCasePrefix: v.visaCasePrefix!.trim().toUpperCase(),
       invoicePrefix: v.invoicePrefix!.trim().toUpperCase(),
       groupPrefix: v.groupPrefix!.trim().toUpperCase(),
-      bookingPrefix: v.bookingPrefix!.trim().toUpperCase()
+      bookingPrefix: v.bookingPrefix!.trim().toUpperCase(),
+      receiptPrefix: v.receiptPrefix!.trim().toUpperCase(),
+      creditNotePrefix: v.creditNotePrefix!.trim().toUpperCase(),
+      refundPrefix: v.refundPrefix!.trim().toUpperCase(),
+      defaultPaymentTermsDays: Number(v.defaultPaymentTermsDays)
     };
     this.saving.set(true);
     this.saveError.set(null);
@@ -115,7 +128,11 @@ export class GeneralSettingsTabComponent {
       visaCasePrefix: s.visaCasePrefix,
       invoicePrefix: s.invoicePrefix,
       groupPrefix: s.groupPrefix ?? 'GRP',
-      bookingPrefix: s.bookingPrefix ?? 'BKG'
+      bookingPrefix: s.bookingPrefix ?? 'BKG',
+      receiptPrefix: s.receiptPrefix ?? 'TRCP',
+      creditNotePrefix: s.creditNotePrefix ?? 'TCN',
+      refundPrefix: s.refundPrefix ?? 'TRF',
+      defaultPaymentTermsDays: s.defaultPaymentTermsDays ?? 7
     });
   }
 }
