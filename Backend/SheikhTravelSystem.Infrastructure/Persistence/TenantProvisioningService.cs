@@ -223,6 +223,10 @@ public class TenantProvisioningService(
         await SeedRolesAsync(connection, transaction, tenantId, cancellationToken);
         await TenantRolePermissionSeeder.SeedSystemRolePermissionsForTenantAsync(
             connection, tenantId, cancellationToken, transaction);
+        // Opt-in modules chosen at provisioning (TravelNexus, Rental) are outside the templates — grant them now,
+        // in the same transaction, so the first admin can open the module straight away.
+        await TenantRolePermissionSeeder.GrantModulePermissionsForTenantAsync(
+            connection, tenantId, moduleCodes, cancellationToken, transaction);
         await AssignAdminRoleAsync(connection, transaction, tenantId, adminUserId, cancellationToken);
 
         if (request.GenerateOrganizationStructure)

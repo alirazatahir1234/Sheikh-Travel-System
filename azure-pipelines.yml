@@ -121,6 +121,28 @@ stages:
               MSSQL_SA_PASSWORD: $(MSSQL_SA_PASSWORD)
               SHEIKHGO_MCP_ROOT: $(SHEIKHGO_MCP_ROOT)
 
+          - bash: |
+              set -euo pipefail
+              # Unresolved ADO macros look like $(NAME) — treat as unset (never log values).
+              for v in SHEIKHGO_PHASE8_SQL_PASSWORD MSSQL_SA_PASSWORD; do
+                val="${!v:-}"
+                if [[ -z "$val" || "$val" =~ ^\$\( ]]; then
+                  unset "$v" || true
+                fi
+              done
+              if [[ -z "${SHEIKHGO_PHASE8_SQL_PASSWORD:-}" && -f "$(Build.SourcesDirectory)/docker-compose.db.env" ]]; then
+                MSSQL_SA_PASSWORD="$(grep -E '^MSSQL_SA_PASSWORD=' "$(Build.SourcesDirectory)/docker-compose.db.env" | cut -d= -f2- | tr -d '\r')"
+                export MSSQL_SA_PASSWORD
+                export SHEIKHGO_PHASE8_SQL_PASSWORD="$MSSQL_SA_PASSWORD"
+              fi
+              chmod +x "$(Build.SourcesDirectory)/scripts/ci/travelnexus-live-sql-e2e.sh"
+              "$(Build.SourcesDirectory)/scripts/ci/travelnexus-live-sql-e2e.sh"
+            condition: ne(variables['SKIP_PHASE8'], 'true')
+            displayName: Run TravelNexus live SQL E2E
+            env:
+              SHEIKHGO_PHASE8_SQL_PASSWORD: $(SHEIKHGO_PHASE8_SQL_PASSWORD)
+              MSSQL_SA_PASSWORD: $(MSSQL_SA_PASSWORD)
+
   - stage: Deploy
     displayName: Deploy Backend (Azure VM) and Frontend (Vercel)
     dependsOn: Phase8_CI

@@ -482,7 +482,8 @@ public class GetTenantManagementStatsQueryHandler(
 public class UpdateTenantCommandHandler(
     IPlatformRepository platformRepository,
     IPlatformScope platformScope,
-    ITenantModuleService tenantModuleService)
+    ITenantModuleService tenantModuleService,
+    ITenantRoleSeedService tenantRoleSeedService)
     : IRequestHandler<UpdateTenantCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateTenantCommand request, CancellationToken cancellationToken)
@@ -501,6 +502,10 @@ public class UpdateTenantCommandHandler(
         if (request.ModuleCodes is { Count: 0 } && request.EnabledModules is null or { Count: 0 })
             return ApiResponse<bool>.FailResponse("Select at least one module.");
 
+        var before = moduleCodes is { Count: > 0 }
+            ? await platformRepository.GetTenantModuleCodesOrderedAsync(request.Id, cancellationToken)
+            : [];
+
         await platformRepository.UpdateTenantAsync(
             request.Id,
             request.Name.Trim(),
@@ -515,7 +520,14 @@ public class UpdateTenantCommandHandler(
             cancellationToken);
 
         if (moduleCodes is { Count: > 0 })
+        {
             await tenantModuleService.SyncLegacyJsonAsync(request.Id, moduleCodes, cancellationToken);
+
+            // Same grant-on-enable rule as SetTenantModulesCommandHandler (see ModulePermissionGrants).
+            var newlyEnabled = ModulePermissionGrants.NewlyEnabled(before, moduleCodes);
+            if (newlyEnabled.Count > 0)
+                await tenantRoleSeedService.GrantModulePermissionsAsync(request.Id, newlyEnabled, cancellationToken);
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Tenant updated.");
     }
@@ -1038,7 +1050,8 @@ public class GetTenantModuleOverviewQueryHandler(IPlatformRepository platformRep
 public class SetTenantModulesCommandHandler(
     IPlatformRepository platformRepository,
     IPlatformScope platformScope,
-    ITenantModuleService tenantModuleService)
+    ITenantModuleService tenantModuleService,
+    ITenantRoleSeedService tenantRoleSeedService)
     : IRequestHandler<SetTenantModulesCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(SetTenantModulesCommand request, CancellationToken cancellationToken)
@@ -1070,8 +1083,16 @@ public class SetTenantModulesCommandHandler(
         var moduleCodes = ModuleRegistrySeed.ExpandToggleableWithDependencies(
             requested.Concat(TenantModuleCatalog.CoreModuleCodes));
 
+        var before = await platformRepository.GetTenantModuleCodesOrderedAsync(request.TenantId, cancellationToken);
         await platformRepository.ReplaceTenantModulesAsync(request.TenantId, moduleCodes, cancellationToken);
         await tenantModuleService.SyncLegacyJsonAsync(request.TenantId, moduleCodes, cancellationToken);
+
+        // Opt-in modules (TravelNexus, Rental) are not in the role templates: grant their permissions to the
+        // company's administrator roles the moment the module is switched on. Disabling never revokes.
+        var newlyEnabled = ModulePermissionGrants.NewlyEnabled(before, moduleCodes);
+        if (newlyEnabled.Count > 0)
+            await tenantRoleSeedService.GrantModulePermissionsAsync(request.TenantId, newlyEnabled, cancellationToken);
+
         return ApiResponse<bool>.SuccessResponse(true, "Modules updated.");
     }
 }

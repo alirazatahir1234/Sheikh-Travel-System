@@ -45,6 +45,26 @@ internal static class TenantRolePermissionSeeder
         }
     }
 
+    /// <summary>
+    /// Grants the permissions of the opt-in modules in <paramref name="moduleCodes"/> (per
+    /// <see cref="Application.Common.ModulePermissionGrants"/>) to the tenant's administrator roles. Idempotent.
+    /// </summary>
+    public static async Task GrantModulePermissionsForTenantAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        IEnumerable<string> moduleCodes,
+        CancellationToken ct,
+        System.Data.IDbTransaction? transaction = null)
+    {
+        var codes = Application.Common.ModulePermissionGrants.CodesFor(moduleCodes);
+        if (codes.Count == 0) return;
+
+        foreach (var roleCode in Application.Common.ModulePermissionGrants.Roles)
+        {
+            await AssignRolePermissionsForTenantAsync(connection, tenantId, roleCode, codes, ct, transaction);
+        }
+    }
+
     public static async Task AssignRolePermissionsForAllTenantsAsync(
         System.Data.IDbConnection connection,
         string roleCode,

@@ -9,6 +9,7 @@ on:
       - Backend/**
       - docs/AI-MCP-Phase8-ProductionReadiness.md
       - scripts/ci/phase8-live-sql-e2e.sh
+      - scripts/ci/travelnexus-live-sql-e2e.sh
       - .github/workflows/backend_phase8_ci.yml
       - azure-pipelines.yml
   pull_request:
@@ -16,6 +17,7 @@ on:
       - Backend/**
       - docs/AI-MCP-Phase8-ProductionReadiness.md
       - scripts/ci/phase8-live-sql-e2e.sh
+      - scripts/ci/travelnexus-live-sql-e2e.sh
       - .github/workflows/backend_phase8_ci.yml
 
 env:
@@ -115,3 +117,10 @@ jobs:
           MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD" \
           SHEIKHGO_MCP_ROOT="$SHEIKHGO_MCP_ROOT" \
           ./scripts/ci/phase8-live-sql-e2e.sh
+
+      - name: TravelNexus live SQL E2E
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/travelnexus-live-sql-e2e.sh
+          # Same SQL service container; the script creates and drops its own database.
+          MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD" ./scripts/ci/travelnexus-live-sql-e2e.sh

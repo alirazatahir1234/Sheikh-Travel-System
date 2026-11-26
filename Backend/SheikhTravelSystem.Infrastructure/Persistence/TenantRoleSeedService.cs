@@ -25,4 +25,12 @@ public class TenantRoleSeedService(IDbConnectionFactory dbFactory) : ITenantRole
         await TenantRolePermissionSeeder.AssignRolePermissionsForTenantAsync(
             connection, tenantId, "SUPER_ADMIN", codes, cancellationToken);
     }
+
+    public async Task GrantModulePermissionsAsync(int tenantId, IReadOnlyCollection<string> moduleCodes, CancellationToken cancellationToken = default)
+    {
+        if (moduleCodes.Count == 0) return;
+
+        using var connection = dbFactory.CreateConnection();
+        await TenantRolePermissionSeeder.GrantModulePermissionsForTenantAsync(connection, tenantId, moduleCodes, cancellationToken);
+    }
 }
