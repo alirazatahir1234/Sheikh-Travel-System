@@ -4,6 +4,8 @@ import { Subscription, timer, Subject, mergeMap, catchError, of, tap, forkJoin, 
 import { skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { maskImei } from '../utils/imei-mask.util';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { GpsScopeFilterService } from '../gps-scope-filter.service';
@@ -87,6 +89,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   bundle: HistoryReplayBundle | null = null;
   selectedPosition: TripReplayPosition | null = null;
   detailPanelOpen = false;
+  /** Gps.DeviceManage — the same permission that gates the Devices page. */
+  readonly canViewFullImei: boolean;
   rawPositions: TripReplayPosition[] = [];
   loading = false;
   loadingTimedOut = false;
@@ -156,8 +160,11 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     private exportService: ExportService,
     private toast: UiToastService,
     private route: ActivatedRoute,
-    private router: Router
-  ) {}
+    private router: Router,
+    private auth: AuthService
+  ) {
+    this.canViewFullImei = this.auth.hasPermission('Gps.DeviceManage');
+  }
 
   private get tenantScopeId(): number | null | undefined {
     return this.scopeFilter.tenantScopeId;
@@ -938,7 +945,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   imeiLabel(vehicleId: number): string {
     const v = this.vehicles.find(x => x.id === vehicleId);
     const d = this.deviceFor(vehicleId);
-    return d?.uniqueId ?? v?.gpsImei ?? '—';
+    const imei = d?.uniqueId ?? v?.gpsImei;
+    if (!imei) return '—';
+    // Full IMEI only for device managers; everyone else sees the last four digits.
+    return this.canViewFullImei ? imei : maskImei(imei);
   }
 
   driverLabel(vehicleId: number): string {
