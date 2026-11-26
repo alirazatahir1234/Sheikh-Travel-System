@@ -21,7 +21,12 @@ export const TRAVEL_PERMISSIONS = {
   packageManage: 'Travel.Package.Manage',
   groupView: 'Travel.Group.View',
   groupManage: 'Travel.Group.Manage',
-  groupManifest: 'Travel.Group.Manifest'
+  groupManifest: 'Travel.Group.Manifest',
+  supplierView: 'Travel.Supplier.View',
+  supplierManage: 'Travel.Supplier.Manage',
+  bookingView: 'Travel.Booking.View',
+  bookingManage: 'Travel.Booking.Manage',
+  bookingCancel: 'Travel.Booking.Cancel'
 } as const;
 
 export type TravelVisaCategory =
@@ -89,6 +94,7 @@ export interface TravelSettings {
   visaCasePrefix: string;
   invoicePrefix: string;
   groupPrefix: string;
+  bookingPrefix: string;
   passportExpiryWarningDays: number;
 }
 
@@ -760,8 +766,8 @@ export interface TravelGroupHistory {
   toValue: string | null; note: string | null; changedByName: string | null; changedAt: string;
 }
 export interface TravelGroupReadiness {
-  confirmedMembers: number; unconfirmedMembers: number; membersWithApprovedVisa: number;
-  membersWithoutRoom: number; stays: number; visaCaseDecided: boolean;
+  confirmedMembers: number; unconfirmedMembers: number; membersWithApprovedVisa: number; membersWithoutVisa: number;
+  membersWithoutRoom: number; membersWithoutTickets: number; stays: number; visaCaseDecided: boolean; isReady: boolean;
 }
 export interface TravelGroup extends TravelGroupListItem {
   groupLeaderTravelerId: number | null; leaderName: string | null; leaderPhone: string | null; visaCaseNumber: string | null;
@@ -782,4 +788,136 @@ export interface TravelGroupManifest {
   groupNumber: string; groupName: string; packageName: string; departureDate: string; returnDate: string; leaderName: string | null;
   leaderPhone: string | null; visaCaseNumber: string | null; piiMasked: boolean; generatedAtUtc: string; stays: TravelGroupStay[];
   transport: TravelGroupTransport[]; pilgrims: TravelManifestPilgrim[];
+}
+
+// ── Phase 5: suppliers and bookings ─────────────────────────────────────
+
+export type TravelSupplierType = 'Airline' | 'Hotel' | 'BedBank' | 'Consolidator' | 'Transport' | 'Other';
+export const TRAVEL_SUPPLIER_TYPES: TravelSupplierType[] = ['Airline', 'Hotel', 'BedBank', 'Consolidator', 'Transport', 'Other'];
+export const SUPPLIER_TYPE_LABEL: Record<TravelSupplierType, string> = {
+  Airline: 'Airline', Hotel: 'Hotel', BedBank: 'Bed bank', Consolidator: 'Ticket consolidator', Transport: 'Transport', Other: 'Other'
+};
+export type TravelBookingStatus = 'Open' | 'Completed' | 'Cancelled';
+export const TRAVEL_BOOKING_STATUSES: TravelBookingStatus[] = ['Open', 'Completed', 'Cancelled'];
+export type TravelFlightDirection = 'Outbound' | 'Return' | 'RoundTrip' | 'OneWay' | 'Internal';
+export const TRAVEL_FLIGHT_DIRECTIONS: TravelFlightDirection[] = ['Outbound', 'Return', 'RoundTrip', 'OneWay', 'Internal'];
+export type TravelFlightStatus = 'Requested' | 'OnHold' | 'Confirmed' | 'Ticketed' | 'Cancelled';
+export const TRAVEL_FLIGHT_STATUSES: TravelFlightStatus[] = ['Requested', 'OnHold', 'Confirmed', 'Ticketed', 'Cancelled'];
+export type TravelCabinClass = 'Economy' | 'PremiumEconomy' | 'Business' | 'First';
+export const TRAVEL_CABIN_CLASSES: TravelCabinClass[] = ['Economy', 'PremiumEconomy', 'Business', 'First'];
+export type TravelPassengerType = 'Adult' | 'Child' | 'Infant';
+export type TravelTicketStatus = 'NotIssued' | 'Issued' | 'Voided' | 'Refunded';
+export type TravelHotelBookingStatus = 'Requested' | 'Confirmed' | 'CheckedIn' | 'CheckedOut' | 'NoShow' | 'Cancelled';
+export const TRAVEL_HOTEL_BOOKING_STATUSES: TravelHotelBookingStatus[] = ['Requested', 'Confirmed', 'CheckedIn', 'CheckedOut', 'NoShow', 'Cancelled'];
+export type TravelMealPlan = 'RoomOnly' | 'Breakfast' | 'HalfBoard' | 'FullBoard';
+export const TRAVEL_MEAL_PLANS: TravelMealPlan[] = ['RoomOnly', 'Breakfast', 'HalfBoard', 'FullBoard'];
+export type TravelRefundStatus = 'NotApplicable' | 'Pending' | 'ReceivedFromSupplier' | 'PaidToCustomer' | 'Closed';
+export const TRAVEL_REFUND_STATUSES: TravelRefundStatus[] = ['NotApplicable', 'Pending', 'ReceivedFromSupplier', 'PaidToCustomer', 'Closed'];
+export type TravelBookingAction = 'Edit' | 'ManageServices' | 'Complete' | 'Reopen' | 'Cancel';
+export type TravelBookingTransitionAction = 'Complete' | 'Reopen' | 'Cancel';
+export type TravelFlightAction = 'Edit' | 'EditPassengers' | 'Hold' | 'Confirm' | 'Ticket' | 'IssueTickets' | 'CancelPassenger' | 'Cancel' | 'Delete';
+export type TravelFlightTransitionAction = 'Hold' | 'Confirm' | 'Ticket';
+export type TravelHotelAction = 'Edit' | 'Confirm' | 'CheckIn' | 'CheckOut' | 'NoShow' | 'Cancel' | 'Delete';
+export type TravelHotelTransitionAction = 'Confirm' | 'CheckIn' | 'CheckOut' | 'NoShow';
+export type TravelBookingHistoryEvent =
+  'FileStatus' | 'FlightStatus' | 'HotelStatus' | 'TicketIssued' | 'TicketVoided' | 'Cancelled' | 'RefundStatus' | 'ServiceAdded' | 'ServiceUpdated';
+
+export const BOOKING_STATUS_VARIANT: Record<TravelBookingStatus, BadgeVariant> = { Open: 'info', Completed: 'success', Cancelled: 'error' };
+export const FLIGHT_STATUS_LABEL: Record<TravelFlightStatus, string> = {
+  Requested: 'Requested', OnHold: 'On hold', Confirmed: 'Confirmed', Ticketed: 'Ticketed', Cancelled: 'Cancelled'
+};
+export const FLIGHT_STATUS_VARIANT: Record<TravelFlightStatus, BadgeVariant> = {
+  Requested: 'pending', OnHold: 'warning', Confirmed: 'info', Ticketed: 'success', Cancelled: 'error'
+};
+export const DIRECTION_LABEL: Record<TravelFlightDirection, string> = {
+  Outbound: 'Outbound', Return: 'Return', RoundTrip: 'Round trip', OneWay: 'One way', Internal: 'Internal'
+};
+export const CABIN_LABEL: Record<TravelCabinClass, string> = { Economy: 'Economy', PremiumEconomy: 'Premium economy', Business: 'Business', First: 'First' };
+export const TICKET_STATUS_VARIANT: Record<TravelTicketStatus, BadgeVariant> = { NotIssued: 'pending', Issued: 'success', Voided: 'inactive', Refunded: 'warning' };
+export const HOTEL_BOOKING_STATUS_LABEL: Record<TravelHotelBookingStatus, string> = {
+  Requested: 'Requested', Confirmed: 'Confirmed', CheckedIn: 'Checked in', CheckedOut: 'Checked out', NoShow: 'No-show', Cancelled: 'Cancelled'
+};
+export const HOTEL_BOOKING_STATUS_VARIANT: Record<TravelHotelBookingStatus, BadgeVariant> = {
+  Requested: 'pending', Confirmed: 'info', CheckedIn: 'active', CheckedOut: 'success', NoShow: 'warning', Cancelled: 'error'
+};
+export const MEAL_PLAN_LABEL: Record<TravelMealPlan, string> = { RoomOnly: 'Room only', Breakfast: 'Breakfast', HalfBoard: 'Half board', FullBoard: 'Full board' };
+export const REFUND_STATUS_LABEL: Record<TravelRefundStatus, string> = {
+  NotApplicable: 'No refund', Pending: 'Pending', ReceivedFromSupplier: 'Received from supplier', PaidToCustomer: 'Paid to customer', Closed: 'Closed'
+};
+export const REFUND_STATUS_VARIANT: Record<TravelRefundStatus, BadgeVariant> = {
+  NotApplicable: 'inactive', Pending: 'warning', ReceivedFromSupplier: 'info', PaidToCustomer: 'active', Closed: 'success'
+};
+export const FLIGHT_TRANSITION_LABEL: Record<TravelFlightTransitionAction, string> = { Hold: 'Hold / extend', Confirm: 'Confirm', Ticket: 'Mark ticketed' };
+export const HOTEL_TRANSITION_LABEL: Record<TravelHotelTransitionAction, string> = { Confirm: 'Confirm', CheckIn: 'Check in', CheckOut: 'Check out', NoShow: 'No-show' };
+
+export interface TravelSupplier {
+  id: number; name: string; supplierType: TravelSupplierType; iataCode: string | null; contactName: string | null; phone: string | null;
+  email: string | null; currencyCode: string | null; isActive: boolean; notes: string | null; usageCount: number;
+}
+export type SaveTravelSupplier = Omit<TravelSupplier, 'id' | 'usageCount'>;
+export interface TravelAirport { iataCode: string; name: string; city: string; countryCode: string; ianaTimeZone: string; }
+
+export interface TravelBookingListItem {
+  id: number; bookingNumber: string; title: string; customerId: number | null; groupId: number | null; ownerName: string;
+  status: TravelBookingStatus; firstTravelDate: string | null; lastTravelDate: string | null; flightCount: number; hotelCount: number;
+  pnrs: string | null; nextTicketingLimitUtc: string | null; assignedAgentName: string | null; createdAt: string;
+}
+export interface TravelFlightSegment {
+  id: number; flightBookingId: number; sequence: number; airlineCode: string; flightNumber: string; fromAirport: string; fromCity: string;
+  toAirport: string; toCity: string; departLocal: string; arriveLocal: string; departUtc: string; arriveUtc: string; cabinClass: TravelCabinClass;
+  bookingClass: string | null; baggage: string | null;
+}
+export interface TravelFlightPassenger {
+  id: number; flightBookingId: number; travelerId: number; travelerName: string; groupMemberId: number | null; passengerType: TravelPassengerType;
+  passportNumber: string | null; ticketNumber: string | null; ticketStatus: TravelTicketStatus;
+}
+export interface TravelFlightBooking {
+  id: number; supplierId: number | null; supplierName: string | null; direction: TravelFlightDirection; pnr: string | null; airlinePnr: string | null;
+  status: TravelFlightStatus; ticketingTimeLimitUtc: string | null; sellAmount: number | null; costAmount: number | null; currencyCode: string | null;
+  notes: string | null; allowedActions: TravelFlightAction[]; segments: TravelFlightSegment[]; passengers: TravelFlightPassenger[];
+}
+export interface TravelHotelBooking {
+  id: number; hotelId: number; hotelName: string; city: TravelHotelCity; hotelAddress: string | null; hotelPhone: string | null;
+  supplierId: number | null; supplierName: string | null; groupHotelId: number | null; checkIn: string; checkOut: string; nights: number;
+  mealPlan: TravelMealPlan; confirmationNumber: string | null; status: TravelHotelBookingStatus; specialRequests: string | null;
+  sellAmount: number | null; costAmount: number | null; currencyCode: string | null; allowedActions: TravelHotelAction[];
+  rooms: { hotelBookingId: number; roomType: TravelRoomType; quantity: number }[];
+  guests: { hotelBookingId: number; travelerId: number; travelerName: string }[];
+}
+export interface TravelBookingCancellation {
+  id: number; serviceType: 'Flight' | 'Hotel'; flightBookingId: number | null; hotelBookingId: number | null; flightPassengerId: number | null;
+  serviceLabel: string; reason: string; supplierPenalty: number; customerPenalty: number; refundFromSupplier: number; refundToCustomer: number;
+  currencyCode: string | null; refundStatus: TravelRefundStatus; nextRefundStatuses: TravelRefundStatus[]; cancelledAt: string; cancelledByName: string | null;
+}
+export interface TravelBookingHistory {
+  id: number; serviceType: 'Flight' | 'Hotel' | null; serviceId: number | null; eventType: TravelBookingHistoryEvent; fromValue: string | null;
+  toValue: string | null; note: string | null; changedByName: string | null; changedAt: string;
+}
+export interface TravelBookingTotal { currencyCode: string; sell: number; cost: number; margin: number; }
+export interface TravelBooking extends TravelBookingListItem {
+  customerName: string | null; groupName: string | null; groupNumber: string | null; enquiryId: number | null; enquiryNumber: string | null;
+  visaCaseId: number | null; visaCaseNumber: string | null; assignedAgentUserId: number | null; branchId: number | null; branchName: string | null;
+  notes: string | null; completedAt: string | null; cancelReason: string | null; allowedActions: TravelBookingAction[];
+  flights: TravelFlightBooking[]; hotels: TravelHotelBooking[]; cancellations: TravelBookingCancellation[]; history: TravelBookingHistory[];
+  totals: TravelBookingTotal[];
+}
+export interface TravelBookingSummary { counts: Record<TravelBookingStatus, number>; total: number; ticketingDueNext72Hours: number; }
+
+export interface SaveTravelFlightSegment {
+  airlineCode: string; flightNumber: string; fromAirport: string; toAirport: string; departLocal: string; arriveLocal: string;
+  cabinClass: TravelCabinClass; bookingClass: string | null; baggage: string | null;
+}
+export interface SaveTravelFlight {
+  supplierId: number | null; direction: TravelFlightDirection; pnr: string | null; airlinePnr: string | null; sellAmount: number | null;
+  costAmount: number | null; currencyCode: string | null; notes: string | null; segments: SaveTravelFlightSegment[];
+  passengers: { travelerId: number; groupMemberId: number | null; passengerType: TravelPassengerType }[];
+}
+export interface SaveTravelHotelBooking {
+  hotelId: number; supplierId: number | null; groupHotelId: number | null; checkIn: string; checkOut: string; mealPlan: TravelMealPlan;
+  confirmationNumber: string | null; specialRequests: string | null; sellAmount: number | null; costAmount: number | null; currencyCode: string | null;
+  rooms: { roomType: TravelRoomType; quantity: number }[]; guestTravelerIds: number[];
+}
+export interface CancelTravelService {
+  reason: string; supplierPenalty: number; customerPenalty: number; refundFromSupplier: number; refundToCustomer: number;
+  ticketOutcome: 'Voided' | 'Refunded' | null;
 }

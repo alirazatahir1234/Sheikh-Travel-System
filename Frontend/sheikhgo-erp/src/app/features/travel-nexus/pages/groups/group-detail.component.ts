@@ -16,6 +16,7 @@ import {
 } from '../../models/travel.models';
 import { asUtc, toDateInput } from '../../models/travel-date.util';
 import { TravelGroupService } from '../../services/travel-group.service';
+import { GroupBookingsTabComponent } from './group-bookings-tab.component';
 import { GroupManifestTabComponent } from './group-manifest-tab.component';
 import { GroupPilgrimsTabComponent } from './group-pilgrims-tab.component';
 import { GroupRoomsTabComponent } from './group-rooms-tab.component';
@@ -28,7 +29,7 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
   selector: 'app-travel-group-detail',
   standalone: true,
   imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent, UiTabsComponent,
-    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent],
+    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent, GroupBookingsTabComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -93,7 +94,9 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
                       </li>
                     }
                   </ul>
-                  <p class="text-xs text-fleet-text-muted">Flight confirmation joins this checklist with flight bookings (Phase 5).</p>
+                  @if (g.readiness.membersWithoutTickets > 0) {
+                    <button mat-button class="!px-0" (click)="active.set('bookings')"><mat-icon>airplane_ticket</mat-icon> Ticket pilgrims in the group's bookings</button>
+                  }
                 </div>
               </div>
             </div>
@@ -101,6 +104,7 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
           @case ('pilgrims') { <app-group-pilgrims-tab [group]="g" (changed)="load()" /> }
           @case ('rooms') { <app-group-rooms-tab [group]="g" (changed)="load()" /> }
           @case ('transport') { <app-group-transport-tab [group]="g" (changed)="load()" /> }
+          @case ('bookings') { <app-group-bookings-tab [group]="g" /> }
           @case ('manifest') { <app-group-manifest-tab [group]="g" (generated)="load()" /> }
           @case ('history') {
             <div class="tn-card tn-card-body">
@@ -206,6 +210,7 @@ export class TravelGroupDetailComponent {
       { id: 'rooms', label: 'Hotels & rooms', icon: 'hotel' },
       { id: 'transport', label: 'Transport', icon: 'directions_bus' }
     ];
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.bookingView)) t.push({ id: 'bookings', label: 'Bookings', icon: 'airplane_ticket' });
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.groupManifest)) t.push({ id: 'manifest', label: 'Manifest', icon: 'list_alt' });
     t.push({ id: 'history', label: 'History', icon: 'history' });
     return t;
@@ -220,7 +225,8 @@ export class TravelGroupDetailComponent {
       { ok: r.stays > 0, label: `Hotel stays planned (${r.stays})` },
       { ok: r.visaCaseDecided, label: 'Group visa case decided' },
       { ok: r.confirmedMembers > 0 && r.membersWithApprovedVisa === r.confirmedMembers, label: `Approved visas (${r.membersWithApprovedVisa} of ${r.confirmedMembers})` },
-      { ok: r.confirmedMembers > 0 && r.membersWithoutRoom === 0, label: `Every pilgrim has a room in every stay (${r.membersWithoutRoom} missing)` }
+      { ok: r.confirmedMembers > 0 && r.membersWithoutRoom === 0, label: `Every pilgrim has a room in every stay (${r.membersWithoutRoom} missing)` },
+      { ok: r.confirmedMembers > 0 && r.membersWithoutTickets === 0, label: `Flights confirmed: every pilgrim ticketed out and back (${r.membersWithoutTickets} missing)` }
     ];
   });
 

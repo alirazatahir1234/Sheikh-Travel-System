@@ -85,6 +85,8 @@ const travelNexusGroup: NavGroup = {
     { id: 'travel-checklists', label: 'Document Checklists', icon: 'checklist', route: '/travel/checklists', moduleKey: 'travel-agency' },
     { id: 'travel-groups', label: 'Umrah Groups', icon: 'groups', route: '/travel/groups', moduleKey: 'travel-agency' },
     { id: 'travel-packages', label: 'Packages', icon: 'inventory_2', route: '/travel/packages', moduleKey: 'travel-agency' },
+    { id: 'travel-bookings', label: 'Bookings', icon: 'airplane_ticket', route: '/travel/bookings', moduleKey: 'travel-agency' },
+    { id: 'travel-suppliers', label: 'Suppliers', icon: 'storefront', route: '/travel/suppliers', moduleKey: 'travel-agency' },
     { id: 'travel-settings', label: 'Settings', icon: 'tune', route: '/travel/settings', moduleKey: 'travel-agency' }
   ]
 };

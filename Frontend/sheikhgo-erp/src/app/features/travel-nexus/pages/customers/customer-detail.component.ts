@@ -15,11 +15,12 @@ import { TravelerFormDrawerComponent } from '../../components/traveler-form-draw
 import {
   ENQUIRY_STATUS_LABEL, ENQUIRY_STATUS_VARIANT, PASSPORT_STATUS_LABEL, PASSPORT_STATUS_VARIANT, TRAVEL_PERMISSIONS, TravelCustomer,
   TravelEnquiryListItem, TravelGroupListItem, TravelTraveler, TravelVisaCaseListItem, VISA_STATUS_LABEL, VISA_STATUS_VARIANT,
-  GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT
+  GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT, BOOKING_STATUS_VARIANT, TravelBookingListItem
 } from '../../models/travel.models';
 import { TravelEnquiryService } from '../../services/travel-enquiry.service';
 import { TravelVisaService } from '../../services/travel-visa.service';
 import { TravelGroupService } from '../../services/travel-group.service';
+import { TravelBookingService } from '../../services/travel-booking.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
@@ -156,6 +157,20 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
               </ul>
             }
           </div>
+          <div class="tn-card" *appHasPermission="perms.bookingView">
+            <div class="border-b border-fleet-border px-5 py-4"><h3 class="tn-section-title">Bookings</h3></div>
+            @if (!bookings().length) {
+              <p class="px-5 py-6 text-sm text-fleet-text-muted">No booking files for this customer.</p>
+            } @else {
+              <ul class="divide-y divide-fleet-border">
+                @for (k of bookings(); track k.id) {
+                  <li><a class="flex items-center justify-between px-5 py-3 text-sm hover:bg-fleet-surface-alt/40" [routerLink]="['/travel/bookings', k.id]">
+                    <span><span class="font-mono text-xs">{{ k.bookingNumber }}</span> · {{ k.title }}{{ k.firstTravelDate ? ' · ' + (k.firstTravelDate | date: 'mediumDate': 'UTC') : '' }}</span>
+                    <ui-status-badge [status]="k.status" [variant]="bookingVariant[k.status]"></ui-status-badge></a></li>
+                }
+              </ul>
+            }
+          </div>
           <div class="tn-card" *appHasPermission="perms.groupView">
             <div class="border-b border-fleet-border px-5 py-4"><h3 class="tn-section-title">Umrah groups</h3></div>
             @if (!groups().length) {
@@ -204,6 +219,9 @@ export class TravelCustomerDetailComponent {
   protected readonly groups = signal<TravelGroupListItem[]>([]);
   protected readonly groupLabel = GROUP_STATUS_LABEL;
   protected readonly groupVariant = GROUP_STATUS_VARIANT;
+  private readonly bookingApi = inject(TravelBookingService);
+  protected readonly bookings = signal<TravelBookingListItem[]>([]);
+  protected readonly bookingVariant = BOOKING_STATUS_VARIANT;
   private readonly customerId = Number(this.route.snapshot.paramMap.get('id'));
 
   protected readonly customer = signal<TravelCustomer | null>(null);
@@ -230,6 +248,10 @@ export class TravelCustomerDetailComponent {
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.groupView)) {
       this.groupApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
         .subscribe(r => this.groups.set(r));
+    }
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.bookingView)) {
+      this.bookingApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe(r => this.bookings.set(r));
     }
   }
 

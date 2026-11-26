@@ -42,6 +42,7 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
           <div class="tn-field"><label for="gs-vc">Visa case</label><input id="gs-vc" class="tn-input uppercase" formControlName="visaCasePrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-inv">Invoice</label><input id="gs-inv" class="tn-input uppercase" formControlName="invoicePrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-grp">Umrah group</label><input id="gs-grp" class="tn-input uppercase" formControlName="groupPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-bkg">Booking file</label><input id="gs-bkg" class="tn-input uppercase" formControlName="bookingPrefix" maxlength="10" /></div>
         </div>
         @if (form.invalid && form.touched) { <span class="text-xs text-red-600">Prefixes: 1–10 letters, digits or '-'.</span> }
         @if (saveError()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ saveError() }}</div> }
@@ -70,7 +71,8 @@ export class GeneralSettingsTabComponent {
     enquiryPrefix: ['ENQ', PREFIX],
     visaCasePrefix: ['VC', PREFIX],
     invoicePrefix: ['TINV', PREFIX],
-    groupPrefix: ['GRP', PREFIX]
+    groupPrefix: ['GRP', PREFIX],
+    bookingPrefix: ['BKG', PREFIX]
   });
 
   constructor() { this.load(); }
@@ -94,7 +96,8 @@ export class GeneralSettingsTabComponent {
       enquiryPrefix: v.enquiryPrefix!.trim().toUpperCase(),
       visaCasePrefix: v.visaCasePrefix!.trim().toUpperCase(),
       invoicePrefix: v.invoicePrefix!.trim().toUpperCase(),
-      groupPrefix: v.groupPrefix!.trim().toUpperCase()
+      groupPrefix: v.groupPrefix!.trim().toUpperCase(),
+      bookingPrefix: v.bookingPrefix!.trim().toUpperCase()
     };
     this.saving.set(true);
     this.saveError.set(null);
@@ -111,7 +114,8 @@ export class GeneralSettingsTabComponent {
       enquiryPrefix: s.enquiryPrefix,
       visaCasePrefix: s.visaCasePrefix,
       invoicePrefix: s.invoicePrefix,
-      groupPrefix: s.groupPrefix ?? 'GRP'
+      groupPrefix: s.groupPrefix ?? 'GRP',
+      bookingPrefix: s.bookingPrefix ?? 'BKG'
     });
   }
 }

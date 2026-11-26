@@ -142,6 +142,27 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     title: 'Umrah group'
   },
   {
+    path: 'bookings',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.bookingView] },
+    loadComponent: () => import('./pages/bookings/booking-list.component').then(m => m.TravelBookingListComponent),
+    title: 'Bookings'
+  },
+  {
+    path: 'bookings/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.bookingView] },
+    loadComponent: () => import('./pages/bookings/booking-detail.component').then(m => m.TravelBookingDetailComponent),
+    title: 'Booking'
+  },
+  {
+    path: 'suppliers',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.supplierView] },
+    loadComponent: () => import('./pages/suppliers/supplier-list.component').then(m => m.TravelSupplierListComponent),
+    title: 'Suppliers'
+  },
+  {
     path: 'settings',
     canActivate: [permissionGuard],
     data: { permissions: [TRAVEL_PERMISSIONS.settings] },

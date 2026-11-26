@@ -4,7 +4,7 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 4 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest).
+Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -104,12 +104,26 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelVisaCases` (changed) | `GroupId` added; `CustomerId` now nullable | `CK_TravelVisaCases_Owner`: customer **xor** group; one case per group |
 | `TravelSettings` (+ column) | `GroupPrefix` (default `GRP`) | |
 
+**Phase 5 (built)** — migration `TravelNexusBookingsMigration`
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelAirports` (platform) | IATA airports with IANA time zone, seeded from `TravelAirportCatalog` (~100 airports) | PK IATA code; no TenantId (reference data) |
+| `TravelSuppliers` | Airlines, hotels, bed banks, consolidators, transport; contact, billing currency | unique (tenant, name); delete refused while services use it |
+| `TravelBookings` | Booking file `BKG-yyyy-nnnnn`: owner, optional enquiry / visa case, agent, branch | `CK_TravelBookings_Owner`: customer **xor** group; Open / Completed / Cancelled |
+| `TravelFlightBookings` | PNR, airline PNR, direction (Outbound, Return, RoundTrip, OneWay, Internal), ticketing time limit, sell / cost + currency | OnHold needs PNR + time limit; Confirmed / Ticketed need PNR; PNR unique per tenant among non-cancelled |
+| `TravelFlightSegments` | Airline, flight no., airports, `DepartLocal` / `ArriveLocal` + derived `DepartUtc` / `ArriveUtc`, cabin, baggage | FK airports; arrive ≥ depart (UTC) |
+| `TravelFlightPassengers` | Traveler (and group pilgrim) on a flight, passenger type, ticket number + status | unique (flight, traveler); ticket number unique per tenant; Issued / Voided / Refunded need a number |
+| `TravelHotelBookings` | Catalog hotel, supplier, optional group stay link, dates, meal plan, confirmation no., sell / cost + currency | check-out > check-in; confirmed statuses need a confirmation no. |
+| `TravelHotelBookingRooms` / `Guests` | Rooms per type; guest travelers | unique per booking |
+| `TravelBookingCancellations` | Per service (or one flight passenger): reason, supplier / customer penalty, refund from supplier / to customer, refund status | amounts ≥ 0 and need a currency |
+| `TravelBookingHistory` | Append-only file and service events | event type CHECK |
+| `TravelSettings` (+ column) | `BookingPrefix` (default `BKG`) | |
+
 **Later phases (planned)**
-- Bookings: `TravelFlightBookings`, `TravelFlightSegments`, `TravelFlightPassengers`, `TravelHotelBookings`,
-  `TravelItineraries`, `TravelItineraryItems`, `TravelCancellations`.
 - Finance: `TravelInvoices`, `TravelInvoiceLines`, `TravelInstallmentPlans`, `TravelPayments` (idempotency key),
   `TravelPaymentAllocations`, `TravelCreditNotes`, `TravelRefunds`.
-- Suppliers: `TravelSuppliers`, `TravelSupplierRates`, `TravelSupplierBills`, `TravelSupplierPayments`,
+- Suppliers (profiles exist since Phase 5): `TravelSupplierRates`, `TravelSupplierBills`, `TravelSupplierPayments`,
   `TravelCommissionRules`, `TravelCommissions`; the supplier ledger is a view, not a copy.
 - Notifications: `TravelReminderRules`, `TravelReminders`.
 
@@ -176,7 +190,7 @@ Draft … Ready → Cancelled (reason)
   a single visa case owned by the group (`CustomerId` NULL, `GroupId` set) with every confirmed pilgrim as an
   applicant; documents and decisions then use the Phase 2/3 screens. A group case accepts only its active pilgrims.
 - **MarkReady** needs the visa case decided, an approved visa for every confirmed pilgrim, and a room for every
-  confirmed pilgrim in every stay (flight confirmation joins this gate in Phase 5). **Depart** is refused more than
+  confirmed pilgrim in every stay, and (since Phase 5) an issued outbound and return ticket. **Depart** is refused more than
   a day before the departure date.
 - **Cancelling a pilgrim** after the visa case opened removes the applicant (before submission) or records a
   Withdrawn decision (after submission). This is a **second step, not atomic** with the cancellation; if it fails the
@@ -190,6 +204,34 @@ Draft … Ready → Cancelled (reason)
   and a history row before returning data; passport numbers are masked without `Travel.Traveler.ViewPII`. The ERP
   builds the PDF (jspdf + autotable) and Excel (xlsx: Pilgrims, Hotels, Transport sheets) in the browser from that
   response, so masked values stay masked; there is no server PDF library.
+
+**Bookings (Phase 5).** A booking file belongs to a customer or an Umrah group and holds flight and hotel services.
+
+- **File**: Open → Completed (every non-cancelled service finished — flights ticketed, hotels checked out or no-show —
+  and the last service in the past) · Completed → Open (Reopen) · Open → Cancelled (reason; only once every service is
+  cancelled). Services change only while the file is Open.
+- **Flight**: Requested → OnHold (PNR + ticketing time limit; Hold again extends it) → Confirmed → Ticketed; Requested →
+  Confirmed directly. Ticket needs ≥ 1 segment, ≥ 1 passenger and every passenger's ticket issued (13 digits). Passengers
+  are fixed once ticketed; segments, amounts and notes stay editable (schedule changes). A single passenger is cancelled
+  by voiding or refunding the ticket; cancelling the flight sets every issued ticket to Voided or Refunded.
+- **Hotel**: Requested → Confirmed (confirmation no.) → CheckedIn (on/after check-in) → CheckedOut; Confirmed → NoShow
+  (on/after check-in); cancel from Requested / Confirmed. A hotel booking of a group file may link one of the group's
+  stays; confirming it copies the confirmation number to the stay.
+- **Times.** Flight times are entered as printed (airport-local). The server derives UTC from the airport's IANA zone
+  (`TravelFlightTimes`): a local time skipped by a DST change is refused; an ambiguous one takes the earlier instant;
+  unknown airports are refused. Ordering, the list's travel dates and the group gate use these values.
+- **Cancellations.** Penalties and refunds are in the service currency; refund to customer + customer penalty ≤ sell
+  amount, refund from supplier + supplier penalty ≤ cost amount. Refund status: Pending → ReceivedFromSupplier →
+  PaidToCustomer → Closed (steps may be skipped forward, never back); NotApplicable when nothing is refunded. This is
+  tracking only — Phase 6 turns it into credit notes and refunds.
+- **Group gate.** Mark ready now also requires every confirmed pilgrim to hold an issued ticket on a ticketed round
+  trip, or on both an outbound and a return flight, in a non-cancelled file owned by the group. Cancelling a pilgrim
+  never changes bookings; the response says when the pilgrim still holds an issued ticket.
+- **Documents.** The ERP builds the itinerary (flights with local times, hotels, group transfers) and the hotel voucher
+  with jspdf from the booking detail. Neither carries passport numbers; passengers' passports on the detail are masked
+  without `Travel.Traveler.ViewPII`.
+- **KPIs.** `/bookings/summary` returns files per status (zero-filled, total = sum, "all time") and flights on hold whose
+  ticketing deadline falls within the next 72 hours (labelled as such). An inverted travel-date range returns an empty list.
 
 ## 5. Security model
 
@@ -205,6 +247,8 @@ Draft … Ready → Cancelled (reason)
   `Travel.Document.Download` (open files). Checklists are managed with `Travel.Settings`.
   Phase 4: `Travel.Package.View/Manage` (packages and the hotel catalog), `Travel.Group.View/Manage` (groups,
   pilgrims, stays, rooms, transport), `Travel.Group.Manifest` (manifest — passport data, audited).
+  Phase 5: `Travel.Supplier.View/Manage`, `Travel.Booking.View`, `Travel.Booking.Manage` (files, flights, passengers,
+  tickets, hotels, check-in/out), `Travel.Booking.Cancel` (cancellations, penalties, refund status).
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
@@ -249,6 +293,11 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | GET | `api/travel/groups` (search, status, packageId, departureFrom/To) · `summary` · `by-customer/{id}` · `{id}` · `{id}/stays/{stayId}/rooming/suggest` | Travel.Group.View |
 | POST / PUT / DELETE | `api/travel/groups[/{id}]`, `{id}/transition`, `{id}/members`, `members/{mid}/confirm` · `cancel`, PUT `members/{mid}`, `{id}/stays[/{sid}]`, PUT `stays/{sid}/rooming`, `{id}/transport[/{lid}]` | Travel.Group.Manage |
 | GET | `api/travel/groups/{id}/manifest` (audited, `no-store`) | Travel.Group.Manifest |
+| GET | `api/travel/airports` (search) | Travel.View |
+| GET / POST / PUT / DELETE | `api/travel/suppliers[/{id}]` (supplierType, isActive) | Supplier.View / Supplier.Manage |
+| GET | `api/travel/bookings` (search, status, ownerType, customerId, groupId, travelFrom/To, ticketingDue) · `summary` · `by-customer/{id}` · `by-group/{id}` · `{id}` | Travel.Booking.View |
+| POST / PUT / DELETE | `api/travel/bookings[/{id}]`, `{id}/transition`, `{id}/flights[/{fid}]`, `flights/{fid}/transition`, PUT `flights/{fid}/tickets`, `{id}/hotels[/{hid}]`, `hotels/{hid}/transition` | Travel.Booking.Manage |
+| POST / PUT | `api/travel/bookings/{id}/flights/{fid}/cancel`, `flights/{fid}/passengers/{pid}/cancel`, `hotels/{hid}/cancel`, PUT `cancellations/{cid}/refund-status` | Travel.Booking.Cancel |
 
 ## 7. Roadmap
 
@@ -259,7 +308,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 2 | Enquiries, follow-ups, conversion; visa cases, applicants, status pipeline + history | Done |
 | 3 | Checklist templates and versions, private document upload, verification, missing-documents list, passport OCR | Done |
 | 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Done |
-| 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Planned |
+| 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Done |
 | 6 | Travel ledger, suppliers, supplier bills, commissions, profitability | Planned |
 | 7 | Reminder rules and dispatch, dashboard, reports | Planned |
 | 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
