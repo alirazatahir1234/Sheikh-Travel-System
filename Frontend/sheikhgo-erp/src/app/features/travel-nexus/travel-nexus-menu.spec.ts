@@ -2,7 +2,7 @@ import { isRouteAllowedForPrimaryRole, resolveMenu } from '../../core/navigation
 import { TenantType } from '../../core/navigation/tenant-type';
 
 describe('TravelNexus navigation', () => {
-  it('shows the TravelNexus group with Enquiries, Customers, Visa Management and Settings when the travel-agency module is enabled', () => {
+  it('shows the TravelNexus group with Enquiries, Customers, Visa Management, Umrah Groups, Packages and Settings when the travel-agency module is enabled', () => {
     const menu = resolveMenu({
       tenantType: TenantType.TravelAgency,
       roles: ['TENANT_ADMIN'],
@@ -11,7 +11,7 @@ describe('TravelNexus navigation', () => {
 
     const group = menu.groups.find(g => g.id === 'travel-nexus');
     expect(group?.label).toBe('TravelNexus');
-    expect(group!.items.map(i => i.route)).toEqual(['/travel/enquiries', '/travel/customers', '/travel/visa-cases', '/travel/checklists', '/travel/settings']);
+    expect(group!.items.map(i => i.route)).toEqual(['/travel/enquiries', '/travel/customers', '/travel/visa-cases', '/travel/checklists', '/travel/groups', '/travel/packages', '/travel/settings']);
   });
 
   it('hides TravelNexus when the company does not have the module', () => {

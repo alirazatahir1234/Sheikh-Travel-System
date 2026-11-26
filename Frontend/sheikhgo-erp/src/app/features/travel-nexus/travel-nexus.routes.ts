@@ -4,7 +4,7 @@ import { TRAVEL_PERMISSIONS } from './models/travel.models';
 
 /**
  * TravelNexus routes, mounted at /travel (parent route requires Travel.View + module travel-agency).
- * Later phases add enquiries, visa cases, Umrah groups, bookings, finance and reports here.
+ * Later phases add bookings, finance and reports here.
  */
 export const TRAVEL_NEXUS_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'customers' },
@@ -105,6 +105,41 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     data: { permissions: [TRAVEL_PERMISSIONS.view] },
     loadComponent: () => import('./pages/checklists/checklist-editor.component').then(m => m.TravelChecklistEditorComponent),
     title: 'Document checklist'
+  },
+  {
+    path: 'packages',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.packageView] },
+    loadComponent: () => import('./pages/packages/package-list.component').then(m => m.TravelPackageListComponent),
+    title: 'Packages'
+  },
+  {
+    path: 'packages/new',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.packageManage] },
+    loadComponent: () => import('./pages/packages/package-editor.component').then(m => m.TravelPackageEditorComponent),
+    title: 'New package'
+  },
+  {
+    path: 'packages/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.packageView] },
+    loadComponent: () => import('./pages/packages/package-editor.component').then(m => m.TravelPackageEditorComponent),
+    title: 'Package'
+  },
+  {
+    path: 'groups',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.groupView] },
+    loadComponent: () => import('./pages/groups/group-list.component').then(m => m.TravelGroupListComponent),
+    title: 'Umrah groups'
+  },
+  {
+    path: 'groups/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.groupView] },
+    loadComponent: () => import('./pages/groups/group-detail.component').then(m => m.TravelGroupDetailComponent),
+    title: 'Umrah group'
   },
   {
     path: 'settings',

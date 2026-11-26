@@ -4,7 +4,7 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 3 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ).
+Status: **Phase 4 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -72,7 +72,7 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelLostReasons` | Why enquiries are lost | unique (tenant, name) |
 | `TravelEnquiries` | Leads / enquiries; lead fields or linked customer | lead name+phone or customer; Lost needs reason; Won needs customer; budget needs currency |
 | `TravelEnquiryActivities` | Follow-ups and communication history (append-only, includes system StatusChange rows) | type / direction CHECKs |
-| `TravelVisaCases` | One case per customer, country and visa type | status CHECK; OnHold ⇔ OnHoldFromStatus; Cancelled needs reason; submitted statuses need SubmittedAt; fees need currency |
+| `TravelVisaCases` | One case per customer (or, from Phase 4, per Umrah group), country and visa type | status CHECK; OnHold ⇔ OnHoldFromStatus; Cancelled needs reason; submitted statuses need SubmittedAt; fees need currency |
 | `TravelVisaApplicants` | Travelers on a case, each with its own decision and visa details | unique (case, traveler); Rejected needs reason |
 | `TravelVisaStatusHistory` | Append-only case and applicant events | event type CHECK |
 
@@ -86,10 +86,25 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelDocumentFiles` | Every uploaded version: storage key, original name, sniffed content type, size, SHA-256 | content type CHECK (PDF/JPEG/PNG); storage key unique |
 | `TravelVisaCases` (+ columns) | `ChecklistTemplateId`, `ChecklistVersion` the case was built from | |
 
+**Phase 4 (built)** — migration `TravelNexusUmrahMigration`
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelHotels` | Hotel catalog (Makkah, Madinah, Jeddah, Taif, Other) | unique (tenant, name, city); stars 1–5 |
+| `TravelPackages` | Umrah / Hajj package: nights split, visa type, inclusions, currency | code unique per tenant; Draft / Published / Archived |
+| `TravelPackageHotels` | Default stays in travel order | nights > 0 |
+| `TravelPackagePrices` | Adult / child / infant price per room type, in the package currency | unique (package, room type); DECIMAL(18,2) |
+| `TravelGroups` | Group from a package: number (`GRP-yyyy-nnnnn`), dates, capacity, leader, `VisaCaseId` | return ≥ departure; Cancelled needs reason |
+| `TravelGroupMembers` | Pilgrim = traveler on a group with booking party, room preference, price category, quoted price + currency | one active row per (group, traveler); Registered / Confirmed / Cancelled |
+| `TravelGroupHotels` | The group's stays (copied from the package at creation, editable) | check-out > check-in, within group dates |
+| `TravelGroupRooms` | Rooms per stay: type, capacity from type, gender policy Male / Female / Family | |
+| `TravelRoomAssignments` | One bed per pilgrim per stay | unique (tenant, stay, member) |
+| `TravelGroupTransport` | Legs: airport / intercity / ziyarat; optional `FleetBookingId` (read-only link, same tenant) | |
+| `TravelGroupStatusHistory` | Append-only group and pilgrim events, including every manifest generation | event type CHECK |
+| `TravelVisaCases` (changed) | `GroupId` added; `CustomerId` now nullable | `CK_TravelVisaCases_Owner`: customer **xor** group; one case per group |
+| `TravelSettings` (+ column) | `GroupPrefix` (default `GRP`) | |
+
 **Later phases (planned)**
-- Checklists: `TravelChecklistTemplates` (versioned), `TravelChecklistTemplateItems`.
-- Umrah: `TravelPackages`, `TravelPackagePrices`, `TravelGroups`, `TravelGroupMembers`, `TravelGroupHotels`,
-  `TravelRooms`, `TravelRoomAssignments`, `TravelGroupTransport`, `TravelGroupStatusHistory`.
 - Bookings: `TravelFlightBookings`, `TravelFlightSegments`, `TravelFlightPassengers`, `TravelHotelBookings`,
   `TravelItineraries`, `TravelItineraryItems`, `TravelCancellations`.
 - Finance: `TravelInvoices`, `TravelInvoiceLines`, `TravelInstallmentPlans`, `TravelPayments` (idempotency key),
@@ -146,6 +161,36 @@ requires an expiry date that satisfies it. Documents change only while the case 
 (check digits, OCR-noise correction, alpha-3 → alpha-2 countries). The image is not stored and OCR text is not
 logged; the traveler form is pre-filled for the user to confirm.
 
+**Umrah groups (Phase 4).** `TravelGroupStateMachine` owns transitions and capability checks:
+
+```
+Draft → Open → RegistrationClosed → VisaProcessing → Ready → Departed → Returned → Closed
+          ↑──── Reopen ────┘                    ↑── Unready ──┘
+Draft … Ready → Cancelled (reason)
+```
+
+- **Open** needs a published package and at least one stay. **Registration** only while Open, within capacity
+  (checked under `UPDLOCK`); a traveler cannot be in two groups with overlapping dates. The quoted price comes from
+  the package price for the pilgrim's room type and price category.
+- **StartVisaProcessing** needs every active pilgrim Confirmed and a package visa type. In one transaction it opens
+  a single visa case owned by the group (`CustomerId` NULL, `GroupId` set) with every confirmed pilgrim as an
+  applicant; documents and decisions then use the Phase 2/3 screens. A group case accepts only its active pilgrims.
+- **MarkReady** needs the visa case decided, an approved visa for every confirmed pilgrim, and a room for every
+  confirmed pilgrim in every stay (flight confirmation joins this gate in Phase 5). **Depart** is refused more than
+  a day before the departure date.
+- **Cancelling a pilgrim** after the visa case opened removes the applicant (before submission) or records a
+  Withdrawn decision (after submission). This is a **second step, not atomic** with the cancellation; if it fails the
+  response says so and the case must be updated by hand (the ERP toast asks the user to check the case).
+- **Rooming.** `TravelRoomAllocator.Suggest` proposes rooms for one stay: family units (same booking party, joined
+  by mahram and child→adult links) in Family rooms of the preferred type; other adults by gender in Male / Female
+  rooms; never over capacity. It is a preview — nothing is saved until the user saves. `Validate` runs on every save:
+  capacity, gender policy, family rooms only for one booking party or mahram-linked pilgrims, Confirmed pilgrims only,
+  one bed per pilgrim per stay.
+- **Manifest.** `GET api/travel/groups/{id}/manifest` (`Travel.Group.Manifest`) writes a **fail-closed** audit event
+  and a history row before returning data; passport numbers are masked without `Travel.Traveler.ViewPII`. The ERP
+  builds the PDF (jspdf + autotable) and Excel (xlsx: Pilgrims, Hotels, Transport sheets) in the browser from that
+  response, so masked values stay masked; there is no server PDF library.
+
 ## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
@@ -158,6 +203,8 @@ logged; the traveler form is pre-filled for the user to confirm.
   `Travel.Traveler.ViewPII`. Phase 2: `Travel.Enquiry.View/Manage`, `Travel.Visa.View/Manage`, `Travel.Visa.Decide`.
   Phase 3: `Travel.Document.Manage` (upload, request), `Travel.Document.Verify` (verify, reject, waive),
   `Travel.Document.Download` (open files). Checklists are managed with `Travel.Settings`.
+  Phase 4: `Travel.Package.View/Manage` (packages and the hotel catalog), `Travel.Group.View/Manage` (groups,
+  pilgrims, stays, rooms, transport), `Travel.Group.Manifest` (manifest — passport data, audited).
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
@@ -197,6 +244,11 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | POST | `api/travel/documents/requirements/{id}/verify` · `reject` · `waive` | Travel.Document.Verify |
 | GET | `api/travel/documents/files/{fileId}` (stream, audited) | Travel.Document.Download |
 | POST | `api/travel/passport/scan` (multipart, image) | Travel.Customer.Manage |
+| GET | `api/travel/hotels` (city, isActive) · `api/travel/packages` (status, packageType) · `packages/{id}` | Travel.Package.View |
+| POST / PUT / DELETE | `api/travel/hotels[/{id}]`, `packages[/{id}]`, POST `packages/{id}/publish` · `archive` | Travel.Package.Manage |
+| GET | `api/travel/groups` (search, status, packageId, departureFrom/To) · `summary` · `by-customer/{id}` · `{id}` · `{id}/stays/{stayId}/rooming/suggest` | Travel.Group.View |
+| POST / PUT / DELETE | `api/travel/groups[/{id}]`, `{id}/transition`, `{id}/members`, `members/{mid}/confirm` · `cancel`, PUT `members/{mid}`, `{id}/stays[/{sid}]`, PUT `stays/{sid}/rooming`, `{id}/transport[/{lid}]` | Travel.Group.Manage |
+| GET | `api/travel/groups/{id}/manifest` (audited, `no-store`) | Travel.Group.Manifest |
 
 ## 7. Roadmap
 
@@ -206,7 +258,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 1 | Module, permissions, navigation, configuration, customers, travelers | Done |
 | 2 | Enquiries, follow-ups, conversion; visa cases, applicants, status pipeline + history | Done |
 | 3 | Checklist templates and versions, private document upload, verification, missing-documents list, passport OCR | Done |
-| 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Planned |
+| 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Done |
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Planned |
 | 6 | Travel ledger, suppliers, supplier bills, commissions, profitability | Planned |
 | 7 | Reminder rules and dispatch, dashboard, reports | Planned |

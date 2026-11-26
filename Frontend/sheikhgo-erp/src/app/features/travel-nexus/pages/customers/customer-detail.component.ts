@@ -14,10 +14,12 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { TravelerFormDrawerComponent } from '../../components/traveler-form-drawer.component';
 import {
   ENQUIRY_STATUS_LABEL, ENQUIRY_STATUS_VARIANT, PASSPORT_STATUS_LABEL, PASSPORT_STATUS_VARIANT, TRAVEL_PERMISSIONS, TravelCustomer,
-  TravelEnquiryListItem, TravelTraveler, TravelVisaCaseListItem, VISA_STATUS_LABEL, VISA_STATUS_VARIANT
+  TravelEnquiryListItem, TravelGroupListItem, TravelTraveler, TravelVisaCaseListItem, VISA_STATUS_LABEL, VISA_STATUS_VARIANT,
+  GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT
 } from '../../models/travel.models';
 import { TravelEnquiryService } from '../../services/travel-enquiry.service';
 import { TravelVisaService } from '../../services/travel-visa.service';
+import { TravelGroupService } from '../../services/travel-group.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
@@ -154,6 +156,20 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
               </ul>
             }
           </div>
+          <div class="tn-card" *appHasPermission="perms.groupView">
+            <div class="border-b border-fleet-border px-5 py-4"><h3 class="tn-section-title">Umrah groups</h3></div>
+            @if (!groups().length) {
+              <p class="px-5 py-6 text-sm text-fleet-text-muted">This customer has no pilgrims in a group.</p>
+            } @else {
+              <ul class="divide-y divide-fleet-border">
+                @for (g of groups(); track g.id) {
+                  <li><a class="flex items-center justify-between px-5 py-3 text-sm hover:bg-fleet-surface-alt/40" [routerLink]="['/travel/groups', g.id]">
+                    <span><span class="font-mono text-xs">{{ g.groupNumber }}</span> · {{ g.name }} · {{ g.departureDate | date: 'mediumDate': 'UTC' }}</span>
+                    <ui-status-badge [status]="g.status" [label]="groupLabel[g.status]" [variant]="groupVariant[g.status]"></ui-status-badge></a></li>
+                }
+              </ul>
+            }
+          </div>
         </div>
 
         <app-traveler-form-drawer [(open)]="drawerOpen" [customerId]="c.customerId" [traveler]="editing()"
@@ -184,6 +200,10 @@ export class TravelCustomerDetailComponent {
   private readonly auth = inject(AuthService);
   protected readonly enquiries = signal<TravelEnquiryListItem[]>([]);
   protected readonly visaCases = signal<TravelVisaCaseListItem[]>([]);
+  private readonly groupApi = inject(TravelGroupService);
+  protected readonly groups = signal<TravelGroupListItem[]>([]);
+  protected readonly groupLabel = GROUP_STATUS_LABEL;
+  protected readonly groupVariant = GROUP_STATUS_VARIANT;
   private readonly customerId = Number(this.route.snapshot.paramMap.get('id'));
 
   protected readonly customer = signal<TravelCustomer | null>(null);
@@ -206,6 +226,10 @@ export class TravelCustomerDetailComponent {
     if (this.auth.hasPermission(TRAVEL_PERMISSIONS.visaView)) {
       this.visaApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
         .subscribe(r => this.visaCases.set(r));
+    }
+    if (this.auth.hasPermission(TRAVEL_PERMISSIONS.groupView)) {
+      this.groupApi.getByCustomer(this.customerId).pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe(r => this.groups.set(r));
     }
   }
 

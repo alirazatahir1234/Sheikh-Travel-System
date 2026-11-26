@@ -41,6 +41,7 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
           <div class="tn-field"><label for="gs-enq">Enquiry</label><input id="gs-enq" class="tn-input uppercase" formControlName="enquiryPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-vc">Visa case</label><input id="gs-vc" class="tn-input uppercase" formControlName="visaCasePrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-inv">Invoice</label><input id="gs-inv" class="tn-input uppercase" formControlName="invoicePrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-grp">Umrah group</label><input id="gs-grp" class="tn-input uppercase" formControlName="groupPrefix" maxlength="10" /></div>
         </div>
         @if (form.invalid && form.touched) { <span class="text-xs text-red-600">Prefixes: 1–10 letters, digits or '-'.</span> }
         @if (saveError()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ saveError() }}</div> }
@@ -68,7 +69,8 @@ export class GeneralSettingsTabComponent {
     passportExpiryWarningDays: [180, [Validators.required, Validators.min(0), Validators.max(730)]],
     enquiryPrefix: ['ENQ', PREFIX],
     visaCasePrefix: ['VC', PREFIX],
-    invoicePrefix: ['TINV', PREFIX]
+    invoicePrefix: ['TINV', PREFIX],
+    groupPrefix: ['GRP', PREFIX]
   });
 
   constructor() { this.load(); }
@@ -91,7 +93,8 @@ export class GeneralSettingsTabComponent {
       passportExpiryWarningDays: Number(v.passportExpiryWarningDays),
       enquiryPrefix: v.enquiryPrefix!.trim().toUpperCase(),
       visaCasePrefix: v.visaCasePrefix!.trim().toUpperCase(),
-      invoicePrefix: v.invoicePrefix!.trim().toUpperCase()
+      invoicePrefix: v.invoicePrefix!.trim().toUpperCase(),
+      groupPrefix: v.groupPrefix!.trim().toUpperCase()
     };
     this.saving.set(true);
     this.saveError.set(null);
@@ -107,7 +110,8 @@ export class GeneralSettingsTabComponent {
       passportExpiryWarningDays: s.passportExpiryWarningDays,
       enquiryPrefix: s.enquiryPrefix,
       visaCasePrefix: s.visaCasePrefix,
-      invoicePrefix: s.invoicePrefix
+      invoicePrefix: s.invoicePrefix,
+      groupPrefix: s.groupPrefix ?? 'GRP'
     });
   }
 }

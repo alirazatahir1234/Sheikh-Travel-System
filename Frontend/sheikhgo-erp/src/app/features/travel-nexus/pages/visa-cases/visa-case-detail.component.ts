@@ -74,7 +74,11 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
               @if (c.status === 'OnHold' && c.onHoldFromStatus) { <span class="text-xs text-fleet-text-muted">from {{ statusLabel[c.onHoldFromStatus] }}</span> }
             </div>
             <dl class="tn-kv">
-              <div><dt>Customer</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/customers', c.customerId]">{{ c.customerName }}</a></dd></div>
+              @if (c.groupId) {
+                <div><dt>Umrah group</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/groups', c.groupId]">{{ c.customerName }}</a></dd></div>
+              } @else {
+                <div><dt>Customer</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/customers', c.customerId]">{{ c.customerName }}</a></dd></div>
+              }
               @if (c.enquiryId) { <div><dt>Enquiry</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/enquiries', c.enquiryId]">{{ c.enquiryNumber }}</a></dd></div> }
               <div><dt>Travel date</dt><dd>{{ c.intendedTravelDate ? (c.intendedTravelDate | date: 'mediumDate': 'UTC') : '—' }}</dd></div>
               <div><dt>Appointment</dt><dd>{{ c.appointmentAt ? (utc(c.appointmentAt) | date: 'medium') : '—' }}</dd></div>
@@ -101,7 +105,9 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
                   <h3 class="tn-section-title">Applicants ({{ c.applicants.length }})</h3>
                   @if (can('RecordDecision')) { <p class="text-xs text-fleet-text-muted">Record each embassy decision; the case closes when all are decided.</p> }
                 </div>
-                @if (can('ManageApplicants')) {
+                @if (c.groupId) {
+                  <span class="text-xs text-fleet-text-muted">Applicants are the group's confirmed pilgrims</span>
+                } @else if (can('ManageApplicants')) {
                   <button mat-flat-button color="primary" *appHasPermission="perms.visaManage" (click)="openAddApplicants()"><mat-icon>person_add</mat-icon> Add applicants</button>
                 }
               </div>
@@ -374,13 +380,14 @@ export class TravelVisaCaseDetailComponent {
 
   protected openAddApplicants(): void {
     const c = this.visaCase();
-    if (!c) return;
+    if (!c || c.customerId === null) return;
+    const customerId = c.customerId;
     this.dialogError.set(null);
     this.selected.set(new Set());
     this.candidates.set(null);
     this.addOpen.set(true);
     const existing = new Set(c.applicants.map(a => a.travelerId));
-    this.customers.getTravelers(c.customerId).pipe(catchError(() => of([] as TravelTraveler[])), takeUntilDestroyed(this.destroyRef))
+    this.customers.getTravelers(customerId).pipe(catchError(() => of([] as TravelTraveler[])), takeUntilDestroyed(this.destroyRef))
       .subscribe(list => this.candidates.set(list.filter(t => !existing.has(t.id))));
   }
 

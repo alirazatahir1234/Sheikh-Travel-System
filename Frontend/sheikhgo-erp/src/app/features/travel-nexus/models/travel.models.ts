@@ -16,7 +16,12 @@ export const TRAVEL_PERMISSIONS = {
   visaDecide: 'Travel.Visa.Decide',
   documentManage: 'Travel.Document.Manage',
   documentVerify: 'Travel.Document.Verify',
-  documentDownload: 'Travel.Document.Download'
+  documentDownload: 'Travel.Document.Download',
+  packageView: 'Travel.Package.View',
+  packageManage: 'Travel.Package.Manage',
+  groupView: 'Travel.Group.View',
+  groupManage: 'Travel.Group.Manage',
+  groupManifest: 'Travel.Group.Manifest'
 } as const;
 
 export type TravelVisaCategory =
@@ -83,6 +88,7 @@ export interface TravelSettings {
   enquiryPrefix: string;
   visaCasePrefix: string;
   invoicePrefix: string;
+  groupPrefix: string;
   passportExpiryWarningDays: number;
 }
 
@@ -406,7 +412,10 @@ export const VISA_TRANSITION_LABEL: Record<TravelVisaTransitionAction, string> =
 export interface TravelVisaCaseListItem {
   id: number;
   caseNumber: string;
-  customerId: number;
+  /** Null for an Umrah group visa case (see groupId). */
+  customerId: number | null;
+  groupId: number | null;
+  /** Customer name, or the group name for a group case. */
   customerName: string;
   countryCode: string;
   countryName: string;
@@ -625,7 +634,7 @@ export interface TravelCaseDocuments {
 export interface TravelMissingDocumentsItem {
   visaCaseId: number;
   caseNumber: string;
-  customerId: number;
+  customerId: number | null;
   customerName: string;
   countryName: string;
   visaTypeName: string;
@@ -652,3 +661,125 @@ export interface TravelPassportScanResult { available: boolean; found: boolean; 
 /** Mirrors TravelDocumentFileValidator on the server (pre-check only; the server decides). */
 export const DOCUMENT_UPLOAD_ACCEPT = '.pdf,.jpg,.jpeg,.png';
 export const DOCUMENT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+
+// ── Phase 4: hotels, packages, Umrah groups ────────────────────────────
+
+export type TravelHotelCity = 'Makkah' | 'Madinah' | 'Jeddah' | 'Taif' | 'Other';
+export const TRAVEL_HOTEL_CITIES: TravelHotelCity[] = ['Makkah', 'Madinah', 'Jeddah', 'Taif', 'Other'];
+export type TravelPackageType = 'Umrah' | 'Hajj';
+export type TravelPackageStatus = 'Draft' | 'Published' | 'Archived';
+export type TravelRoomType = 'Quad' | 'Triple' | 'Double' | 'Single';
+export const TRAVEL_ROOM_TYPES: TravelRoomType[] = ['Quad', 'Triple', 'Double', 'Single'];
+export const ROOM_CAPACITY: Record<TravelRoomType, number> = { Quad: 4, Triple: 3, Double: 2, Single: 1 };
+export type TravelPriceCategory = 'Adult' | 'Child' | 'Infant';
+export const TRAVEL_PRICE_CATEGORIES: TravelPriceCategory[] = ['Adult', 'Child', 'Infant'];
+export type TravelGroupStatus =
+  'Draft' | 'Open' | 'RegistrationClosed' | 'VisaProcessing' | 'Ready' | 'Departed' | 'Returned' | 'Closed' | 'Cancelled';
+export const TRAVEL_GROUP_STATUSES: TravelGroupStatus[] =
+  ['Draft', 'Open', 'RegistrationClosed', 'VisaProcessing', 'Ready', 'Departed', 'Returned', 'Closed', 'Cancelled'];
+export type TravelMemberStatus = 'Registered' | 'Confirmed' | 'Cancelled';
+export type TravelGenderPolicy = 'Male' | 'Female' | 'Family';
+export const TRAVEL_GENDER_POLICIES: TravelGenderPolicy[] = ['Male', 'Female', 'Family'];
+export type TravelTransportLegType = 'AirportTransfer' | 'IntercityTransfer' | 'Ziyarat' | 'Other';
+export const TRAVEL_TRANSPORT_LEG_TYPES: TravelTransportLegType[] = ['AirportTransfer', 'IntercityTransfer', 'Ziyarat', 'Other'];
+export type TravelGroupAction =
+  | 'Edit' | 'Open' | 'CloseRegistration' | 'Reopen' | 'StartVisaProcessing' | 'MarkReady' | 'Unready' | 'Depart' | 'Return'
+  | 'Close' | 'Cancel' | 'RegisterMembers' | 'ManageMembers' | 'ManageStays' | 'ManageRooms' | 'ManageTransport';
+export type TravelGroupTransitionAction =
+  'Open' | 'CloseRegistration' | 'Reopen' | 'StartVisaProcessing' | 'MarkReady' | 'Unready' | 'Depart' | 'Return' | 'Close' | 'Cancel';
+export type TravelGroupHistoryEvent =
+  'GroupStatus' | 'MemberRegistered' | 'MemberConfirmed' | 'MemberCancelled' | 'RoomAssigned' | 'RoomUnassigned' | 'LeaderChanged' | 'ManifestGenerated';
+
+export const GROUP_STATUS_LABEL: Record<TravelGroupStatus, string> = {
+  Draft: 'Draft', Open: 'Registration open', RegistrationClosed: 'Registration closed', VisaProcessing: 'Visa processing',
+  Ready: 'Ready', Departed: 'Departed', Returned: 'Returned', Closed: 'Closed', Cancelled: 'Cancelled'
+};
+export const GROUP_STATUS_VARIANT: Record<TravelGroupStatus, BadgeVariant> = {
+  Draft: 'inactive', Open: 'info', RegistrationClosed: 'pending', VisaProcessing: 'warning', Ready: 'success',
+  Departed: 'active', Returned: 'active', Closed: 'inactive', Cancelled: 'error'
+};
+export const GROUP_TRANSITION_LABEL: Record<TravelGroupTransitionAction, string> = {
+  Open: 'Open registration', CloseRegistration: 'Close registration', Reopen: 'Reopen registration',
+  StartVisaProcessing: 'Start visa processing', MarkReady: 'Mark ready', Unready: 'Back to visa processing',
+  Depart: 'Mark departed', Return: 'Mark returned', Close: 'Close group', Cancel: 'Cancel group'
+};
+export const MEMBER_STATUS_VARIANT: Record<TravelMemberStatus, BadgeVariant> = { Registered: 'pending', Confirmed: 'success', Cancelled: 'inactive' };
+export const PACKAGE_STATUS_VARIANT: Record<TravelPackageStatus, BadgeVariant> = { Draft: 'pending', Published: 'success', Archived: 'inactive' };
+export const LEG_TYPE_LABEL: Record<TravelTransportLegType, string> = {
+  AirportTransfer: 'Airport transfer', IntercityTransfer: 'Intercity transfer', Ziyarat: 'Ziyarat', Other: 'Other'
+};
+
+export interface TravelHotel {
+  id: number; name: string; city: TravelHotelCity; countryCode: string; starRating: number | null;
+  distanceToHaramMeters: number | null; address: string | null; phone: string | null; isActive: boolean;
+}
+export type SaveTravelHotel = Omit<TravelHotel, 'id'>;
+
+export interface TravelPackageStay { hotelId: number; hotelName: string; city: TravelHotelCity; nights: number; sequence: number; }
+export interface TravelPackagePrice { roomType: TravelRoomType; adultPrice: number; childPrice: number; infantPrice: number; }
+export interface TravelPackageListItem {
+  id: number; code: string; name: string; packageType: TravelPackageType; durationNights: number; nightsMakkah: number;
+  nightsMadinah: number; visaTypeId: number | null; visaTypeName: string | null; currencyCode: string; status: TravelPackageStatus;
+  fromPrice: number | null; groupCount: number; createdAt: string;
+}
+export interface TravelPackage extends TravelPackageListItem {
+  inclusions: string | null; exclusions: string | null; stays: TravelPackageStay[]; prices: TravelPackagePrice[];
+}
+export interface SaveTravelPackage {
+  code: string; name: string; packageType: TravelPackageType; durationNights: number; nightsMakkah: number; nightsMadinah: number;
+  visaTypeId: number | null; inclusions: string | null; exclusions: string | null; currencyCode: string;
+  stays: { hotelId: number; nights: number }[]; prices: TravelPackagePrice[];
+}
+
+export interface TravelGroupListItem {
+  id: number; groupNumber: string; name: string; packageId: number; packageName: string; packageType: TravelPackageType;
+  departureDate: string; returnDate: string; capacity: number; activeMembers: number; confirmedMembers: number;
+  status: TravelGroupStatus; leaderDisplayName: string | null; visaCaseId: number | null; createdAt: string;
+}
+export interface TravelGroupMember {
+  id: number; travelerId: number; travelerName: string; gender: TravelGender; dateOfBirth: string | null; customerId: number;
+  customerName: string; mahramTravelerId: number | null; passportNumber: string | null; passportExpiryDate: string | null;
+  roomPreference: TravelRoomType; priceCategory: TravelPriceCategory; quotedPrice: number | null; currencyCode: string | null;
+  status: TravelMemberStatus; cancelReason: string | null; visaDecision: TravelApplicantDecision | null; visaNumber: string | null;
+  visaExpiryDate: string | null;
+}
+export interface TravelGroupStay {
+  id: number; hotelId: number; hotelName: string; city: TravelHotelCity; checkIn: string; checkOut: string; sequence: number;
+  confirmationNumber: string | null; roomCount: number; assignedCount: number;
+}
+export interface TravelGroupRoom {
+  id: number; groupHotelId: number; roomNumber: string | null; roomType: TravelRoomType; capacity: number;
+  genderPolicy: TravelGenderPolicy; memberIds: number[];
+}
+export interface TravelGroupTransport {
+  id: number; legType: TravelTransportLegType; departAt: string; fromPlace: string; toPlace: string; providerName: string | null;
+  vehicleType: string | null; seats: number | null; fleetBookingId: number | null; fleetBookingNumber: string | null; notes: string | null;
+}
+export interface TravelGroupHistory {
+  id: number; eventType: TravelGroupHistoryEvent; memberId: number | null; memberName: string | null; fromValue: string | null;
+  toValue: string | null; note: string | null; changedByName: string | null; changedAt: string;
+}
+export interface TravelGroupReadiness {
+  confirmedMembers: number; unconfirmedMembers: number; membersWithApprovedVisa: number;
+  membersWithoutRoom: number; stays: number; visaCaseDecided: boolean;
+}
+export interface TravelGroup extends TravelGroupListItem {
+  groupLeaderTravelerId: number | null; leaderName: string | null; leaderPhone: string | null; visaCaseNumber: string | null;
+  visaCaseStatus: TravelVisaCaseStatus | null; branchId: number | null; branchName: string | null; cancelReason: string | null;
+  closedAt: string | null; notes: string | null; packageCurrencyCode: string; packageStatus: TravelPackageStatus;
+  allowedActions: TravelGroupAction[]; readiness: TravelGroupReadiness; members: TravelGroupMember[]; stays: TravelGroupStay[];
+  rooms: TravelGroupRoom[]; transport: TravelGroupTransport[]; history: TravelGroupHistory[];
+}
+export interface TravelGroupSummary { counts: Record<TravelGroupStatus, number>; total: number; }
+export interface TravelRoomingRoom { roomNumber: string | null; roomType: TravelRoomType; genderPolicy: TravelGenderPolicy; memberIds: number[]; }
+
+export interface TravelManifestPilgrim {
+  no: number; memberId: number; surname: string; givenNames: string; gender: TravelGender; dateOfBirth: string | null;
+  nationalityCode: string | null; passportNumber: string | null; passportExpiryDate: string | null; visaNumber: string | null;
+  visaExpiryDate: string | null; mahramName: string | null; phone: string | null; customerName: string; rooms: string[];
+}
+export interface TravelGroupManifest {
+  groupNumber: string; groupName: string; packageName: string; departureDate: string; returnDate: string; leaderName: string | null;
+  leaderPhone: string | null; visaCaseNumber: string | null; piiMasked: boolean; generatedAtUtc: string; stays: TravelGroupStay[];
+  transport: TravelGroupTransport[]; pilgrims: TravelManifestPilgrim[];
+}
