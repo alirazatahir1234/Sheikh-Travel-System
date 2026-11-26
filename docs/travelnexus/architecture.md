@@ -5,7 +5,8 @@ existing API and ERP, not a separate application. This document records the repo
 the decisions taken, the data model and the delivery roadmap.
 
 Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A;
-supplier rate cards, bills, supplier payments, credits, refunds received, agent commissions and profitability — Phase 6B).
+supplier rate cards, bills, supplier payments, credits, refunds received, agent commissions and profitability — Phase 6B; reminder rules
+and dispatch, dashboard and the twelve reports — Phase 7).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -153,8 +154,16 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 
 Commission lines are derived from rules on every read and never stored; only payouts are.
 
-**Later phases (planned)**
-- Notifications: `TravelReminderRules`, `TravelReminders`.
+**Phase 7 (built)** — migration `TravelNexusRemindersMigration`
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelReminderRules` | One row per tenant, rule type and lead time: enabled, staff in-app / email, customer email / SMS / WhatsApp, optional customer text | rule type CHECK (the catalogue), lead 0–365; **unique (tenant, rule type, lead)**; no row = catalogue default |
+| `TravelReminders` | Dispatch log: rule, lead, entity, trigger date, audience (Staff \| Customer), recipient, channels, Pending / Sent / Skipped / Failed, failure reason, notification id, title, body | **unique (tenant, dedupe key)** — `{rule}:{entity}:{id}:{trigger}:{lead}:{audience}` |
+| `TravelSettings` (+ columns) | `ReminderQuietStartHour`, `ReminderQuietEndHour` (customer sends held, tenant-local) | |
+| `NotificationTemplates` seed | `travel_reminder` for InApp / Email / Sms (`{{Title}}` / `{{Message}}`) | platform rows |
+
+`NotificationType.TravelReminder` (= 15) marks reminder notifications; audit event `travel.reminder.dispatch` is written once per tenant pass.
 
 Every status change writes a history row in the same transaction as the status update.
 
@@ -318,6 +327,39 @@ Draft … Ready → Cancelled (reason)
 - **Not in 6B**: taxes, live FX feeds, a cancellation picker on supplier credits / refunds in the ERP (the API accepts
   `cancellationId`), reminders and dashboards (Phase 7).
 
+**Reminders, dashboard and reports (Phase 7).**
+
+- **Reminder catalogue** (`TravelReminderCatalog`, fixed; tenants tune it): PassportExpiry (90, 30 days), VisaAppointment (3, 1),
+  MissingDocuments (travel in 30, 14 days with mandatory documents outstanding), VisaDecisionOverdue (weekly, staff), VisaStatusChanged
+  (once per Submitted / Approved / PartiallyApproved / Rejected history row, customer), TicketingDeadline (2, 1 — held flights),
+  FlightDeparture (3, 1), HotelCheckIn (2), InvoiceDue (7, 1 — next uncovered installment, else the due date), InvoiceOverdue (weekly),
+  EnquiryFollowUp (daily, staff), GroupDeparture (7, 1). *Upcoming* rules fire while `now ≤ trigger ≤ now + lead`; *overdue* rules
+  while the trigger is past, keyed by ISO week or day; *event* rules once per occurrence. The candidate query of each rule returns
+  only entities whose trigger is still open (a paid invoice, a ticketed flight, a cancelled case stop reminding by themselves), so no
+  stale item loops (SG-10). Passport numbers never appear in a reminder (masked label), CNIC never.
+- **Dispatch** (`TravelReminderDispatcher`): effective rules → candidates → **claim** the dedupe key by inserting the log row (SELECT
+  then INSERT, 2601/2627 = another pass won) → build the text (ISO money, tenant-local times, optional customer template with
+  `{{Name}} {{Reference}} {{Date}} {{Amount}} {{Detail}}`) → `INotificationService.CreateAndDispatchAsync` (staff: the assigned agent's
+  user id, in-app / email; customer: contact on file, email / SMS / WhatsApp) → Sent, or Skipped with the reason (no assigned agent,
+  no contact), or Failed with the provider error. Customer sends inside the tenant's quiet hours are left unclaimed and go out on a
+  later pass. WhatsApp outside the 24-hour window needs the tenant's approved Meta template — the sender enforces it, the log shows it.
+  `TravelReminderHostedService` runs every active tenant with the travel module every `TravelNexus:Reminders:IntervalMinutes`
+  (default 30, `Enabled` default true); `POST api/travel/reminders/run` runs the caller's tenant now.
+- **Dashboard** (`api/travel/dashboard`): status pipelines zero-filled with total = sum (all time); attention counts as of today
+  (follow-ups due, missing-document cases, ticketing due 72 h, passports expiring within the warning window, appointments and
+  departures in 7 days, overdue invoices with amounts per currency, overdue supplier bills, reminders failed / skipped for no agent in
+  7 days) — the dated counts come from the **same candidate queries as the reminders** (SG-21); receivables and payables per currency;
+  8-week enquiry and 6-month invoicing / visa-decision trends; `upcoming?days=` deadlines; `profit` (this vs last month,
+  `Travel.Profitability.View`). `/travel` lands on it; every ERP card names its window.
+- **Reports** (`api/travel/reports/…`, `ReportResponseDto` with `windowFrom` / `windowTo` / `asOf` in the summary): operational
+  (`Travel.Report.View`) — enquiry-performance, visa-processing, country-applications, pending-documents, group-manifests (counts only,
+  no passport data), bookings, agent-branch-performance; finance (`Travel.Finance.View`) — customer-balances, supplier-balances (as of
+  today), pilgrim-payments; profit (`Travel.Profitability.View`) — profit-loss per travel month, commissions per beneficiary. Windowed
+  reports require from/to (≤ 2 years); an inverted range returns the columns and no rows. The ERP renders a generic grid from the
+  columns, formats money with the row's currency (never a hardcoded code), sums only what the API summarised and exports PDF /
+  Excel / CSV through the shared `ExportService`.
+- **Not in Phase 7**: per-user reminder preferences beyond the platform's, scheduled report emails, a WhatsApp template designer.
+
 ## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
@@ -341,6 +383,8 @@ Draft … Ready → Cancelled (reason)
   `Travel.Commission.Manage` (rules, sub-agents, payouts, attribution), `Travel.Profitability.View` (margins are sensitive).
   Viewing payables needs `Travel.Finance.View`; supplier credits, refunds received and voids need `Travel.Finance.Adjust`;
   exchange rates need `Travel.Settings`; rate cards and supplier commission rules need `Travel.Supplier.Manage`.
+  Phase 7: `Travel.Reminder.View`, `Travel.Reminder.Manage` (rules, run now), `Travel.Dashboard.View`, `Travel.Report.View`
+  (operational reports; balance reports stay under `Travel.Finance.View`, margin and commission reports under `Travel.Profitability.View`).
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
@@ -406,6 +450,9 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | GET | `api/travel/commissions/rules` · `lines` (beneficiaryType, beneficiaryId, status, issuedFrom/To) · `balances` · `payouts` | Travel.Commission.View |
 | POST / PUT / DELETE | `api/travel/commissions/sub-agents[/{id}]`, `rules[/{id}]`, POST `payouts`, PUT `invoices/{id}/attribution` | Travel.Commission.Manage |
 | GET | `api/travel/profitability` (dimension, travelFrom, travelTo, branchId, agentUserId) · `{contextType}/{contextId}` | Travel.Profitability.View |
+| GET · PUT · POST | `api/travel/reminders/rules` · `log` (ruleType, status, audience, from/to) · PUT `rules/{ruleType}` · POST `run` | Reminder.View · Reminder.Manage |
+| GET | `api/travel/dashboard` · `upcoming?days=` · `profit` | Travel.Dashboard.View (`profit` also Profitability.View) |
+| GET | `api/travel/reports/catalog` · `{type}` (from, to, branchId, agentUserId, dimension, countryCode) · `finance/{type}` · `profit/{type}` | Report.View · Finance.View · Profitability.View |
 
 ## 7. Roadmap
 
@@ -419,7 +466,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Done |
 | 6A | Customer invoices, receipts, installments, credit notes, refunds, balances, statements, reconciliation | Done |
 | 6B | Supplier rates, bills and payments, supplier ledgers, commissions (earned and payable), profitability | Done |
-| 7 | Reminder rules and dispatch, dashboard, reports | Planned |
+| 7 | Reminder rules and dispatch, dashboard, reports | Done |
 | 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
 
 Each phase gets its own plan, migration, tests and commits on the feature branch.

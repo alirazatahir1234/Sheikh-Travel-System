@@ -36,7 +36,11 @@ export const TRAVEL_PERMISSIONS = {
   supplierPaymentManage: 'Travel.SupplierPayment.Manage',
   commissionView: 'Travel.Commission.View',
   commissionManage: 'Travel.Commission.Manage',
-  profitabilityView: 'Travel.Profitability.View'
+  profitabilityView: 'Travel.Profitability.View',
+  reminderView: 'Travel.Reminder.View',
+  reminderManage: 'Travel.Reminder.Manage',
+  dashboardView: 'Travel.Dashboard.View',
+  reportView: 'Travel.Report.View'
 } as const;
 
 export type TravelVisaCategory =
@@ -117,6 +121,9 @@ export interface TravelSettings {
   supplierCreditPrefix: string;
   supplierRefundPrefix: string;
   payoutPrefix: string;
+  /** Customer reminders are not sent between these tenant-local hours (start 21, end 8 = 21:00–08:00). */
+  reminderQuietStartHour: number;
+  reminderQuietEndHour: number;
 }
 
 // ── Customers & travelers ──────────────────────────────────────────────
@@ -1276,3 +1283,70 @@ export interface TravelProfitabilityReport {
   reportingCurrencyCode: string; dimension: TravelProfitDimension; contexts: TravelContextProfit[]; groups: TravelProfitGroup[]; totals: TravelProfitGroup;
   missingRates: TravelMissingRate[];
 }
+
+// ── Phase 7: reminders, dashboard, reports ──────────────────────────────
+
+export type TravelReminderRuleType =
+  | 'PassportExpiry' | 'VisaAppointment' | 'MissingDocuments' | 'VisaDecisionOverdue' | 'VisaStatusChanged' | 'TicketingDeadline'
+  | 'FlightDeparture' | 'HotelCheckIn' | 'InvoiceDue' | 'InvoiceOverdue' | 'EnquiryFollowUp' | 'GroupDeparture';
+export const TRAVEL_REMINDER_RULE_TYPES: TravelReminderRuleType[] =
+  ['PassportExpiry', 'VisaAppointment', 'MissingDocuments', 'VisaDecisionOverdue', 'VisaStatusChanged', 'TicketingDeadline',
+   'FlightDeparture', 'HotelCheckIn', 'InvoiceDue', 'InvoiceOverdue', 'EnquiryFollowUp', 'GroupDeparture'];
+export type TravelReminderKind = 'Upcoming' | 'Overdue' | 'Event';
+export type TravelReminderEntityType = 'Traveler' | 'VisaCase' | 'FlightBooking' | 'HotelBooking' | 'Invoice' | 'Enquiry' | 'Group';
+export type TravelReminderAudience = 'Staff' | 'Customer';
+export const TRAVEL_REMINDER_AUDIENCES: TravelReminderAudience[] = ['Staff', 'Customer'];
+export type TravelReminderStatus = 'Pending' | 'Sent' | 'Skipped' | 'Failed';
+export const TRAVEL_REMINDER_STATUSES: TravelReminderStatus[] = ['Pending', 'Sent', 'Skipped', 'Failed'];
+export type TravelReportGroup = 'Operational' | 'Finance' | 'Profit';
+
+export const REMINDER_STATUS_VARIANT: Record<TravelReminderStatus, BadgeVariant> = { Pending: 'pending', Sent: 'success', Skipped: 'warning', Failed: 'error' };
+export const REMINDER_AUDIENCE_LABEL: Record<TravelReminderAudience, string> = { Staff: 'Staff', Customer: 'Customer' };
+export const REMINDER_KIND_LABEL: Record<TravelReminderKind, string> = { Upcoming: 'Before a date', Overdue: 'While overdue', Event: 'On change' };
+/** Where a reminder's entity opens in the ERP. */
+export const REMINDER_ENTITY_ROUTE: Record<TravelReminderEntityType, string> = {
+  Traveler: '/travel/customers', VisaCase: '/travel/visa-cases', FlightBooking: '/travel/bookings', HotelBooking: '/travel/bookings',
+  Invoice: '/travel/finance/invoices', Enquiry: '/travel/enquiries', Group: '/travel/groups'
+};
+
+export interface TravelReminderLead {
+  leadDays: number; isEnabled: boolean; staffInApp: boolean; staffEmail: boolean; customerEmail: boolean; customerSms: boolean; customerWhatsApp: boolean;
+}
+export interface TravelReminderRule {
+  ruleType: TravelReminderRuleType; name: string; description: string; entityType: TravelReminderEntityType; kind: TravelReminderKind;
+  supportsStaff: boolean; supportsCustomer: boolean; isCustomised: boolean; leads: TravelReminderLead[]; customerTemplate: string | null; placeholders: string[];
+}
+export interface SaveTravelReminderRule { leads: TravelReminderLead[]; customerTemplate: string | null; }
+export interface TravelReminderLogItem {
+  id: number; ruleType: TravelReminderRuleType; leadDays: number; entityType: TravelReminderEntityType; entityId: number; contextLabel: string; dueAt: string;
+  audience: TravelReminderAudience; recipientUserId: number | null; recipientUserName: string | null; recipientCustomerId: number | null;
+  recipientCustomerName: string | null; channels: string; status: TravelReminderStatus; failureReason: string | null; notificationId: number | null;
+  title: string; body: string; createdAt: string;
+}
+export interface TravelReminderRunResult { candidates: number; sent: number; skipped: number; failed: number; held: number; }
+
+export interface TravelPipeline { counts: Record<string, number>; total: number; }
+export interface TravelCurrencyAmount { currencyCode: string; amount: number; }
+export interface TravelAttention {
+  followUpsDue: number; missingDocumentCases: number; ticketingDueNext72Hours: number; passportsExpiring: number; passportWarningDays: number;
+  appointmentsNext7Days: number; departuresNext7Days: number; overdueInvoices: number; overdueInvoiceAmounts: TravelCurrencyAmount[]; overdueSupplierBills: number;
+  remindersFailedLast7Days: number; remindersSkippedNoAgentLast7Days: number;
+}
+export interface TravelTrendPoint { periodStart: string; label: string; total: number; won: number; }
+export interface TravelMoneyTrendPoint { periodStart: string; label: string; currencyCode: string; issued: number; collected: number; }
+export interface TravelDecisionTrendPoint { periodStart: string; label: string; approved: number; rejected: number; }
+export interface TravelTrends {
+  enquiries: TravelTrendPoint[]; invoicing: TravelMoneyTrendPoint[]; visaDecisions: TravelDecisionTrendPoint[]; enquiryWeeks: number; months: number;
+}
+export interface TravelDashboard {
+  asOf: string; enquiries: TravelPipeline; visaCases: TravelPipeline; groups: TravelPipeline; bookings: TravelPipeline; attention: TravelAttention;
+  receivables: TravelFinanceCurrencySummary[]; payables: TravelPayablesCurrencySummary[]; trends: TravelTrends;
+}
+export interface TravelDashboardProfit { reportingCurrencyCode: string; thisMonth: TravelProfitGroup; lastMonth: TravelProfitGroup; missingRates: TravelMissingRate[]; }
+export interface TravelUpcomingItem {
+  ruleType: TravelReminderRuleType; entityType: TravelReminderEntityType; entityId: number; label: string; reference: string; dueAt: string;
+  staffUserId: number | null; customerName: string | null; amount: number | null; currencyCode: string | null;
+}
+export interface TravelUpcoming { days: number; items: TravelUpcomingItem[]; }
+
+export interface TravelReportDefinition { type: string; title: string; group: TravelReportGroup; windowed: boolean; windowLabel: string; description: string; }

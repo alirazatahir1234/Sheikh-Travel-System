@@ -7,7 +7,28 @@ import { TRAVEL_PERMISSIONS } from './models/travel.models';
  * Later phases add bookings, finance and reports here.
  */
 export const TRAVEL_NEXUS_ROUTES: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'customers' },
+  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  {
+    path: 'dashboard',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.dashboardView] },
+    loadComponent: () => import('./pages/dashboard/travel-dashboard.component').then(m => m.TravelDashboardComponent),
+    title: 'TravelNexus dashboard'
+  },
+  {
+    path: 'reminders',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.reminderView] },
+    loadComponent: () => import('./pages/reminders/reminders-page.component').then(m => m.TravelRemindersPageComponent),
+    title: 'Reminders'
+  },
+  {
+    path: 'reports',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.reportView, TRAVEL_PERMISSIONS.financeView, TRAVEL_PERMISSIONS.profitabilityView] },
+    loadComponent: () => import('./pages/reports/reports-page.component').then(m => m.TravelReportsPageComponent),
+    title: 'Reports & Analytics'
+  },
   {
     path: 'customers',
     canActivate: [permissionGuard],

@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, of, switchMap, tap } from 'rxjs';
 import { UiEmptyStateComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
@@ -94,7 +94,8 @@ export class PayablesBillsTabComponent {
   protected readonly status = signal<TravelSupplierBillStatus | ''>('');
   protected readonly from = signal('');
   protected readonly to = signal('');
-  protected readonly overdue = signal(false);
+  /** `?overdue=true` opens the list already filtered (dashboard deep link). */
+  protected readonly overdue = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('overdue') === 'true');
   protected readonly search$ = new Subject<string>();
   private readonly load$ = new Subject<void>();
 

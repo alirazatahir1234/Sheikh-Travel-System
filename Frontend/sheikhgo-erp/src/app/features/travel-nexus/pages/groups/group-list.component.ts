@@ -4,11 +4,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap, tap } from 'rxjs';
 import { UiEmptyStateComponent, UiModalComponent, UiPageHeaderComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { statusFromQuery } from '../../models/travel-date.util';
 import {
   GROUP_STATUS_LABEL, GROUP_STATUS_VARIANT, TRAVEL_GROUP_STATUSES, TRAVEL_PERMISSIONS, TravelGroupListItem, TravelGroupStatus,
   TravelGroupSummary, TravelPackageListItem
@@ -153,7 +154,8 @@ export class TravelGroupListComponent {
   protected readonly totalPages = signal(1);
   protected readonly page = signal(1);
   protected readonly search = signal('');
-  protected readonly status = signal<TravelGroupStatus | ''>('');
+  /** `?status=` opens the list already filtered (dashboard pipeline tiles). */
+  protected readonly status = signal<TravelGroupStatus | ''>(statusFromQuery(inject(ActivatedRoute).snapshot.queryParamMap.get('status'), TRAVEL_GROUP_STATUSES));
   protected readonly from = signal('');
   protected readonly to = signal('');
   protected readonly loading = signal(true);

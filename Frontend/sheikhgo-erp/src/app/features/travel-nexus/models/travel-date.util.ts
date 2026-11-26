@@ -22,3 +22,8 @@ export const asUtc = (iso: string | null | undefined): string | null =>
 /** True when a follow-up time is now or in the past. */
 export const isDue = (iso: string | null | undefined, now = new Date()): boolean =>
   !!iso && new Date(asUtc(iso)!) <= now;
+
+/** A `?status=` query value when it is one of the allowed statuses, else '' (never trust the URL). */
+export function statusFromQuery<T extends string>(value: string | null, allowed: readonly T[]): T | '' {
+  return value && (allowed as readonly string[]).includes(value) ? (value as T) : '';
+}

@@ -9,9 +9,10 @@ import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap,
 import { UiEmptyStateComponent, UiPageHeaderComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { statusFromQuery } from '../../models/travel-date.util';
 import {
   TRAVEL_PERMISSIONS, TravelVisaCaseListItem, TravelVisaCaseStatus, TravelVisaCaseSummary, VISA_PIPELINE_STAGES,
-  VISA_STATUS_LABEL, VISA_STATUS_VARIANT
+  VISA_STATUS_LABEL, VISA_STATUS_VARIANT, TRAVEL_VISA_CASE_STATUSES
 } from '../../models/travel.models';
 import { asUtc } from '../../models/travel-date.util';
 import { TravelConfigService } from '../../services/travel-config.service';
@@ -174,7 +175,8 @@ export class TravelVisaCaseListComponent {
   protected readonly totalPages = signal(1);
   protected readonly page = signal(1);
   protected readonly search = signal('');
-  protected readonly status = signal<TravelVisaCaseStatus | ''>('');
+  /** `?status=` opens the list already filtered (dashboard pipeline tiles). */
+  protected readonly status = signal<TravelVisaCaseStatus | ''>(statusFromQuery(inject(ActivatedRoute).snapshot.queryParamMap.get('status'), TRAVEL_VISA_CASE_STATUSES));
   protected readonly country = signal('');
   protected readonly from = signal('');
   protected readonly to = signal('');

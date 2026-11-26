@@ -57,6 +57,9 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
           <div class="tn-field"><label for="gs-tsc">Supplier credit</label><input id="gs-tsc" class="tn-input uppercase" formControlName="supplierCreditPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-tsr">Supplier refund</label><input id="gs-tsr" class="tn-input uppercase" formControlName="supplierRefundPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-tcp">Commission payout</label><input id="gs-tcp" class="tn-input uppercase" formControlName="payoutPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-qs">Reminder quiet hours start</label><input id="gs-qs" type="number" min="0" max="23" class="tn-input" formControlName="reminderQuietStartHour" />
+            <span class="tn-hint">Customer reminders are held between start and end (local time); staff reminders are not.</span></div>
+          <div class="tn-field"><label for="gs-qe">Reminder quiet hours end</label><input id="gs-qe" type="number" min="0" max="23" class="tn-input" formControlName="reminderQuietEndHour" /></div>
           <div class="tn-field"><label for="gs-terms">Payment terms (days)</label><input id="gs-terms" type="number" min="0" max="365" class="tn-input" formControlName="defaultPaymentTermsDays" />
             <span class="tn-hint">Due date suggested for new invoices.</span></div>
         </div>
@@ -98,6 +101,8 @@ export class GeneralSettingsTabComponent {
     supplierCreditPrefix: ['TSC', PREFIX],
     supplierRefundPrefix: ['TSR', PREFIX],
     payoutPrefix: ['TCP', PREFIX],
+    reminderQuietStartHour: [21 as number | null, [Validators.required, Validators.min(0), Validators.max(23)]],
+    reminderQuietEndHour: [8 as number | null, [Validators.required, Validators.min(0), Validators.max(23)]],
     defaultPaymentTermsDays: [7 as number | null, [Validators.required, Validators.min(0), Validators.max(365)]]
   });
 
@@ -133,7 +138,9 @@ export class GeneralSettingsTabComponent {
       supplierPaymentPrefix: v.supplierPaymentPrefix!.trim().toUpperCase(),
       supplierCreditPrefix: v.supplierCreditPrefix!.trim().toUpperCase(),
       supplierRefundPrefix: v.supplierRefundPrefix!.trim().toUpperCase(),
-      payoutPrefix: v.payoutPrefix!.trim().toUpperCase()
+      payoutPrefix: v.payoutPrefix!.trim().toUpperCase(),
+      reminderQuietStartHour: Number(v.reminderQuietStartHour),
+      reminderQuietEndHour: Number(v.reminderQuietEndHour)
     };
     this.saving.set(true);
     this.saveError.set(null);
@@ -161,7 +168,9 @@ export class GeneralSettingsTabComponent {
       supplierPaymentPrefix: s.supplierPaymentPrefix ?? 'TSP',
       supplierCreditPrefix: s.supplierCreditPrefix ?? 'TSC',
       supplierRefundPrefix: s.supplierRefundPrefix ?? 'TSR',
-      payoutPrefix: s.payoutPrefix ?? 'TCP'
+      payoutPrefix: s.payoutPrefix ?? 'TCP',
+      reminderQuietStartHour: s.reminderQuietStartHour ?? 21,
+      reminderQuietEndHour: s.reminderQuietEndHour ?? 8
     });
   }
 }

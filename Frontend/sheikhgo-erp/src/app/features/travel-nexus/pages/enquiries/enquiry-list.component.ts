@@ -4,11 +4,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap, tap } from 'rxjs';
 import { UiEmptyStateComponent, UiPageHeaderComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { statusFromQuery } from '../../models/travel-date.util';
 import {
   ENQUIRY_STATUS_LABEL, ENQUIRY_STATUS_VARIANT, TRAVEL_ENQUIRY_STATUSES, TRAVEL_PERMISSIONS, TRAVEL_SERVICE_TYPES,
   TravelEnquiryListItem, TravelEnquiryStatus, TravelEnquirySummary, TravelServiceType
@@ -139,11 +140,13 @@ export class TravelEnquiryListComponent {
   protected readonly totalPages = signal(1);
   protected readonly page = signal(1);
   protected readonly search = signal('');
-  protected readonly status = signal<TravelEnquiryStatus | ''>('');
+  /** `?status=` opens the list already filtered (dashboard pipeline tiles). */
+  protected readonly status = signal<TravelEnquiryStatus | ''>(statusFromQuery(inject(ActivatedRoute).snapshot.queryParamMap.get('status'), TRAVEL_ENQUIRY_STATUSES));
   protected readonly service = signal<TravelServiceType | ''>('');
   protected readonly from = signal('');
   protected readonly to = signal('');
-  protected readonly followUpDue = signal(false);
+  /** `?followUpDue=true` opens the list already filtered (dashboard deep link). */
+  protected readonly followUpDue = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('followUpDue') === 'true');
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
 

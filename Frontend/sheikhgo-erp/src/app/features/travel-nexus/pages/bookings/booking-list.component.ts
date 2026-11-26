@@ -9,6 +9,7 @@ import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap,
 import { UiEmptyStateComponent, UiModalComponent, UiPageHeaderComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { statusFromQuery } from '../../models/travel-date.util';
 import {
   BOOKING_STATUS_VARIANT, TRAVEL_BOOKING_STATUSES, TRAVEL_PERMISSIONS, TravelBookingListItem, TravelBookingStatus, TravelBookingSummary,
   TravelCustomerListItem
@@ -148,7 +149,8 @@ export class TravelBookingListComponent {
   protected readonly totalPages = signal(1);
   protected readonly page = signal(1);
   protected readonly search = signal('');
-  protected readonly status = signal<TravelBookingStatus | ''>('');
+  /** `?status=` opens the list already filtered (dashboard pipeline tiles). */
+  protected readonly status = signal<TravelBookingStatus | ''>(statusFromQuery(inject(ActivatedRoute).snapshot.queryParamMap.get('status'), TRAVEL_BOOKING_STATUSES));
   protected readonly ownerType = signal<'Customer' | 'Group' | ''>('');
   protected readonly from = signal('');
   protected readonly to = signal('');

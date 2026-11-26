@@ -79,6 +79,7 @@ const travelNexusGroup: NavGroup = {
   icon: 'flight_takeoff',
   collapsible: true,
   items: [
+    { id: 'travel-dashboard', label: 'Dashboard', icon: 'dashboard', route: '/travel/dashboard', moduleKey: 'travel-agency' },
     { id: 'travel-enquiries', label: 'CRM & Enquiries', icon: 'contact_phone', route: '/travel/enquiries', moduleKey: 'travel-agency' },
     { id: 'travel-customers', label: 'Customers', icon: 'groups', route: '/travel/customers', moduleKey: 'travel-agency' },
     { id: 'travel-visa-cases', label: 'Visa Management', icon: 'assignment_ind', route: '/travel/visa-cases', moduleKey: 'travel-agency' },
@@ -90,6 +91,8 @@ const travelNexusGroup: NavGroup = {
     { id: 'travel-finance', label: 'Invoices & Payments', icon: 'receipt_long', route: '/travel/finance', moduleKey: 'travel-agency' },
     { id: 'travel-commissions', label: 'Commissions', icon: 'handshake', route: '/travel/commissions', moduleKey: 'travel-agency' },
     { id: 'travel-profitability', label: 'Profitability', icon: 'trending_up', route: '/travel/profitability', moduleKey: 'travel-agency' },
+    { id: 'travel-reminders', label: 'Reminders', icon: 'notifications_active', route: '/travel/reminders', moduleKey: 'travel-agency' },
+    { id: 'travel-reports', label: 'Reports & Analytics', icon: 'analytics', route: '/travel/reports', moduleKey: 'travel-agency' },
     { id: 'travel-settings', label: 'Settings', icon: 'tune', route: '/travel/settings', moduleKey: 'travel-agency' }
   ]
 };
