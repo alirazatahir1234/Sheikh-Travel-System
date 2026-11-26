@@ -93,6 +93,13 @@ public class TravelSettingsDto
     public string RefundPrefix { get; set; } = "TRF";
     /// <summary>Days between issue and due date suggested for new invoices.</summary>
     public int DefaultPaymentTermsDays { get; set; } = 7;
+    /// <summary>Currency profitability converts into (falls back to the default currency).</summary>
+    public string? ReportingCurrencyCode { get; set; }
+    public string SupplierBillPrefix { get; set; } = "TSB";
+    public string SupplierPaymentPrefix { get; set; } = "TSP";
+    public string SupplierCreditPrefix { get; set; } = "TSC";
+    public string SupplierRefundPrefix { get; set; } = "TSR";
+    public string PayoutPrefix { get; set; } = "TCP";
     public int PassportExpiryWarningDays { get; set; } = 180;
 }
 
@@ -107,4 +114,10 @@ public record UpdateTravelSettingsDto(
     string? ReceiptPrefix = null,
     string? CreditNotePrefix = null,
     string? RefundPrefix = null,
-    int? DefaultPaymentTermsDays = null);
+    int? DefaultPaymentTermsDays = null,
+    string? ReportingCurrencyCode = null,
+    string? SupplierBillPrefix = null,
+    string? SupplierPaymentPrefix = null,
+    string? SupplierCreditPrefix = null,
+    string? SupplierRefundPrefix = null,
+    string? PayoutPrefix = null);

@@ -41,6 +41,18 @@ public class UpdateTravelSettingsCommandValidator : AbstractValidator<UpdateTrav
         RuleFor(x => x.Settings.RefundPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
             .When(x => !string.IsNullOrEmpty(x.Settings.RefundPrefix));
         RuleFor(x => x.Settings.DefaultPaymentTermsDays).InclusiveBetween(0, 365).When(x => x.Settings.DefaultPaymentTermsDays.HasValue);
+        RuleFor(x => x.Settings.ReportingCurrencyCode).Must(c => TravelValues.IsCurrencyCode(c!.ToUpperInvariant()))
+            .When(x => !string.IsNullOrEmpty(x.Settings.ReportingCurrencyCode)).WithMessage("Reporting currency must be a 3-letter ISO code.");
+        RuleFor(x => x.Settings.SupplierBillPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.SupplierBillPrefix));
+        RuleFor(x => x.Settings.SupplierPaymentPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.SupplierPaymentPrefix));
+        RuleFor(x => x.Settings.SupplierCreditPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.SupplierCreditPrefix));
+        RuleFor(x => x.Settings.SupplierRefundPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.SupplierRefundPrefix));
+        RuleFor(x => x.Settings.PayoutPrefix).MaximumLength(10).Matches(PrefixPattern).WithMessage(PrefixMessage)
+            .When(x => !string.IsNullOrEmpty(x.Settings.PayoutPrefix));
         RuleFor(x => x.Settings.PassportExpiryWarningDays).InclusiveBetween(0, 730);
     }
 }

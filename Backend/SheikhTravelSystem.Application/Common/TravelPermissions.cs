@@ -59,6 +59,16 @@ public static class TravelPermissions
     /// <summary>Mark payments reconciled against the bank.</summary>
     public const string FinanceReconcile = "Travel.Finance.Reconcile";
 
+    /// <summary>Draft and post supplier bills.</summary>
+    public const string SupplierBillManage = "Travel.SupplierBill.Manage";
+    /// <summary>Record and allocate payments to suppliers; record refunds received.</summary>
+    public const string SupplierPaymentManage = "Travel.SupplierPayment.Manage";
+    public const string CommissionView = "Travel.Commission.View";
+    /// <summary>Commission rules, sub-agents, payouts and invoice attribution.</summary>
+    public const string CommissionManage = "Travel.Commission.Manage";
+    /// <summary>Margins and profitability (sensitive).</summary>
+    public const string ProfitabilityView = "Travel.Profitability.View";
+
     /// <summary>Phase 1 permissions (seeded by TravelNexusFoundationMigration).</summary>
     public static readonly string[] Phase1 = [View, Settings, CustomerView, CustomerManage, TravelerViewPii];
 
@@ -77,5 +87,8 @@ public static class TravelPermissions
     /// <summary>Phase 6A permissions (seeded by TravelNexusFinanceMigration).</summary>
     public static readonly string[] Phase6 = [FinanceView, InvoiceManage, PaymentManage, FinanceAdjust, FinanceReconcile];
 
-    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5, .. Phase6];
+    /// <summary>Phase 6B permissions (seeded by TravelNexusSupplierFinanceMigration).</summary>
+    public static readonly string[] Phase6B = [SupplierBillManage, SupplierPaymentManage, CommissionView, CommissionManage, ProfitabilityView];
+
+    public static readonly string[] All = [.. Phase1, .. Phase2, .. Phase3, .. Phase4, .. Phase5, .. Phase6, .. Phase6B];
 }

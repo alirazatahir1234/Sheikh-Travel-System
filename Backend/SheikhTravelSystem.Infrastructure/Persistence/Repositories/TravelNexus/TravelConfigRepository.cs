@@ -331,7 +331,8 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<TravelSettingsDto>(new CommandDefinition("""
             SELECT DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix, GroupPrefix, BookingPrefix, ReceiptPrefix, CreditNotePrefix,
-                   RefundPrefix, DefaultPaymentTermsDays, PassportExpiryWarningDays
+                   RefundPrefix, DefaultPaymentTermsDays, ReportingCurrencyCode, SupplierBillPrefix, SupplierPaymentPrefix,
+                   SupplierCreditPrefix, SupplierRefundPrefix, PayoutPrefix, PassportExpiryWarningDays
             FROM TravelSettings WHERE TenantId = @TenantId
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken))
             ?? new TravelSettingsDto();
@@ -350,6 +351,12 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 CreditNotePrefix = COALESCE(@CreditNotePrefix, CreditNotePrefix),
                 RefundPrefix = COALESCE(@RefundPrefix, RefundPrefix),
                 DefaultPaymentTermsDays = COALESCE(@DefaultPaymentTermsDays, DefaultPaymentTermsDays),
+                ReportingCurrencyCode = COALESCE(@ReportingCurrencyCode, ReportingCurrencyCode),
+                SupplierBillPrefix = COALESCE(@SupplierBillPrefix, SupplierBillPrefix),
+                SupplierPaymentPrefix = COALESCE(@SupplierPaymentPrefix, SupplierPaymentPrefix),
+                SupplierCreditPrefix = COALESCE(@SupplierCreditPrefix, SupplierCreditPrefix),
+                SupplierRefundPrefix = COALESCE(@SupplierRefundPrefix, SupplierRefundPrefix),
+                PayoutPrefix = COALESCE(@PayoutPrefix, PayoutPrefix),
                 PassportExpiryWarningDays = @PassportExpiryWarningDays,
                 UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @UserId
             WHERE TenantId = @TenantId;
@@ -357,10 +364,13 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
             IF @@ROWCOUNT = 0
                 INSERT INTO TravelSettings (TenantId, DefaultCurrencyCode, EnquiryPrefix, VisaCasePrefix, InvoicePrefix,
                     GroupPrefix, BookingPrefix, ReceiptPrefix, CreditNotePrefix, RefundPrefix, DefaultPaymentTermsDays,
+                    ReportingCurrencyCode, SupplierBillPrefix, SupplierPaymentPrefix, SupplierCreditPrefix, SupplierRefundPrefix, PayoutPrefix,
                     PassportExpiryWarningDays, UpdatedAt, UpdatedBy)
                 VALUES (@TenantId, @DefaultCurrencyCode, @EnquiryPrefix, @VisaCasePrefix, @InvoicePrefix,
                     COALESCE(@GroupPrefix, N'GRP'), COALESCE(@BookingPrefix, N'BKG'), COALESCE(@ReceiptPrefix, N'TRCP'),
                     COALESCE(@CreditNotePrefix, N'TCN'), COALESCE(@RefundPrefix, N'TRF'), COALESCE(@DefaultPaymentTermsDays, 7),
+                    @ReportingCurrencyCode, COALESCE(@SupplierBillPrefix, N'TSB'), COALESCE(@SupplierPaymentPrefix, N'TSP'),
+                    COALESCE(@SupplierCreditPrefix, N'TSC'), COALESCE(@SupplierRefundPrefix, N'TSR'), COALESCE(@PayoutPrefix, N'TCP'),
                     @PassportExpiryWarningDays, SYSUTCDATETIME(), @UserId);
             """,
             new
@@ -376,6 +386,12 @@ public sealed class TravelConfigRepository(IDbConnectionFactory dbFactory) : ITr
                 CreditNotePrefix = string.IsNullOrWhiteSpace(dto.CreditNotePrefix) ? null : dto.CreditNotePrefix,
                 RefundPrefix = string.IsNullOrWhiteSpace(dto.RefundPrefix) ? null : dto.RefundPrefix,
                 dto.DefaultPaymentTermsDays,
+                ReportingCurrencyCode = string.IsNullOrWhiteSpace(dto.ReportingCurrencyCode) ? null : dto.ReportingCurrencyCode.ToUpperInvariant(),
+                SupplierBillPrefix = string.IsNullOrWhiteSpace(dto.SupplierBillPrefix) ? null : dto.SupplierBillPrefix,
+                SupplierPaymentPrefix = string.IsNullOrWhiteSpace(dto.SupplierPaymentPrefix) ? null : dto.SupplierPaymentPrefix,
+                SupplierCreditPrefix = string.IsNullOrWhiteSpace(dto.SupplierCreditPrefix) ? null : dto.SupplierCreditPrefix,
+                SupplierRefundPrefix = string.IsNullOrWhiteSpace(dto.SupplierRefundPrefix) ? null : dto.SupplierRefundPrefix,
+                PayoutPrefix = string.IsNullOrWhiteSpace(dto.PayoutPrefix) ? null : dto.PayoutPrefix,
                 dto.PassportExpiryWarningDays,
                 UserId = userId
             },

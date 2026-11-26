@@ -92,6 +92,22 @@ public static partial class TravelValues
         ["InvoiceCreated", "InvoiceUpdated", "InvoiceIssued", "InvoiceVoided", "PaymentRecorded", "PaymentStatus", "Allocated", "Unallocated",
          "CreditNoteIssued", "CreditNoteVoided", "RefundPaid", "Reconciled"];
 
+    // ── Phase 6B: supplier finance, commissions ──
+    public static readonly string[] SupplierRateTypes = ["HotelRoomNight", "Transfer", "Service"];
+    public static readonly string[] SupplierCommissionServiceTypes = ["Flight", "Hotel", "Other"];
+    public static readonly string[] SupplierCommissionBases = ["PercentOfCost", "FixedPerUnit"];
+    public static readonly string[] SupplierBillStatuses = ["Draft", "Posted", "Void"];
+    public static readonly string[] SupplierBillSourceTypes = ["Flight", "Hotel"];
+    public static readonly string[] ContextTypes = ["Booking", "VisaCase", "Group"];
+    public static readonly string[] BeneficiaryTypes = ["Staff", "SubAgent"];
+    public static readonly string[] CommissionScopes = ["All", "Flight", "Hotel", "Visa", "Umrah"];
+    public static readonly string[] CommissionBases = ["PercentOfMargin", "PercentOfSell"];
+    /// <summary>Derived from the invoice balance, never stored.</summary>
+    public static readonly string[] CommissionStatuses = ["Accrued", "Payable"];
+    public static readonly string[] SupplierFinanceEventTypes =
+        ["BillCreated", "BillUpdated", "BillPosted", "BillVoided", "PaymentRecorded", "PaymentStatus", "Allocated", "Unallocated",
+         "CreditIssued", "CreditVoided", "RefundReceived", "Reconciled", "PayoutRecorded", "AttributionChanged"];
+
     /// <summary>Passport status values computed for travelers (not stored).</summary>
     public static readonly string[] PassportStatuses = ["Missing", "Valid", "ExpiringSoon", "Expired"];
 

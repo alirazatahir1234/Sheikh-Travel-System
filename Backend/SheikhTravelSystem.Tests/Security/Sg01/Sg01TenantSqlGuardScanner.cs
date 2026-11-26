@@ -33,7 +33,10 @@ public static class Sg01TenantSqlGuardScanner
         "TravelSuppliers", "TravelBookings", "TravelFlightBookings", "TravelFlightSegments", "TravelFlightPassengers",
         "TravelHotelBookings", "TravelHotelBookingRooms", "TravelHotelBookingGuests", "TravelBookingCancellations", "TravelBookingHistory",
         "TravelInvoices", "TravelInvoiceLines", "TravelInvoiceInstallments", "TravelPayments", "TravelPaymentAllocations",
-        "TravelCreditNotes", "TravelRefunds", "TravelFinanceHistory"
+        "TravelCreditNotes", "TravelRefunds", "TravelFinanceHistory",
+        "TravelExchangeRates", "TravelSubAgents", "TravelSupplierRates", "TravelSupplierCommissionRules", "TravelSupplierBills",
+        "TravelSupplierBillLines", "TravelSupplierPayments", "TravelSupplierPaymentAllocations", "TravelSupplierCredits", "TravelSupplierRefunds",
+        "TravelCommissionRules", "TravelCommissionPayouts", "TravelSupplierFinanceHistory"
     ];
 
     private static readonly Regex SqlTableTouch = BuildTableTouchRegex();
