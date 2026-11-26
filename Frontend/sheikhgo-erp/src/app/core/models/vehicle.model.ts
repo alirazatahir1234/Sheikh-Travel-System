@@ -1,3 +1,5 @@
+import { normalizePlateNumber } from '../utils/plate-number.util';
+
 /**
  * Vehicle-related DTOs that mirror SheikhTravelSystem.Application.Features.Vehicles.DTOs.
  * Naming, casing, and numeric enum values must match the backend exactly.
@@ -326,7 +328,7 @@ function toOptionalIsoDate(value: string | null | undefined): string | null {
 export function sanitizeCreateVehicleDto(dto: CreateVehicleDto): CreateVehicleDto {
   return {
     name: dto.name?.trim() || 'Draft Vehicle',
-    registrationNumber: dto.registrationNumber?.trim() || '',
+    registrationNumber: normalizePlateNumber(dto.registrationNumber),
     vehicleCode: emptyToNull(dto.vehicleCode ?? undefined),
     vin: emptyToNull(dto.vin ?? undefined),
     make: emptyToNull(dto.make ?? undefined),

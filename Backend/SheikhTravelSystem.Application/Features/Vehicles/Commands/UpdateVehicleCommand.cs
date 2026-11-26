@@ -60,7 +60,10 @@ public class UpdateVehicleCommandHandler(
 {
     public async Task<ApiResponse<bool>> Handle(UpdateVehicleCommand request, CancellationToken cancellationToken)
     {
-        var dto = request.Vehicle;
+        var dto = request.Vehicle with
+        {
+            RegistrationNumber = PlateNumberNormalizer.Normalize(request.Vehicle.RegistrationNumber)
+        };
 
         var currentTenantId = await vehicleRepository.GetTenantIdAsync(request.Id, cancellationToken);
         if (!currentTenantId.HasValue)

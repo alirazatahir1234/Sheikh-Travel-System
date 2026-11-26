@@ -66,7 +66,7 @@ public class BulkCreateVehiclesCommandHandler(
         {
             var row = i + 1;
             var dto = request.Vehicles[i];
-            var reg = dto.RegistrationNumber?.Trim() ?? "";
+            var reg = PlateNumberNormalizer.Normalize(dto.RegistrationNumber);
 
             if (string.IsNullOrWhiteSpace(reg))
             {

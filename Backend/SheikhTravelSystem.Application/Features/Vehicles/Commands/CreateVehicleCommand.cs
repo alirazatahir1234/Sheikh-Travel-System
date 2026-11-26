@@ -53,8 +53,12 @@ public class CreateVehicleCommandHandler(IVehicleRepository vehicleRepository, I
 {
     public async Task<ApiResponse<int>> Handle(CreateVehicleCommand request, CancellationToken cancellationToken)
     {
+        var vehicle = request.Vehicle with
+        {
+            RegistrationNumber = PlateNumberNormalizer.Normalize(request.Vehicle.RegistrationNumber)
+        };
         var id = await vehicleRepository.CreateAsync(
-            tenantContext.GetRequiredTenantId(), request.Vehicle, request.SaveAsDraft, cancellationToken);
+            tenantContext.GetRequiredTenantId(), vehicle, request.SaveAsDraft, cancellationToken);
         var message = request.SaveAsDraft ? "Vehicle draft saved." : "Vehicle created successfully.";
         return ApiResponse<int>.SuccessResponse(id, message);
     }
