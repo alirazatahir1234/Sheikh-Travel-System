@@ -92,20 +92,22 @@ public static class TravelNexusRemindersMigration
             END
             """, cancellationToken: cancellationToken));
 
-        // ── Notification templates (platform rows; a later tenant-specific row would need a distinct key) ──
+        // ── Notification templates ───────────────────────────────────────────────
+        // NotificationTemplates.TenantId is NOT NULL (NotificationTemplatesTenantEnforceMigration) and (TemplateKey, Channel)
+        // is unique across tenants, so a template cannot be a platform row. Seed it under the first tenant, as the other
+        // template migrations do. A tenant without its own row still sends: NotificationService falls back to the
+        // reminder's own title and message, which is all this template renders.
         foreach (var channel in new[] { "InApp", "Email", "Sms" })
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 IF OBJECT_ID(N'dbo.NotificationTemplates', N'U') IS NOT NULL
                 AND NOT EXISTS (SELECT 1 FROM NotificationTemplates WHERE TemplateKey = N'travel_reminder' AND Channel = @Channel AND IsDeleted = 0)
-                BEGIN
-                    IF COL_LENGTH(N'dbo.NotificationTemplates', N'Variables') IS NOT NULL
-                        INSERT INTO NotificationTemplates (TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Variables, CreatedAt, IsDeleted)
-                        VALUES (N'travel_reminder', N'TravelNexus reminder', N'{{Title}}', N'{{Message}}', @Channel, 1, N'["Title","Message"]', GETUTCDATE(), 0);
-                    ELSE
-                        INSERT INTO NotificationTemplates (TemplateKey, TemplateName, Subject, Body, Channel, IsActive, CreatedAt, IsDeleted)
-                        VALUES (N'travel_reminder', N'TravelNexus reminder', N'{{Title}}', N'{{Message}}', @Channel, 1, GETUTCDATE(), 0);
-                END
+                    INSERT INTO NotificationTemplates
+                        (TenantId, TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Language, Variables, CreatedAt, IsDeleted)
+                    SELECT TOP 1 ten.Id, N'travel_reminder', N'TravelNexus reminder', N'{{Title}}', N'{{Message}}', @Channel, 1, N'en',
+                           N'["Title","Message"]', GETUTCDATE(), 0
+                    FROM Tenants ten
+                    ORDER BY ten.Id;
                 """, new { Channel = channel }, cancellationToken: cancellationToken));
         }
 
