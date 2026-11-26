@@ -310,13 +310,18 @@ public static class TravelNexusUmrahMigration
             """, cancellationToken: cancellationToken));
 
         // Group visa cases: a case belongs to a customer OR an Umrah group (pilgrims from many customers).
+        // The column add is its own batch: SQL Server compiles a whole batch before running it, so a
+        // CHECK / index referencing GroupId in the same batch fails ("Invalid column name 'GroupId'")
+        // and the ADD never runs on a database that does not have the column yet.
         await connection.ExecuteAsync(new CommandDefinition("""
             IF COL_LENGTH(N'dbo.TravelVisaCases', N'GroupId') IS NULL
             BEGIN
                 ALTER TABLE dbo.TravelVisaCases ADD GroupId INT NULL
                     CONSTRAINT FK_TravelVisaCases_Group FOREIGN KEY REFERENCES dbo.TravelGroups(Id);
             END
+            """, cancellationToken: cancellationToken));
 
+        await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.TravelVisaCases') AND name = N'CustomerId' AND is_nullable = 0)
             BEGIN
                 DROP INDEX IX_TravelVisaCases_Tenant_Customer ON dbo.TravelVisaCases;
