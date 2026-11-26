@@ -48,10 +48,6 @@
   }
 }
 
-.filter-toggle--admin span {
-  color: #7c2d12;
-}
-
 .compare-chip {
   font-size: 12px;
   font-weight: 600;
@@ -1120,6 +1116,25 @@
 
   .history-panel--right {
     width: min(300px, calc(100% - 16px));
+  }
+}
+
+/* Wide screens: the details panel docks beside the map as a third column, so it never
+   covers the route, the map toolbar or the playback speed buttons. */
+@media (min-width: 1100px) {
+  .history-grid--detail-open {
+    grid-template-columns: clamp(160px, 16vw, 208px) minmax(0, 1fr) clamp(280px, 22vw, 320px);
+  }
+
+  .history-panel--right {
+    position: static;
+    width: auto;
+    max-height: calc(100vh - 200px);
+    background: #fff;
+    backdrop-filter: none;
+    border-radius: 8px;
+    box-shadow: none;
+    animation: none;
   }
 }
 

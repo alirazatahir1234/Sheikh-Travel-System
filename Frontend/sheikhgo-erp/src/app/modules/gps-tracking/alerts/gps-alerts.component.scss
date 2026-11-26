@@ -844,3 +844,29 @@ tr.sev-low { border-left: 3px solid #9ca3af; }
   .desktop-table { display: block !important; }
   .mobile-cards { display: none !important; }
 }
+
+// Per-browser notification preference (Rules tab).
+.browser-alert-pref {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+
+  input {
+    margin-top: 3px;
+  }
+
+  strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  small {
+    display: block;
+    font-size: 12px;
+  }
+}

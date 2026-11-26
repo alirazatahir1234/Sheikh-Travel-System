@@ -50,10 +50,9 @@
   <div class="replay-overlay" *ngIf="loading">
     <div class="loading-panel">
       <app-brand-loader size="sm" message="Loading route…" />
-      <div class="loading-progress">
-        <div class="loading-progress__bar" [style.width.%]="loadingProgress"></div>
+      <div class="loading-progress" role="progressbar" aria-label="Loading route">
+        <div class="loading-progress__bar"></div>
       </div>
-      <span class="loading-progress__pct">{{ loadingProgress | number:'1.0-0' }}%</span>
       <p class="loading-timeout" *ngIf="loadingTimedOut">
         This is taking longer than expected. Large ranges can take a little longer to load.
       </p>

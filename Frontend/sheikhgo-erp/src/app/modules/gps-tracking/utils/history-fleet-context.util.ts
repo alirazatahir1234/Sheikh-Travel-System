@@ -35,6 +35,22 @@ export function storeHistoryPagePrefs(prefs: HistoryPagePrefs): void {
   localStorage.setItem(HISTORY_PREFS_KEY, JSON.stringify(prefs));
 }
 
+/**
+ * "Notify me when a vehicle is stationary > 24h" is a per-browser preference, set from
+ * Alerts → Rules. GPS History reads it when it refreshes live positions.
+ */
+export function readStationary24hAlertPref(): boolean {
+  return readHistoryPagePrefs().alertStationary24h;
+}
+
+export function storeStationary24hAlertPref(enabled: boolean): void {
+  try {
+    storeHistoryPagePrefs({ ...readHistoryPagePrefs(), alertStationary24h: enabled });
+  } catch {
+    /* storage unavailable (private window) — the preference just does not persist */
+  }
+}
+
 export function resolveLastKnownIso(
   vehicle: VehicleListItem,
   live?: VehicleLocation | null

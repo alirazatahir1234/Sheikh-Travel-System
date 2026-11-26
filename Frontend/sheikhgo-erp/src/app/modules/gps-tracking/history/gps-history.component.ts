@@ -89,7 +89,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   detailPanelOpen = false;
   rawPositions: TripReplayPosition[] = [];
   loading = false;
-  loadingProgress = 0;
   loadingTimedOut = false;
   loadAttempt = 0;
   error = '';
@@ -110,7 +109,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ]);
 
   private loadSub?: Subscription;
-  private progressTimer?: ReturnType<typeof setInterval>;
   private timeoutTimer?: ReturnType<typeof setTimeout>;
   private geocodeSub?: Subscription;
   private readonly geocodeRequests$ = new Subject<{
@@ -279,6 +277,24 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.noData = false;
     this.error = '';
     this.compareOverlays = [];
+  }
+
+  /** The details panel is rendered (docked beside the map on wide screens). */
+  get detailPanelVisible(): boolean {
+    return this.detailPanelOpen && !!this.vehicleId && !!(this.bundle || this.selectedPosition);
+  }
+
+  /**
+   * Why the "All vehicles" list is empty. Never "no match" while the search box is empty:
+   * with no search, an empty list means every vehicle is already shown under Recent.
+   */
+  get vehicleListEmptyMessage(): string | null {
+    if (this.needsCompanySelection) return 'Select a company to view vehicles.';
+    if (this.filteredVehicles.length) return null;
+    if (this.vehicleSearch.trim()) return 'No vehicles match your search.';
+    if (this.filterStationaryOverOneHour) return 'No vehicles have been stationary for over an hour.';
+    if (!this.vehicles.length) return 'No vehicles in this company yet.';
+    return null;
   }
 
   get filteredVehicles(): VehicleListItem[] {
@@ -562,7 +578,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.rawLoadSub?.unsubscribe();
     this.loading = true;
-    this.loadingProgress = 0;
     this.loadingTimedOut = false;
     this.error = '';
     this.noData = false;
@@ -572,12 +587,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.rawPositions = [];
     this.rawCacheKey = null;
     this.loadAttempt++;
-
-    this.progressTimer = setInterval(() => {
-      if (this.loadingProgress < 92) {
-        this.loadingProgress = Math.min(92, this.loadingProgress + 4 + Math.random() * 6);
-      }
-    }, 400);
 
     this.timeoutTimer = setTimeout(() => {
       if (this.loading) {
@@ -980,14 +989,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.persistHistoryPrefs();
   }
 
-  async onAlert24hChange(enabled: boolean): Promise<void> {
-    this.alertStationary24h = enabled;
-    this.persistHistoryPrefs();
-    if (enabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-  }
-
   openExternalMap(lat: number, lng: number): void {
     window.open(googleMapsUrl(lat, lng), '_blank', 'noopener,noreferrer');
   }
@@ -1287,15 +1288,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   private finishLoading(): void {
     this.loading = false;
-    this.loadingProgress = 100;
     this.clearLoadTimers();
   }
 
   private clearLoadTimers(): void {
-    if (this.progressTimer) {
-      clearInterval(this.progressTimer);
-      this.progressTimer = undefined;
-    }
     if (this.timeoutTimer) {
       clearTimeout(this.timeoutTimer);
       this.timeoutTimer = undefined;

@@ -159,17 +159,26 @@
   overflow: hidden;
 }
 
+// Indeterminate: the replay is one request, so there is no real percentage to show.
 .loading-progress__bar {
+  width: 40%;
   height: 100%;
   background: linear-gradient(90deg, #0f766e, #14b8a6);
   border-radius: 999px;
-  transition: width 0.3s ease;
+  animation: loading-progress-slide 1.2s ease-in-out infinite;
 }
 
-.loading-progress__pct {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f766e;
+@keyframes loading-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-progress__bar {
+    width: 100%;
+    animation: none;
+    opacity: 0.6;
+  }
 }
 
 .loading-timeout {

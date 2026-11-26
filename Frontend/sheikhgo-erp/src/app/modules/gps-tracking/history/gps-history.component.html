@@ -45,21 +45,16 @@
           (change)="onFilterStationaryChange($any($event.target).checked)" />
         <span>Stationary &gt; 1 hour</span>
       </label>
-      <label class="filter-date touch-target">
-        <span>Hide records before</span>
+      <label
+        class="filter-date touch-target"
+        matTooltip="Hides earlier entries in the stops list only. The route and the totals always use the range selected above.">
+        <span>Hide stops before</span>
         <input
           type="date"
           [(ngModel)]="hideRecordsBefore"
           (change)="onHideBeforeChange()" />
       </label>
-      <label class="filter-toggle filter-toggle--admin touch-target">
-        <input
-          type="checkbox"
-          [checked]="alertStationary24h"
-          (change)="onAlert24hChange($any($event.target).checked)" />
-        <span>Admin alert if any vehicle stationary &gt; 24h</span>
-      </label>
-      <span class="compare-chip" *ngIf="compareSelectionCount > 0">
+      <span class="compare-chip" *ngIf="compareSelectionCount >= 2">
         {{ compareSelectionCount }} selected for compare
         <button type="button" class="link-btn" (click)="clearCompareSelection()">Clear</button>
       </span>
@@ -179,7 +174,7 @@
 
   <div
     class="history-grid"
-    [class.history-grid--detail-open]="detailPanelOpen">
+    [class.history-grid--detail-open]="detailPanelVisible">
     <aside class="history-panel history-panel--left">
       <div class="recent-block" *ngIf="recentVehicles.length && !vehicleSearch">
         <div class="panel-subtitle-row">
@@ -199,7 +194,7 @@
       </div>
 
       <div class="vehicle-scroll">
-        <div class="panel-subtitle-row" *ngIf="!vehicleSearch">
+        <div class="panel-subtitle-row" *ngIf="!vehicleSearch && filteredVehicles.length">
           <h3 class="panel-subtitle">All vehicles</h3>
           <span class="panel-subtitle-meta">{{ filteredVehicles.length }}</span>
         </div>
@@ -211,8 +206,7 @@
           (click)="selectVehicle(v.id)">
           <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
         </button>
-        <p class="panel-empty" *ngIf="needsCompanySelection">Select a company to view vehicles.</p>
-        <p class="panel-empty" *ngIf="!needsCompanySelection && !filteredVehicles.length">No vehicles match your search.</p>
+        <p class="panel-empty" *ngIf="vehicleListEmptyMessage as emptyMessage">{{ emptyMessage }}</p>
       </div>
     </aside>
 
@@ -225,7 +219,6 @@
         [stops]="visibleStops"
         [events]="bundle?.events ?? []"
         [loading]="loading"
-        [loadingProgress]="loadingProgress"
         [loadingTimedOut]="loadingTimedOut"
         [noData]="noData"
         [driverName]="driverLabel(vehicleId ?? 0)"
@@ -256,7 +249,7 @@
 
     <aside
       class="history-panel history-panel--right"
-      *ngIf="detailPanelOpen && vehicleId && (bundle || selectedPosition)"
+      *ngIf="detailPanelVisible"
       aria-label="Route and position details">
       <div class="history-panel__head">
         <h2 class="history-panel__title">Details</h2>

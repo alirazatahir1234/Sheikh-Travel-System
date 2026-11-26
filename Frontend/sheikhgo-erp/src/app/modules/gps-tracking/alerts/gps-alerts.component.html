@@ -416,6 +416,16 @@
         </button>
       </div>
     </div>
+    <label class="browser-alert-pref">
+      <input
+        type="checkbox"
+        [checked]="alertStationary24h"
+        (change)="onAlertStationary24hChange($any($event.target).checked)" />
+      <span>
+        <strong>Notify me in this browser when a vehicle has been stationary for more than 24 hours</strong>
+        <small class="muted">Saved for this browser only. Checked while GPS History is open.</small>
+      </span>
+    </label>
     <div *ngIf="rules.length === 0" class="empty-state empty-state--ok">
       <mat-icon>rule</mat-icon>
       <p>No alert rules configured.</p>

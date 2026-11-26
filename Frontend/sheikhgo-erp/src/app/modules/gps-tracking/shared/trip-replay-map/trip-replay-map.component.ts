@@ -58,7 +58,6 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() stops: TripStop[] = [];
   @Input() events: TripEvent[] = [];
   @Input() loading = false;
-  @Input() loadingProgress = 0;
   @Input() loadingTimedOut = false;
   @Input() noData = false;
   @Input() driverName = '';

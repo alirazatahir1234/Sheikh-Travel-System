@@ -40,6 +40,7 @@ import {
   writeQuietHours
 } from './gps-alerts.helpers';
 import { formatTimeInZone } from '../../../core/utils/zoned-time.util';
+import { readStationary24hAlertPref, storeStationary24hAlertPref } from '../utils/history-fleet-context.util';
 
 @Component({
   standalone: false,
@@ -65,6 +66,8 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   loadError: string | null = null;
   activeTab: 'rules' | 'events' = 'events';
   showRuleForm = false;
+  /** Per-browser preference (moved here from the GPS History filter bar). */
+  alertStationary24h = readStationary24hAlertPref();
   showPrefsPanel = false;
   selectedEvent: GpsAlertEvent | null = null;
 
@@ -606,6 +609,14 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
   private tenantScopeFor(event: GpsAlertEvent): number | null | undefined {
     if (!this.isSuperAdmin) return undefined;
     return event.tenantId ?? this.companyFilterId ?? undefined;
+  }
+
+  async onAlertStationary24hChange(enabled: boolean): Promise<void> {
+    this.alertStationary24h = enabled;
+    storeStationary24hAlertPref(enabled);
+    if (enabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
   }
 
   createRule(): void {
