@@ -30,7 +30,9 @@ coverage-report/
 # NuGet and package artifacts
 *.nupkg
 *.snupkg
-packages/
+# Anchored: legacy NuGet folder at Backend/ root only. Unanchored "packages/" also
+# matched source folders such as Features/TravelNexus/Packages/ (case-insensitive on macOS).
+/packages/
 *.nuget.dgspec.json
 project.assets.json
 project.nuget.cache
