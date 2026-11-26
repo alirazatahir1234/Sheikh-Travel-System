@@ -240,6 +240,50 @@ The footer reads *Showing 1–1 of 1 (2 total)* with one row rendered. Two devic
 
 /gps-tracking/alerts: **1,795 unread** alerts, 12 today, 0 critical open, 0 SOS open. Thirteen alert types are configured (SOS, speed, geofence, power cut, fuel fraud, fuel-station stop, and so on). An alert backlog of 1,795 with zero acknowledgements means the alerting feature is generating noise, not action. Either the severity thresholds are too loose or there is no acknowledgement workflow anyone is expected to run.
 
+### SG-53 — History replay KPIs do not reconcile (P1)
+
+GPS history audit, 26 Nov 2026 (`/gps-tracking/history`, vehicle 50, Last 7 Days). The KPI strip contradicted itself:
+
+- NON-MOVING was computed against the filter window, which ends at 23:59 tonight. That counted hours that had not happened yet.
+- STOPS and PARKING read 0 while the same strip showed six days standing.
+- AVG SPEED was a mean of point speeds, not DISTANCE ÷ MOVING.
+- ENGINE HOURS was moving time.
+
+Fix:
+
+- The replay window is clamped to now, so NON-MOVING = min(to, now) − from − moving.
+- Stops are detected from the route when Traccar's stops report comes back empty.
+- AVG SPEED = DISTANCE ÷ MOVING.
+- ENGINE HOURS = ignition-on time, or Traccar engine hours, or "—" when there is no ignition data.
+- "Last 7 Days" is fully rolling.
+
+The five-hour gap between live position and replay end is the tracker clock skew (`fix/gps-tracker-clock-skew`), not ingestion lag. Replay reads Traccar directly.
+
+### SG-55 — Tracker IMEI shown unmasked on the history vehicle card (P1)
+
+The vehicle card on `/gps-tracking/history` showed the full IMEI beside the driver name, plate and live position to every user with GPS access.
+
+Fix: the card shows the last four digits (`•••• 0598`) unless the user holds `Gps.DeviceManage`. The API payload still carries the IMEI; masking it server-side is a follow-up, because the vehicle edit form needs the real value.
+
+### SG-56 — GPS history screen UX (P2)
+
+Same audit, findings 11–16:
+
+- The loading bar showed a timer-driven percentage that stalled at 92% and named the vendor.
+- The details panel overlaid the map and hid the 0.5×/1×/2× speed buttons.
+- "No vehicles match your search" appeared with an empty search box.
+- "1 selected for compare" offered a mode that does nothing with one vehicle.
+- "Hide records before" only filtered the stops list.
+- A persistent alert toggle sat in the filter bar, styled as an error.
+
+Fix: indeterminate bar; the panel docks beside the map; correct empty states; the compare chip needs two vehicles; the date control is "Hide stops before"; the toggle moved to Alerts → Rules. The stationary alert is still evaluated in the browser only — a server-side rule is a follow-up.
+
+### SG-57 — GPS history accessibility and polish (P3)
+
+Same audit, findings 18–19: KPI labels at 2.43:1 contrast; icon buttons with no accessible name; a second `<main>` inside the shell's; wrapping speed buttons; the map zoom control under the AI assistant button; plates saved in mixed formats (`LEC-8825`, `BWY 217`).
+
+Fix: labels `#4b5563` at 11 px; `aria-label`s; one `<main>`; no-wrap speed group; zoom control moved; plates normalised at entry (upper-case, single hyphen). Outside the repo: the vector Map ID (Google Cloud) and battery/GSM on every fix (Traccar `processing.copyAttributes`).
+
 ### Device command failures
 
 GPS Control Center: 10 manufacturers, 27 models, 22 commands, 107 templates, **2 queued and 6 failed** commands. Six failed device commands sit with no retry policy and no alert; they are only discoverable by opening this page. It also warns that weak-signal and low-battery KPIs are placeholders "until richer telemetry arrives".
@@ -555,9 +599,19 @@ Every call from the web app goes to `https://20-174-1-230.sslip.io/api/...`. ssl
 
 Fix: `api.sheikhgo.com`, certificate via your own CA chain, CDN/WAF in front, and the base URL moved to runtime configuration so it is not baked into client builds.
 
+**Progress, 26 Nov 2026.** The ERP now reads the API host at startup from `assets/config.json` (`Frontend/sheikhgo-erp/src/config/`), and no host is baked into its bundle. `api.sheikhgo.com` has no DNS record yet, so the production config still points at the sslip.io host. Remaining: add the A record, change one line of JSON, then the CDN/WAF. The Flutter apps still carry the host as a build default.
+
+### SG-54 — Session tokens in localStorage (P1)
+
+`access_token`, `refresh_token` and `current_user` sat in `localStorage` in clear text, and the origin carried no cookies. Any XSS anywhere in the app, including through a third-party script, could read a full session plus the refresh token that renews it.
+
+Fix: the API can set the tokens as `HttpOnly; Secure; SameSite=Strict` cookies (`useCookies` on login and refresh) with a CSRF header check on cookie-authenticated writes. The ERP uses that mode when `authMode` is `cookie` and the API is same-site with the page. Bearer tokens are unchanged for the mobile apps. Development runs in cookie mode. **Production stays on bearer until the API is on `api.sheikhgo.com`** (see SG-09), because browsers do not send these cookies cross-site.
+
 ### SG-34 — Duplicate and over-fetching API calls (P2)
 
 One dashboard load issues 18 requests, including `/api/smart-alerts?limit=50` **twice** and `/api/platform/menus/me` **twice**. It also pulls `/api/bookings?page=1&pageSize=50` and `/api/notifications?page=1&pageSize=50` — 50 full records each — to render a 5-row table and a counter. In Angular this is the classic missing `shareReplay(1)` on a shared service observable plus a component subscribing in both `ngOnInit` and a template `async` pipe. At two vehicles it costs nothing; at 500 vehicles across 50 tenants it is the first thing that falls over.
+
+**Progress, 26 Nov 2026.** `/api/vehicles` (three calls on every GPS page), `/api/platform/menus/me` and `/api/smart-alerts` are down to one call each. Still open: the `pageSize=50` fetches, and the repeated fleet-status and fleet-health calls on the Live Map.
 
 ### SG-15 — Date filters are requested but not applied (P1)
 
@@ -613,6 +667,9 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-42 | Users | /users shows 5 of 9 platform users; 4 invisible to the super admin | Cross-tenant user directory for platform roles |
 | SG-50 | Billing / FX | Subscription pricing uses a hardcoded USD→PKR constant (280) in Backend `SubscriptionBilling:UsdToPkr` / `ToPkr` and ERP `USD_TO_PKR_DEFAULT`; no live rate, no drift alert | Fix with money chain SG-02/03/14 — live or Key Vault FX + drift alert; not a one-off patch |
 | SG-52 | Audit | Cross-tenant read + subscription audit throws at API boundary but is not same-TX (action can commit without audit row); labelled fail-loud, not fail-closed | Reads: audit-first then read; subscription: shared TX later — do not pretend either is fail-closed today |
+| SG-53 | GPS | History replay KPI strip does not reconcile: non-moving counts future hours, 0 stops beside 6 days standing, avg speed ≠ distance ÷ moving, engine hours = moving time | Clamp window to now; route-based stop fallback; derived avg speed; ignition-based engine hours |
+| SG-54 | Security | `access_token` and `refresh_token` in localStorage — any XSS takes the session and the token that renews it | HttpOnly SameSite=Strict cookies for the ERP with a CSRF header check; bearer kept for mobile; production switch waits on SG-09 |
+| SG-55 | GPS / Privacy | Full tracker IMEI on the history vehicle card for every user with GPS access | Show the last four digits unless the user holds `Gps.DeviceManage`; server-side masking later |
 
 ### P2 — backlog with a date (20)
 
@@ -638,6 +695,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-47 | Platform | Monthly revenue PKR 35k does not reconcile with per-tenant subscription amounts |
 | SG-48 | Org | Branch and Department blank on every user and every driver; only 2 of 9 users in any department |
 | SG-51 | GPS / Notifications | `GpsAlertAccess` and `NotificationHub` still authorize platform alert feeds by role name; deferred from SG-05 because replacing them needs alert-category permissions |
+| SG-56 | GPS | History screen UX: fake 92% progress bar, details panel over the map and speed buttons, wrong empty state, dead compare state, mislabelled date filter, alert toggle in the filter bar |
 
 ### P3 — housekeeping (7)
 
@@ -650,6 +708,7 @@ The individual data bugs share three root causes worth fixing at the pattern lev
 | SG-43 | Platform | Active Companies KPI reads 3 while 5 companies are listed; Expired tenants still counted as active |
 | SG-46 | GPS | Driver Performance score weights render empty, so the 51/100 score is computed from invisible weights |
 | SG-49 | Dashboard | Greeting reads "Good Afternoon, Admin!" and no company name appears anywhere on the dashboard |
+| SG-57 | GPS | History screen accessibility and polish: label contrast 2.43:1, unnamed icon buttons, nested `<main>`, wrapping speed buttons, mixed plate formats |
 
 ### Where the findings sit
 
