@@ -3,22 +3,28 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Router, RouterLink } from '@angular/router';
 import {
-  UiConfirmService, UiDataTableComponent, UiDrawerComponent, UiPageHeaderComponent, UiStatusBadgeComponent, UiTableCellDirective, UiTableColumn
+  UiConfirmService, UiDataTableComponent, UiDrawerComponent, UiPageHeaderComponent, UiStatusBadgeComponent, UiTab, UiTableCellDirective, UiTableColumn,
+  UiTabsComponent
 } from '../../../../shared/components/ui';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
+import { AuthService } from '../../../../core/services/auth.service';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import {
   SUPPLIER_TYPE_LABEL, SaveTravelSupplier, TRAVEL_PERMISSIONS, TRAVEL_SUPPLIER_TYPES, TravelSupplier, TravelSupplierType
 } from '../../models/travel.models';
 import { TravelSupplierService } from '../../services/travel-supplier.service';
+import { PayablesBalancesTabComponent, PayablesBillsTabComponent, PayablesPaymentsTabComponent } from './payables-tabs.component';
+import { SupplierPaymentDialogComponent } from './supplier-payment-dialog.component';
 
 @Component({
   selector: 'app-travel-supplier-list',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiDataTableComponent, UiTableCellDirective, UiDrawerComponent,
-    UiStatusBadgeComponent, HasPermissionDirective],
+  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiDataTableComponent, UiTableCellDirective, UiDrawerComponent,
+    UiStatusBadgeComponent, UiTabsComponent, HasPermissionDirective, PayablesBillsTabComponent, PayablesPaymentsTabComponent, PayablesBalancesTabComponent,
+    SupplierPaymentDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -26,7 +32,15 @@ import { TravelSupplierService } from '../../services/travel-supplier.service';
         subtitle="Airlines, hotels, bed banks, ticket consolidators and transport providers you buy from."
         [breadcrumbs]="[{ label: 'TravelNexus' }, { label: 'Suppliers' }]">
         <button mat-flat-button color="primary" *appHasPermission="perms.supplierManage" (click)="edit(null)"><mat-icon>add</mat-icon> Add supplier</button>
+        <a mat-stroked-button *appHasPermission="perms.supplierBillManage" routerLink="/travel/suppliers/bills/new"><mat-icon>request_quote</mat-icon> New bill</a>
+        <button mat-stroked-button *appHasPermission="perms.supplierPaymentManage" (click)="payOpen.set(true)"><mat-icon>payments</mat-icon> Pay supplier</button>
       </ui-page-header>
+      @if (tabs.length > 1) { <ui-tabs [tabs]="tabs" [(activeId)]="active"></ui-tabs> }
+      @switch (active()) {
+        @case ('bills') { <app-payables-bills-tab /> }
+        @case ('payments') { <app-payables-payments-tab /> }
+        @case ('payables') { <app-payables-balances-tab /> }
+        @default {
       @if (error()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ error() }}
         <button mat-stroked-button class="ml-auto" (click)="load()">Retry</button></div> }
       <ui-data-table [columns]="columns" [data]="rows()" [loading]="loading()" [searchable]="true" searchPlaceholder="Search suppliers…"
@@ -35,12 +49,16 @@ import { TravelSupplierService } from '../../services/travel-supplier.service';
         <ng-template uiTableCell="contactName" let-row>{{ row.contactName || '—' }}{{ row.phone ? ' · ' + row.phone : '' }}</ng-template>
         <ng-template uiTableCell="isActive" let-row><ui-status-badge [status]="row.isActive ? 'active' : 'inactive'"></ui-status-badge></ng-template>
         <ng-template uiTableCell="actions" let-row>
+          <a mat-icon-button aria-label="Open supplier" [routerLink]="['/travel/suppliers', row.id]"><mat-icon>open_in_new</mat-icon></a>
           <ng-container *appHasPermission="perms.supplierManage">
             <button mat-icon-button aria-label="Edit" (click)="edit(row)"><mat-icon>edit</mat-icon></button>
             <button mat-icon-button aria-label="Delete" (click)="remove(row)"><mat-icon>delete_outline</mat-icon></button>
           </ng-container>
         </ng-template>
       </ui-data-table>
+        }
+      }
+      <app-supplier-payment-dialog [(open)]="payOpen" (saved)="paid($event)" />
     </div>
 
     <ui-drawer [(open)]="drawerOpen" [title]="editingId() ? 'Edit supplier' : 'Add supplier'" width="480px">
@@ -78,6 +96,18 @@ export class TravelSupplierListComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly perms = TRAVEL_PERMISSIONS;
+  private readonly router = inject(Router);
+  /** Bills, payments and payables need finance access; everyone with supplier access sees the list. */
+  protected readonly tabs: UiTab[] = [
+    { id: 'suppliers', label: 'Suppliers', icon: 'storefront' },
+    ...(inject(AuthService).hasAnyPermission([TRAVEL_PERMISSIONS.financeView]) ? [
+      { id: 'bills', label: 'Bills', icon: 'request_quote' },
+      { id: 'payments', label: 'Payments', icon: 'payments' },
+      { id: 'payables', label: 'Payables', icon: 'account_balance' }
+    ] : [])
+  ];
+  protected readonly active = signal('suppliers');
+  protected readonly payOpen = signal(false);
   protected readonly types = TRAVEL_SUPPLIER_TYPES;
   protected readonly typeLabel = SUPPLIER_TYPE_LABEL;
   protected readonly columns: UiTableColumn[] = [
@@ -110,6 +140,8 @@ export class TravelSupplierListComponent {
   });
 
   constructor() { this.load(); }
+
+  protected paid(id: number): void { this.router.navigate(['/travel/suppliers/payments', id]); }
 
   protected label(row: TravelSupplier): string { return SUPPLIER_TYPE_LABEL[row.supplierType] ?? row.supplierType; }
 

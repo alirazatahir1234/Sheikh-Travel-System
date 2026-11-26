@@ -12,6 +12,7 @@ import {
 } from '../../models/travel.models';
 import { toDateInput } from '../../models/travel-date.util';
 import { TravelBookingService } from '../../services/travel-booking.service';
+import { TravelSupplierFinanceService } from '../../services/travel-supplier-finance.service';
 import { BookingCandidate } from './flight-editor-drawer.component';
 
 /** Rooms to book for a group stay: the saved rooming, counted by room type. */
@@ -87,6 +88,12 @@ export function roomsFromRooming(stayId: number, rooms: TravelGroupRoom[]): { ro
           <div class="tn-field"><label for="hb-cost">Supplier cost</label><input id="hb-cost" type="number" min="0" step="0.01" class="tn-input" [(ngModel)]="costAmount" /></div>
           <div class="tn-field"><label for="hb-cur">Currency</label><input id="hb-cur" class="tn-input uppercase" maxlength="3" [(ngModel)]="currencyCode" /></div>
         </div>
+        @if (supplierId && hotelId && checkIn && checkOut) {
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <button mat-stroked-button type="button" [disabled]="quoting()" (click)="useRateCard()"><mat-icon>sell</mat-icon> {{ quoting() ? 'Quoting…' : 'Use rate card' }}</button>
+            @if (quoteNote()) { <span [class.text-amber-700]="quoteWarn()">{{ quoteNote() }}</span> }
+          </div>
+        }
         <div class="tn-field"><label for="hb-req">Special requests</label><textarea id="hb-req" class="tn-input" rows="2" maxlength="1000" [(ngModel)]="specialRequests"></textarea></div>
         @if (error()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ error() }}</div> }
         <div class="tn-actions">
@@ -126,6 +133,10 @@ export class HotelEditorDrawerComponent {
   private readonly tick = signal(0);
   protected readonly selectedGuests = computed(() => { this.tick(); return this.guests().filter(g => g.selected).length; });
   protected readonly beds = computed(() => { this.tick(); return this.rooms().reduce((n, r) => n + ROOM_CAPACITY[r.roomType] * Number(r.quantity || 0), 0); });
+  protected readonly quoting = signal(false);
+  protected readonly quoteNote = signal<string | null>(null);
+  protected readonly quoteWarn = signal(false);
+  private readonly rateCards = inject(TravelSupplierFinanceService);
   protected readonly hotelSuppliers = computed(() => this.suppliers().filter(s => s.isActive && s.supplierType !== 'Airline'));
 
   protected groupHotelId: number | null = null;
@@ -151,6 +162,7 @@ export class HotelEditorDrawerComponent {
 
   private reset(h: TravelHotelBooking | null, candidates: BookingCandidate[]): void {
     this.error.set(null);
+    this.quoteNote.set(null);
     this.groupHotelId = h?.groupHotelId ?? null;
     this.hotelId = h?.hotelId ?? null;
     this.supplierId = h?.supplierId ?? null;
@@ -175,6 +187,28 @@ export class HotelEditorDrawerComponent {
     if (next) this.rooms.update(r => [...r, { roomType: next, quantity: 1 }]);
     this.touch();
   }
+  /** Fills the supplier cost from the supplier's rate cards; nights without a card are reported, never guessed. */
+  protected useRateCard(): void {
+    const rooms = this.rooms().filter(r => Number(r.quantity) > 0).map(r => ({ roomType: r.roomType, quantity: Number(r.quantity) }));
+    this.quoting.set(true);
+    this.quoteNote.set(null);
+    this.rateCards.quote({ supplierId: this.supplierId!, hotelId: this.hotelId!, checkIn: this.checkIn, checkOut: this.checkOut, rooms })
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: q => {
+          this.quoting.set(false);
+          if (q.mixedCurrencies) { this.quoteWarn.set(true); this.quoteNote.set('The rate cards for this stay are in different currencies — enter the cost by hand.'); return; }
+          if (!q.currencyCode) { this.quoteWarn.set(true); this.quoteNote.set('No rate card covers this stay.'); return; }
+          this.costAmount = q.total;
+          this.currencyCode = q.currencyCode;
+          this.quoteWarn.set(!q.complete);
+          this.quoteNote.set(q.complete ? `${q.nights} night(s) from the rate card.`
+            : `${q.missing.length} room-night(s) have no rate (from ${q.missing[0].night.substring(0, 10)}) and are not included.`);
+          this.touch();
+        },
+        error: err => { this.quoting.set(false); this.quoteWarn.set(true); this.quoteNote.set(apiErrorMessage(err, 'Could not quote from the rate card.')); }
+      });
+  }
+
   protected removeRoom(i: number): void { this.rooms.update(r => r.filter((_, j) => j !== i)); this.touch(); }
   protected selectAll(): void { this.guests.update(g => g.map(x => ({ ...x, selected: true }))); this.touch(); }
 

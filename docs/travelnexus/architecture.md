@@ -4,7 +4,8 @@ TravelNexus is the travel agency, visa and Umrah module of SheikhGo Nexus. It is
 existing API and ERP, not a separate application. This document records the repository assessment,
 the decisions taken, the data model and the delivery roadmap.
 
-Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A).
+Status: **Phase 5 delivered** (foundation, customers, travelers; CRM enquiries and visa pipeline; document checklists, private documents, verification gate, passport MRZ; hotels, packages, Umrah groups, rooming, transport, manifest; suppliers, booking files, flights and tickets, hotel bookings, vouchers, itineraries, cancellations and refund tracking; customer invoices, receipts, installments, credit notes, refunds, balances and statements — Phase 6A;
+supplier rate cards, bills, supplier payments, credits, refunds received, agent commissions and profitability — Phase 6B).
 
 ## 1. Repository assessment (Phase 0)
 
@@ -134,9 +135,25 @@ CHECK constraints; money is `DECIMAL(18,2)` + `CurrencyCode CHAR(3)`.
 | `TravelFinanceHistory` | Append-only invoice / payment / credit / refund events | event type CHECK |
 | `TravelSettings` (+ columns) | `ReceiptPrefix`, `CreditNotePrefix`, `RefundPrefix`, `DefaultPaymentTermsDays` | |
 
+**Phase 6B (built)** — migration `TravelNexusSupplierFinanceMigration`
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `TravelExchangeRates` | Rate to the reporting currency in force from a date | rate > 0; unique (tenant, currency, date) |
+| `TravelSupplierRates` | Rate cards: hotel room-night (hotel + room type), transfer, service; validity window | hotel rate needs hotel + room type |
+| `TravelSupplierCommissionRules` | Commission the supplier pays back: per service type, % of cost or fixed per passenger / room-night | % ≤ 100; fixed needs a currency |
+| `TravelSupplierBills` | Supplier invoice (`TSB-…` on post), their reference, gross − commission = net | Draft / Posted / Void; **supplier reference unique per supplier** (not void) |
+| `TravelSupplierBillLines` | Sourced (flight / hotel service) or manual lines tagged to a booking file / visa case / group | **unique (tenant, source) where not voided** — a service's cost sits on one live bill |
+| `TravelSupplierPayments` / `…Allocations` | Payments to suppliers (`TSP-…`), cross-currency allocations with the recorded rate | idempotency key unique per tenant |
+| `TravelSupplierCredits` / `TravelSupplierRefunds` | Supplier credit notes (`TSC-…`) and money received back (`TSR-…`, bill xor payment) | idempotency keys; optional Phase 5 cancellation link |
+| `TravelSubAgents` | External agents who refer customers | unique name per tenant |
+| `TravelCommissionRules` / `TravelCommissionPayouts` | Agent commission rules (staff / sub-agent, default or per person, scope, % of margin / sell) and payouts (`TCP-…`) | payout idempotency key |
+| `TravelSupplierFinanceHistory` | Append-only bill / supplier payment / credit / refund / payout / attribution events | event type CHECK |
+| Columns | `TravelInvoices.AgentUserId`, `SubAgentId`; `TravelCustomerProfiles.SubAgentId` ("referred by"); `TravelSettings.ReportingCurrencyCode` + prefixes | |
+
+Commission lines are derived from rules on every read and never stored; only payouts are.
+
 **Later phases (planned)**
-- Suppliers (6B; profiles exist since Phase 5): `TravelSupplierRates`, `TravelSupplierBills`, `TravelSupplierPayments`,
-  `TravelCommissionRules`, `TravelCommissions`; the supplier ledger is a view, not a copy.
 - Notifications: `TravelReminderRules`, `TravelReminders`.
 
 Every status change writes a history row in the same transaction as the status update.
@@ -272,6 +289,35 @@ Draft … Ready → Cancelled (reason)
   receipt, credit note and statement PDFs client-side.
 - **Not in 6A**: taxes, supplier bills / payments, commissions, profitability (6B), gateway collection, reminders (Phase 7).
 
+**Supplier finance, commissions and profitability (Phase 6B).**
+
+- **Bills** mirror invoices: Draft → Posted (number, immutable) → Void (only without payments, credits or refunds; frees the
+  services). Sourced lines are the supplier's flight / hotel services with a cost in the bill currency, each billed once
+  (cancelled services at their supplier penalty); manual lines are tagged to a booking file, visa case or group. Supplier
+  commission per line is suggested from the supplier's rule in force on the bill date (% of cost, or fixed × passengers /
+  room-nights in the bill currency), editable while draft, never above the amount. The same supplier reference is refused.
+- **Supplier balance** = Net − Credited − (Paid − Refunds received); negative = the supplier owes us. Payments, pending /
+  failed, cross-currency allocation, caps re-checked under `UPDLOCK`, idempotency and reconciliation follow the 6A rules.
+  A credit or refund received that is linked to a Phase 5 cancellation moves it from Pending to ReceivedFromSupplier.
+- **Rate cards** quote a hotel cost per night × room type × quantity from the card valid on each night; nights without a
+  card are listed and left out — never guessed. The hotel editor's "Use rate card" fills the cost from the quote.
+- **FX**: amounts convert at the latest rate with `EffectiveFrom ≤` their date (issue, bill, credit or service date); the
+  reporting currency itself is 1; a missing rate excludes the amount and is listed as missing.
+- **Profitability** per booking file / visa case / group (files owned by a group and a group's visa case report under the
+  group): revenue = issued invoice lines with discount and credit notes spread pro-rata; cost = posted bill lines net of
+  commission (supplier credits pro-rata) plus **estimates** for what is not billed yet (service cost, cancellation penalty,
+  a visa case's quoted embassy fee until a bill line is tagged to it); minus agent commission. Each invoice's margin is its
+  revenue less the context cost in proportion to its revenue, so invoice margins add up to the context margin. The report
+  filters by travel date (both dates required; inverted → empty), branch and agent, and rolls up by agent or branch.
+- **Agent commission**: each issued invoice is attributed to a staff agent (default: the file's / visa case's assigned
+  agent, else the customer's) and / or a sub-agent (default: the customer's "referred by"). Per line the most specific rule
+  in force on the issue date applies (person over default, scope over All). % of sell uses net revenue in invoice
+  currency; % of margin uses the invoice margin in reporting currency, floored at 0. Accrued while the invoice has a
+  balance, payable once settled. Balance = payable − payouts (negative after a credit note — shown, not hidden); a payout
+  above the payable balance is refused.
+- **Not in 6B**: taxes, live FX feeds, a cancellation picker on supplier credits / refunds in the ERP (the API accepts
+  `cancellationId`), reminders and dashboards (Phase 7).
+
 ## 5. Security model
 
 - **Tenant isolation.** Every statement filters on `TenantId`; joins repeat the predicate. Inserts that depend
@@ -291,6 +337,10 @@ Draft … Ready → Cancelled (reason)
   Phase 6A: `Travel.Finance.View`, `Travel.Invoice.Manage` (draft, issue), `Travel.Payment.Manage` (record, allocate,
   clear / fail), `Travel.Finance.Adjust` (void, credit notes, refunds — financial authorisation kept separate),
   `Travel.Finance.Reconcile`.
+  Phase 6B: `Travel.SupplierBill.Manage`, `Travel.SupplierPayment.Manage`, `Travel.Commission.View`,
+  `Travel.Commission.Manage` (rules, sub-agents, payouts, attribution), `Travel.Profitability.View` (margins are sensitive).
+  Viewing payables needs `Travel.Finance.View`; supplier credits, refunds received and voids need `Travel.Finance.Adjust`;
+  exchange rates need `Travel.Settings`; rate cards and supplier commission rules need `Travel.Supplier.Manage`.
   Each phase's migration grants its own codes to SUPER_ADMIN, TENANT_ADMIN and OWNER of the tenants that exist when it
   runs. Every permission maps to module `TRAVEL_AGENCY`, so it is inert for companies without the module.
   **Known gap:** companies provisioned later get no Travel permissions until an admin grants them in role management
@@ -345,6 +395,17 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | POST / DELETE | `api/travel/finance/payments`, `payments/{id}/allocations[/{invoiceId}]`, `payments/{id}/status` | Travel.Payment.Manage |
 | POST | `api/travel/finance/invoices/{id}/void`, `credit-notes`, `credit-notes/{id}/void`, `refunds` | Travel.Finance.Adjust |
 | POST | `api/travel/finance/payments/{id}/reconcile` | Travel.Finance.Reconcile |
+| GET | `api/travel/payables/bills` (search, status, supplierId, currencyCode, billFrom/To, overdue) · `bills/{id}` · `billable` (supplierId, currencyCode, billId, billDate) · `suppliers/{id}/open-bills` · `payments` (paidFrom/To, reconciled…) · `payments/{id}` · `credits` · `refunds` · `summary` · `balances` · `suppliers/{id}/statement` · `exchange-rates` | Travel.Finance.View |
+| POST / PUT / DELETE | `api/travel/payables/bills[/{id}]`, `bills/{id}/post` | Finance.View + SupplierBill.Manage |
+| POST / DELETE | `api/travel/payables/payments`, `payments/{id}/allocations[/{billId}]`, `payments/{id}/status` | Finance.View + SupplierPayment.Manage |
+| POST | `api/travel/payables/bills/{id}/void`, `credits`, `credits/{id}/void`, `refunds` · `payments/{id}/reconcile` | Finance.Adjust · Finance.Reconcile |
+| POST / PUT / DELETE | `api/travel/payables/exchange-rates[/{id}]` | Travel.Settings |
+| GET · POST / PUT / DELETE | `api/travel/payables/suppliers/{id}/rates[/{rid}]`, `suppliers/{id}/commission-rules[/{rid}]` | Supplier.View · Supplier.Manage |
+| POST | `api/travel/payables/rates/quote` | Travel.Booking.Manage |
+| GET | `api/travel/commissions/sub-agents` | Travel.View |
+| GET | `api/travel/commissions/rules` · `lines` (beneficiaryType, beneficiaryId, status, issuedFrom/To) · `balances` · `payouts` | Travel.Commission.View |
+| POST / PUT / DELETE | `api/travel/commissions/sub-agents[/{id}]`, `rules[/{id}]`, POST `payouts`, PUT `invoices/{id}/attribution` | Travel.Commission.Manage |
+| GET | `api/travel/profitability` (dimension, travelFrom, travelTo, branchId, agentUserId) · `{contextType}/{contextId}` | Travel.Profitability.View |
 
 ## 7. Roadmap
 
@@ -357,7 +418,7 @@ All routes require the `TRAVEL_AGENCY` module. Responses use the standard `ApiRe
 | 4 | Packages, Umrah groups, pilgrims, hotels, rooms, transport / Ziyarat, manifest | Done |
 | 5 | Flight and hotel bookings, PNR / tickets, vouchers, itineraries, cancellations | Done |
 | 6A | Customer invoices, receipts, installments, credit notes, refunds, balances, statements, reconciliation | Done |
-| 6B | Supplier rates, bills and payments, supplier ledgers, commissions (earned and payable), profitability | Planned |
+| 6B | Supplier rates, bills and payments, supplier ledgers, commissions (earned and payable), profitability | Done |
 | 7 | Reminder rules and dispatch, dashboard, reports | Planned |
 | 8 | Live-SQL end-to-end tests, security review, deployment notes, user guide | Planned |
 

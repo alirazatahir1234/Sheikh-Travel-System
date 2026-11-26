@@ -31,6 +31,12 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
             @if (form.controls.defaultCurrencyCode.invalid) { <span class="tn-error">Three letters, e.g. PKR or SAR.</span> }
           </div>
           <div class="tn-field">
+            <label for="gs-rep">Reporting currency</label>
+            <input id="gs-rep" class="tn-input uppercase" formControlName="reportingCurrencyCode" maxlength="3" placeholder="Default currency" />
+            <span class="tn-hint">Profitability and margin commission convert into this currency using the exchange rates tab. Blank keeps the current value (or the default currency).</span>
+            @if (form.controls.reportingCurrencyCode.invalid) { <span class="tn-error">Three letters, e.g. PKR.</span> }
+          </div>
+          <div class="tn-field">
             <label for="gs-pp">Passport expiry warning (days)</label>
             <input id="gs-pp" class="tn-input" type="number" min="0" max="730" formControlName="passportExpiryWarningDays" />
             <span class="tn-hint">Passports expiring within this window are flagged. Most countries require 180.</span>
@@ -46,6 +52,11 @@ const PREFIX = [Validators.required, Validators.maxLength(10), Validators.patter
           <div class="tn-field"><label for="gs-rcp">Receipt</label><input id="gs-rcp" class="tn-input uppercase" formControlName="receiptPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-cn">Credit note</label><input id="gs-cn" class="tn-input uppercase" formControlName="creditNotePrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-rf">Refund</label><input id="gs-rf" class="tn-input uppercase" formControlName="refundPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-tsb">Supplier bill</label><input id="gs-tsb" class="tn-input uppercase" formControlName="supplierBillPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-tsp">Supplier payment</label><input id="gs-tsp" class="tn-input uppercase" formControlName="supplierPaymentPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-tsc">Supplier credit</label><input id="gs-tsc" class="tn-input uppercase" formControlName="supplierCreditPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-tsr">Supplier refund</label><input id="gs-tsr" class="tn-input uppercase" formControlName="supplierRefundPrefix" maxlength="10" /></div>
+          <div class="tn-field"><label for="gs-tcp">Commission payout</label><input id="gs-tcp" class="tn-input uppercase" formControlName="payoutPrefix" maxlength="10" /></div>
           <div class="tn-field"><label for="gs-terms">Payment terms (days)</label><input id="gs-terms" type="number" min="0" max="365" class="tn-input" formControlName="defaultPaymentTermsDays" />
             <span class="tn-hint">Due date suggested for new invoices.</span></div>
         </div>
@@ -72,6 +83,7 @@ export class GeneralSettingsTabComponent {
 
   protected readonly form = this.fb.group({
     defaultCurrencyCode: ['', Validators.pattern(/^([A-Za-z]{3})?$/)],
+    reportingCurrencyCode: ['', Validators.pattern(/^([A-Za-z]{3})?$/)],
     passportExpiryWarningDays: [180, [Validators.required, Validators.min(0), Validators.max(730)]],
     enquiryPrefix: ['ENQ', PREFIX],
     visaCasePrefix: ['VC', PREFIX],
@@ -81,6 +93,11 @@ export class GeneralSettingsTabComponent {
     receiptPrefix: ['TRCP', PREFIX],
     creditNotePrefix: ['TCN', PREFIX],
     refundPrefix: ['TRF', PREFIX],
+    supplierBillPrefix: ['TSB', PREFIX],
+    supplierPaymentPrefix: ['TSP', PREFIX],
+    supplierCreditPrefix: ['TSC', PREFIX],
+    supplierRefundPrefix: ['TSR', PREFIX],
+    payoutPrefix: ['TCP', PREFIX],
     defaultPaymentTermsDays: [7 as number | null, [Validators.required, Validators.min(0), Validators.max(365)]]
   });
 
@@ -110,7 +127,13 @@ export class GeneralSettingsTabComponent {
       receiptPrefix: v.receiptPrefix!.trim().toUpperCase(),
       creditNotePrefix: v.creditNotePrefix!.trim().toUpperCase(),
       refundPrefix: v.refundPrefix!.trim().toUpperCase(),
-      defaultPaymentTermsDays: Number(v.defaultPaymentTermsDays)
+      defaultPaymentTermsDays: Number(v.defaultPaymentTermsDays),
+      reportingCurrencyCode: v.reportingCurrencyCode?.trim() ? v.reportingCurrencyCode.trim().toUpperCase() : null,
+      supplierBillPrefix: v.supplierBillPrefix!.trim().toUpperCase(),
+      supplierPaymentPrefix: v.supplierPaymentPrefix!.trim().toUpperCase(),
+      supplierCreditPrefix: v.supplierCreditPrefix!.trim().toUpperCase(),
+      supplierRefundPrefix: v.supplierRefundPrefix!.trim().toUpperCase(),
+      payoutPrefix: v.payoutPrefix!.trim().toUpperCase()
     };
     this.saving.set(true);
     this.saveError.set(null);
@@ -132,7 +155,13 @@ export class GeneralSettingsTabComponent {
       receiptPrefix: s.receiptPrefix ?? 'TRCP',
       creditNotePrefix: s.creditNotePrefix ?? 'TCN',
       refundPrefix: s.refundPrefix ?? 'TRF',
-      defaultPaymentTermsDays: s.defaultPaymentTermsDays ?? 7
+      defaultPaymentTermsDays: s.defaultPaymentTermsDays ?? 7,
+      reportingCurrencyCode: s.reportingCurrencyCode ?? '',
+      supplierBillPrefix: s.supplierBillPrefix ?? 'TSB',
+      supplierPaymentPrefix: s.supplierPaymentPrefix ?? 'TSP',
+      supplierCreditPrefix: s.supplierCreditPrefix ?? 'TSC',
+      supplierRefundPrefix: s.supplierRefundPrefix ?? 'TSR',
+      payoutPrefix: s.payoutPrefix ?? 'TCP'
     });
   }
 }

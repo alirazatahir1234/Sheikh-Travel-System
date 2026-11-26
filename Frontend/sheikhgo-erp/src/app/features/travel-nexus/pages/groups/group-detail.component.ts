@@ -22,6 +22,7 @@ import { GroupManifestTabComponent } from './group-manifest-tab.component';
 import { GroupPilgrimsTabComponent } from './group-pilgrims-tab.component';
 import { GroupRoomsTabComponent } from './group-rooms-tab.component';
 import { GroupTransportTabComponent } from './group-transport-tab.component';
+import { TravelProfitCardComponent } from '../profitability/profit-card.component';
 
 const TRANSITIONS: TravelGroupTransitionAction[] =
   ['Open', 'CloseRegistration', 'Reopen', 'StartVisaProcessing', 'MarkReady', 'Unready', 'Depart', 'Return', 'Close'];
@@ -30,7 +31,8 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
   selector: 'app-travel-group-detail',
   standalone: true,
   imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent, UiTabsComponent,
-    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent, GroupBookingsTabComponent, GroupFinanceTabComponent],
+    UiModalComponent, HasPermissionDirective, GroupPilgrimsTabComponent, GroupRoomsTabComponent, GroupTransportTabComponent, GroupManifestTabComponent, GroupBookingsTabComponent, GroupFinanceTabComponent,
+    TravelProfitCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -41,6 +43,8 @@ const TRANSITIONS: TravelGroupTransitionAction[] =
           [breadcrumbs]="[{ label: 'TravelNexus' }, { label: 'Umrah groups', route: '/travel/groups' }, { label: g.groupNumber }]">
           <ui-status-badge [status]="g.status" [label]="statusLabel[g.status]" [variant]="statusVariant[g.status]"></ui-status-badge>
         </ui-page-header>
+
+        <app-travel-profit-card *appHasPermission="perms.profitabilityView" contextType="Group" [contextId]="g.id" />
 
         <ui-tabs [tabs]="tabs()" [(activeId)]="active"></ui-tabs>
 

@@ -10,9 +10,10 @@ import { UiPageHeaderComponent } from '../../../../shared/components/ui';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import {
-  SOURCE_TYPE_LABEL, SaveTravelInvoice, TravelBillableItem, TravelCustomerListItem, TravelInvoiceSourceType
+  SOURCE_TYPE_LABEL, SaveTravelInvoice, TravelBillableItem, TravelCustomerListItem, TravelInvoiceSourceType, TravelLookupItem, TravelSubAgent
 } from '../../models/travel.models';
 import { TravelCustomerPickerComponent } from '../../components/customer-picker.component';
+import { TravelCommissionService } from '../../services/travel-commission.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
 import { TravelFinanceService } from '../../services/travel-finance.service';
@@ -75,6 +76,16 @@ export function splitEvenly(total: number, count: number, firstDue: string, mont
               <span class="tn-hint">{{ installments().length ? 'Taken from the last installment.' : 'Empty = issue date + ' + terms() + ' days.' }}</span></div>
           </div>
           <div class="tn-field"><label for="inv-notes">Notes (printed)</label><textarea id="inv-notes" class="tn-input" rows="3" maxlength="2000" [(ngModel)]="notes"></textarea></div>
+          <h3 class="tn-section-title">Commission</h3>
+          <div class="tn-grid">
+            <div class="tn-field"><label for="inv-agent">Staff agent</label>
+              <select id="inv-agent" class="tn-input" [(ngModel)]="agentUserId"><option [ngValue]="null">{{ invoiceId ? 'Keep current' : 'Default (file / customer agent)' }}</option>
+                @for (a of agents(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }</select></div>
+            <div class="tn-field"><label for="inv-sub">Sub-agent</label>
+              <select id="inv-sub" class="tn-input" [(ngModel)]="subAgentId"><option [ngValue]="null">{{ invoiceId ? 'Keep current' : 'Default (customer referred by)' }}</option>
+                @for (a of subAgents(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }</select></div>
+          </div>
+          <span class="tn-hint">Clearing an agent is done from the invoice page (Commissions permission).</span>
         </div>
 
         <div class="tn-card lg:col-span-2">
@@ -195,6 +206,10 @@ export class TravelInvoiceEditorComponent {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly loadError = signal<string | null>(null);
+  protected readonly agents = toSignal(inject(TravelConfigService).getLookups().pipe(map(l => l.agents), catchError(() => of([] as TravelLookupItem[]))),
+    { initialValue: [] as TravelLookupItem[] });
+  protected readonly subAgents = toSignal(inject(TravelCommissionService).getSubAgents(true).pipe(catchError(() => of([] as TravelSubAgent[]))),
+    { initialValue: [] as TravelSubAgent[] });
   protected readonly terms = toSignal(inject(TravelConfigService).getSettings().pipe(map(s => s.defaultPaymentTermsDays ?? 7), catchError(() => of(7))), { initialValue: 7 });
   private readonly tick = signal(0);
 
@@ -202,6 +217,8 @@ export class TravelInvoiceEditorComponent {
   protected dueDate = '';
   protected discount = 0;
   protected notes = '';
+  protected agentUserId: number | null = null;
+  protected subAgentId: number | null = null;
   protected splitCount = 2;
   protected splitFrom = '';
 
@@ -244,6 +261,8 @@ export class TravelInvoiceEditorComponent {
         this.dueDate = inv.dueDate?.substring(0, 10) ?? '';
         this.discount = inv.discountAmount;
         this.notes = inv.notes ?? '';
+        this.agentUserId = inv.agentUserId;
+        this.subAgentId = inv.subAgentId;
         this.lines.set(inv.lines.map(l => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, sourceType: l.sourceType,
           sourceId: l.sourceId, sourceAmount: l.currentSourceAmount })));
         this.installments.set(inv.installments.map(i => ({ dueDate: i.dueDate.substring(0, 10), amount: i.amount })));
@@ -295,7 +314,8 @@ export class TravelInvoiceEditorComponent {
       notes: this.notes.trim() || null,
       lines: this.lines().map(l => ({ description: l.description.trim(), quantity: Number(l.quantity), unitPrice: round(Number(l.unitPrice)),
         sourceType: l.sourceType, sourceId: l.sourceId })),
-      installments: this.installments().map(r => ({ dueDate: r.dueDate, amount: round(Number(r.amount)) }))
+      installments: this.installments().map(r => ({ dueDate: r.dueDate, amount: round(Number(r.amount)) })),
+      agentUserId: this.agentUserId, subAgentId: this.subAgentId
     };
     this.busy.set(true);
     this.error.set(null);

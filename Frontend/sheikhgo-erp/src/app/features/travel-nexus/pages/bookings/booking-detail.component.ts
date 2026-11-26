@@ -30,6 +30,7 @@ import { defaultPriceCategory } from '../groups/group-pilgrims-tab.component';
 import { buildItineraryPdf, buildVoucherPdf, itineraryFileName, itineraryRows, roomsLabel, voucherFileName } from './booking-documents';
 import { BookingCandidate, FlightEditorDrawerComponent } from './flight-editor-drawer.component';
 import { HotelEditorDrawerComponent } from './hotel-editor-drawer.component';
+import { TravelProfitCardComponent } from '../profitability/profit-card.component';
 
 type CancelTarget =
   | { kind: 'flight'; flight: TravelFlightBooking }
@@ -40,7 +41,7 @@ type CancelTarget =
   selector: 'app-travel-booking-detail',
   standalone: true,
   imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent, UiStatusBadgeComponent,
-    UiTabsComponent, UiModalComponent, HasPermissionDirective, FlightEditorDrawerComponent, HotelEditorDrawerComponent],
+    UiTabsComponent, UiModalComponent, HasPermissionDirective, FlightEditorDrawerComponent, HotelEditorDrawerComponent, TravelProfitCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -98,6 +99,8 @@ type CancelTarget =
             </table>
           </div>
         </div>
+
+        @if (!b.groupId) { <app-travel-profit-card *appHasPermission="perms.profitabilityView" contextType="Booking" [contextId]="b.id" /> }
 
         <ui-tabs [tabs]="tabs()" [(activeId)]="active"></ui-tabs>
 

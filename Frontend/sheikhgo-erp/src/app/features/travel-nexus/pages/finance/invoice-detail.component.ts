@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 import { UiConfirmService, UiModalComponent, UiPageHeaderComponent, UiStatusBadgeComponent } from '../../../../shared/components/ui';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
@@ -13,9 +13,11 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import {
   FINANCE_EVENT_LABEL, INSTALLMENT_STATUS_VARIANT, INVOICE_PAYMENT_STATUS_LABEL, INVOICE_PAYMENT_STATUS_VARIANT, INVOICE_STATUS_VARIANT,
   PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_VARIANT, SOURCE_TYPE_LABEL, TRAVEL_PAYMENT_METHODS, TRAVEL_PERMISSIONS,
-  TravelCreditNote, TravelInvoice, TravelInvoiceAction, TravelPaymentMethod
+  TravelCreditNote, TravelInvoice, TravelInvoiceAction, TravelLookupItem, TravelPaymentMethod, TravelSubAgent
 } from '../../models/travel.models';
 import { asUtc } from '../../models/travel-date.util';
+import { TravelCommissionService } from '../../services/travel-commission.service';
+import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelFinanceService, newRequestKey } from '../../services/travel-finance.service';
 import { buildCreditNotePdf, buildInvoicePdf, round } from './finance-documents';
 import { RecordPaymentDialogComponent } from './record-payment-dialog.component';
@@ -60,6 +62,8 @@ import { RecordPaymentDialogComponent } from './record-payment-dialog.component'
               @if (v.visaCaseId) { <div><dt>Visa case</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/visa-cases', v.visaCaseId]">{{ v.visaCaseNumber }}</a></dd></div> }
               @if (v.groupId) { <div><dt>Umrah group</dt><dd><a class="text-fleet-primary underline" [routerLink]="['/travel/groups', v.groupId]">{{ v.groupNumber }}</a></dd></div> }
               <div><dt>Branch</dt><dd>{{ v.branchName || '—' }}</dd></div>
+              <div><dt>Commission to</dt><dd>{{ v.agentName || 'No staff agent' }}{{ v.subAgentName ? ' · sub-agent ' + v.subAgentName : '' }}
+                @if (v.status !== 'Void') { <button mat-button class="!min-w-0 !px-1" *appHasPermission="perms.commissionManage" (click)="openAttribution()">Change</button> }</dd></div>
               @if (v.voidReason) { <div><dt>Void reason</dt><dd>{{ v.voidReason }}</dd></div> }
             </dl>
             @if (v.notes) { <p class="mt-3 whitespace-pre-line text-sm text-fleet-text-muted">{{ v.notes }}</p> }
@@ -210,6 +214,23 @@ import { RecordPaymentDialogComponent } from './record-payment-dialog.component'
           </div>
         </ui-modal>
 
+        <ui-modal [(open)]="attributionOpen" title="Commission attribution" size="sm">
+          <div class="space-y-3">
+            <p class="text-xs text-fleet-text-muted">Who earns commission on this invoice. The change is kept in the history.</p>
+            <div class="tn-field"><label for="at-agent">Staff agent</label>
+              <select id="at-agent" class="tn-input" [(ngModel)]="attrAgent"><option [ngValue]="null">None</option>
+                @for (a of agents(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }</select></div>
+            <div class="tn-field"><label for="at-sub">Sub-agent</label>
+              <select id="at-sub" class="tn-input" [(ngModel)]="attrSub"><option [ngValue]="null">None</option>
+                @for (a of subAgents(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }</select></div>
+            @if (dialogError()) { <div class="tn-banner error"><mat-icon>error_outline</mat-icon>{{ dialogError() }}</div> }
+          </div>
+          <div modal-footer class="tn-actions">
+            <button mat-stroked-button (click)="attributionOpen.set(false)">Cancel</button>
+            <button mat-flat-button color="primary" [disabled]="busy()" (click)="saveAttribution()">Save</button>
+          </div>
+        </ui-modal>
+
         <ui-modal [(open)]="voidOpen" title="Void invoice" size="sm">
           <div class="space-y-3">
             <p class="text-sm">Voiding cancels the invoice and frees its items to be invoiced again. It keeps its number.</p>
@@ -258,6 +279,13 @@ export class TravelInvoiceDetailComponent {
   protected readonly creditOpen = signal(false);
   protected readonly refundOpen = signal(false);
   protected readonly voidOpen = signal(false);
+  protected readonly attributionOpen = signal(false);
+  protected readonly agents = signal<TravelLookupItem[]>([]);
+  protected readonly subAgents = signal<TravelSubAgent[]>([]);
+  private readonly commissions = inject(TravelCommissionService);
+  private readonly config = inject(TravelConfigService);
+  protected attrAgent: number | null = null;
+  protected attrSub: number | null = null;
   private key = newRequestKey();
   protected creditAmount = 0;
   protected creditReason = '';
@@ -319,6 +347,20 @@ export class TravelInvoiceDetailComponent {
   protected refund(): void {
     this.run(this.api.recordRefund({ idempotencyKey: this.key, invoiceId: this.id, paymentId: null, amount: round(Number(this.refundAmount)), method: this.refundMethod,
       reference: this.refundReference.trim() || null, paidOn: this.refundDate, cancellationId: null, notes: null }), 'Refund recorded.', () => this.refundOpen.set(false));
+  }
+  protected openAttribution(): void {
+    const v = this.invoice()!;
+    this.attrAgent = v.agentUserId;
+    this.attrSub = v.subAgentId;
+    this.dialogError.set(null);
+    if (!this.agents().length)
+      forkJoin({ lookups: this.config.getLookups().pipe(catchError(() => of({ branches: [], agents: [] }))),
+        subAgents: this.commissions.getSubAgents().pipe(catchError(() => of([] as TravelSubAgent[]))) })
+        .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(r => { this.agents.set(r.lookups.agents); this.subAgents.set(r.subAgents); });
+    this.attributionOpen.set(true);
+  }
+  protected saveAttribution(): void {
+    this.run(this.commissions.updateAttribution(this.id, this.attrAgent, this.attrSub), 'Commission attribution updated.', () => this.attributionOpen.set(false));
   }
   protected voidInvoice(): void { this.run(this.api.voidInvoice(this.id, this.voidReason.trim()), 'Invoice voided.', () => this.voidOpen.set(false)); }
   protected async voidCredit(c: TravelCreditNote): Promise<void> {

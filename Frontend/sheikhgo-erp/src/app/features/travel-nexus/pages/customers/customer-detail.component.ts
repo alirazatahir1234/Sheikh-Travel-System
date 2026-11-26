@@ -67,6 +67,7 @@ import { TravelCustomerService } from '../../services/travel-customer.service';
             <div><dt>Assigned agent</dt><dd>{{ c.assignedAgentName || 'Unassigned' }}</dd></div>
             <div><dt>Branch</dt><dd>{{ c.branchName || '—' }}</dd></div>
             <div><dt>Lead source</dt><dd>{{ c.leadSourceName || '—' }}</dd></div>
+            @if (c.subAgentName) { <div><dt>Referred by</dt><dd>{{ c.subAgentName }}</dd></div> }
             <div><dt>Customer since</dt><dd>{{ c.createdAt | date: 'mediumDate' }}</dd></div>
           </dl>
           @if (c.notes) { <p class="mt-4 whitespace-pre-line text-sm text-fleet-text-muted">{{ c.notes }}</p> }

@@ -163,6 +163,41 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     title: 'Suppliers'
   },
   {
+    path: 'suppliers/bills/new',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.supplierBillManage] },
+    loadComponent: () => import('./pages/suppliers/bill-editor.component').then(m => m.TravelBillEditorComponent),
+    title: 'New supplier bill'
+  },
+  {
+    path: 'suppliers/bills/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/suppliers/bill-detail.component').then(m => m.TravelBillDetailComponent),
+    title: 'Supplier bill'
+  },
+  {
+    path: 'suppliers/bills/:id/edit',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.supplierBillManage] },
+    loadComponent: () => import('./pages/suppliers/bill-editor.component').then(m => m.TravelBillEditorComponent),
+    title: 'Edit supplier bill'
+  },
+  {
+    path: 'suppliers/payments/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
+    loadComponent: () => import('./pages/suppliers/supplier-payment-detail.component').then(m => m.TravelSupplierPaymentDetailComponent),
+    title: 'Supplier payment'
+  },
+  {
+    path: 'suppliers/:id',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.supplierView] },
+    loadComponent: () => import('./pages/suppliers/supplier-detail.component').then(m => m.TravelSupplierDetailComponent),
+    title: 'Supplier'
+  },
+  {
     path: 'finance',
     canActivate: [permissionGuard],
     data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
@@ -203,6 +238,20 @@ export const TRAVEL_NEXUS_ROUTES: Routes = [
     data: { permissions: [TRAVEL_PERMISSIONS.financeView] },
     loadComponent: () => import('./pages/finance/statement.component').then(m => m.TravelStatementComponent),
     title: 'Statement'
+  },
+  {
+    path: 'commissions',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.commissionView] },
+    loadComponent: () => import('./pages/commissions/commissions-page.component').then(m => m.TravelCommissionsPageComponent),
+    title: 'Commissions'
+  },
+  {
+    path: 'profitability',
+    canActivate: [permissionGuard],
+    data: { permissions: [TRAVEL_PERMISSIONS.profitabilityView] },
+    loadComponent: () => import('./pages/profitability/profitability-page.component').then(m => m.TravelProfitabilityPageComponent),
+    title: 'Profitability'
   },
   {
     path: 'settings',

@@ -4,13 +4,14 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 import { UiPageHeaderComponent } from '../../../../shared/components/ui';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import {
-  CreateTravelCustomer, SaveTravelCustomer, TravelCustomer, TravelCustomerKind, TravelLeadSource, TravelLookups, isMasked
+  CreateTravelCustomer, SaveTravelCustomer, TravelCustomer, TravelCustomerKind, TravelLeadSource, TravelLookups, TravelSubAgent, isMasked
 } from '../../models/travel.models';
+import { TravelCommissionService } from '../../services/travel-commission.service';
 import { TravelConfigService } from '../../services/travel-config.service';
 import { TravelCustomerService } from '../../services/travel-customer.service';
 
@@ -124,6 +125,14 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
                 </select>
                 @if (!leadSources().length) { <span class="tn-hint">Add lead sources in TravelNexus settings.</span> }
               </div>
+              <div class="tn-field">
+                <label for="subAgent">Referred by (sub-agent)</label>
+                <select id="subAgent" class="tn-input" formControlName="subAgentId">
+                  <option [ngValue]="null">No sub-agent</option>
+                  @for (a of subAgents(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }
+                </select>
+                <span class="tn-hint">Becomes the default sub-agent for commission on this customer's invoices.</span>
+              </div>
             </div>
             <div class="tn-field">
               <label for="notes">Notes</label>
@@ -163,6 +172,7 @@ export class TravelCustomerFormComponent {
   protected readonly kind = signal<TravelCustomerKind>('Individual');
   protected readonly lookups = signal<TravelLookups>({ branches: [], agents: [] });
   protected readonly leadSources = signal<TravelLeadSource[]>([]);
+  protected readonly subAgents = signal<TravelSubAgent[]>([]);
   protected readonly storedCnic = signal<string | null>(null);
   protected readonly cnicMasked = computed(() => isMasked(this.storedCnic()));
   protected readonly cancelLink = computed(() =>
@@ -181,6 +191,7 @@ export class TravelCustomerFormComponent {
     assignedAgentUserId: [null as number | null],
     branchId: [null as number | null],
     leadSourceId: [null as number | null],
+    subAgentId: [null as number | null],
     notes: ['']
   });
 
@@ -188,13 +199,15 @@ export class TravelCustomerFormComponent {
     forkJoin({
       lookups: this.config.getLookups(),
       leadSources: this.config.getLeadSources(true),
+      subAgents: inject(TravelCommissionService).getSubAgents(true).pipe(catchError(() => of([] as TravelSubAgent[]))),
       customer: this.customerId ? this.customers.getCustomer(this.customerId) : of(null)
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ lookups, leadSources, customer }) => {
+        next: ({ lookups, leadSources, subAgents, customer }) => {
           this.lookups.set(lookups);
           this.leadSources.set(leadSources);
+          this.subAgents.set(subAgents);
           if (customer) this.patch(customer);
           this.loading.set(false);
         },
@@ -240,7 +253,8 @@ export class TravelCustomerFormComponent {
       assignedAgentUserId: v.assignedAgentUserId,
       branchId: v.branchId,
       leadSourceId: v.leadSourceId,
-      notes: blank(v.notes)
+      notes: blank(v.notes),
+      subAgentId: v.subAgentId
     };
 
     this.saving.set(true);
@@ -279,6 +293,7 @@ export class TravelCustomerFormComponent {
       assignedAgentUserId: c.assignedAgentUserId,
       branchId: c.branchId,
       leadSourceId: c.leadSourceId,
+      subAgentId: c.subAgentId,
       notes: c.notes ?? ''
     });
   }

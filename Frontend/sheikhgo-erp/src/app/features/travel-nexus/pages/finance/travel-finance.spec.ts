@@ -23,6 +23,7 @@ const open = (id: number, currency: string, balance: number, due: string, pendin
 const invoice: TravelInvoice = {
   ...open(31, 'PKR', 60_000, '2027-02-15'), total: 160_000, paid: 100_000, balance: 60_000, paymentStatus: 'PartiallyPaid',
   subtotal: 168_000, discountAmount: 8_000, notes: 'Thank you', issuedAt: '2027-01-01', voidedAt: null, voidReason: null, branchId: null, branchName: null,
+  agentUserId: null, agentName: null, subAgentId: null, subAgentName: null,
   allowedActions: ['RecordPayment'], bookingNumber: 'BKG-2027-00012',
   lines: [
     { id: 1, invoiceId: 31, sequence: 1, description: 'Flight · PNR ABC123 · LHE→JED', quantity: 1, unitPrice: 160_000, lineTotal: 160_000, sourceType: 'Flight',

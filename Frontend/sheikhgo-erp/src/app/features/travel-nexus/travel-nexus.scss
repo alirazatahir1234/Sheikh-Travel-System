@@ -98,6 +98,7 @@ textarea.tn-input { min-height: 84px; resize: vertical; }
   font-size: 0.85rem;
   &.error { background: #FEF2F2; color: #B91C1C; }
   &.info { background: var(--stb-primary-50); color: var(--stb-primary-600); }
+  &.warn { background: #FFFBEB; color: #B45309; }
 }
 
 .tn-chip {

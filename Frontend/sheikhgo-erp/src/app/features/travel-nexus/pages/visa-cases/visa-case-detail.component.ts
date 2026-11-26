@@ -20,6 +20,7 @@ import { asUtc, fromDateTimeLocal, toDateTimeLocal } from '../../models/travel-d
 import { TravelCustomerService } from '../../services/travel-customer.service';
 import { VisaCaseDocumentsComponent } from '../../components/visa-case-documents.component';
 import { TravelVisaService } from '../../services/travel-visa.service';
+import { TravelProfitCardComponent } from '../profitability/profit-card.component';
 
 /** Transition buttons in display order; Hold and Cancel ask for a note. */
 const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote: boolean; warn?: boolean }[] = [
@@ -36,7 +37,7 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
   selector: 'app-travel-visa-case-detail',
   standalone: true,
   imports: [DatePipe, CurrencyPipe, ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, UiPageHeaderComponent,
-    UiStatusBadgeComponent, UiDrawerComponent, UiModalComponent, HasPermissionDirective, VisaCaseDocumentsComponent],
+    UiStatusBadgeComponent, UiDrawerComponent, UiModalComponent, HasPermissionDirective, VisaCaseDocumentsComponent, TravelProfitCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tn-page">
@@ -70,6 +71,8 @@ const TRANSITIONS: { action: TravelVisaTransitionAction; icon: string; needsNote
             @if (can('Edit')) { <a mat-stroked-button [routerLink]="['/travel/visa-cases', c.id, 'edit']"><mat-icon>edit</mat-icon> Edit</a> }
           </ng-container>
         </ui-page-header>
+
+        @if (!c.groupId) { <app-travel-profit-card *appHasPermission="perms.profitabilityView" contextType="VisaCase" [contextId]="c.id" /> }
 
         <div class="grid gap-5 lg:grid-cols-3">
           <div class="tn-card tn-card-body space-y-4">
