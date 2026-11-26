@@ -87,25 +87,35 @@ export class MenuService {
   ) {}
 
   loadMenu(roles: string[], enabledModules: string[] = []): Observable<ResolvedMenu> {
-    const primaryRole = selectPrimaryRole(roles, '');
+    return this.loadMenuModules().pipe(
+      map(modules => this.resolveMenu(modules, roles, enabledModules))
+    );
+  }
+
+  /**
+   * GET /platform/menus/me — the only HTTP part of building the sidebar.
+   * Emits null when the request fails; {@link resolveMenu} then uses the static fallback.
+   */
+  loadMenuModules(): Observable<MenuModuleDto[] | null> {
     return this.http
       .get<MenuModuleDto[]>(`${environment.apiUrl}/platform/menus/me`)
       .pipe(
-        map(modules => this.filterMenuByRole(
-          this.ensureGpsAnalyticsNav(
-            this.ensureMcpNav(this.fromApi(modules ?? []), enabledModules),
-            enabledModules
-          ),
-          primaryRole
-        )),
-        catchError(() => of(this.filterMenuByRole(
-          this.ensureGpsAnalyticsNav(
-            this.ensureMcpNav(this.fallbackMenu(roles, enabledModules), enabledModules),
-            enabledModules
-          ),
-          primaryRole
-        )))
+        map(modules => modules ?? []),
+        catchError(() => of(null))
       );
+  }
+
+  /**
+   * Builds the sidebar from modules that are already loaded. No HTTP, so the shell can
+   * re-run it when the enabled modules change without fetching menus/me again.
+   */
+  resolveMenu(modules: MenuModuleDto[] | null, roles: string[], enabledModules: string[] = []): ResolvedMenu {
+    const primaryRole = selectPrimaryRole(roles, '');
+    const base = modules ? this.fromApi(modules) : this.fallbackMenu(roles, enabledModules);
+    return this.filterMenuByRole(
+      this.ensureGpsAnalyticsNav(this.ensureMcpNav(base, enabledModules), enabledModules),
+      primaryRole
+    );
   }
 
   private filterMenuByRole(menu: ResolvedMenu, primaryRole: string): ResolvedMenu {

@@ -21,6 +21,7 @@ import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/l
 import { TenantTimeService } from '../../core/services/tenant-time.service';
 import { TenantConfigService } from '../../core/services/tenant-config.service';
 import { MenuService } from '../../core/services/menu.service';
+import { LoginResponse } from '../../core/models/auth.model';
 import { NavGroup, NavItem, ResolvedMenu } from '../../core/navigation/nav-models';
 import {
   defaultExpandedGroupIds,
@@ -125,22 +126,34 @@ export class ShellComponent implements OnInit, OnDestroy {
     ]).pipe(map(([a, b]) => (a || 0) + (b || 0)));
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
-    this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
+    // /platform/menus/me is fetched once per signed-in user. Branding's enabledModules arriving
+    // later, or a token refresh with the same roles, re-resolves the modules already loaded —
+    // each of those used to send the request again.
+    const menuSource$ = this.currentUser$.pipe(
+      map(user => ({ user, request: this.menuRequestKey(user) })),
+      distinctUntilChanged((a, b) => a.request.key === b.request.key),
       tap(() => { this.menuLoading = true; }),
-      // switchMap so branding enabledModules (incl. ai) is not dropped while menus/me is in flight.
-      switchMap(([user, enabledModules]) => {
+      switchMap(({ user, request }) =>
+        (request.fetch ? this.menuService.loadMenuModules() : of(null)).pipe(
+          map(modules => ({ user, fetched: request.fetch, modules }))
+        )),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+
+    this.menu$ = combineLatest([menuSource$, this.enabledModules$]).pipe(
+      map(([{ user, fetched, modules }, enabledModules]) => {
         const roles = user?.roles ?? [];
         const tenantType = resolveTenantType(roles);
 
         if (this.isDriverUser) {
-          return of(resolveMenu({ tenantType, roles, enabledModules }));
+          return resolveMenu({ tenantType, roles, enabledModules });
         }
 
-        if (!user || !this.auth.getToken()) {
-          return of({ groups: [], standaloneItems: [], isDriverLayout: false });
+        if (!user || !fetched) {
+          return { groups: [], standaloneItems: [], isDriverLayout: false };
         }
 
-        return this.menuService.loadMenu(roles, enabledModules);
+        return this.menuService.resolveMenu(modules, roles, enabledModules);
       }),
       tap(resolved => {
         this.menu = resolved;
@@ -153,6 +166,15 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   get homeRoute(): string {
     return this.isDriverUser ? '/my-trips' : '/dashboard';
+  }
+
+  /** Identity of the menu request: same key = same menu, so no new fetch. */
+  private menuRequestKey(user: LoginResponse | null): { key: string; fetch: boolean } {
+    if (!user || !this.auth.getToken()) return { key: 'signed-out', fetch: false };
+    const roles = (user.roles ?? []).join(',');
+    if (this.auth.isDriverUser()) return { key: `driver|${user.userId ?? user.email ?? ''}|${roles}`, fetch: false };
+    const permissions = (user.permissions ?? []).join(',');
+    return { key: `user|${user.userId ?? user.email ?? ''}|${roles}|${permissions}`, fetch: true };
   }
 
   get isDriverUser(): boolean {

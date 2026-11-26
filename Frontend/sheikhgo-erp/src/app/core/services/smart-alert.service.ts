@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, Subscription, catchError, of, tap } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, catchError, finalize, of, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { SmartAlert, SmartAlertSummary } from '../models/smart-alert.model';
 import { NotificationService } from './notification.service';
@@ -25,7 +25,8 @@ export class SmartAlertService implements OnDestroy {
   ) {
     this.hubSub = this.notifications.smartAlertEvents.subscribe(payload => {
       this.toast.info(payload.message || 'New operations alert', `Ops: ${payload.ruleType || 'Alert'}`);
-      this.refresh();
+      // A new alert must be picked up even if a refresh is already running.
+      this.refresh(true);
     });
   }
 
@@ -33,13 +34,34 @@ export class SmartAlertService implements OnDestroy {
     this.hubSub?.unsubscribe();
   }
 
-  refresh(): void {
+  private refreshInFlight = false;
+  private refreshQueued = false;
+
+  /**
+   * Reloads the active alerts. Calls made while a reload is running are collapsed: the session
+   * start used to fire two identical requests. `afterCurrent` (hub events) runs one more reload
+   * when the current one finishes, so an alert raised mid-request is not missed.
+   */
+  refresh(afterCurrent = false): void {
     if (!this.auth.getToken()) {
       this.summary$.next({ newCount: 0, activeCount: 0, items: [] });
       this.newCountSubject.next(0);
       return;
     }
-    this.getActive().subscribe();
+    if (this.refreshInFlight) {
+      this.refreshQueued ||= afterCurrent;
+      return;
+    }
+    this.refreshInFlight = true;
+    this.getActive().pipe(
+      finalize(() => {
+        this.refreshInFlight = false;
+        if (this.refreshQueued) {
+          this.refreshQueued = false;
+          this.refresh();
+        }
+      })
+    ).subscribe();
   }
 
   getActive(ruleType?: string, limit = 50): Observable<SmartAlertSummary> {

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
-import { distinctUntilChanged, map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Subscription, combineLatest } from 'rxjs';
+import { distinctUntilChanged, map, skip } from 'rxjs/operators';
 import { TenantContextService } from '../../core/services/tenant-context.service';
 import { VehicleService } from '../../core/services/vehicle.service';
 import { VehicleListItem, VehicleStatus } from '../../core/models/vehicle.model';
@@ -51,10 +51,17 @@ export class GpsScopeFilterService {
     distinctUntilChanged()
   );
 
+  private vehiclesSub?: Subscription;
+
   constructor() {
     this.restoreVehicleOnly();
-    this.tenantContext.tenantId$.subscribe(() => this.onCompanyChanged());
-    this.tenantContext.isAllCompanies$.subscribe(() => this.onCompanyChanged());
+    // One vehicles load at start, then one per real company change. Both tenant streams are
+    // BehaviorSubjects: subscribing to each separately fired /api/vehicles three times on
+    // every GPS page open and wiped the vehicle filter that had just been restored.
+    combineLatest([this.tenantContext.tenantId$, this.tenantContext.isAllCompanies$]).pipe(
+      distinctUntilChanged(([idA, allA], [idB, allB]) => idA === idB && allA === allB),
+      skip(1)
+    ).subscribe(() => this.onCompanyChanged());
     this.loadVehicles();
   }
 
@@ -142,6 +149,8 @@ export class GpsScopeFilterService {
   }
 
   private loadVehicles(): void {
+    // A newer scope wins: drop any request still in flight for the previous company.
+    this.vehiclesSub?.unsubscribe();
     if (!this.isFleetScopeReady) {
       this.vehiclesSubject.next([]);
       this.vehiclesLoadingSubject.next(false);
@@ -153,7 +162,7 @@ export class GpsScopeFilterService {
     }
 
     this.vehiclesLoadingSubject.next(true);
-    this.vehiclesApi.getAll(1, 500, false).subscribe({
+    this.vehiclesSub = this.vehiclesApi.getAll(1, 500, false).subscribe({
       next: r => {
         const items = r.items.filter(v => v.status !== VehicleStatus.Retired);
         this.vehiclesSubject.next(items);
