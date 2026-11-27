@@ -498,6 +498,59 @@ public class HistoryTimelineBuilderTests
     }
 
     [Fact]
+    public async Task Places_WithinTheStopRadius_ShareOneLookup()
+    {
+        // Parked at the depot, a trip out and back, parked again 60 m from the first spot.
+        var fixes = Stand(T0, 130, 31.50, every: 10);
+        var outbound = Drive(T0.AddMinutes(131), 10, 31.50);
+        fixes.AddRange(outbound);
+        var away = outbound[^1].Latitude;
+        fixes.AddRange(Stand(T0.AddMinutes(142), 20, away));
+        for (var i = 0; i <= 10; i++)
+            fixes.Add(P(T0.AddMinutes(163 + i), away - i * Step + (i == 10 ? 0.00054 : 0), 54m));
+        fixes.AddRange(Stand(T0.AddMinutes(174), 130, 31.50054, every: 10));
+        var geocoder = new FakeGeocoder();
+
+        var built = HistoryTimelineBuilder.Build(fixes, T0, T0.AddMinutes(304), Karachi);
+        var t = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None);
+
+        AssertAddsUp(t);
+        var standstills = Standstills(t);
+        standstills.Should().HaveCount(3);
+        geocoder.Calls.Should().Be(2, "the two parking spots 60 m apart are one place");
+        standstills[2].StartAddress.Should().Be(standstills[0].StartAddress);
+    }
+
+    [Fact]
+    public async Task Places_LookupsAreCapped_LongestStandstillsFirst()
+    {
+        // More separate places than the cap; the stop at place k lasts 5 + k minutes.
+        var places = HistoryTimelineBuilder.MaxPlaceLookups + 10;
+        var fixes = new List<TripReplayPositionDto>();
+        var t = T0;
+        for (var k = 0; k < places; k++)
+        {
+            var lat = 31.0 + k * 0.05;
+            fixes.AddRange(Stand(t, 5 + k, lat));
+            t = t.AddMinutes(5 + k + 1);
+            fixes.AddRange(Drive(t, 6, lat));
+            t = t.AddMinutes(7);
+        }
+        var geocoder = new FakeGeocoder();
+
+        var built = HistoryTimelineBuilder.Build(fixes, T0, t, Karachi);
+        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None);
+
+        AssertAddsUp(named);
+        geocoder.Calls.Should().Be(HistoryTimelineBuilder.MaxPlaceLookups);
+        var standstills = Standstills(named);
+        standstills.Where(s => s.StartAddress is not null).Should().HaveCount(HistoryTimelineBuilder.MaxPlaceLookups);
+        var shortestNamed = standstills.Where(s => s.StartAddress is not null).Min(s => s.DurationMinutes);
+        var longestUnnamed = standstills.Where(s => s.StartAddress is null).Max(s => s.DurationMinutes);
+        shortestNamed.Should().BeGreaterThanOrEqualTo(longestUnnamed, "the longest standstills are named first");
+    }
+
+    [Fact]
     public async Task Places_AlreadyNamedForTheWindow_AreNotLookedUpAgain()
     {
         var fixes = StandDriveStandDriveStand(out _, out var b, out _);

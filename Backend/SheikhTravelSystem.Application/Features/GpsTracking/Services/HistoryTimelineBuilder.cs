@@ -35,6 +35,12 @@ public static class HistoryTimelineBuilder
     /// <summary>A jump faster than this between two fixes is a position glitch, not travel.</summary>
     public const double MaxPlausibleSpeedKmh = 160;
 
+    /// <summary>
+    /// Most addresses looked up for one timeline. A cache miss waits for the free geocoder's
+    /// rate limit (about one a second), so this bounds the first load of a long window.
+    /// </summary>
+    public const int MaxPlaceLookups = 40;
+
     /// <summary>A pause shorter than this inside a trip is not worth listing.</summary>
     public const int MinBriefStopSeconds = 60;
 
@@ -77,9 +83,13 @@ public static class HistoryTimelineBuilder
     }
 
     /// <summary>
-    /// Names the places on the timeline. Standstills are geocoded once per place (cache first, no
-    /// paid provider); a trip takes the name of the standstill it leaves from and arrives at, so a
-    /// trip row and the stop rows around it read the same.
+    /// Names the places on the timeline. A place within <see cref="StopRadiusMeters"/> of one
+    /// already named (the replay's stops, or an earlier standstill) takes that name; anything else
+    /// is looked up once, cache first and never through a paid provider. Lookups stop after
+    /// <see cref="MaxPlaceLookups"/>, longest standstills first, because a cache miss waits for the
+    /// free geocoder's rate limit; a place left unnamed keeps its coordinates. A trip takes the
+    /// names of the standstills it leaves and reaches, so a trip row and the stop rows around it
+    /// read the same.
     /// </summary>
     /// <param name="knownPlaces">Stops already named for this window; reused before any lookup.</param>
     public static async Task<HistoryTimelineDto> WithAddressesAsync(
@@ -91,79 +101,115 @@ public static class HistoryTimelineBuilder
         var segments = timeline.Segments;
         if (segments.Count == 0) return timeline;
 
-        var known = new Dictionary<(long, long), string>();
+        var named = new List<(double Latitude, double Longitude, string Address)>();
         foreach (var place in knownPlaces ?? [])
         {
             if (!TripReplayAddressEnricher.IsCoarseAddress(place.Address))
-                known.TryAdd(PlaceKey(place.Latitude, place.Longitude), place.Address!);
+                named.Add((place.Latitude, place.Longitude, place.Address!.Trim()));
         }
 
-        var lookups = new Dictionary<(long, long), TripStopDto>();
-        void Want(double latitude, double longitude, string? address, DateTime at)
+        string? Nearby(double latitude, double longitude)
         {
-            var key = PlaceKey(latitude, longitude);
-            if (known.TryGetValue(key, out var named)) address = named;
-            lookups.TryAdd(key, new TripStopDto(at, at, latitude, longitude, address, 0));
+            foreach (var place in named)
+            {
+                if (TripAnalyticsMapper.HaversineKm(latitude, longitude, place.Latitude, place.Longitude) * 1000
+                    <= StopRadiusMeters)
+                    return place.Address;
+            }
+            return null;
         }
 
+        // What needs a name: every standstill, and a trip end with no standstill beside it
+        // (the edges of the window). The longest standstills are named first.
+        var wanted = new List<(double Latitude, double Longitude, string? Address, int Weight)>();
         for (var i = 0; i < segments.Count; i++)
         {
             var s = segments[i];
             if (s.Kind != HistorySegmentKinds.Trip)
             {
-                Want(s.StartLatitude, s.StartLongitude, s.StartAddress, s.StartTime);
+                wanted.Add((s.StartLatitude, s.StartLongitude, s.StartAddress, s.DurationMinutes));
                 continue;
             }
 
             if (StandstillBefore(segments, i) is null)
-                Want(s.StartLatitude, s.StartLongitude, s.StartAddress, s.StartTime);
+                wanted.Add((s.StartLatitude, s.StartLongitude, s.StartAddress, 0));
             if (StandstillAfter(segments, i) is null)
-                Want(s.EndLatitude, s.EndLongitude, s.EndAddress, s.EndTime);
+                wanted.Add((s.EndLatitude, s.EndLongitude, s.EndAddress, 0));
         }
 
-        var keys = lookups.Keys.ToList();
-        var enriched = await TripReplayAddressEnricher.EnrichAsync(
-            new TripReplayBundleDto([], [], lookups.Values.ToList(), [], null),
-            geocoder,
-            cancellationToken);
+        var lookups = 0;
+        foreach (var w in wanted.OrderByDescending(w => w.Weight))
+        {
+            if (Nearby(w.Latitude, w.Longitude) is not null) continue;
+            if (!TripReplayAddressEnricher.IsCoarseAddress(w.Address))
+            {
+                named.Add((w.Latitude, w.Longitude, w.Address!.Trim()));
+                continue;
+            }
+            if (lookups >= MaxPlaceLookups) continue;
 
-        var names = new Dictionary<(long, long), string?>();
-        for (var i = 0; i < keys.Count; i++)
-            names[keys[i]] = enriched.Stops[i].Address;
+            lookups++;
+            var address = await LookUpAsync(geocoder, w.Latitude, w.Longitude, cancellationToken);
+            if (address is not null)
+                named.Add((w.Latitude, w.Longitude, address));
+        }
 
-        string? NameAt(double latitude, double longitude, string? fallback) =>
-            names.TryGetValue(PlaceKey(latitude, longitude), out var name) && !string.IsNullOrWhiteSpace(name)
-                ? name
-                : fallback;
-
-        var named = new List<HistoryTimelineSegmentDto>(segments.Count);
+        var result = new List<HistoryTimelineSegmentDto>(segments.Count);
         foreach (var s in segments)
         {
             if (s.Kind == HistorySegmentKinds.Trip)
             {
-                named.Add(s);
+                result.Add(s);
                 continue;
             }
 
-            var address = NameAt(s.StartLatitude, s.StartLongitude, s.StartAddress);
-            named.Add(s with { StartAddress = address, EndAddress = address });
+            var address = Nearby(s.StartLatitude, s.StartLongitude) ?? s.StartAddress;
+            result.Add(s with { StartAddress = address, EndAddress = address });
         }
 
-        for (var i = 0; i < named.Count; i++)
+        for (var i = 0; i < result.Count; i++)
         {
-            var s = named[i];
+            var s = result[i];
             if (s.Kind != HistorySegmentKinds.Trip) continue;
 
-            named[i] = s with
+            result[i] = s with
             {
-                StartAddress = StandstillBefore(named, i)?.StartAddress
-                    ?? NameAt(s.StartLatitude, s.StartLongitude, s.StartAddress),
-                EndAddress = StandstillAfter(named, i)?.StartAddress
-                    ?? NameAt(s.EndLatitude, s.EndLongitude, s.EndAddress)
+                StartAddress = StandstillBefore(result, i)?.StartAddress
+                    ?? Nearby(s.StartLatitude, s.StartLongitude)
+                    ?? s.StartAddress,
+                EndAddress = StandstillAfter(result, i)?.StartAddress
+                    ?? Nearby(s.EndLatitude, s.EndLongitude)
+                    ?? s.EndAddress
             };
         }
 
-        return timeline with { Segments = named };
+        return timeline with { Segments = result };
+    }
+
+    private static async Task<string?> LookUpAsync(
+        IReverseGeocodingService geocoder,
+        double latitude,
+        double longitude,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await geocoder.GetAddressAsync(
+                latitude,
+                longitude,
+                forceRefresh: false,
+                cancellationToken,
+                allowGoogle: false);
+            return TripReplayAddressEnricher.FormatResolvedAddress(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ---- fixes ----------------------------------------------------------------------------
@@ -606,10 +652,6 @@ public static class HistoryTimelineBuilder
             ? next
             : null;
     }
-
-    /// <summary>Two fixes within about 11 m are one place.</summary>
-    private static (long, long) PlaceKey(double latitude, double longitude) =>
-        ((long)Math.Round(latitude * 10_000), (long)Math.Round(longitude * 10_000));
 
     private static int RoundMinutes(TimeSpan span) =>
         (int)Math.Round(span.TotalMinutes, MidpointRounding.AwayFromZero);
