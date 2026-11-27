@@ -183,57 +183,59 @@ public sealed partial class GeofenceWorkspaceRepository
             """,
             new { TenantId = tenantId, GeofenceId = geofenceId, By = by }, tx, cancellationToken: cancellationToken));
 
+        // "All vehicles" needs no rows. Otherwise every list sent is kept, not only the one AppliesTo names: a geofence
+        // can carry branches plus vehicles added later (bulk assign, or the previous editor), and the editor shows and
+        // sends those extra lists so saving never drops them.
+        if (dto.AppliesTo == GeofenceAppliesTo.All)
+            return;
+
         var args = new { TenantId = tenantId, GeofenceId = geofenceId, By = by };
-        switch (dto.AppliesTo)
+        if (dto.VehicleIds is { Length: > 0 })
         {
-            case GeofenceAppliesTo.Vehicles when dto.VehicleIds is { Length: > 0 }:
-                await connection.ExecuteAsync(new CommandDefinition(
-                    """
-                    INSERT INTO GeofenceAssignments (GeofenceId, VehicleId, CreatedAt, CreatedBy, IsDeleted)
-                    SELECT @GeofenceId, v.Id, GETUTCDATE(), @By, 0
-                    FROM Vehicles v WHERE v.Id IN @Ids AND v.TenantId = @TenantId AND v.IsDeleted = 0
-                    """,
-                    new { args.TenantId, args.GeofenceId, args.By, Ids = dto.VehicleIds.Distinct().ToArray() },
-                    tx, cancellationToken: cancellationToken));
-                break;
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GeofenceAssignments (GeofenceId, VehicleId, CreatedAt, CreatedBy, IsDeleted)
+                SELECT @GeofenceId, v.Id, GETUTCDATE(), @By, 0
+                FROM Vehicles v WHERE v.Id IN @Ids AND v.TenantId = @TenantId AND v.IsDeleted = 0
+                """,
+                new { args.TenantId, args.GeofenceId, args.By, Ids = dto.VehicleIds.Distinct().ToArray() },
+                tx, cancellationToken: cancellationToken));
+        }
 
-            case GeofenceAppliesTo.Groups:
-                if (dto.BranchIds is { Length: > 0 })
-                {
-                    await connection.ExecuteAsync(new CommandDefinition(
-                        """
-                        INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
-                        SELECT @GeofenceId, b.Id, GETUTCDATE(), @By, 0
-                        FROM Branches b WHERE b.Id IN @Ids AND b.TenantId = @TenantId
-                        """,
-                        new { args.TenantId, args.GeofenceId, args.By, Ids = dto.BranchIds.Distinct().ToArray() },
-                        tx, cancellationToken: cancellationToken));
-                }
+        if (dto.BranchIds is { Length: > 0 })
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
+                SELECT @GeofenceId, b.Id, GETUTCDATE(), @By, 0
+                FROM Branches b WHERE b.Id IN @Ids AND b.TenantId = @TenantId
+                """,
+                new { args.TenantId, args.GeofenceId, args.By, Ids = dto.BranchIds.Distinct().ToArray() },
+                tx, cancellationToken: cancellationToken));
+        }
 
-                if (dto.DepartmentIds is { Length: > 0 })
-                {
-                    await connection.ExecuteAsync(new CommandDefinition(
-                        """
-                        INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
-                        SELECT @GeofenceId, d.Id, GETUTCDATE(), @By, 0
-                        FROM Departments d WHERE d.Id IN @Ids AND d.TenantId = @TenantId
-                        """,
-                        new { args.TenantId, args.GeofenceId, args.By, Ids = dto.DepartmentIds.Distinct().ToArray() },
-                        tx, cancellationToken: cancellationToken));
-                }
+        if (dto.DepartmentIds is { Length: > 0 })
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
+                SELECT @GeofenceId, d.Id, GETUTCDATE(), @By, 0
+                FROM Departments d WHERE d.Id IN @Ids AND d.TenantId = @TenantId
+                """,
+                new { args.TenantId, args.GeofenceId, args.By, Ids = dto.DepartmentIds.Distinct().ToArray() },
+                tx, cancellationToken: cancellationToken));
+        }
 
-                break;
-
-            case GeofenceAppliesTo.Drivers when dto.DriverIds is { Length: > 0 }:
-                await connection.ExecuteAsync(new CommandDefinition(
-                    """
-                    INSERT INTO GeofenceAssignments (GeofenceId, DriverId, CreatedAt, CreatedBy, IsDeleted)
-                    SELECT @GeofenceId, d.Id, GETUTCDATE(), @By, 0
-                    FROM Drivers d WHERE d.Id IN @Ids AND d.TenantId = @TenantId AND d.IsDeleted = 0
-                    """,
-                    new { args.TenantId, args.GeofenceId, args.By, Ids = dto.DriverIds.Distinct().ToArray() },
-                    tx, cancellationToken: cancellationToken));
-                break;
+        if (dto.DriverIds is { Length: > 0 })
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GeofenceAssignments (GeofenceId, DriverId, CreatedAt, CreatedBy, IsDeleted)
+                SELECT @GeofenceId, d.Id, GETUTCDATE(), @By, 0
+                FROM Drivers d WHERE d.Id IN @Ids AND d.TenantId = @TenantId AND d.IsDeleted = 0
+                """,
+                new { args.TenantId, args.GeofenceId, args.By, Ids = dto.DriverIds.Distinct().ToArray() },
+                tx, cancellationToken: cancellationToken));
         }
     }
 
