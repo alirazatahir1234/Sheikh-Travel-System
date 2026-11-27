@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IDriverPerformanceScoringRepository, DriverPerformanceScoringRepository>();
         services.AddScoped<IAlertModuleGate, SheikhTravelSystem.Infrastructure.Services.Gps.AlertModuleGate>();
         services.AddScoped<IGpsAlertWriter, SheikhTravelSystem.Infrastructure.Services.Gps.GpsAlertWriter>();
+        services.AddScoped<IGeofenceWorkspaceRepository, GeofenceWorkspaceRepository>();
         services.AddScoped<SheikhTravelSystem.Application.Features.GpsTracking.Services.IGeofenceAlertNotifier,
             SheikhTravelSystem.Infrastructure.Services.Gps.GeofenceAlertNotifier>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Drivers.Services.IDriverTelematicsEnforcementService,
