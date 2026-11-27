@@ -1,0 +1,590 @@
+@use '../geofence-tokens' as *;
+
+:host {
+  display: block;
+  color: $text;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.ge {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.btn { @include btn; }
+.btn--primary { @include btn-primary; }
+.btn--sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.hint { font-size: 12px; color: $muted; font-weight: 400; }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $teal-ink;
+  background: $teal-soft;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.tag--x button {
+  @include reset-button;
+  border: 0;
+  background: none;
+  color: $teal-ink;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.link {
+  @include reset-button;
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  color: $teal;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- header ------------------------------------------------------------------------------------- */
+
+.ge-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+
+  h1 {
+    margin: 4px 0 0;
+    font-size: 26px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+}
+
+.ge-back {
+  font-size: 13px;
+  font-weight: 600;
+  color: $teal;
+  text-decoration: none;
+
+  &:hover { color: $teal-hover; }
+}
+
+.ge-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ge-draft { font-size: 13px; color: $muted; }
+
+.ge-alert,
+.ge-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.ge-alert { background: $red-soft; color: $red-ink; }
+.ge-banner { background: $teal-select; border: 1px solid $teal-soft; }
+
+/* ---- layout ------------------------------------------------------------------------------------- */
+
+.ge-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ge-form {
+  flex: 1 1 460px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ge-loading { margin: 0; color: $muted; }
+
+.sec {
+  @include card;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.h {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.n {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  background: $teal;
+  color: #fff;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-2;
+  min-width: 0;
+}
+
+/* Side by side in a row; stacked fields keep their natural height. */
+.row > .fl { flex: 1 1 180px; }
+.row > .fl--sm { flex: 1 1 120px; }
+
+.in {
+  @include input;
+}
+
+.ta {
+  min-height: 110px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+select.in { padding-right: 8px; }
+
+.ge-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: $red-ink;
+}
+
+.ge-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed $line-strong;
+  border-radius: 10px;
+  background: $soft;
+}
+
+.ge-inline__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ge-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $text;
+
+  input { width: 20px; height: 20px; accent-color: $teal; }
+}
+
+.ge-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ge-colours__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-2;
+}
+
+.ge-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  @include reset-button;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 3px solid transparent;
+
+  &[aria-checked='true'] {
+    border-color: $text;
+    box-shadow: inset 0 0 0 2px #fff;
+  }
+
+  &:disabled { opacity: 0.35; }
+}
+
+/* ---- shape -------------------------------------------------------------------------------------- */
+
+.segs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seg { @include seg; }
+.seg--sm { min-height: 36px; padding: 0 12px; }
+
+.ge-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  background: $soft;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.stat__v {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ge-center {
+  margin: -6px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid $line;
+  border-radius: 10px;
+  font-size: 14px;
+
+  input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+    accent-color: $teal;
+    flex: none;
+  }
+}
+
+label.rule { cursor: pointer; }
+
+/* Rule rows stay on one line: the label after the number takes the leftover space (design: flex 1). */
+.grow { flex: 1; min-width: 0; }
+/* Long explanations wrap under themselves before squeezing the number box (design: flex 1 1 200px). */
+.grow--wide { flex: 1 1 200px; }
+
+.sm {
+  width: 76px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid $line-strong;
+  border-radius: 8px;
+  font: 14px Inter, system-ui, sans-serif;
+  color: $text;
+  background: $surface;
+
+  &:disabled { background: $track; color: $muted; }
+  &:focus { outline: 2px solid $teal; outline-offset: 0; }
+  &[aria-invalid='true'] { border-color: $red; }
+}
+
+.sm--time { width: 110px; }
+
+.sev {
+  font-size: 12px;
+  color: $muted;
+  font-weight: 600;
+
+  &--warn { color: $amber-value; }
+  &--crit { color: $red-value; }
+}
+
+.ge-warn {
+  font-size: 13px;
+  color: $amber-ink;
+  background: $amber-soft;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ge-note {
+  margin: 0;
+  font-size: 13px;
+  color: $text-2;
+  background: $soft;
+  border-left: 3px solid $red;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.ge-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ge-active__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-2;
+}
+
+.ge-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid $line;
+  border-radius: 10px;
+}
+
+.ge-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.day {
+  @include seg;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.ge-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ge-extra {
+  font-size: 13px;
+  color: $amber-ink;
+  background: $amber-soft;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.ge-picker {
+  border: 1px solid $line-strong;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ge-picker__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ge-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+
+  li + li { border-top: 1px solid $track; }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 4px 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  input { width: 18px; height: 18px; accent-color: $teal; flex: none; }
+}
+
+/* ---- map ---------------------------------------------------------------------------------------- */
+
+.ge-map {
+  flex: 999 1 520px;
+  min-width: 0;
+  min-height: 760px;
+  position: sticky;
+  top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid $teal;
+  background: #e5ecef;
+}
+
+.ge-map__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.ge-map__error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: $text-2;
+
+  p { margin: 4px 0 0; max-width: 360px; }
+}
+
+.ge-map__top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  pointer-events: none;
+
+  > * { pointer-events: auto; }
+}
+
+.ge-map__search {
+  flex: 1 1 260px;
+  max-width: 380px;
+  position: relative;
+
+  .in { box-shadow: $shadow-float; }
+}
+
+.hint--float {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: $shadow-float;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: $surface;
+  border-radius: 12px;
+  box-shadow: $shadow-float;
+}
+
+.tool {
+  @include reset-button;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: $surface;
+  color: $text;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:hover:not(:disabled) { background: $track; }
+
+  &[aria-pressed='true'] {
+    background: $text;
+    color: #fff;
+  }
+}
+
+.ge-map__status {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 12px 14px;
+  background: $text;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+}
+
+.ge-map__test { font-weight: 600; }
+
+/* ---- phone ---------------------------------------------------------------------------------------- */
+
+.ge-jump { display: none; }
+
+@media (max-width: 1100px) {
+  .ge-map {
+    position: relative;
+    top: 0;
+    min-height: 520px;
+  }
+
+  .ge-jump {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    color: $teal;
+  }
+}
+
+@media (max-width: 640px) {
+  .ge-head h1 { font-size: 22px; }
+  .ge-head__actions { width: 100%; }
+  .ge-head__actions .btn { flex: 1 1 auto; }
+  .ge-map { min-height: 440px; }
+  .sec { padding: 14px; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .stat { padding: 8px; }
+  .stat__v { font-size: 14px; }
+}

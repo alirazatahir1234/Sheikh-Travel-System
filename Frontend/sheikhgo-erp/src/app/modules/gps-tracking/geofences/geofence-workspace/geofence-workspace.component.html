@@ -1,0 +1,412 @@
+<div class="gw">
+  <header class="gw-head">
+    <div>
+      <nav class="gw-crumb" aria-label="Breadcrumb">
+        <a routerLink="/gps-tracking/live">Fleet Tracking</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Geofences</span>
+      </nav>
+      <h1>Geofences</h1>
+    </div>
+    <div class="gw-head__actions">
+      <ng-container *ngIf="canManage">
+        <button type="button" class="btn" (click)="pickImportFile()">
+          <mat-icon aria-hidden="true">upload_file</mat-icon>Import KML / GeoJSON / CSV
+        </button>
+        <input #importInput type="file" class="sr-only" tabindex="-1" aria-hidden="true"
+               accept=".kml,.geojson,.json,.csv,application/vnd.google-earth.kml+xml,application/geo+json,text/csv"
+               (change)="onImportFile($event)">
+      </ng-container>
+      <button type="button" class="btn" [matMenuTriggerFor]="exportMenu" [disabled]="!fences.length">
+        <mat-icon aria-hidden="true">download</mat-icon>Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item (click)="export('geojson', false)">All as GeoJSON</button>
+        <button mat-menu-item (click)="export('kml', false)">All as KML (Google Earth)</button>
+        <button mat-menu-item (click)="export('csv', false)">All as CSV</button>
+        <ng-container *ngIf="ticked.size">
+          <button mat-menu-item (click)="export('geojson', true)">Ticked ({{ ticked.size }}) as GeoJSON</button>
+          <button mat-menu-item (click)="export('kml', true)">Ticked ({{ ticked.size }}) as KML</button>
+          <button mat-menu-item (click)="export('csv', true)">Ticked ({{ ticked.size }}) as CSV</button>
+        </ng-container>
+      </mat-menu>
+      <a class="btn" routerLink="/gps-tracking/geofences/visits" [queryParams]="selectedId ? { geofenceId: selectedId } : {}">
+        <mat-icon aria-hidden="true">schedule</mat-icon>Visits report
+      </a>
+      <button *ngIf="canManage" type="button" class="btn btn--primary" (click)="goToNew()">
+        <mat-icon aria-hidden="true">add</mat-icon>New geofence
+      </button>
+    </div>
+  </header>
+
+  <div class="gw-alert" *ngIf="loadError" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <span>{{ loadError }}</span>
+    <button type="button" class="btn" (click)="load()">Try again</button>
+  </div>
+
+  <section class="gw-kpis" aria-label="Geofences at a glance">
+    <ng-container *ngIf="kpis.length; else kpiSkeleton">
+      <div class="kpi" *ngFor="let k of kpis">
+        <div class="lbl">{{ k.label }}</div>
+        <div class="kpi__row">
+          <span class="kpi__value" [class.is-teal]="k.tone === 'teal'" [class.is-red]="k.tone === 'red'">{{ k.value }}</span>
+          <span class="kpi__note" *ngIf="k.note">{{ k.note }}</span>
+        </div>
+      </div>
+    </ng-container>
+    <ng-template #kpiSkeleton>
+      <div class="kpi kpi--skeleton" *ngFor="let _ of [1, 2, 3, 4, 5, 6]" aria-hidden="true"></div>
+    </ng-template>
+  </section>
+
+  <div class="gw-body">
+    <!-- 1 · list -->
+    <aside class="gw-list" aria-label="Geofence list">
+      <div class="gw-list__top">
+        <input type="search" class="input" placeholder="Search name, type, address…" aria-label="Search geofences"
+               [(ngModel)]="search">
+        <div class="gw-chips" role="group" aria-label="Show">
+          <button type="button" class="chip" *ngFor="let f of filters" [attr.aria-pressed]="filter === f.value"
+                  (click)="filter = f.value">{{ f.label }} {{ filterCount(f.value) }}</button>
+        </div>
+      </div>
+
+      <div class="gw-bulk" *ngIf="canManage && ticked.size" role="region" aria-label="Bulk actions">
+        <span class="gw-bulk__count">{{ ticked.size }} ticked</span>
+        <button type="button" class="link" (click)="tickAllShown()">Tick all shown</button>
+        <button type="button" class="link" (click)="clearTicks()">Clear</button>
+        <div class="gw-bulk__actions">
+          <button type="button" class="btn btn--sm" (click)="openAssign(tickedIds)" [disabled]="busy">Assign vehicles</button>
+          <button type="button" class="btn btn--sm" [matMenuTriggerFor]="groupMenu" [disabled]="busy">Change group</button>
+          <button type="button" class="btn btn--sm" (click)="runBulk('enable', tickedIds)" [disabled]="busy">Switch on</button>
+          <button type="button" class="btn btn--sm" (click)="runBulk('disable', tickedIds)" [disabled]="busy">Switch off</button>
+          <button type="button" class="btn btn--sm btn--danger" (click)="runBulk('delete', tickedIds)" [disabled]="busy">Delete</button>
+        </div>
+        <mat-menu #groupMenu="matMenu">
+          <button mat-menu-item *ngFor="let g of groups" (click)="moveToGroup(tickedIds, g.id)">{{ g.name }}</button>
+          <button mat-menu-item (click)="moveToGroup(tickedIds, null)">No group</button>
+          <button mat-menu-item (click)="openNewGroup(tickedIds)">New group…</button>
+        </mat-menu>
+      </div>
+
+      <div class="gw-list__body">
+        <p class="gw-empty" *ngIf="loading && !fences.length">Loading geofences…</p>
+        <div class="gw-empty" *ngIf="!loading && !loadError && !fences.length">
+          <p><b>No geofences yet.</b></p>
+          <p>Draw one on the map, start with <b>New geofence</b>, or import a KML, GeoJSON or CSV file.</p>
+        </div>
+        <p class="gw-empty" *ngIf="fences.length && !visibleFences.length">No geofences match. Clear the search or pick All.</p>
+
+        <ng-container *ngFor="let g of groupedFences; trackBy: trackGroup">
+          <div class="gw-group">
+            <span class="lbl">{{ g.name }}</span>
+            <span class="gw-group__count">{{ g.items.length }}</span>
+          </div>
+          <div class="gw-row" *ngFor="let f of g.items; trackBy: trackFence" [class.is-selected]="f.id === selectedId"
+               [class.is-off]="!f.isActive">
+            <input *ngIf="canManage" type="checkbox" class="gw-row__tick" [checked]="ticked.has(f.id)"
+                   (change)="toggleTick(f.id, $any($event.target).checked)" [attr.aria-label]="'Tick ' + f.name">
+            <button type="button" class="gw-row__main" (click)="select(f.id)"
+                    [attr.aria-current]="f.id === selectedId ? 'true' : null">
+              <span class="gw-dot" aria-hidden="true" [style.background]="f.color" [style.border-radius]="dotRadius(f)"></span>
+              <span class="gw-row__text">
+                <span class="gw-row__name">{{ f.name }}</span>
+                <span class="gw-row__meta">{{ meta(f) }}</span>
+              </span>
+              <span class="badge tone-teal" *ngIf="f.insideNow">{{ f.insideNow }} inside</span>
+              <span class="badge tone-red" *ngIf="f.violationsToday">{{ f.violationsToday }} {{ f.violationsToday === 1 ? 'violation' : 'violations' }}</span>
+              <span class="badge tone-neutral" *ngIf="!f.isActive">Off</span>
+            </button>
+          </div>
+        </ng-container>
+      </div>
+      <div class="gw-list__foot" *ngIf="canManage && fences.length">
+        Tick rows to bulk assign, change group, switch on or off, or delete.
+      </div>
+    </aside>
+
+    <!-- 2 · map -->
+    <section class="gw-map" aria-label="Map of geofences and live vehicles">
+      <div #mapEl class="gw-map__canvas"></div>
+      <div class="gw-map__error" *ngIf="mapError" role="alert">
+        <mat-icon aria-hidden="true">map</mat-icon>
+        <p>{{ mapError }}</p>
+        <p class="muted">The list and the details still work.</p>
+      </div>
+      <ng-container *ngIf="mapReady && !mapError">
+        <div class="gw-map__top">
+          <div class="toolbar" role="toolbar" aria-label="Map tools">
+            <ng-container *ngFor="let t of drawTools">
+              <button type="button" class="tool" *ngIf="canManage || t.value === 'select' || t.value === 'measure'"
+                      [attr.aria-pressed]="tool === t.value" (click)="setTool(t.value)">{{ t.label }}</button>
+            </ng-container>
+          </div>
+          <div class="toolbar" role="toolbar" aria-label="Map view">
+            <button type="button" class="tool" [matMenuTriggerFor]="layersMenu">
+              Layers: {{ showVehicles && showLabels ? 'vehicles, labels' : showVehicles ? 'vehicles' : showLabels ? 'labels' : 'shapes only' }}
+            </button>
+            <mat-menu #layersMenu="matMenu">
+              <button mat-menu-item (click)="toggleLayer('vehicles')">
+                <mat-icon>{{ showVehicles ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>Live vehicles
+              </button>
+              <button mat-menu-item (click)="toggleLayer('labels')">
+                <mat-icon>{{ showLabels ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>Geofence names
+              </button>
+            </mat-menu>
+            <button type="button" class="tool tool--dark" [attr.aria-pressed]="!satellite" (click)="toggleSatellite(false)">Map</button>
+            <button type="button" class="tool tool--dark" [attr.aria-pressed]="satellite" (click)="toggleSatellite(true)">Satellite</button>
+            <button type="button" class="tool" (click)="fitAll()" aria-label="Show all geofences" title="Show all geofences">
+              <mat-icon aria-hidden="true">fit_screen</mat-icon>
+            </button>
+          </div>
+        </div>
+        <div class="gw-map__hint" *ngIf="hint" role="status">{{ hint }}</div>
+        <div class="gw-map__legend">
+          <span><b class="legend-dot legend-dot--inside" aria-hidden="true"></b>Inside a geofence</span>
+          <span><b class="legend-dot legend-dot--outside" aria-hidden="true"></b>Outside</span>
+          <span><b class="legend-dot legend-dot--violation" aria-hidden="true"></b>In a restricted zone</span>
+        </div>
+      </ng-container>
+    </section>
+
+    <!-- 3 · detail -->
+    <aside class="gw-detail" aria-label="Geofence details" aria-live="polite">
+      <div class="gw-detail__empty" *ngIf="selectedId == null">
+        <mat-icon aria-hidden="true">touch_app</mat-icon>
+        <p>Pick a geofence in the list or on the map to see who is inside, its rules and today’s activity.</p>
+      </div>
+
+      <p class="gw-empty" *ngIf="selectedId != null && detailLoading && !detail">Loading…</p>
+      <div class="gw-alert" *ngIf="selectedId != null && detailError" role="alert">{{ detailError }}</div>
+
+      <ng-container *ngIf="selectedId != null && detail as d">
+        <div class="gw-detail__head">
+          <div class="gw-detail__title">
+            <div>
+              <h2>{{ d.name }}</h2>
+              <div class="muted">{{ detailMeta(d) }}</div>
+            </div>
+            <span class="badge" [class.tone-teal]="d.isActive" [class.tone-neutral]="!d.isActive">{{ d.isActive ? 'Active' : 'Off' }}</span>
+          </div>
+          <div class="gw-detail__actions" *ngIf="canManage">
+            <a class="btn btn--primary" [routerLink]="['/gps-tracking/geofences', d.id, 'edit']">Edit shape and rules</a>
+            <button type="button" class="btn" (click)="openAssign([d.id])" [disabled]="busy">Assign</button>
+            <button type="button" class="btn" [matMenuTriggerFor]="moreMenu" aria-label="More actions: duplicate, switch off, delete">
+              <mat-icon aria-hidden="true">more_horiz</mat-icon>
+            </button>
+            <mat-menu #moreMenu="matMenu">
+              <button mat-menu-item (click)="duplicate()"><mat-icon>content_copy</mat-icon>Duplicate</button>
+              <button mat-menu-item (click)="runBulk(d.isActive ? 'disable' : 'enable', [d.id])">
+                <mat-icon>{{ d.isActive ? 'toggle_off' : 'toggle_on' }}</mat-icon>{{ d.isActive ? 'Switch off' : 'Switch on' }}
+              </button>
+              <button mat-menu-item (click)="runBulk('delete', [d.id])"><mat-icon>delete</mat-icon>Delete</button>
+            </mat-menu>
+          </div>
+        </div>
+
+        <div class="gw-tabs" role="tablist" aria-label="Geofence sections">
+          <button type="button" role="tab" [attr.aria-selected]="tab === 'overview'" (click)="setTab('overview')">Overview</button>
+          <button type="button" role="tab" [attr.aria-selected]="tab === 'rules'" (click)="setTab('rules')">Rules {{ d.ruleCount }}</button>
+          <button type="button" role="tab" [attr.aria-selected]="tab === 'vehicles'" (click)="setTab('vehicles')">
+            Vehicles {{ d.appliesTo === 'all' ? 'all' : d.vehiclesCovered }}
+          </button>
+          <button type="button" role="tab" [attr.aria-selected]="tab === 'activity'" (click)="setTab('activity')">Activity</button>
+        </div>
+
+        <!-- Overview -->
+        <div class="gw-detail__body" role="tabpanel" *ngIf="tab === 'overview'">
+          <section>
+            <div class="lbl">Inside now · {{ inside.length }}</div>
+            <p class="muted small" *ngIf="!inside.length">No vehicles inside right now.</p>
+            <ul class="gw-inside">
+              <li *ngFor="let v of inside">
+                <span><b>{{ v.vehicleLabel }}</b> · {{ v.driverName || 'No driver' }}</span>
+                <span class="gw-inside__since" [class.is-over]="v.overDwell">since {{ timeOf(v.enteredUtc) }} · {{ duration(v.minutesInside) }}</span>
+              </li>
+            </ul>
+          </section>
+          <section>
+            <div class="lbl">Active rules</div>
+            <p class="muted small" *ngIf="!rules(d).length">No alerts are set. Visits are still recorded.</p>
+            <div class="gw-rule-chips">
+              <span class="chip chip--static" *ngFor="let r of rules(d)">{{ r.label }}</span>
+            </div>
+            <p class="muted small">{{ notify(d) }}</p>
+          </section>
+          <section>
+            <div class="lbl">Today</div>
+            <p class="muted small" *ngIf="!today.length">Nothing yet today.</p>
+            <ul class="gw-events">
+              <li *ngFor="let e of today | slice: 0 : 6">
+                <span class="gw-events__time">{{ timeOf(e.atUtc) }}</span>
+                <span class="gw-events__dot" [ngClass]="'tone-' + activity(e).tone" aria-hidden="true"></span>
+                <span><b>{{ activity(e).label }}</b><ng-container *ngIf="who(e)"> — {{ who(e) }}</ng-container></span>
+              </li>
+            </ul>
+            <a class="gw-link" routerLink="/gps-tracking/geofences/visits" [queryParams]="{ geofenceId: d.id }">Open full visits report →</a>
+          </section>
+        </div>
+
+        <!-- Rules -->
+        <div class="gw-detail__body" role="tabpanel" *ngIf="tab === 'rules'">
+          <p class="muted small" *ngIf="!rules(d).length">No alerts are set for this geofence. Visits are still recorded.</p>
+          <ul class="gw-rules">
+            <li *ngFor="let r of rules(d)">
+              <span>{{ r.label }}</span>
+              <span class="badge" [class.tone-neutral]="r.severity === 'info'" [class.tone-amber]="r.severity === 'warning'"
+                    [class.tone-red]="r.severity === 'critical'">{{ severity(r.severity) }}</span>
+            </li>
+          </ul>
+          <dl class="gw-facts">
+            <div><dt>Active</dt><dd>{{ schedule(d) }}{{ d.afterHoursExitCritical ? ' · exits outside hours are critical' : '' }}</dd></div>
+            <div><dt>Repeat</dt><dd>The same alert for the same vehicle waits {{ d.cooldownMinutes }} min</dd></div>
+            <div><dt>GPS tolerance</dt><dd>{{ d.bufferMeters }} m buffer against GPS drift</dd></div>
+            <div><dt>Notify</dt><dd>{{ notify(d) }}</dd></div>
+          </dl>
+        </div>
+
+        <!-- Vehicles -->
+        <div class="gw-detail__body" role="tabpanel" *ngIf="tab === 'vehicles'">
+          <p *ngIf="d.appliesTo === 'all'"><b>All vehicles</b> — {{ d.vehiclesCovered }} today, and new vehicles join automatically.</p>
+          <ng-container *ngIf="d.appliesTo !== 'all'">
+            <p class="muted small">{{ d.vehiclesCovered }} vehicles covered{{ d.driverIds.length ? ', plus whatever vehicle the listed drivers drive' : '' }}.</p>
+            <section *ngIf="d.branchIds.length">
+              <div class="lbl">Branches</div>
+              <div class="gw-tags"><span class="tag" *ngFor="let n of branchNames(d.branchIds)">{{ n }}</span></div>
+            </section>
+            <section *ngIf="d.departmentIds.length">
+              <div class="lbl">Departments</div>
+              <div class="gw-tags"><span class="tag" *ngFor="let n of departmentNames(d.departmentIds)">{{ n }}</span></div>
+            </section>
+            <section *ngIf="d.vehicleIds.length">
+              <div class="lbl">Vehicles</div>
+              <div class="gw-tags"><span class="tag" *ngFor="let n of vehicleNames(d.vehicleIds)">{{ n }}</span></div>
+            </section>
+            <section *ngIf="d.driverIds.length">
+              <div class="lbl">Drivers</div>
+              <div class="gw-tags"><span class="tag" *ngFor="let n of driverNames(d.driverIds)">{{ n }}</span></div>
+            </section>
+            <p class="muted small" *ngIf="!d.vehiclesCovered && !d.driverIds.length">Nobody is assigned yet, so nothing is checked against this geofence.</p>
+          </ng-container>
+          <button *ngIf="canManage" type="button" class="btn" (click)="openAssign([d.id])">Add vehicles</button>
+        </div>
+
+        <!-- Activity -->
+        <div class="gw-detail__body" role="tabpanel" *ngIf="tab === 'activity'">
+          <label class="field">
+            <span>Day</span>
+            <input type="date" class="input" [(ngModel)]="activityDay" [max]="todayMax" (change)="loadDayActivity()">
+          </label>
+          <p class="muted small" *ngIf="dayActivityLoading">Loading…</p>
+          <p class="muted small" *ngIf="!dayActivityLoading && !dayActivity.length">Nothing happened at this geofence that day.</p>
+          <ul class="gw-events">
+            <li *ngFor="let e of dayActivity">
+              <span class="gw-events__time">{{ timeOf(e.atUtc) }}</span>
+              <span class="gw-events__dot" [ngClass]="'tone-' + activity(e).tone" aria-hidden="true"></span>
+              <span>
+                <b>{{ activity(e).label }}</b><ng-container *ngIf="who(e)"> — {{ who(e) }}</ng-container>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </ng-container>
+    </aside>
+  </div>
+
+  <!-- Assign vehicles -->
+  <div class="gw-modal" *ngIf="assignFor" (keydown.escape)="assignFor = null">
+    <div class="gw-modal__backdrop" (click)="assignFor = null"></div>
+    <div class="gw-modal__panel" role="dialog" aria-modal="true" aria-labelledby="gw-assign-title">
+      <h2 id="gw-assign-title">Assign vehicles</h2>
+      <p class="muted small">
+        Adds the picked vehicles to {{ assignFor.length === 1 ? 'this geofence' : assignFor.length + ' geofences' }}. Existing assignments stay.
+      </p>
+      <p class="gw-note" *ngIf="assignCoversAll">A picked geofence already applies to all vehicles; adding vehicles changes nothing there.</p>
+      <input id="gw-assign-search" type="search" class="input" placeholder="Search vehicle, plate or driver" aria-label="Search vehicles"
+             [(ngModel)]="assignSearch">
+      <ul class="gw-pick">
+        <li *ngFor="let v of assignChoices">
+          <label>
+            <input type="checkbox" [checked]="assignPicked.has(v.id)" (change)="toggleAssign(v.id, $any($event.target).checked)">
+            <span><b>{{ v.registrationNumber || v.name }}</b> <span class="muted">{{ v.name }}{{ v.driverName ? ' · ' + v.driverName : '' }}</span></span>
+          </label>
+        </li>
+      </ul>
+      <p class="muted small" *ngIf="!vehicles.length">No vehicles to pick from.</p>
+      <div class="gw-modal__actions">
+        <button type="button" class="btn" (click)="assignFor = null">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="confirmAssign()" [disabled]="!assignPicked.size || busy">
+          Add {{ assignPicked.size || '' }} {{ assignPicked.size === 1 ? 'vehicle' : 'vehicles' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New group -->
+  <div class="gw-modal" *ngIf="newGroupFor" (keydown.escape)="newGroupFor = null">
+    <div class="gw-modal__backdrop" (click)="newGroupFor = null"></div>
+    <form class="gw-modal__panel gw-modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="gw-group-title"
+          (ngSubmit)="createGroupAndMove()">
+      <h2 id="gw-group-title">New group</h2>
+      <label class="field">
+        <span>Name</span>
+        <input id="gw-group-name" class="input" name="groupName" maxlength="100" [(ngModel)]="newGroupName" required>
+      </label>
+      <div class="gw-modal__actions">
+        <button type="button" class="btn" (click)="newGroupFor = null">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="!newGroupName.trim() || busy">Create and move</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Import -->
+  <div class="gw-modal" *ngIf="importState as imp" (keydown.escape)="!imp.running && closeImport()">
+    <div class="gw-modal__backdrop" (click)="!imp.running && closeImport()"></div>
+    <div class="gw-modal__panel gw-modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="gw-import-title">
+      <h2 id="gw-import-title">Import {{ imp.fileName }}</h2>
+      <ng-container *ngIf="!imp.result">
+        <div class="gw-alert" *ngIf="imp.error" role="alert">{{ imp.error }}</div>
+        <p class="muted small" *ngIf="!imp.error">
+          {{ importReady.length }} of {{ imp.items.length }} ready. Imported geofences apply to all vehicles and start with no
+          alerts; open each one to add rules. Names already used in your company are skipped.
+        </p>
+        <div class="gw-import-table" *ngIf="imp.items.length">
+          <table>
+            <thead><tr><th scope="col">From</th><th scope="col">Name</th><th scope="col">Shape</th><th scope="col">Check</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let i of imp.items | slice: 0 : maxImport">
+                <td>{{ i.source }}</td>
+                <td>{{ i.payload?.name || '—' }}</td>
+                <td>{{ i.payload ? shapeLabels[i.payload.areaType] : '—' }}</td>
+                <td>
+                  <span class="badge tone-red" *ngIf="i.error">{{ i.error }}</span>
+                  <span class="badge tone-amber" *ngIf="!i.error && i.warnings.length" [title]="i.warnings.join(' ')">{{ i.warnings[0] }}</span>
+                  <span class="badge tone-teal" *ngIf="!i.error && !i.warnings.length">Ready</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="gw-modal__actions">
+          <button type="button" class="btn" (click)="closeImport()" [disabled]="imp.running">Cancel</button>
+          <button type="button" class="btn btn--primary" (click)="runImport()" [disabled]="imp.running || !!imp.error || !importReady.length">
+            {{ imp.running ? 'Importing…' : 'Import ' + importReady.length }}
+          </button>
+        </div>
+      </ng-container>
+      <ng-container *ngIf="imp.result as r">
+        <p><b>{{ r.created }}</b> created.</p>
+        <div *ngIf="r.skipped.length">
+          <p>{{ r.skipped.length }} skipped:</p>
+          <ul class="gw-skipped">
+            <li *ngFor="let s of r.skipped"><b>{{ s.name }}</b> — {{ s.reason }}</li>
+          </ul>
+        </div>
+        <div class="gw-modal__actions">
+          <button type="button" class="btn btn--primary" (click)="closeImport()">Done</button>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</div>

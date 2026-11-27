@@ -1,0 +1,360 @@
+<div class="ge">
+  <header class="ge-head">
+    <div>
+      <a class="ge-back" routerLink="/gps-tracking/geofences" [queryParams]="id != null ? { selected: id } : {}">← Geofences</a>
+      <h1>{{ isEdit ? (detail?.name || 'Edit geofence') : 'New geofence' }}</h1>
+    </div>
+    <div class="ge-head__actions">
+      <span class="ge-draft" *ngIf="draftSavedAt" role="status">Draft saved {{ draftTime(draftSavedAt) }}</span>
+      <button type="button" class="btn" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button type="button" class="btn btn--primary" (click)="save()" [disabled]="saving || loading || !!loadError">
+        {{ saving ? 'Saving…' : 'Save geofence' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="ge-alert" *ngIf="loadError" role="alert">{{ loadError }}</div>
+
+  <div class="ge-banner" *ngIf="draftOffer" role="status">
+    <span>You have an unsaved draft from {{ draftTime(draftOffer.savedAt) }}.</span>
+    <button type="button" class="btn btn--sm btn--primary" (click)="restoreDraft()">Restore it</button>
+    <button type="button" class="btn btn--sm" (click)="discardDraft()">Discard</button>
+  </div>
+
+  <div class="ge-alert" *ngIf="submitted && errorCount" role="alert">
+    {{ errorCount === 1 ? 'One field needs' : errorCount + ' fields need' }} attention before saving.
+  </div>
+
+  <div class="ge-body">
+    <!-- form -->
+    <div class="ge-form" (input)="markDirty()" (change)="markDirty()">
+      <p class="ge-loading" *ngIf="loading">Loading the geofence…</p>
+
+      <!-- 1 · Details -->
+      <section class="sec" aria-labelledby="ge-s1">
+        <h2 class="h" id="ge-s1"><span class="n" aria-hidden="true">1</span>Details</h2>
+        <label class="fl">
+          Name
+          <input class="in" maxlength="100" [(ngModel)]="model.name" [attr.aria-invalid]="!!errors.name"
+                 aria-describedby="ge-name-err" placeholder="e.g. Pasrur Head Office">
+          <span class="ge-error" id="ge-name-err" *ngIf="errors.name">{{ errors.name }}</span>
+        </label>
+        <div class="row">
+          <label class="fl">
+            Type
+            <select class="in" [ngModel]="model.type ?? ''" (ngModelChange)="onTypeChange($event)">
+              <option value="">No type</option>
+              <option *ngFor="let t of types" [value]="t.name">{{ t.name }}{{ t.isRestricted ? ' (restricted)' : '' }}</option>
+              <option value="__add__">+ Add custom type</option>
+            </select>
+          </label>
+          <label class="fl">
+            Group
+            <select class="in" [ngModel]="model.groupId ?? ''" (ngModelChange)="onGroupChange($event)">
+              <option value="">No group</option>
+              <option *ngFor="let g of groups" [value]="g.id">{{ g.name }}</option>
+              <option value="__add__">+ New group</option>
+            </select>
+          </label>
+        </div>
+
+        <form class="ge-inline" *ngIf="addingType as t" (ngSubmit)="saveNewType()" aria-label="New type">
+          <label class="fl">
+            New type name
+            <input class="in" name="typeName" maxlength="50" [(ngModel)]="t.name" required>
+          </label>
+          <label class="ge-check">
+            <input type="checkbox" name="typeRestricted" [(ngModel)]="t.restricted">
+            Restricted / keep-out (shown in red)
+          </label>
+          <div class="ge-swatches" *ngIf="!t.restricted" role="radiogroup" aria-label="Type colour">
+            <ng-container *ngFor="let s of swatches">
+              <button type="button" class="swatch" *ngIf="s.hex !== '#dc2626'" [style.background]="s.hex"
+                      [attr.aria-label]="s.label" [attr.aria-checked]="t.color === s.hex" role="radio"
+                      (click)="t.color = s.hex"></button>
+            </ng-container>
+          </div>
+          <div class="ge-inline__actions">
+            <button type="button" class="btn btn--sm" (click)="addingType = null">Cancel</button>
+            <button type="submit" class="btn btn--sm btn--primary" [disabled]="!t.name.trim()">Add type</button>
+          </div>
+        </form>
+
+        <form class="ge-inline" *ngIf="addingGroup !== null" (ngSubmit)="saveNewGroup()" aria-label="New group">
+          <label class="fl">
+            New group name
+            <input class="in" name="groupName" maxlength="100" [(ngModel)]="addingGroup" required>
+          </label>
+          <div class="ge-inline__actions">
+            <button type="button" class="btn btn--sm" (click)="addingGroup = null">Cancel</button>
+            <button type="submit" class="btn btn--sm btn--primary" [disabled]="!addingGroup.trim()">Add group</button>
+          </div>
+        </form>
+
+        <label class="fl">
+          Address or place
+          <input #addressInput class="in" maxlength="300" [(ngModel)]="model.address" placeholder="Search an address or type one"
+                 autocomplete="off">
+          <span class="hint">Picking an address drops a shape there. Reports show this name instead of raw coordinates.</span>
+        </label>
+        <div class="ge-colours">
+          <span class="ge-colours__label">Colour</span>
+          <div class="ge-swatches" role="radiogroup" aria-label="Colour">
+            <button type="button" class="swatch" *ngFor="let s of swatchList" role="radio" [style.background]="s.hex"
+                    [attr.aria-label]="s.label + (s.hex === '#dc2626' && !restrictedType ? ' (restricted zones only)' : '')"
+                    [attr.aria-checked]="model.color.toLowerCase() === s.hex"
+                    [disabled]="s.hex === '#dc2626' && !restrictedType" (click)="pickColor(s.hex)"></button>
+          </div>
+          <span class="hint">Defaults from the type; red is reserved for restricted zones.</span>
+          <span class="ge-error" *ngIf="errors.color">{{ errors.color }}</span>
+        </div>
+      </section>
+
+      <!-- 2 · Shape -->
+      <section class="sec" aria-labelledby="ge-s2">
+        <h2 class="h" id="ge-s2"><span class="n" aria-hidden="true">2</span>Shape</h2>
+        <a class="ge-jump" href="#ge-map" (click)="$event.preventDefault(); jumpToMap()">Jump to the map ↓</a>
+        <div class="segs" role="group" aria-label="Shape type">
+          <button type="button" class="seg" *ngFor="let t of shapeTypes" [attr.aria-pressed]="!pasteOpen && shapeMode === t"
+                  (click)="chooseShape(t)">{{ shapeLabels[t] }}</button>
+          <button type="button" class="seg" [attr.aria-pressed]="pasteOpen" (click)="togglePaste()">Paste coordinates</button>
+        </div>
+
+        <div class="ge-paste" *ngIf="pasteOpen">
+          <label class="fl">
+            One “lat, lng” per line
+            <textarea class="in ta" rows="5" [(ngModel)]="pasteText" spellcheck="false"
+                      placeholder="32.261245, 74.662310&#10;32.262101, 74.665902&#10;32.259877, 74.666435"></textarea>
+          </label>
+          <span class="hint">One point makes a circle there; three or more make a {{ shapeMode === 'rectangle' ? 'rectangle around them' : 'polygon' }}. For a corridor, pick Corridor first.</span>
+          <span class="ge-error" *ngIf="pasteError" role="alert">{{ pasteError }}</span>
+          <div class="ge-inline__actions">
+            <button type="button" class="btn btn--sm" (click)="pasteOpen = false">Cancel</button>
+            <button type="button" class="btn btn--sm btn--primary" (click)="applyPaste()">Use these points</button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat" *ngIf="shape?.areaType !== 'circle'">
+            <div class="hint">Points</div><div class="stat__v">{{ metrics.points || '—' }}</div>
+          </div>
+          <div class="stat" *ngIf="shape?.areaType === 'circle'">
+            <div class="hint">Radius</div><div class="stat__v">{{ formatDistance(shape?.radiusMeters ?? 0) }}</div>
+          </div>
+          <div class="stat"><div class="hint">Area</div><div class="stat__v">{{ metrics.areaSqMeters ? formatArea(metrics.areaSqMeters) : '—' }}</div></div>
+          <div class="stat"><div class="hint">Perimeter</div><div class="stat__v">{{ metrics.perimeterMeters ? formatDistance(metrics.perimeterMeters) : '—' }}</div></div>
+        </div>
+        <p class="hint ge-center" *ngIf="shape">Centre {{ centerText }}</p>
+
+        <div class="rule" *ngIf="shape?.areaType === 'circle'">
+          <span class="grow">Radius</span>
+          <input class="sm" type="number" [min]="minRadius" [max]="maxRadius" step="10" aria-label="Radius in metres"
+                 [ngModel]="shape?.radiusMeters" (change)="onRadiusInput($any($event.target).valueAsNumber)"> m
+        </div>
+        <div class="rule" *ngIf="shapeMode === 'corridor'">
+          <span class="grow grow--wide">Corridor width <span class="hint">— the road plus margin; vehicles within half of it each side are inside</span></span>
+          <input class="sm" type="number" min="10" max="5000" step="10" aria-label="Corridor width in metres"
+                 [ngModel]="corridorWidth" (change)="onCorridorWidthInput($any($event.target).valueAsNumber)"> m
+        </div>
+        <div class="rule">
+          <span class="grow grow--wide">GPS tolerance buffer <span class="hint">— ignore crossings smaller than this, stops false alerts from GPS drift</span></span>
+          <input class="sm" type="number" min="0" max="500" step="5" aria-label="Buffer in metres" [(ngModel)]="model.bufferMeters"
+                 [attr.aria-invalid]="!!errors.bufferMeters"> m
+        </div>
+        <span class="ge-error" *ngIf="errors.bufferMeters">{{ errors.bufferMeters }}</span>
+        <div class="ge-warn" *ngIf="overlap" role="status">
+          Overlaps “{{ overlap.name }}” by {{ overlap.pct }}%{{ overlap.more ? ' (and ' + overlap.more + ' more)' : '' }}.
+          Both will fire; nest them or adjust the boundary.
+        </div>
+        <span class="ge-error" *ngIf="errors.shape" role="alert">{{ errors.shape }}</span>
+        <div class="hint">
+          Click the map to add points, drag a point to move it, drag a midpoint to add one, click a point to delete it.
+          Ctrl+Z undo. Circle: {{ minRadius }} m – {{ maxRadius / 1000 }} km radius. Corridor: draw a line, set the width.
+        </div>
+      </section>
+
+      <!-- 3 · Rules -->
+      <section class="sec" aria-labelledby="ge-s3">
+        <h2 class="h" id="ge-s3"><span class="n" aria-hidden="true">3</span>Rules — when should this alert?</h2>
+        <label class="rule">
+          <input type="checkbox" [(ngModel)]="model.alertOnEnter"><span class="grow">Vehicle enters</span><span class="sev">Info</span>
+        </label>
+        <label class="rule">
+          <input type="checkbox" [(ngModel)]="model.alertOnExit"><span class="grow">Vehicle exits</span><span class="sev">Info</span>
+        </label>
+        <div class="rule">
+          <input type="checkbox" aria-label="Dwell rule" [(ngModel)]="model.dwellOn">
+          <span>Stays longer than</span>
+          <input class="sm" type="number" min="1" max="10080" aria-label="Dwell minutes" [(ngModel)]="model.dwellMinutes"
+                 [disabled]="!model.dwellOn" [attr.aria-invalid]="!!errors.dwellMinutes">
+          <span class="grow">minutes</span><span class="sev sev--warn">Warning</span>
+        </div>
+        <span class="ge-error" *ngIf="errors.dwellMinutes">{{ errors.dwellMinutes }}</span>
+        <div class="rule">
+          <input type="checkbox" aria-label="Speed rule" [(ngModel)]="model.speedOn">
+          <span>Speed inside above</span>
+          <input class="sm" type="number" min="1" max="300" aria-label="Speed limit" [(ngModel)]="model.speedLimitKmh"
+                 [disabled]="!model.speedOn" [attr.aria-invalid]="!!errors.speedLimitKmh">
+          <span class="grow">km/h</span><span class="sev sev--warn">Warning</span>
+        </div>
+        <span class="ge-error" *ngIf="errors.speedLimitKmh">{{ errors.speedLimitKmh }}</span>
+        <div class="rule">
+          <input type="checkbox" aria-label="Idle rule" [(ngModel)]="model.idleOn">
+          <span>Idles with engine on over</span>
+          <input class="sm" type="number" min="1" max="1440" aria-label="Idle minutes" [(ngModel)]="model.idleMinutes"
+                 [disabled]="!model.idleOn" [attr.aria-invalid]="!!errors.idleMinutes">
+          <span class="grow">minutes</span><span class="sev sev--warn">Warning</span>
+        </div>
+        <span class="ge-error" *ngIf="errors.idleMinutes">{{ errors.idleMinutes }}</span>
+        <div class="rule">
+          <input type="checkbox" aria-label="Not arrived rule" [(ngModel)]="model.notArrivedOn">
+          <span>No assigned vehicle has arrived by</span>
+          <input class="sm sm--time" type="time" aria-label="Arrival deadline" [(ngModel)]="model.notArrivedBy"
+                 [disabled]="!model.notArrivedOn" [attr.aria-invalid]="!!errors.notArrivedBy">
+          <span class="grow"></span><span class="sev sev--crit">Critical</span>
+        </div>
+        <span class="ge-error" *ngIf="errors.notArrivedBy">{{ errors.notArrivedBy }}</span>
+        <label class="rule">
+          <input type="checkbox" [(ngModel)]="model.engineBlockOnExit">
+          <span class="grow">On exit, send engine-block command <span class="hint">— needs confirmation by a manager</span></span>
+          <span class="sev sev--crit">Critical</span>
+        </label>
+        <p class="ge-note" *ngIf="model.engineBlockOnExit">
+          On each exit an engine stop waits in Device Commands for someone allowed to approve commands. It is sent only after
+          approval, and only if the vehicle is stopped and its position is recent. Vehicles without a cut-off relay get nothing.
+        </p>
+
+        <div class="ge-active">
+          <span class="ge-active__label">Active</span>
+          <div class="segs" role="group" aria-label="When rules are active">
+            <button type="button" class="seg" [attr.aria-pressed]="model.scheduleMode === 'always'" (click)="setSchedule('always')">Always</button>
+            <button type="button" class="seg" [attr.aria-pressed]="model.scheduleMode === 'schedule'" (click)="setSchedule('schedule')">Schedule</button>
+          </div>
+          <ng-container *ngIf="model.scheduleMode === 'schedule'">
+            <span class="tag">{{ daysText }}</span>
+            <span class="tag">{{ model.scheduleStart }} – {{ model.scheduleEnd }}</span>
+          </ng-container>
+        </div>
+        <div class="ge-schedule" *ngIf="model.scheduleMode === 'schedule'">
+          <div class="ge-days" role="group" aria-label="Days">
+            <button type="button" class="day" *ngFor="let d of weekDays" [attr.aria-pressed]="isDayOn(d.bit)" (click)="toggleDay(d.bit)">{{ d.short }}</button>
+          </div>
+          <div class="row">
+            <label class="fl fl--sm">From<input class="in" type="time" [(ngModel)]="model.scheduleStart"></label>
+            <label class="fl fl--sm">To<input class="in" type="time" [(ngModel)]="model.scheduleEnd"></label>
+          </div>
+          <span class="hint">Company time. An end before the start runs past midnight (e.g. 22:00 – 06:00).</span>
+          <label class="ge-check">
+            <input type="checkbox" [(ngModel)]="model.afterHoursExitCritical">Treat exits outside hours as Critical
+          </label>
+          <span class="ge-error" *ngIf="errors.schedule">{{ errors.schedule }}</span>
+        </div>
+      </section>
+
+      <!-- 4 · Applies to -->
+      <section class="sec" aria-labelledby="ge-s4">
+        <h2 class="h" id="ge-s4"><span class="n" aria-hidden="true">4</span>Applies to</h2>
+        <div class="segs" role="group" aria-label="Applies to">
+          <button type="button" class="seg" *ngFor="let o of appliesOptions" [attr.aria-pressed]="model.appliesTo === o.value"
+                  (click)="setAppliesTo(o.value)">{{ o.label }}</button>
+        </div>
+        <div class="ge-tags" *ngIf="model.appliesTo !== 'all'">
+          <span class="tag tag--x" *ngFor="let t of scopeTags; trackBy: trackTag">
+            {{ t.label }}
+            <button type="button" [attr.aria-label]="'Remove ' + t.label" (click)="togglePick(t.kind, t.id)">×</button>
+          </span>
+          <ng-container [ngSwitch]="model.appliesTo">
+            <button *ngSwitchCase="'vehicles'" type="button" class="seg seg--sm" (click)="openPicker('vehicles')">+ Add</button>
+            <button *ngSwitchCase="'drivers'" type="button" class="seg seg--sm" (click)="openPicker('drivers')">+ Add</button>
+            <ng-container *ngSwitchCase="'groups'">
+              <button type="button" class="seg seg--sm" (click)="openPicker('branches')">+ Branch</button>
+              <button type="button" class="seg seg--sm" (click)="openPicker('departments')">+ Department</button>
+            </ng-container>
+          </ng-container>
+        </div>
+        <div class="ge-picker" *ngIf="picker && picker !== 'roles' && picker !== 'users'">
+          <ng-container *ngTemplateOutlet="pickerTpl"></ng-container>
+        </div>
+        <div class="hint">{{ coverageText }}</div>
+        <div class="ge-extra" *ngFor="let x of extras">
+          Also assigned: {{ x.text }} from before. They stay assigned when you save.
+          <button type="button" class="link" (click)="removeExtra(x.list)">Remove</button>
+        </div>
+        <span class="ge-error" *ngIf="errors.appliesTo">{{ errors.appliesTo }}</span>
+      </section>
+
+      <!-- 5 · Notify -->
+      <section class="sec" aria-labelledby="ge-s5">
+        <h2 class="h" id="ge-s5"><span class="n" aria-hidden="true">5</span>Notify</h2>
+        <div class="segs" role="group" aria-label="Channels">
+          <button type="button" class="seg" *ngFor="let c of channels" [attr.aria-pressed]="isChannelOn(c.value)"
+                  (click)="toggleChannel(c.value)">{{ c.label }}</button>
+        </div>
+        <span class="hint" *ngIf="!model.notifyChannels.length">No channel picked: the company’s default alert channels are used.</span>
+        <div class="fl">
+          <span>Recipients</span>
+          <div class="ge-tags">
+            <span class="tag tag--x" *ngFor="let t of recipientTags; trackBy: trackTag">
+              {{ t.label }}
+              <button type="button" [attr.aria-label]="'Remove ' + t.label" (click)="togglePick(t.kind, t.id)">×</button>
+            </span>
+            <button type="button" class="seg seg--sm" (click)="openPicker('roles')">+ Role</button>
+            <button type="button" class="seg seg--sm" (click)="openPicker('users')">+ Person</button>
+          </div>
+          <span class="hint" *ngIf="!recipientTags.length">Nobody picked: the usual alert recipients for your company get it.</span>
+        </div>
+        <div class="ge-picker" *ngIf="picker === 'roles' || picker === 'users'">
+          <ng-container *ngTemplateOutlet="pickerTpl"></ng-container>
+        </div>
+        <div class="rule">
+          <span class="grow grow--wide">Do not repeat the same alert for the same vehicle within</span>
+          <input class="sm" type="number" min="1" max="1440" aria-label="Cooldown minutes" [(ngModel)]="model.cooldownMinutes"
+                 [attr.aria-invalid]="!!errors.cooldownMinutes"> min
+        </div>
+        <span class="ge-error" *ngIf="errors.cooldownMinutes">{{ errors.cooldownMinutes }}</span>
+      </section>
+    </div>
+
+    <!-- map editor -->
+    <section class="ge-map" id="ge-map" aria-label="Map editor">
+      <div #mapEl class="ge-map__canvas"></div>
+      <div class="ge-map__error" *ngIf="mapError" role="alert">
+        <mat-icon aria-hidden="true">map</mat-icon>
+        <p>{{ mapError }}</p>
+      </div>
+      <div class="ge-map__top" [hidden]="!mapReady || !!mapError">
+        <div class="ge-map__search">
+          <input #placeInput class="in" type="search" aria-label="Search place on map" placeholder="Search place or paste lat, lng"
+                 autocomplete="off" (keydown.enter)="onSearchEnter($any($event.target).value)">
+          <span class="hint hint--float" *ngIf="placesUnavailable">Place search is unavailable; paste “lat, lng” instead.</span>
+        </div>
+        <div class="toolbar" role="toolbar" aria-label="Shape tools">
+          <button type="button" class="tool" (click)="undo()" [disabled]="!history.canUndo">Undo</button>
+          <button type="button" class="tool" (click)="redo()" [disabled]="!history.canRedo">Redo</button>
+          <button type="button" class="tool" (click)="clearShape()" [disabled]="!shape">Clear shape</button>
+          <button type="button" class="tool" [attr.aria-pressed]="satellite" (click)="toggleSatellite()">Satellite</button>
+        </div>
+      </div>
+      <div class="ge-map__status" *ngIf="mapReady && !mapError" role="status">
+        <span>{{ statusText }}</span>
+        <span class="ge-map__test">{{ testText }}</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<ng-template #pickerTpl>
+  <div class="ge-picker__head">
+    <input type="search" class="in" placeholder="Search" aria-label="Search the list" [(ngModel)]="pickerSearch">
+    <button type="button" class="btn btn--sm" (click)="picker = null">Done</button>
+  </div>
+  <ul class="ge-picker__list">
+    <li *ngFor="let o of pickerOptions">
+      <label>
+        <input type="checkbox" [checked]="isPicked(picker!, o.id)" (change)="togglePick(picker!, o.id)">
+        <span><b>{{ o.label }}</b> <span class="hint" *ngIf="o.sub">{{ o.sub }}</span></span>
+      </label>
+    </li>
+  </ul>
+  <p class="hint" *ngIf="!pickerOptions.length">Nothing to pick{{ pickerSearch ? ' for “' + pickerSearch + '”' : '' }}.</p>
+</ng-template>

@@ -1,0 +1,205 @@
+<div class="gv">
+  <header class="gv-head">
+    <div>
+      <a class="gv-back" routerLink="/gps-tracking/geofences" [queryParams]="geofenceId ? { selected: geofenceId } : {}">← Geofences</a>
+      <h1>Visits and time on site</h1>
+    </div>
+    <div class="gv-head__actions">
+      <button type="button" class="btn" [matMenuTriggerFor]="exportMenu" [disabled]="exporting || !!rangeError">
+        <mat-icon aria-hidden="true">download</mat-icon>{{ exporting ? 'Exporting…' : 'Export Excel / PDF' }}
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item (click)="export('excel')"><mat-icon>table_chart</mat-icon>Excel (.xlsx)</button>
+        <button mat-menu-item (click)="export('pdf')"><mat-icon>picture_as_pdf</mat-icon>PDF</button>
+      </mat-menu>
+    </div>
+  </header>
+
+  <!-- filters -->
+  <div class="gv-filters" role="search" aria-label="Filter visits">
+    <label class="flt">
+      <span class="flt__k">Geofence</span>
+      <select class="flt__v" [(ngModel)]="geofenceId" (ngModelChange)="onFilterChange()">
+        <option [ngValue]="null">All geofences</option>
+        <option *ngFor="let f of fences" [ngValue]="f.id">{{ f.name }}</option>
+      </select>
+    </label>
+
+    <div class="flt flt--menu">
+      <button type="button" class="flt__btn" (click)="vehiclePickerOpen = !vehiclePickerOpen" [attr.aria-expanded]="vehiclePickerOpen"
+              aria-controls="gv-vehicle-panel">
+        <span class="flt__k">Vehicles</span> {{ vehicleButtonText }} <span aria-hidden="true">▾</span>
+      </button>
+      <div class="gv-panel" id="gv-vehicle-panel" *ngIf="vehiclePickerOpen" (keydown.escape)="vehiclePickerOpen = false">
+        <div class="gv-panel__head">
+          <input type="search" class="in" placeholder="Search vehicle or plate" aria-label="Search vehicles" [(ngModel)]="vehicleSearch">
+          <button type="button" class="link" (click)="clearVehicles()" [disabled]="!vehicleIds.length">All</button>
+          <button type="button" class="link" (click)="vehiclePickerOpen = false">Done</button>
+        </div>
+        <ul class="gv-panel__list">
+          <li *ngFor="let v of vehicleChoices">
+            <label>
+              <input type="checkbox" [checked]="vehicleIds.includes(v.id)" (change)="toggleVehicle(v.id, $any($event.target).checked)">
+              <span><b>{{ v.registrationNumber || v.name }}</b> <span class="muted">{{ v.name }}</span></span>
+            </label>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <label class="flt">
+      <span class="flt__k">Driver</span>
+      <select class="flt__v" [(ngModel)]="driverId" (ngModelChange)="onFilterChange()">
+        <option [ngValue]="null">Any</option>
+        <option *ngFor="let d of drivers" [ngValue]="d.id">{{ d.name }}</option>
+      </select>
+    </label>
+
+    <div class="flt flt--dates">
+      <label><span class="flt__k">From</span>
+        <input type="date" class="flt__v" [(ngModel)]="from" [max]="to || today" (change)="onFilterChange()">
+      </label>
+      <label><span class="flt__k">To</span>
+        <input type="date" class="flt__v" [(ngModel)]="to" [max]="today" (change)="onFilterChange()">
+      </label>
+      <span class="flt__zone" [title]="zone">{{ zoneLabel }}</span>
+    </div>
+
+    <label class="flt">
+      <span class="flt__k">Status</span>
+      <select class="flt__v" [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+        <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+      </select>
+    </label>
+
+    <label class="flt flt--dashed">
+      <span class="flt__k">Group by</span>
+      <select class="flt__v" [(ngModel)]="groupBy" (ngModelChange)="onFilterChange()">
+        <option *ngFor="let g of groupOptions" [ngValue]="g.value">{{ g.label }}</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="gv-alert" *ngIf="rangeError" role="alert">{{ rangeError }}</div>
+  <div class="gv-alert" *ngIf="error" role="alert">{{ error }}</div>
+
+  <!-- KPIs -->
+  <section class="gv-kpis" aria-label="Totals for the filters">
+    <ng-container *ngIf="kpis.length; else kpiSkeleton">
+      <div class="kpi" *ngFor="let k of kpis">
+        <div class="lbl">{{ k.label }}</div>
+        <div class="kpi__value" [class.is-amber]="k.tone === 'amber'" [class.is-red]="k.tone === 'red'">{{ k.value }}</div>
+        <div class="kpi__note">{{ k.note }}</div>
+      </div>
+    </ng-container>
+    <ng-template #kpiSkeleton>
+      <div class="kpi kpi--skeleton" *ngFor="let _ of [1, 2, 3, 4, 5]" aria-hidden="true"></div>
+    </ng-template>
+  </section>
+
+  <!-- occupancy -->
+  <section class="gv-card gv-occ" aria-labelledby="gv-occ-title">
+    <div class="gv-occ__head">
+      <div class="lbl" id="gv-occ-title">Occupancy today — vehicles inside by hour</div>
+      <div class="muted small">Orange = a dwell rule was breached in that hour</div>
+    </div>
+    <div class="gv-occ__bars" role="img" [attr.aria-label]="occupancySummary">
+      <div class="bar" *ngFor="let b of bars" [style.height.px]="b.heightPx" [class.is-breach]="b.breach" [class.is-empty]="!b.count"
+           [title]="b.label"></div>
+    </div>
+    <div class="gv-occ__axis" aria-hidden="true"><span *ngFor="let t of hourTicks">{{ t }}</span></div>
+    <ul class="sr-only" aria-label="Vehicles inside by hour, today">
+      <li *ngFor="let b of bars">{{ b.label }}</li>
+    </ul>
+  </section>
+
+  <!-- table -->
+  <section class="gv-card gv-table" aria-label="Visits">
+    <div class="gv-table__scroll">
+      <table *ngIf="groupBy === 'visit'">
+        <thead>
+          <tr>
+            <th scope="col" *ngIf="!geofenceId">Geofence</th>
+            <th scope="col">Vehicle</th>
+            <th scope="col">Driver</th>
+            <th scope="col">Entered</th>
+            <th scope="col">Exited</th>
+            <th scope="col">Time on site</th>
+            <th scope="col">Idle inside</th>
+            <th scope="col">Max speed</th>
+            <th scope="col">Status</th>
+            <th scope="col"><span class="sr-only">Replay</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rows; trackBy: trackRow">
+            <td *ngIf="!geofenceId">{{ r.geofenceName }}</td>
+            <td><b>{{ r.vehicleLabel }}</b></td>
+            <td class="c2">{{ r.driverName || 'No driver' }}</td>
+            <td>{{ when(r.enteredUtc) }}</td>
+            <td>{{ when(r.exitedUtc) }}</td>
+            <td><b>{{ duration(r.durationMinutes) }}</b></td>
+            <td class="c2">{{ duration(r.idleMinutes) }}</td>
+            <td [class.is-speed]="r.status === 'overspeed'" class="c2">{{ r.maxSpeedKmh | number: '1.0-0' }} km/h</td>
+            <td><span class="badge" [ngClass]="'tone-' + badge(r.status).tone">{{ badge(r.status).label }}</span></td>
+            <td><button type="button" class="replay" (click)="replay(r)" [attr.aria-label]="'Replay ' + r.vehicleLabel + ' on the map'">Replay</button></td>
+          </tr>
+          <tr *ngIf="!loading && !rows.length && !rangeError">
+            <td [attr.colspan]="geofenceId ? 9 : 10" class="gv-empty">No visits match these filters.</td>
+          </tr>
+          <tr *ngIf="loading && !rows.length">
+            <td [attr.colspan]="geofenceId ? 9 : 10" class="gv-empty">Loading visits…</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table *ngIf="groupBy !== 'visit'">
+        <thead>
+          <tr>
+            <th scope="col">{{ groupHeading }}</th>
+            <th scope="col">Visits</th>
+            <th scope="col">Vehicles</th>
+            <th scope="col">Inside now</th>
+            <th scope="col">Time on site</th>
+            <th scope="col">Avg time on site</th>
+            <th scope="col">Idle inside</th>
+            <th scope="col">Rule breaches</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let g of groups?.items ?? []">
+            <td><b>{{ groupLabel(g.key, g.label) }}</b></td>
+            <td>{{ g.visits | number }}</td>
+            <td>{{ g.vehicles | number }}</td>
+            <td>{{ g.insideNow | number }}</td>
+            <td><b>{{ duration(g.totalMinutes) }}</b></td>
+            <td class="c2">{{ duration(g.avgMinutes) }}</td>
+            <td class="c2">{{ duration(g.idleMinutes) }}</td>
+            <td [class.is-speed]="g.breaches > 0">{{ g.breaches | number }}</td>
+          </tr>
+          <tr *ngIf="!loading && !(groups?.items?.length) && !rangeError">
+            <td colspan="8" class="gv-empty">No visits match these filters.</td>
+          </tr>
+          <tr *ngIf="loading && !groups">
+            <td colspan="8" class="gv-empty">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="gv-table__foot">
+      <ng-container *ngIf="groupBy === 'visit'">
+        <span>{{ showingText }}</span>
+        <span class="gv-pager" *ngIf="total > pageSize">
+          <button type="button" class="link" (click)="goToPage(page - 1)" [disabled]="page <= 1 || loading">← Previous</button>
+          <span>Page {{ page }} of {{ pageCount }}</span>
+          <button type="button" class="link" (click)="goToPage(page + 1)" [disabled]="page >= pageCount || loading">Next →</button>
+        </span>
+      </ng-container>
+      <ng-container *ngIf="groupBy !== 'visit' && groups">
+        <span>{{ groups.items.length | number }} {{ groups.items.length === 1 ? 'group' : 'groups' }} from {{ groups.visitsRead | number }} visits</span>
+        <span *ngIf="groups.capped" class="gv-warn">Only the newest {{ groups.visitsRead | number }} visits are grouped. Narrow the dates for exact totals.</span>
+      </ng-container>
+    </div>
+  </section>
+</div>

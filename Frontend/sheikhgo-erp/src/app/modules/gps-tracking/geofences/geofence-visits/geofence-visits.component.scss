@@ -1,0 +1,345 @@
+@use '../geofence-tokens' as *;
+
+:host {
+  display: block;
+  color: $text;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.gv {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sr-only { @include sr-only; }
+.muted { color: $muted; }
+.small { font-size: 12px; }
+.lbl { @include label-caps; }
+.btn { @include btn; }
+.badge { @include badge; }
+.in { @include input; }
+
+.link {
+  @include reset-button;
+  border: 0;
+  background: none;
+  padding: 6px 4px;
+  color: $teal;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gv-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+
+  h1 { margin: 4px 0 0; font-size: 26px; font-weight: 700; }
+}
+
+.gv-back {
+  font-size: 13px;
+  font-weight: 600;
+  color: $teal;
+  text-decoration: none;
+
+  &:hover { color: $teal-hover; }
+}
+
+.gv-head__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.gv-alert {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: $red-soft;
+  color: $red-ink;
+  font-size: 14px;
+}
+
+/* ---- filters ------------------------------------------------------------------------------------ */
+
+.gv-filters {
+  @include card;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+}
+
+.flt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px 0 14px;
+  border: 1px solid $line-strong;
+  border-radius: 10px;
+  background: $surface;
+  font-size: 14px;
+  font-weight: 600;
+
+  &:focus-within { outline: 2px solid $teal; outline-offset: 1px; }
+}
+
+.flt--dashed { border-style: dashed; }
+
+.flt__k { color: $muted; font-weight: 600; }
+
+.flt__v {
+  min-height: 42px;
+  border: 0;
+  background: transparent;
+  color: $text;
+  font: 600 14px Inter, system-ui, sans-serif;
+  max-width: 220px;
+  padding: 0 6px;
+
+  &:focus { outline: none; }
+}
+
+.flt--menu { padding: 0; }
+
+.flt__btn {
+  @include reset-button;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: $text;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.flt--dates {
+  gap: 10px;
+  padding-right: 12px;
+
+  label { display: inline-flex; align-items: center; gap: 6px; }
+  .flt__v { max-width: 150px; }
+}
+
+.flt__zone {
+  font-size: 12px;
+  color: $muted;
+  font-weight: 600;
+}
+
+.gv-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: min(340px, 86vw);
+  padding: 10px;
+  border-radius: 12px;
+  background: $surface;
+  border: 1px solid $line;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gv-panel__head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.gv-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  font-weight: 400;
+
+  li + li { border-top: 1px solid $track; }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  input { width: 18px; height: 18px; accent-color: $teal; flex: none; }
+}
+
+/* ---- KPIs --------------------------------------------------------------------------------------- */
+
+.gv-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.kpi {
+  @include card;
+  padding: 14px 16px;
+  min-height: 92px;
+  box-sizing: border-box;
+}
+
+.kpi--skeleton {
+  background: linear-gradient(90deg, $track 0%, #fff 50%, $track 100%);
+  background-size: 200% 100%;
+  animation: gv-shimmer 1.4s linear infinite;
+}
+
+@keyframes gv-shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi--skeleton { animation: none; }
+}
+
+.kpi__value {
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  &.is-amber { color: $amber-value; }
+  &.is-red { color: $red-value; }
+}
+
+.kpi__note { font-size: 12px; color: $muted; }
+
+/* ---- occupancy ---------------------------------------------------------------------------------- */
+
+.gv-card { @include card; }
+
+.gv-occ { padding: 16px; }
+
+.gv-occ__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gv-occ__bars {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 72px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 0;
+  background: $teal;
+  border-radius: 3px 3px 0 0;
+
+  &.is-breach { background: $dwell; }
+  &.is-empty { background: $line; }
+}
+
+.gv-occ__axis {
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: $muted;
+}
+
+/* ---- table -------------------------------------------------------------------------------------- */
+
+/* Positioned, so visually hidden labels inside the wide table stay inside the scroller and never widen the page. */
+.gv-table__scroll {
+  position: relative;
+  overflow-x: auto;
+}
+
+.gv-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.gv-table th {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid $line;
+  white-space: nowrap;
+  @include label-caps;
+}
+
+.gv-table td {
+  padding: 14px;
+  font-size: 14px;
+  border-bottom: 1px solid $track;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.c2 { color: $text-2; }
+
+.gv-table td.is-speed { color: $red-value; font-weight: 700; }
+
+.gv-empty {
+  text-align: center;
+  color: $muted;
+  padding: 28px 14px;
+  white-space: normal;
+}
+
+.replay {
+  @include reset-button;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: $teal;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:hover { background: $teal-select; }
+}
+
+.gv-table__foot {
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: $muted;
+}
+
+.gv-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gv-warn {
+  color: $amber-ink;
+  background: $amber-soft;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .gv-head h1 { font-size: 22px; }
+  .gv-head__actions,
+  .gv-head__actions .btn { width: 100%; }
+  .flt { width: 100%; box-sizing: border-box; justify-content: space-between; }
+  .flt__v { max-width: none; flex: 1; }
+  .flt--dates { flex-wrap: wrap; justify-content: flex-start; padding: 6px 12px; }
+  .flt__btn { width: 100%; justify-content: space-between; }
+}

@@ -27,7 +27,9 @@ import { GpsTripsComponent } from './trips/gps-trips.component';
 import { TripDetailPageComponent } from './trip-detail/trip-detail-page.component';
 import { TripReplayMapComponent } from './shared/trip-replay-map/trip-replay-map.component';
 import { TripRouteAnalysisPanelComponent } from './shared/trip-route-analysis-panel/trip-route-analysis-panel.component';
-import { GpsGeofencesComponent } from './geofences/gps-geofences.component';
+import { GeofenceWorkspaceComponent } from './geofences/geofence-workspace/geofence-workspace.component';
+import { GeofenceEditorComponent } from './geofences/geofence-editor/geofence-editor.component';
+import { GeofenceVisitsComponent } from './geofences/geofence-visits/geofence-visits.component';
 import { GpsAlertsComponent } from './alerts/gps-alerts.component';
 import { SosDispatchComponent } from './sos-dispatch/sos-dispatch.component';
 import { GpsDevicesComponent } from './devices/gps-devices.component';
@@ -60,7 +62,20 @@ const routes: Routes = [
         data: { permissions: ['Gps.DeviceManage'] }
       },
       { path: 'trips/:tripKey', component: TripDetailPageComponent },
-      { path: 'geofences', component: GpsGeofencesComponent },
+      { path: 'geofences', component: GeofenceWorkspaceComponent },
+      { path: 'geofences/visits', component: GeofenceVisitsComponent },
+      {
+        path: 'geofences/new',
+        component: GeofenceEditorComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.GeofenceManage'] }
+      },
+      {
+        path: 'geofences/:id/edit',
+        component: GeofenceEditorComponent,
+        canActivate: [permissionGuard],
+        data: { permissions: ['Gps.GeofenceManage'] }
+      },
       {
         path: 'alerts',
         component: GpsAlertsComponent,
@@ -147,7 +162,6 @@ const routes: Routes = [
     TripDetailPageComponent,
     TripReplayMapComponent,
     TripRouteAnalysisPanelComponent,
-    GpsGeofencesComponent,
     GpsAlertsComponent,
     SosDispatchComponent,
     GpsDevicesComponent,

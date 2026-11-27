@@ -73,12 +73,18 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     return this.activeChild === 'history';
   }
 
+  /** Geofences, its editor and its visits report bring their own header and filters. */
+  get isGeofencesRoute(): boolean {
+    return this.activeChild === 'geofences';
+  }
+
   /**
-   * Company/vehicle scope bar — hidden on Device Commands (no region/scope UI there) and on
-   * History, whose toolbar has its own vehicle picker bound to the same scope.
+   * Company/vehicle scope bar — hidden on Device Commands (no region/scope UI there), on
+   * History, whose toolbar has its own vehicle picker bound to the same scope, and on Geofences,
+   * which never used it (its pages have their own filters).
    */
   get showScopeFilterBar(): boolean {
-    return !this.isCommandsRoute && !this.isHistoryRoute;
+    return !this.isCommandsRoute && !this.isHistoryRoute && !this.isGeofencesRoute;
   }
 
   /** Hide the generic Fleet Tracking header when a page supplies its own hero. */
@@ -87,7 +93,8 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
       this.isAlertsRoute ||
       this.isDriverPerformanceRoute ||
       this.isClientTrackingLinksRoute ||
-      this.isAccidentRiskRoute
+      this.isAccidentRiskRoute ||
+      this.isGeofencesRoute
     );
   }
 
