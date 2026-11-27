@@ -6,18 +6,24 @@
           <path d="M18 6l-8 6l8 6zM7 6v12"></path>
         </svg>
       </button>
-      <button type="button" class="dock-play" [attr.aria-label]="playing ? 'Pause' : 'Play'" [disabled]="!canPlay" (click)="playToggle.emit()">
+      <button type="button" class="dock-play" [attr.aria-label]="playLabel" [attr.title]="playLabel" [disabled]="!canPlay" (click)="playToggle.emit()">
         <svg *ngIf="playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"></path>
         </svg>
-        <svg *ngIf="!playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg *ngIf="!playing && !atEnd" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M8 5l11 7l-11 7z"></path>
+        </svg>
+        <svg *ngIf="!playing && atEnd" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"></path>
         </svg>
       </button>
       <button type="button" class="dock-step" aria-label="Next stop" [disabled]="!hasStops" (click)="nextStop.emit()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M6 6l8 6l-8 6zM17 6v12"></path>
         </svg>
+      </button>
+      <button type="button" class="dock-next-trip" aria-label="Next trip" title="Next trip" [disabled]="!hasNextTrip" (click)="nextTrip.emit()">
+        Next trip
       </button>
     </div>
 
@@ -43,9 +49,19 @@
         {{ z.label }}
       </button>
     </div>
-    <button type="button" class="dock-rate" [attr.aria-label]="'Playback speed ' + rateLabel + ', change'" (click)="rateCycle.emit()">
-      {{ rateLabel }}
+    <button
+      type="button"
+      class="dock-skip"
+      *ngIf="zoom !== 'trip'"
+      [class.dock-skip--on]="skipStops"
+      [attr.aria-pressed]="skipStops"
+      title="Play straight on from one trip to the next"
+      (click)="skipStopsToggle.emit()">
+      Skip stops
     </button>
+    <select class="dock-rate" aria-label="Playback speed" title="Times real time: 60× plays one minute per second" (change)="onRateSelect($event)">
+      <option *ngFor="let r of rates" [value]="r" [selected]="r === rate">{{ r }}×</option>
+    </select>
     <button
       type="button"
       class="dock-follow"

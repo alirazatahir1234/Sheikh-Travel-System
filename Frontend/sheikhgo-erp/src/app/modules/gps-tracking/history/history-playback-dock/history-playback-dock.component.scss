@@ -142,10 +142,49 @@ button {
   }
 }
 
-.dock-rate {
-  min-width: 48px;
+.dock-next-trip {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+
+  &:disabled {
+    color: #94a3b8;
+  }
+}
+
+.dock-skip {
   height: 40px;
   padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &--on {
+    border-color: #5eead4;
+    background: #ecfdf5;
+    color: #0e766e;
+    font-weight: 600;
+  }
+}
+
+.dock-rate {
+  min-width: 64px;
+  height: 40px;
+  padding: 0 6px 0 10px;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #ffffff;

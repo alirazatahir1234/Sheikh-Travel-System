@@ -11,7 +11,9 @@ import { CommonModule } from '@angular/common';
 import {
   ActivityBlock,
   AxisTick,
+  DEFAULT_PLAYBACK_RATE,
   DockZoom,
+  PLAYBACK_RATES,
   SPEED_CHART_HEIGHT,
   SPEED_CHART_WIDTH
 } from '../../utils/history-playback.util';
@@ -35,7 +37,12 @@ export class HistoryPlaybackDockComponent {
   /** False while there is no trip to play. */
   @Input() canPlay = false;
   @Input() hasStops = false;
-  @Input() rate = 1;
+  @Input() hasNextTrip = false;
+  /** The playhead is at the end of what Play plays: the button reads Replay. */
+  @Input() atEnd = false;
+  /** Multiple of real time. */
+  @Input() rate = DEFAULT_PLAYBACK_RATE;
+  @Input() skipStops = true;
   @Input() follow = true;
   @Input() zoom: DockZoom = 'day';
   @Input() weekAvailable = true;
@@ -57,8 +64,10 @@ export class HistoryPlaybackDockComponent {
   @Output() playToggle = new EventEmitter<void>();
   @Output() previousStop = new EventEmitter<void>();
   @Output() nextStop = new EventEmitter<void>();
+  @Output() nextTrip = new EventEmitter<void>();
   @Output() zoomChange = new EventEmitter<DockZoom>();
-  @Output() rateCycle = new EventEmitter<void>();
+  @Output() rateChange = new EventEmitter<number>();
+  @Output() skipStopsToggle = new EventEmitter<void>();
   @Output() followToggle = new EventEmitter<void>();
   /** Position in the dock, 0–100. */
   @Output() seek = new EventEmitter<number>();
@@ -66,6 +75,7 @@ export class HistoryPlaybackDockComponent {
 
   readonly viewBox = `0 0 ${SPEED_CHART_WIDTH} ${SPEED_CHART_HEIGHT}`;
   readonly gridPath = `M0 4H${SPEED_CHART_WIDTH}M0 54H${SPEED_CHART_WIDTH}`;
+  readonly rates = PLAYBACK_RATES;
   readonly zooms: { id: DockZoom; label: string }[] = [
     { id: 'trip', label: 'Trip' },
     { id: 'day', label: 'Day' },
@@ -80,8 +90,13 @@ export class HistoryPlaybackDockComponent {
     return this.speedKmh == null ? '—' : `${Math.round(this.speedKmh)} km/h`;
   }
 
-  get rateLabel(): string {
-    return `${this.rate}×`;
+  get playLabel(): string {
+    return this.playing ? 'Pause' : this.atEnd ? 'Replay' : 'Play';
+  }
+
+  onRateSelect(event: Event): void {
+    const rate = Number((event.target as HTMLSelectElement).value);
+    if (rate !== this.rate) this.rateChange.emit(rate);
   }
 
   trackBlock(_: number, block: ActivityBlock): string {

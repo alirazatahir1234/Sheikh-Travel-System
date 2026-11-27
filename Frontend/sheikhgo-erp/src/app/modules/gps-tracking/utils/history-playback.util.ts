@@ -1,8 +1,9 @@
-import { HistoryTimelineSegment, TripReplayPosition } from '../../../core/models/gps-tracking.model';
+import { HistoryTimeline, HistoryTimelineSegment, TripReplayPosition } from '../../../core/models/gps-tracking.model';
 import { toDate, zonedAddDays, zonedStartOfDay } from '../../../core/utils/zoned-time.util';
 import {
   clockParts,
   formatTimeRange,
+  segmentAt,
   segmentEndMs,
   segmentStartMs,
   standstillWhere,
@@ -21,18 +22,43 @@ export interface TimeRange {
 
 export type DockZoom = 'trip' | 'day' | 'week';
 
-export const PLAYBACK_RATES: readonly number[] = [1, 2, 4, 8, 16];
+/** Multiples of real time: at 1× one second of history plays per second, at 60× one minute. */
+export const PLAYBACK_RATES: readonly number[] = [1, 10, 30, 60, 120, 300];
 
-/** At 1× one minute of the trip plays per second. */
-export const PLAYBACK_SPEEDUP = 60;
+export const DEFAULT_PLAYBACK_RATE = 60;
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-/** 1× → 2× → 4× → 8× → 16× → 1×. */
-export function nextRate(rate: number): number {
-  const i = PLAYBACK_RATES.indexOf(rate);
-  return PLAYBACK_RATES[(i + 1) % PLAYBACK_RATES.length] ?? PLAYBACK_RATES[0];
+/**
+ * Where the playhead is after `elapsedMs` of real time at `rate`, never past `endMs`.
+ * With `skipStops`, an instant inside a stop or parking moves on to its end, where the next trip
+ * starts, so a range plays its driving without waiting through the standstills.
+ */
+export function advancePlayhead(
+  ms: number,
+  elapsedMs: number,
+  rate: number,
+  timeline: HistoryTimeline | null,
+  skipStops: boolean,
+  endMs: number
+): { ms: number; finished: boolean } {
+  let next = ms + Math.max(0, elapsedMs) * rate;
+  if (skipStops && timeline) {
+    for (let guard = 0; guard < timeline.segments.length && next < endMs; guard++) {
+      const here = segmentAt(timeline, next);
+      if (!here || here.kind === 'trip') break;
+      const end = segmentEndMs(here);
+      if (!(end > next)) break;
+      next = end;
+    }
+  }
+  return next >= endMs ? { ms: endMs, finished: true } : { ms: next, finished: false };
+}
+
+/** The first trip that starts after an instant; null after the last trip. */
+export function tripAfter(timeline: HistoryTimeline, afterMs: number): HistoryTimelineSegment | null {
+  return timeline.segments.find(s => s.kind === 'trip' && segmentStartMs(s) > afterMs) ?? null;
 }
 
 export function timesOf(points: TripReplayPosition[]): number[] {

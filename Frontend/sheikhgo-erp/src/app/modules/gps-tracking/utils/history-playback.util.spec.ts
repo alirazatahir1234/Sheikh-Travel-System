@@ -1,18 +1,21 @@
 import { TripReplayPosition } from '../../../core/models/gps-tracking.model';
 import {
   activityBlocks,
+  advancePlayhead,
   axisTicks,
   bearingDegrees,
+  DEFAULT_PLAYBACK_RATE,
   dockRange,
   indexAtOrBefore,
   localDayRange,
-  nextRate,
   outsideBlocks,
+  PLAYBACK_RATES,
   percentToTime,
   positionAt,
   speedPaths,
   timesOf,
   timeToPercent,
+  tripAfter,
   weekZoomAvailable
 } from './history-playback.util';
 import { FIXTURE_ZONE, fixtureMs, fixtureRoute, fixtureTimeline } from './history-timeline.fixture';
@@ -21,9 +24,47 @@ const friday = { startMs: fixtureMs(1, 0), endMs: fixtureMs(2, 0) };
 const period = { startMs: fixtureMs(0, 0), endMs: fixtureMs(2, 720) };
 
 describe('history-playback.util — playhead', () => {
-  it('cycles the rate 1× → 16× and back', () => {
-    expect([1, 2, 4, 8, 16].map(nextRate)).toEqual([2, 4, 8, 16, 1]);
-    expect(nextRate(3)).toBe(1);
+  it('offers true multiples of real time, 60× by default', () => {
+    expect(PLAYBACK_RATES).toEqual([1, 10, 30, 60, 120, 300]);
+    expect(DEFAULT_PLAYBACK_RATE).toBe(60);
+  });
+
+  it('plays one second per second at 1× and one minute per second at 60×', () => {
+    const t0 = fixtureMs(1, 480);
+    const end = fixtureMs(2, 720);
+    expect(advancePlayhead(t0, 1000, 1, null, false, end)).toEqual({ ms: t0 + 1000, finished: false });
+    expect(advancePlayhead(t0, 1000, 60, null, false, end)).toEqual({ ms: t0 + 60_000, finished: false });
+  });
+
+  it('skips the overnight parking to the next trip only when asked', () => {
+    const timeline = fixtureTimeline();
+    const end = fixtureMs(2, 720);
+    // Trip 5 ends Fri 18:23; ten minutes on lands in the parking that lasts until Sat 08:10.
+    const from = fixtureMs(1, 1100);
+    const tenMinutes = 10 * 60_000;
+    expect(advancePlayhead(from, tenMinutes, 1, timeline, true, end)).toEqual({ ms: fixtureMs(2, 490), finished: false });
+    expect(advancePlayhead(from, tenMinutes, 1, timeline, false, end)).toEqual({ ms: fixtureMs(1, 1110), finished: false });
+  });
+
+  it('starts from a standstill on the next trip when stops are skipped', () => {
+    const timeline = fixtureTimeline();
+    expect(advancePlayhead(fixtureMs(1, 520), 0, 60, timeline, true, fixtureMs(2, 720)).ms).toBe(fixtureMs(1, 532));
+  });
+
+  it('stops at the end, including when only parking is left', () => {
+    const timeline = fixtureTimeline();
+    expect(advancePlayhead(fixtureMs(2, 519), 120_000, 1, timeline, false, fixtureMs(2, 520)))
+      .toEqual({ ms: fixtureMs(2, 520), finished: true });
+    // Saturday ends parked until 12:00, the end of the period.
+    expect(advancePlayhead(fixtureMs(2, 519), 120_000, 1, timeline, true, fixtureMs(2, 720)))
+      .toEqual({ ms: fixtureMs(2, 720), finished: true });
+  });
+
+  it('finds the trip after an instant for "Next trip"', () => {
+    const timeline = fixtureTimeline();
+    expect(tripAfter(timeline, fixtureMs(1, 470))?.id).toBe('t2');
+    expect(tripAfter(timeline, fixtureMs(0, 0))?.id).toBe('t1');
+    expect(tripAfter(timeline, fixtureMs(2, 490))).toBeNull();
   });
 
   it('finds the fix at or before an instant', () => {

@@ -77,15 +77,16 @@ import {
 import {
   ActivityBlock,
   activityBlocks,
+  advancePlayhead,
   AxisTick,
   axisTicks,
+  DEFAULT_PLAYBACK_RATE,
   DockZoom,
   dockRange,
-  nextRate,
+  tripAfter,
   outsideBlocks,
   percentToTime,
   PLAYBACK_RATES,
-  PLAYBACK_SPEEDUP,
   positionAt,
   speedPaths,
   TimeRange,
@@ -125,7 +126,10 @@ interface WorkspacePrefs {
   mapType: HistoryMapType;
   timelineFilter: TimelineFilter;
   hideStopsUnderMinutes: number;
-  rate: number;
+  /** Multiple of real time. Saved before as `rate`, where 1 meant 60× — that key is ignored. */
+  playbackRate: number;
+  /** Day and Week playback skip stops and parking. */
+  skipStops: boolean;
   follow: boolean;
   dockZoom: DockZoom;
 }
@@ -138,7 +142,8 @@ const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
   mapType: 'street',
   timelineFilter: 'all',
   hideStopsUnderMinutes: DEFAULT_HIDE_STOPS_MINUTES,
-  rate: 1,
+  playbackRate: DEFAULT_PLAYBACK_RATE,
+  skipStops: true,
   follow: true,
   dockZoom: 'day'
 };
@@ -155,7 +160,8 @@ function readWorkspacePrefs(): WorkspacePrefs {
     if (!HIDE_STOP_OPTIONS.some(o => o.minutes === prefs.hideStopsUnderMinutes)) {
       prefs.hideStopsUnderMinutes = DEFAULT_HIDE_STOPS_MINUTES;
     }
-    if (!PLAYBACK_RATES.includes(prefs.rate)) prefs.rate = 1;
+    if (!PLAYBACK_RATES.includes(prefs.playbackRate)) prefs.playbackRate = DEFAULT_PLAYBACK_RATE;
+    if (typeof prefs.skipStops !== 'boolean') prefs.skipStops = true;
     if (!['all', 'trips', 'stops'].includes(prefs.timelineFilter)) prefs.timelineFilter = 'all';
     if (!['trip', 'day', 'week'].includes(prefs.dockZoom)) prefs.dockZoom = 'day';
     if (prefs.mapType !== 'satellite') prefs.mapType = 'street';
@@ -288,7 +294,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   /** The instant the dock, the map marker and the details panel show. */
   playheadMs: number | null = null;
   playing = false;
-  rate = 1;
+  rate = DEFAULT_PLAYBACK_RATE;
+  skipStops = true;
   follow = true;
   dockZoom: DockZoom = 'day';
 
@@ -324,6 +331,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private routeTimes: number[] = [];
   private playTimer?: ReturnType<typeof setInterval>;
   private playEndMs = 0;
+  /** Where the last playback ran out; the button reads Replay while the playhead is still there. */
+  private finishedAtMs: number | null = null;
   private lastTickAt = 0;
   private addressTimer?: ReturnType<typeof setTimeout>;
   private geofenceScope: number | null | undefined | 'none' = 'none';
@@ -406,7 +415,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.mapType = workspace.mapType;
     this.timelineFilter = workspace.timelineFilter;
     this.hideStopsUnderMinutes = workspace.hideStopsUnderMinutes;
-    this.rate = workspace.rate;
+    this.rate = workspace.playbackRate;
+    this.skipStops = workspace.skipStops;
     this.follow = workspace.follow;
     this.dockZoom = workspace.dockZoom;
 
@@ -578,6 +588,16 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   get canPlay(): boolean {
     if (this.timeline) return this.timeline.totals.tripCount > 0;
     return this.route.length > 1;
+  }
+
+  /** A trip after the playhead for "Next trip". */
+  get hasNextTrip(): boolean {
+    return !!this.timeline && this.playheadMs != null && tripAfter(this.timeline, this.playheadMs) != null;
+  }
+
+  /** Playback ran to its end and the playhead has not moved since: Play starts over, shown as Replay. */
+  get atPlayEnd(): boolean {
+    return !this.playing && this.finishedAtMs != null && this.playheadMs === this.finishedAtMs;
   }
 
   get hasStandstills(): boolean {
@@ -857,6 +877,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.windowRange = null;
     this.selectedId = null;
     this.playheadMs = null;
+    this.finishedAtMs = null;
     this.openDays = new Set();
     this.timelineRows = [];
     this.kpis = buildKpis(null);
@@ -1156,8 +1177,13 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       this.playWholeRoute();
       return;
     }
+    if (this.dockZoom === 'trip') this.playTrip(timeline, window);
+    else this.playPeriod(timeline);
+  }
 
-    // Play the selected trip; from a standstill (or nothing selected) the next trip, else the last one.
+  /** Trip zoom: the selected trip; from a standstill (or nothing selected) the next trip, else the last one. */
+  private playTrip(timeline: HistoryTimeline, window: TimeRange): void {
+    if (this.playheadMs == null) return;
     const selected = this.selectedSegment;
     const trip = selected?.kind === 'trip'
       ? selected
@@ -1179,6 +1205,35 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     }
 
     this.startTimer(from, end);
+  }
+
+  /** Day and Week zoom: every trip from the playhead to the end of the period; the dock follows day by day. */
+  private playPeriod(timeline: HistoryTimeline): void {
+    const end = this.playEnd();
+    if (end == null || this.playheadMs == null) return;
+    // Starting over begins at the first trip the dock shows (that day, or the week), else the period's first.
+    const shown = this.dock.range;
+    const restart =
+      (shown ? tripAtOrAfter(timeline, shown.startMs) : null) ?? timeline.segments.find(s => s.kind === 'trip');
+    if (!restart) return;
+
+    let from = this.playheadMs >= end - 500 ? segmentStartMs(restart) : this.playheadMs;
+    let start = advancePlayhead(from, 0, this.rate, timeline, this.skipStops, end);
+    if (start.finished) {
+      // Only standstill left before the end: start over.
+      from = segmentStartMs(restart);
+      start = advancePlayhead(from, 0, this.rate, timeline, this.skipStops, end);
+    }
+    this.startTimer(start.ms, end);
+    this.selectSegmentAtPlayhead();
+  }
+
+  /** Where Day and Week playback stops: the period's last fix. */
+  private playEnd(): number | null {
+    const window = this.windowRange;
+    if (!window) return null;
+    const lastFix = this.routeTimes[this.routeTimes.length - 1];
+    return Number.isFinite(lastFix) ? Math.min(lastFix, window.endMs) : window.endMs;
   }
 
   /** Older API without a timeline: play from the playhead to the last fix. */
@@ -1210,13 +1265,30 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     const elapsed = now - this.lastTickAt;
     this.lastTickAt = now;
 
-    let next = this.playheadMs + elapsed * PLAYBACK_SPEEDUP * this.rate;
-    const finished = next >= this.playEndMs;
-    if (finished) next = this.playEndMs;
-    this.playheadMs = next;
-    if (finished) this.stopPlayback();
+    const period = this.dockZoom !== 'trip';
+    // Stops are skipped only across a period; a single trip plays as recorded.
+    const step = advancePlayhead(
+      this.playheadMs, elapsed, this.rate, period ? this.timeline : null, this.skipStops, this.playEndMs);
+    this.playheadMs = step.ms;
+    if (step.finished) {
+      this.stopPlayback();
+      this.finishedAtMs = step.ms;
+    }
+    if (period) this.selectSegmentAtPlayhead();
     this.refreshDock();
-    this.refreshPlayhead(finished);
+    this.refreshPlayhead(step.finished);
+  }
+
+  /** Whatever the playhead is on becomes the selection, so the timeline row and the dock follow it. */
+  private selectSegmentAtPlayhead(): void {
+    const at = this.playheadMs;
+    if (at == null) return;
+    const here = this.timeline ? segmentAt(this.timeline, at) : null;
+    const id = here?.id ?? null;
+    if (id === this.selectedId) return;
+    this.selectedId = id;
+    if (here && !this.openDays.has(here.date)) this.openDays = new Set(this.openDays).add(here.date);
+    this.refreshRows();
   }
 
   private stopPlayback(): void {
@@ -1227,9 +1299,23 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  cycleRate(): void {
-    this.rate = nextRate(this.rate);
+  setRate(rate: number): void {
+    if (!PLAYBACK_RATES.includes(rate)) return;
+    this.rate = rate;
     this.persistWorkspace();
+  }
+
+  toggleSkipStops(): void {
+    this.skipStops = !this.skipStops;
+    this.persistWorkspace();
+  }
+
+  /** Select the first trip after the playhead; its start becomes the playhead. */
+  nextTrip(): void {
+    const timeline = this.timeline;
+    if (!timeline || this.playheadMs == null) return;
+    const trip = tripAfter(timeline, this.playheadMs);
+    if (trip) this.selectSegment(trip.id);
   }
 
   toggleFollow(): void {
@@ -1238,6 +1324,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   setDockZoom(zoom: DockZoom): void {
+    // What Play covers depends on the zoom, so a running playback stops rather than change course.
+    this.stopPlayback();
     this.dockZoom = zoom;
     this.persistWorkspace();
     this.refreshDock(true);
@@ -1276,17 +1364,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (this.dockZoom === 'trip' && selected) {
       // Zoomed to one segment: stay inside it, so the dock does not jump to its neighbour.
       at = Math.min(segmentEndMs(selected) - 1, Math.max(segmentStartMs(selected), at));
-    } else {
-      const here = this.timeline ? segmentAt(this.timeline, at) : null;
-      const id = here?.id ?? null;
-      if (id !== this.selectedId) {
-        this.selectedId = id;
-        if (here && !this.openDays.has(here.date)) this.openDays = new Set(this.openDays).add(here.date);
-        this.refreshRows();
-      }
     }
 
     this.playheadMs = at;
+    if (this.dockZoom !== 'trip' || !selected) this.selectSegmentAtPlayhead();
     this.refreshDock();
     this.refreshPlayhead(true);
   }
@@ -1325,7 +1406,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       mapType: this.mapType,
       timelineFilter: this.timelineFilter,
       hideStopsUnderMinutes: this.hideStopsUnderMinutes,
-      rate: this.rate,
+      playbackRate: this.rate,
+      skipStops: this.skipStops,
       follow: this.follow,
       dockZoom: this.dockZoom
     });
