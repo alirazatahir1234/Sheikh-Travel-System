@@ -467,6 +467,14 @@ button {
     border: 1.5px dashed #1d4ed8;
     border-radius: 50%;
   }
+
+  &--events {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid #b91c1c;
+    border-radius: 50%;
+    background: #f87171;
+  }
 }
 
 .hw-mapstyle {

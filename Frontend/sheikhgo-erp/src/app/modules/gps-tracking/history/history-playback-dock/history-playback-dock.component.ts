@@ -13,6 +13,7 @@ import {
   AxisTick,
   DEFAULT_PLAYBACK_RATE,
   DockZoom,
+  EventTick,
   PLAYBACK_RATES,
   SPEED_CHART_HEIGHT,
   SPEED_CHART_WIDTH
@@ -57,6 +58,8 @@ export class HistoryPlaybackDockComponent {
   @Input() maxSpeedLabel = '';
   @Input() chartLabel = 'Speed over time';
   @Input() ticks: AxisTick[] = [];
+  /** Events inside the dock's range; empty while the Events layer is off. */
+  @Input() events: EventTick[] = [];
   /** Null when the playhead is outside what the dock shows. */
   @Input() playheadPercent: number | null = null;
   @Input() selectedId: string | null = null;
@@ -72,6 +75,8 @@ export class HistoryPlaybackDockComponent {
   /** Position in the dock, 0–100. */
   @Output() seek = new EventEmitter<number>();
   @Output() blockSelect = new EventEmitter<string>();
+  /** The instant of an event tick that was pressed. */
+  @Output() eventSelect = new EventEmitter<number>();
 
   readonly viewBox = `0 0 ${SPEED_CHART_WIDTH} ${SPEED_CHART_HEIGHT}`;
   readonly gridPath = `M0 4H${SPEED_CHART_WIDTH}M0 54H${SPEED_CHART_WIDTH}`;
@@ -101,6 +106,10 @@ export class HistoryPlaybackDockComponent {
 
   trackBlock(_: number, block: ActivityBlock): string {
     return block.id;
+  }
+
+  trackEvent(_: number, tick: EventTick): number {
+    return tick.atMs;
   }
 
   setZoom(zoom: DockZoom): void {

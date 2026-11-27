@@ -239,6 +239,45 @@ button {
   pointer-events: none;
 }
 
+.dock-events {
+  position: relative;
+  height: 12px;
+  margin-top: 4px;
+}
+
+.dock-event {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  padding: 0;
+  border: 1.5px solid #b91c1c;
+  border-radius: 50%;
+  background: #f87171;
+  cursor: pointer;
+
+  &--geofence {
+    border-color: #7c3aed;
+    background: #a78bfa;
+  }
+
+  &--overspeed {
+    border-color: #b45309;
+    background: #fbbf24;
+  }
+
+  &:hover,
+  &:focus-visible {
+    transform: scale(1.25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0e766e;
+    outline-offset: 2px;
+  }
+}
+
 .dock-bar {
   position: relative;
   height: 14px;

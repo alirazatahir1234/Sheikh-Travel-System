@@ -1,7 +1,8 @@
-import { HistoryTimeline, HistoryTimelineSegment, TripReplayPosition } from '../../../core/models/gps-tracking.model';
+import { HistoryTimeline, HistoryTimelineSegment, TripEvent, TripReplayPosition } from '../../../core/models/gps-tracking.model';
 import { toDate, zonedAddDays, zonedStartOfDay } from '../../../core/utils/zoned-time.util';
 import {
   clockParts,
+  formatClock,
   formatTimeRange,
   segmentAt,
   segmentEndMs,
@@ -272,6 +273,49 @@ export function outsideBlocks(range: TimeRange, window: TimeRange): { leftPercen
     out.push({ leftPercent: left, widthPercent: 100 - left });
   }
   return out.filter(b => b.widthPercent > 0);
+}
+
+// ---- events -----------------------------------------------------------------------------------------
+
+export type EventKind = 'geofence' | 'overspeed' | 'alarm';
+
+/** How an event is drawn: from its type, as the API filters them (alarms cover SOS, power cut, harsh driving). */
+export function eventKind(type: string | null | undefined): EventKind {
+  const t = (type ?? '').toLowerCase();
+  if (t.includes('geofence')) return 'geofence';
+  if (t.includes('overspeed')) return 'overspeed';
+  return 'alarm';
+}
+
+export interface EventTick {
+  atMs: number;
+  percent: number;
+  kind: EventKind;
+  /** "Harsh braking at 1:27:45 PM". */
+  label: string;
+  event: TripEvent;
+}
+
+/** Most events the bar and the map show at once. */
+export const MAX_EVENT_TICKS = 200;
+
+/** The events inside the dock's range, in time order, placed by their share of it. */
+export function eventTicks(events: TripEvent[], range: TimeRange, zone?: string | null): EventTick[] {
+  const ticks: EventTick[] = [];
+  for (const event of events) {
+    const atMs = toDate(event.time)?.getTime();
+    if (atMs == null || !Number.isFinite(atMs) || atMs < range.startMs || atMs > range.endMs) continue;
+    const name = event.label?.trim() || event.type;
+    ticks.push({
+      atMs,
+      percent: timeToPercent(atMs, range),
+      kind: eventKind(event.type),
+      label: `${name} at ${formatClock(atMs, zone, true)}`,
+      event
+    });
+  }
+  ticks.sort((a, b) => a.atMs - b.atMs);
+  return ticks.slice(0, MAX_EVENT_TICKS);
 }
 
 // ---- speed chart ------------------------------------------------------------------------------------

@@ -83,6 +83,8 @@ import {
   DEFAULT_PLAYBACK_RATE,
   DockZoom,
   dockRange,
+  EventTick,
+  eventTicks,
   tripAfter,
   outsideBlocks,
   percentToTime,
@@ -138,7 +140,7 @@ const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
   showTimeline: true,
   showDock: true,
   showDetails: true,
-  layers: { route: true, points: false, speed: false, stops: true, parking: true, geofences: true },
+  layers: { route: true, points: false, speed: false, stops: true, parking: true, geofences: true, events: true },
   mapType: 'street',
   timelineFilter: 'all',
   hideStopsUnderMinutes: DEFAULT_HIDE_STOPS_MINUTES,
@@ -186,6 +188,8 @@ interface DockView {
   speedLine: string;
   speedArea: string;
   ticks: AxisTick[];
+  /** Events inside the dock's range; the map shows the same ones. */
+  events: EventTick[];
   maxSpeedLabel: string;
   chartLabel: string;
 }
@@ -197,6 +201,7 @@ const EMPTY_DOCK: DockView = {
   speedLine: '',
   speedArea: '',
   ticks: [],
+  events: [],
   maxSpeedLabel: '',
   chartLabel: 'Speed over time'
 };
@@ -273,7 +278,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     { key: 'speed', label: 'Speed' },
     { key: 'stops', label: 'Stops' },
     { key: 'parking', label: 'Parking' },
-    { key: 'geofences', label: 'Geofences' }
+    { key: 'geofences', label: 'Geofences' },
+    { key: 'events', label: 'Events' }
   ];
   readonly rangePositions: ConnectedPosition[] = [
     { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
@@ -975,6 +981,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       speedLine: paths.line,
       speedArea: paths.area,
       ticks: axisTicks(range, this.zone),
+      events: eventTicks(this.bundle?.events ?? [], range, this.zone),
       maxSpeedLabel: maxSpeed > 0 ? `${maxSpeed} km/h` : '',
       chartLabel:
         `Speed from ${formatDay(range.startMs, this.zone)} ${formatClock(range.startMs, this.zone)} ` +

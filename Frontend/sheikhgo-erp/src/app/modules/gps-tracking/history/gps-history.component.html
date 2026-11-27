@@ -203,7 +203,7 @@
           [activeDate]="activeDate"
           [layers]="layers"
           [gpsPoints]="rawPositions"
-          [events]="bundle?.events ?? []"
+          [events]="dock.events"
           [geofences]="geofences"
           [compareRoutes]="compareOverlays"
           [vehicle]="vehicleMarker"
@@ -290,6 +290,7 @@
         [maxSpeedLabel]="dock.maxSpeedLabel"
         [chartLabel]="dock.chartLabel"
         [ticks]="dock.ticks"
+        [events]="layers.events ? dock.events : []"
         [playheadPercent]="playheadPercent"
         [selectedId]="selectedId"
         (playToggle)="togglePlay()"
@@ -301,6 +302,7 @@
         (skipStopsToggle)="toggleSkipStops()"
         (followToggle)="toggleFollow()"
         (seek)="seekToPercent($event)"
+        (eventSelect)="seekTo($event)"
         (blockSelect)="selectSegment($event)">
       </app-history-playback-dock>
     </section>

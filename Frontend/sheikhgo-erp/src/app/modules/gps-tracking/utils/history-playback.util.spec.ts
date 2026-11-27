@@ -6,6 +6,9 @@ import {
   bearingDegrees,
   DEFAULT_PLAYBACK_RATE,
   dockRange,
+  eventKind,
+  eventTicks,
+  MAX_EVENT_TICKS,
   indexAtOrBefore,
   localDayRange,
   outsideBlocks,
@@ -229,6 +232,41 @@ describe('history-playback.util — activity bar', () => {
     expect(after[0].widthPercent).toBeCloseTo(50, 6);
 
     expect(outsideBlocks(friday, period)).toEqual([]);
+  });
+});
+
+describe('history-playback.util — events', () => {
+  const event = (minute: number, type: string, label: string | null = null) =>
+    ({ time: new Date(fixtureMs(1, minute)).toISOString(), type, label, latitude: 32.2, longitude: 74.6 });
+
+  it('draws geofence, overspeed and every other event as an alarm', () => {
+    expect(eventKind('geofenceEnter')).toBe('geofence');
+    expect(eventKind('geofenceExit')).toBe('geofence');
+    expect(eventKind('deviceOverspeed')).toBe('overspeed');
+    expect(eventKind('alarm')).toBe('alarm');
+    expect(eventKind('hardBraking')).toBe('alarm');
+    expect(eventKind(null)).toBe('alarm');
+  });
+
+  it('keeps the events of the dock, in time order, placed by their share of it', () => {
+    const ticks = eventTicks(
+      [event(720, 'alarm', 'SOS'), event(360, 'deviceOverspeed', 'Overspeed'), event(-30, 'alarm', 'Day before')],
+      friday,
+      FIXTURE_ZONE
+    );
+    expect(ticks.map(t => t.label)).toEqual(['Overspeed at 6:00:00 AM', 'SOS at 12:00:00 PM']);
+    expect(ticks.map(t => t.percent)).toEqual([25, 50]);
+    expect(ticks.map(t => t.kind)).toEqual(['overspeed', 'alarm']);
+  });
+
+  it('leaves out events without a time, and names an unlabelled one by its type', () => {
+    const ticks = eventTicks([{ time: '', type: 'alarm' }, event(60, 'alarm')], friday, FIXTURE_ZONE);
+    expect(ticks.map(t => t.label)).toEqual(['alarm at 1:00:00 AM']);
+  });
+
+  it('shows at most the cap', () => {
+    const many = Array.from({ length: MAX_EVENT_TICKS + 50 }, (_, i) => event(i % 1440, 'alarm', 'Alarm'));
+    expect(eventTicks(many, friday, FIXTURE_ZONE).length).toBe(MAX_EVENT_TICKS);
   });
 });
 

@@ -90,6 +90,19 @@
     </svg>
     <span class="dock-max" *ngIf="maxSpeedLabel">{{ maxSpeedLabel }}</span>
 
+    <div class="dock-events" *ngIf="events.length" role="group" aria-label="Events">
+      <button
+        type="button"
+        class="dock-event"
+        *ngFor="let t of events; trackBy: trackEvent"
+        [ngClass]="'dock-event--' + t.kind"
+        [style.left.%]="t.percent"
+        [attr.aria-label]="t.label"
+        [attr.title]="t.label"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="eventSelect.emit(t.atMs)"></button>
+    </div>
+
     <div class="dock-bar">
       <span
         class="dock-outside"

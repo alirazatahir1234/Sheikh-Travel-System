@@ -19,7 +19,6 @@ import {
   Geofence,
   HistoryTimeline,
   HistoryTimelineSegment,
-  TripEvent,
   TripReplayPosition,
   TripStop
 } from '../../../../core/models/gps-tracking.model';
@@ -28,7 +27,7 @@ import { pathFromGeofenceGeoJson } from '../../../../core/google-maps/gmap-geofe
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
 import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { toDate } from '../../../../core/utils/zoned-time.util';
-import { indexAtOrBefore, timesOf } from '../../utils/history-playback.util';
+import { EventKind, EventTick, indexAtOrBefore, timesOf } from '../../utils/history-playback.util';
 import {
   segmentEndMs,
   segmentStartMs,
@@ -43,6 +42,7 @@ export interface HistoryMapLayers {
   stops: boolean;
   parking: boolean;
   geofences: boolean;
+  events: boolean;
 }
 
 export type HistoryMapType = 'street' | 'satellite';
@@ -85,7 +85,12 @@ const FENCE_BLUE = '#1d4ed8';
 const SPEED_STOPS: [number, number, number][] = [[56, 189, 248], [245, 158, 11], [220, 38, 38]];
 const SPEED_STEPS = 12;
 const MAX_GPS_POINT_MARKERS = 600;
-const MAX_EVENT_MARKERS = 40;
+/** Event dots by kind: fill, border. */
+const EVENT_COLOURS: Record<EventKind, [string, string]> = {
+  geofence: ['#a78bfa', '#7c3aed'],
+  overspeed: ['#fbbf24', '#b45309'],
+  alarm: ['#f87171', '#b91c1c']
+};
 const MAX_GEOFENCES = 30;
 /** Room for the layer chips (top), zoom buttons (right) and legend (bottom) over the map. */
 const FIT_PADDING: google.maps.Padding = { top: 64, right: 64, bottom: 56, left: 48 };
@@ -173,10 +178,11 @@ export class HistoryMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input() selectedId: string | null = null;
   /** The local day drawn in full colour. */
   @Input() activeDate: string | null = null;
-  @Input() layers: HistoryMapLayers = { route: true, points: false, speed: false, stops: true, parking: true, geofences: true };
+  @Input() layers: HistoryMapLayers = { route: true, points: false, speed: false, stops: true, parking: true, geofences: true, events: true };
   /** Every fix, for the GPS points layer. Falls back to the route. */
   @Input() gpsPoints: TripReplayPosition[] = [];
-  @Input() events: TripEvent[] = [];
+  /** The events the dock shows (its day, week or trip), already capped. */
+  @Input() events: EventTick[] = [];
   @Input() geofences: Geofence[] = [];
   @Input() compareRoutes: HistoryMapCompareRoute[] = [];
   @Input() vehicle: HistoryMapVehicle | null = null;
@@ -250,7 +256,8 @@ export class HistoryMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     if (changed('route', 'timeline', 'selectedId', 'activeDate', 'layers', 'maxSpeedKmh')) this.renderRoute();
     if (changed('timeline', 'legacyStops', 'selectedId', 'activeDate', 'layers', 'minStopMinutes')) this.renderStandstills();
     if (changed('route', 'gpsPoints', 'timeline', 'selectedId', 'activeDate', 'layers')) this.renderGpsPoints();
-    if (changed('geofences', 'events', 'layers', 'route')) this.renderGeofences();
+    if (changed('geofences', 'layers', 'route')) this.renderGeofences();
+    if (changed('events', 'layers')) this.renderEvents();
     if (changed('compareRoutes')) this.renderCompare();
     if (changed('vehicle', 'follow')) this.renderVehicle();
     if (this.fitPending) {
@@ -346,6 +353,7 @@ export class HistoryMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       this.renderStandstills();
       this.renderGpsPoints();
       this.renderGeofences();
+      this.renderEvents();
       this.renderCompare();
       this.renderVehicle();
       this.fitPending = false;
@@ -666,11 +674,8 @@ export class HistoryMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   // ---- geofences and events -----------------------------------------------------------------------
 
   private renderGeofences(): void {
-    this.dropListeners('event');
     this.fenceShapes.forEach(s => s.setMap(null));
     this.fenceShapes = [];
-    this.eventMarkers.forEach(m => (m.map = null));
-    this.eventMarkers = [];
     if (!this.map || !this.layers.geofences) return;
 
     const near = this.routeBounds(0.03);
@@ -695,22 +700,28 @@ export class HistoryMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       this.fenceShapes.push(this.dashedOutline(ring));
       drawn++;
     }
+  }
 
-    for (const evt of this.events.slice(0, MAX_EVENT_MARKERS)) {
-      if (evt.latitude == null || evt.longitude == null) continue;
-      const fence = evt.type.toLowerCase().includes('geofence');
-      const at = toDate(evt.time)?.getTime();
+  /** Its own layer: shown whatever the Geofences layer says. */
+  private renderEvents(): void {
+    this.dropListeners('event');
+    this.eventMarkers.forEach(m => (m.map = null));
+    this.eventMarkers = [];
+    if (!this.map || !this.layers.events) return;
+
+    for (const tick of this.events) {
+      const { latitude, longitude } = tick.event;
+      if (latitude == null || longitude == null) continue;
+      const [fill, border] = EVENT_COLOURS[tick.kind];
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map: this.map,
-        position: { lat: evt.latitude, lng: evt.longitude },
-        content: dotElement(11, fence ? '#a78bfa' : '#fbbf24', fence ? '#7c3aed' : '#b45309', at != null),
-        title: evt.label ?? evt.type,
+        position: { lat: latitude, lng: longitude },
+        content: dotElement(11, fill, border, true),
+        title: tick.label,
         zIndex: 450,
-        gmpClickable: at != null
+        gmpClickable: true
       });
-      if (at != null) {
-        this.listeners.event.push(marker.addListener('click', () => this.emit(() => this.timeSelected.emit(at))));
-      }
+      this.listeners.event.push(marker.addListener('click', () => this.emit(() => this.timeSelected.emit(tick.atMs))));
       this.eventMarkers.push(marker);
     }
   }
