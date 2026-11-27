@@ -103,6 +103,28 @@ public static class AlertModuleCatalog
             "Pump liters ordered vs OBD fuel level increase at petrol stations", "gpp_bad",
             "alert-fuel-fraud", 215,
             IsPremium: false, DefaultEnabled: true, EventTypeAliases: ["fuel_fraud"]),
+        // Geofence rules (GPS add-on, TenantFeatures geofencing) — set per geofence in the geofence editor.
+        new("ALERT_GEOFENCE_DWELL", "geofence_dwell", "Geofence Dwell", "Geofence Dwell",
+            "GPS add-on: vehicle stayed inside a geofence longer than its dwell limit", "timer", "alert-geofence-dwell", 216,
+            IsPremium: false, DefaultEnabled: false, EventTypeAliases: ["geofence_dwell"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
+        new("ALERT_GEOFENCE_OVERSPEED", "geofence_overspeed", "Geofence Speed", "Speed Inside Geofence",
+            "GPS add-on: vehicle exceeded a geofence's own speed limit while inside it", "speed", "alert-geofence-overspeed", 217,
+            IsPremium: false, DefaultEnabled: false, EventTypeAliases: ["geofence_overspeed"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
+        new("ALERT_GEOFENCE_IDLE", "geofence_idle", "Geofence Idle", "Idle Inside Geofence",
+            "GPS add-on: engine on and not moving inside a geofence longer than its idle limit", "hourglass_bottom",
+            "alert-geofence-idle", 218,
+            IsPremium: false, DefaultEnabled: false, EventTypeAliases: ["geofence_idle"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
+        new("ALERT_GEOFENCE_NOT_ARRIVED", "geofence_not_arrived", "Geofence Not Arrived", "No Arrival by Deadline",
+            "GPS add-on: no assigned vehicle reached a geofence by its deadline", "schedule", "alert-geofence-not-arrived", 219,
+            IsPremium: false, DefaultEnabled: false, EventTypeAliases: ["geofence_not_arrived"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
+        new("ALERT_GEOFENCE_AFTER_HOURS_EXIT", "geofence_after_hours_exit", "Geofence After-hours Exit", "After-hours Exit",
+            "GPS add-on: vehicle left a geofence outside its active hours", "nightlight", "alert-geofence-after-hours-exit", 220,
+            IsPremium: false, DefaultEnabled: false, EventTypeAliases: ["geofence_after_hours_exit"],
+            FeatureKey: GpsAddOnFeatureCatalog.Geofencing),
     ];
 
     /// <summary>Alert types still governed by TenantModules (excludes GPS feature add-ons).</summary>

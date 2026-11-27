@@ -33,6 +33,9 @@ public static class GpsAlertSeverity
     public static string SeverityFor(string eventType) => eventType switch
     {
         "sos" or "power_cut" => "critical",
+        // Geofence rules: Warning in the design → high; not arrived and after-hours exit are Critical.
+        "geofence_not_arrived" or "geofence_after_hours_exit" => "critical",
+        "geofence_dwell" or "geofence_overspeed" or "geofence_idle" => "high",
         "speed_exceeded" or "overspeed" or "road_speed_exceeded" or "harsh_braking" or "harsh_acceleration"
             or "geofence_exit" or "vehicle_offline" or "device_offline" or "gps_offline" or "offline" or "alarm" => "high",
         "ignition_on" or "low_battery" or "gps_lost" or "low_fuel" or "fuel_station_stop" or "geofence_enter" => "medium",

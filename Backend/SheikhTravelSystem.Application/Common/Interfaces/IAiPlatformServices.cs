@@ -14,7 +14,9 @@ public record NotificationDecisionRequest(
     IReadOnlyList<string>? RequestedChannels = null,
     int? SuggestedPriority = null,
     bool Broadcast = false,
-    bool RequireEscalation = false);
+    bool RequireEscalation = false,
+    /// <summary>Explicit recipients (e.g. a geofence's chosen roles and users); caller filters them to the tenant.</summary>
+    IReadOnlyList<int>? TargetUserIds = null);
 
 public record NotificationDecisionResult(
     bool ShouldNotify,

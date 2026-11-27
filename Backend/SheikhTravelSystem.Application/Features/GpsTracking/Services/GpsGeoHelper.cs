@@ -32,12 +32,20 @@ public static class GpsGeoHelper
         double centerLat,
         double centerLng,
         double radiusMeters,
-        string? geoJson)
+        string? geoJson,
+        double corridorWidthMeters = 0)
     {
         var type = (areaType ?? "circle").Trim().ToLowerInvariant();
         if (type is "circle" or "")
         {
             return IsInsideCircle(lat, lng, centerLat, centerLng, radiusMeters);
+        }
+
+        if (type == "corridor")
+        {
+            var line = TryParseLineString(geoJson);
+            return line is { Count: >= 2 } && corridorWidthMeters > 0
+                   && DistanceToPolylineMeters(lat, lng, line) <= corridorWidthMeters / 2;
         }
 
         var ring = TryParsePolygonRing(geoJson);
@@ -63,7 +71,8 @@ public static class GpsGeoHelper
         double radiusMeters,
         string? geoJson,
         out bool inside,
-        out double boundaryDistanceMeters)
+        out double boundaryDistanceMeters,
+        double corridorWidthMeters = 0)
     {
         inside = false;
         boundaryDistanceMeters = 0;
@@ -75,6 +84,18 @@ public static class GpsGeoHelper
             var d = HaversineKm(lat, lng, centerLat, centerLng) * 1000.0;
             inside = d <= radiusMeters;
             boundaryDistanceMeters = Math.Abs(d - radiusMeters);
+            return true;
+        }
+
+        if (type == "corridor")
+        {
+            var line = TryParseLineString(geoJson);
+            if (line is not { Count: >= 2 } || corridorWidthMeters <= 0)
+                return false;
+            var half = corridorWidthMeters / 2;
+            var d = DistanceToPolylineMeters(lat, lng, line);
+            inside = d <= half;
+            boundaryDistanceMeters = Math.Abs(d - half);
             return true;
         }
 
@@ -111,10 +132,37 @@ public static class GpsGeoHelper
         return best;
     }
 
+    /// <summary>Minimum distance (meters) from a point to an open polyline (no closing edge).</summary>
+    public static double DistanceToPolylineMeters(double lat, double lng, IReadOnlyList<(double Lng, double Lat)> line)
+    {
+        const double metersPerDegLat = 111_320.0;
+        var metersPerDegLng = metersPerDegLat * Math.Cos(DegreesToRadians(lat));
+        var best = double.MaxValue;
+        for (var i = 1; i < line.Count; i++)
+        {
+            var ax = (line[i - 1].Lng - lng) * metersPerDegLng;
+            var ay = (line[i - 1].Lat - lat) * metersPerDegLat;
+            var bx = (line[i].Lng - lng) * metersPerDegLng;
+            var by = (line[i].Lat - lat) * metersPerDegLat;
+            var dx = bx - ax;
+            var dy = by - ay;
+            var lenSq = dx * dx + dy * dy;
+            var t = lenSq <= 0 ? 0 : Math.Clamp(-(ax * dx + ay * dy) / lenSq, 0, 1);
+            var px = ax + t * dx;
+            var py = ay + t * dy;
+            best = Math.Min(best, Math.Sqrt(px * px + py * py));
+        }
+
+        return best;
+    }
+
+    public const double MinCorridorWidthMeters = 10;
+    public const double MaxCorridorWidthMeters = 5_000;
+
     public static string NormalizeAreaType(string? areaType)
     {
         var t = (areaType ?? "circle").Trim().ToLowerInvariant();
-        return t is "polygon" or "rectangle" ? t : "circle";
+        return t is "polygon" or "rectangle" or "corridor" ? t : "circle";
     }
 
     public static (double Lat, double Lng, double Radius) NormalizeGeometry(
@@ -122,6 +170,18 @@ public static class GpsGeoHelper
     {
         if (areaType == "circle")
             return (centerLat, centerLng, radiusMeters);
+
+        if (areaType == "corridor")
+        {
+            var line = TryParseLineString(geoJson);
+            if (line is { Count: > 0 })
+            {
+                var c = CentroidOfRing(line);
+                return (c.Lat, c.Lng, 0);
+            }
+
+            return (centerLat, centerLng, 0);
+        }
 
         var ring = TryParsePolygonRing(geoJson);
         if (ring != null && ring.Count > 0)
@@ -134,9 +194,31 @@ public static class GpsGeoHelper
     }
 
     public static bool TryValidateGeofenceGeometry(string areaType, double radiusMeters, string? geoJson, out string? error)
+        => TryValidateGeofenceGeometry(areaType, radiusMeters, geoJson, null, out error);
+
+    public static bool TryValidateGeofenceGeometry(
+        string areaType, double radiusMeters, string? geoJson, double? corridorWidthMeters, out string? error)
     {
         error = null;
         var type = (areaType ?? "circle").Trim().ToLowerInvariant();
+        if (type == "corridor")
+        {
+            var line = TryParseLineString(geoJson);
+            if (line is null || line.Distinct().Count() < 2)
+            {
+                error = "A corridor needs a GeoJSON line with at least 2 distinct points.";
+                return false;
+            }
+
+            if (corridorWidthMeters is not { } w || w < MinCorridorWidthMeters || w > MaxCorridorWidthMeters)
+            {
+                error = $"Corridor width must be between {MinCorridorWidthMeters:0} and {MaxCorridorWidthMeters:0} m.";
+                return false;
+            }
+
+            return true;
+        }
+
         if (type is "circle")
         {
             if (radiusMeters <= 0)
@@ -154,7 +236,7 @@ public static class GpsGeoHelper
 
         if (type is not ("polygon" or "rectangle"))
         {
-            error = "AreaType must be circle, polygon, or rectangle.";
+            error = "AreaType must be circle, polygon, rectangle, or corridor.";
             return false;
         }
 
@@ -278,6 +360,134 @@ public static class GpsGeoHelper
         }
 
         return inside;
+    }
+
+    /// <summary>
+    /// LineString points as (lng, lat) for corridors. Accepts Feature, FeatureCollection[0] or bare LineString geometry.
+    /// </summary>
+    public static IReadOnlyList<(double Lng, double Lat)>? TryParseLineString(string? geoJson)
+    {
+        if (string.IsNullOrWhiteSpace(geoJson))
+            return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(geoJson);
+            var geometry = UnwrapGeometry(doc.RootElement);
+            if (!geometry.TryGetProperty("type", out var geomType)
+                || !string.Equals(geomType.GetString(), "LineString", StringComparison.OrdinalIgnoreCase)
+                || !geometry.TryGetProperty("coordinates", out var coords))
+                return null;
+
+            var points = new List<(double Lng, double Lat)>();
+            foreach (var pt in coords.EnumerateArray())
+            {
+                if (pt.GetArrayLength() >= 2)
+                    points.Add((pt[0].GetDouble(), pt[1].GetDouble()));
+            }
+
+            return points.Count >= 2 ? points : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static JsonElement UnwrapGeometry(JsonElement root)
+    {
+        if (!root.TryGetProperty("type", out var rootType))
+            return root;
+
+        var t = rootType.GetString();
+        if (string.Equals(t, "Feature", StringComparison.OrdinalIgnoreCase) && root.TryGetProperty("geometry", out var g))
+            return g;
+
+        if (string.Equals(t, "FeatureCollection", StringComparison.OrdinalIgnoreCase)
+            && root.TryGetProperty("features", out var features)
+            && features.GetArrayLength() > 0
+            && features[0].TryGetProperty("geometry", out var fg))
+            return fg;
+
+        return root;
+    }
+
+    /// <summary>
+    /// Area (m²) and perimeter (m) of a geofence. Circle: πr² / 2πr. Polygon and rectangle: spherical excess on the
+    /// WGS84 mean radius. Corridor: a band of the given width along the line with round ends. Zero for unusable geometry.
+    /// </summary>
+    public static (double AreaSquareMeters, double PerimeterMeters) ComputeAreaAndPerimeter(
+        string areaType, double radiusMeters, string? geoJson, double? corridorWidthMeters)
+    {
+        var type = NormalizeAreaType(areaType);
+        if (type == "circle")
+            return radiusMeters > 0 ? (Math.PI * radiusMeters * radiusMeters, 2 * Math.PI * radiusMeters) : (0, 0);
+
+        if (type == "corridor")
+        {
+            var line = TryParseLineString(geoJson);
+            var width = corridorWidthMeters ?? 0;
+            if (line is not { Count: >= 2 } || width <= 0)
+                return (0, 0);
+            var length = 0.0;
+            for (var i = 1; i < line.Count; i++)
+                length += HaversineKm(line[i - 1].Lat, line[i - 1].Lng, line[i].Lat, line[i].Lng) * 1000.0;
+            var half = width / 2;
+            return (length * width + Math.PI * half * half, 2 * length + 2 * Math.PI * half);
+        }
+
+        var ring = TryParsePolygonRing(geoJson);
+        if (ring is not { Count: >= 3 })
+            return (0, 0);
+
+        const double r = EarthRadiusKm * 1000.0;
+        double sum = 0, perimeter = 0;
+        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
+        {
+            var (lng1, lat1) = ring[j];
+            var (lng2, lat2) = ring[i];
+            sum += DegreesToRadians(lng2 - lng1) * (2 + Math.Sin(DegreesToRadians(lat1)) + Math.Sin(DegreesToRadians(lat2)));
+            perimeter += HaversineKm(lat1, lng1, lat2, lng2) * 1000.0;
+        }
+
+        return (Math.Abs(sum * r * r / 2.0), perimeter);
+    }
+
+    /// <summary>Bounding box of a geofence grown by <paramref name="marginMeters"/>; null for unusable geometry.</summary>
+    public static (double MinLat, double MaxLat, double MinLng, double MaxLng)? TryGetBoundingBox(
+        string areaType, double centerLat, double centerLng, double radiusMeters, string? geoJson,
+        double? corridorWidthMeters, double marginMeters = 0)
+    {
+        var type = NormalizeAreaType(areaType);
+        IReadOnlyList<(double Lng, double Lat)>? points;
+        double grow = marginMeters;
+        if (type == "circle")
+        {
+            if (radiusMeters <= 0)
+                return null;
+            points = [(centerLng, centerLat)];
+            grow += radiusMeters;
+        }
+        else if (type == "corridor")
+        {
+            points = TryParseLineString(geoJson);
+            grow += (corridorWidthMeters ?? 0) / 2;
+        }
+        else
+        {
+            points = TryParsePolygonRing(geoJson);
+        }
+
+        if (points is not { Count: > 0 })
+            return null;
+
+        var minLat = points.Min(p => p.Lat);
+        var maxLat = points.Max(p => p.Lat);
+        var minLng = points.Min(p => p.Lng);
+        var maxLng = points.Max(p => p.Lng);
+        var dLat = grow / 111_320.0;
+        var dLng = grow / (111_320.0 * Math.Max(Math.Cos(DegreesToRadians((minLat + maxLat) / 2)), 0.01));
+        return (minLat - dLat, maxLat + dLat, minLng - dLng, maxLng + dLng);
     }
 
     public static (double Lat, double Lng) CentroidOfRing(IReadOnlyList<(double Lng, double Lat)> ring)

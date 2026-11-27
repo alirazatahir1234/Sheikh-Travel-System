@@ -32,18 +32,20 @@ public static class GeofenceStateEvaluator
     /// <summary>Same vehicle + zone + direction alert is suppressed within this window.</summary>
     public const int AlertDedupMinutes = 2;
 
+    /// <param name="hysteresisMeters">The zone's GPS tolerance buffer; defaults to <see cref="HysteresisMeters"/>.</param>
     public static GeofenceEvaluation Evaluate(
         GeofenceZoneState? previous,
         bool rawInside,
         double boundaryDistanceMeters,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        double hysteresisMeters = HysteresisMeters)
     {
         // First observation seeds state silently — no alert storm when zones/assignments are added.
         if (previous is null)
             return new GeofenceEvaluation(new GeofenceZoneState(rawInside, nowUtc), GeofenceTransition.None, true);
 
         var observed = rawInside;
-        if (observed != previous.IsInside && boundaryDistanceMeters < HysteresisMeters)
+        if (observed != previous.IsInside && boundaryDistanceMeters < Math.Max(0, hysteresisMeters))
             observed = previous.IsInside;
 
         if (observed == previous.IsInside)

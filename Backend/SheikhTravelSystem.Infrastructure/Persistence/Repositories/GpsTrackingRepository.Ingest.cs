@@ -160,10 +160,11 @@ public sealed partial class GpsTrackingRepository
         DateTime timestamp,
         CancellationToken cancellationToken)
     {
-        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId, bool GeofencingEnabled)>(
+        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId, int? DriverId, bool GeofencingEnabled)>(
             new CommandDefinition(
                 """
                 SELECT v.TenantId, v.BranchId, v.DepartmentId,
+                       COALESCE(@DriverId, (SELECT vcl.DriverId FROM VehicleCurrentLocation vcl WHERE vcl.VehicleId = v.Id)) AS DriverId,
                        CAST(CASE WHEN EXISTS (
                            SELECT 1 FROM TenantFeatures tf
                            WHERE tf.TenantId = v.TenantId AND tf.FeatureKey = @FeatureKey AND tf.IsEnabled = 1
@@ -171,11 +172,22 @@ public sealed partial class GpsTrackingRepository
                 FROM Vehicles v
                 WHERE v.Id = @Id AND v.IsDeleted = 0
                 """,
-                new { Id = dto.VehicleId, FeatureKey = GpsAddOnFeatureCatalog.Geofencing },
+                new { Id = dto.VehicleId, dto.DriverId, FeatureKey = GpsAddOnFeatureCatalog.Geofencing },
                 cancellationToken: cancellationToken));
 
-        if (vehicle.TenantId is null or <= 0 || !vehicle.GeofencingEnabled)
+        if (vehicle.TenantId is not int tenantId || tenantId <= 0 || !vehicle.GeofencingEnabled)
             return;
+
+        TimeZoneInfo? tenantZone = null;
+        // Rules with a schedule are judged in the company's local time; "always" never needs the zone.
+        async Task<bool> RulesActiveAtAsync(GeofenceRules zoneRules, DateTime utc)
+        {
+            if (zoneRules.Schedule.IsAlways)
+                return true;
+            tenantZone ??= await timeZoneResolver.GetTenantTimeZoneAsync(tenantId, cancellationToken);
+            return zoneRules.Schedule.IsActiveAt(
+                TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tenantZone));
+        }
 
         var ruleZoneIds = rules
             .Where(r => r.GeofenceId.HasValue)
@@ -183,19 +195,30 @@ public sealed partial class GpsTrackingRepository
             .Distinct()
             .ToArray();
 
-        // Watched = assigned (vehicle / branch / department) OR referenced by a rule. State is tracked for every
-        // watched zone on every position, independent of which Entry/Exit checkboxes are on.
+        // Watched = applies to all vehicles, assigned (vehicle / branch / department / driver), or referenced by a
+        // rule. State and visits are tracked for every watched zone on every position, independent of which
+        // Entry/Exit checkboxes are on.
         var zones = (await connection.QueryAsync<WatchedZoneRow>(
             new CommandDefinition(
                 """
                 SELECT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson,
+                       g.BufferMeters, g.CorridorWidthMeters, g.DwellMinutes, g.SpeedLimitKmh AS ZoneSpeedLimitKmh,
+                       g.IdleMinutes, g.EngineBlockOnExit, g.ScheduleDays, g.ScheduleStart, g.ScheduleEnd,
+                       g.AfterHoursExitCritical, g.CooldownMinutes,
                        s.IsInside AS StateIsInside, s.SinceUtc AS StateSinceUtc,
-                       s.PendingInside, s.PendingCount, s.PendingSinceUtc
+                       s.PendingInside, s.PendingCount, s.PendingSinceUtc,
+                       gv.Id AS VisitId, gv.EnteredUtc AS VisitEnteredUtc, gv.LastPositionUtc AS VisitLastPositionUtc,
+                       gv.IdleSeconds AS VisitIdleSeconds, gv.IdleSinceUtc AS VisitIdleSinceUtc,
+                       gv.MaxSpeedKmh AS VisitMaxSpeedKmh, gv.DwellBreached AS VisitDwellBreached,
+                       gv.SpeedBreached AS VisitSpeedBreached, gv.IdleBreached AS VisitIdleBreached
                 FROM Geofences g
                 LEFT JOIN VehicleGeofenceState s ON s.VehicleId = @VehicleId AND s.GeofenceId = g.Id
+                LEFT JOIN GeofenceVisits gv ON gv.VehicleId = @VehicleId AND gv.GeofenceId = g.Id
+                                           AND gv.ExitedUtc IS NULL AND gv.TenantId = @TenantId
                 WHERE g.IsActive = 1 AND g.IsDeleted = 0 AND g.TenantId = @TenantId
                   AND (
-                    g.Id IN @RuleZoneIds
+                    g.AppliesToAll = 1
+                    OR g.Id IN @RuleZoneIds
                     OR EXISTS (
                       SELECT 1 FROM GeofenceAssignments a
                       WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0
@@ -203,6 +226,7 @@ public sealed partial class GpsTrackingRepository
                           a.VehicleId = @VehicleId
                           OR (@BranchId IS NOT NULL AND a.BranchId = @BranchId)
                           OR (@DepartmentId IS NOT NULL AND a.DepartmentId = @DepartmentId)
+                          OR (@DriverId IS NOT NULL AND a.DriverId = @DriverId)
                         )
                     )
                   )
@@ -210,9 +234,10 @@ public sealed partial class GpsTrackingRepository
                 new
                 {
                     dto.VehicleId,
-                    vehicle.TenantId,
+                    TenantId = tenantId,
                     vehicle.BranchId,
                     vehicle.DepartmentId,
+                    vehicle.DriverId,
                     RuleZoneIds = ruleZoneIds.Length == 0 ? new[] { -1 } : ruleZoneIds
                 },
                 cancellationToken: cancellationToken))).ToList();
@@ -222,7 +247,8 @@ public sealed partial class GpsTrackingRepository
         {
             if (!GpsGeoHelper.TryEvaluateGeofence(
                     dto.Latitude, dto.Longitude, zone.AreaType, zone.CenterLat, zone.CenterLng,
-                    zone.RadiusMeters, zone.GeoJson, out var inside, out var boundaryDistance))
+                    zone.RadiusMeters, zone.GeoJson, out var inside, out var boundaryDistance,
+                    zone.CorridorWidthMeters ?? 0))
             {
                 logger.LogDebug("Skipping geofence {GeofenceId}: invalid geometry", zone.Id);
                 continue;
@@ -235,7 +261,7 @@ public sealed partial class GpsTrackingRepository
                     zone.PendingInside, zone.PendingCount ?? 0, zone.PendingSinceUtc)
                 : null;
 
-            var result = GeofenceStateEvaluator.Evaluate(previous, inside, boundaryDistance, timestamp);
+            var result = GeofenceStateEvaluator.Evaluate(previous, inside, boundaryDistance, timestamp, zone.BufferMeters);
             if (result.StateChanged)
             {
                 await connection.ExecuteAsync(new CommandDefinition(
@@ -270,6 +296,14 @@ public sealed partial class GpsTrackingRepository
                     cancellationToken: cancellationToken));
             }
 
+            var zoneRules = zone.ToRules();
+            await TrackGeofenceVisitAsync(
+                connection,
+                new ZoneVisitContext(tenantId, zone, zoneRules, dto, vehicle.DriverId, timestamp),
+                result,
+                RulesActiveAtAsync,
+                cancellationToken);
+
             if (result.Transition == GeofenceTransition.None)
                 continue;
 
@@ -280,7 +314,12 @@ public sealed partial class GpsTrackingRepository
             if (rule.Id == 0 || !GeofenceStateEvaluator.ShouldAlert(result.Transition, rule.AlertOnEnter, rule.AlertOnExit))
                 continue;
 
+            // Entry/exit alerts follow the geofence's active schedule (always, unless one is set).
+            if (!await RulesActiveAtAsync(zoneRules, result.State.SinceUtc))
+                continue;
+
             var eventType = GeofenceStateEvaluator.EventType(result.Transition);
+            var cooldownMinutes = Math.Max(GeofenceStateEvaluator.AlertDedupMinutes, zoneRules.CooldownMinutes);
             var lastSame = await connection.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
                 """
                 SELECT MAX(Timestamp) FROM GpsAlertEvents
@@ -292,11 +331,11 @@ public sealed partial class GpsTrackingRepository
                     dto.VehicleId,
                     GeofenceId = zone.Id,
                     EventType = eventType,
-                    Minutes = GeofenceStateEvaluator.AlertDedupMinutes,
+                    Minutes = cooldownMinutes,
                     Timestamp = timestamp
                 },
                 cancellationToken: cancellationToken));
-            if (GeofenceStateEvaluator.IsWithinDedupWindow(lastSame, timestamp))
+            if (GeofenceRuleEvaluator.IsInCooldown(lastSame, timestamp, cooldownMinutes))
                 continue;
 
             var verb = result.Transition == GeofenceTransition.Enter ? "Entered" : "Exited";
@@ -305,31 +344,34 @@ public sealed partial class GpsTrackingRepository
             if (alertId <= 0)
                 continue;
 
-            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            await geofenceNotifier.NotifyAsync(new GeofenceAlertNotice(
+                tenantId,
+                zone.Id,
+                dto.VehicleId,
+                vehicle.DriverId,
+                alertId,
                 eventType,
                 result.Transition == GeofenceTransition.Enter ? "Geofence entered" : "Geofence exited",
                 $"Vehicle #{dto.VehicleId} {verb.ToLowerInvariant()} {zone.Name}.",
-                NotificationType.TripDelayed,
-                ReferenceId: dto.VehicleId,
-                AlertEventId: alertId,
-                TenantId: vehicle.TenantId,
-                SuggestedPriority: 2,
-                RequestedChannels:
-                [
-                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Push
-                ]), cancellationToken);
+                Priority: 2,
+                DefaultChannels: [NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Push]),
+                cancellationToken);
         }
 
-        // One round-trip: freshness for unchanged zones + drop state for zones no longer watched.
+        // One round-trip: freshness for unchanged zones, drop state for zones no longer watched, and close any
+        // visit to a zone that is no longer watched (deactivated, deleted or unassigned).
         await connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE VehicleGeofenceState SET LastEvaluatedUtc = @Now, LastLatitude = @Lat, LastLongitude = @Lng
             WHERE VehicleId = @VehicleId AND GeofenceId IN @Ids AND LastEvaluatedUtc < @Now;
             DELETE FROM VehicleGeofenceState WHERE VehicleId = @VehicleId AND GeofenceId NOT IN @Ids;
+            UPDATE GeofenceVisits SET ExitedUtc = CASE WHEN @Now < EnteredUtc THEN EnteredUtc ELSE @Now END
+            WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND ExitedUtc IS NULL AND GeofenceId NOT IN @Ids;
             """,
             new
             {
                 dto.VehicleId,
+                TenantId = tenantId,
                 Ids = evaluatedIds.Count == 0 ? new[] { -1 } : evaluatedIds.ToArray(),
                 Now = timestamp,
                 Lat = dto.Latitude,
@@ -347,11 +389,41 @@ public sealed partial class GpsTrackingRepository
         public double CenterLng { get; init; }
         public double RadiusMeters { get; init; }
         public string? GeoJson { get; init; }
+        public int BufferMeters { get; init; } = (int)GeofenceStateEvaluator.HysteresisMeters;
+        public int? CorridorWidthMeters { get; init; }
+        public int? DwellMinutes { get; init; }
+        public decimal? ZoneSpeedLimitKmh { get; init; }
+        public int? IdleMinutes { get; init; }
+        public bool EngineBlockOnExit { get; init; }
+        public byte? ScheduleDays { get; init; }
+        public TimeSpan? ScheduleStart { get; init; }
+        public TimeSpan? ScheduleEnd { get; init; }
+        public bool AfterHoursExitCritical { get; init; }
+        public int CooldownMinutes { get; init; } = 15;
         public bool? StateIsInside { get; init; }
         public DateTime? StateSinceUtc { get; init; }
         public bool? PendingInside { get; init; }
         public int? PendingCount { get; init; }
         public DateTime? PendingSinceUtc { get; init; }
+        public long? VisitId { get; init; }
+        public DateTime? VisitEnteredUtc { get; init; }
+        public DateTime? VisitLastPositionUtc { get; init; }
+        public int? VisitIdleSeconds { get; init; }
+        public DateTime? VisitIdleSinceUtc { get; init; }
+        public decimal? VisitMaxSpeedKmh { get; init; }
+        public bool? VisitDwellBreached { get; init; }
+        public bool? VisitSpeedBreached { get; init; }
+        public bool? VisitIdleBreached { get; init; }
+
+        public GeofenceRules ToRules() => new(
+            DwellMinutes,
+            ZoneSpeedLimitKmh,
+            IdleMinutes,
+            NotArrivedBy: null,
+            EngineBlockOnExit,
+            new GeofenceSchedule(ScheduleDays, ScheduleStart, ScheduleEnd),
+            AfterHoursExitCritical,
+            CooldownMinutes);
     }
 
     /// <summary>

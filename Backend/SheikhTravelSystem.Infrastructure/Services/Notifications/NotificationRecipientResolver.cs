@@ -15,6 +15,9 @@ public sealed class NotificationRecipientResolver(IDbConnectionFactory dbFactory
         if (request.TargetUserId is int directUserId)
             return [directUserId];
 
+        if (request.TargetUserIds is { Count: > 0 } targets)
+            return targets.Distinct().ToList();
+
         if (request.Broadcast)
         {
             if (!NotificationRecipientPolicy.AllowsBroadcast(request.EventType))

@@ -91,6 +91,8 @@ public static class DependencyInjection
         services.AddScoped<IDriverPerformanceScoringRepository, DriverPerformanceScoringRepository>();
         services.AddScoped<IAlertModuleGate, SheikhTravelSystem.Infrastructure.Services.Gps.AlertModuleGate>();
         services.AddScoped<IGpsAlertWriter, SheikhTravelSystem.Infrastructure.Services.Gps.GpsAlertWriter>();
+        services.AddScoped<SheikhTravelSystem.Application.Features.GpsTracking.Services.IGeofenceAlertNotifier,
+            SheikhTravelSystem.Infrastructure.Services.Gps.GeofenceAlertNotifier>();
         services.AddScoped<SheikhTravelSystem.Application.Features.Drivers.Services.IDriverTelematicsEnforcementService,
             SheikhTravelSystem.Infrastructure.Services.Drivers.DriverTelematicsEnforcementService>();
         services.AddScoped<IGpsPositionIngestionHelper, SheikhTravelSystem.Infrastructure.Services.Gps.GpsPositionIngestionHelper>();
@@ -385,6 +387,7 @@ public static class DependencyInjection
         services.AddHostedService<GpsDailyRollupHostedService>();
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Gps.GpsAutoTripHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
+        services.AddHostedService<GeofenceRuleMonitorHostedService>();
         services.AddHostedService<FatigueEscalationHostedService>();
         services.AddHostedService<GpsCommandRetryHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));

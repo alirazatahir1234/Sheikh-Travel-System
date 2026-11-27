@@ -54,6 +54,8 @@ public sealed partial class GpsTrackingRepository(
     IDriverPerformanceScoringRepository driverPerformanceScoring,
     IPlaybackCoordinateStorage playbackCoordinateStorage,
     ITenantTimeZoneResolver timeZoneResolver,
+    IGeofenceAlertNotifier geofenceNotifier,
+    IGpsAutomatedCommandService automatedCommands,
     ILogger<GpsTrackingRepository> logger) : IGpsTrackingRepository
 {
     /// <summary>UTC instant of local midnight "today" in the tenant's timezone (not UTC midnight).</summary>

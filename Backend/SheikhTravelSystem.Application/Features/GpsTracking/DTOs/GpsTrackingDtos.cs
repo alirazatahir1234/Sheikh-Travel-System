@@ -290,7 +290,8 @@ public static class AlertTypeCatalog
     [
         "sos", "power_cut", "overspeed", "road_speed_exceeded", "harsh_braking", "geofence_enter", "geofence_exit",
         "offline", "online", "ignition_on", "ignition_off", "low_battery",
-        "gps_lost", "gps_unreliable", "low_fuel", "fuel_station_stop", "fuel_fraud"
+        "gps_lost", "gps_unreliable", "low_fuel", "fuel_station_stop", "fuel_fraud",
+        "geofence_dwell", "geofence_overspeed", "geofence_idle", "geofence_not_arrived", "geofence_after_hours_exit"
     ];
 }
 
