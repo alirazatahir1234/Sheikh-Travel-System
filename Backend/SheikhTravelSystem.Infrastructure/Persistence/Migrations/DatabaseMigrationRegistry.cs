@@ -203,6 +203,7 @@ public static class DatabaseMigrationRegistry
             M("SubscriptionAccessExpiryMigration", SubscriptionAccessExpiryMigration.ApplyAsync),
             M("PlatformOperatorPermissionsMigration", PlatformOperatorPermissionsMigration.ApplyAsync),
             M("Sg07AuditTrailTargetTenantAndAppendOnlyMigration", Sg07AuditTrailTargetTenantAndAppendOnlyMigration.ApplyAsync),
+            M("GeofenceWorkspaceMigration", GeofenceWorkspaceMigration.ApplyAsync),
         ];
     }
 }

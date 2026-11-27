@@ -21,6 +21,8 @@ public static class Sg01TenantSqlGuardScanner
         "RentalBookings", "RentalRates", "AllowanceRules", "DriverAllowanceRules",
         "Routes", "Geofences", "GpsAlertRules", "GpsAlertEvents", "GpsDeviceCommands",
         "GpsPositions", "GpsTrips", "AuditLogs", "PromoCodes",
+        // Geofences workspace
+        "GeofenceGroups", "GeofenceTypes", "GeofenceRecipients", "GeofenceVisits", "GeofenceNotArrivedLog",
         "WebsiteContactRequests", "WebsiteDemoRequests",
         // TravelNexus (TravelCountries is platform-scope reference data)
         "TravelSettings", "TravelVisaTypes", "TravelDocumentTypes", "TravelLeadSources",
