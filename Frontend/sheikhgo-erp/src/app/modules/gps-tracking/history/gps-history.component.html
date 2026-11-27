@@ -1,492 +1,328 @@
-<div class="history-page">
-  <!-- Single compact toolbar -->
-  <div class="history-toolbar">
-    <div class="toolbar-search">
-      <mat-icon>search</mat-icon>
-      <input
-        type="search"
-        [(ngModel)]="vehicleSearch"
-        placeholder="Search vehicle, plate, driver, IMEI…"
-        aria-label="Search vehicles" />
-    </div>
+<div class="hw">
+  <section class="hw-toolbar" aria-label="Vehicle and period">
+    <app-history-vehicle-picker
+      [vehicleName]="selectedVehicle?.name ?? ''"
+      [plate]="selectedVehicle?.registrationNumber ?? ''"
+      [driverName]="vehicleId ? driverLabel(vehicleId) : ''"
+      [recent]="recentCards"
+      [vehicles]="vehicleCards"
+      [emptyMessage]="vehicleListEmptyMessage"
+      [search]="vehicleSearch"
+      [stationaryOnly]="filterStationaryOverOneHour"
+      [compareCount]="compareSelectionCount"
+      [compareLoading]="compareLoading"
+      [compareMax]="compareMax"
+      (searchChange)="onVehicleSearch($event)"
+      (stationaryOnlyChange)="onFilterStationaryChange($event)"
+      (vehicleSelect)="selectVehicle($event)"
+      (compareToggle)="toggleCompareVehicle($event)"
+      (compareClear)="clearCompareSelection()"
+      (openMap)="openMapForVehicle($event)"
+      (openLive)="openLiveFleetMap($event)">
+    </app-history-vehicle-picker>
 
-    <div class="date-pills" role="group" aria-label="Date presets">
+    <div class="hw-seg" role="group" aria-label="Period">
       <button
         type="button"
-        class="date-pill"
-        *ngFor="let p of presets"
-        [class.date-pill--active]="preset === p.id"
+        class="hw-seg__btn"
+        *ngFor="let p of periodButtons"
+        [class.hw-seg__btn--on]="preset === p.id"
+        [attr.aria-pressed]="preset === p.id"
         (click)="setPreset(p.id)">
         {{ p.label }}
       </button>
     </div>
 
-    <div class="custom-dates" *ngIf="preset === 'custom'">
-      <label class="date-field">
-        <span>From</span>
-        <input type="datetime-local" [(ngModel)]="from" (change)="onCustomDatesChange()" />
-      </label>
-      <label class="date-field">
-        <span>To</span>
-        <input type="datetime-local" [(ngModel)]="to" (change)="onCustomDatesChange()" />
-      </label>
-    </div>
-
-    <p class="period-chip" *ngIf="from && to && preset !== 'custom'">
-      <mat-icon>schedule</mat-icon>
-      {{ periodLabelDetailed }}
-    </p>
-
-    <div class="history-filters" aria-label="History list filters">
-      <label class="filter-toggle touch-target">
-        <input
-          type="checkbox"
-          [checked]="filterStationaryOverOneHour"
-          (change)="onFilterStationaryChange($any($event.target).checked)" />
-        <span>Stationary &gt; 1 hour</span>
-      </label>
-      <label
-        class="filter-date touch-target"
-        matTooltip="Hides earlier entries in the stops list only. The route and the totals always use the range selected above.">
-        <span>Hide stops before</span>
-        <input
-          type="date"
-          [(ngModel)]="hideRecordsBefore"
-          (change)="onHideBeforeChange()" />
-      </label>
-      <span class="compare-chip" *ngIf="compareSelectionCount >= 2">
-        {{ compareSelectionCount }} selected for compare
-        <button type="button" class="link-btn" (click)="clearCompareSelection()">Clear</button>
-      </span>
-      <span class="compare-chip compare-chip--loading" *ngIf="compareLoading">Loading compare routes…</span>
-    </div>
-
-    <div class="history-toolbar__actions">
-      <button
-        mat-flat-button
-        color="primary"
-        type="button"
-        class="action-btn"
-        (click)="load()"
-        [disabled]="!canLoad"
-        [matTooltip]="!vehicleId ? 'Select a vehicle first' : ''">
-        <mat-icon>{{ bundle ? 'refresh' : 'play_circle' }}</mat-icon>
-        {{ loadButtonLabel }}
-      </button>
-
-      <button
-        mat-stroked-button
-        type="button"
-        class="action-btn"
-        (click)="exportHistoryReportPdf()"
-        [disabled]="!bundle"
-        matTooltip="Summary report with driver and stops">
-        <mat-icon>picture_as_pdf</mat-icon> Report PDF
-      </button>
-
-      <button
-        mat-stroked-button
-        type="button"
-        [matMenuTriggerFor]="exportMenu"
-        [disabled]="!bundle"
-        class="action-btn"
-        matTooltip="Download the raw GPS points: PDF, Excel, CSV, GPX, KML or GeoJSON">
-        <mat-icon>download</mat-icon> Export
-      </button>
-      <mat-menu #exportMenu="matMenu">
-        <button mat-menu-item (click)="exportClient('pdf')"><mat-icon>picture_as_pdf</mat-icon> GPS points PDF</button>
-        <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
-        <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
-        <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
-        <button mat-menu-item (click)="exportServer('kml')"><mat-icon>public</mat-icon> KML</button>
-        <button mat-menu-item (click)="exportServer('geojson')"><mat-icon>map</mat-icon> GeoJSON</button>
-        <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
-      </mat-menu>
-
-      <button
-        mat-stroked-button
-        type="button"
-        [matMenuTriggerFor]="shareMenu"
-        [disabled]="!vehicleId"
-        class="action-btn"
-        matTooltip="Copy a link to this view or a text summary of the route">
-        <mat-icon>share</mat-icon> Share
-      </button>
-      <mat-menu #shareMenu="matMenu">
-        <button mat-menu-item (click)="copyShareUrl()"><mat-icon>link</mat-icon> Copy link</button>
-        <button mat-menu-item (click)="shareRouteText()"><mat-icon>content_copy</mat-icon> Share route summary</button>
-        <button mat-menu-item (click)="printRoute()"><mat-icon>image</mat-icon> Download snapshot</button>
-      </mat-menu>
-    </div>
-
-    <div class="route-filters" *ngIf="vehicleId">
-      <span class="route-filters__label">Show on map</span>
-      <button
-        type="button"
-        class="layer-pill"
-        *ngFor="let f of routeFilters"
-        [class.layer-pill--active]="isRouteFilterActive(f.id)"
-        (click)="toggleRouteFilter(f.id)">
-        <mat-icon>{{ f.icon }}</mat-icon>
-        {{ f.label }}
-      </button>
-    </div>
-
-    <p class="load-hint" *ngIf="loadHint && !error">{{ loadHint }}</p>
-    <div class="history-error" *ngIf="error">
-      <mat-icon>error</mat-icon> {{ error }}
-      <button mat-stroked-button type="button" (click)="retryLoad()">Retry</button>
-    </div>
-  </div>
-
-  <div class="offline-banner" *ngIf="showOfflineHistoryBanner">
-    <mat-icon>cloud_off</mat-icon>
-    <div>
-      <strong>Tracker not live</strong>
-      <span>Last known location and history route may be cached — not real-time telemetry.</span>
-    </div>
-  </div>
-
-  <!-- Quick stats (single summary strip — right panel has the detail card) -->
-  <div class="quick-stats" *ngIf="bundle">
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.distanceKm != null ? (quickStats.distanceKm | number:'1.1-1') + ' km' : '—' }}</span>
-      <span class="qs-lbl">Distance</span>
-    </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.moving }}</span>
-      <span class="qs-lbl">Moving</span>
-    </div>
-    <div class="qs-item qs-item--non-moving">
-      <span
-        class="qs-val qs-val--non-moving"
-        [class.qs-val--non-moving-alert]="nonMovingDurationAlert"
-        [attr.title]="'Non-moving · ' + idleMinutes + ' min'">
-        {{ quickStats.idle }}
-      </span>
-      <span class="qs-lbl">Non-moving</span>
-    </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.stops }}</span>
-      <span class="qs-lbl">Stops</span>
-    </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.parking }}</span>
-      <span class="qs-lbl">Parking</span>
-    </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.maxSpeed != null ? quickStats.maxSpeed + ' km/h' : '—' }}</span>
-      <span class="qs-lbl">Max speed</span>
-    </div>
-    <div class="qs-item">
-      <span class="qs-val">{{ quickStats.avgSpeed != null ? quickStats.avgSpeed + ' km/h' : '—' }}</span>
-      <span class="qs-lbl">Avg speed</span>
-    </div>
-  </div>
-
-  <div
-    class="history-grid"
-    [class.history-grid--detail-open]="detailPanelVisible">
-    <aside class="history-panel history-panel--left">
-      <div class="recent-block" *ngIf="recentVehicles.length && !vehicleSearch">
-        <div class="panel-subtitle-row">
-          <h3 class="panel-subtitle">Recent</h3>
-          <span class="panel-subtitle-meta">{{ recentVehicles.length }}</span>
-        </div>
-        <div class="recent-scroll">
+    <button
+      type="button"
+      class="hw-range"
+      cdkOverlayOrigin
+      #rangeOrigin="cdkOverlayOrigin"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="rangeOpen"
+      [attr.aria-label]="rangeButtonLabel"
+      (click)="toggleRange()">
+      <svg class="hw-range__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path>
+      </svg>
+      <span>{{ rangeFromLabel }}</span>
+      <span class="hw-range__to">to</span>
+      <span>{{ rangeToLabel }}</span>
+      <span class="hw-range__zone" *ngIf="zoneLabel">{{ zoneLabel }}</span>
+    </button>
+    <ng-template
+      cdkConnectedOverlay
+      [cdkConnectedOverlayOrigin]="rangeOrigin"
+      [cdkConnectedOverlayOpen]="rangeOpen"
+      [cdkConnectedOverlayPositions]="rangePositions"
+      [cdkConnectedOverlayPush]="true"
+      [cdkConnectedOverlayHasBackdrop]="true"
+      cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+      (backdropClick)="closeRange()"
+      (overlayKeydown)="onRangeKeydown($event)">
+      <div class="hw-rangepanel" role="dialog" aria-label="Custom period" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
+        <div class="hw-rangepanel__quick" role="group" aria-label="Quick picks">
           <button
             type="button"
-            class="vehicle-card vehicle-card--compact"
-            *ngFor="let v of recentVehicles"
-            [class.vehicle-card--active]="vehicleId === v.id"
-            (click)="selectVehicle(v.id)">
-            <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v, compact: true }"></ng-container>
+            class="hw-pick"
+            *ngFor="let q of quickPicks"
+            [class.hw-pick--on]="preset === q.id"
+            [attr.aria-pressed]="preset === q.id"
+            (click)="setPreset(q.id)">
+            {{ q.label }}
           </button>
         </div>
-      </div>
-
-      <div class="vehicle-scroll">
-        <div class="panel-subtitle-row" *ngIf="!vehicleSearch && filteredVehicles.length">
-          <h3 class="panel-subtitle">All vehicles</h3>
-          <span class="panel-subtitle-meta">{{ filteredVehicles.length }}</span>
+        <label class="hw-field">
+          <span>From</span>
+          <input type="datetime-local" [(ngModel)]="draftFrom" cdkFocusInitial />
+        </label>
+        <label class="hw-field">
+          <span>To</span>
+          <input type="datetime-local" [(ngModel)]="draftTo" />
+        </label>
+        <p class="hw-rangepanel__note">Times are in your company's time zone ({{ companyZoneLabel }}).</p>
+        <p class="hw-rangepanel__error" *ngIf="rangeError" role="alert">{{ rangeError }}</p>
+        <div class="hw-rangepanel__actions">
+          <button type="button" class="hw-btn" (click)="closeRange()">Cancel</button>
+          <button type="button" class="hw-btn hw-btn--primary" (click)="applyCustomRange()">Apply</button>
         </div>
-        <button
-          type="button"
-          class="vehicle-card"
-          *ngFor="let v of filteredVehicles"
-          [class.vehicle-card--active]="vehicleId === v.id"
-          (click)="selectVehicle(v.id)">
-          <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
-        </button>
-        <p class="panel-empty" *ngIf="vehicleListEmptyMessage as emptyMessage">{{ emptyMessage }}</p>
       </div>
-    </aside>
+    </ng-template>
 
-    <section class="history-panel history-panel--center" aria-label="Route map and playback">
-      <app-trip-replay-map
-        [timeZoneId]="bundle?.timeZoneId ?? null"
-        [routePoints]="bundle?.route ?? []"
-        [positions]="playbackPositions"
-        [rawPoints]="rawPositions"
-        [stops]="visibleStops"
-        [events]="bundle?.events ?? []"
-        [loading]="loading"
-        [loadingTimedOut]="loadingTimedOut"
-        [noData]="noData"
-        [driverName]="driverLabel(vehicleId ?? 0)"
-        [vehicleName]="selectedVehicle?.name ?? ''"
-        [plateNumber]="selectedVehicle?.registrationNumber ?? ''"
-        [vehicleType]="selectedVehicle?.vehicleType ?? ''"
-        [mapHeight]="'min(74vh, 720px)'"
-        [showLayerControls]="true"
-        [showLegend]="true"
-        [showGpsPointsLayer]="showGpsPoints"
-        [showStopsLayer]="showStopsLayer"
-        [showParkingLayer]="showParkingLayer"
-        [showGeofencesLayer]="showGeofencesLayer"
-        [showHeatmap]="showHeatmap"
-        [showRouteLayer]="showRouteLayer"
-        [historyMode]="true"
-        [compareRoutes]="compareOverlays"
-        (positionSelected)="onPositionSelected($event)"
-        (retryRequested)="retryLoad()">
-      </app-trip-replay-map>
-      <div class="compare-legend" *ngIf="compareOverlays.length">
-        <span class="compare-legend__title">Compare</span>
-        <span class="compare-legend__item" *ngFor="let o of compareOverlays">
-          <i [style.background]="o.color"></i>{{ o.label }}
-        </span>
+    <div class="hw-toolbar__end">
+    <div class="hw-seg" role="group" aria-label="Panels">
+      <button type="button" class="hw-seg__icon" [class.hw-seg__icon--on]="showTimeline" [attr.aria-pressed]="showTimeline" aria-label="Timeline panel" (click)="togglePanel('timeline')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18v14H3zM9 5v14"></path>
+        </svg>
+      </button>
+      <button type="button" class="hw-seg__icon" [class.hw-seg__icon--on]="showDock" [attr.aria-pressed]="showDock" aria-label="Playback panel" (click)="togglePanel('dock')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18v14H3zM3 14h18"></path>
+        </svg>
+      </button>
+      <button type="button" class="hw-seg__icon" [class.hw-seg__icon--on]="showDetails" [attr.aria-pressed]="showDetails" aria-label="Details panel" (click)="togglePanel('details')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18v14H3zM15 5v14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <button type="button" class="hw-btn hw-btn--menu" aria-haspopup="menu" [matMenuTriggerFor]="exportMenu" [disabled]="!bundle">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4v12M7 11l5 5l5-5M5 20h14"></path>
+      </svg>
+      Export
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9l6 6l6-6"></path>
+      </svg>
+    </button>
+    <mat-menu #exportMenu="matMenu" xPosition="before">
+      <button mat-menu-item (click)="exportHistoryReportPdf()"><mat-icon>picture_as_pdf</mat-icon> Summary report (PDF)</button>
+      <button mat-menu-item (click)="exportClient('pdf')"><mat-icon>picture_as_pdf</mat-icon> GPS points PDF</button>
+      <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
+      <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
+      <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
+      <button mat-menu-item (click)="exportServer('kml')"><mat-icon>public</mat-icon> KML</button>
+      <button mat-menu-item (click)="exportServer('geojson')"><mat-icon>map</mat-icon> GeoJSON</button>
+      <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
+    </mat-menu>
+
+    <button type="button" class="hw-icon-btn" aria-label="Share" aria-haspopup="menu" [matMenuTriggerFor]="shareMenu" [disabled]="!vehicleId">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 15V4M8 8l4-4l4 4M5 13v7h14v-7"></path>
+      </svg>
+    </button>
+    <mat-menu #shareMenu="matMenu" xPosition="before">
+      <button mat-menu-item (click)="copyShareUrl()"><mat-icon>link</mat-icon> Copy link</button>
+      <button mat-menu-item (click)="shareRouteText()" [disabled]="!bundle"><mat-icon>content_copy</mat-icon> Copy route summary</button>
+      <button mat-menu-item (click)="printRoute()"><mat-icon>image</mat-icon> Print snapshot</button>
+    </mat-menu>
+
+    <button
+      type="button"
+      class="hw-icon-btn"
+      [class.hw-icon-btn--primary]="awaitingFirstLoad"
+      [attr.aria-label]="bundle ? 'Reload route' : 'Load route'"
+      [disabled]="!canLoad"
+      (click)="load()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 3.5v5h-5M19.4 15a8 8 0 1 1-1.8-8.3L20 8.5"></path>
+      </svg>
+    </button>
+    </div>
+  </section>
+
+  <p class="hw-hint" *ngIf="loadHint && !error" role="status">{{ loadHint }}</p>
+
+  <div class="hw-alert hw-alert--error" *ngIf="error" role="alert">
+    <span>{{ error }}</span>
+    <button type="button" class="hw-btn" (click)="retryLoad()">Retry</button>
+  </div>
+
+  <div class="hw-alert hw-alert--warn" *ngIf="showOfflineHistoryBanner" role="status">
+    <strong>Tracker not live.</strong>
+    <span>The last known location and this history may be cached, not real-time.</span>
+  </div>
+
+  <section class="hw-kpis" [attr.aria-label]="summaryLabel">
+    <div class="hw-kpi" *ngFor="let k of kpis">
+      <div class="hw-kpi__label">{{ k.label }}</div>
+      <div class="hw-kpi__value">{{ k.value }} <span class="hw-kpi__unit" *ngIf="k.unit">{{ k.unit }}</span></div>
+    </div>
+  </section>
+
+  <div class="hw-work">
+    <app-history-timeline-panel
+      *ngIf="showTimeline"
+      class="hw-timeline"
+      role="complementary"
+      aria-label="Timeline"
+      [rows]="timelineRows"
+      [filter]="timelineFilter"
+      [hideStopsUnderMinutes]="hideStopsUnderMinutes"
+      [selectedId]="selectedId"
+      [state]="timelineState"
+      [message]="timelineMessage"
+      (filterChange)="setTimelineFilter($event)"
+      (hideStopsChange)="setHideStops($event)"
+      (dayToggle)="toggleDay($event)"
+      (segmentSelect)="selectSegment($event)"
+      (briefSelect)="selectBriefStop($event)"
+      (showHidden)="setHideStops(0)">
+    </app-history-timeline-panel>
+
+    <section class="hw-mapcol" aria-label="Map and playback">
+      <div class="hw-map">
+        <app-history-map
+          #map
+          [route]="route"
+          [timeline]="timeline"
+          [legacyStops]="bundle?.stops ?? []"
+          [selectedId]="selectedId"
+          [activeDate]="activeDate"
+          [layers]="layers"
+          [gpsPoints]="rawPositions"
+          [events]="bundle?.events ?? []"
+          [geofences]="geofences"
+          [compareRoutes]="compareOverlays"
+          [vehicle]="vehicleMarker"
+          [follow]="follow && playing"
+          [mapType]="mapType"
+          [minStopMinutes]="hideStopsUnderMinutes"
+          [maxSpeedKmh]="timeline?.totals?.maxSpeedKmh ?? 0"
+          [loading]="loading"
+          [loadingTimedOut]="loadingTimedOut"
+          [noData]="noData"
+          [emptyHint]="mapEmptyHint"
+          (segmentSelected)="onMapSegmentSelected($event)"
+          (timeSelected)="seekTo($event)"
+          (retryRequested)="retryLoad()">
+        </app-history-map>
+
+        <div class="hw-layers" role="group" aria-label="Map layers">
+          <button
+            type="button"
+            class="hw-chip"
+            *ngFor="let c of layerChips"
+            [class.hw-chip--on]="layers[c.key]"
+            [attr.aria-pressed]="layers[c.key]"
+            (click)="toggleLayer(c.key)">
+            <span class="hw-swatch" [ngClass]="'hw-swatch--' + c.key" aria-hidden="true"></span>{{ c.label }}
+          </button>
+        </div>
+
+        <div class="hw-mapstyle" role="group" aria-label="Map style">
+          <button type="button" class="hw-mapstyle__btn" [class.hw-mapstyle__btn--on]="mapType === 'street'" [attr.aria-pressed]="mapType === 'street'" (click)="setMapType('street')">Map</button>
+          <button type="button" class="hw-mapstyle__btn" [class.hw-mapstyle__btn--on]="mapType === 'satellite'" [attr.aria-pressed]="mapType === 'satellite'" (click)="setMapType('satellite')">Satellite</button>
+        </div>
+
+        <div class="hw-zoom">
+          <div class="hw-zoom__pair">
+            <button type="button" class="hw-zoom__btn" aria-label="Zoom in" (click)="map.zoomIn()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </button>
+            <button type="button" class="hw-zoom__btn" aria-label="Zoom out" (click)="map.zoomOut()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <path d="M5 12h14"></path>
+              </svg>
+            </button>
+          </div>
+          <button type="button" class="hw-zoom__btn hw-zoom__btn--fit" aria-label="Fit route to screen" (click)="map.fitRoute()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="hw-legend">
+          <span class="hw-legend__item"><span class="hw-legend__dash" aria-hidden="true"></span>No GPS signal</span>
+          <span class="hw-legend__item hw-legend__item--scale" *ngIf="layers.speed">
+            0<span class="hw-legend__scale" aria-hidden="true"></span>{{ dock.maxSpeedLabel || 'max' }}
+          </span>
+          <span class="hw-legend__item" *ngFor="let o of compareOverlays">
+            <span class="hw-legend__bar" [style.background]="o.color" aria-hidden="true"></span>{{ o.label }}
+          </span>
+        </div>
       </div>
+
+      <app-history-playback-dock
+        *ngIf="showDock"
+        [playing]="playing"
+        [canPlay]="canPlay"
+        [hasStops]="hasStandstills"
+        [rate]="rate"
+        [follow]="follow"
+        [zoom]="dockZoom"
+        [weekAvailable]="weekZoomAvailable"
+        [dateLabel]="dockDateLabel"
+        [clockLabel]="dockClockLabel"
+        [speedKmh]="dockSpeed"
+        [blocks]="dock.blocks"
+        [outside]="dock.outside"
+        [speedLine]="dock.speedLine"
+        [speedArea]="dock.speedArea"
+        [maxSpeedLabel]="dock.maxSpeedLabel"
+        [chartLabel]="dock.chartLabel"
+        [ticks]="dock.ticks"
+        [playheadPercent]="playheadPercent"
+        [selectedId]="selectedId"
+        (playToggle)="togglePlay()"
+        (previousStop)="stepStandstill(-1)"
+        (nextStop)="stepStandstill(1)"
+        (zoomChange)="setDockZoom($event)"
+        (rateCycle)="cycleRate()"
+        (followToggle)="toggleFollow()"
+        (seek)="seekToPercent($event)"
+        (blockSelect)="selectSegment($event)">
+      </app-history-playback-dock>
     </section>
 
-    <aside
-      class="history-panel history-panel--right"
-      *ngIf="detailPanelVisible"
-      aria-label="Route and position details">
-      <div class="history-panel__head">
-        <h2 class="history-panel__title">Details</h2>
-        <button
-          type="button"
-          class="history-panel__close"
-          aria-label="Close details"
-          (click)="closeHistoryDetail()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-
-      <section class="detail-card">
-        <h2 class="panel-title">
-          <mat-icon>my_location</mat-icon> Position details
-        </h2>
-        <ng-container *ngIf="selectedPosition; else noPosition">
-          <dl class="detail-grid">
-            <dt>Time</dt>
-            <dd>{{ selectedPosition.timestamp | tenantDate:'medium' }}</dd>
-            <dt>Latitude</dt>
-            <dd>{{ selectedPosition.latitude | number:'1.5-5' }}</dd>
-            <dt>Longitude</dt>
-            <dd>{{ selectedPosition.longitude | number:'1.5-5' }}</dd>
-            <dt>Speed</dt>
-            <dd>{{ selectedPosition.speedKmh | number:'1.0-0' }} km/h</dd>
-            <dt>Heading</dt>
-            <dd>{{ headingLabel(selectedPosition.heading) }}</dd>
-            <dt>Ignition</dt>
-            <dd>
-              <span class="ignition-badge" [class.on]="selectedPosition.ignition === true" [class.off]="selectedPosition.ignition === false">
-                {{ selectedPosition.ignition == null ? '—' : (selectedPosition.ignition ? 'ON' : 'OFF') }}
-              </span>
-            </dd>
-            <dt>Motion</dt>
-            <dd>{{ motionLabel(selectedPosition) }}</dd>
-            <dt>Address</dt>
-            <dd class="address-block">
-              <ng-container *ngIf="addressPrimaryLine(addressLabel(selectedPosition)) as primary; else addrPlain">
-                <strong class="address-primary">{{ primary }}</strong>
-                <span class="address-secondary" *ngIf="addressSecondaryLine(addressLabel(selectedPosition)) as secondary">
-                  {{ secondary }}
-                </span>
-              </ng-container>
-              <ng-template #addrPlain>{{ addressLabel(selectedPosition) }}</ng-template>
-              <span class="address-coords">
-                {{ selectedPosition.latitude | number:'1.5-5' }},
-                {{ selectedPosition.longitude | number:'1.5-5' }}
-              </span>
-            </dd>
-            <dt>Battery</dt>
-            <dd>{{ selectedPosition.batteryLevel != null ? selectedPosition.batteryLevel + '%' : '—' }}</dd>
-            <dt>Altitude</dt>
-            <dd>{{ selectedPosition.altitude ? selectedPosition.altitude + ' m' : '—' }}</dd>
-            <dt>GSM signal</dt>
-            <dd>{{ gsmLabel(selectedPosition) }}</dd>
-            <dt>Odometer</dt>
-            <dd>{{ selectedPosition.totalDistanceKm != null ? (selectedPosition.totalDistanceKm | number:'1.1-1') + ' km' : '—' }}</dd>
-            <dt>Driver</dt>
-            <dd>{{ driverLabel(vehicleId ?? 0) }}</dd>
-          </dl>
-          <button
-            type="button"
-            class="stop-map-btn stop-map-btn--external touch-target position-map-btn"
-            (click)="openExternalMap(selectedPosition.latitude, selectedPosition.longitude)"
-            title="Open this point in Google Maps">
-            <mat-icon>open_in_new</mat-icon> Open in Maps
-          </button>
-        </ng-container>
-        <ng-template #noPosition>
-          <div class="panel-empty-state">
-            <mat-icon>touch_app</mat-icon>
-            <p>Scrub the timeline or click the route to inspect a point.</p>
-          </div>
-        </ng-template>
-      </section>
-
-      <section class="detail-card">
-        <h2 class="panel-title">
-          <mat-icon>analytics</mat-icon> Route summary
-        </h2>
-        <ng-container *ngIf="bundle; else noStats">
-          <dl class="detail-grid">
-            <dt>Distance</dt>
-            <dd>{{ mileageKm != null ? (mileageKm | number:'1.1-1') + ' km' : '—' }}</dd>
-            <dt>Moving time</dt>
-            <dd>{{ formatDuration(movingMinutes) }}</dd>
-            <dt>Non-moving</dt>
-            <dd
-              class="non-moving-detail"
-              [class.non-moving-detail--alert]="nonMovingDurationAlert">
-              {{ nonMovingDurationLabel }}
-            </dd>
-            <dt>Max speed</dt>
-            <dd>{{ statistics?.maxSpeedKmh ?? bundle.summary?.maxSpeedKmh ?? '—' }} km/h</dd>
-            <dt>Avg speed</dt>
-            <dd>{{ statistics?.avgSpeedKmh ?? bundle.summary?.avgSpeedKmh ?? '—' }} km/h</dd>
-            <dt>Stops</dt>
-            <dd>{{ statistics?.stopCount ?? bundle.stops.length }}</dd>
-            <dt>Parking (≥2h)</dt>
-            <dd>{{ parkingCount }}</dd>
-            <dt>Engine hours</dt>
-            <dd>{{ statistics?.engineHours ?? '—' }} h</dd>
-            <dt>GPS points</dt>
-            <dd>{{ quickStats.points }}</dd>
-          </dl>
-          <div class="mileage-row" *ngIf="mileageKm != null">
-            <span class="mileage-chip">Distance travelled: {{ mileageKm | number:'1.1-1' }} km</span>
-            <span class="mileage-chip mileage-chip--today">{{ periodRangeLabel }}</span>
-          </div>
-        </ng-container>
-        <ng-template #noStats>
-          <div class="panel-empty-state">
-            <mat-icon>route</mat-icon>
-            <p>Route statistics appear here after you load history.</p>
-          </div>
-        </ng-template>
-      </section>
-
-      <section class="detail-card" *ngIf="bundle?.stops?.length">
-        <h2 class="panel-title"><mat-icon>pause_circle</mat-icon> Stops &amp; parking</h2>
-        <ul class="stops-list">
-          <li
-            *ngFor="let s of visibleStops | slice:0:15; let i = index"
-            class="stops-list__item"
-            [class.stops-list__item--active]="selectedStopIndex === i"
-            (click)="focusStop(s, i)"
-            role="button"
-            tabindex="0"
-            (keydown.enter)="focusStop(s, i)">
-            <span class="stop-kind-row">
-              <span class="stop-kind" [class.stop-kind--parking]="isParkingStop(s)">
-                <mat-icon>{{ isParkingStop(s) ? 'local_parking' : 'pause_circle' }}</mat-icon>
-                {{ stopHeadline(s) }}
-              </span>
-              <button
-                type="button"
-                class="stop-map-btn"
-                (click)="focusStop(s, i); $event.stopPropagation()"
-                title="View on map">
-                <mat-icon>my_location</mat-icon>
-                View on map
-              </button>
-            </span>
-            <span class="stop-headline">
-              <mat-icon class="stop-pin" aria-hidden="true">place</mat-icon>
-              {{ stopPrimaryLine(s) }}
-            </span>
-            <span class="stop-nearby" *ngIf="stopNearbyLine(s) as near">{{ near }}</span>
-            <span class="stop-locality" *ngIf="stopLocalityLine(s) as locality">
-              {{ locality }}
-            </span>
-            <span class="stop-meta">
-              {{ stopTimeWindowLabel(s) }}
-            </span>
-            <span class="stop-driver" *ngIf="vehicleId">
-              Driver: <strong>{{ driverLabel(vehicleId) }}</strong>
-            </span>
-            <span class="stop-duration">
-              Duration: <strong>{{ formatCompactDuration(s.durationMinutes) }}</strong>
-            </span>
-            <button
-              type="button"
-              class="stop-map-btn stop-map-btn--external touch-target"
-              (click)="openExternalMap(s.latitude, s.longitude); $event.stopPropagation()"
-              title="Open in Google Maps">
-              <mat-icon>open_in_new</mat-icon> Maps
-            </button>
-          </li>
-        </ul>
-      </section>
-    </aside>
+    <app-history-point-details
+      *ngIf="showDetails"
+      class="hw-details"
+      role="complementary"
+      aria-label="Point details"
+      [atMs]="detail.atMs"
+      [latitude]="detail.latitude"
+      [longitude]="detail.longitude"
+      [speedKmh]="detail.speedKmh"
+      [headingLabel]="detail.headingLabel"
+      [fix]="detail.fix"
+      [address]="detail.address"
+      [addressSecondary]="detail.addressSecondary"
+      [motionLabel]="detail.motion"
+      [drivenSoFarKm]="detail.drivenSoFarKm"
+      [driverName]="vehicleId ? driverLabel(vehicleId) : '—'"
+      [timeZoneId]="zone"
+      [zoneLabel]="zoneLabel"
+      [engineHours]="engineHours"
+      [gpsPointCount]="gpsPointCount"
+      (closed)="togglePanel('details')"
+      (openInMaps)="openDetailInMaps()"
+      (copyCoordinates)="copyCoordinates($event)">
+    </app-history-point-details>
   </div>
 </div>
-
-<ng-template #vehicleCardBody let-v let-compact="compact">
-  <div class="vehicle-card__row" [class.vehicle-card__row--compact]="compact">
-    <label class="vehicle-card__compare touch-target" (click)="$event.stopPropagation()">
-      <input
-        type="checkbox"
-        [checked]="isCompareSelected(v.id)"
-        (change)="toggleCompareVehicle(v.id, $event)"
-        [attr.aria-label]="'Compare ' + v.name" />
-    </label>
-    <div class="vehicle-card__main">
-      <div class="vehicle-card__head">
-        <span class="vehicle-card__name">{{ v.name }}</span>
-        <span class="vehicle-card__status" [class]="'vehicle-card__status--' + vehicleStatusClass(v)">
-          <span class="status-dot"></span>
-          {{ vehicleStatusLabel(v) }}
-        </span>
-      </div>
-      <span class="vehicle-card__driver"><mat-icon>person</mat-icon> {{ driverLabel(v.id) }}</span>
-      <span class="vehicle-card__plate">Plate: {{ v.registrationNumber || '—' }}</span>
-      <span class="vehicle-card__staleness">
-        <mat-icon>schedule</mat-icon> Last known: {{ lastKnownLabel(v.id) }}
-      </span>
-      <span class="vehicle-card__cached" *ngIf="isVehicleOfflineCached(v)">
-        <mat-icon>cloud_off</mat-icon> Cached / not live
-      </span>
-      <span class="vehicle-card__tracker">Tracker: {{ trackerLabel(v.id) }}</span>
-      <span class="vehicle-card__imei" *ngIf="imeiLabel(v.id) !== '—'">IMEI: {{ imeiLabel(v.id) }}</span>
-      <span class="vehicle-card__imei vehicle-card__imei--missing" *ngIf="imeiLabel(v.id) === '—'">No tracker linked</span>
-      <div class="vehicle-card__actions" [class.vehicle-card__actions--compact]="compact">
-        <button
-          type="button"
-          class="vehicle-card__map-btn touch-target"
-          [class.vehicle-card__map-btn--icon]="compact"
-          (click)="openMapForVehicle(v.id, $event)"
-          matTooltip="Open last location in Google Maps"
-          [attr.aria-label]="compact ? 'Open last location in Google Maps' : null">
-          <mat-icon>map</mat-icon>
-          <span *ngIf="!compact">Map</span>
-        </button>
-        <button
-          type="button"
-          class="vehicle-card__map-btn touch-target"
-          [class.vehicle-card__map-btn--icon]="compact"
-          (click)="openLiveFleetMap(v.id, $event)"
-          matTooltip="Open on live fleet map"
-          [attr.aria-label]="compact ? 'Open on live fleet map' : null">
-          <mat-icon>gps_fixed</mat-icon>
-          <span *ngIf="!compact">Live</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</ng-template>

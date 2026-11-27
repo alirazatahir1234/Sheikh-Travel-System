@@ -1,0 +1,380 @@
+:host {
+  position: relative;
+  display: block;
+  flex: 1 1 292px;
+  min-width: 0;
+  min-height: 360px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #0e766e;
+    outline-offset: -2px;
+  }
+}
+
+.tl {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Stacked under the map on a narrow screen: tall enough to read a day without a cramped scroll. */
+@media (max-width: 760px) {
+  :host {
+    min-height: min(70vh, 560px);
+  }
+}
+
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tl-title {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tl-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: #f1f5f9;
+
+  &__btn {
+    height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+
+    &--on {
+      background: #ffffff;
+      color: #0e766e;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+    }
+  }
+}
+
+.tl-hide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px 5px 14px;
+  border-bottom: 1px solid #eef2f6;
+  font-size: 12px;
+  color: #475569;
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 600;
+  }
+}
+
+.tl-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 10px;
+  overflow-y: auto;
+}
+
+.tl-day {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+
+  &:hover {
+    background: #f8fafc;
+  }
+
+  &__chevron {
+    flex: none;
+    color: #64748b;
+    transition: transform 0.12s ease;
+
+    &--open {
+      transform: rotate(90deg);
+    }
+  }
+
+  &__label {
+    flex: 1 0 auto;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__bar {
+    flex: 0 1 44px;
+    min-width: 12px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e2e8f0;
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      background: #0d9488;
+    }
+  }
+
+  &__km {
+    flex: none;
+    min-width: 56px;
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__time {
+    flex: none;
+    min-width: 50px;
+    white-space: nowrap;
+    text-align: right;
+    font-size: 12px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.tl-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #ffffff;
+  text-align: left;
+
+  &--trip {
+    min-height: 52px;
+    padding: 7px 8px 7px 10px;
+  }
+
+  &--halt,
+  &--brief {
+    min-height: 44px;
+    padding: 5px 8px 5px 10px;
+  }
+
+  &--brief {
+    padding-left: 26px;
+  }
+
+  &:hover {
+    background: #f8fafc;
+  }
+
+  &--on,
+  &--on:hover {
+    border-color: #5eead4;
+    background: #f0fdfa;
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  /* A long place name wraps onto a second line, as in the design, rather than being cut. */
+  &__title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+
+    &--halt {
+      color: #334155;
+      font-weight: 500;
+    }
+  }
+
+  &__sub {
+    font-size: 12px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    /* A standstill: the place gives way first, the time range always stays readable. */
+    &--split {
+      display: flex;
+      gap: 4px;
+    }
+  }
+
+  &__where {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__when {
+    flex: none;
+  }
+
+  /* A trip with a stretch driven without signal: the dashed line of the map legend. */
+  &__gap {
+    display: inline-block;
+    width: 14px;
+    margin-left: 4px;
+    border-top: 2px dashed #64748b;
+    vertical-align: middle;
+  }
+
+  &__figures {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__km {
+    font-weight: 600;
+  }
+}
+
+.tl-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+
+  &--trip {
+    border-radius: 50%;
+    background: #ccfbf1;
+    color: #0e766e;
+  }
+
+  &--stop {
+    border-radius: 50%;
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &--parking {
+    border-radius: 7px;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  &--brief {
+    width: 10px;
+    height: 10px;
+    margin: 0 6px;
+    border-radius: 50%;
+    background: #fcd34d;
+  }
+}
+
+.tl-note {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px 8px 42px;
+  font-size: 12px;
+  color: #64748b;
+
+  &__show {
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #0e766e;
+    font-weight: 600;
+
+    &:hover {
+      background: #f0fdfa;
+    }
+  }
+}
+
+.tl-empty-day {
+  flex: none;
+  margin: 0;
+  padding: 2px 8px 8px 42px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tl-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px;
+  color: #475569;
+
+  &__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.tl-skeleton {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: #eef2f6;
+}

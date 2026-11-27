@@ -1,0 +1,286 @@
+:host {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0e766e;
+    outline-offset: 2px;
+  }
+}
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.dock-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.dock-transport {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dock-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+}
+
+.dock-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #0e766e;
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background: #0b5c56;
+  }
+}
+
+.dock-readout {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+
+  &--clock {
+    min-width: 132px;
+  }
+
+  &--speed {
+    min-width: 64px;
+  }
+
+  &__label {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  &__clock {
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  &__value {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.dock-end {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  margin-left: auto;
+}
+
+.dock-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #f1f5f9;
+
+  &__btn {
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+
+    &--on {
+      background: #ffffff;
+      color: #0e766e;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+    }
+  }
+}
+
+.dock-rate {
+  min-width: 48px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.dock-follow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #475569;
+
+  &--on {
+    border-color: #5eead4;
+    background: #ecfdf5;
+    color: #0e766e;
+  }
+}
+
+.dock-track {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.dock-chart {
+  display: block;
+  width: 100%;
+  height: 56px;
+}
+
+.dock-max {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  padding: 0 4px 0 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.dock-bar {
+  position: relative;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: #bfdbfe;
+  overflow: hidden;
+}
+
+.dock-outside {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #f1f5f9;
+}
+
+.dock-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+
+  &--trip {
+    background: #0d9488;
+  }
+
+  &--stop {
+    background: #f59e0b;
+  }
+
+  &--on.dock-block--trip {
+    background: #134e4a;
+  }
+
+  &--on.dock-block--stop {
+    background: #b45309;
+  }
+
+  &--on.dock-block--parking {
+    background: #60a5fa;
+  }
+
+  &:focus-visible {
+    outline-offset: -2px;
+    outline-color: #0f172a;
+  }
+}
+
+.dock-head {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #0f172a;
+
+  &:focus-visible {
+    outline: 2px solid #0e766e;
+    outline-offset: 3px;
+  }
+
+  &__knob {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    background: #0f172a;
+  }
+}
+
+.dock-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}

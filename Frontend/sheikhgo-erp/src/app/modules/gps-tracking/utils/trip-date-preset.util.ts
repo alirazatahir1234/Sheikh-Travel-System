@@ -54,6 +54,22 @@ export const HISTORY_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'custom', label: 'Custom' }
 ];
 
+/** The four period buttons of the History workspace toolbar. */
+export const HISTORY_PERIOD_BUTTONS: { id: TripDatePreset; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'last24Hours', label: '24 h' },
+  { id: 'last7Days', label: '7 days' },
+  { id: 'last30Days', label: '30 days' }
+];
+
+/** The other History presets, offered as quick picks inside the custom range picker. */
+export const HISTORY_PERIOD_QUICK_PICKS: { id: TripDatePreset; label: string }[] = [
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'thisMonth', label: 'This month' },
+  { id: 'previousMonth', label: 'Last month' },
+  { id: 'thisYear', label: 'This year' }
+];
+
 /**
  * Management-focused presets for Fleet Analytics.
  * Omits noisy short windows and "This Year" (silently clamped to 30 days and misleading).

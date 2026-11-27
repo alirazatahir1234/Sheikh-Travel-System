@@ -1,0 +1,115 @@
+<button
+  type="button"
+  class="vp-trigger"
+  #trigger
+  cdkOverlayOrigin
+  #origin="cdkOverlayOrigin"
+  aria-haspopup="dialog"
+  [attr.aria-expanded]="open"
+  [attr.aria-label]="triggerLabel"
+  (click)="toggle()">
+  <span class="vp-trigger__icon" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 16v-3l2-5h12l2 5v3zM4 13h16M7 16v2M17 16v2"></path>
+    </svg>
+  </span>
+  <span class="vp-trigger__text">
+    <span class="vp-trigger__title">{{ title }}</span>
+    <span class="vp-trigger__sub">{{ subtitle }}</span>
+  </span>
+  <svg class="vp-trigger__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6l6-6"></path>
+  </svg>
+</button>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="origin"
+  [cdkConnectedOverlayOpen]="open"
+  [cdkConnectedOverlayPositions]="positions"
+  [cdkConnectedOverlayPush]="true"
+  [cdkConnectedOverlayHasBackdrop]="true"
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="close()"
+  (overlayKeydown)="onKeydown($event)">
+  <div class="vp-panel" role="dialog" aria-label="Choose vehicle" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
+    <label class="vp-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14zM20 20l-4-4"></path>
+      </svg>
+      <input
+        type="search"
+        cdkFocusInitial
+        [value]="search"
+        (input)="onSearch($event)"
+        placeholder="Search vehicle, plate, driver, IMEI…"
+        aria-label="Search vehicles" />
+    </label>
+
+    <div class="vp-options">
+      <label class="vp-check">
+        <input type="checkbox" [checked]="stationaryOnly" (change)="onStationary($event)" />
+        <span>Stationary &gt; 1 hour</span>
+      </label>
+      <span class="vp-compare" *ngIf="compareCount >= 2">
+        {{ compareCount }} selected for compare
+        <button type="button" class="vp-link" (click)="compareClear.emit()">Clear</button>
+      </span>
+      <span class="vp-compare" *ngIf="compareLoading" role="status">Loading compare routes…</span>
+    </div>
+    <p class="vp-hint">Tick up to {{ compareMax }} vehicles to compare their routes on the map.</p>
+
+    <div class="vp-list">
+      <ng-container *ngIf="recent.length && !search">
+        <h3 class="vp-section">Recent <span>{{ recent.length }}</span></h3>
+        <ng-container *ngFor="let v of recent; trackBy: trackCard">
+          <ng-container *ngTemplateOutlet="card; context: { $implicit: v }"></ng-container>
+        </ng-container>
+      </ng-container>
+
+      <h3 class="vp-section" *ngIf="vehicles.length && !search">All vehicles <span>{{ vehicles.length }}</span></h3>
+      <ng-container *ngFor="let v of vehicles; trackBy: trackCard">
+        <ng-container *ngTemplateOutlet="card; context: { $implicit: v }"></ng-container>
+      </ng-container>
+
+      <p class="vp-empty" *ngIf="emptyMessage" role="status">{{ emptyMessage }}</p>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #card let-v>
+  <div class="vp-card" [class.vp-card--on]="v.active">
+    <label class="vp-card__compare">
+      <input
+        type="checkbox"
+        [checked]="v.compare"
+        (change)="compareToggle.emit(v.id)"
+        [attr.aria-label]="'Compare ' + v.name" />
+    </label>
+    <button type="button" class="vp-card__main" [attr.aria-current]="v.active ? 'true' : null" (click)="select(v.id)">
+      <span class="vp-card__head">
+        <span class="vp-card__name">{{ v.name }}</span>
+        <span class="vp-status" [class.vp-status--online]="v.statusClass === 'online'" [class.vp-status--offline]="v.statusClass === 'offline'">
+          <span class="vp-status__dot" aria-hidden="true"></span>{{ v.statusLabel }}
+        </span>
+      </span>
+      <span class="vp-card__line">{{ v.plate || 'No plate' }} · {{ v.driver }}</span>
+      <span class="vp-card__line">Last known: {{ v.lastKnown }}</span>
+      <span class="vp-card__line vp-card__line--warn" *ngIf="v.cached">Cached / not live</span>
+      <span class="vp-card__line" *ngIf="v.imei; else noTracker">Tracker: {{ v.tracker }} · IMEI: {{ v.imei }}</span>
+      <ng-template #noTracker><span class="vp-card__line vp-card__line--warn">No tracker linked</span></ng-template>
+    </button>
+    <span class="vp-card__actions">
+      <button type="button" class="vp-icon" [attr.aria-label]="'Open last location of ' + v.name + ' in Google Maps'" (click)="openMap.emit(v.id)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21zM12 12.5a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5z"></path>
+        </svg>
+      </button>
+      <button type="button" class="vp-icon" [attr.aria-label]="'Open ' + v.name + ' on the live map'" (click)="openLive.emit(v.id)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 3v4M12 17v4M3 12h4M17 12h4M12 16a4 4 0 1 0 0-8a4 4 0 0 0 0 8z"></path>
+        </svg>
+      </button>
+    </span>
+  </div>
+</ng-template>

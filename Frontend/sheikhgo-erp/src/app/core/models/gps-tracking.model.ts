@@ -586,6 +586,92 @@ export interface HistoryReplayBundle {
   parking?: TripStop[] | null;
   /** IANA zone to display times in: vehicle branch → company → platform default. */
   timeZoneId?: string | null;
+  /** Trips, standstills, per-day roll-up and totals from one calculation. Absent on an older API. */
+  timeline?: HistoryTimeline | null;
+}
+
+/** Mirrors backend HistorySegmentKinds — change one, change the other. */
+export type HistorySegmentKind = 'trip' | 'stop' | 'parking';
+
+/** A standstill shorter than the minimum stop, kept inside its trip. */
+export interface HistoryTimelineBriefStop {
+  startTime: string;
+  endTime: string;
+  durationSeconds: number;
+  latitude: number;
+  longitude: number;
+}
+
+/** A stretch driven without a fix. Times are estimates; drawn dashed. */
+export interface HistoryTimelineNoSignal {
+  startTime: string;
+  endTime: string;
+  startLatitude: number;
+  startLongitude: number;
+  endLatitude: number;
+  endLongitude: number;
+  distanceKm: number;
+}
+
+export interface HistoryTimelineSegment {
+  id: string;
+  kind: HistorySegmentKind;
+  /** Local day (vehicle zone) the segment is listed under: yyyy-MM-dd. */
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  /** Trips only. */
+  distanceKm?: number | null;
+  /** Trips only. */
+  maxSpeedKmh?: number | null;
+  startLatitude: number;
+  startLongitude: number;
+  startAddress?: string | null;
+  endLatitude: number;
+  endLongitude: number;
+  endAddress?: string | null;
+  briefStops?: HistoryTimelineBriefStop[] | null;
+  noSignal?: HistoryTimelineNoSignal[] | null;
+}
+
+/** One local day: the sum of the trips listed under it. */
+export interface HistoryTimelineDay {
+  date: string;
+  startTime: string;
+  endTime: string;
+  distanceKm: number;
+  drivingMinutes: number;
+  tripCount: number;
+  /** Every standstill listed under the day: stops and parking together. */
+  stopCount: number;
+  parkingCount: number;
+}
+
+/** The KPI strip: the sum of the days. */
+export interface HistoryTimelineTotals {
+  distanceKm: number;
+  drivingMinutes: number;
+  stoppedMinutes: number;
+  windowMinutes: number;
+  tripCount: number;
+  /** Every standstill in the timeline: stops and parking together. */
+  stopCount: number;
+  parkingCount: number;
+  maxSpeedKmh: number;
+  avgSpeedKmh: number;
+  /** Driving minutes that are an estimate because no fix arrived (part of drivingMinutes). */
+  noSignalMinutes: number;
+}
+
+export interface HistoryTimeline {
+  totals: HistoryTimelineTotals;
+  days: HistoryTimelineDay[];
+  segments: HistoryTimelineSegment[];
+  /** A standstill at least this long ends a trip. */
+  minStopMinutes: number;
+  /** A standstill at least this long is parking. */
+  parkingMinutes: number;
 }
 
 export interface GpsFleetStatus {

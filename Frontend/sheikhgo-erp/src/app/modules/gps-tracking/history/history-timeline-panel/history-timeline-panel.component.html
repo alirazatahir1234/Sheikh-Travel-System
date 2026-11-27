@@ -1,0 +1,159 @@
+<div class="tl">
+  <div class="tl-head">
+    <h2 class="tl-title">Timeline</h2>
+    <div class="tl-seg" role="group" aria-label="Show">
+      <button
+        type="button"
+        class="tl-seg__btn"
+        *ngFor="let f of filters"
+        [class.tl-seg__btn--on]="filter === f.id"
+        [attr.aria-pressed]="filter === f.id"
+        (click)="filterChange.emit(f.id)">
+        {{ f.label }}
+      </button>
+    </div>
+  </div>
+
+  <div class="tl-hide">
+    <span id="tl-hide-label">Hide stops shorter than</span>
+    <button
+      type="button"
+      class="tl-hide__btn"
+      aria-labelledby="tl-hide-label tl-hide-value"
+      [matMenuTriggerFor]="hideMenu">
+      <span id="tl-hide-value">{{ hideLabel }}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9l6 6l6-6"></path>
+      </svg>
+    </button>
+    <mat-menu #hideMenu="matMenu" xPosition="before">
+      <button
+        mat-menu-item
+        type="button"
+        *ngFor="let o of hideOptions"
+        [attr.aria-current]="o.minutes === hideStopsUnderMinutes ? 'true' : null"
+        (click)="hideStopsChange.emit(o.minutes)">
+        {{ o.label }}
+      </button>
+    </mat-menu>
+  </div>
+
+  <div class="tl-list" *ngIf="state === 'ready'; else stateMessage">
+    <ng-container *ngFor="let r of rows; trackBy: trackRow" [ngSwitch]="r.type">
+      <button
+        *ngSwitchCase="'day'"
+        type="button"
+        class="tl-day"
+        [attr.aria-expanded]="day(r).open"
+        [attr.aria-label]="day(r).ariaLabel"
+        (click)="dayToggle.emit(day(r).date)">
+        <svg class="tl-day__chevron" [class.tl-day__chevron--open]="day(r).open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6l-6 6"></path>
+        </svg>
+        <span class="tl-day__label">{{ day(r).label }}</span>
+        <span class="tl-day__bar" aria-hidden="true"><span [style.width.%]="day(r).barPercent"></span></span>
+        <span class="tl-day__km">{{ day(r).km }} km</span>
+        <span class="tl-day__time">{{ day(r).duration }}</span>
+      </button>
+
+      <button
+        *ngSwitchCase="'trip'"
+        type="button"
+        class="tl-row tl-row--trip"
+        [class.tl-row--on]="segment(r).selected"
+        [attr.aria-pressed]="segment(r).selected"
+        [attr.aria-label]="segment(r).ariaLabel"
+        [attr.title]="segment(r).noSignalHint"
+        [attr.data-segment]="segment(r).id"
+        (click)="segmentSelect.emit(segment(r).id)">
+        <span class="tl-icon tl-icon--trip" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 17L17 7M9 7h8v8"></path>
+          </svg>
+        </span>
+        <span class="tl-row__main">
+          <span class="tl-row__title">{{ segment(r).title }}</span>
+          <span class="tl-row__sub">
+            {{ segment(r).subtitle }}
+            <span class="tl-row__gap" *ngIf="segment(r).noSignalHint" aria-hidden="true"></span>
+          </span>
+        </span>
+        <span class="tl-row__figures">
+          <span class="tl-row__km">{{ segment(r).km }} km</span>
+          <span class="tl-row__sub">max {{ segment(r).max }}</span>
+        </span>
+      </button>
+
+      <button
+        *ngSwitchCase="'stop'"
+        type="button"
+        class="tl-row tl-row--halt"
+        [class.tl-row--on]="segment(r).selected"
+        [attr.aria-pressed]="segment(r).selected"
+        [attr.aria-label]="segment(r).ariaLabel"
+        [attr.data-segment]="segment(r).id"
+        (click)="segmentSelect.emit(segment(r).id)">
+        <span class="tl-icon tl-icon--stop" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+            <path d="M9 7v10M15 7v10"></path>
+          </svg>
+        </span>
+        <span class="tl-row__main">
+          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}</span>
+          <span class="tl-row__sub tl-row__sub--split" [attr.title]="segment(r).whereFull">
+            <span class="tl-row__where">{{ segment(r).where }}</span>
+            <span class="tl-row__when">· {{ segment(r).when }}</span>
+          </span>
+        </span>
+      </button>
+
+      <button
+        *ngSwitchCase="'parking'"
+        type="button"
+        class="tl-row tl-row--halt"
+        [class.tl-row--on]="segment(r).selected"
+        [attr.aria-pressed]="segment(r).selected"
+        [attr.aria-label]="segment(r).ariaLabel"
+        [attr.data-segment]="segment(r).id"
+        (click)="segmentSelect.emit(segment(r).id)">
+        <span class="tl-icon tl-icon--parking" aria-hidden="true">P</span>
+        <span class="tl-row__main">
+          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}</span>
+          <span class="tl-row__sub tl-row__sub--split" [attr.title]="segment(r).whereFull">
+            <span class="tl-row__where">{{ segment(r).where }}</span>
+            <span class="tl-row__when">· {{ segment(r).when }}</span>
+          </span>
+        </span>
+      </button>
+
+      <button
+        *ngSwitchCase="'brief'"
+        type="button"
+        class="tl-row tl-row--brief"
+        (click)="briefSelect.emit({ tripId: brief(r).tripId, atMs: brief(r).atMs })">
+        <span class="tl-icon tl-icon--brief" aria-hidden="true"></span>
+        <span class="tl-row__main">
+          <span class="tl-row__title tl-row__title--halt">{{ brief(r).title }}</span>
+          <span class="tl-row__sub">{{ brief(r).subtitle }}</span>
+        </span>
+      </button>
+
+      <div *ngSwitchCase="'note'" class="tl-note">
+        <span>{{ note(r).text }}</span>
+        <button type="button" class="tl-note__show" (click)="showHidden.emit()">Show</button>
+      </div>
+
+      <p *ngSwitchCase="'empty'" class="tl-empty-day">{{ note(r).text }}</p>
+    </ng-container>
+  </div>
+
+  <ng-template #stateMessage>
+    <div class="tl-state" role="status">
+      <ng-container *ngIf="state === 'loading'; else stateText">
+        <span class="tl-skeleton" *ngFor="let n of [72, 56, 64, 48, 60]" [style.width.%]="n"></span>
+        <span class="tl-state__sr">Loading timeline…</span>
+      </ng-container>
+      <ng-template #stateText>{{ message }}</ng-template>
+    </div>
+  </ng-template>
+</div>

@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ConnectedPosition } from '@angular/cdk/overlay';
 import { Subscription, timer, Subject, mergeMap, catchError, of, tap, forkJoin, interval } from 'rxjs';
 import { skip } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
@@ -10,37 +11,27 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { GpsScopeFilterService } from '../gps-scope-filter.service';
 import {
+  Geofence,
   GpsDevice,
   HistoryReplayBundle,
+  HistoryTimeline,
+  HistoryTimelineSegment,
+  HistoryTimelineTotals,
   PositionDto,
-  TripAnalyticsSummary,
   TripReplayPosition,
-  TripStop,
   VehicleLocation
 } from '../../../core/models/gps-tracking.model';
 import {
   HISTORY_DATE_PRESETS,
+  HISTORY_PERIOD_BUTTONS,
+  HISTORY_PERIOD_QUICK_PICKS,
   TripDatePreset,
   applyTripDatePreset,
-  formatPeriodLabel,
   parseDatetimeLocalInput,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
-import {
-  HistoryCompareRouteOverlay,
-  TripReplayMapComponent
-} from '../shared/trip-replay-map/trip-replay-map.component';
 import { resolveReplayStatus } from '../../../core/google-maps/fleet-vehicle-marker.gmap';
-import {
-  formatFleetDisplayAddress,
-  isCoarseAddress,
-  looksLikeRoadSegment,
-  splitDisplayAddress
-} from '../utils/gps-address.util';
-import {
-  formatNonMovingStandingEnglish,
-  nonMovingExceedsAlertThreshold
-} from '../utils/non-moving-duration.util';
+import { formatFleetDisplayAddress, isCoarseAddress, splitDisplayAddress } from '../utils/gps-address.util';
 import {
   COMPARE_ROUTE_COLORS,
   formatStalenessLabel,
@@ -55,22 +46,190 @@ import {
   stationaryMinutes,
   storeHistoryPagePrefs
 } from '../utils/history-fleet-context.util';
-import { formatDateInZone, formatInZone, formatTimeInZone, fromZonedDateTimeLocal, toZonedDateInput } from '../../../core/utils/zoned-time.util';
+import { formatInZone, toDate as toInstant } from '../../../core/utils/zoned-time.util';
+import {
+  buildKpis,
+  buildTimelineRows,
+  clockParts,
+  DEFAULT_HIDE_STOPS_MINUTES,
+  defaultOpenDay,
+  drivenSoFarKm,
+  formatClock,
+  formatDay,
+  formatDuration,
+  formatRangeEdge,
+  formatTimeRange,
+  HIDE_STOP_OPTIONS,
+  HistoryKpi,
+  nextStandstill,
+  placeLabel,
+  previousStandstill,
+  segmentAt,
+  segmentEndMs,
+  segmentStartMs,
+  standstillWhere,
+  TimelineFilter,
+  TimelineRow,
+  tripAtOrAfter,
+  tripTitle,
+  zoneShortLabel
+} from '../utils/history-timeline.util';
+import {
+  ActivityBlock,
+  activityBlocks,
+  AxisTick,
+  axisTicks,
+  DockZoom,
+  dockRange,
+  nextRate,
+  outsideBlocks,
+  percentToTime,
+  PLAYBACK_RATES,
+  PLAYBACK_SPEEDUP,
+  positionAt,
+  speedPaths,
+  TimeRange,
+  timesOf,
+  timeToPercent,
+  weekZoomAvailable
+} from '../utils/history-playback.util';
+import {
+  HistoryMapCompareRoute,
+  HistoryMapComponent,
+  HistoryMapLayers,
+  HistoryMapType,
+  HistoryMapVehicle
+} from './history-map/history-map.component';
+import { TimelinePanelState } from './history-timeline-panel/history-timeline-panel.component';
+import { HistoryVehicleCard } from './history-vehicle-picker/history-vehicle-picker.component';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
+const WORKSPACE_PREFS_KEY = 'gps_history_workspace_prefs';
 const MAX_RECENT = 5;
 const LOAD_TIMEOUT_MS = 20_000;
 const LAST7_ROUTE_MAX_POINTS = 3000;
 const LAST7_PLAYBACK_MAX_POINTS = 1000;
+const PLAY_TICK_MS = 66;
+const ADDRESS_LOOKUP_DELAY_MS = 450;
+const MAX_REPORT_ROWS = 500;
 
-export type HistoryRouteFilter =
-  | 'route'
-  | 'gpsPoints'
-  | 'stops'
-  | 'parking'
-  | 'geofences'
-  | 'heatmap';
+type LayerKey = keyof HistoryMapLayers;
+type PanelKey = 'timeline' | 'dock' | 'details';
 
+/** What the user left the workspace like, per browser. */
+interface WorkspacePrefs {
+  showTimeline: boolean;
+  showDock: boolean;
+  showDetails: boolean;
+  layers: HistoryMapLayers;
+  mapType: HistoryMapType;
+  timelineFilter: TimelineFilter;
+  hideStopsUnderMinutes: number;
+  rate: number;
+  follow: boolean;
+  dockZoom: DockZoom;
+}
+
+const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
+  showTimeline: true,
+  showDock: true,
+  showDetails: true,
+  layers: { route: true, points: false, speed: false, stops: true, parking: true, geofences: true },
+  mapType: 'street',
+  timelineFilter: 'all',
+  hideStopsUnderMinutes: DEFAULT_HIDE_STOPS_MINUTES,
+  rate: 1,
+  follow: true,
+  dockZoom: 'day'
+};
+
+function readWorkspacePrefs(): WorkspacePrefs {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_PREFS_KEY);
+    const saved = raw ? (JSON.parse(raw) as Partial<WorkspacePrefs>) : {};
+    const prefs: WorkspacePrefs = {
+      ...DEFAULT_WORKSPACE_PREFS,
+      ...saved,
+      layers: { ...DEFAULT_WORKSPACE_PREFS.layers, ...(saved.layers ?? {}) }
+    };
+    if (!HIDE_STOP_OPTIONS.some(o => o.minutes === prefs.hideStopsUnderMinutes)) {
+      prefs.hideStopsUnderMinutes = DEFAULT_HIDE_STOPS_MINUTES;
+    }
+    if (!PLAYBACK_RATES.includes(prefs.rate)) prefs.rate = 1;
+    if (!['all', 'trips', 'stops'].includes(prefs.timelineFilter)) prefs.timelineFilter = 'all';
+    if (!['trip', 'day', 'week'].includes(prefs.dockZoom)) prefs.dockZoom = 'day';
+    if (prefs.mapType !== 'satellite') prefs.mapType = 'street';
+    return prefs;
+  } catch {
+    return { ...DEFAULT_WORKSPACE_PREFS, layers: { ...DEFAULT_WORKSPACE_PREFS.layers } };
+  }
+}
+
+function storeWorkspacePrefs(prefs: WorkspacePrefs): void {
+  try {
+    localStorage.setItem(WORKSPACE_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* storage unavailable (private window) — the layout just does not persist */
+  }
+}
+
+interface DockView {
+  range: TimeRange | null;
+  blocks: ActivityBlock[];
+  outside: { leftPercent: number; widthPercent: number }[];
+  speedLine: string;
+  speedArea: string;
+  ticks: AxisTick[];
+  maxSpeedLabel: string;
+  chartLabel: string;
+}
+
+const EMPTY_DOCK: DockView = {
+  range: null,
+  blocks: [],
+  outside: [],
+  speedLine: '',
+  speedArea: '',
+  ticks: [],
+  maxSpeedLabel: '',
+  chartLabel: 'Speed over time'
+};
+
+/** The vehicle at the playhead, as the Point details panel shows it. */
+interface DetailView {
+  atMs: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  speedKmh: number | null;
+  headingLabel: string;
+  fix: TripReplayPosition | null;
+  address: string;
+  addressSecondary: string | null;
+  motion: string;
+  drivenSoFarKm: number | null;
+}
+
+const EMPTY_DETAIL: DetailView = {
+  atMs: null,
+  latitude: null,
+  longitude: null,
+  speedKmh: null,
+  headingLabel: '—',
+  fix: null,
+  address: '',
+  addressSecondary: null,
+  motion: '—',
+  drivenSoFarKm: null
+};
+
+/**
+ * Fleet Tracking → History workspace.
+ *
+ * One vehicle, one period: a summary strip, a day-by-day timeline of trips and standstills, the
+ * map with a playback dock, and the vehicle at the playhead. Every figure comes from the API's
+ * `timeline` (one calculation), so the strip, the day rows and the trip rows always agree.
+ * The page owns the selection and the playhead; the five child components only display.
+ */
 @Component({
   standalone: false,
   selector: 'app-gps-history',
@@ -78,7 +237,8 @@ export type HistoryRouteFilter =
   styleUrls: ['./gps-history.component.scss']
 })
 export class GpsHistoryComponent implements OnInit, OnDestroy {
-  @ViewChild(TripReplayMapComponent) replayMap?: TripReplayMapComponent;
+  @ViewChild(HistoryMapComponent) historyMap?: HistoryMapComponent;
+
   vehicles: VehicleListItem[] = [];
   devices: GpsDevice[] = [];
   vehicleId: number | null = null;
@@ -87,8 +247,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   to = '';
   preset: TripDatePreset = 'last7Days';
   bundle: HistoryReplayBundle | null = null;
-  selectedPosition: TripReplayPosition | null = null;
-  detailPanelOpen = false;
   /** Gps.DeviceManage — the same permission that gates the Devices page. */
   readonly canViewFullImei: boolean;
   rawPositions: TripReplayPosition[] = [];
@@ -100,17 +258,75 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   recentVehicleIds: number[] = [];
 
   readonly presets = HISTORY_DATE_PRESETS;
-  readonly routeFilters: { id: HistoryRouteFilter; label: string; icon: string }[] = [
-    { id: 'route', label: 'Route', icon: 'timeline' },
-    { id: 'gpsPoints', label: 'GPS points', icon: 'scatter_plot' },
-    { id: 'heatmap', label: 'Speed heatmap', icon: 'gradient' },
-    { id: 'stops', label: 'Stops', icon: 'pause_circle' },
-    { id: 'parking', label: 'Parking', icon: 'local_parking' },
-    { id: 'geofences', label: 'Geofences', icon: 'fence' }
+  readonly periodButtons = HISTORY_PERIOD_BUTTONS;
+  readonly quickPicks = HISTORY_PERIOD_QUICK_PICKS;
+  readonly compareMax = HISTORY_COMPARE_MAX_VEHICLES;
+  readonly layerChips: { key: LayerKey; label: string }[] = [
+    { key: 'route', label: 'Route' },
+    { key: 'points', label: 'GPS points' },
+    { key: 'speed', label: 'Speed' },
+    { key: 'stops', label: 'Stops' },
+    { key: 'parking', label: 'Parking' },
+    { key: 'geofences', label: 'Geofences' }
   ];
-  activeRouteFilters = new Set<HistoryRouteFilter>([
-    'route', 'stops', 'parking', 'geofences'
-  ]);
+  readonly rangePositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
+    { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 6 }
+  ];
+
+  // ---- workspace state ------------------------------------------------------------------------
+
+  layers: HistoryMapLayers = { ...DEFAULT_WORKSPACE_PREFS.layers };
+  mapType: HistoryMapType = 'street';
+  showTimeline = true;
+  showDock = true;
+  showDetails = true;
+  timelineFilter: TimelineFilter = 'all';
+  hideStopsUnderMinutes = DEFAULT_HIDE_STOPS_MINUTES;
+  openDays = new Set<string>();
+  selectedId: string | null = null;
+  /** The instant the dock, the map marker and the details panel show. */
+  playheadMs: number | null = null;
+  playing = false;
+  rate = 1;
+  follow = true;
+  dockZoom: DockZoom = 'day';
+
+  /** Custom range picker. Drafts are company-zone wall time, like `from` and `to`. */
+  rangeOpen = false;
+  draftFrom = '';
+  draftTo = '';
+  rangeError = '';
+
+  geofences: Geofence[] = [];
+
+  // ---- what the template shows, rebuilt only when its inputs change ----------------------------
+
+  /** Route drawn and played: the API's thinned route, in time order. */
+  route: TripReplayPosition[] = [];
+  windowRange: TimeRange | null = null;
+  kpis: HistoryKpi[] = buildKpis(null);
+  timelineRows: TimelineRow[] = [];
+  dock: DockView = EMPTY_DOCK;
+  playheadPercent: number | null = null;
+  dockDateLabel = '';
+  dockClockLabel = '—';
+  dockSpeed: number | null = null;
+  vehicleMarker: HistoryMapVehicle | null = null;
+  detail: DetailView = EMPTY_DETAIL;
+  activeDate: string | null = null;
+  recentCards: HistoryVehicleCard[] = [];
+  vehicleCards: HistoryVehicleCard[] = [];
+  rangeFromLabel = '—';
+  rangeToLabel = '—';
+  zoneLabel = '';
+
+  private routeTimes: number[] = [];
+  private playTimer?: ReturnType<typeof setInterval>;
+  private playEndMs = 0;
+  private lastTickAt = 0;
+  private addressTimer?: ReturnType<typeof setTimeout>;
+  private geofenceScope: number | null | undefined | 'none' = 'none';
 
   private loadSub?: Subscription;
   private timeoutTimer?: ReturnType<typeof setTimeout>;
@@ -134,18 +350,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private readonly rawHistoryCache = new Map<string, TripReplayPosition[]>();
   private rawLoadSub?: Subscription;
   private rawCacheKey: string | null = null;
-  selectedStopIndex: number | null = null;
 
   /** Live fleet rows keyed by vehicle — refreshed for staleness & stationary filters. */
   liveLocations = new Map<number, VehicleLocation>();
   clockNow = Date.now();
 
   filterStationaryOverOneHour = false;
-  hideRecordsBefore = '';
   alertStationary24h = false;
+  /** Left over from the previous layout; written back unchanged so the stored prefs keep their shape. */
+  private storedHideRecordsBefore: string | null = null;
 
   compareSelectedIds = new Set<number>();
-  compareOverlays: HistoryCompareRouteOverlay[] = [];
+  compareOverlays: HistoryMapCompareRoute[] = [];
   compareLoading = false;
 
   private liveLocSub?: Subscription;
@@ -153,13 +369,14 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private compareLoadSub?: Subscription;
   private scopeSub?: Subscription;
   private vehiclesSub?: Subscription;
+  private geofenceSub?: Subscription;
 
   constructor(
     private gps: GpsTrackingService,
     private scopeFilter: GpsScopeFilterService,
     private exportService: ExportService,
     private toast: UiToastService,
-    private route: ActivatedRoute,
+    private route$: ActivatedRoute,
     private router: Router,
     private auth: AuthService
   ) {
@@ -178,14 +395,28 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const prefs = readHistoryPagePrefs();
     this.filterStationaryOverOneHour = prefs.stationaryOverOneHour;
-    this.hideRecordsBefore = prefs.hideRecordsBefore ?? '';
+    this.storedHideRecordsBefore = prefs.hideRecordsBefore ?? null;
     this.alertStationary24h = prefs.alertStationary24h;
+
+    const workspace = readWorkspacePrefs();
+    this.showTimeline = workspace.showTimeline;
+    this.showDock = workspace.showDock;
+    this.showDetails = workspace.showDetails;
+    this.layers = workspace.layers;
+    this.mapType = workspace.mapType;
+    this.timelineFilter = workspace.timelineFilter;
+    this.hideStopsUnderMinutes = workspace.hideStopsUnderMinutes;
+    this.rate = workspace.rate;
+    this.follow = workspace.follow;
+    this.dockZoom = workspace.dockZoom;
 
     this.loadRecentVehicles();
     this.applyPreset(this.preset, true);
+    this.refreshRangeLabels();
     this.refreshLiveLocations();
     this.clockSub = interval(30_000).subscribe(tick => {
       this.clockNow = Date.now();
+      this.refreshVehicleCards();
       if (tick > 0 && tick % 4 === 0) this.refreshLiveLocations();
     });
 
@@ -195,19 +426,20 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         this.clearHistorySelection();
       }
       if (!this.vehicleId) this.readQueryParams();
+      this.refreshVehicleCards();
     });
 
     this.scopeSub = this.scopeFilter.scope$.pipe(skip(1)).subscribe(state => {
+      this.geofences = [];
+      this.geofenceScope = 'none';
       if (!this.scopeFilter.isFleetScopeReady) {
         this.devices = [];
         this.liveLocations = new Map();
         this.clearHistorySelection();
+        this.refreshVehicleCards();
         return;
       }
-      this.gps.getDevices(this.tenantScopeId).subscribe({
-        next: d => { this.devices = d; },
-        error: () => {}
-      });
+      this.loadDevices();
       this.refreshLiveLocations();
       if (state.vehicleId != null) {
         if (this.vehicleId !== state.vehicleId) {
@@ -217,11 +449,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         // Company cleared/changed with no vehicle — drop stale route for other tenant.
         this.clearHistorySelection();
       }
+      this.refreshVehicleCards();
     });
 
     this.geocodeSub = this.geocodeRequests$.pipe(
-      // Queue all visible stop/position geocodes (concurrency 2) instead of
-      // debounce+switchMap which cancelled all but the last request.
+      // Queue position geocodes (concurrency 2) instead of debounce+switchMap, which cancelled
+      // all but the last request.
       mergeMap(req => {
         const key = this.addressCacheKey(req.lat, req.lng);
         if (!req.forceRefresh && this.addressCache.has(key)) {
@@ -233,8 +466,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         this.resolvingAddressKey = key;
         return this.gps.reverseGeocode(req.lat, req.lng, req.forceRefresh).pipe(
           tap(info => {
-            const address =
-              this.resolveAddressFromGeocode(info) || null;
+            const address = this.resolveAddressFromGeocode(info) || null;
             this.addressCache.set(key, address);
             this.addressMetaCache.set(key, info ?? null);
             if (address) req.apply(address);
@@ -247,23 +479,23 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
           })
         );
       }, 2)
-    ).subscribe();
+    ).subscribe(() => this.refreshPlayhead(false));
 
     this.vehicles = this.scopeFilter.vehicles;
     this.readQueryParams();
 
     if (this.scopeFilter.isFleetScopeReady) {
-      this.gps.getDevices(this.tenantScopeId).subscribe({
-        next: d => { this.devices = d; },
-        error: () => {}
-      });
+      this.loadDevices();
     } else {
       this.devices = [];
     }
+    this.refreshVehicleCards();
   }
 
   ngOnDestroy(): void {
+    this.stopPlayback();
     this.clearLoadTimers();
+    if (this.addressTimer) clearTimeout(this.addressTimer);
     this.loadSub?.unsubscribe();
     this.rawLoadSub?.unsubscribe();
     this.geocodeSub?.unsubscribe();
@@ -272,23 +504,121 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.compareLoadSub?.unsubscribe();
     this.scopeSub?.unsubscribe();
     this.vehiclesSub?.unsubscribe();
+    this.geofenceSub?.unsubscribe();
     this.geocodeRequests$.complete();
   }
 
-  private clearHistorySelection(): void {
-    this.vehicleId = null;
-    this.bundle = null;
-    this.selectedPosition = null;
-    this.detailPanelOpen = false;
-    this.rawPositions = [];
-    this.noData = false;
-    this.error = '';
-    this.compareOverlays = [];
+  // ---- what is loaded ---------------------------------------------------------------------------
+
+  get timeline(): HistoryTimeline | null {
+    return this.bundle?.timeline ?? null;
   }
 
-  /** The details panel is rendered (docked beside the map on wide screens). */
-  get detailPanelVisible(): boolean {
-    return this.detailPanelOpen && !!this.vehicleId && !!(this.bundle || this.selectedPosition);
+  /** Zone the vehicle's times are shown in: its branch → company → platform default. */
+  get zone(): string | null {
+    return this.bundle?.timeZoneId ?? null;
+  }
+
+  get selectedSegment(): HistoryTimelineSegment | null {
+    if (!this.selectedId) return null;
+    return this.timeline?.segments.find(s => s.id === this.selectedId) ?? null;
+  }
+
+  get selectedVehicle(): VehicleListItem | undefined {
+    return this.vehicleId ? this.vehicles.find(v => v.id === this.vehicleId) : undefined;
+  }
+
+  get canLoad(): boolean {
+    return !!this.vehicleId && !!this.from && !!this.to && !this.loading;
+  }
+
+  /** A vehicle is chosen but its route has not been asked for yet (plain page open). */
+  get awaitingFirstLoad(): boolean {
+    return this.canLoad && !this.bundle && !this.noData && !this.error;
+  }
+
+  get loadHint(): string {
+    if (this.needsCompanySelection) return 'Select a company in the header to view vehicles.';
+    if (!this.vehicleId) return 'Select a vehicle to see its route.';
+    if (this.awaitingFirstLoad) return 'Press Load route to fetch this vehicle\'s GPS history.';
+    return '';
+  }
+
+  get mapEmptyHint(): string {
+    if (this.needsCompanySelection) return 'Select a company in the header to view vehicles.';
+    if (!this.vehicleId) return 'Select a vehicle to see its route.';
+    return 'Press Load route to fetch this vehicle\'s GPS history.';
+  }
+
+  get timelineState(): TimelinePanelState {
+    if (this.loading) return 'loading';
+    if (this.noData) return 'noData';
+    if (!this.bundle) return 'idle';
+    return this.timeline ? 'ready' : 'unavailable';
+  }
+
+  get timelineMessage(): string {
+    switch (this.timelineState) {
+      case 'noData':
+        return 'No GPS history in this period.';
+      case 'unavailable':
+        return 'The timeline needs the updated API. The route and the figures above still work.';
+      case 'idle':
+        return 'Trips and stops appear here once a route is loaded.';
+      default:
+        return '';
+    }
+  }
+
+  get weekZoomAvailable(): boolean {
+    return !!this.windowRange && weekZoomAvailable(this.windowRange);
+  }
+
+  /** A trip to play; without a timeline (older API) the whole route plays. */
+  get canPlay(): boolean {
+    if (this.timeline) return this.timeline.totals.tripCount > 0;
+    return this.route.length > 1;
+  }
+
+  get hasStandstills(): boolean {
+    return !!this.timeline && this.timeline.totals.stopCount > 0;
+  }
+
+  /** Period figures the strip does not carry, shown small in Point details. */
+  get engineHours(): number | null {
+    return this.bundle?.statistics?.engineHours ?? this.bundle?.summary?.engineHours ?? null;
+  }
+
+  get gpsPointCount(): number | null {
+    if (!this.bundle) return null;
+    return this.rawPositions.length || this.route.length;
+  }
+
+  get showOfflineHistoryBanner(): boolean {
+    const v = this.selectedVehicle;
+    if (!v) return false;
+    return isOfflineOrCachedTracker(
+      v,
+      this.liveLocations.get(v.id),
+      !!(v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id))
+    );
+  }
+
+  get compareSelectionCount(): number {
+    return this.compareSelectedIds.size;
+  }
+
+  /** The custom range picker works in company time, like every date picker in the ERP. */
+  get companyZoneLabel(): string {
+    return zoneShortLabel(null);
+  }
+
+  get summaryLabel(): string {
+    return `Period summary, ${this.rangeFromLabel} to ${this.rangeToLabel}${this.zoneLabel ? ' ' + this.zoneLabel : ''}`;
+  }
+
+  get rangeButtonLabel(): string {
+    return `Custom dates and time zone: ${this.rangeFromLabel} to ${this.rangeToLabel}${this.zoneLabel ? ', ' + this.zoneLabel : ''}`;
   }
 
   /**
@@ -297,7 +627,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
    */
   get vehicleListEmptyMessage(): string | null {
     if (this.needsCompanySelection) return 'Select a company to view vehicles.';
-    if (this.filteredVehicles.length) return null;
+    if (this.vehicleCards.length) return null;
     if (this.vehicleSearch.trim()) return 'No vehicles match your search.';
     if (this.filterStationaryOverOneHour) return 'No vehicles have been stationary for over an hour.';
     if (!this.vehicles.length) return 'No vehicles in this company yet.';
@@ -335,30 +665,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  get visibleStops(): TripStop[] {
-    const stops = this.bundle?.stops ?? [];
-    if (!this.hideRecordsBefore) return stops;
-    // Start of that calendar day in the vehicle's zone.
-    const cut = fromZonedDateTimeLocal(String(this.hideRecordsBefore).slice(0, 10), this.bundle?.timeZoneId)
-      ?? new Date(NaN);
-    if (Number.isNaN(cut.getTime())) return stops;
-    return stops.filter(s => new Date(s.endTime).getTime() >= cut.getTime());
-  }
-
-  get compareSelectionCount(): number {
-    return this.compareSelectedIds.size;
-  }
-
-  get showOfflineHistoryBanner(): boolean {
-    const v = this.selectedVehicle;
-    if (!v) return false;
-    return isOfflineOrCachedTracker(
-      v,
-      this.liveLocations.get(v.id),
-      !!(v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id))
-    );
-  }
-
   get recentVehicles(): VehicleListItem[] {
     const seenPlates = new Set<string>();
     return this.recentVehicleIds
@@ -372,163 +678,13 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-  get selectedVehicle(): VehicleListItem | undefined {
-    return this.vehicleId ? this.vehicles.find(v => v.id === this.vehicleId) : undefined;
-  }
-
-  get canLoad(): boolean {
-    return !!this.vehicleId && !!this.from && !!this.to && !this.loading;
-  }
-
-  get loadHint(): string {
-    if (this.needsCompanySelection) return 'Select a company to view vehicles.';
-    if (!this.vehicleId) return 'Select a vehicle from the list to begin.';
-    if (!this.from || !this.to) return 'Choose a date range, then load history.';
-    if (this.loading) return 'Loading route…';
-    if (this.noData) return 'No historical data for this period — try another range.';
-    if (!this.bundle) return 'Press Load route to fetch GPS history.';
-    return '';
-  }
-
-  get loadButtonLabel(): string {
-    return this.bundle ? 'Reload route' : 'Load route';
-  }
-
-  get periodLabel(): string {
-    return formatPeriodLabel(this.from, this.to);
-  }
-
-  get periodLabelDetailed(): string {
-    if (!this.from || !this.to) return '—';
-    // Picker values are company-zone wall time — show them as picked.
-    const fmt = (raw: string) =>
-      formatInZone(parseDatetimeLocalInput(raw), {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-    return `${fmt(this.from)} → ${fmt(this.to)}`;
-  }
-
-  get vehicleContext() {
-    return this.bundle?.vehicle ?? null;
-  }
-
-  get statistics(): TripAnalyticsSummary | null {
-    return this.bundle?.statistics ?? null;
-  }
-
-  get playbackPositions(): TripReplayPosition[] {
-    const b = this.bundle;
-    if (!b) return [];
-    return b.playback?.length ? b.playback : b.route ?? [];
-  }
-
-  get mileageKm(): number | null {
-    if (this.bundle?.mileageKm != null) return this.bundle.mileageKm;
-    return this.bundle?.summary?.distanceKm ?? null;
-  }
-
-  get parkingCount(): number {
-    if (this.bundle?.parking?.length) return this.bundle.parking.length;
-    return (this.bundle?.stops ?? []).filter(s => s.durationMinutes >= 120).length;
-  }
-
-  get quickStats() {
-    const display = this.bundle?.displaySummary;
-    const stats = this.statistics;
-    const summary = this.bundle?.summary;
-    if (display) {
-      return {
-        distanceKm: display.distance ?? this.mileageKm,
-        moving: display.movingTime,
-        idle: this.nonMovingDurationLabel,
-        stops: display.stops,
-        parking: display.parking,
-        maxSpeed: display.maxSpeed,
-        avgSpeed: stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? null,
-        engineHours: stats?.engineHours ?? summary?.engineHours ?? null,
-        points: this.rawPositions.length || this.bundle?.route.length || 0
-      };
-    }
-    return {
-      distanceKm: this.mileageKm,
-      moving: this.formatDuration(this.movingMinutes),
-      idle: this.nonMovingDurationLabel,
-      stops: stats?.stopCount ?? this.bundle?.stops.length ?? 0,
-      parking: this.parkingCount,
-      maxSpeed: stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? null,
-      avgSpeed: stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? null,
-      engineHours: stats?.engineHours ?? summary?.engineHours ?? null,
-      points: this.rawPositions.length || this.bundle?.route.length || 0
-    };
-  }
-
-  get showTodayMileageChip(): boolean {
-    const { from, to } = applyTripDatePreset('today');
-    const rangeFrom = parseDatetimeLocalInput(this.from).getTime();
-    const rangeTo = parseDatetimeLocalInput(this.to).getTime();
-    return rangeFrom <= to.getTime() && rangeTo >= from.getTime();
-  }
-
-  get periodRangeLabel(): string {
-    const short = (raw: string) =>
-      formatDateInZone(raw, { month: 'short', day: 'numeric' }, this.bundle?.timeZoneId);
-    if (this.preset === 'custom') {
-      return `${short(this.from)} – ${short(this.to)}`;
-    }
-    const base = this.presets.find(p => p.id === this.preset)?.label || 'Custom range';
-    return this.showTodayMileageChip ? `${base} · Includes today` : base;
-  }
-
-  get idleMinutes(): number {
-    const stats = this.statistics;
-    if (!stats) return 0;
-    return Math.max(0, stats.idleMinutes);
-  }
-
-  get nonMovingDurationLabel(): string {
-    return formatNonMovingStandingEnglish(this.idleMinutes);
-  }
-
-  get nonMovingDurationAlert(): boolean {
-    return nonMovingExceedsAlertThreshold(this.idleMinutes);
-  }
-
-  get movingMinutes(): number {
-    const stats = this.statistics;
-    if (!stats) return this.bundle?.summary?.drivingMinutes ?? 0;
-    return stats.drivingMinutes;
-  }
-
-  get showGpsPoints(): boolean {
-    return this.activeRouteFilters.has('gpsPoints');
-  }
-
-  get showStopsLayer(): boolean {
-    return this.activeRouteFilters.has('stops');
-  }
-
-  get showParkingLayer(): boolean {
-    return this.activeRouteFilters.has('parking');
-  }
-
-  get showGeofencesLayer(): boolean {
-    return this.activeRouteFilters.has('geofences');
-  }
-
-  get showHeatmap(): boolean {
-    return this.activeRouteFilters.has('heatmap');
-  }
-
-  get showRouteLayer(): boolean {
-    return this.activeRouteFilters.has('route');
-  }
+  // ---- vehicle and period -------------------------------------------------------------------------
 
   selectVehicle(id: number): void {
     this.applyVehicleSelection(id, true);
   }
 
-  /** @param syncGlobal when true, push selection into the shared GPS scope bar. */
+  /** @param syncGlobal when true, push selection into the shared GPS scope. */
   private applyVehicleSelection(id: number, syncGlobal: boolean): void {
     this.vehicleId = id;
     this.compareSelectedIds.add(id);
@@ -536,36 +692,66 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.pushRecentVehicle(id);
     if (syncGlobal) this.scopeFilter.setVehicle(id);
     this.updateUrl();
+    this.refreshVehicleCards();
     this.load();
+  }
+
+  onVehicleSearch(query: string): void {
+    this.vehicleSearch = query;
+    this.refreshVehicleCards();
   }
 
   setPreset(id: TripDatePreset): void {
     this.preset = id;
     this.applyPreset(id, true);
+    this.rangeOpen = false;
+    this.refreshRangeLabels();
     this.updateUrl();
     if (this.vehicleId) this.load();
   }
 
-  onCustomDatesChange(): void {
+  toggleRange(): void {
+    this.rangeOpen = !this.rangeOpen;
+    if (this.rangeOpen) {
+      this.draftFrom = this.from;
+      this.draftTo = this.to;
+      this.rangeError = '';
+    }
+  }
+
+  closeRange(): void {
+    this.rangeOpen = false;
+  }
+
+  onRangeKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeRange();
+    }
+  }
+
+  applyCustomRange(): void {
+    const from = parseDatetimeLocalInput(this.draftFrom);
+    const to = parseDatetimeLocalInput(this.draftTo);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      this.rangeError = 'Choose both a start and an end.';
+      return;
+    }
+    if (from >= to) {
+      this.rangeError = 'The start must be before the end.';
+      return;
+    }
+    if (to.getTime() - from.getTime() > 366 * 24 * 60 * 60 * 1000) {
+      this.rangeError = 'The range cannot exceed 366 days.';
+      return;
+    }
+    this.from = this.draftFrom;
+    this.to = this.draftTo;
     this.preset = 'custom';
+    this.rangeOpen = false;
+    this.refreshRangeLabels();
     this.updateUrl();
-  }
-
-  toggleRouteFilter(id: HistoryRouteFilter): void {
-    if (this.activeRouteFilters.has(id)) {
-      if (id === 'route' && this.activeRouteFilters.size <= 1) return;
-      this.activeRouteFilters.delete(id);
-    } else {
-      this.activeRouteFilters.add(id);
-    }
-    this.activeRouteFilters = new Set(this.activeRouteFilters);
-    if (id === 'gpsPoints' && this.activeRouteFilters.has('gpsPoints')) {
-      void this.ensureRawPositionsLoaded();
-    }
-  }
-
-  isRouteFilterActive(id: HistoryRouteFilter): boolean {
-    return this.activeRouteFilters.has(id);
+    if (this.vehicleId) this.load();
   }
 
   load(): void {
@@ -581,6 +767,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.stopPlayback();
     this.clearLoadTimers();
     this.loadSub?.unsubscribe();
     this.rawLoadSub?.unsubscribe();
@@ -588,9 +775,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.loadingTimedOut = false;
     this.error = '';
     this.noData = false;
-    this.bundle = null;
-    this.selectedPosition = null;
-    this.detailPanelOpen = false;
+    this.resetLoaded();
     this.rawPositions = [];
     this.rawCacheKey = null;
     this.loadAttempt++;
@@ -615,19 +800,11 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         const hasRoute = (bundle.route?.length ?? 0) > 0 || (bundle.playback?.length ?? 0) > 0;
         if (!hasRoute) {
           this.noData = true;
-          this.bundle = null;
           return;
         }
-        this.bundle = bundle;
-        const playback = this.playbackPositions;
-        this.selectedPosition = playback[0] ?? bundle.route[0] ?? null;
-        this.selectedStopIndex = null;
-        this.detailPanelOpen = true;
-        if (this.selectedPosition) this.ensureAddress(this.selectedPosition);
-        this.enrichStopAddresses(bundle.stops);
-        if (this.showGpsPoints) {
-          void this.ensureRawPositionsLoaded(fromDate, toDate);
-        }
+        this.showLoaded(bundle, fromDate, toDate);
+        if (this.layers.points) void this.ensureRawPositionsLoaded(fromDate, toDate);
+        if (this.layers.geofences) this.ensureGeofencesLoaded();
         this.reloadCompareRoutes(fromDate, toDate);
       },
       error: err => {
@@ -648,18 +825,536 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.load();
   }
 
-  refreshRoute(): void {
-    if (this.canLoad || this.vehicleId) this.load();
+  private showLoaded(bundle: HistoryReplayBundle, fromDate: Date, toDate: Date): void {
+    this.bundle = bundle;
+    this.route = bundle.route?.length ? bundle.route : bundle.playback ?? [];
+    this.routeTimes = timesOf(this.route);
+
+    // The API clamps a range that ends in the future to "now"; its bounds are the period shown.
+    const start = toInstant(bundle.from)?.getTime() ?? fromDate.getTime();
+    const end = toInstant(bundle.to)?.getTime() ?? Math.min(toDate.getTime(), Date.now());
+    this.windowRange = { startMs: start, endMs: Math.max(start, end) };
+
+    const openDay = bundle.timeline ? defaultOpenDay(bundle.timeline) : null;
+    this.openDays = new Set(openDay ? [openDay] : []);
+    this.selectedId = null;
+
+    // The playhead starts at the latest fix: where the vehicle was at the end of the period.
+    const latest = this.routeTimes[this.routeTimes.length - 1];
+    this.playheadMs = Number.isFinite(latest) ? latest : this.windowRange.endMs;
+
+    this.refreshRangeLabels();
+    this.refreshKpis();
+    this.refreshRows();
+    this.refreshDock(true);
+    this.refreshPlayhead(true);
   }
 
-  onPositionSelected(pos: TripReplayPosition): void {
-    this.selectedPosition = pos;
-    this.detailPanelOpen = true;
-    this.ensureAddress(pos);
+  private resetLoaded(): void {
+    this.bundle = null;
+    this.route = [];
+    this.routeTimes = [];
+    this.windowRange = null;
+    this.selectedId = null;
+    this.playheadMs = null;
+    this.openDays = new Set();
+    this.timelineRows = [];
+    this.kpis = buildKpis(null);
+    this.dock = EMPTY_DOCK;
+    this.playheadPercent = null;
+    this.dockDateLabel = '';
+    this.dockClockLabel = '—';
+    this.dockSpeed = null;
+    this.vehicleMarker = null;
+    this.detail = EMPTY_DETAIL;
+    this.activeDate = null;
   }
 
-  closeHistoryDetail(): void {
-    this.detailPanelOpen = false;
+  private clearHistorySelection(): void {
+    this.stopPlayback();
+    this.vehicleId = null;
+    this.resetLoaded();
+    this.rawPositions = [];
+    this.noData = false;
+    this.error = '';
+    this.compareOverlays = [];
+  }
+
+  // ---- strip, rows, dock, playhead: rebuilt on demand -----------------------------------------------
+
+  private refreshKpis(): void {
+    this.kpis = buildKpis(this.timeline?.totals ?? this.legacyTotals());
+  }
+
+  /**
+   * An older API sends no timeline. The strip then shows the server's legacy totals, which add up
+   * the same way (moving + non-moving = period).
+   */
+  private legacyTotals(): HistoryTimelineTotals | null {
+    const b = this.bundle;
+    if (!b) return null;
+    const stats = b.statistics;
+    const driving = stats?.drivingMinutes ?? b.summary?.drivingMinutes ?? 0;
+    const stopped = Math.max(0, stats?.idleMinutes ?? 0);
+    const parking = b.parking?.length ?? (b.stops ?? []).filter(s => s.durationMinutes >= 120).length;
+    return {
+      distanceKm: b.displaySummary?.distance ?? b.mileageKm ?? b.summary?.distanceKm ?? 0,
+      drivingMinutes: driving,
+      stoppedMinutes: stopped,
+      windowMinutes: driving + stopped,
+      tripCount: stats?.tripCount ?? 0,
+      stopCount: b.displaySummary?.stops ?? stats?.stopCount ?? b.stops?.length ?? 0,
+      parkingCount: b.displaySummary?.parking ?? parking,
+      maxSpeedKmh: b.displaySummary?.maxSpeed ?? stats?.maxSpeedKmh ?? b.summary?.maxSpeedKmh ?? 0,
+      avgSpeedKmh: stats?.avgSpeedKmh ?? b.summary?.avgSpeedKmh ?? 0,
+      noSignalMinutes: 0
+    };
+  }
+
+  private refreshRows(): void {
+    const timeline = this.timeline;
+    this.timelineRows = timeline
+      ? buildTimelineRows(timeline, {
+          filter: this.timelineFilter,
+          hideStopsUnderMinutes: this.hideStopsUnderMinutes,
+          openDays: this.openDays,
+          selectedId: this.selectedId,
+          zone: this.zone
+        })
+      : [];
+  }
+
+  /** Recomputes what the dock shows. Skipped when its range did not move (every playback tick). */
+  private refreshDock(force = false): void {
+    const window = this.windowRange;
+    const playhead = this.playheadMs;
+    if (!window || playhead == null || !this.route.length) {
+      this.dock = EMPTY_DOCK;
+      return;
+    }
+
+    const selected = this.selectedSegment;
+    const selectedRange = selected ? { startMs: segmentStartMs(selected), endMs: segmentEndMs(selected) } : null;
+    const range = dockRange(this.dockZoom, playhead, window, selectedRange, this.zone);
+    const current = this.dock.range;
+    if (!force && current && current.startMs === range.startMs && current.endMs === range.endMs) return;
+
+    const timeline = this.timeline;
+    const maxSpeed = Math.round(Number(timeline?.totals.maxSpeedKmh ?? this.legacyTotals()?.maxSpeedKmh ?? 0));
+    // Without a timeline the whole route is charted as one stretch.
+    const trips = timeline
+      ? timeline.segments.filter(s => s.kind === 'trip')
+      : [this.wholeRouteAsTrip()];
+    const paths = speedPaths(this.route, this.routeTimes, trips, range, maxSpeed);
+
+    this.dock = {
+      range,
+      blocks: timeline ? activityBlocks(timeline.segments, range, this.zone) : [],
+      outside: outsideBlocks(range, window),
+      speedLine: paths.line,
+      speedArea: paths.area,
+      ticks: axisTicks(range, this.zone),
+      maxSpeedLabel: maxSpeed > 0 ? `${maxSpeed} km/h` : '',
+      chartLabel:
+        `Speed from ${formatDay(range.startMs, this.zone)} ${formatClock(range.startMs, this.zone)} ` +
+        `to ${formatDay(range.endMs, this.zone)} ${formatClock(range.endMs, this.zone)}` +
+        (maxSpeed > 0 ? `, peak in the period ${maxSpeed} km/h` : '')
+    };
+  }
+
+  private wholeRouteAsTrip(): HistoryTimelineSegment {
+    const first = this.route[0];
+    const last = this.route[this.route.length - 1];
+    return {
+      id: 'route',
+      kind: 'trip',
+      date: '',
+      startTime: first.timestamp,
+      endTime: last.timestamp,
+      durationMinutes: 0,
+      startLatitude: first.latitude,
+      startLongitude: first.longitude,
+      endLatitude: last.latitude,
+      endLongitude: last.longitude
+    };
+  }
+
+  /**
+   * Everything that follows the playhead: marker, clock, dock position and the details panel.
+   * @param lookUpAddress ask for the address of the fix when it has none (not while playing).
+   */
+  private refreshPlayhead(lookUpAddress: boolean): void {
+    const ms = this.playheadMs;
+    const at = ms == null ? null : positionAt(this.route, this.routeTimes, ms);
+    if (ms == null || !at) {
+      this.playheadPercent = null;
+      this.vehicleMarker = null;
+      this.detail = EMPTY_DETAIL;
+      return;
+    }
+
+    const timeline = this.timeline;
+    const selected = this.selectedSegment;
+    const here = timeline ? segmentAt(timeline, ms) : null;
+    const fix = this.route[at.fixIndex] ?? null;
+    // A selected standstill is shown where the vehicle stood, ringed on the map, not as a moving marker.
+    const standing = selected && selected.kind !== 'trip' ? selected : null;
+    const latitude = standing ? standing.startLatitude : at.latitude;
+    const longitude = standing ? standing.startLongitude : at.longitude;
+    const speed = standing || (here && here.kind !== 'trip') ? 0 : at.speedKmh;
+    const heading = at.heading ?? fix?.heading ?? null;
+
+    this.vehicleMarker = standing ? null : { latitude, longitude, heading };
+    this.activeDate = clockParts(ms, this.zone)?.dateKey ?? null;
+    this.dockDateLabel = formatDay(ms, this.zone);
+    this.dockClockLabel = formatClock(ms, this.zone, true);
+    this.dockSpeed = speed;
+    const range = this.dock.range;
+    this.playheadPercent = range && ms >= range.startMs && ms <= range.endMs ? timeToPercent(ms, range) : null;
+
+    const place = standing ?? (here && here.kind !== 'trip' ? here : null);
+    const address = place?.startAddress?.trim() || this.addressDuringTrip(here, fix, ms);
+    const lines = splitDisplayAddress(address);
+    this.detail = {
+      atMs: ms,
+      latitude,
+      longitude,
+      speedKmh: speed,
+      headingLabel: speed > 0 ? this.headingLabel(heading) : '—',
+      fix,
+      address: lines.primary || address || 'Address unavailable',
+      addressSecondary: lines.primary ? lines.secondary : null,
+      motion: this.motionAt(here, fix, ms),
+      drivenSoFarKm: timeline ? drivenSoFarKm(timeline, this.route, ms) : null
+    };
+
+    if (this.addressTimer) clearTimeout(this.addressTimer);
+    if (lookUpAddress && fix && !place) {
+      this.addressTimer = setTimeout(() => this.ensureAddress(fix), ADDRESS_LOOKUP_DELAY_MS);
+    }
+  }
+
+  /**
+   * The address of the fix; until it has one, a trip reads "Near <where it left from>" for its
+   * first half and "Near <where it is going>" for the second.
+   */
+  private addressDuringTrip(
+    here: HistoryTimelineSegment | null,
+    fix: TripReplayPosition | null,
+    ms: number
+  ): string {
+    const own = fix ? this.addressLabel(fix) : '';
+    if (!here || here.kind !== 'trip' || (own && own !== 'Address unavailable' && own !== 'Resolving…')) {
+      return own;
+    }
+    const half = (segmentStartMs(here) + segmentEndMs(here)) / 2;
+    const near = placeLabel(ms < half ? here.startAddress : here.endAddress);
+    return near ? `Near ${near}` : own;
+  }
+
+  private motionAt(
+    here: HistoryTimelineSegment | null,
+    fix: TripReplayPosition | null,
+    ms: number
+  ): string {
+    if (!here) return this.motionLabel(fix);
+    if (here.kind === 'parking') return 'Parked';
+    if (here.kind === 'stop') return fix?.ignition === true ? 'Idling' : 'Stopped';
+    const paused = (here.briefStops ?? []).some(b =>
+      ms >= (toInstant(b.startTime)?.getTime() ?? 0) && ms <= (toInstant(b.endTime)?.getTime() ?? 0));
+    return paused ? 'Paused' : 'Moving';
+  }
+
+  private refreshRangeLabels(): void {
+    this.rangeFromLabel = this.from ? formatRangeEdge(parseDatetimeLocalInput(this.from), this.zone) : '—';
+    this.rangeToLabel = this.to ? formatRangeEdge(parseDatetimeLocalInput(this.to), this.zone) : '—';
+    this.zoneLabel = zoneShortLabel(this.zone);
+  }
+
+  private refreshVehicleCards(): void {
+    this.recentCards = this.vehicleSearch ? [] : this.recentVehicles.map(v => this.toCard(v));
+    this.vehicleCards = this.filteredVehicles.map(v => this.toCard(v));
+  }
+
+  private toCard(v: VehicleListItem): HistoryVehicleCard {
+    const imei = this.imeiLabel(v.id);
+    return {
+      id: v.id,
+      name: v.name,
+      plate: v.registrationNumber || '',
+      driver: this.driverLabel(v.id),
+      statusLabel: this.vehicleStatusLabel(v),
+      statusClass: this.vehicleStatusClass(v),
+      lastKnown: this.lastKnownLabel(v.id),
+      cached: this.isVehicleOfflineCached(v),
+      tracker: this.trackerLabel(v.id),
+      imei: imei === '—' ? null : imei,
+      compare: this.compareSelectedIds.has(v.id),
+      active: this.vehicleId === v.id
+    };
+  }
+
+  // ---- timeline -----------------------------------------------------------------------------------
+
+  setTimelineFilter(filter: TimelineFilter): void {
+    this.timelineFilter = filter;
+    this.persistWorkspace();
+    this.refreshRows();
+  }
+
+  setHideStops(minutes: number): void {
+    this.hideStopsUnderMinutes = minutes;
+    this.persistWorkspace();
+    this.refreshRows();
+  }
+
+  toggleDay(date: string): void {
+    const days = new Set(this.openDays);
+    if (!days.delete(date)) days.add(date);
+    this.openDays = days;
+    this.refreshRows();
+  }
+
+  /**
+   * Select a trip or a standstill: the playhead goes to its start, and it is highlighted in the
+   * list, on the dock and on the map.
+   * @param focusMap bring it into view on the map (not when it was picked on the map itself).
+   */
+  selectSegment(id: string, focusMap = true): void {
+    const segment = this.timeline?.segments.find(s => s.id === id);
+    const window = this.windowRange;
+    if (!segment || !window) return;
+
+    this.stopPlayback();
+    this.selectedId = id;
+    if (!this.openDays.has(segment.date)) {
+      this.openDays = new Set(this.openDays).add(segment.date);
+    }
+    this.playheadMs = Math.min(window.endMs, Math.max(window.startMs, segmentStartMs(segment)));
+    this.refreshRows();
+    this.refreshDock();
+    this.refreshPlayhead(true);
+    if (focusMap) this.historyMap?.focusSegment(id);
+  }
+
+  selectBriefStop(event: { tripId: string; atMs: number }): void {
+    this.selectSegment(event.tripId);
+    this.seekTo(event.atMs);
+  }
+
+  // ---- playback -------------------------------------------------------------------------------------
+
+  togglePlay(): void {
+    if (this.playing) {
+      this.stopPlayback();
+      return;
+    }
+    const timeline = this.timeline;
+    const window = this.windowRange;
+    if (!window || this.playheadMs == null) return;
+    if (!timeline) {
+      this.playWholeRoute();
+      return;
+    }
+
+    // Play the selected trip; from a standstill (or nothing selected) the next trip, else the last one.
+    const selected = this.selectedSegment;
+    const trip = selected?.kind === 'trip'
+      ? selected
+      : tripAtOrAfter(timeline, this.playheadMs)
+        ?? [...timeline.segments].reverse().find(s => s.kind === 'trip')
+        ?? null;
+    if (!trip) return;
+
+    const start = segmentStartMs(trip);
+    const end = Math.min(segmentEndMs(trip), window.endMs);
+    let from = this.playheadMs;
+    if (from < start || from >= end - 500) from = start;
+
+    if (this.selectedId !== trip.id) {
+      this.selectedId = trip.id;
+      if (!this.openDays.has(trip.date)) this.openDays = new Set(this.openDays).add(trip.date);
+      this.refreshRows();
+      this.historyMap?.focusSegment(trip.id);
+    }
+
+    this.startTimer(from, end);
+  }
+
+  /** Older API without a timeline: play from the playhead to the last fix. */
+  private playWholeRoute(): void {
+    const first = this.routeTimes[0];
+    const last = this.routeTimes[this.routeTimes.length - 1];
+    if (!Number.isFinite(first) || !Number.isFinite(last) || last <= first || this.playheadMs == null) return;
+    let from = this.playheadMs;
+    if (from < first || from >= last - 500) from = first;
+    this.startTimer(from, last);
+  }
+
+  private startTimer(from: number, end: number): void {
+    this.playheadMs = from;
+    this.playEndMs = end;
+    this.playing = true;
+    this.lastTickAt = performance.now();
+    this.playTimer = setInterval(() => this.playTick(), PLAY_TICK_MS);
+    this.refreshDock();
+    this.refreshPlayhead(false);
+  }
+
+  private playTick(): void {
+    if (this.playheadMs == null) {
+      this.stopPlayback();
+      return;
+    }
+    const now = performance.now();
+    const elapsed = now - this.lastTickAt;
+    this.lastTickAt = now;
+
+    let next = this.playheadMs + elapsed * PLAYBACK_SPEEDUP * this.rate;
+    const finished = next >= this.playEndMs;
+    if (finished) next = this.playEndMs;
+    this.playheadMs = next;
+    if (finished) this.stopPlayback();
+    this.refreshDock();
+    this.refreshPlayhead(finished);
+  }
+
+  private stopPlayback(): void {
+    this.playing = false;
+    if (this.playTimer) {
+      clearInterval(this.playTimer);
+      this.playTimer = undefined;
+    }
+  }
+
+  cycleRate(): void {
+    this.rate = nextRate(this.rate);
+    this.persistWorkspace();
+  }
+
+  toggleFollow(): void {
+    this.follow = !this.follow;
+    this.persistWorkspace();
+  }
+
+  setDockZoom(zoom: DockZoom): void {
+    this.dockZoom = zoom;
+    this.persistWorkspace();
+    this.refreshDock(true);
+    this.refreshPlayhead(false);
+  }
+
+  /** Previous / next standstill that the list shows at the current "hide stops" setting. */
+  stepStandstill(direction: 1 | -1): void {
+    const timeline = this.timeline;
+    if (!timeline || this.playheadMs == null) return;
+    const selected = this.selectedSegment;
+    let from = selected && selected.kind !== 'trip' ? segmentStartMs(selected) : this.playheadMs;
+    for (let guard = 0; guard < timeline.segments.length; guard++) {
+      const target = direction > 0 ? nextStandstill(timeline, from) : previousStandstill(timeline, from);
+      if (!target) return;
+      if (target.durationMinutes >= this.hideStopsUnderMinutes) {
+        this.selectSegment(target.id);
+        return;
+      }
+      from = segmentStartMs(target);
+    }
+  }
+
+  seekToPercent(percent: number): void {
+    if (this.dock.range) this.seekTo(percentToTime(percent, this.dock.range));
+  }
+
+  /** Move the playhead; whatever is there becomes the selection. */
+  seekTo(ms: number): void {
+    const window = this.windowRange;
+    if (!window || !Number.isFinite(ms)) return;
+    this.stopPlayback();
+
+    let at = Math.min(window.endMs, Math.max(window.startMs, ms));
+    const selected = this.selectedSegment;
+    if (this.dockZoom === 'trip' && selected) {
+      // Zoomed to one segment: stay inside it, so the dock does not jump to its neighbour.
+      at = Math.min(segmentEndMs(selected) - 1, Math.max(segmentStartMs(selected), at));
+    } else {
+      const here = this.timeline ? segmentAt(this.timeline, at) : null;
+      const id = here?.id ?? null;
+      if (id !== this.selectedId) {
+        this.selectedId = id;
+        if (here && !this.openDays.has(here.date)) this.openDays = new Set(this.openDays).add(here.date);
+        this.refreshRows();
+      }
+    }
+
+    this.playheadMs = at;
+    this.refreshDock();
+    this.refreshPlayhead(true);
+  }
+
+  // ---- map and panels --------------------------------------------------------------------------------
+
+  toggleLayer(key: LayerKey): void {
+    this.layers = { ...this.layers, [key]: !this.layers[key] };
+    this.persistWorkspace();
+    if (key === 'points' && this.layers.points) void this.ensureRawPositionsLoaded();
+    if (key === 'geofences' && this.layers.geofences) this.ensureGeofencesLoaded();
+  }
+
+  setMapType(type: HistoryMapType): void {
+    this.mapType = type;
+    this.persistWorkspace();
+  }
+
+  togglePanel(panel: PanelKey): void {
+    if (panel === 'timeline') this.showTimeline = !this.showTimeline;
+    else if (panel === 'dock') this.showDock = !this.showDock;
+    else this.showDetails = !this.showDetails;
+    this.persistWorkspace();
+  }
+
+  onMapSegmentSelected(id: string): void {
+    this.selectSegment(id, false);
+  }
+
+  private persistWorkspace(): void {
+    storeWorkspacePrefs({
+      showTimeline: this.showTimeline,
+      showDock: this.showDock,
+      showDetails: this.showDetails,
+      layers: this.layers,
+      mapType: this.mapType,
+      timelineFilter: this.timelineFilter,
+      hideStopsUnderMinutes: this.hideStopsUnderMinutes,
+      rate: this.rate,
+      follow: this.follow,
+      dockZoom: this.dockZoom
+    });
+  }
+
+  /** Geofence outlines, loaded once per company the first time the layer is on. */
+  private ensureGeofencesLoaded(): void {
+    if (!this.scopeFilter.isFleetScopeReady || this.geofenceScope === this.tenantScopeId) return;
+    this.geofenceScope = this.tenantScopeId;
+    this.geofenceSub?.unsubscribe();
+    this.geofenceSub = this.gps.getGeofences({ isActive: true }).subscribe({
+      next: list => { this.geofences = list ?? []; },
+      error: () => { this.geofences = []; }
+    });
+  }
+
+  // ---- point details ---------------------------------------------------------------------------------
+
+  openDetailInMaps(): void {
+    if (this.detail.latitude != null && this.detail.longitude != null) {
+      this.openExternalMap(this.detail.latitude, this.detail.longitude);
+    }
+  }
+
+  copyCoordinates(text: string): void {
+    void navigator.clipboard.writeText(text).then(
+      () => this.toast.success('Coordinates copied'),
+      () => this.toast.error('Could not copy coordinates')
+    );
   }
 
   motionLabel(pos: TripReplayPosition | null): string {
@@ -695,200 +1390,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return 'Address unavailable';
   }
 
-  addressPrimaryLine(address: string | null | undefined): string | null {
-    return splitDisplayAddress(address).primary;
-  }
-
-  addressSecondaryLine(address: string | null | undefined): string | null {
-    return splitDisplayAddress(address).secondary;
-  }
-
-  stopAddressLabel(stop: TripStop): string {
-    if (stop.address?.trim() && !isCoarseAddress(stop.address)) return stop.address;
-    const key = this.addressCacheKey(stop.latitude, stop.longitude);
-    if (this.addressCache.has(key)) {
-      const cached = this.addressCache.get(key);
-      return cached?.trim() || stop.address?.trim() || 'Address unavailable';
-    }
-    if (this.resolvingAddressKey === key) return 'Resolving…';
-    return stop.address?.trim() || 'Address unavailable';
-  }
-
-  /** "Parking — Circular Road, Sialkot" */
-  stopHeadline(stop: TripStop): string {
-    return this.stopLabel(stop);
-  }
-
-  isParkingStop(stop: TripStop): boolean {
-    return stop.durationMinutes >= 120;
-  }
-
-  stopPrimaryLine(stop: TripStop): string {
-    const key = this.addressCacheKey(stop.latitude, stop.longitude);
-    const meta = this.addressMetaCache.get(key);
-    const near =
-      meta?.nearbyPlaceName?.trim() ||
-      meta?.placeName?.trim() ||
-      null;
-
-    if (meta?.primaryAddress?.trim()) {
-      const primary = meta.primaryAddress.trim();
-      // Never show the POI/business name as the street line.
-      if (near && primary.toLowerCase() === near.toLowerCase()) {
-        return (
-          meta.localityLine?.trim() ||
-          this.addressPrimaryLine(meta.formattedAddress) ||
-          'Approximate location'
-        );
-      }
-      return primary;
-    }
-
-    if (meta?.localityLine?.trim()) return meta.localityLine.trim();
-
-    const full = this.stopAddressLabel(stop);
-    if (full === 'Resolving…') return full;
-    if (full === 'Address unavailable') {
-      return near ? 'Approximate location' : full;
-    }
-    const split = splitDisplayAddress(full);
-    if (split.primary) return split.primary;
-    // POI-only / business-name-only → do not promote as the street line.
-    return near || split.secondary ? 'Approximate location' : full;
-  }
-
-  stopNearbyLine(stop: TripStop): string | null {
-    const key = this.addressCacheKey(stop.latitude, stop.longitude);
-    const meta = this.addressMetaCache.get(key);
-    let near =
-      meta?.nearbyPlaceName?.trim() ||
-      meta?.placeName?.trim() ||
-      null;
-
-    // Cached stop.address may be a lone POI until reverse-geocode refresh completes.
-    if (!near) {
-      const raw = stop.address?.trim() || this.addressCache.get(key)?.trim() || '';
-      if (raw && isCoarseAddress(raw)) {
-        const split = splitDisplayAddress(raw);
-        if (split.secondary && !looksLikeRoadSegment(split.secondary)) {
-          near = split.secondary;
-        } else {
-          const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
-          if (parts.length === 1 && !looksLikeRoadSegment(parts[0])) {
-            near = parts[0];
-          }
-        }
-      }
-    }
-
-    if (!near) return null;
-    const primary = this.stopPrimaryLine(stop).toLowerCase();
-    if (primary.includes(near.toLowerCase())) return null;
-    return `Near ${near}`;
-  }
-
-  stopLocalityLine(stop: TripStop): string | null {
-    const key = this.addressCacheKey(stop.latitude, stop.longitude);
-    const meta = this.addressMetaCache.get(key);
-    if (meta?.localityLine?.trim()) {
-      const loc = meta.localityLine.trim();
-      const primary = this.stopPrimaryLine(stop).toLowerCase();
-      if (primary.includes(loc.toLowerCase())) return null;
-      return loc;
-    }
-    const secondary = this.addressSecondaryLine(this.stopAddressLabel(stop));
-    if (!secondary) return null;
-    // Do not treat a POI/business name as the locality line.
-    if (!looksLikeRoadSegment(secondary) && secondary.split(/\s+/).length >= 3) {
-      return null;
-    }
-    const primary = this.stopPrimaryLine(stop).toLowerCase();
-    if (primary.includes(secondary.toLowerCase())) return null;
-    return secondary;
-  }
-
-  formatCompactDuration(minutes: number): string {
-    if (!minutes || minutes < 1) return '0m';
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  }
-
-  stopTimeWindowLabel(stop: TripStop): string {
-    const start = new Date(stop.startTime);
-    const end = new Date(stop.endTime);
-    const zone = this.bundle?.timeZoneId;
-    const day = formatDateInZone(start, { month: 'short', day: 'numeric' }, zone);
-    const startTime = formatTimeInZone(start, { hour: 'numeric', minute: '2-digit' }, zone);
-    if (!(end instanceof Date) || Number.isNaN(end.getTime()) || end <= start) {
-      return `${day} · ${startTime}`;
-    }
-    const endTime = formatTimeInZone(end, { hour: 'numeric', minute: '2-digit' }, zone);
-    const sameDay = toZonedDateInput(start, zone) === toZonedDateInput(end, zone);
-    if (sameDay) return `${day} · ${startTime} – ${endTime}`;
-    const endDay = formatDateInZone(end, { month: 'short', day: 'numeric' }, zone);
-    return `${day} ${startTime} – ${endDay} ${endTime}`;
-  }
-
   private ensureAddress(pos: TripReplayPosition): void {
     const coarse = isCoarseAddress(pos.address);
     if (pos.address?.trim() && !coarse) return;
     const key = this.addressCacheKey(pos.latitude, pos.longitude);
-    if (!coarse && this.addressCache.has(key)) {
-      const cached = this.addressCache.get(key);
-      if (cached) this.patchPositionAddress(pos, cached);
-      return;
-    }
+    if (this.addressCache.has(key)) return;
     this.resolvingAddressKey = key;
     this.geocodeRequests$.next({
       lat: pos.latitude,
       lng: pos.longitude,
       forceRefresh: false,
-      apply: addr => this.patchPositionAddress(pos, addr)
+      apply: addr => { pos.address = addr; }
     });
-  }
-
-  private enrichStopAddresses(stops: TripStop[]): void {
-    for (const stop of stops.slice(0, 15)) {
-      this.ensureStopAddress(stop);
-    }
-  }
-
-  private ensureStopAddress(stop: TripStop): void {
-    const coarse = isCoarseAddress(stop.address);
-    if (stop.address?.trim() && !coarse) return;
-    const key = this.addressCacheKey(stop.latitude, stop.longitude);
-    if (!coarse && this.addressCache.has(key)) {
-      const cached = this.addressCache.get(key);
-      if (cached) stop.address = cached;
-      return;
-    }
-    this.resolvingAddressKey = key;
-    this.geocodeRequests$.next({
-      lat: stop.latitude,
-      lng: stop.longitude,
-      forceRefresh: false,
-      apply: addr => {
-        stop.address = addr;
-        if (this.bundle) {
-          this.bundle = { ...this.bundle, stops: [...this.bundle.stops] };
-        }
-      }
-    });
-  }
-
-  private patchPositionAddress(pos: TripReplayPosition, address: string): void {
-    pos.address = address;
-    if (
-      this.selectedPosition &&
-      this.selectedPosition.latitude === pos.latitude &&
-      this.selectedPosition.longitude === pos.longitude &&
-      this.selectedPosition.timestamp === pos.timestamp
-    ) {
-      this.selectedPosition = { ...this.selectedPosition, address };
-    }
   }
 
   private addressCacheKey(lat: number, lng: number): string {
@@ -911,14 +1424,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return `${Math.round(heading)}° ${dirs[idx]}`;
   }
 
-  formatDuration(minutes: number): string {
-    if (!minutes || minutes < 1) return '0 min';
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m} min`;
-    if (m === 0) return `${h} hr`;
-    return `${h} hr ${m} min`;
-  }
+  // ---- vehicles ---------------------------------------------------------------------------------------
 
   vehicleStatusLabel(v: VehicleListItem): string {
     if (v.gpsOnline) return 'Online';
@@ -926,15 +1432,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return 'No GPS';
   }
 
-  vehicleStatusClass(v: VehicleListItem): string {
+  vehicleStatusClass(v: VehicleListItem): 'online' | 'offline' | 'none' {
     if (v.gpsOnline) return 'online';
     if (v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id)) return 'offline';
     return 'none';
-  }
-
-  gsmLabel(pos: TripReplayPosition | null): string {
-    if (pos?.satellites == null) return '—';
-    return `${pos.satellites} (GSM / RSSI)`;
   }
 
   trackerLabel(vehicleId: number): string {
@@ -965,21 +1466,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return formatStalenessLabel(iso, this.clockNow);
   }
 
-  isCompareSelected(vehicleId: number): boolean {
-    return this.compareSelectedIds.has(vehicleId);
-  }
-
-  toggleCompareVehicle(vehicleId: number, event: Event): void {
-    event.stopPropagation();
+  toggleCompareVehicle(vehicleId: number): void {
     if (this.compareSelectedIds.has(vehicleId)) {
       this.compareSelectedIds.delete(vehicleId);
     } else if (this.compareSelectedIds.size >= HISTORY_COMPARE_MAX_VEHICLES) {
       this.toast.error(`Compare up to ${HISTORY_COMPARE_MAX_VEHICLES} vehicles at once.`);
+      this.refreshVehicleCards();
       return;
     } else {
       this.compareSelectedIds.add(vehicleId);
     }
     this.compareSelectedIds = new Set(this.compareSelectedIds);
+    this.refreshVehicleCards();
     if (this.vehicleId) {
       void this.reloadCompareRoutes();
     }
@@ -988,23 +1486,20 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   clearCompareSelection(): void {
     this.compareSelectedIds = new Set();
     this.compareOverlays = [];
+    this.refreshVehicleCards();
   }
 
   onFilterStationaryChange(enabled: boolean): void {
     this.filterStationaryOverOneHour = enabled;
     this.persistHistoryPrefs();
-  }
-
-  onHideBeforeChange(): void {
-    this.persistHistoryPrefs();
+    this.refreshVehicleCards();
   }
 
   openExternalMap(lat: number, lng: number): void {
     window.open(googleMapsUrl(lat, lng), '_blank', 'noopener,noreferrer');
   }
 
-  openMapForVehicle(vehicleId: number, event?: Event): void {
-    event?.stopPropagation();
+  openMapForVehicle(vehicleId: number): void {
     const live = this.liveLocations.get(vehicleId);
     const v = this.vehicles.find(x => x.id === vehicleId);
     const lat = live?.latitude ?? v?.locationLatitude;
@@ -1016,8 +1511,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.openExternalMap(lat, lng);
   }
 
-  openLiveFleetMap(vehicleId: number, event?: Event): void {
-    event?.stopPropagation();
+  openLiveFleetMap(vehicleId: number): void {
     void this.router.navigate(['/gps-tracking/live'], {
       queryParams: { vehicleId: String(vehicleId) }
     });
@@ -1031,6 +1525,42 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     );
   }
 
+  deviceFor(vehicleId: number): GpsDevice | undefined {
+    return this.devices.find(d => d.vehicleId === vehicleId);
+  }
+
+  private loadDevices(): void {
+    this.gps.getDevices(this.tenantScopeId).subscribe({
+      next: d => {
+        this.devices = d;
+        this.refreshVehicleCards();
+      },
+      error: () => {}
+    });
+  }
+
+  // ---- export and share -------------------------------------------------------------------------------
+
+  /** The period as picked, for report headers. */
+  get periodLabelDetailed(): string {
+    if (!this.from || !this.to) return '—';
+    // Picker values are company-zone wall time — show them as picked.
+    const fmt = (raw: string) =>
+      formatInZone(parseDatetimeLocalInput(raw), {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    return `${fmt(this.from)} → ${fmt(this.to)}`;
+  }
+
+  /** The strip's figures as one line: the same numbers the screen shows. */
+  private summaryLine(): string {
+    return this.kpis
+      .filter(k => k.value !== '—')
+      .map(k => `${k.label}: ${k.value}${k.unit ? ' ' + k.unit : ''}`)
+      .join(' · ');
+  }
+
   exportHistoryReportPdf(): void {
     if (!this.vehicleId || !this.bundle) {
       this.toast.error('Load a route before exporting the report.');
@@ -1041,44 +1571,38 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       ? `${vehicle.name} (${vehicle.registrationNumber || '—'})`
       : `Vehicle #${this.vehicleId}`;
     const driver = this.driverLabel(this.vehicleId);
-    const stats = this.quickStats;
-    const summaryLine = [
-      `Driver: ${driver}`,
-      stats.distanceKm != null ? `Distance: ${Number(stats.distanceKm).toFixed(1)} km` : '',
-      `Moving: ${stats.moving}`,
-      `Non-moving: ${this.nonMovingDurationLabel}`,
-      `Stops: ${stats.stops}`,
-      `Parking: ${stats.parking}`,
-      stats.maxSpeed != null ? `Max speed: ${stats.maxSpeed} km/h` : ''
-    ].filter(Boolean).join(' · ');
 
-    type StopRow = {
-      driver: string;
-      kind: string;
-      window: string;
-      duration: string;
-      address: string;
-    };
-    const rows: StopRow[] = this.visibleStops.slice(0, 200).map(s => ({
-      driver,
-      kind: this.stopLabel(s),
-      window: this.stopTimeWindowLabel(s),
-      duration: this.formatCompactDuration(s.durationMinutes),
-      address: this.stopPrimaryLine(s)
-    }));
+    type ReportRow = { type: string; window: string; duration: string; distance: string; place: string };
+    const zone = this.zone;
+    const timeline = this.timeline;
+    const rows: ReportRow[] = timeline
+      ? timeline.segments.slice(0, MAX_REPORT_ROWS).map(s => ({
+          type: s.kind === 'trip' ? 'Trip' : s.kind === 'parking' ? 'Parking' : 'Stop',
+          window: `${formatDay(s.startTime, zone)} · ${formatTimeRange(s.startTime, s.endTime, zone)}`,
+          duration: formatDuration(s.durationMinutes),
+          distance: s.kind === 'trip' ? `${(Number(s.distanceKm) || 0).toFixed(1)} km` : '',
+          place: s.kind === 'trip' ? tripTitle(s) : standstillWhere(s)
+        }))
+      : (this.bundle.stops ?? []).slice(0, MAX_REPORT_ROWS).map(s => ({
+          type: s.durationMinutes >= 120 ? 'Parking' : 'Stop',
+          window: `${formatDay(s.startTime, zone)} · ${formatTimeRange(s.startTime, s.endTime, zone)}`,
+          duration: formatDuration(s.durationMinutes),
+          distance: '',
+          place: s.address?.trim() || `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`
+        }));
 
-    const columns: ExportColumn<StopRow>[] = [
-      { header: 'Driver', accessor: r => r.driver, excelWidth: 18 },
-      { header: 'Type', accessor: r => r.kind, excelWidth: 10 },
-      { header: 'Time window', accessor: r => r.window, excelWidth: 28 },
+    const columns: ExportColumn<ReportRow>[] = [
+      { header: 'Type', accessor: r => r.type, excelWidth: 10 },
+      { header: 'Time window', accessor: r => r.window, excelWidth: 30 },
       { header: 'Duration', accessor: r => r.duration, excelWidth: 10 },
-      { header: 'Location', accessor: r => r.address, excelWidth: 36 }
+      { header: 'Distance', accessor: r => r.distance, excelWidth: 10 },
+      { header: 'Place', accessor: r => r.place, excelWidth: 40 }
     ];
 
     void this.exportService.exportPdf(rows, columns, {
       filename: `fleet-history-report-${this.vehicleId}`,
       title: `Fleet History Report — ${label}`,
-      subtitle: `${this.periodLabelDetailed}\n${summaryLine}`,
+      subtitle: `${this.periodLabelDetailed}\nDriver: ${driver} · ${this.summaryLine()}`,
       sheetName: 'History',
       orientation: 'portrait'
     });
@@ -1142,12 +1666,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     });
   }
 
-  focusStop(stop: TripStop, index?: number): void {
-    this.selectedStopIndex = index ?? null;
-    this.ensureStopAddress(stop);
-    this.replayMap?.focusStop(stop.latitude, stop.longitude, stop.startTime);
-  }
-
   printRoute(): void {
     window.print();
   }
@@ -1171,27 +1689,20 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   shareRouteText(): void {
     const v = this.selectedVehicle;
-    const stats = this.quickStats;
     const text = [
       `Route: ${v?.name ?? 'Vehicle'} (${v?.registrationNumber ?? ''})`,
       `Period: ${this.periodLabelDetailed}`,
-      stats.distanceKm != null ? `Distance: ${stats.distanceKm} km` : '',
-      `Moving: ${stats.moving}`,
-      `Stops: ${stats.stops}`
-    ].filter(Boolean).join('\n');
+      ...this.kpis
+        .filter(k => k.value !== '—')
+        .map(k => `${k.label}: ${k.value}${k.unit ? ' ' + k.unit : ''}`)
+    ].join('\n');
     void navigator.clipboard.writeText(text).then(
       () => this.toast.success('Route summary copied'),
       () => this.toast.error('Could not copy summary')
     );
   }
 
-  deviceFor(vehicleId: number): GpsDevice | undefined {
-    return this.devices.find(d => d.vehicleId === vehicleId);
-  }
-
-  stopLabel(stop: TripStop): string {
-    return stop.durationMinutes >= 120 ? 'Parking' : 'Stop';
-  }
+  // ---- background data ----------------------------------------------------------------------------------
 
   private refreshLiveLocations(): void {
     this.liveLocSub?.unsubscribe();
@@ -1203,6 +1714,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       next: rows => {
         this.liveLocations = new Map(rows.map(r => [r.vehicleId, r]));
         this.clockNow = Date.now();
+        this.refreshVehicleCards();
         this.evaluateStationary24hAlerts();
       },
       error: () => {}
@@ -1212,7 +1724,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   private persistHistoryPrefs(): void {
     storeHistoryPagePrefs({
       stationaryOverOneHour: this.filterStationaryOverOneHour,
-      hideRecordsBefore: this.hideRecordsBefore || null,
+      hideRecordsBefore: this.storedHideRecordsBefore,
       alertStationary24h: this.alertStationary24h
     });
   }
@@ -1265,7 +1777,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       )
     ).subscribe(bundles => {
       this.compareLoading = false;
-      const overlays: HistoryCompareRouteOverlay[] = [];
+      const overlays: HistoryMapCompareRoute[] = [];
       ids.forEach((id, idx) => {
         const bundle = bundles[idx];
         const route = bundle?.route?.length
@@ -1377,7 +1889,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   private readQueryParams(): void {
-    const qp = this.route.snapshot.queryParamMap;
+    const qp = this.route$.snapshot.queryParamMap;
     const vehicleParam = qp.get('vehicleId');
     const presetParam = qp.get('preset') as TripDatePreset | null;
 
@@ -1390,6 +1902,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
     if (qp.get('from')) this.from = qp.get('from')!;
     if (qp.get('to')) this.to = qp.get('to')!;
+    this.refreshRangeLabels();
 
     if (vehicleParam) {
       const id = Number(vehicleParam);
@@ -1416,7 +1929,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       queryParams['to'] = null;
     }
     void this.router.navigate([], {
-      relativeTo: this.route,
+      relativeTo: this.route$,
       queryParams,
       queryParamsHandling: 'merge',
       replaceUrl: true

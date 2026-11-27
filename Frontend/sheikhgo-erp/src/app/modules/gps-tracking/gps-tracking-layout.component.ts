@@ -69,9 +69,16 @@ export class GpsTrackingLayoutComponent implements OnInit, OnDestroy {
     return this.activeChild === 'commands';
   }
 
-  /** Company/vehicle scope bar — hidden on Device Commands (no region/scope UI there). */
+  get isHistoryRoute(): boolean {
+    return this.activeChild === 'history';
+  }
+
+  /**
+   * Company/vehicle scope bar — hidden on Device Commands (no region/scope UI there) and on
+   * History, whose toolbar has its own vehicle picker bound to the same scope.
+   */
   get showScopeFilterBar(): boolean {
-    return !this.isCommandsRoute;
+    return !this.isCommandsRoute && !this.isHistoryRoute;
   }
 
   /** Hide the generic Fleet Tracking header when a page supplies its own hero. */

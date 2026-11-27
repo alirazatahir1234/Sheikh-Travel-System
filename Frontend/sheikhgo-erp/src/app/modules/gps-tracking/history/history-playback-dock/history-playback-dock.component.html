@@ -1,0 +1,118 @@
+<div class="dock">
+  <div class="dock-row">
+    <div class="dock-transport">
+      <button type="button" class="dock-step" aria-label="Previous stop" [disabled]="!hasStops" (click)="previousStop.emit()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 6l-8 6l8 6zM7 6v12"></path>
+        </svg>
+      </button>
+      <button type="button" class="dock-play" [attr.aria-label]="playing ? 'Pause' : 'Play'" [disabled]="!canPlay" (click)="playToggle.emit()">
+        <svg *ngIf="playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"></path>
+        </svg>
+        <svg *ngIf="!playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5l11 7l-11 7z"></path>
+        </svg>
+      </button>
+      <button type="button" class="dock-step" aria-label="Next stop" [disabled]="!hasStops" (click)="nextStop.emit()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 6l8 6l-8 6zM17 6v12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="dock-readout dock-readout--clock">
+      <span class="dock-readout__label">{{ dateLabel || '—' }}</span>
+      <span class="dock-readout__clock">{{ clockLabel }}</span>
+    </div>
+    <div class="dock-readout dock-readout--speed">
+      <span class="dock-readout__label">Speed</span>
+      <span class="dock-readout__value">{{ speedLabel }}</span>
+    </div>
+
+    <div class="dock-end">
+    <div class="dock-seg" role="group" aria-label="Timeline zoom">
+      <button
+        type="button"
+        class="dock-seg__btn"
+        *ngFor="let z of zooms"
+        [class.dock-seg__btn--on]="zoom === z.id"
+        [attr.aria-pressed]="zoom === z.id"
+        [disabled]="z.id === 'week' && !weekAvailable"
+        (click)="setZoom(z.id)">
+        {{ z.label }}
+      </button>
+    </div>
+    <button type="button" class="dock-rate" [attr.aria-label]="'Playback speed ' + rateLabel + ', change'" (click)="rateCycle.emit()">
+      {{ rateLabel }}
+    </button>
+    <button
+      type="button"
+      class="dock-follow"
+      [class.dock-follow--on]="follow"
+      [attr.aria-pressed]="follow"
+      aria-label="Follow vehicle"
+      (click)="followToggle.emit()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+        <path d="M12 3v4M12 17v4M3 12h4M17 12h4M12 16a4 4 0 1 0 0-8a4 4 0 0 0 0 8z"></path>
+      </svg>
+    </button>
+    </div>
+  </div>
+
+  <div
+    class="dock-track"
+    #track
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerUp($event)">
+    <svg class="dock-chart" [attr.viewBox]="viewBox" preserveAspectRatio="none" role="img" [attr.aria-label]="chartLabel">
+      <path [attr.d]="gridPath" fill="none" stroke="#e2e8f0" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+      <path *ngIf="speedArea" [attr.d]="speedArea" fill="#ccfbf1"></path>
+      <path *ngIf="speedLine" [attr.d]="speedLine" fill="none" stroke="#0e766e" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+    </svg>
+    <span class="dock-max" *ngIf="maxSpeedLabel">{{ maxSpeedLabel }}</span>
+
+    <div class="dock-bar">
+      <span
+        class="dock-outside"
+        *ngFor="let o of outside"
+        [style.left.%]="o.leftPercent"
+        [style.width.%]="o.widthPercent"
+        aria-hidden="true"></span>
+      <button
+        type="button"
+        class="dock-block"
+        *ngFor="let b of blocks; trackBy: trackBlock"
+        [class.dock-block--trip]="b.kind === 'trip'"
+        [class.dock-block--stop]="b.kind === 'stop'"
+        [class.dock-block--parking]="b.kind === 'parking'"
+        [class.dock-block--on]="b.id === selectedId"
+        [style.left.%]="b.leftPercent"
+        [style.width.%]="b.widthPercent"
+        [attr.aria-label]="b.label"
+        [attr.aria-pressed]="b.id === selectedId"
+        (click)="onBlockClick(b, $event)"></button>
+    </div>
+
+    <div
+      class="dock-head"
+      *ngIf="playheadPercent != null"
+      role="slider"
+      tabindex="0"
+      aria-label="Playback position"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      [attr.aria-valuenow]="playheadPercent | number: '1.0-0'"
+      [attr.aria-valuetext]="dateLabel + ', ' + clockLabel"
+      [style.left.%]="playheadPercent"
+      (keydown)="onHeadKey($event)">
+      <span class="dock-head__knob"></span>
+    </div>
+  </div>
+
+  <div class="dock-axis" aria-hidden="true">
+    <span *ngFor="let t of ticks">{{ t.label }}</span>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<div class="hmap" #mapEl role="application" aria-label="Map of the route, stops and parking for the selected period"></div>
+
+<div class="hmap-state hmap-state--loading" *ngIf="loading">
+  <div class="hmap-card">
+    <app-brand-loader size="sm" message="Loading route…" />
+    <div class="hmap-progress" role="progressbar" aria-label="Loading route">
+      <div class="hmap-progress__bar"></div>
+    </div>
+    <p class="hmap-note" *ngIf="loadingTimedOut">
+      This is taking longer than expected. Large ranges can take a little longer to load.
+    </p>
+    <button type="button" class="hmap-retry" *ngIf="loadingTimedOut" (click)="requestRetry()">Retry</button>
+  </div>
+</div>
+
+<div class="hmap-state" *ngIf="!loading && noData" role="status">
+  <div class="hmap-card">
+    <strong>No GPS history in this period</strong>
+    <span>Try another range, or check that the vehicle's tracker was reporting.</span>
+  </div>
+</div>
+
+<div class="hmap-state" *ngIf="!loading && !noData && !hasRoute && emptyHint" role="status">
+  <div class="hmap-card">
+    <strong>No route loaded</strong>
+    <span>{{ emptyHint }}</span>
+  </div>
+</div>
+
+<p class="hmap-unavailable" *ngIf="mapsUnavailable" role="status">{{ mapsUnavailable }}</p>

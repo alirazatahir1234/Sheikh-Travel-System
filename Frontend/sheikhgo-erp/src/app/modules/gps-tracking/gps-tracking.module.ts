@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { SharedModule } from '../../shared/shared.module';
+import { OverlayModule } from '@angular/cdk/overlay';
+import { A11yModule } from '@angular/cdk/a11y';
 import { UiInputComponent } from '../../shared/components/ui/input/ui-input.component';
 import { UiSelectComponent } from '../../shared/components/ui/select/ui-select.component';
 import { UiChartComponent } from '../../shared/components/ui/chart/ui-chart.component';
@@ -16,6 +18,11 @@ import { FleetKpiStripComponent } from './live-map/fleet-kpi-strip/fleet-kpi-str
 import { NearbyPlacesPanelComponent } from './live-map/nearby-places-panel/nearby-places-panel.component';
 import { VehicleDetailPanelComponent } from './live-map/vehicle-detail-panel/vehicle-detail-panel.component';
 import { GpsHistoryComponent } from './history/gps-history.component';
+import { HistoryMapComponent } from './history/history-map/history-map.component';
+import { HistoryPlaybackDockComponent } from './history/history-playback-dock/history-playback-dock.component';
+import { HistoryPointDetailsComponent } from './history/history-point-details/history-point-details.component';
+import { HistoryTimelinePanelComponent } from './history/history-timeline-panel/history-timeline-panel.component';
+import { HistoryVehiclePickerComponent } from './history/history-vehicle-picker/history-vehicle-picker.component';
 import { GpsTripsComponent } from './trips/gps-trips.component';
 import { TripDetailPageComponent } from './trip-detail/trip-detail-page.component';
 import { TripReplayMapComponent } from './shared/trip-replay-map/trip-replay-map.component';
@@ -159,6 +166,10 @@ const routes: Routes = [
     CriticalAlertsCardComponent, RecentActivitiesCardComponent,
     AnalyticsReportSchedulesComponent,
     FatigueEventsPageComponent,
+    // History workspace: overlay + focus trap for its pickers, and its five panels.
+    OverlayModule, A11yModule,
+    HistoryVehiclePickerComponent, HistoryTimelinePanelComponent, HistoryMapComponent,
+    HistoryPlaybackDockComponent, HistoryPointDetailsComponent,
     RouterModule.forChild(routes)
   ]
 })
