@@ -21,7 +21,7 @@ public static class Gt06Ev26rCommandTemplatesMigration
         using var connection = dbFactory.CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            DECLARE @JimiId INT = (SELECT TOP 1 Id FROM TrackerBrands WHERE BrandKey = N'jimi' OR Name LIKE N'Jimi%');
+            DECLARE @JimiId INT = (SELECT TOP 1 Id FROM TrackerBrands WHERE VendorKey = N'jimi' OR Name LIKE N'Jimi%');
             IF @JimiId IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM TrackerModels WHERE CatalogKey = N'jimi_ev26r')
                 INSERT INTO TrackerModels (
