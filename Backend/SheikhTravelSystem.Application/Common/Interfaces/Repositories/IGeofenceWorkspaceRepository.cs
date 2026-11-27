@@ -33,6 +33,9 @@ public interface IGeofenceWorkspaceRepository
 
     Task<GeofenceVisitsSummaryDto> GetVisitsSummaryAsync(GeofenceVisitFilter filter, CancellationToken cancellationToken = default);
 
+    /// <summary>The visits matching <paramref name="filter"/> grouped by vehicle, driver, geofence or local day.</summary>
+    Task<GeofenceVisitGroupsDto> GetVisitGroupsAsync(GeofenceVisitFilter filter, string groupBy, CancellationToken cancellationToken = default);
+
     Task<TestGeofenceShapeResultDto> TestShapeAsync(TestGeofenceShapeDto shape, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<GeofenceGroupDto>> GetGroupsAsync(CancellationToken cancellationToken = default);

@@ -76,6 +76,18 @@ public partial class GpsTrackingController
         => Ok(await Mediator.Send(new GetGeofenceVisitsSummaryQuery(geofenceId, vehicleIds, driverId, from, to)));
 
     [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
+    [HttpGet("geofences/visits/groups")]
+    public async Task<IActionResult> GetGeofenceVisitGroups(
+        [FromQuery] string groupBy,
+        [FromQuery] int? geofenceId,
+        [FromQuery] string? vehicleIds,
+        [FromQuery] int? driverId,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? status)
+        => Ok(await Mediator.Send(new GetGeofenceVisitGroupsQuery(groupBy, geofenceId, vehicleIds, driverId, from, to, status)));
+
+    [RequireFeature(GpsAddOnFeatureCatalog.Geofencing, "Geofencing")]
     [HttpPost("geofences/test-shape")]
     [RequirePermission(GpsPermissions.GeofenceManage)]
     public async Task<IActionResult> TestGeofenceShape([FromBody] TestGeofenceShapeDto shape)

@@ -243,6 +243,42 @@ public sealed class GeofenceVisitsSummaryDto
     public IReadOnlyList<bool> DwellBreachHoursToday { get; init; } = [];
 }
 
+/// <summary>How the visits report groups its rows (TypeScript: GeofenceVisitGroupBy). A plain list of visits is the paged table.</summary>
+public static class GeofenceVisitGroupBy
+{
+    public const string Vehicle = "vehicle";
+    public const string Driver = "driver";
+    public const string Geofence = "geofence";
+    public const string Day = "day";
+
+    public static readonly IReadOnlyList<string> Values = [Vehicle, Driver, Geofence, Day];
+}
+
+/// <summary>One group of the visits report: a vehicle, a driver, a geofence or a local day.</summary>
+public sealed class GeofenceVisitGroupDto
+{
+    /// <summary>The vehicle, driver or geofence id; the local day as yyyy-MM-dd; "none" for visits without a driver.</summary>
+    public string Key { get; init; } = string.Empty;
+    public string Label { get; init; } = string.Empty;
+    public int Visits { get; init; }
+    public int Vehicles { get; init; }
+    public int InsideNow { get; init; }
+    /// <summary>Open visits count up to now, as in the report KPIs.</summary>
+    public int TotalMinutes { get; init; }
+    public double? AvgMinutes { get; init; }
+    public int IdleMinutes { get; init; }
+    public int Breaches { get; init; }
+}
+
+public sealed class GeofenceVisitGroupsDto
+{
+    public string GroupBy { get; init; } = GeofenceVisitGroupBy.Vehicle;
+    public IReadOnlyList<GeofenceVisitGroupDto> Items { get; init; } = [];
+    /// <summary>True when more visits matched than one report reads; the groups then cover the newest visits only.</summary>
+    public bool Capped { get; init; }
+    public int VisitsRead { get; init; }
+}
+
 public sealed class TestGeofenceShapeDto
 {
     public string AreaType { get; init; } = "circle";

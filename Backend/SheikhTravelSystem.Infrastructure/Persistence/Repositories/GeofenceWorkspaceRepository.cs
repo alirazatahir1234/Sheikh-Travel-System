@@ -527,6 +527,122 @@ public sealed partial class GeofenceWorkspaceRepository(
         };
     }
 
+    /// <summary>Visits read for one grouped report at most; above it the groups cover the newest visits only.</summary>
+    public const int MaxGroupedVisits = 50_000;
+
+    public async Task<GeofenceVisitGroupsDto> GetVisitGroupsAsync(
+        GeofenceVisitFilter filter, string groupBy, CancellationToken cancellationToken = default)
+    {
+        if (filter.From is null || filter.To is null)
+            return new GeofenceVisitGroupsDto { GroupBy = groupBy };
+
+        var tenantId = TenantId;
+        var zone = await ZoneAsync(tenantId, cancellationToken);
+        var (startUtc, endUtc) = TenantTimeZoneHelper.LocalDayRangeUtc(filter.From.Value, filter.To.Value, zone);
+        var args = VisitArgs(tenantId, filter, startUtc, endUtc);
+        args.Add("Cap", MaxGroupedVisits + 1);
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = (await connection.QueryAsync<GroupableVisit>(new CommandDefinition(
+            $"""
+            SELECT TOP (@Cap) gv.VehicleId, {VehicleLabelSql} AS VehicleLabel, gv.DriverId, d.FullName AS DriverName,
+                   gv.GeofenceId, g.Name AS GeofenceName, gv.EnteredUtc, gv.ExitedUtc, gv.IdleSeconds,
+                   CAST(gv.DwellBreached AS INT) + CAST(gv.SpeedBreached AS INT)
+                     + CAST(gv.AfterHoursExit AS INT) + CAST(gv.IdleBreached AS INT) AS Breaches
+            FROM GeofenceVisits gv
+            INNER JOIN Geofences g ON g.Id = gv.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
+            INNER JOIN Vehicles v ON v.Id = gv.VehicleId AND v.TenantId = @TenantId
+            LEFT JOIN Drivers d ON d.Id = gv.DriverId AND d.TenantId = @TenantId
+            CROSS APPLY (SELECT {VisitStatusSql} AS Status) st
+            WHERE {VisitWhereSql}
+            ORDER BY gv.EnteredUtc DESC, gv.Id DESC
+            """,
+            args,
+            cancellationToken: cancellationToken))).ToList();
+
+        var capped = rows.Count > MaxGroupedVisits;
+        if (capped)
+            rows.RemoveAt(rows.Count - 1);
+
+        return new GeofenceVisitGroupsDto
+        {
+            GroupBy = groupBy,
+            Items = GroupVisits(rows, groupBy, zone, startUtc, DateTime.UtcNow),
+            Capped = capped,
+            VisitsRead = rows.Count
+        };
+    }
+
+    /// <summary>One visit as the grouped report reads it.</summary>
+    public sealed class GroupableVisit
+    {
+        public int VehicleId { get; init; }
+        public string? VehicleLabel { get; init; }
+        public int? DriverId { get; init; }
+        public string? DriverName { get; init; }
+        public int GeofenceId { get; init; }
+        public string GeofenceName { get; init; } = string.Empty;
+        public DateTime EnteredUtc { get; init; }
+        public DateTime? ExitedUtc { get; init; }
+        public int IdleSeconds { get; init; }
+        public int Breaches { get; init; }
+    }
+
+    /// <summary>
+    /// Groups visits by vehicle, driver, geofence or the company's local day of entry. Minutes are counted the way the
+    /// report KPIs count them (SQL DATEDIFF; open visits up to <paramref name="nowUtc"/>), so the groups add up to the
+    /// totals. A visit that started before the range is counted on the range's first day.
+    /// </summary>
+    public static IReadOnlyList<GeofenceVisitGroupDto> GroupVisits(
+        IReadOnlyList<GroupableVisit> visits, string groupBy, TimeZoneInfo zone, DateTime rangeStartUtc, DateTime nowUtc)
+    {
+        string KeyOf(GroupableVisit v) => groupBy switch
+        {
+            GeofenceVisitGroupBy.Vehicle => v.VehicleId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            GeofenceVisitGroupBy.Driver => v.DriverId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none",
+            GeofenceVisitGroupBy.Geofence => v.GeofenceId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            _ => TenantTimeZoneHelper.UtcToLocalDate(v.EnteredUtc < rangeStartUtc ? rangeStartUtc : v.EnteredUtc, zone)
+                .ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+        };
+
+        string LabelOf(GroupableVisit v, string key) => groupBy switch
+        {
+            GeofenceVisitGroupBy.Vehicle => string.IsNullOrWhiteSpace(v.VehicleLabel) ? $"Vehicle #{v.VehicleId}" : v.VehicleLabel,
+            GeofenceVisitGroupBy.Driver => string.IsNullOrWhiteSpace(v.DriverName) ? "No driver" : v.DriverName,
+            GeofenceVisitGroupBy.Geofence => v.GeofenceName,
+            _ => key
+        };
+
+        var groups = visits
+            .GroupBy(KeyOf)
+            .Select(g =>
+            {
+                var completed = g.Where(v => v.ExitedUtc is not null).ToList();
+                return new GeofenceVisitGroupDto
+                {
+                    Key = g.Key,
+                    Label = LabelOf(g.First(), g.Key),
+                    Visits = g.Count(),
+                    Vehicles = g.Select(v => v.VehicleId).Distinct().Count(),
+                    InsideNow = g.Count(v => v.ExitedUtc is null),
+                    TotalMinutes = (int)Math.Max(0, g.Sum(v => DateDiff(v.EnteredUtc, v.ExitedUtc ?? nowUtc, TimeSpan.TicksPerMinute))),
+                    AvgMinutes = completed.Count == 0
+                        ? null
+                        : Math.Round(completed.Average(v => DateDiff(v.EnteredUtc, v.ExitedUtc!.Value, TimeSpan.TicksPerSecond) / 60.0), 1),
+                    IdleMinutes = g.Sum(v => v.IdleSeconds) / 60,
+                    Breaches = g.Sum(v => v.Breaches)
+                };
+            });
+
+        return groupBy == GeofenceVisitGroupBy.Day
+            ? groups.OrderBy(g => g.Key, StringComparer.Ordinal).ToList()
+            : groups.OrderByDescending(g => g.TotalMinutes).ThenBy(g => g.Label, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>SQL Server DATEDIFF: the number of unit boundaries crossed between two instants.</summary>
+    private static long DateDiff(DateTime from, DateTime to, long unitTicks)
+        => to.Ticks / unitTicks - from.Ticks / unitTicks;
+
     /// <summary>Vehicles inside during each of the 24 local hours from <paramref name="dayStartUtc"/>, and dwell-breach hours.</summary>
     public static (IReadOnlyList<int> Occupancy, IReadOnlyList<bool> BreachHours) HourlyOccupancy(
         IReadOnlyList<(int VehicleId, DateTime EnteredUtc, DateTime? ExitedUtc, bool DwellBreached, int? DwellMinutes)> visits,
