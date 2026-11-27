@@ -45,7 +45,7 @@ public static class TripAnalyticsMapper
 
     public static TripEventDto ToEventDto(TraccarEvent evt, string? geofenceName = null)
     {
-        var label = FormatEventLabel(evt.Type, geofenceName);
+        var label = FormatEventLabel(evt.Type, geofenceName, evt.Attributes?.Alarm);
         return new TripEventDto(
             evt.EventTime,
             evt.Type,
@@ -58,17 +58,55 @@ public static class TripAnalyticsMapper
             label);
     }
 
-    public static string FormatEventLabel(string type, string? geofenceName)
+    /// <summary>Names Traccar gives an alarm in <c>attributes.alarm</c>, as people say them.</summary>
+    private static readonly Dictionary<string, string> AlarmLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["sos"] = "SOS",
+        ["powerCut"] = "Power cut",
+        ["powerOff"] = "Power off",
+        ["powerRestored"] = "Power restored",
+        ["lowBattery"] = "Low battery",
+        ["lowPower"] = "Low power",
+        ["hardBraking"] = "Harsh braking",
+        ["hardAcceleration"] = "Harsh acceleration",
+        ["hardCornering"] = "Harsh cornering",
+        ["accident"] = "Accident",
+        ["tampering"] = "Tampering",
+        ["removing"] = "Device removed",
+        ["fatigueDriving"] = "Fatigue driving",
+        ["jamming"] = "GPS jamming",
+        ["overspeed"] = "Overspeed"
+    };
+
+    /// <param name="alarm">Traccar's <c>attributes.alarm</c>: the kind of an <c>alarm</c> event (sos, powerCut, …).</param>
+    public static string FormatEventLabel(string type, string? geofenceName, string? alarm = null)
     {
         if (type.Contains("geofenceEnter", StringComparison.OrdinalIgnoreCase))
             return geofenceName is null ? "Entered geofence" : $"Entered {geofenceName}";
         if (type.Contains("geofenceExit", StringComparison.OrdinalIgnoreCase))
             return geofenceName is null ? "Exited geofence" : $"Exited {geofenceName}";
         if (type.Contains("alarm", StringComparison.OrdinalIgnoreCase))
-            return "Alarm";
+            return string.IsNullOrWhiteSpace(alarm) ? "Alarm" : AlarmLabel(alarm.Trim());
         if (type.Contains("overspeed", StringComparison.OrdinalIgnoreCase))
             return "Overspeed";
+        if (AlarmLabels.TryGetValue(type, out var named))
+            return named;
         return type;
+    }
+
+    /// <summary>A known alarm by its name; any other camelCase kind as words ("doorOpen" → "Door open").</summary>
+    private static string AlarmLabel(string alarm)
+    {
+        if (AlarmLabels.TryGetValue(alarm, out var named)) return named;
+        var words = new System.Text.StringBuilder(alarm.Length + 4);
+        for (var i = 0; i < alarm.Length; i++)
+        {
+            var c = alarm[i];
+            if (c is '_' or '-') { words.Append(' '); continue; }
+            if (i > 0 && char.IsUpper(c) && !char.IsUpper(alarm[i - 1])) words.Append(' ');
+            words.Append(words.Length == 0 ? char.ToUpperInvariant(c) : char.ToLowerInvariant(c));
+        }
+        return words.ToString();
     }
 
     public static double? ComputeOdometerMileageKm(IReadOnlyList<TripReplayPositionDto> route)

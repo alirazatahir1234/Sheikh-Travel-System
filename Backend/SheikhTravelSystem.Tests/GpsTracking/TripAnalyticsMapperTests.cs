@@ -150,6 +150,36 @@ public class TripAnalyticsMapperTests
         Assert.Equal(1.5m, summary.EngineHours);
     }
 
+    [Theory]
+    [InlineData("alarm", "sos", "SOS")]
+    [InlineData("alarm", "powerCut", "Power cut")]
+    [InlineData("alarm", "hardBraking", "Harsh braking")]
+    [InlineData("alarm", "doorOpen", "Door open")]
+    [InlineData("alarm", null, "Alarm")]
+    [InlineData("alarm", " ", "Alarm")]
+    [InlineData("deviceOverspeed", null, "Overspeed")]
+    [InlineData("hardBraking", null, "Harsh braking")]
+    [InlineData("hardAcceleration", null, "Harsh acceleration")]
+    public void FormatEventLabel_NamesTheAlarmKind(string type, string? alarm, string expected)
+    {
+        Assert.Equal(expected, TripAnalyticsMapper.FormatEventLabel(type, null, alarm));
+    }
+
+    [Fact]
+    public void FormatEventLabel_NamesTheGeofence()
+    {
+        Assert.Equal("Entered Yard", TripAnalyticsMapper.FormatEventLabel("geofenceEnter", "Yard"));
+        Assert.Equal("Exited geofence", TripAnalyticsMapper.FormatEventLabel("geofenceExit", null));
+    }
+
+    [Fact]
+    public void ToEventDto_LabelsAnAlarmByItsKind()
+    {
+        var evt = new TraccarEvent(1, 7, null, null, "alarm", new DateTime(2026, 11, 27, 8, 0, 0, DateTimeKind.Utc),
+            Attributes: new TraccarEventAttributes(Alarm: "sos"));
+        Assert.Equal("SOS", TripAnalyticsMapper.ToEventDto(evt).Label);
+    }
+
     [Fact]
     public void WithSafetyAlertCounts_MergesGpsAlertStore()
     {
