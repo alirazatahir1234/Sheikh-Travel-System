@@ -24,6 +24,8 @@ public interface ITravelCommissionRepository
     Task<IReadOnlyList<TravelAttributedInvoiceFact>> GetAttributedInvoicesByIdsAsync(int tenantId, IReadOnlyCollection<int> invoiceIds,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TravelCommissionPayoutDto>> GetPayoutsAsync(int tenantId, string? beneficiaryType, int? beneficiaryId, CancellationToken cancellationToken = default);
+    /// <summary>Id of the payout already recorded under <paramref name="key"/>, or null (checked before the payable balance).</summary>
+    Task<int?> FindPayoutByIdempotencyKeyAsync(int tenantId, Guid key, CancellationToken cancellationToken = default);
     /// <summary>
     /// Records a payout under a per-beneficiary lock: inside the transaction the payouts already recorded for the beneficiary
     /// and currency are summed and the write is refused when <c>paid + Amount</c> would exceed <paramref name="payableCap"/>

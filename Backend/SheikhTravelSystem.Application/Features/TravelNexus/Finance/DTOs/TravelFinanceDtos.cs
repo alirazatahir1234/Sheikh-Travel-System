@@ -392,6 +392,9 @@ public sealed record TravelPaymentWrite(Guid IdempotencyKey, int CustomerId, Dat
     string CurrencyCode, string Status, string? Notes, int? BranchId);
 
 /// <summary>Outcome of a money write that re-checks caps under lock: either an id, or why it was refused.</summary>
+/// <summary>Records written under a client idempotency key (internal; never on the wire).</summary>
+public enum TravelIdempotentRecord { Receipt, CreditNote, CustomerRefund, SupplierPayment, SupplierCredit, SupplierRefund }
+
 public sealed record TravelFinanceWriteResult(int Id, string? Error, bool Replayed = false)
 {
     public static TravelFinanceWriteResult Fail(string error) => new(0, error);

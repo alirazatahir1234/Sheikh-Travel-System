@@ -366,4 +366,66 @@ public class TravelFinanceHandlerTests
         item.PaymentStatus.Should().Be("PartiallyPaid");
         item.OverdueAmount.Should().Be(100_000);
     }
+
+    // ── Idempotent retries return the original record (found by the live SQL run) ──
+
+    [Fact]
+    public async Task A_receipt_retried_after_it_settled_the_invoice_returns_the_original_receipt()
+    {
+        var key = Guid.NewGuid();
+        GivenOpenInvoices(); // the first receipt paid the invoice: nothing is open any more
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.Receipt, key, It.IsAny<CancellationToken>())).ReturnsAsync(PaymentId);
+
+        var result = await RecordHandler().Handle(new RecordTravelPaymentCommand(new RecordTravelPaymentDto(key, CustomerId, DateTime.UtcNow, "BankTransfer", null,
+            160_000, "PKR", true, null, [new TravelAllocationInputDto(InvoiceId, 160_000, null)])), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(PaymentId);
+        result.Message.Should().Contain("already recorded");
+        _payments.Verify(p => p.RecordAsync(It.IsAny<int>(), It.IsAny<TravelPaymentWrite>(), It.IsAny<IReadOnlyList<TravelAllocationWrite>>(), It.IsAny<int?>(),
+            It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task A_credit_note_retried_after_it_used_up_the_creditable_amount_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        GivenInvoice(total: 160_000, credited: 160_000);
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.CreditNote, key, It.IsAny<CancellationToken>())).ReturnsAsync(77);
+
+        var result = await new IssueTravelCreditNoteCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
+            .Handle(new IssueTravelCreditNoteCommand(new IssueTravelCreditNoteDto(key, InvoiceId, 160_000, "Cancelled", null, null)), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(77);
+        _payments.Verify(p => p.IssueCreditNoteAsync(It.IsAny<int>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<int?>(),
+            It.IsAny<DateTime>(), It.IsAny<int?>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task A_refund_retried_after_nothing_is_owed_back_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        GivenInvoice(total: 160_000, paid: 160_000, credited: 10_000, refunded: 10_000); // balance back to zero
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.CustomerRefund, key, It.IsAny<CancellationToken>())).ReturnsAsync(88);
+
+        var result = await new RecordTravelRefundCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
+            .Handle(new RecordTravelRefundCommand(new RecordTravelRefundDto(key, InvoiceId, null, 10_000, "Cash", null, DateTime.UtcNow, null, null)), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(88);
+    }
+
+    [Fact]
+    public async Task A_replay_key_is_only_honoured_after_the_parent_is_found_in_the_callers_tenant_and_scope()
+    {
+        var key = Guid.NewGuid();
+        _invoices.Setup(i => i.GetStateAsync(InvoiceId, Tenant, It.IsAny<TravelBranchScope>(), It.IsAny<CancellationToken>())).ReturnsAsync((TravelInvoiceState?)null);
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, It.IsAny<TravelIdempotentRecord>(), key, It.IsAny<CancellationToken>())).ReturnsAsync(77);
+
+        var act = () => new IssueTravelCreditNoteCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
+            .Handle(new IssueTravelCreditNoteCommand(new IssueTravelCreditNoteDto(key, InvoiceId, 100, "x", null, null)), default);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
 }

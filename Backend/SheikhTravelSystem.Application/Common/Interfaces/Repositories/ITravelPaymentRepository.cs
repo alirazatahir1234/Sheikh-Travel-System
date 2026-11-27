@@ -15,6 +15,11 @@ public interface ITravelPaymentRepository
     Task<TravelPaymentDto?> GetDetailAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>Records the payment and its allocations; replays the original when the idempotency key was seen before.</summary>
+    /// <summary>
+    /// Id of the receipt, credit note or customer refund already written under <paramref name="key"/>, or null. Handlers
+    /// check this before validating so a retry returns the original record instead of failing against the changed balance.
+    /// </summary>
+    Task<int?> FindByIdempotencyKeyAsync(int tenantId, TravelIdempotentRecord kind, Guid key, CancellationToken cancellationToken = default);
     Task<TravelFinanceWriteResult> RecordAsync(int tenantId, TravelPaymentWrite payment, IReadOnlyList<TravelAllocationWrite> allocations, int? userId,
         DateTime utcNow, CancellationToken cancellationToken = default);
     Task<TravelFinanceWriteResult> AllocateAsync(int tenantId, int paymentId, IReadOnlyList<TravelAllocationWrite> allocations, int? userId,

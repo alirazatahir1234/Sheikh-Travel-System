@@ -15,6 +15,8 @@ public interface ITravelSupplierPaymentRepository
         int pageSize, CancellationToken cancellationToken = default);
     Task<TravelSupplierPaymentDto?> GetDetailAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
+    /// <summary>Id of the supplier payment, credit or refund already written under <paramref name="key"/>, or null (see ITravelPaymentRepository).</summary>
+    Task<int?> FindByIdempotencyKeyAsync(int tenantId, TravelIdempotentRecord kind, Guid key, CancellationToken cancellationToken = default);
     Task<TravelFinanceWriteResult> RecordAsync(int tenantId, TravelPaymentWrite payment, IReadOnlyList<TravelAllocationWrite> allocations, int? userId,
         DateTime utcNow, CancellationToken cancellationToken = default);
     Task<TravelFinanceWriteResult> AllocateAsync(int tenantId, int paymentId, IReadOnlyList<TravelAllocationWrite> allocations, int? userId,

@@ -380,4 +380,68 @@ public class TravelSupplierFinanceHandlerTests
             .Handle(new GetTravelContextProfitQuery("Group", 3), default);
         await act.Should().ThrowAsync<NotFoundException>();
     }
+
+    // ── Idempotent retries return the original record (found by the live SQL run) ──
+
+    [Fact]
+    public async Task A_supplier_payment_retried_after_it_settled_the_bill_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        _bills.Setup(b => b.GetOpenBillsAsync(Tenant, SupplierId, It.IsAny<CancellationToken>())).ReturnsAsync([]); // nothing open any more
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.SupplierPayment, key, It.IsAny<CancellationToken>())).ReturnsAsync(PaymentId);
+
+        var result = await new RecordTravelSupplierPaymentCommandHandler(_payments.Object, _bills.Object, _suppliers.Object, _tenant.Object, _user.Object)
+            .Handle(new RecordTravelSupplierPaymentCommand(new RecordTravelSupplierPaymentDto(key, SupplierId, DateTime.UtcNow, "BankTransfer", null, 3600, "SAR", true,
+                null, [new TravelAllocationInputDto(BillId, 3600, null)])), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(PaymentId);
+        _payments.Verify(p => p.RecordAsync(It.IsAny<int>(), It.IsAny<TravelPaymentWrite>(), It.IsAny<IReadOnlyList<TravelAllocationWrite>>(), It.IsAny<int?>(),
+            It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task A_supplier_credit_retried_after_the_bill_is_fully_credited_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        Bill(Posted(net: 1000, credited: 1000));
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.SupplierCredit, key, It.IsAny<CancellationToken>())).ReturnsAsync(55);
+
+        var result = await new IssueTravelSupplierCreditCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
+            .Handle(new IssueTravelSupplierCreditCommand(new IssueTravelSupplierCreditDto(key, BillId, 1000, "Cancelled", null, null)), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(55);
+    }
+
+    [Fact]
+    public async Task A_supplier_refund_retried_after_nothing_is_owed_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        Bill(Posted(net: 1000, paid: 1000));
+        _payments.Setup(p => p.FindByIdempotencyKeyAsync(Tenant, TravelIdempotentRecord.SupplierRefund, key, It.IsAny<CancellationToken>())).ReturnsAsync(66);
+
+        var result = await new RecordTravelSupplierRefundCommandHandler(_payments.Object, Guard, _tenant.Object, _user.Object)
+            .Handle(new RecordTravelSupplierRefundCommand(new RecordTravelSupplierRefundDto(key, BillId, null, 50, "BankTransfer", null, DateTime.UtcNow, null, null)), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(66);
+    }
+
+    [Fact]
+    public async Task A_payout_retried_after_the_payable_is_used_up_returns_the_original()
+    {
+        var key = Guid.NewGuid();
+        _commissions.Setup(c => c.SubAgentExistsAsync(Tenant, 3, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _commissions.Setup(c => c.FindPayoutByIdempotencyKeyAsync(Tenant, key, It.IsAny<CancellationToken>())).ReturnsAsync(9);
+
+        var result = await new RecordTravelCommissionPayoutCommandHandler(_commissions.Object, Service, _tenant.Object, _user.Object)
+            .Handle(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(key, "SubAgent", 3, DateTime.UtcNow, "Cash", null, 100, "PKR", null)), default);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(9);
+        result.Message.Should().Contain("already recorded");
+        _commissions.Verify(c => c.RecordPayoutAsync(It.IsAny<int>(), It.IsAny<RecordTravelCommissionPayoutDto>(), It.IsAny<decimal>(), It.IsAny<int?>(),
+            It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

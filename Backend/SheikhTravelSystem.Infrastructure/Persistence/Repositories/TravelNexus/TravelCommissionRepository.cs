@@ -217,6 +217,14 @@ public sealed class TravelCommissionRepository(IDbConnectionFactory dbFactory) :
             """, new { TenantId = tenantId, Type = beneficiaryType, BeneficiaryId = beneficiaryId }, cancellationToken: cancellationToken))).ToList();
     }
 
+    public async Task<int?> FindPayoutByIdempotencyKeyAsync(int tenantId, Guid key, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT Id FROM TravelCommissionPayouts WHERE TenantId = @TenantId AND IdempotencyKey = @Key",
+            new { TenantId = tenantId, Key = key }, cancellationToken: cancellationToken));
+    }
+
     public async Task<TravelFinanceWriteResult> RecordPayoutAsync(int tenantId, RecordTravelCommissionPayoutDto dto, decimal payableCap, int? userId, DateTime utcNow,
         CancellationToken cancellationToken = default)
     {

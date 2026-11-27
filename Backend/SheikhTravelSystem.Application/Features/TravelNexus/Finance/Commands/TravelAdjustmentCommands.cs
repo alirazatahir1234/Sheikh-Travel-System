@@ -40,6 +40,8 @@ public class IssueTravelCreditNoteCommandHandler(ITravelPaymentRepository reposi
         var tenantId = tenantContext.GetRequiredTenantId();
         var dto = request.CreditNote;
         var invoice = await guard.GetInvoiceAsync(dto.InvoiceId, tenantId, cancellationToken);
+        if (await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.CreditNote, dto.IdempotencyKey, cancellationToken) is int replay)
+            return ApiResponse<int>.SuccessResponse(replay, "This credit note was already issued.");
         if (invoice.Status != "Issued") return ApiResponse<int>.FailResponse("Credit notes are issued against issued invoices.");
         var amount = TravelFinanceRules.Round(dto.Amount);
         var creditable = invoice.Total - invoice.Credited;
@@ -119,11 +121,16 @@ public class RecordTravelRefundCommandHandler(ITravelPaymentRepository repositor
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         var dto = request.Refund with { Amount = TravelFinanceRules.Round(request.Refund.Amount) };
+        // Checked after the invoice / payment lookup (scope), before any balance check the first write changed.
+        async Task<ApiResponse<int>?> ReplayAsync()
+            => await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.CustomerRefund, dto.IdempotencyKey, cancellationToken) is int id
+                ? ApiResponse<int>.SuccessResponse(id, "This refund was already recorded.") : null;
         int customerId;
         string currency;
         if (dto.InvoiceId is int invoiceId)
         {
             var invoice = await guard.GetInvoiceAsync(invoiceId, tenantId, cancellationToken);
+            if (await ReplayAsync() is { } replayed) return replayed;
             if (invoice.Status != "Issued") return ApiResponse<int>.FailResponse("Refunds are paid against issued invoices.");
             var creditDue = -invoice.Balance;
             if (dto.Amount > creditDue)
@@ -135,6 +142,7 @@ public class RecordTravelRefundCommandHandler(ITravelPaymentRepository repositor
         else
         {
             var payment = await guard.GetPaymentAsync(dto.PaymentId!.Value, tenantId, cancellationToken);
+            if (await ReplayAsync() is { } replayed) return replayed;
             if (payment.Status != "Completed") return ApiResponse<int>.FailResponse("Only a cleared payment's advance can be refunded.");
             if (dto.Amount > payment.Unallocated)
                 return ApiResponse<int>.FailResponse($"Only {payment.Unallocated:0.##} {payment.CurrencyCode} of this payment is unallocated.");

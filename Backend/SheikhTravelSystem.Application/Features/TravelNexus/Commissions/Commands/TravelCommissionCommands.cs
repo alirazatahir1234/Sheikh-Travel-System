@@ -169,6 +169,9 @@ public class RecordTravelCommissionPayoutCommandHandler(ITravelCommissionReposit
         var tenantId = tenantContext.GetRequiredTenantId();
         var p = request.Payout;
         await Beneficiaries.EnsureAsync(repository, tenantId, p.BeneficiaryType, p.BeneficiaryId, cancellationToken);
+        // A retry of a recorded payout returns it before the payable-balance check that the first payout used up.
+        if (await repository.FindPayoutByIdempotencyKeyAsync(tenantId, p.IdempotencyKey, cancellationToken) is int replay)
+            return ApiResponse<int>.SuccessResponse(replay, "This payout was already recorded.");
         var dto = p with
         {
             Amount = Finance.TravelFinanceRules.Round(p.Amount), CurrencyCode = p.CurrencyCode.ToUpperInvariant(), PaidOn = p.PaidOn.Date,

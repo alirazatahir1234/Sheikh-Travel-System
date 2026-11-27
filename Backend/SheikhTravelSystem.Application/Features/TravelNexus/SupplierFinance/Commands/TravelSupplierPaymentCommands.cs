@@ -66,6 +66,9 @@ public class RecordTravelSupplierPaymentCommandHandler(ITravelSupplierPaymentRep
         var tenantId = tenantContext.GetRequiredTenantId();
         var dto = request.Payment;
         _ = await suppliers.GetByIdAsync(dto.SupplierId, tenantId, cancellationToken) ?? throw new NotFoundException("TravelSupplier", dto.SupplierId);
+        // A retry of a recorded payment returns it before re-validating against bills the first write settled.
+        if (await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.SupplierPayment, dto.IdempotencyKey, cancellationToken) is int replay)
+            return ApiResponse<int>.SuccessResponse(replay, "This payment was already recorded.");
         var currency = dto.CurrencyCode.ToUpperInvariant();
         var amount = TravelFinanceRules.Round(dto.Amount);
         var open = await SupplierAllocations.OpenBillsAsync(bills, tenantId, dto.SupplierId, cancellationToken);
@@ -227,6 +230,8 @@ public class IssueTravelSupplierCreditCommandHandler(ITravelSupplierPaymentRepos
         var tenantId = tenantContext.GetRequiredTenantId();
         var dto = request.Credit with { Amount = TravelFinanceRules.Round(request.Credit.Amount), Reason = request.Credit.Reason.Trim() };
         var bill = await guard.GetBillAsync(dto.BillId, tenantId, cancellationToken);
+        if (await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.SupplierCredit, dto.IdempotencyKey, cancellationToken) is int replay)
+            return ApiResponse<int>.SuccessResponse(replay, "This credit was already recorded.");
         if (bill.Status != "Posted") return ApiResponse<int>.FailResponse("Supplier credits are recorded against posted bills.");
         if (dto.Amount > bill.Total - bill.Credited) return ApiResponse<int>.FailResponse($"At most {bill.Total - bill.Credited:0.##} {bill.CurrencyCode} can still be credited.");
         var (error, advance) = await SupplierAllocations.CheckCancellationAsync(repository, tenantId, dto.CancellationId, bill.SupplierId, bill.CurrencyCode, cancellationToken);
@@ -291,11 +296,16 @@ public class RecordTravelSupplierRefundCommandHandler(ITravelSupplierPaymentRepo
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         var dto = request.Refund with { Amount = TravelFinanceRules.Round(request.Refund.Amount) };
+        // Checked after the bill / payment lookup (scope), before any balance check the first write changed.
+        async Task<ApiResponse<int>?> ReplayAsync()
+            => await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.SupplierRefund, dto.IdempotencyKey, cancellationToken) is int id
+                ? ApiResponse<int>.SuccessResponse(id, "This refund was already recorded.") : null;
         int supplierId;
         string currency;
         if (dto.BillId is int billId)
         {
             var bill = await guard.GetBillAsync(billId, tenantId, cancellationToken);
+            if (await ReplayAsync() is { } replayed) return replayed;
             if (bill.Status != "Posted") return ApiResponse<int>.FailResponse("Refunds are received against posted bills.");
             if (dto.Amount > -bill.Balance)
                 return ApiResponse<int>.FailResponse(bill.Balance < 0 ? $"The supplier owes back only {-bill.Balance:0.##} {bill.CurrencyCode} on this bill."
@@ -305,6 +315,7 @@ public class RecordTravelSupplierRefundCommandHandler(ITravelSupplierPaymentRepo
         else
         {
             var payment = await guard.GetPaymentAsync(dto.PaymentId!.Value, tenantId, cancellationToken);
+            if (await ReplayAsync() is { } replayed) return replayed;
             if (payment.Status != "Completed") return ApiResponse<int>.FailResponse("Only a cleared payment's advance can come back.");
             if (dto.Amount > payment.Unallocated) return ApiResponse<int>.FailResponse($"Only {payment.Unallocated:0.##} {payment.CurrencyCode} of this payment is unallocated.");
             (supplierId, currency) = (payment.SupplierId, payment.CurrencyCode);

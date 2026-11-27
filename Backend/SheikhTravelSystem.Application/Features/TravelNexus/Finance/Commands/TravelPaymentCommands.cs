@@ -66,6 +66,9 @@ public class RecordTravelPaymentCommandHandler(ITravelPaymentRepository reposito
         var dto = request.Payment;
         var customer = await customers.GetByIdAsync(dto.CustomerId, tenantId, await scopeResolver.ResolveAsync(tenantId, cancellationToken), cancellationToken)
                        ?? throw new NotFoundException("TravelCustomer", dto.CustomerId);
+        // A retry of a recorded receipt returns it before re-validating against balances the first write changed.
+        if (await repository.FindByIdempotencyKeyAsync(tenantId, TravelIdempotentRecord.Receipt, dto.IdempotencyKey, cancellationToken) is int replay)
+            return ApiResponse<int>.SuccessResponse(replay, "This payment was already recorded.");
         var currency = dto.CurrencyCode.ToUpperInvariant();
         var amount = TravelFinanceRules.Round(dto.Amount);
 

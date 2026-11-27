@@ -575,6 +575,18 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
             """, new { Id = cancellationId, TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
+    public async Task<int?> FindByIdempotencyKeyAsync(int tenantId, TravelIdempotentRecord kind, Guid key, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(kind switch
+        {
+            TravelIdempotentRecord.Receipt => "SELECT Id FROM TravelPayments WHERE TenantId = @TenantId AND IdempotencyKey = @Key",
+            TravelIdempotentRecord.CreditNote => "SELECT Id FROM TravelCreditNotes WHERE TenantId = @TenantId AND IdempotencyKey = @Key",
+            TravelIdempotentRecord.CustomerRefund => "SELECT Id FROM TravelRefunds WHERE TenantId = @TenantId AND IdempotencyKey = @Key",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a customer-finance record.")
+        }, new { TenantId = tenantId, Key = key }, cancellationToken: cancellationToken));
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>Row already written with this idempotency key (locks the key range so a concurrent duplicate waits).</summary>

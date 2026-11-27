@@ -114,8 +114,13 @@ public class FinanceWorkflowLiveSqlTests(TravelNexusLiveDbFixture fx)
         tooMuch.Success.Should().BeFalse();
         tooMuch.Message.Should().Contain("payable");
 
-        await a.Ok(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(
-            Guid.NewGuid(), "Staff", fx.A.UserId, Today, "Cash", null, payable, "PKR", null)));
+        var payoutKey = Guid.NewGuid();
+        var payout = new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(
+            payoutKey, "Staff", fx.A.UserId, Today, "Cash", null, payable, "PKR", null));
+        var payoutId = await a.Ok(payout);
+        var payoutReplay = await a.Send(payout);
+        payoutReplay.Success.Should().BeTrue("a retry after the payable is used up returns the original payout");
+        payoutReplay.Data.Should().Be(payoutId);
         var nothingLeft = await a.Send(new RecordTravelCommissionPayoutCommand(new RecordTravelCommissionPayoutDto(
             Guid.NewGuid(), "Staff", fx.A.UserId, Today, "Cash", null, 1m, "PKR", null)));
         nothingLeft.Success.Should().BeFalse();
@@ -151,14 +156,15 @@ public class FinanceWorkflowLiveSqlTests(TravelNexusLiveDbFixture fx)
         var payable = sell * rate / 100m;
         var depart = Today.AddDays(40).AddHours(7);
 
-        // A sub-agent referred the customer; their 5 % of sell becomes payable once the invoice is settled.
+        // A sub-agent referred the customer; their 5 % of sell becomes payable once the invoice is settled. No staff agent is
+        // assigned, so this invoice never adds to the staff balance the other finance test asserts (both share company A).
         var subAgentId = await a.Ok(new SaveTravelSubAgentCommand(null, new SaveTravelSubAgentDto("Haramain Tours (E2E)", null, null, null, true)));
         var customerId = await a.Ok(new CreateTravelCustomerCommand(new CreateTravelCustomerDto(
-            null, "Individual", "Zain Raza", "+92 333 0000002", null, null, "Karachi", null, null, null, null, fx.A.UserId, fx.A.BranchId, null, null, subAgentId)));
+            null, "Individual", "Zain Raza", "+92 333 0000002", null, null, "Karachi", null, null, null, null, null, fx.A.BranchId, null, null, subAgentId)));
         var travelerId = await a.Ok(new CreateTravelTravelerCommand(customerId, new SaveTravelTravelerDto(
             null, "Zain", "Raza", "Male", new DateTime(1992, 7, 7), null, "PK", "FIN000002", "PK",
             new DateTime(2022, 1, 1), new DateTime(2032, 1, 1), null, null, null, null, null, null)));
-        var bookingId = await a.Ok(new CreateTravelBookingCommand(new CreateTravelBookingDto(customerId, null, "KHI–JED one way (E2E cap)", null, null, fx.A.UserId, fx.A.BranchId, null)));
+        var bookingId = await a.Ok(new CreateTravelBookingCommand(new CreateTravelBookingDto(customerId, null, "KHI–JED one way (E2E cap)", null, null, null, fx.A.BranchId, null)));
         var flightId = await a.Ok(new SaveTravelFlightCommand(bookingId, null, new SaveTravelFlightDto(
             null, "OneWay", null, null, sell, null, "PKR", null,
             [new SaveTravelFlightSegmentDto("PK", "743", "KHI", "JED", depart, depart.AddHours(5), "Economy", null, null)],

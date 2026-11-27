@@ -201,6 +201,33 @@ public class TravelNexusTenantGuardTests
         offenders.Should().BeEmpty("Dapper maps a nullable value tuple to null — use TravelSql.QuerySingleOrNullAsync:\n" + string.Join("\n", offenders));
     }
 
+    [Fact]
+    public void Every_idempotent_TravelNexus_handler_checks_the_key_before_validating()
+    {
+        // A retry must return the original record: handlers whose command carries an IdempotencyKey look it up before
+        // their first FailResponse, otherwise a retry fails against the balance the first write already changed.
+        var root = Path.Combine(FindBackendRoot(), "SheikhTravelSystem.Application", "Features", "TravelNexus");
+        var offenders = new List<string>();
+        var checkedHandlers = 0;
+        foreach (var file in Directory.EnumerateFiles(root, "*Commands.cs", SearchOption.AllDirectories))
+        {
+            var text = File.ReadAllText(file);
+            foreach (Match h in Regex.Matches(text, @"public class (\w+CommandHandler)\("))
+            {
+                var body = BlockAfter(text, h.Index);
+                if (!body.Contains("IdempotencyKey", StringComparison.Ordinal)) continue;
+                checkedHandlers++;
+                var find = Regex.Match(body, @"Find\w*IdempotencyKey\w*Async");
+                var fail = body.IndexOf("FailResponse", StringComparison.Ordinal);
+                if (!find.Success || (fail >= 0 && fail < find.Index))
+                    offenders.Add($"{Path.GetFileName(file)}: {h.Groups[1].Value}");
+            }
+        }
+
+        checkedHandlers.Should().BeGreaterThanOrEqualTo(7, "receipt, credit note, refund, supplier payment, credit, refund and payout are idempotent");
+        offenders.Should().BeEmpty(string.Join("\n", offenders));
+    }
+
     private static string FindBackendRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
