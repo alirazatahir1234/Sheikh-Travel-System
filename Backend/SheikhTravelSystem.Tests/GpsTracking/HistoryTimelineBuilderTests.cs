@@ -444,6 +444,9 @@ public class HistoryTimelineBuilderTests
     {
         public int Calls { get; private set; }
 
+        /// <summary>Answer as if every place were already in the address cache.</summary>
+        public bool Cached { get; init; }
+
         public Task<ReverseGeocodeResult?> GetAddressAsync(
             double latitude,
             double longitude,
@@ -454,7 +457,8 @@ public class HistoryTimelineBuilderTests
             Calls++;
             allowGoogle.Should().BeFalse("the timeline never pays for a lookup");
             var name = $"{Math.Round(latitude * 1000)} Canal Road";
-            return Task.FromResult<ReverseGeocodeResult?>(new ReverseGeocodeResult(name, PrimaryAddress: name));
+            return Task.FromResult<ReverseGeocodeResult?>(
+                new ReverseGeocodeResult(name, FromCache: Cached, PrimaryAddress: name));
         }
     }
 
@@ -548,6 +552,29 @@ public class HistoryTimelineBuilderTests
         var shortestNamed = standstills.Where(s => s.StartAddress is not null).Min(s => s.DurationMinutes);
         var longestUnnamed = standstills.Where(s => s.StartAddress is null).Max(s => s.DurationMinutes);
         shortestNamed.Should().BeGreaterThanOrEqualTo(longestUnnamed, "the longest standstills are named first");
+    }
+
+    [Fact]
+    public async Task Places_FromTheAddressCache_DoNotCountTowardsTheCap()
+    {
+        var places = HistoryTimelineBuilder.MaxPlaceLookups + 10;
+        var fixes = new List<TripReplayPositionDto>();
+        var t = T0;
+        for (var k = 0; k < places; k++)
+        {
+            var lat = 31.0 + k * 0.05;
+            fixes.AddRange(Stand(t, 5 + k, lat));
+            t = t.AddMinutes(5 + k + 1);
+            fixes.AddRange(Drive(t, 6, lat));
+            t = t.AddMinutes(7);
+        }
+        var geocoder = new FakeGeocoder { Cached = true };
+
+        var built = HistoryTimelineBuilder.Build(fixes, T0, t, Karachi);
+        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None);
+
+        Standstills(named).Should().OnlyContain(s => s.StartAddress != null, "cached answers cost no wait");
+        geocoder.Calls.Should().BeGreaterThan(HistoryTimelineBuilder.MaxPlaceLookups);
     }
 
     [Fact]

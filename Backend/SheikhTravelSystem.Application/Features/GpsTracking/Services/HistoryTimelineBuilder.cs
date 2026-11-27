@@ -36,8 +36,9 @@ public static class HistoryTimelineBuilder
     public const double MaxPlausibleSpeedKmh = 160;
 
     /// <summary>
-    /// Most addresses looked up for one timeline. A cache miss waits for the free geocoder's
-    /// rate limit (about one a second), so this bounds the first load of a long window.
+    /// Most uncached address lookups for one timeline. A cache miss waits for the free geocoder's
+    /// rate limit (about one a second), so this bounds the first load of a long window. Answers
+    /// from the address cache do not count, so later loads name the places left over.
     /// </summary>
     public const int MaxPlaceLookups = 40;
 
@@ -85,11 +86,11 @@ public static class HistoryTimelineBuilder
     /// <summary>
     /// Names the places on the timeline. A place within <see cref="StopRadiusMeters"/> of one
     /// already named (the replay's stops, or an earlier standstill) takes that name; anything else
-    /// is looked up once, cache first and never through a paid provider. Lookups stop after
-    /// <see cref="MaxPlaceLookups"/>, longest standstills first, because a cache miss waits for the
-    /// free geocoder's rate limit; a place left unnamed keeps its coordinates. A trip takes the
-    /// names of the standstills it leaves and reaches, so a trip row and the stop rows around it
-    /// read the same.
+    /// is looked up once, cache first and never through a paid provider. After
+    /// <see cref="MaxPlaceLookups"/> lookups that missed the cache, only cached answers are used,
+    /// longest standstills first, because a miss waits for the free geocoder's rate limit; a place
+    /// left unnamed keeps its coordinates until a later load. A trip takes the names of the
+    /// standstills it leaves and reaches, so a trip row and the stop rows around it read the same.
     /// </summary>
     /// <param name="knownPlaces">Stops already named for this window; reused before any lookup.</param>
     public static async Task<HistoryTimelineDto> WithAddressesAsync(
@@ -137,7 +138,7 @@ public static class HistoryTimelineBuilder
                 wanted.Add((s.EndLatitude, s.EndLongitude, s.EndAddress, 0));
         }
 
-        var lookups = 0;
+        var misses = 0;
         foreach (var w in wanted.OrderByDescending(w => w.Weight))
         {
             if (Nearby(w.Latitude, w.Longitude) is not null) continue;
@@ -146,10 +147,10 @@ public static class HistoryTimelineBuilder
                 named.Add((w.Latitude, w.Longitude, w.Address!.Trim()));
                 continue;
             }
-            if (lookups >= MaxPlaceLookups) continue;
+            if (misses >= MaxPlaceLookups) continue;
 
-            lookups++;
-            var address = await LookUpAsync(geocoder, w.Latitude, w.Longitude, cancellationToken);
+            var (address, fromCache) = await LookUpAsync(geocoder, w.Latitude, w.Longitude, cancellationToken);
+            if (!fromCache) misses++;
             if (address is not null)
                 named.Add((w.Latitude, w.Longitude, address));
         }
@@ -186,7 +187,8 @@ public static class HistoryTimelineBuilder
         return timeline with { Segments = result };
     }
 
-    private static async Task<string?> LookUpAsync(
+    /// <returns>The address, and whether the geocoder answered from its cache (no wait).</returns>
+    private static async Task<(string? Address, bool FromCache)> LookUpAsync(
         IReverseGeocodingService geocoder,
         double latitude,
         double longitude,
@@ -200,7 +202,7 @@ public static class HistoryTimelineBuilder
                 forceRefresh: false,
                 cancellationToken,
                 allowGoogle: false);
-            return TripReplayAddressEnricher.FormatResolvedAddress(result);
+            return (TripReplayAddressEnricher.FormatResolvedAddress(result), result?.FromCache == true);
         }
         catch (OperationCanceledException)
         {
@@ -208,7 +210,7 @@ public static class HistoryTimelineBuilder
         }
         catch
         {
-            return null;
+            return (null, false);
         }
     }
 
