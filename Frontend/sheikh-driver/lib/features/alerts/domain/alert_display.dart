@@ -82,6 +82,31 @@ AlertTypeMeta alertTypeMeta(String eventType) {
         description: 'Vehicle left a monitored geofence.',
         severity: AlertDisplaySeverity.warning,
       ),
+    'geofence_dwell' => const AlertTypeMeta(
+        title: 'Stayed Too Long',
+        description: 'Vehicle stayed inside a geofence longer than its limit.',
+        severity: AlertDisplaySeverity.warning,
+      ),
+    'geofence_overspeed' => const AlertTypeMeta(
+        title: 'Speeding Inside Geofence',
+        description: 'Vehicle went over the speed limit set for a geofence.',
+        severity: AlertDisplaySeverity.warning,
+      ),
+    'geofence_idle' => const AlertTypeMeta(
+        title: 'Idling Inside Geofence',
+        description: 'Engine ran without moving inside a geofence for too long.',
+        severity: AlertDisplaySeverity.warning,
+      ),
+    'geofence_not_arrived' => const AlertTypeMeta(
+        title: 'No Vehicle Arrived',
+        description: 'No assigned vehicle reached the geofence by its deadline.',
+        severity: AlertDisplaySeverity.critical,
+      ),
+    'geofence_after_hours_exit' => const AlertTypeMeta(
+        title: 'Left Outside Hours',
+        description: 'Vehicle left a geofence outside its active hours.',
+        severity: AlertDisplaySeverity.critical,
+      ),
     'low_battery' => const AlertTypeMeta(
         title: 'Low Battery',
         description: 'GPS device battery is low.',
@@ -524,7 +549,14 @@ AlertCategory alertCategoryFor(GpsAlertEvent event) {
   final key = normalizeAlertEventType(event.eventType);
   return switch (key) {
     'speed_exceeded' => AlertCategory.speeding,
-    'geofence_enter' || 'geofence_exit' => AlertCategory.geofence,
+    'geofence_enter' ||
+    'geofence_exit' ||
+    'geofence_dwell' ||
+    'geofence_overspeed' ||
+    'geofence_idle' ||
+    'geofence_not_arrived' ||
+    'geofence_after_hours_exit' =>
+      AlertCategory.geofence,
     'harsh_braking' || 'harsh_acceleration' => AlertCategory.harsh,
     'sos' || 'alarm' || 'power_cut' || 'seatbelt' => AlertCategory.safetySos,
     'maintenance_due' ||
@@ -671,6 +703,11 @@ IconData alertTypeSquareIcon(String eventType) {
     'ignition_on' || 'ignition_off' => Icons.vpn_key_rounded,
     'sos' || 'alarm' => Icons.sos_outlined,
     'geofence_enter' || 'geofence_exit' => Icons.gps_fixed_rounded,
+    'geofence_dwell' => Icons.timer_outlined,
+    'geofence_overspeed' => Icons.speed_rounded,
+    'geofence_idle' => Icons.hourglass_bottom_rounded,
+    'geofence_not_arrived' => Icons.event_busy_outlined,
+    'geofence_after_hours_exit' => Icons.nightlight_round,
     _ => Icons.notifications_active_outlined,
   };
 }
@@ -702,6 +739,11 @@ IconData alertCategoryIcon(GpsAlertEvent event) {
   return switch (key) {
     'speed_exceeded' => Icons.speed_rounded,
     'geofence_enter' || 'geofence_exit' => Icons.gps_fixed_rounded,
+    'geofence_dwell' => Icons.timer_outlined,
+    'geofence_overspeed' => Icons.speed_rounded,
+    'geofence_idle' => Icons.hourglass_bottom_rounded,
+    'geofence_not_arrived' => Icons.event_busy_outlined,
+    'geofence_after_hours_exit' => Icons.nightlight_round,
     'harsh_braking' || 'harsh_acceleration' => Icons.warning_amber_rounded,
     'sos' || 'alarm' => Icons.sos_outlined,
     'vehicle_offline' || 'gps_lost' => Icons.signal_wifi_off_rounded,
