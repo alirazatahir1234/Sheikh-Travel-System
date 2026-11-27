@@ -248,7 +248,7 @@ public class TenantProvisioningService(
             ("CompanyName", request.Name.Trim()),
             ("DefaultCurrency", request.CurrencyCode ?? AppConstants.DefaultCurrency),
             ("Timezone", request.TimeZone),
-            ("Language", "en-AE"),
+            ("Language", "en-PK"),
         };
 
         foreach (var (key, value) in defaults)

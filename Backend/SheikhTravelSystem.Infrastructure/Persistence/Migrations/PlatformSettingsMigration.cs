@@ -63,9 +63,9 @@ public static class PlatformSettingsMigration
         foreach (var tenant in tenants)
         {
             await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "CompanyName", tenant.Name, "string", ct);
-            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "DefaultCurrency", "AED", "string", ct);
-            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "Timezone", "Asia/Dubai", "string", ct);
-            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "Language", "en-AE", "string", ct);
+            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "DefaultCurrency", "PKR", "string", ct);
+            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "Timezone", "Asia/Karachi", "string", ct);
+            await UpsertSettingIfMissingAsync(connection, tenant.Id, "General", "Language", "en-PK", "string", ct);
         }
     }
 

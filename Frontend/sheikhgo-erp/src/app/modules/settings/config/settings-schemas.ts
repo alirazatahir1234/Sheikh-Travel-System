@@ -20,6 +20,7 @@ const TIMEZONE_OPTIONS = [
 
 const LANGUAGE_OPTIONS = [
   { value: 'en-AE', label: 'English (United Arab Emirates)' },
+  { value: 'en-PK', label: 'English (Pakistan)' },
   { value: 'en-US', label: 'English (United States)' },
   { value: 'ar-AE', label: 'Arabic (United Arab Emirates)' },
   { value: 'ur-PK', label: 'Urdu (Pakistan)' }
