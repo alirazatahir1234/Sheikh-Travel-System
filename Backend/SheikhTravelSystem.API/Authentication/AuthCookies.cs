@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace SheikhTravelSystem.API.Authentication;
@@ -22,6 +23,18 @@ public static class AuthCookies
     public const string CsrfHeader = "X-Requested-With";
 
     private static readonly string[] SafeMethods = ["GET", "HEAD", "OPTIONS", "TRACE"];
+
+    /// <summary>
+    /// Browsers silently drop a cookie larger than about 4 KB, and the access JWT carries every
+    /// permission as a claim: an administrator's is several times that. The access cookie is
+    /// therefore split the way ASP.NET cookie authentication splits its own: <c>sg_at=chunks-N</c>
+    /// plus <c>sg_atC1</c>..<c>sg_atCN</c>, each under the limit, joined again when read. A small
+    /// token is still written as one plain <c>sg_at</c> cookie.
+    /// </summary>
+    private static readonly ChunkingCookieManager AccessCookieChunks = new();
+
+    /// <summary>What a split cookie's first part holds; never a token.</summary>
+    private const string ChunksMarker = "chunks-";
 
     public static CookieOptions AccessOptions(bool secure, DateTimeOffset expires) => new()
     {
@@ -50,26 +63,34 @@ public static class AuthCookies
     public static void Write(
         HttpResponse response, string accessToken, string refreshToken, bool secure, DateTimeOffset expires)
     {
-        response.Cookies.Append(AccessCookie, accessToken, AccessOptions(secure, expires));
+        AccessCookieChunks.AppendResponseCookie(
+            response.HttpContext, AccessCookie, accessToken, AccessOptions(secure, expires));
         response.Cookies.Append(RefreshCookie, refreshToken, RefreshOptions(secure, expires));
     }
 
+    /// <summary>Deletes both cookies, including every part of a split access cookie.</summary>
     public static void Clear(HttpResponse response, bool secure)
     {
-        response.Cookies.Delete(AccessCookie, AccessOptions(secure, DateTimeOffset.UnixEpoch));
+        AccessCookieChunks.DeleteCookie(
+            response.HttpContext, AccessCookie, AccessOptions(secure, DateTimeOffset.UnixEpoch));
         response.Cookies.Delete(RefreshCookie, RefreshOptions(secure, DateTimeOffset.UnixEpoch));
     }
 
     public static bool HasSessionCookie(HttpRequest request) =>
         request.Cookies.ContainsKey(AccessCookie) || request.Cookies.ContainsKey(RefreshCookie);
 
-    /// <summary>The access token from the cookie, only when the caller sent no Authorization header.</summary>
+    /// <summary>
+    /// The access token from the cookie (its parts joined), only when the caller sent no
+    /// Authorization header. A split cookie with a part missing yields no token, so the API
+    /// answers 401 and the client refreshes.
+    /// </summary>
     public static string? AccessTokenFromCookie(HttpRequest request)
     {
         if (request.Headers.ContainsKey("Authorization")) return null;
-        return request.Cookies.TryGetValue(AccessCookie, out var token) && !string.IsNullOrWhiteSpace(token)
-            ? token
-            : null;
+        var token = AccessCookieChunks.GetRequestCookie(request.HttpContext, AccessCookie);
+        return string.IsNullOrWhiteSpace(token) || token.StartsWith(ChunksMarker, StringComparison.Ordinal)
+            ? null
+            : token;
     }
 
     /// <summary>

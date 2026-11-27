@@ -22,12 +22,19 @@ public class AuthCookiePipelineTests
     private const string Secret = "unit-test-signing-key-0123456789-abcdefghij";
     private static readonly SymmetricSecurityKey Key = new(Encoding.UTF8.GetBytes(Secret));
 
-    private static string Jwt(DateTime? expires = null)
+    /// <param name="permissions">
+    /// Permission claims to add, as JwtTokenService does for every permission the user holds.
+    /// </param>
+    private static string Jwt(DateTime? expires = null, int permissions = 0)
     {
+        var claims = new List<Claim> { new("sub", "42") };
+        for (var i = 0; i < permissions; i++)
+            claims.Add(new Claim("permission", $"Module{i / 6:D2}.Permission{i % 6}Manage"));
+
         var token = new JwtSecurityToken(
             issuer: "test-issuer",
             audience: "test-audience",
-            claims: [new Claim("sub", "42")],
+            claims: claims,
             notBefore: DateTime.UtcNow.AddMinutes(-10),
             expires: expires ?? DateTime.UtcNow.AddMinutes(10),
             signingCredentials: new SigningCredentials(Key, SecurityAlgorithms.HmacSha256));
@@ -123,6 +130,83 @@ public class AuthCookiePipelineTests
         var result = await Send("GET", cookie: $"sg_at={Jwt()}", bearer: "not-a-jwt");
 
         result.Should().Be((401, false));
+    }
+
+    // ── an administrator's token: larger than one cookie may be ────────────────────────────
+
+    /// <summary>Browsers drop a cookie whose name and value exceed this.</summary>
+    private const int BrowserCookieLimit = 4096;
+
+    /// <summary>The cookies <see cref="AuthCookies.Write"/> sets, as (name, value, full Set-Cookie line).</summary>
+    private static List<(string Name, string Value, string Line)> WrittenCookies(string accessToken)
+    {
+        var http = new DefaultHttpContext();
+        AuthCookies.Write(http.Response, accessToken, "refresh-token", secure: false, DateTimeOffset.UtcNow.AddDays(7));
+        return http.Response.Headers.SetCookie
+            .Select(line => line!)
+            .Select(line =>
+            {
+                var pair = line.Split(';')[0];
+                var eq = pair.IndexOf('=');
+                return (pair[..eq], pair[(eq + 1)..], line);
+            })
+            .ToList();
+    }
+
+    /// <summary>The Cookie header a browser sends to /api/... (the refresh cookie is scoped to /api/auth).</summary>
+    private static string BrowserCookieHeader(IEnumerable<(string Name, string Value, string Line)> cookies) =>
+        string.Join("; ", cookies.Where(c => c.Name != AuthCookies.RefreshCookie).Select(c => $"{c.Name}={c.Value}"));
+
+    [Fact]
+    public async Task LargeToken_IsSplitIntoCookiesUnderTheBrowserLimit_AndStillAuthenticates()
+    {
+        var token = Jwt(permissions: 400);
+        token.Length.Should().BeGreaterThan(3 * BrowserCookieLimit, "an administrator's token holds every permission");
+
+        var cookies = WrittenCookies(token);
+
+        cookies.Should().OnlyContain(c => c.Name.Length + 1 + c.Value.Length <= BrowserCookieLimit,
+            "a browser silently drops a larger cookie, which signed every administrator straight out");
+        cookies.Select(c => c.Name).Should().Contain(["sg_at", "sg_atC1", "sg_atC2", "sg_atC3", "sg_rt"]);
+        cookies.Where(c => c.Name.StartsWith("sg_at")).Should().OnlyContain(c =>
+            c.Line.Contains("httponly") && c.Line.Contains("samesite=strict") && c.Line.Contains("path=/;"));
+
+        (await Send("GET", cookie: BrowserCookieHeader(cookies))).Should().Be((200, true));
+    }
+
+    [Fact]
+    public async Task SplitCookie_WithAPartMissing_Is401_SoTheClientRefreshes()
+    {
+        var cookies = WrittenCookies(Jwt(permissions: 400));
+        var lastPart = cookies.Where(c => c.Name.StartsWith("sg_atC")).OrderBy(c => c.Name.Length).ThenBy(c => c.Name).Last();
+        cookies.Remove(lastPart);
+
+        (await Send("GET", cookie: BrowserCookieHeader(cookies))).Should().Be((401, false));
+    }
+
+    [Fact]
+    public void SmallToken_IsStillOnePlainCookie()
+    {
+        var token = Jwt();
+
+        var access = WrittenCookies(token).Where(c => c.Name.StartsWith("sg_at")).ToList();
+
+        access.Should().ContainSingle().Which.Value.Should().Be(token);
+    }
+
+    [Fact]
+    public void Clear_DeletesEveryPartOfASplitCookie()
+    {
+        var cookies = WrittenCookies(Jwt(permissions: 400));
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Cookie = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
+
+        AuthCookies.Clear(http.Response, secure: false);
+
+        var deleted = http.Response.Headers.SetCookie.Select(line => line!.Split('=')[0]).ToList();
+        deleted.Should().BeEquivalentTo(cookies.Select(c => c.Name),
+            "signing out must not leave parts of the session behind");
+        http.Response.Headers.SetCookie.Should().OnlyContain(line => line!.Contains("expires=Thu, 01 Jan 1970"));
     }
 
     [Fact]
