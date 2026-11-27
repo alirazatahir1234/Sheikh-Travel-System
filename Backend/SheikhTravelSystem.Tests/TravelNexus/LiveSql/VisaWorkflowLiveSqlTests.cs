@@ -44,7 +44,7 @@ public class VisaWorkflowLiveSqlTests(TravelNexusLiveDbFixture fx)
         var visaTypeId = await a.Ok(new SaveTravelVisaTypeCommand(null,
             new SaveTravelVisaTypeDto("SA", "Umrah visa (E2E visa flow)", "Umrah", "Single", 90, 30, 7, 500m, "SAR", true, null)));
         var docTypeId = await a.Ok(new SaveTravelDocumentTypeCommand(null,
-            new SaveTravelDocumentTypeDto("PASSPORT-E2E", "Passport copy", null, RequiresExpiryDate: true, IsActive: true)));
+            new SaveTravelDocumentTypeDto("PASSPORT_E2E", "Passport copy", null, RequiresExpiryDate: true, IsActive: true)));
 
         // ── Enquiry → conversion opens the customer and a Draft case ────────
         var enquiryId = await a.Ok(new CreateTravelEnquiryCommand(new SaveTravelEnquiryDto(

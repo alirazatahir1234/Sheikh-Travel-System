@@ -195,7 +195,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var payment = await connection.QuerySingleOrDefaultAsync<(int CustomerId, string CurrencyCode, decimal Amount, string Status, decimal Allocated, decimal Refunded)?>(
+        var payment = await connection.QuerySingleOrNullAsync<(int CustomerId, string CurrencyCode, decimal Amount, string Status, decimal Allocated, decimal Refunded)>(
             new CommandDefinition($"""
                 SELECT py.CustomerId, py.CurrencyCode, py.Amount, py.Status, pm.Allocated, pm.Refunded
                 FROM TravelPayments py WITH (UPDLOCK, ROWLOCK)
@@ -263,7 +263,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var removed = await connection.QuerySingleOrDefaultAsync<(decimal Applied, string CurrencyCode)?>(new CommandDefinition("""
+        var removed = await connection.QuerySingleOrNullAsync<(decimal Applied, string CurrencyCode)>(new CommandDefinition("""
             DELETE a
             OUTPUT deleted.AmountApplied, iv.CurrencyCode
             FROM TravelPaymentAllocations a
@@ -288,7 +288,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var changed = await connection.QuerySingleOrDefaultAsync<(decimal Amount, string CurrencyCode)?>(new CommandDefinition("""
+        var changed = await connection.QuerySingleOrNullAsync<(decimal Amount, string CurrencyCode)>(new CommandDefinition("""
             UPDATE TravelPayments SET Status = @NewStatus, ClearedAt = CASE WHEN @NewStatus = N'Completed' THEN @Now ELSE ClearedAt END, UpdatedAt = SYSUTCDATETIME()
             OUTPUT inserted.Amount, inserted.CurrencyCode
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Expected AND ReconciledAt IS NULL
@@ -427,7 +427,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
             tx.Rollback();
             return false;
         }
-        var voided = await connection.QuerySingleOrDefaultAsync<(decimal Amount, string CurrencyCode, string Number)?>(new CommandDefinition("""
+        var voided = await connection.QuerySingleOrNullAsync<(decimal Amount, string CurrencyCode, string Number)>(new CommandDefinition("""
             UPDATE TravelCreditNotes SET Status = N'Void', VoidReason = @Reason, UpdatedAt = SYSUTCDATETIME()
             OUTPUT inserted.Amount, inserted.CurrencyCode, inserted.CreditNoteNumber
             WHERE Id = @Id AND TenantId = @TenantId AND Status = N'Issued'
@@ -501,7 +501,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
             }
             else
             {
-                var pay = await connection.QuerySingleOrDefaultAsync<(string Status, decimal Amount, decimal Allocated, decimal Refunded)?>(new CommandDefinition($"""
+                var pay = await connection.QuerySingleOrNullAsync<(string Status, decimal Amount, decimal Allocated, decimal Refunded)>(new CommandDefinition($"""
                     SELECT py.Status, py.Amount, pm.Allocated, pm.Refunded
                     FROM TravelPayments py WITH (UPDLOCK, ROWLOCK)
                     {PaymentMoney}
@@ -539,7 +539,7 @@ public sealed class TravelPaymentRepository(IDbConnectionFactory dbFactory) : IT
 
             if (advanceCancellation && refund.CancellationId is int cancellationId)
             {
-                var moved = await connection.QuerySingleOrDefaultAsync<(int BookingId, string From)?>(new CommandDefinition("""
+                var moved = await connection.QuerySingleOrNullAsync<(int BookingId, string From)>(new CommandDefinition("""
                     UPDATE TravelBookingCancellations SET RefundStatus = N'PaidToCustomer', UpdatedAt = SYSUTCDATETIME()
                     OUTPUT inserted.BookingId, deleted.RefundStatus
                     WHERE Id = @Id AND TenantId = @TenantId AND RefundStatus IN (N'Pending', N'ReceivedFromSupplier')

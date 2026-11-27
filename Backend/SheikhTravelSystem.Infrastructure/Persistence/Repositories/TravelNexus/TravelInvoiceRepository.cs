@@ -415,7 +415,7 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var locked = await connection.QuerySingleOrDefaultAsync<(int Id, decimal Total, string CurrencyCode)?>(new CommandDefinition("""
+        var locked = await connection.QuerySingleOrNullAsync<(int Id, decimal Total, string CurrencyCode)>(new CommandDefinition("""
             SELECT Id, Total, CurrencyCode FROM TravelInvoices WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Draft'
             """, new { Id = id, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
@@ -442,7 +442,7 @@ public sealed class TravelInvoiceRepository(IDbConnectionFactory dbFactory) : IT
         connection.Open();
         using var tx = connection.BeginTransaction();
         var args = new { Id = id, TenantId = tenantId, Reason = reason, Now = utcNow };
-        var locked = await connection.QuerySingleOrDefaultAsync<(decimal Total, string CurrencyCode, int Movements)?>(new CommandDefinition("""
+        var locked = await connection.QuerySingleOrNullAsync<(decimal Total, string CurrencyCode, int Movements)>(new CommandDefinition("""
             SELECT i.Total, i.CurrencyCode,
                    (SELECT COUNT(1) FROM TravelPaymentAllocations a INNER JOIN TravelPayments p ON p.Id = a.PaymentId AND p.TenantId = a.TenantId
                      WHERE a.InvoiceId = i.Id AND a.TenantId = i.TenantId AND p.Status IN (N'Pending', N'Completed', N'Refunded'))

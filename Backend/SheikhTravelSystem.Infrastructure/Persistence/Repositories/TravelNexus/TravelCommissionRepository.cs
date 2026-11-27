@@ -290,7 +290,7 @@ public sealed class TravelCommissionRepository(IDbConnectionFactory dbFactory) :
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var changed = await connection.QuerySingleOrDefaultAsync<(int? OldAgent, int? OldSub)?>(new CommandDefinition("""
+        var changed = await connection.QuerySingleOrNullAsync<(int? OldAgent, int? OldSub)>(new CommandDefinition("""
             UPDATE TravelInvoices SET AgentUserId = @AgentUserId, SubAgentId = @SubAgentId, UpdatedAt = SYSUTCDATETIME()
             OUTPUT deleted.AgentUserId, deleted.SubAgentId
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status <> N'Void'

@@ -130,7 +130,7 @@ public sealed class TravelChecklistRepository(IDbConnectionFactory dbFactory) : 
         connection.Open();
         using var tx = connection.BeginTransaction();
 
-        var scope = await connection.QuerySingleOrDefaultAsync<(string CountryCode, int? VisaTypeId)?>(new CommandDefinition("""
+        var scope = await connection.QuerySingleOrNullAsync<(string CountryCode, int? VisaTypeId)>(new CommandDefinition("""
             SELECT CountryCode, VisaTypeId FROM TravelChecklistTemplates WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Draft'
             """, new { Id = id, TenantId = tenantId }, tx, cancellationToken: cancellationToken));
@@ -203,7 +203,7 @@ public sealed class TravelChecklistRepository(IDbConnectionFactory dbFactory) : 
     {
         using var connection = dbFactory.CreateConnection();
         // Visa-type-specific checklist wins over the country-wide one.
-        var template = await connection.QuerySingleOrDefaultAsync<(int Id, int Version)?>(new CommandDefinition("""
+        var template = await connection.QuerySingleOrNullAsync<(int Id, int Version)>(new CommandDefinition("""
             SELECT TOP 1 t.Id, t.Version
             FROM TravelChecklistTemplates t
             WHERE t.TenantId = @TenantId AND t.IsDeleted = 0 AND t.Status = N'Active' AND t.CountryCode = @CountryCode

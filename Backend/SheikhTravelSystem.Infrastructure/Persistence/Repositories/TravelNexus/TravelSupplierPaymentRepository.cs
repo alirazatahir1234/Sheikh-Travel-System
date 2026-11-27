@@ -197,7 +197,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var payment = await connection.QuerySingleOrDefaultAsync<(int SupplierId, string CurrencyCode, decimal Amount, string Status, decimal Allocated, decimal Refunded)?>(
+        var payment = await connection.QuerySingleOrNullAsync<(int SupplierId, string CurrencyCode, decimal Amount, string Status, decimal Allocated, decimal Refunded)>(
             new CommandDefinition($"""
                 SELECT py.SupplierId, py.CurrencyCode, py.Amount, py.Status, pm.Allocated, pm.Refunded
                 FROM TravelSupplierPayments py WITH (UPDLOCK, ROWLOCK)
@@ -266,7 +266,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var removed = await connection.QuerySingleOrDefaultAsync<(decimal Applied, string CurrencyCode)?>(new CommandDefinition("""
+        var removed = await connection.QuerySingleOrNullAsync<(decimal Applied, string CurrencyCode)>(new CommandDefinition("""
             DELETE a
             OUTPUT deleted.AmountApplied, sb.CurrencyCode
             FROM TravelSupplierPaymentAllocations a
@@ -291,7 +291,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var changed = await connection.QuerySingleOrDefaultAsync<(decimal Amount, string CurrencyCode)?>(new CommandDefinition("""
+        var changed = await connection.QuerySingleOrNullAsync<(decimal Amount, string CurrencyCode)>(new CommandDefinition("""
             UPDATE TravelSupplierPayments SET Status = @NewStatus, ClearedAt = CASE WHEN @NewStatus = N'Completed' THEN @Now ELSE ClearedAt END,
                 UpdatedAt = SYSUTCDATETIME()
             OUTPUT inserted.Amount, inserted.CurrencyCode
@@ -408,7 +408,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
             tx.Rollback();
             return false;
         }
-        var voided = await connection.QuerySingleOrDefaultAsync<(decimal Amount, string CurrencyCode, string Number)?>(new CommandDefinition("""
+        var voided = await connection.QuerySingleOrNullAsync<(decimal Amount, string CurrencyCode, string Number)>(new CommandDefinition("""
             UPDATE TravelSupplierCredits SET Status = N'Void', VoidReason = @Reason, UpdatedAt = SYSUTCDATETIME()
             OUTPUT inserted.Amount, inserted.CurrencyCode, inserted.CreditNumber
             WHERE Id = @Id AND TenantId = @TenantId AND Status = N'Issued'
@@ -470,7 +470,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
             }
             else
             {
-                var pay = await connection.QuerySingleOrDefaultAsync<(int SupplierId, string Status, decimal Amount, decimal Allocated, decimal Refunded)?>(
+                var pay = await connection.QuerySingleOrNullAsync<(int SupplierId, string Status, decimal Amount, decimal Allocated, decimal Refunded)>(
                     new CommandDefinition($"""
                         SELECT py.SupplierId, py.Status, py.Amount, pm.Allocated, pm.Refunded
                         FROM TravelSupplierPayments py WITH (UPDLOCK, ROWLOCK)
@@ -537,7 +537,7 @@ public sealed class TravelSupplierPaymentRepository(IDbConnectionFactory dbFacto
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        return await connection.QuerySingleOrDefaultAsync<(int SupplierId, string RefundStatus, string? CurrencyCode)?>(new CommandDefinition("""
+        return await connection.QuerySingleOrNullAsync<(int SupplierId, string RefundStatus, string? CurrencyCode)>(new CommandDefinition("""
             SELECT COALESCE(f.SupplierId, h.SupplierId, 0) AS SupplierId, x.RefundStatus, x.CurrencyCode
             FROM TravelBookingCancellations x
             LEFT JOIN TravelFlightBookings f ON f.Id = x.FlightBookingId AND f.TenantId = x.TenantId

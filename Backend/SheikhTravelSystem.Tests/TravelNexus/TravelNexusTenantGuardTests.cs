@@ -182,6 +182,25 @@ public class TravelNexusTenantGuardTests
         offenders.Should().BeEmpty(string.Join("\n", offenders));
     }
 
+    [Fact]
+    public void No_TravelNexus_repository_maps_into_a_nullable_value_tuple()
+    {
+        // Dapper 2.0.35 returns null for Query*<(…)?> even when the row exists, so every lock-then-write built on it
+        // reported "changed by someone else" (found by the live SQL run). Use TravelSql.QuerySingleOrNullAsync<(…)>.
+        var offenders = new List<string>();
+        foreach (var file in RepositoryFiles())
+        {
+            var lines = File.ReadAllLines(file);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (Regex.IsMatch(lines[i], @"\bQuery\w*<\([^<>]*\)\?>"))
+                    offenders.Add($"{Path.GetFileName(file)}:{i + 1}: {lines[i].Trim()}");
+            }
+        }
+
+        offenders.Should().BeEmpty("Dapper maps a nullable value tuple to null — use TravelSql.QuerySingleOrNullAsync:\n" + string.Join("\n", offenders));
+    }
+
     private static string FindBackendRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

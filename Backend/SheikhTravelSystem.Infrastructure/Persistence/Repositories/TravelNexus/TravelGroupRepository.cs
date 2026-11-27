@@ -300,7 +300,7 @@ public sealed class TravelGroupRepository(IDbConnectionFactory dbFactory) : ITra
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var previousLeader = await connection.QuerySingleOrDefaultAsync<(int Id, int? Leader)?>(new CommandDefinition("""
+        var previousLeader = await connection.QuerySingleOrNullAsync<(int Id, int? Leader)>(new CommandDefinition("""
             SELECT Id, GroupLeaderTravelerId FROM TravelGroups WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status IN @Statuses
             """, new { Id = id, TenantId = tenantId, Statuses = editableStatuses.ToArray() }, tx, cancellationToken: cancellationToken));
@@ -360,7 +360,7 @@ public sealed class TravelGroupRepository(IDbConnectionFactory dbFactory) : ITra
         connection.Open();
         using var tx = connection.BeginTransaction();
 
-        var group = await connection.QuerySingleOrDefaultAsync<(int Id, int? BranchId, string Name, string GroupNumber)?>(new CommandDefinition("""
+        var group = await connection.QuerySingleOrNullAsync<(int Id, int? BranchId, string Name, string GroupNumber)>(new CommandDefinition("""
             SELECT Id, BranchId, Name, GroupNumber FROM TravelGroups WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Expected AND VisaCaseId IS NULL
             """, new { Id = groupId, TenantId = tenantId, Expected = expectedStatus }, tx, cancellationToken: cancellationToken));

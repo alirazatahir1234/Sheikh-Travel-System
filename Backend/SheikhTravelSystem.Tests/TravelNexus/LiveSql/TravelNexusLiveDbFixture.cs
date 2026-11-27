@@ -138,10 +138,10 @@ public sealed class TravelNexusLiveDbFixture : IAsyncLifetime
         await conn.OpenAsync();
         foreach (var raw in batches)
         {
-            var sql = raw.Trim();
-            if (sql.Length == 0) continue;
-            // The script's own CREATE DATABASE / USE header targets a fixed name; this fixture owns the database.
-            if (sql.StartsWith("CREATE DATABASE", StringComparison.OrdinalIgnoreCase) || sql.StartsWith("USE ", StringComparison.OrdinalIgnoreCase)) continue;
+            // The script's own CREATE DATABASE / USE header targets a fixed name (after a comment banner); this fixture
+            // owns the database, so those statements are dropped wherever they sit in a batch.
+            var sql = Regex.Replace(raw, @"^\s*(CREATE\s+DATABASE|USE)\s+[^\r\n]*$", string.Empty, RegexOptions.Multiline | RegexOptions.IgnoreCase).Trim();
+            if (sql.Length == 0 || Regex.IsMatch(sql, @"^(\s*--[^\n]*\n?)*\s*$")) continue;
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = sql;
             cmd.CommandTimeout = 120;

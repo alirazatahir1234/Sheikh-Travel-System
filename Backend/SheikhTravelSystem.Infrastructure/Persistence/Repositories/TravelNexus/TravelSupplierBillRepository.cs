@@ -350,7 +350,7 @@ public sealed class TravelSupplierBillRepository(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var bill = await connection.QuerySingleOrDefaultAsync<(decimal Net, string CurrencyCode)?>(new CommandDefinition("""
+        var bill = await connection.QuerySingleOrNullAsync<(decimal Net, string CurrencyCode)>(new CommandDefinition("""
             SELECT Net, CurrencyCode FROM TravelSupplierBills WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Draft'
               AND EXISTS (SELECT 1 FROM TravelSupplierBillLines l WHERE l.BillId = @Id AND l.TenantId = @TenantId)
@@ -377,7 +377,7 @@ public sealed class TravelSupplierBillRepository(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         connection.Open();
         using var tx = connection.BeginTransaction();
-        var voided = await connection.QuerySingleOrDefaultAsync<(decimal Net, string CurrencyCode, string? Number)?>(new CommandDefinition("""
+        var voided = await connection.QuerySingleOrNullAsync<(decimal Net, string CurrencyCode, string? Number)>(new CommandDefinition("""
             UPDATE TravelSupplierBills SET Status = N'Void', VoidReason = @Reason, VoidedAt = @Now, UpdatedAt = SYSUTCDATETIME()
             OUTPUT inserted.Net, inserted.CurrencyCode, inserted.BillNumber
             WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Posted'

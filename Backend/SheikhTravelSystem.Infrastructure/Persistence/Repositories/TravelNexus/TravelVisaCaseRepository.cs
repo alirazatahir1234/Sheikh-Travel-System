@@ -414,7 +414,7 @@ public sealed class TravelVisaCaseRepository(IDbConnectionFactory dbFactory) : I
 
     /// <summary>Locks the case row in the expected status for the transaction; returns its owner (customer or group) or null.</summary>
     private static Task<(int? CustomerId, int? GroupId)?> LockCaseAsync(IDbConnection connection, IDbTransaction tx, int tenantId, int caseId, string expectedStatus, CancellationToken ct)
-        => connection.QuerySingleOrDefaultAsync<(int? CustomerId, int? GroupId)?>(new CommandDefinition("""
+        => connection.QuerySingleOrNullAsync<(int? CustomerId, int? GroupId)>(new CommandDefinition("""
             SELECT CustomerId, GroupId FROM TravelVisaCases WITH (UPDLOCK, ROWLOCK)
             WHERE Id = @CaseId AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Expected
             """, new { CaseId = caseId, TenantId = tenantId, Expected = expectedStatus }, tx, cancellationToken: ct));
