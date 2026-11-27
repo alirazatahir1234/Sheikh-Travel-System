@@ -93,7 +93,7 @@ public sealed partial class GpsDeviceRepository(
         var row = await connection.QueryFirstOrDefaultAsync<PendingCommandRow>(new CommandDefinition(
             $"""
             SELECT c.Id, c.CommandType, c.CommandKey, c.Transport, c.RenderedPayload, c.Attributes,
-                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId
+                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId, c.RequestedBy
             FROM GpsDeviceCommands c
             INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
             LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
@@ -117,7 +117,7 @@ public sealed partial class GpsDeviceRepository(
         var row = await connection.QueryFirstOrDefaultAsync<PendingCommandRow>(new CommandDefinition(
             """
             SELECT c.Id, c.CommandType, c.CommandKey, c.Transport, c.RenderedPayload, c.Attributes,
-                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId
+                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId, c.RequestedBy
             FROM GpsDeviceCommands c
             INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
             WHERE c.Id = @Id AND c.IsDeleted = 0 AND c.Status = N'PendingApproval'
@@ -161,6 +161,21 @@ public sealed partial class GpsDeviceRepository(
                 : ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
         }
 
+        // Automation queues commands without the engine safety check (a geofence exit happens while the vehicle
+        // moves), so it runs here, before anything is sent. A refusal leaves the command waiting for a later approval.
+        if (row.RequestedBy?.StartsWith("system:", StringComparison.OrdinalIgnoreCase) == true
+            && GpsCommandCatalog.Find(row.CommandType)?.RequiresEngineSafetyCheck == true)
+        {
+            var safetyError = await commandSafetyChecker.CheckEngineCutoffPreconditionAsync(row.VehicleId, cancellationToken);
+            if (safetyError is not null)
+            {
+                logger.LogWarning(
+                    "Approval of automated command {CommandId} ({CommandType}) held back: {Reason}",
+                    row.Id, row.CommandType, safetyError);
+                return ApiResponse<bool>.FailResponse($"Not sent yet: {safetyError} Approve again once it is safe.");
+            }
+        }
+
         var marked = await connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE GpsDeviceCommands
@@ -177,7 +192,7 @@ public sealed partial class GpsDeviceRepository(
         if (marked == 0)
             return ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
 
-        // Safety was enforced when the command was queued — do not re-block approve.
+        // Commands queued by people were safety-checked at queue time; automated ones were checked above.
         var (dispatched, message) = await DispatchStoredCommandAsync(connection, row, cancellationToken);
         logger.LogInformation(
             "GPS command {CommandId} ({CommandType}) approved; Traccar dispatch {Outcome}: {Message}",
@@ -200,6 +215,7 @@ public sealed partial class GpsDeviceRepository(
         public string? DeviceName { get; init; }
         public int? TraccarDeviceId { get; init; }
         public int? VehicleId { get; init; }
+        public string? RequestedBy { get; init; }
     }
 
     private async Task<(bool Dispatched, string Message)> DispatchStoredCommandAsync(
