@@ -245,74 +245,48 @@ public sealed partial class GpsTrackingRepository
         return result;
     }
 
+    /// <summary>
+    /// Names each trip's start and end from the address cache only, like the History replay. A place the
+    /// cache does not know keeps what it came with and is queued for the background lookup, so the trips
+    /// list never waits for the rate-limited geocoder (a 7-day list waited on up to 24 provider calls of
+    /// 1–10 s each, and the mobile playback tab gives the list 45 s).
+    /// </summary>
     private async Task<List<GpsTripDto>> EnrichTripAddressesAsync(
         List<GpsTripDto> trips,
         CancellationToken cancellationToken)
     {
-        const int maxLookups = 24;
-        var lookups = 0;
         var result = new List<GpsTripDto>(trips.Count);
+
+        async Task<string?> NameFromCacheAsync(double latitude, double longitude)
+        {
+            var formatted = TripReplayAddressEnricher.FormatResolvedAddress(
+                await geocoder.GetCachedAddressAsync(latitude, longitude, cancellationToken));
+            if (!string.IsNullOrWhiteSpace(formatted)) return formatted;
+            addressLookups.Enqueue(latitude, longitude);
+            return null;
+        }
 
         foreach (var trip in trips)
         {
-            if (lookups >= maxLookups)
-            {
-                result.Add(GpsTripLocationHelper.ApplyDisplayAddresses(trip));
-                continue;
-            }
-
             var start = trip.StartAddress;
             var end = trip.EndAddress;
-            var startNeeds = TripReplayAddressEnricher.IsCoarseAddress(start)
-                             && trip.StartLatitude is not null
-                             && trip.StartLongitude is not null;
-            var endNeeds = TripReplayAddressEnricher.IsCoarseAddress(end)
-                           && trip.EndLatitude is not null
-                           && trip.EndLongitude is not null;
 
-            if (startNeeds)
+            if (TripReplayAddressEnricher.IsCoarseAddress(start)
+                && trip.StartLatitude is { } startLat
+                && trip.StartLongitude is { } startLng)
             {
-                var resolved = await geocoder.GetAddressAsync(
-                    trip.StartLatitude!.Value,
-                    trip.StartLongitude!.Value,
-                    forceRefresh: false,
-                    cancellationToken,
-                    allowGoogle: false);
-                var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
-                if (!string.IsNullOrWhiteSpace(formatted))
-                {
-                    start = formatted;
-                }
-
-                lookups++;
+                start = await NameFromCacheAsync(startLat, startLng) ?? start;
             }
 
-            if (endNeeds && lookups < maxLookups)
+            if (TripReplayAddressEnricher.IsCoarseAddress(end)
+                && trip.EndLatitude is { } endLat
+                && trip.EndLongitude is { } endLng)
             {
-                // Same point → reuse start (avoids a second provider call).
-                if (startNeeds
-                    && trip.StartLatitude == trip.EndLatitude
-                    && trip.StartLongitude == trip.EndLongitude
-                    && !string.IsNullOrWhiteSpace(start))
-                {
-                    end = start;
-                }
-                else
-                {
-                    var resolved = await geocoder.GetAddressAsync(
-                        trip.EndLatitude!.Value,
-                        trip.EndLongitude!.Value,
-                        forceRefresh: false,
-                        cancellationToken,
-                        allowGoogle: false);
-                    var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
-                    if (!string.IsNullOrWhiteSpace(formatted))
-                    {
-                        end = formatted;
-                    }
-
-                    lookups++;
-                }
+                // Same point as a named start: reuse it instead of a second lookup.
+                var samePoint = trip.StartLatitude == endLat && trip.StartLongitude == endLng;
+                end = samePoint && !TripReplayAddressEnricher.IsCoarseAddress(start)
+                    ? start
+                    : await NameFromCacheAsync(endLat, endLng) ?? end;
             }
 
             result.Add(GpsTripLocationHelper.ApplyDisplayAddresses(trip with { StartAddress = start, EndAddress = end }));
