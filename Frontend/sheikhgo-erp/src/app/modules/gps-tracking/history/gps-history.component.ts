@@ -62,11 +62,13 @@ import {
   HIDE_STOP_OPTIONS,
   HistoryKpi,
   nextStandstill,
+  ONGOING_FRESH_MS,
   placeLabel,
   previousStandstill,
   segmentAt,
   segmentEndMs,
   segmentStartMs,
+  standstillWhen,
   standstillWhere,
   TimelineFilter,
   TimelineRow,
@@ -369,6 +371,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   /** Live fleet rows keyed by vehicle — refreshed for staleness & stationary filters. */
   liveLocations = new Map<number, VehicleLocation>();
   clockNow = Date.now();
+  /** The loaded period still reaches the present, so a standstill still going on reads "– now". */
+  private ongoingLive = false;
 
   filterStationaryOverOneHour = false;
   alertStationary24h = false;
@@ -432,6 +436,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.refreshLiveLocations();
     this.clockSub = interval(30_000).subscribe(tick => {
       this.clockNow = Date.now();
+      this.refreshOngoing();
       this.refreshVehicleCards();
       if (tick > 0 && tick % 4 === 0) this.refreshLiveLocations();
     });
@@ -782,6 +787,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   load(): void {
     if (!this.vehicleId) return;
+    // A preset period ends now when it is loaded, not when it was picked. Otherwise a page left open
+    // loads a period that ended long ago, and Reload never brings it up to date.
+    if (this.preset !== 'custom') {
+      this.applyPreset(this.preset, true);
+      this.refreshRangeLabels();
+    }
     const fromDate = parseDatetimeLocalInput(this.from);
     const toDate = parseDatetimeLocalInput(this.to);
     if (fromDate > toDate) {
@@ -860,6 +871,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     const start = toInstant(bundle.from)?.getTime() ?? fromDate.getTime();
     const end = toInstant(bundle.to)?.getTime() ?? Math.min(toDate.getTime(), Date.now());
     this.windowRange = { startMs: start, endMs: Math.max(start, end) };
+    this.clockNow = Date.now();
+    this.ongoingLive = this.computeOngoingLive();
 
     const openDay = bundle.timeline ? defaultOpenDay(bundle.timeline) : null;
     this.openDays = new Set(openDay ? [openDay] : []);
@@ -895,6 +908,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.vehicleMarker = null;
     this.detail = EMPTY_DETAIL;
     this.activeDate = null;
+    this.ongoingLive = false;
   }
 
   private clearHistorySelection(): void {
@@ -946,9 +960,28 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
           hideStopsUnderMinutes: this.hideStopsUnderMinutes,
           openDays: this.openDays,
           selectedId: this.selectedId,
-          zone: this.zone
+          zone: this.zone,
+          ongoingLive: this.ongoingLive
         })
       : [];
+  }
+
+  /**
+   * The period still reaches the present: it ended under {@link ONGOING_FRESH_MS} before the page
+   * clock, and the tracker is live. Only then does a standstill still going on read "– now".
+   */
+  private computeOngoingLive(): boolean {
+    const window = this.windowRange;
+    return !!window && this.clockNow - window.endMs < ONGOING_FRESH_MS && !this.showOfflineHistoryBanner;
+  }
+
+  /** Rebuilds the rows and the dock when an ongoing standstill can no longer say "now", or can again. */
+  private refreshOngoing(): void {
+    const live = this.computeOngoingLive();
+    if (live === this.ongoingLive) return;
+    this.ongoingLive = live;
+    this.refreshRows();
+    this.refreshDock(true);
   }
 
   /** Recomputes what the dock shows. Skipped when its range did not move (every playback tick). */
@@ -976,7 +1009,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
     this.dock = {
       range,
-      blocks: timeline ? activityBlocks(timeline.segments, range, this.zone) : [],
+      blocks: timeline ? activityBlocks(timeline.segments, range, this.zone, this.ongoingLive) : [],
       outside: outsideBlocks(range, window),
       speedLine: paths.line,
       speedArea: paths.area,
@@ -1667,8 +1700,11 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     const rows: ReportRow[] = timeline
       ? timeline.segments.slice(0, MAX_REPORT_ROWS).map(s => ({
           type: s.kind === 'trip' ? 'Trip' : s.kind === 'parking' ? 'Parking' : 'Stop',
-          window: `${formatDay(s.startTime, zone)} · ${formatTimeRange(s.startTime, s.endTime, zone)}`,
-          duration: formatDuration(s.durationMinutes),
+          // A printed report has no "now": a standstill still going on reads "since 1:27 PM".
+          window: `${formatDay(s.startTime, zone)} · ${
+            s.kind === 'trip' ? formatTimeRange(s.startTime, s.endTime, zone) : standstillWhen(s, zone)
+          }`,
+          duration: `${formatDuration(s.durationMinutes)}${s.ongoing ? ' so far' : ''}`,
           distance: s.kind === 'trip' ? `${(Number(s.distanceKm) || 0).toFixed(1)} km` : '',
           place: s.kind === 'trip' ? tripTitle(s) : standstillWhere(s)
         }))
@@ -1803,6 +1839,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       next: rows => {
         this.liveLocations = new Map(rows.map(r => [r.vehicleId, r]));
         this.clockNow = Date.now();
+        this.refreshOngoing();
         this.refreshVehicleCards();
         this.evaluateStationary24hAlerts();
       },
@@ -1991,6 +2028,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
     if (qp.get('from')) this.from = qp.get('from')!;
     if (qp.get('to')) this.to = qp.get('to')!;
+    // Dates in a link are a custom period (the page writes them only for one), so a load keeps them.
+    if (qp.get('from') || qp.get('to')) this.preset = 'custom';
     this.refreshRangeLabels();
 
     if (vehicleParam) {

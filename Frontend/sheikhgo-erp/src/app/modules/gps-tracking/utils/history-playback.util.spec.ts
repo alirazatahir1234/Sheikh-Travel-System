@@ -233,6 +233,19 @@ describe('history-playback.util — activity bar', () => {
 
     expect(outsideBlocks(friday, period)).toEqual([]);
   });
+
+  it('labels a standstill still going on "– now" while the page can vouch for it, else "since"', () => {
+    const ongoing = fixtureTimeline();
+    ongoing.segments[ongoing.segments.length - 1].ongoing = true;
+    const saturday = { startMs: fixtureMs(2, 0), endMs: fixtureMs(3, 0) };
+
+    const live = activityBlocks(ongoing.segments, saturday, FIXTURE_ZONE, true);
+    expect(live.find(b => b.id === 's7')!.label).toBe('Parked at Pasrur Road, Kalaswala, 8:40 AM – now');
+
+    const old = activityBlocks(ongoing.segments, saturday, FIXTURE_ZONE, false);
+    expect(old.find(b => b.id === 's7')!.label).toBe('Parked at Pasrur Road, Kalaswala, since 8:40 AM');
+    expect(old.find(b => b.id === 't6')!.label).toBe('Trip Pasrur to Kalaswala, 8:10 – 8:40 AM');
+  });
 });
 
 describe('history-playback.util — events', () => {

@@ -7,6 +7,7 @@ import {
   segmentAt,
   segmentEndMs,
   segmentStartMs,
+  standstillWhen,
   standstillWhere,
   tripTitle
 } from './history-timeline.util';
@@ -235,11 +236,15 @@ export interface ActivityBlock {
   label: string;
 }
 
-/** The segments that overlap the dock's range, clipped to it, as percentages of its width. */
+/**
+ * The segments that overlap the dock's range, clipped to it, as percentages of its width.
+ * @param ongoingLive the period still reaches the present, so a standstill still going on reads "– now".
+ */
 export function activityBlocks(
   segments: HistoryTimelineSegment[],
   range: TimeRange,
-  zone?: string | null
+  zone?: string | null,
+  ongoingLive = false
 ): ActivityBlock[] {
   const blocks: ActivityBlock[] = [];
   for (const s of segments) {
@@ -247,7 +252,9 @@ export function activityBlocks(
     const end = Math.min(segmentEndMs(s), range.endMs);
     if (!(end > start)) continue;
     const left = timeToPercent(start, range);
-    const when = formatTimeRange(s.startTime, s.endTime, zone);
+    const when = s.kind === 'trip'
+      ? formatTimeRange(s.startTime, s.endTime, zone)
+      : standstillWhen(s, zone, ongoingLive);
     blocks.push({
       id: s.id,
       kind: s.kind,

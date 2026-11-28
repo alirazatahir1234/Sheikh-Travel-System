@@ -99,7 +99,7 @@
           </svg>
         </span>
         <span class="tl-row__main">
-          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}</span>
+          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}<span class="tl-tag" *ngIf="segment(r).ongoing" aria-hidden="true">Ongoing</span></span>
           <span class="tl-row__sub tl-row__sub--split" [attr.title]="segment(r).whereFull">
             <span class="tl-row__where">{{ segment(r).where }}</span>
             <span class="tl-row__when">· {{ segment(r).when }}</span>
@@ -118,7 +118,7 @@
         (click)="segmentSelect.emit(segment(r).id)">
         <span class="tl-icon tl-icon--parking" aria-hidden="true">P</span>
         <span class="tl-row__main">
-          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}</span>
+          <span class="tl-row__title tl-row__title--halt">{{ segment(r).title }}<span class="tl-tag" *ngIf="segment(r).ongoing" aria-hidden="true">Ongoing</span></span>
           <span class="tl-row__sub tl-row__sub--split" [attr.title]="segment(r).whereFull">
             <span class="tl-row__where">{{ segment(r).where }}</span>
             <span class="tl-row__when">· {{ segment(r).when }}</span>

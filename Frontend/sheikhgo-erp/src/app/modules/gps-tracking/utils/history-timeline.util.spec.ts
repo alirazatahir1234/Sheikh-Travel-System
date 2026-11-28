@@ -16,6 +16,8 @@ import {
   previousStandstill,
   segmentAt,
   standstillPlace,
+  standstillTitle,
+  standstillWhen,
   TimelineDayRow,
   TimelineRow,
   TimelineRowOptions,
@@ -282,6 +284,65 @@ describe('history-timeline.util — rows', () => {
     const parked = fixtureTimeline();
     parked.days.forEach(d => (d.tripCount = 0));
     expect(defaultOpenDay(parked)).toBe('2026-11-21');
+  });
+});
+
+describe('history-timeline.util — a standstill still going on', () => {
+  /** The period ends Sat 12:00 PM while the vehicle has stood at Kalaswala since 8:40 AM. */
+  function ongoingTimeline() {
+    const timeline = fixtureTimeline();
+    timeline.segments[timeline.segments.length - 1].ongoing = true;
+    return timeline;
+  }
+
+  function s7Row(timeline = ongoingTimeline(), ongoingLive = true): TimelineSegmentRow {
+    const list = buildTimelineRows(timeline, {
+      filter: 'all',
+      hideStopsUnderMinutes: 5,
+      openDays: ALL_DAYS,
+      selectedId: null,
+      zone: FIXTURE_ZONE,
+      ongoingLive
+    });
+    return segmentRows(list).find(r => r.id === 's7')!;
+  }
+
+  it('says "so far" in its title', () => {
+    const s7 = ongoingTimeline().segments.find(s => s.id === 's7')!;
+    expect(standstillTitle(s7)).toBe('Parked 3h 20m so far');
+    expect(standstillTitle({ ...s7, kind: 'stop', durationMinutes: 52 })).toBe('Stopped 52 min so far');
+  });
+
+  it('writes when it was: a range when finished, else "– now" or "since"', () => {
+    const s7 = ongoingTimeline().segments.find(s => s.id === 's7')!;
+    expect(standstillWhen(s7, FIXTURE_ZONE, true)).toBe('8:40 AM – now');
+    expect(standstillWhen(s7, FIXTURE_ZONE)).toBe('since 8:40 AM');
+    expect(standstillWhen({ ...s7, ongoing: false }, FIXTURE_ZONE, true)).toBe('8:40 AM – 12:00 PM');
+  });
+
+  it('runs to "now" with the Ongoing tag while the page can vouch for it', () => {
+    const row = s7Row();
+    expect(row.title).toBe('Parked 3h 20m so far');
+    expect(row.when).toBe('8:40 AM – now');
+    expect(row.subtitle).toBe('Kalaswala · 8:40 AM – now');
+    expect(row.ongoing).toBeTrue();
+    expect(row.ariaLabel).toBe('Parked 3h 20m so far, ongoing, Pasrur Road, Kalaswala, 8:40 AM – now');
+  });
+
+  it('reads "since" without the tag when the data is old or the tracker is not live', () => {
+    const row = s7Row(ongoingTimeline(), false);
+    expect(row.title).toBe('Parked 3h 20m so far');
+    expect(row.when).toBe('since 8:40 AM');
+    expect(row.ongoing).toBeFalse();
+    expect(row.ariaLabel).toBe('Parked 3h 20m so far, Pasrur Road, Kalaswala, since 8:40 AM');
+  });
+
+  it('leaves a finished standstill as it was', () => {
+    const row = s7Row(fixtureTimeline(), true);
+    expect(row.title).toBe('Parked 3h 20m');
+    expect(row.when).toBe('8:40 AM – 12:00 PM');
+    expect(row.ongoing).toBeFalse();
+    expect(segmentRows(rows({ ongoingLive: true })).every(r => !r.ongoing)).toBeTrue();
   });
 });
 

@@ -633,6 +633,11 @@ export interface HistoryTimelineSegment {
   endAddress?: string | null;
   briefStops?: HistoryTimelineBriefStop[] | null;
   noSignal?: HistoryTimelineNoSignal[] | null;
+  /**
+   * Standstills only: still under way when the period ended, in a period that ends now. The end is
+   * the period end and the duration is the time so far.
+   */
+  ongoing?: boolean | null;
 }
 
 /** One local day: the sum of the trips listed under it. */

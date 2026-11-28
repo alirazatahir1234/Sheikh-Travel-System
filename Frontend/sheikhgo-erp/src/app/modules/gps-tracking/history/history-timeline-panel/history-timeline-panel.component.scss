@@ -284,6 +284,21 @@ button {
   }
 }
 
+/* A standstill still going on, while the page can vouch for it ("1:27 PM – now"). */
+.tl-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
 .tl-icon {
   flex: none;
   display: flex;

@@ -197,8 +197,26 @@ export function tripTitle(segment: HistoryTimelineSegment): string {
   return `${from} → ${to}`;
 }
 
+/** "Stopped 52 min"; one still going on is "Stopped 52 min so far". */
 export function standstillTitle(segment: HistoryTimelineSegment): string {
-  return `${segment.kind === 'parking' ? 'Parked' : 'Stopped'} ${formatDuration(segment.durationMinutes)}`;
+  const title = `${segment.kind === 'parking' ? 'Parked' : 'Stopped'} ${formatDuration(segment.durationMinutes)}`;
+  return segment.ongoing ? `${title} so far` : title;
+}
+
+/**
+ * A standstill still going on reads "– now" only while the data is this fresh: the ERP's Live
+ * window (Live under 5 minutes, then Stale). After that it reads "since …" until a reload.
+ */
+export const ONGOING_FRESH_MS = 5 * 60 * 1000;
+
+/**
+ * When a standstill was: "1:27 – 2:20 PM". One still going on reads "1:27 PM – now" while the page
+ * can vouch for it (fresh data, tracker live), else "since 1:27 PM".
+ */
+export function standstillWhen(segment: HistoryTimelineSegment, zone?: string | null, live = false): string {
+  if (!segment.ongoing) return formatTimeRange(segment.startTime, segment.endTime, zone);
+  const start = formatClock(segment.startTime, zone);
+  return live ? `${start} – now` : `since ${start}`;
 }
 
 export function standstillWhere(segment: HistoryTimelineSegment): string {
@@ -309,6 +327,8 @@ export interface TimelineSegmentRow {
   selected: boolean;
   /** Trips: minutes estimated because no fix arrived. */
   noSignalHint: string | null;
+  /** Standstills: still going on, and the page can vouch for it now. Shows the "Ongoing" tag. */
+  ongoing: boolean;
   ariaLabel: string;
 }
 
@@ -348,6 +368,8 @@ export interface TimelineRowOptions {
   openDays: ReadonlySet<string>;
   selectedId: string | null;
   zone?: string | null;
+  /** The period still reaches the present: fresh data and a live tracker. See {@link standstillWhen}. */
+  ongoingLive?: boolean;
 }
 
 function isStandstill(segment: HistoryTimelineSegment): boolean {
@@ -474,6 +496,7 @@ function tripRow(s: HistoryTimelineSegment, options: TimelineRowOptions): Timeli
     max,
     selected: options.selectedId === s.id,
     noSignalHint,
+    ongoing: false,
     ariaLabel: `Trip ${title}, ${when}, ${duration}, ${km} km, max ${max} km/h`
   };
 }
@@ -482,7 +505,8 @@ function standstillRow(s: HistoryTimelineSegment, options: TimelineRowOptions): 
   const title = standstillTitle(s);
   const whereFull = standstillWhere(s);
   const where = placeLabel(s.startAddress) ?? whereFull;
-  const when = formatTimeRange(s.startTime, s.endTime, options.zone);
+  const live = !!s.ongoing && !!options.ongoingLive;
+  const when = standstillWhen(s, options.zone, live);
   const subtitle = `${where} · ${when}`;
   return {
     type: s.kind === 'parking' ? 'parking' : 'stop',
@@ -498,7 +522,8 @@ function standstillRow(s: HistoryTimelineSegment, options: TimelineRowOptions): 
     max: '',
     selected: options.selectedId === s.id,
     noSignalHint: null,
-    ariaLabel: `${title}, ${whereFull}, ${when}`
+    ongoing: live,
+    ariaLabel: `${title}${live ? ', ongoing' : ''}, ${whereFull}, ${when}`
   };
 }
 
