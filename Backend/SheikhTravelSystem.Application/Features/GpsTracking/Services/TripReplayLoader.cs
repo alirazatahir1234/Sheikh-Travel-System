@@ -30,12 +30,18 @@ public static class TripReplayLoader
         int? routeMaxPoints = null,
         int? playbackMaxPoints = null,
         bool includeRaw = false,
-        List<TripReplayPositionDto>? fullRouteSink = null)
+        List<TripReplayPositionDto>? fullRouteSink = null,
+        bool includeStops = true,
+        ReplayTimings? timings = null)
     {
-        var routeTask = traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
-        var stopsTask = traccarClient.GetStopsAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
-        var eventsTask = traccarClient.GetEventsAsync(traccarDeviceId, fromDate, toDate, ct: cancellationToken);
-        var summaryTask = traccarClient.GetSummaryAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
+        // Each report is timed for the replay's log line. Traccar works its stops report out from every
+        // fix of the window (23 s for a busy week), so a caller with its own stops leaves it out.
+        var routeTask = TimedAsync(() => traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken), ms => timings?.SetRoute(ms));
+        var stopsTask = includeStops
+            ? TimedAsync(() => traccarClient.GetStopsAsync(traccarDeviceId, fromDate, toDate, cancellationToken), ms => timings?.SetStops(ms))
+            : Task.FromResult<IReadOnlyList<TraccarStop>>([]);
+        var eventsTask = TimedAsync(() => traccarClient.GetEventsAsync(traccarDeviceId, fromDate, toDate, ct: cancellationToken), ms => timings?.SetEvents(ms));
+        var summaryTask = TimedAsync(() => traccarClient.GetSummaryAsync(traccarDeviceId, fromDate, toDate, cancellationToken), ms => timings?.SetSummary(ms));
         await Task.WhenAll(routeTask, stopsTask, eventsTask, summaryTask);
 
         var routeFull = (await routeTask)
@@ -129,6 +135,19 @@ public static class TripReplayLoader
             [],
             [],
             TripAnalyticsMapper.BuildReplaySummary([], route));
+    }
+
+    private static async Task<T> TimedAsync<T>(Func<Task<T>> call, Action<long> done)
+    {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        try
+        {
+            return await call();
+        }
+        finally
+        {
+            done((long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        }
     }
 
     private static int ResolveMaxPoints(int? requested, int fallback)

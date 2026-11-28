@@ -688,6 +688,8 @@ public sealed partial class GpsTrackingRepository
         TimeZoneInfo timeZone,
         CancellationToken cancellationToken)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var timings = new ReplayTimings();
         IReadOnlyDictionary<int, string>? geofenceNames = null;
         var opts = traccarOptions.Value;
         TripReplayBundleDto bundle;
@@ -699,6 +701,7 @@ public sealed partial class GpsTrackingRepository
         {
             fromTraccar = true;
             geofenceNames = await LoadGeofenceNamesAsync(traccar, cancellationToken);
+            // No Traccar stops report: the replay's stops are the timeline's (HistoryReplayAssembler).
             bundle = await TripReplayLoader.LoadFromTraccarAsync(
                 traccar,
                 source.TraccarDeviceId.Value,
@@ -709,7 +712,9 @@ public sealed partial class GpsTrackingRepository
                 routeMaxPoints,
                 playbackMaxPoints,
                 includeRaw,
-                fullRoute);
+                fullRoute,
+                includeStops: false,
+                timings);
         }
         else
         {
@@ -730,101 +735,47 @@ public sealed partial class GpsTrackingRepository
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
             return ApiResponse<HistoryReplayBundleDto>.FailResponse("No tracking points in this period.");
 
-        // Traccar's stops report can come back empty on sparse fixes, and the local
-        // fallback has none — detect from the route so STOPS/PARKING match NON-MOVING.
-        if (bundle.Stops.Count == 0 && bundle.Route.Count >= 2)
-            bundle = bundle with { Stops = ReplayStopDetector.Detect(bundle.Route, fromDate, toDate) };
+        timings.LoadMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
 
-        // Names from the address cache only; unknown places are looked up after the response.
-        bundle = await TripReplayAddressEnricher.EnrichFromCacheAsync(
-            bundle,
+        // Timeline, its stops, names from the address cache (unknown places are looked up after the
+        // response), statistics and display fields. TripReplayLoader already fetched the Traccar
+        // summary for the window — do not re-query trips/summary here (60s+ on busy days).
+        var replay = await HistoryReplayAssembler.AssembleAsync(
+            new HistoryReplayInput(
+                bundle,
+                fullRoute,
+                fromTraccar,
+                vehicleId,
+                fromDate,
+                toDate,
+                timeZone,
+                DateTime.UtcNow,
+                vehicleContext,
+                source.TraccarDeviceId,
+                source.DeviceName ?? source.VehicleName),
             geocoder,
             addressLookups,
-            cancellationToken);
+            logger,
+            cancellationToken,
+            timings);
 
-        // TripReplayLoader already fetched Traccar summary for the route window — do not re-query trips/summary here (60s+ on busy days).
-        TripAnalyticsSummaryDto? rawStats = null;
-
-        var mileageKm = TripAnalyticsMapper.ComputeOdometerMileageKm(bundle.Route)
-            ?? bundle.Summary?.DistanceKm;
-
-        var statistics = TripAnalyticsMapper.BuildHistoryStatistics(
-            rawStats,
-            bundle.Route,
-            bundle.Stops,
-            fromDate,
-            toDate,
-            mileageKm,
-            // Only a Traccar summary carries real max speed / engine hours; the local
-            // BuildReplaySummary derives engine hours from the route span.
-            traccarMaxSpeedKmh: fromTraccar ? bundle.Summary?.MaxSpeedKmh : null,
-            traccarEngineHours: fromTraccar ? bundle.Summary?.EngineHours : null);
-
-        // Keep replay summary driving time consistent with clamped history stats.
-        var summary = bundle.Summary is null
-            ? null
-            : bundle.Summary with
-            {
-                DistanceKm = mileageKm ?? bundle.Summary.DistanceKm,
-                DrivingMinutes = statistics.DrivingMinutes,
-                AvgSpeedKmh = statistics.AvgSpeedKmh,
-                MaxSpeedKmh = statistics.MaxSpeedKmh,
-                EngineHours = statistics.EngineHours
-            };
-
-        var timeline = await BuildHistoryTimelineAsync(
-            fullRoute.Count > 0 ? fullRoute : bundle.Route,
-            bundle.Stops,
+        // One line per build (cache hits are not logged). Counts and timings only: no places, no coordinates.
+        logger.LogInformation(
+            "History replay for vehicle {VehicleId}: {WindowHours:0.#} h, {Fixes} fixes, load {LoadMs} ms (route {RouteMs} ms, events {EventsMs} ms, summary {SummaryMs} ms), timeline {TimelineMs} ms, addresses {AddressesMs} ms ({AddressesNamed} named, {AddressesQueued} queued), total {TotalMs} ms",
             vehicleId,
-            fromDate,
-            toDate,
-            timeZone,
-            cancellationToken);
+            (toDate - fromDate).TotalHours,
+            fullRoute.Count > 0 ? fullRoute.Count : bundle.Route.Count,
+            timings.LoadMs,
+            timings.RouteMs,
+            timings.EventsMs,
+            timings.SummaryMs,
+            timings.TimelineMs,
+            timings.AddressesMs,
+            timings.Addresses.Named,
+            timings.Addresses.Queued,
+            (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
-        return ApiResponse<HistoryReplayBundleDto>.SuccessResponse(
-            HistoryReplayMapper.WithDisplayFields(
-                new HistoryReplayBundleDto(
-                    bundle.Route,
-                    bundle.Playback,
-                    bundle.Stops,
-                    bundle.Events,
-                    summary,
-                    statistics,
-                    mileageKm,
-                    vehicleContext),
-                source.TraccarDeviceId,
-                source.DeviceName ?? source.VehicleName,
-                fromDate,
-                toDate) with { Timeline = timeline });
-    }
-
-    /// <summary>
-    /// The timeline is an addition to a response that already works. If it cannot be built the
-    /// replay is still returned without it, and the History page falls back to the legacy strip.
-    /// </summary>
-    private async Task<HistoryTimelineDto?> BuildHistoryTimelineAsync(
-        IReadOnlyList<TripReplayPositionDto> fixes,
-        IReadOnlyList<TripStopDto> namedStops,
-        int vehicleId,
-        DateTime fromDate,
-        DateTime toDate,
-        TimeZoneInfo timeZone,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var timeline = HistoryTimelineBuilder.Build(fixes, fromDate, toDate, timeZone, DateTime.UtcNow);
-            return await HistoryTimelineBuilder.WithAddressesAsync(timeline, geocoder, cancellationToken, namedStops, addressLookups);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "History timeline could not be built for vehicle {VehicleId}", vehicleId);
-            return null;
-        }
+        return ApiResponse<HistoryReplayBundleDto>.SuccessResponse(replay);
     }
 
     private static async Task<IReadOnlyDictionary<int, string>> LoadGeofenceNamesAsync(
