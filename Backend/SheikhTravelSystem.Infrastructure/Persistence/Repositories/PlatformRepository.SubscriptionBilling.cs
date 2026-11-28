@@ -507,21 +507,33 @@ public sealed partial class PlatformRepository
             new { TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
+    /// <summary>
+    /// Where billing mail goes: the company's billing email, else its support email (kept on
+    /// TenantBranding, not Tenants), else its first active owner or admin. Roles come from
+    /// UserRoles/Roles — Users.Role is the legacy numeric enum and must not be compared to codes.
+    /// </summary>
+    internal const string ResolveBillingEmailSql = """
+        SELECT TOP 1 COALESCE(NULLIF(LTRIM(RTRIM(tb.BillingEmail)), N''), NULLIF(LTRIM(RTRIM(b.SupportEmail)), N''), u.Email)
+        FROM Tenants t
+        LEFT JOIN TenantBilling tb ON tb.TenantId = t.Id
+        LEFT JOIN TenantBranding b ON b.TenantId = t.Id
+        OUTER APPLY (
+            SELECT TOP 1 usr.Email
+            FROM Users usr
+            INNER JOIN UserRoles ur ON ur.UserId = usr.Id
+            INNER JOIN Roles r ON r.Id = ur.RoleId AND r.IsActive = 1
+            WHERE usr.TenantId = t.Id AND usr.IsDeleted = 0 AND usr.IsActive = 1
+              AND r.Code IN (N'OWNER', N'TENANT_ADMIN', N'ADMIN', N'SUPER_ADMIN')
+            ORDER BY CASE r.Code WHEN N'OWNER' THEN 0 WHEN N'TENANT_ADMIN' THEN 1 WHEN N'ADMIN' THEN 2 ELSE 3 END, usr.Id
+        ) u
+        WHERE t.Id = @TenantId
+        """;
+
     public async Task<string?> ResolveBillingEmailAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<string?>(new CommandDefinition("""
-            SELECT TOP 1 COALESCE(tb.BillingEmail, t.SupportEmail, u.Email)
-            FROM Tenants t
-            LEFT JOIN TenantBilling tb ON tb.TenantId = t.Id
-            OUTER APPLY (
-                SELECT TOP 1 Email FROM Users
-                WHERE TenantId = t.Id AND IsDeleted = 0 AND IsActive = 1
-                  AND Role IN (N'SuperAdmin', N'TenantAdmin', N'Admin', N'Owner')
-                ORDER BY Id
-            ) u
-            WHERE t.Id = @TenantId
-            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
+        return await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            ResolveBillingEmailSql, new { TenantId = tenantId }, cancellationToken: cancellationToken));
     }
 
     public async Task<(bool TenantIsActive, string SubscriptionStatus, DateTime? PaidThroughUtc, DateTime? AccessExpiresAtUtc)?> GetTenantSubscriptionAccessAsync(
