@@ -358,6 +358,91 @@ public class HistoryTimelineBuilderTests
         t.Totals.WindowMinutes.Should().Be(0);
     }
 
+    // ---- ongoing ----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Parked overnight, a trip from 12:00 to 13:27 local, then standing: fixes until 13:57 and none
+    /// after, as a parked tracker goes quiet. The window ends at 14:19, 52 minutes into the stop.
+    /// </summary>
+    private static (List<TripReplayPositionDto> Fixes, DateTime StoppedAt, DateTime End) DriveThenStandUntilTheEnd()
+    {
+        var drive = Drive(T0.AddHours(12), 86, 31.50);
+        var stoppedAt = T0.AddHours(12).AddMinutes(87);
+        var fixes = drive.Concat(Stand(stoppedAt, 30, drive[^1].Latitude)).ToList();
+        return (fixes, stoppedAt, stoppedAt.AddMinutes(52));
+    }
+
+    [Fact]
+    public void StandstillStillUnderWay_InAWindowThatEndsNow_IsOngoing()
+    {
+        var (fixes, stoppedAt, end) = DriveThenStandUntilTheEnd();
+
+        var t = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end.AddSeconds(30));
+
+        AssertAddsUp(t);
+        var last = t.Segments[^1];
+        last.Kind.Should().Be(HistorySegmentKinds.Stop);
+        last.Ongoing.Should().BeTrue();
+        last.StartTime.Should().Be(stoppedAt);
+        last.EndTime.Should().Be(end, "an unfinished standstill runs to the end of the window");
+        last.DurationMinutes.Should().Be(52, "the time so far");
+
+        var withoutClock = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi);
+        t.Totals.Should().Be(withoutClock.Totals, "marking it ongoing changes no figure");
+        t.Days.Should().Equal(withoutClock.Days);
+    }
+
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(5, true)]
+    [InlineData(6, false)]
+    [InlineData(60, false)]
+    public void WindowEndingShortlyBeforeTheRequest_StillEndsNow(int minutesBeforeTheRequest, bool ongoing)
+    {
+        var (fixes, _, end) = DriveThenStandUntilTheEnd();
+
+        var t = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end.AddMinutes(minutesBeforeTheRequest));
+
+        t.Segments[^1].Ongoing.Should().Be(ongoing);
+    }
+
+    [Fact]
+    public void OnlyTheLastStandstill_IsOngoing()
+    {
+        var (fixes, _, end) = DriveThenStandUntilTheEnd();
+
+        var t = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end);
+
+        var standstills = Standstills(t);
+        standstills.Should().HaveCount(2);
+        standstills[0].Ongoing.Should().BeFalse("the night's parking ended when the trip began");
+        t.Segments.Count(s => s.Ongoing).Should().Be(1);
+    }
+
+    [Fact]
+    public void VehicleDrivingWhenTheWindowEnds_HasNoOngoingSegment()
+    {
+        var fixes = Drive(T0.AddHours(12), 30, 31.50);
+        var end = fixes[^1].Timestamp;
+
+        var t = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end);
+
+        AssertAddsUp(t);
+        t.Segments[^1].Kind.Should().Be(HistorySegmentKinds.Trip);
+        t.Segments.Should().OnlyContain(s => !s.Ongoing, "a trip in progress is not marked");
+    }
+
+    [Fact]
+    public void WithoutTheTimeOfTheRequest_NothingIsOngoing()
+    {
+        var (fixes, _, end) = DriveThenStandUntilTheEnd();
+
+        var t = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi);
+
+        t.Segments.Should().OnlyContain(s => !s.Ongoing);
+    }
+
     // ---- local days -------------------------------------------------------------------------
 
     [Fact]
@@ -590,5 +675,17 @@ public class HistoryTimelineBuilderTests
         geocoder.Calls.Should().Be(2);
         t.Segments[2].StartAddress.Should().Be("7 Mall Road, Pasrur");
         t.Segments[1].EndAddress.Should().Be("7 Mall Road, Pasrur");
+    }
+
+    [Fact]
+    public async Task Places_KeepTheOngoingFlag()
+    {
+        var (fixes, _, end) = DriveThenStandUntilTheEnd();
+
+        var built = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end);
+        var t = await HistoryTimelineBuilder.WithAddressesAsync(built, new FakeGeocoder(), CancellationToken.None);
+
+        t.Segments[^1].Ongoing.Should().BeTrue();
+        t.Segments[^1].StartAddress.Should().EndWith("Canal Road");
     }
 }

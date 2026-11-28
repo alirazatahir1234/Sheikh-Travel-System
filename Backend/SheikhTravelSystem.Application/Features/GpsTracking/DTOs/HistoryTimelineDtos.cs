@@ -79,7 +79,12 @@ public record HistoryTimelineSegmentDto(
     /// <summary>Trips only: standstills shorter than the minimum stop, kept inside the trip.</summary>
     IReadOnlyList<HistoryTimelineBriefStopDto>? BriefStops = null,
     /// <summary>Trips only: stretches driven without a fix, drawn dashed. Times are estimates.</summary>
-    IReadOnlyList<HistoryTimelineNoSignalDto>? NoSignal = null);
+    IReadOnlyList<HistoryTimelineNoSignalDto>? NoSignal = null,
+    /// <summary>
+    /// Standstills only: still under way when the window ended, in a window that ends now. The end
+    /// is the window end and the duration is the time so far.
+    /// </summary>
+    bool Ongoing = false);
 
 public record HistoryTimelineBriefStopDto(
     DateTime StartTime,

@@ -18,6 +18,8 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 /// <item>A silence longer than the moving-gap limit during which the vehicle was displaced is split
 /// into standing plus an estimated drive. Only the estimate counts as driving, and it is flagged.</item>
 /// <item>A trip is listed under, and counted in, the local day it starts.</item>
+/// <item>In a window that ends now (within <see cref="OngoingWithinMinutes"/>), a standstill that runs
+/// to the window end is ongoing: the vehicle had not moved off, so its end and duration are "so far".</item>
 /// </list>
 /// Feed it every fix of the window, before the route is thinned for drawing.
 /// </summary>
@@ -45,16 +47,24 @@ public static class HistoryTimelineBuilder
     /// <summary>A pause shorter than this inside a trip is not worth listing.</summary>
     public const int MinBriefStopSeconds = 60;
 
+    /// <summary>
+    /// A window that ends no more than this before the request is taken to end now. The ERP sends
+    /// whole minutes, so a window picked "until now" ends up to a minute before the request.
+    /// </summary>
+    public const int OngoingWithinMinutes = 5;
+
     /// <summary>After this many rejected fixes in a row the new position is accepted as real.</summary>
     private const int MaxConsecutiveGlitches = 3;
 
     private const string DateFormat = "yyyy-MM-dd";
 
+    /// <param name="nowUtc">The time of the request. Without it no standstill is marked ongoing.</param>
     public static HistoryTimelineDto Build(
         IReadOnlyList<TripReplayPositionDto> points,
         DateTime fromUtc,
         DateTime toUtc,
-        TimeZoneInfo timeZone)
+        TimeZoneInfo timeZone,
+        DateTime? nowUtc = null)
     {
         fromUtc = GpsUtcDateTime.AsUtc(fromUtc);
         toUtc = GpsUtcDateTime.AsUtc(toUtc);
@@ -72,6 +82,7 @@ public static class HistoryTimelineBuilder
         var fixes = Normalize(points, fromUtc, toUtc);
         var runs = MergeRuns(BuildAtoms(fixes, fromUtc, toUtc));
         var segments = BuildSegments(runs, timeZone);
+        MarkOngoing(segments, toUtc, nowUtc);
         var days = BuildDays(segments, fromUtc, toUtc, timeZone);
         var windowMinutes = Math.Max(1, (int)Math.Ceiling((toUtc - fromUtc).TotalMinutes));
 
@@ -496,6 +507,20 @@ public static class HistoryTimelineBuilder
         }
 
         return segments;
+    }
+
+    /// <summary>
+    /// The last standstill is still going on when it runs to the end of a window that ends now: no
+    /// fix after it shows the vehicle leaving. Only the flag changes; its figures are already "so far".
+    /// </summary>
+    private static void MarkOngoing(List<HistoryTimelineSegmentDto> segments, DateTime toUtc, DateTime? nowUtc)
+    {
+        if (nowUtc is not { } now || segments.Count == 0) return;
+        if (GpsUtcDateTime.AsUtc(now) - toUtc > TimeSpan.FromMinutes(OngoingWithinMinutes)) return;
+
+        var last = segments[^1];
+        if (last.Kind == HistorySegmentKinds.Trip || last.EndTime != toUtc) return;
+        segments[^1] = last with { Ongoing = true };
     }
 
     private static HistoryTimelineSegmentDto ToStandstill(Run run, int number, TimeZoneInfo timeZone)

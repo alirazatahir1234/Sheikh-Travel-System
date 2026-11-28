@@ -811,7 +811,7 @@ public sealed partial class GpsTrackingRepository
     {
         try
         {
-            var timeline = HistoryTimelineBuilder.Build(fixes, fromDate, toDate, timeZone);
+            var timeline = HistoryTimelineBuilder.Build(fixes, fromDate, toDate, timeZone, DateTime.UtcNow);
             return await HistoryTimelineBuilder.WithAddressesAsync(timeline, geocoder, cancellationToken, namedStops);
         }
         catch (OperationCanceledException)
