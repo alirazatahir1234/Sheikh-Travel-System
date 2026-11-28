@@ -324,9 +324,22 @@
       </div>
       <div class="ge-map__top" [hidden]="!mapReady || !!mapError">
         <div class="ge-map__search">
-          <input #placeInput class="in" type="search" aria-label="Search place on map" placeholder="Search place or paste lat, lng"
-                 autocomplete="off" (keydown.enter)="onSearchEnter($any($event.target).value)">
-          <span class="hint hint--float" *ngIf="placesUnavailable">Place search is unavailable; paste “lat, lng” instead.</span>
+          <input class="in" type="search" aria-label="Search place on map" placeholder="Search place or paste lat, lng"
+                 autocomplete="off" [matAutocomplete]="placeAuto" [matAutocompleteDisabled]="placeSearchUnavailable"
+                 (input)="placeQuery$.next($any($event.target).value)"
+                 (keydown.enter)="onSearchEnter($any($event.target).value)">
+          <mat-autocomplete #placeAuto="matAutocomplete" autoActiveFirstOption [displayWith]="placeLabel"
+                            (optionSelected)="onPlaceSuggestion($event.option.value)">
+            <ng-container *ngIf="placeResults$ | async as places">
+              <mat-option *ngFor="let place of places" class="ge-place" [value]="place">{{ place.label }}</mat-option>
+              <mat-option *ngIf="!places.length" class="ge-place" disabled>No places found</mat-option>
+              <div class="ge-place-credit">
+                © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>
+                | Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a>
+              </div>
+            </ng-container>
+          </mat-autocomplete>
+          <span class="hint hint--float" *ngIf="placeSearchUnavailable">Place search is unavailable; paste “lat, lng” instead.</span>
         </div>
         <div class="toolbar" role="toolbar" aria-label="Shape tools">
           <button type="button" class="tool" (click)="undo()" [disabled]="!history.canUndo">Undo</button>

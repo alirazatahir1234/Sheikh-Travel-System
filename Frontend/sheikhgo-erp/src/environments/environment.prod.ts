@@ -27,4 +27,6 @@ export const environment = {
   plausibleDomain: '',
   /** Injected at build via PLAUSIBLE_SCRIPT_SRC (optional self-hosted script). */
   plausibleScriptSrc: '',
+  /** Injected at build via GEOAPIFY_API_KEY (geofence place search). Empty turns the search off. */
+  geoapifyKey: '',
 };

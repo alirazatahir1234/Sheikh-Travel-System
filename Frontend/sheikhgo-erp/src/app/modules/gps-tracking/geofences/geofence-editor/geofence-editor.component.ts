@@ -6,9 +6,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDialog } from '@angular/material/dialog';
-import { Subscription, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, Subject, Subscription, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { GeofenceWorkspaceService } from '../geofence-workspace.service';
 import {
   GeofenceAppliesTo,
@@ -40,6 +41,7 @@ import {
 } from '../geofence-editor.model';
 import {
   LatLng,
+  LatLngBounds,
   MAX_CIRCLE_RADIUS_M,
   MIN_CIRCLE_RADIUS_M,
   circlePath,
@@ -47,6 +49,7 @@ import {
   formatArea,
   formatCoordinate,
   formatDistance,
+  haversineMeters,
   isShapeComplete,
   overlapFraction,
   parseCoordinateList,
@@ -82,6 +85,7 @@ import { DriverService } from '../../../../core/services/driver.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TenantTimeService } from '../../../../core/services/tenant-time.service';
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
+import { PlaceSearchService, PlaceSuggestion } from '../../../../core/services/place-search.service';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { triggerGmapResize } from '../../../../core/google-maps/gmap-theme';
@@ -152,16 +156,59 @@ export function shapeAt(point: LatLng, type: GeofenceAreaType, radius = DEFAULT_
   return { areaType: type, path };
 }
 
+/** Shortest text the map search box sends to the place search. */
+export const PLACE_SEARCH_MIN_CHARS = 3;
+/** How long the map search box waits after the last keystroke. */
+export const PLACE_SEARCH_DEBOUNCE_MS = 350;
+/** A place smaller than this across is shown like a point at zoom 16, which already shows it whole. */
+export const PLACE_FIT_MIN_METERS = 1000;
+
+/**
+ * Suggestions for the map search box as the user types. null: nothing was searched (under three characters, or a
+ * pasted "lat, lng", which Enter handles). []: nothing was found, or the search failed.
+ */
+export function placeSuggestions(
+  query$: Observable<string>,
+  search: (text: string) => Observable<PlaceSuggestion[]>
+): Observable<PlaceSuggestion[] | null> {
+  return query$.pipe(
+    debounceTime(PLACE_SEARCH_DEBOUNCE_MS),
+    distinctUntilChanged((a, b) => a.trim() === b.trim()),
+    switchMap(raw => {
+      const text = raw.trim();
+      return text.length < PLACE_SEARCH_MIN_CHARS || parseLatLng(text)
+        ? of(null)
+        : search(text).pipe(catchError(() => of<PlaceSuggestion[]>([])));
+    })
+  );
+}
+
+/** The area to fit the map to for a picked place: a town or a district gets its box, anything smaller none. */
+export function placeBounds(place: PlaceSuggestion): LatLngBounds | null {
+  const b = place.bbox;
+  if (!b) return null;
+  const bounds: LatLngBounds = {
+    minLat: Math.min(b.lat1, b.lat2),
+    maxLat: Math.max(b.lat1, b.lat2),
+    minLng: Math.min(b.lon1, b.lon2),
+    maxLng: Math.max(b.lon1, b.lon2)
+  };
+  const midLat = (bounds.minLat + bounds.maxLat) / 2;
+  const midLng = (bounds.minLng + bounds.maxLng) / 2;
+  const height = haversineMeters({ lat: bounds.minLat, lng: midLng }, { lat: bounds.maxLat, lng: midLng });
+  const width = haversineMeters({ lat: midLat, lng: bounds.minLng }, { lat: midLat, lng: bounds.maxLng });
+  return Math.max(height, width) < PLACE_FIT_MIN_METERS ? null : bounds;
+}
+
 @Component({
   selector: 'app-geofence-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, MatIconModule],
+  imports: [CommonModule, FormsModule, RouterModule, MatIconModule, MatAutocompleteModule],
   templateUrl: './geofence-editor.component.html',
   styleUrls: ['./geofence-editor.component.scss']
 })
 export class GeofenceEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapEl') mapEl?: ElementRef<HTMLDivElement>;
-  @ViewChild('placeInput') placeInput?: ElementRef<HTMLInputElement>;
   @ViewChild('addressInput') addressInput?: ElementRef<HTMLInputElement>;
 
   private readonly api = inject(GeofenceWorkspaceService);
@@ -176,6 +223,15 @@ export class GeofenceEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly zone = inject(NgZone);
+  private readonly placeSearch = inject(PlaceSearchService);
+
+  /** What is typed in the map search box. */
+  readonly placeQuery$ = new Subject<string>();
+  /** Geoapify places for the map search box, nearest to the map's centre first (null: nothing searched). */
+  readonly placeResults$ = placeSuggestions(this.placeQuery$, text => this.placeSearch.search(text, this.mapCenter()));
+  /** No Geoapify key: the map search box only takes a pasted "lat, lng". */
+  readonly placeSearchUnavailable = !this.placeSearch.available;
+  readonly placeLabel = (place: PlaceSuggestion | null): string => place?.label ?? '';
 
   readonly swatches = SWATCHES;
   readonly shapeLabels = SHAPE_LABELS;
@@ -226,7 +282,6 @@ export class GeofenceEditorComponent implements OnInit, AfterViewInit, OnDestroy
   mapError: string | null = null;
   mapReady = false;
   satellite = false;
-  placesUnavailable = false;
 
   readonly history = new ShapeHistory();
   private burstBefore: GeofenceShape | null | undefined = undefined;
@@ -1079,22 +1134,22 @@ export class GeofenceEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }, 2500);
   }
 
+  /** Google Places on the address field. The map search box uses Geoapify (placeResults$). */
   private async initPlaces(): Promise<void> {
     try {
       const ok = await this.mapsLoader.load();
       if (!ok) throw new Error('maps');
       await this.mapsLoader.importLibrary('places');
-      for (const [input, fromAddress] of [[this.placeInput?.nativeElement, false], [this.addressInput?.nativeElement, true]] as const) {
-        if (!input) continue;
-        this.placeHandles.push(await attachSheikhGoPlacesAutocomplete({
-          input,
-          ngZone: this.zone,
-          mapsLoader: this.mapsLoader,
-          onSelect: place => this.zone.run(() => this.onPlace(place, fromAddress))
-        }));
-      }
+      const input = this.addressInput?.nativeElement;
+      if (!input) return;
+      this.placeHandles.push(await attachSheikhGoPlacesAutocomplete({
+        input,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => this.zone.run(() => this.onPlace(place, true))
+      }));
     } catch {
-      this.zone.run(() => (this.placesUnavailable = true));
+      // Without Google Places the address field still takes a typed address.
     }
   }
 
@@ -1109,24 +1164,44 @@ export class GeofenceEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.markDirty();
   }
 
+  /** A Geoapify place picked in the map search box. */
+  onPlaceSuggestion(place: PlaceSuggestion): void {
+    if (!Number.isFinite(place.lat) || !Number.isFinite(place.lng)) return;
+    this.goTo({ lat: place.lat, lng: place.lng }, placeBounds(place));
+    this.markDirty();
+  }
+
   /** Enter in the map search: a pasted "lat, lng" goes straight there. */
   onSearchEnter(text: string): void {
     const p = parseLatLng(text);
     if (p) this.goTo(p);
   }
 
-  private goTo(point: LatLng): void {
-    this.map?.panTo(point);
-    this.map?.setZoom(Math.max(this.map.getZoom() ?? 15, 16));
+  /**
+   * Shows a place. A town or a district (bounds) fills the view; anything else is centred at zoom 16 or closer.
+   * With no shape yet it also drops one, and the view then closes in on it unless a whole area is in view.
+   */
+  private goTo(point: LatLng, bounds: LatLngBounds | null = null): void {
+    if (bounds && this.map) {
+      this.map.fitBounds(new google.maps.LatLngBounds({ lat: bounds.minLat, lng: bounds.minLng }, { lat: bounds.maxLat, lng: bounds.maxLng }), 48);
+    } else {
+      this.map?.panTo(point);
+      this.map?.setZoom(Math.max(this.map.getZoom() ?? 15, 16));
+    }
     if (!this.shape) {
       const dropped = shapeAt(point, this.shapeMode, this.shapeMode === 'circle' ? DEFAULT_DRAWN_RADIUS_M : undefined);
       if (dropped) {
         this.drawTool?.cancel();
         this.setShape(dropped, true);
-        this.layer?.fit();
+        if (!bounds) this.layer?.fit();
         this.hint = '';
       }
     }
+  }
+
+  private mapCenter(): LatLng | null {
+    const c = this.map?.getCenter();
+    return c ? { lat: c.lat(), lng: c.lng() } : null;
   }
 
   toggleSatellite(): void {

@@ -33,5 +33,11 @@ export const environment = {
    */
   plausibleDomain: mapsSecrets.plausibleDomain || '',
   /** Optional custom Plausible script URL (self-hosted). Default: https://plausible.io/js/script.js */
-  plausibleScriptSrc: mapsSecrets.plausibleScriptSrc || ''
+  plausibleScriptSrc: mapsSecrets.plausibleScriptSrc || '',
+  /**
+   * Geoapify browser key for the geofence editor's place search, from the gitignored secrets file
+   * (an older copy of that file without the field still compiles). Empty turns the search off.
+   * Restrict the key to your sites in the Geoapify dashboard — never commit it.
+   */
+  geoapifyKey: (mapsSecrets as Record<string, string | undefined>)['geoapifyKey'] || ''
 };

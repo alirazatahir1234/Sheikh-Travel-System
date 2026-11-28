@@ -512,6 +512,22 @@ label.rule { cursor: pointer; }
   box-shadow: $shadow-float;
 }
 
+/* Map search results (Geoapify). They render in Material's overlay but come from this template. */
+.ge-place {
+  font-size: 13px;
+  line-height: 1.35;
+  color: $text;
+}
+
+.ge-place-credit {
+  padding: 6px 16px 8px;
+  border-top: 1px solid $line;
+  font-size: 11px;
+  color: $muted;
+
+  a { color: inherit; text-decoration: underline; }
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
