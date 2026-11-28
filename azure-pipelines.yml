@@ -21,6 +21,7 @@
 #   VERCEL_PROD (optional, default true)
 #   GOOGLE_MAPS_API_KEY (SheikhGo-Frontend browser key — required for ERP live map)
 #   GOOGLE_MAPS_MAP_ID (optional Advanced Markers map ID)
+#   GEOAPIFY_API_KEY (optional secret — geofence editor place search; unset turns the search off)
 # Optional (manual runs): FORCE_FULL_DEPLOY=true to deploy VM+Vercel even if path filter
 # would skip; use after a bad overwrite / recovery.
 
@@ -300,3 +301,4 @@ stages:
               VERCEL_PROD: $(VERCEL_PROD)
               GOOGLE_MAPS_API_KEY: $(GOOGLE_MAPS_API_KEY)
               GOOGLE_MAPS_MAP_ID: $(GOOGLE_MAPS_MAP_ID)
+              GEOAPIFY_API_KEY: $(GEOAPIFY_API_KEY)

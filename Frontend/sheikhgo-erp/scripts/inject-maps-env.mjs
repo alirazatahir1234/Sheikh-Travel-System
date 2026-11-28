@@ -4,7 +4,8 @@
  *
  * Priority for values:
  *   1) process.env GOOGLE_MAPS_API_KEY / GOOGLE_MAPS_MAP_ID /
- *      GOOGLE_ANALYTICS_MEASUREMENT_ID / PLAUSIBLE_DOMAIN / PLAUSIBLE_SCRIPT_SRC
+ *      GOOGLE_ANALYTICS_MEASUREMENT_ID / PLAUSIBLE_DOMAIN / PLAUSIBLE_SCRIPT_SRC /
+ *      GEOAPIFY_API_KEY
  *   2) Frontend/sheikhgo-erp/.env.local or .env (gitignored)
  *   3) repo-root secrets/local.env (gitignored — house local secrets)
  *   4) src/environments/environment.secrets.local.ts (gitignored)
@@ -13,6 +14,9 @@
  *   node scripts/inject-maps-env.mjs              # patch environment.prod.ts (CI / build:prod)
  *   node scripts/inject-maps-env.mjs --dev        # also patch environment.ts for ng serve
  *   node scripts/inject-maps-env.mjs --restore    # clear placeholders (post-build)
+ *
+ * GEOAPIFY_API_KEY (geofence place search) is optional and goes into environment.prod.ts only:
+ * environment.ts reads it from the gitignored secrets file, so it is never written into a tracked dev file.
  *
  * Never logs secret values — only source label and key length.
  */
@@ -56,7 +60,7 @@ function loadDotEnvFile(filePath) {
 
 function readSecretsLocal() {
   if (!fs.existsSync(secretsLocalPath)) {
-    return { key: '', mapId: '', gaId: '', plausibleDomain: '', plausibleScriptSrc: '' };
+    return { key: '', mapId: '', gaId: '', plausibleDomain: '', plausibleScriptSrc: '', geoapifyKey: '' };
   }
   const text = fs.readFileSync(secretsLocalPath, 'utf8');
   const key = (text.match(/googleMapsApiKey:\s*'([^']*)'/) || [])[1] || '';
@@ -64,13 +68,21 @@ function readSecretsLocal() {
   const gaId = (text.match(/googleAnalyticsMeasurementId:\s*'([^']*)'/) || [])[1] || '';
   const plausibleDomain = (text.match(/plausibleDomain:\s*'([^']*)'/) || [])[1] || '';
   const plausibleScriptSrc = (text.match(/plausibleScriptSrc:\s*'([^']*)'/) || [])[1] || '';
+  const geoapifyKey = (text.match(/geoapifyKey:\s*'([^']*)'/) || [])[1] || '';
   return {
     key: key.trim(),
     mapId: mapId.trim(),
     gaId: gaId.trim(),
     plausibleDomain: plausibleDomain.trim(),
     plausibleScriptSrc: plausibleScriptSrc.trim(),
+    geoapifyKey: geoapifyKey.trim(),
   };
+}
+
+/** Azure DevOps passes an undefined pipeline variable on as the text "$(NAME)"; that is no value. */
+function definedValue(raw) {
+  const value = (raw || '').trim();
+  return /^\$\([^)]*\)$/.test(value) ? '' : value;
 }
 
 function resolveValues() {
@@ -106,6 +118,11 @@ function resolveValues() {
     (fileEnv.PLAUSIBLE_SCRIPT_SRC || '').trim() ||
     (repoSecrets.PLAUSIBLE_SCRIPT_SRC || '').trim() ||
     local.plausibleScriptSrc;
+  const geoapifyKey =
+    definedValue(process.env.GEOAPIFY_API_KEY) ||
+    definedValue(fileEnv.GEOAPIFY_API_KEY) ||
+    definedValue(repoSecrets.GEOAPIFY_API_KEY) ||
+    local.geoapifyKey;
 
   let source = 'environment.secrets.local.ts';
   if ((process.env.GOOGLE_MAPS_API_KEY || '').trim()) source = 'env';
@@ -114,7 +131,7 @@ function resolveValues() {
     source = 'secrets/local.env';
   }
 
-  return { key, mapId, gaId, plausibleDomain, plausibleScriptSrc, source };
+  return { key, mapId, gaId, plausibleDomain, plausibleScriptSrc, geoapifyKey, source };
 }
 
 function replaceQuotedField(text, fieldName, value) {
@@ -146,11 +163,14 @@ function patchFile(filePath, values, label) {
   text = replaceQuotedField(text, 'googleAnalyticsMeasurementId', values.gaId ?? '');
   text = replaceQuotedField(text, 'plausibleDomain', values.plausibleDomain ?? '');
   text = replaceQuotedField(text, 'plausibleScriptSrc', values.plausibleScriptSrc ?? '');
+  if (filePath === prodPath) {
+    text = replaceQuotedField(text, 'geoapifyKey', values.geoapifyKey ?? '');
+  }
 
   fs.writeFileSync(filePath, text);
 }
 
-const emptyValues = { key: '', mapId: '', gaId: '', plausibleDomain: '', plausibleScriptSrc: '' };
+const emptyValues = { key: '', mapId: '', gaId: '', plausibleDomain: '', plausibleScriptSrc: '', geoapifyKey: '' };
 
 if (restore) {
   patchFile(prodPath, emptyValues, 'environment.prod.ts');
@@ -178,5 +198,5 @@ if (includeDev) {
 
 console.log(
   `[inject-maps-env] Patched ${includeDev ? 'environment.ts + environment.prod.ts' : 'environment.prod.ts'} ` +
-    `(key from ${values.source}, keyLen=${values.key.length}, mapId=${values.mapId ? 'set' : 'omit'}, ga=${values.gaId ? 'set' : 'omit'}, plausible=${values.plausibleDomain ? 'set' : 'omit'})`
+    `(key from ${values.source}, keyLen=${values.key.length}, mapId=${values.mapId ? 'set' : 'omit'}, ga=${values.gaId ? 'set' : 'omit'}, plausible=${values.plausibleDomain ? 'set' : 'omit'}, geoapify=${values.geoapifyKey ? 'set' : 'omit'})`
 );

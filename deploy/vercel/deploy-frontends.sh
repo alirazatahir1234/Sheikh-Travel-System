@@ -144,6 +144,13 @@ EOF
     if [[ -n "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
       export GOOGLE_MAPS_MAP_ID
     fi
+    # Geoapify place search key (optional). An undefined ADO variable arrives as the text "$(GEOAPIFY_API_KEY)".
+    if [[ "${GEOAPIFY_API_KEY:-}" == '$(GEOAPIFY_API_KEY)' ]]; then
+      unset GEOAPIFY_API_KEY
+    fi
+    if [[ -n "${GEOAPIFY_API_KEY:-}" ]]; then
+      export GEOAPIFY_API_KEY
+    fi
     # Drop leftover app-subdir links so CLI uses repo-root + rootDirectory.
     rm -rf Frontend/sheikhgo-erp/.vercel/project.json Frontend/sheikh-travel-customer-hub/.vercel/project.json 2>/dev/null || true
     vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
@@ -162,6 +169,12 @@ EOF
       grep -vE '^GOOGLE_MAPS_MAP_ID=' "$ENV_LOCAL" > "${ENV_LOCAL}.tmp" || true
       mv "${ENV_LOCAL}.tmp" "$ENV_LOCAL"
       printf 'GOOGLE_MAPS_MAP_ID=%s\n' "$GOOGLE_MAPS_MAP_ID" >> "$ENV_LOCAL"
+    fi
+    if [[ -n "${GEOAPIFY_API_KEY:-}" ]]; then
+      grep -vE '^GEOAPIFY_API_KEY=' "$ENV_LOCAL" > "${ENV_LOCAL}.tmp" || true
+      mv "${ENV_LOCAL}.tmp" "$ENV_LOCAL"
+      printf 'GEOAPIFY_API_KEY=%s\n' "$GEOAPIFY_API_KEY" >> "$ENV_LOCAL"
+      echo "Wrote GEOAPIFY_API_KEY into .vercel/.env.production.local (len=${#GEOAPIFY_API_KEY})"
     fi
     # Patch environment.prod.ts before vercel/ng build (ERP). Prefer inject-maps-env.mjs when
     # present; otherwise sed-replace googleMapsApiKey (Azure repo may lack the inject script).
