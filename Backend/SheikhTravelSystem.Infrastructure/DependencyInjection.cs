@@ -522,6 +522,10 @@ public static class DependencyInjection
         services.AddSingleton<GpsAddressBackfillHostedService>();
         services.AddSingleton<IGpsAddressBackfillQueue>(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
         services.AddHostedService(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
+        // Places a History replay could not name from the cache, looked up after the response.
+        services.AddSingleton<GpsAddressLookupHostedService>();
+        services.AddSingleton<IGpsAddressLookupQueue>(sp => sp.GetRequiredService<GpsAddressLookupHostedService>());
+        services.AddHostedService(sp => sp.GetRequiredService<GpsAddressLookupHostedService>());
 
         return services;
     }

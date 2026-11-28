@@ -48,6 +48,7 @@ public sealed partial class GpsTrackingRepository(
     ITraccarClient traccar,
     IReverseGeocodingService geocoder,
     IGpsAddressBackfillQueue addressBackfill,
+    IGpsAddressLookupQueue addressLookups,
     INotificationDecisionEngine decisionEngine,
     IEscalationService escalation,
     ILocationBroadcastService broadcaster,

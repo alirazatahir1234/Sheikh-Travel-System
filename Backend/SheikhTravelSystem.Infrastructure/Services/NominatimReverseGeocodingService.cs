@@ -59,41 +59,9 @@ public sealed class NominatimReverseGeocodingService(
 
         if (!forceRefresh)
         {
-            try
-            {
-                var cached = await connection.QuerySingleOrDefaultAsync<CachedRow>(new CommandDefinition("""
-                    SELECT TOP 1 Address, City, State, Country, PostalCode, Road, PlaceName, PlaceType, ResolvedAt
-                    FROM GpsAddressCache
-                    WHERE LatitudeKey = @LatKey AND LongitudeKey = @LngKey
-                    """,
-                    new { LatKey = latKey, LngKey = lngKey },
-                    cancellationToken: cancellationToken));
-
-                if (cached is not null
-                    && !string.IsNullOrWhiteSpace(cached.Address)
-                    && DateTime.UtcNow - cached.ResolvedAt < CacheTtl
-                    && !IsCoarseAddress(cached.Address, cached.Road, cached.PlaceName))
-                {
-                    return WithDisplayFields(new ReverseGeocodeResult(
-                        cached.Address,
-                        cached.Road,
-                        cached.City,
-                        cached.State,
-                        cached.Country,
-                        cached.PostalCode,
-                        FromCache: true,
-                        cached.PlaceName,
-                        cached.PlaceType));
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Failed to read GpsAddressCache for {Lat},{Lng}; continuing with providers",
-                    latitude,
-                    longitude);
-            }
+            var cached = await ReadCacheAsync(connection, latKey, lngKey, freshStreetLevelOnly: true, cancellationToken);
+            if (cached is not null)
+                return cached;
         }
 
         var keyOk = !string.IsNullOrWhiteSpace(options.Value.GoogleMapsApiKey);
@@ -221,6 +189,73 @@ public sealed class NominatimReverseGeocodingService(
         }
 
         return resolved with { FromCache = false };
+    }
+
+    public async Task<ReverseGeocodeResult?> GetCachedAddressAsync(
+        double latitude,
+        double longitude,
+        CancellationToken cancellationToken = default)
+    {
+        if (!options.Value.Enabled)
+            return null;
+
+        var latKey = Math.Round(latitude, CoordinateDecimals, MidpointRounding.AwayFromZero);
+        var lngKey = Math.Round(longitude, CoordinateDecimals, MidpointRounding.AwayFromZero);
+        using var connection = dbFactory.CreateConnection();
+        return await ReadCacheAsync(connection, latKey, lngKey, freshStreetLevelOnly: false, cancellationToken);
+    }
+
+    /// <summary>
+    /// The cached answer for these rounded coordinates, or null. <paramref name="freshStreetLevelOnly"/>
+    /// is the provider path's rule (an old or district-only answer is asked again); for display any
+    /// cached answer beats coordinates, so <see cref="GetCachedAddressAsync"/> takes it as it is.
+    /// </summary>
+    private async Task<ReverseGeocodeResult?> ReadCacheAsync(
+        System.Data.IDbConnection connection,
+        double latKey,
+        double lngKey,
+        bool freshStreetLevelOnly,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var cached = await connection.QuerySingleOrDefaultAsync<CachedRow>(new CommandDefinition("""
+                SELECT TOP 1 Address, City, State, Country, PostalCode, Road, PlaceName, PlaceType, ResolvedAt
+                FROM GpsAddressCache
+                WHERE LatitudeKey = @LatKey AND LongitudeKey = @LngKey
+                """,
+                new { LatKey = latKey, LngKey = lngKey },
+                cancellationToken: cancellationToken));
+
+            if (cached is not null
+                && !string.IsNullOrWhiteSpace(cached.Address)
+                && (!freshStreetLevelOnly
+                    || (DateTime.UtcNow - cached.ResolvedAt < CacheTtl
+                        && !IsCoarseAddress(cached.Address, cached.Road, cached.PlaceName))))
+            {
+                return WithDisplayFields(new ReverseGeocodeResult(
+                    cached.Address,
+                    cached.Road,
+                    cached.City,
+                    cached.State,
+                    cached.Country,
+                    cached.PostalCode,
+                    FromCache: true,
+                    cached.PlaceName,
+                    cached.PlaceType));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // No coordinates in the log: they are PII, and this runs for every place a replay shows.
+            logger.LogWarning(ex, "Failed to read GpsAddressCache");
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -525,12 +525,17 @@ public class HistoryTimelineBuilderTests
 
     // ---- places -----------------------------------------------------------------------------
 
+    /// <summary>An address cache that knows every place except those <see cref="Unknown"/> picks.</summary>
     private sealed class FakeGeocoder : IReverseGeocodingService
     {
+        /// <summary>Cache reads.</summary>
         public int Calls { get; private set; }
 
-        /// <summary>Answer as if every place were already in the address cache.</summary>
-        public bool Cached { get; init; }
+        /// <summary>Lookups that would wait for the geocoder; the timeline must never make one.</summary>
+        public int LiveLookups { get; private set; }
+
+        /// <summary>Places (by latitude) the cache does not know.</summary>
+        public Func<double, bool> Unknown { get; init; } = _ => false;
 
         public Task<ReverseGeocodeResult?> GetAddressAsync(
             double latitude,
@@ -539,12 +544,42 @@ public class HistoryTimelineBuilderTests
             CancellationToken cancellationToken = default,
             bool allowGoogle = false)
         {
-            Calls++;
-            allowGoogle.Should().BeFalse("the timeline never pays for a lookup");
-            var name = $"{Math.Round(latitude * 1000)} Canal Road";
-            return Task.FromResult<ReverseGeocodeResult?>(
-                new ReverseGeocodeResult(name, FromCache: Cached, PrimaryAddress: name));
+            LiveLookups++;
+            return Task.FromResult<ReverseGeocodeResult?>(null);
         }
+
+        public Task<ReverseGeocodeResult?> GetCachedAddressAsync(
+            double latitude,
+            double longitude,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            if (Unknown(latitude)) return Task.FromResult<ReverseGeocodeResult?>(null);
+            var name = $"{Math.Round(latitude * 1000)} Canal Road";
+            return Task.FromResult<ReverseGeocodeResult?>(new ReverseGeocodeResult(name, FromCache: true, PrimaryAddress: name));
+        }
+    }
+
+    private sealed class FakeQueue : IGpsAddressLookupQueue
+    {
+        public List<(double Latitude, double Longitude)> Queued { get; } = [];
+        public void Enqueue(double latitude, double longitude) => Queued.Add((latitude, longitude));
+    }
+
+    /// <summary>Stands at <paramref name="places"/> separate places in turn; the stop at place k lasts 5 + k minutes.</summary>
+    private static (List<TripReplayPositionDto> Fixes, DateTime End) StandAtManyPlaces(int places)
+    {
+        var fixes = new List<TripReplayPositionDto>();
+        var t = T0;
+        for (var k = 0; k < places; k++)
+        {
+            var lat = 31.0 + k * 0.05;
+            fixes.AddRange(Stand(t, 5 + k, lat));
+            t = t.AddMinutes(5 + k + 1);
+            fixes.AddRange(Drive(t, 6, lat));
+            t = t.AddMinutes(7);
+        }
+        return (fixes, t);
     }
 
     private static List<TripReplayPositionDto> StandDriveStandDriveStand(out double a, out double b, out double c)
@@ -563,7 +598,7 @@ public class HistoryTimelineBuilderTests
     }
 
     [Fact]
-    public async Task Places_AreLookedUpOncePerStandstill_AndATripTakesItsNeighboursNames()
+    public async Task Places_AreReadFromTheCacheOncePerStandstill_AndATripTakesItsNeighboursNames()
     {
         var fixes = StandDriveStandDriveStand(out _, out _, out _);
         var geocoder = new FakeGeocoder();
@@ -576,6 +611,7 @@ public class HistoryTimelineBuilderTests
             HistorySegmentKinds.Stop, HistorySegmentKinds.Trip, HistorySegmentKinds.Stop,
             HistorySegmentKinds.Trip, HistorySegmentKinds.Stop);
         geocoder.Calls.Should().Be(3, "three places; the trips reuse them");
+        geocoder.LiveLookups.Should().Be(0, "a replay never waits for the geocoder");
 
         var names = Standstills(t).Select(s => s.StartAddress).ToList();
         names.Should().OnlyContain(n => n != null && n.EndsWith("Canal Road"));
@@ -611,55 +647,42 @@ public class HistoryTimelineBuilderTests
     }
 
     [Fact]
-    public async Task Places_LookupsAreCapped_LongestStandstillsFirst()
+    public async Task Places_AreAllNamedFromTheCache_HoweverMany()
     {
-        // More separate places than the cap; the stop at place k lasts 5 + k minutes.
-        var places = HistoryTimelineBuilder.MaxPlaceLookups + 10;
-        var fixes = new List<TripReplayPositionDto>();
-        var t = T0;
-        for (var k = 0; k < places; k++)
-        {
-            var lat = 31.0 + k * 0.05;
-            fixes.AddRange(Stand(t, 5 + k, lat));
-            t = t.AddMinutes(5 + k + 1);
-            fixes.AddRange(Drive(t, 6, lat));
-            t = t.AddMinutes(7);
-        }
+        var (fixes, end) = StandAtManyPlaces(40);
         var geocoder = new FakeGeocoder();
+        var queue = new FakeQueue();
 
-        var built = HistoryTimelineBuilder.Build(fixes, T0, t, Karachi);
-        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None);
+        var built = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi);
+        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None, queue: queue);
 
         AssertAddsUp(named);
-        geocoder.Calls.Should().Be(HistoryTimelineBuilder.MaxPlaceLookups);
-        var standstills = Standstills(named);
-        standstills.Where(s => s.StartAddress is not null).Should().HaveCount(HistoryTimelineBuilder.MaxPlaceLookups);
-        var shortestNamed = standstills.Where(s => s.StartAddress is not null).Min(s => s.DurationMinutes);
-        var longestUnnamed = standstills.Where(s => s.StartAddress is null).Max(s => s.DurationMinutes);
-        shortestNamed.Should().BeGreaterThanOrEqualTo(longestUnnamed, "the longest standstills are named first");
+        Standstills(named).Should().HaveCount(40).And.OnlyContain(s => s.StartAddress != null, "a cache read costs no wait, so there is no cap");
+        geocoder.LiveLookups.Should().Be(0);
+        queue.Queued.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Places_FromTheAddressCache_DoNotCountTowardsTheCap()
+    public async Task Places_TheCacheDoesNotKnow_AreQueuedOnceAndKeepTheirCoordinates()
     {
-        var places = HistoryTimelineBuilder.MaxPlaceLookups + 10;
-        var fixes = new List<TripReplayPositionDto>();
-        var t = T0;
-        for (var k = 0; k < places; k++)
-        {
-            var lat = 31.0 + k * 0.05;
-            fixes.AddRange(Stand(t, 5 + k, lat));
-            t = t.AddMinutes(5 + k + 1);
-            fixes.AddRange(Drive(t, 6, lat));
-            t = t.AddMinutes(7);
-        }
-        var geocoder = new FakeGeocoder { Cached = true };
+        // The cache knows the first 25 places and not the last 15.
+        var (fixes, end) = StandAtManyPlaces(40);
+        var geocoder = new FakeGeocoder { Unknown = lat => lat > 31.0 + 24.5 * 0.05 };
+        var queue = new FakeQueue();
+        var tally = new AddressLookupTally();
 
-        var built = HistoryTimelineBuilder.Build(fixes, T0, t, Karachi);
-        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None);
+        var built = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi);
+        var named = await HistoryTimelineBuilder.WithAddressesAsync(built, geocoder, CancellationToken.None, queue: queue, tally: tally);
 
-        Standstills(named).Should().OnlyContain(s => s.StartAddress != null, "cached answers cost no wait");
-        geocoder.Calls.Should().BeGreaterThan(HistoryTimelineBuilder.MaxPlaceLookups);
+        var standstills = Standstills(named);
+        var unknown = standstills.Where(s => geocoder.Unknown(s.StartLatitude)).ToList();
+        unknown.Should().HaveCount(15).And.OnlyContain(s => s.StartAddress == null, "an unknown place keeps its coordinates");
+        standstills.Except(unknown).Should().OnlyContain(s => s.StartAddress != null);
+        queue.Queued.Should().OnlyHaveUniqueItems().And.OnlyContain(p => geocoder.Unknown(p.Latitude));
+        queue.Queued.Should().Contain(unknown.Select(s => (s.StartLatitude, s.StartLongitude)), "each unknown place is queued once");
+        tally.Queued.Should().Be(queue.Queued.Count);
+        tally.Named.Should().Be(25);
+        geocoder.LiveLookups.Should().Be(0, "a place the cache does not know is looked up after the response, not during it");
     }
 
     [Fact]
@@ -687,5 +710,62 @@ public class HistoryTimelineBuilderTests
 
         t.Segments[^1].Ongoing.Should().BeTrue();
         t.Segments[^1].StartAddress.Should().EndWith("Canal Road");
+    }
+
+    // ---- stops for the replay -----------------------------------------------------------------
+
+    [Fact]
+    public async Task ToStops_EachStandstillBecomesAStop_TripsAreLeftOut()
+    {
+        var fixes = StandDriveStandDriveStand(out _, out _, out _);
+        var built = HistoryTimelineBuilder.Build(fixes, T0, T0.AddMinutes(50), Karachi);
+        var t = await HistoryTimelineBuilder.WithAddressesAsync(built, new FakeGeocoder(), CancellationToken.None);
+
+        var stops = HistoryTimelineBuilder.ToStops(t);
+
+        var standstills = Standstills(t);
+        stops.Should().HaveCount(standstills.Count).And.HaveCount(3);
+        for (var i = 0; i < stops.Count; i++)
+        {
+            var s = standstills[i];
+            stops[i].Should().Be(new TripStopDto(s.StartTime, s.EndTime, s.StartLatitude, s.StartLongitude, s.StartAddress, s.DurationMinutes));
+        }
+        stops.Should().OnlyContain(s => s.Address != null && s.Address.EndsWith("Canal Road"));
+    }
+
+    [Fact]
+    public void ToStops_KeepsParking()
+    {
+        // Parked at the depot for 130 minutes, a trip out and back, parked again.
+        var fixes = Stand(T0, 130, 31.50, every: 10);
+        var outbound = Drive(T0.AddMinutes(131), 10, 31.50);
+        fixes.AddRange(outbound);
+        var away = outbound[^1].Latitude;
+        fixes.AddRange(Stand(T0.AddMinutes(142), 20, away));
+        for (var i = 0; i <= 10; i++)
+            fixes.Add(P(T0.AddMinutes(163 + i), away - i * Step, 54m));
+        fixes.AddRange(Stand(T0.AddMinutes(174), 130, 31.50, every: 10));
+
+        var built = HistoryTimelineBuilder.Build(fixes, T0, T0.AddMinutes(304), Karachi);
+        var stops = HistoryTimelineBuilder.ToStops(built);
+
+        stops.Select(s => s.DurationMinutes).Should().Equal(Standstills(built).Select(s => s.DurationMinutes));
+        stops.Count(s => s.DurationMinutes >= HistoryTimelineBuilder.ParkingMinutes).Should().Be(
+            built.Segments.Count(s => s.Kind == HistorySegmentKinds.Parking), "parking stays parking by duration");
+        stops.Should().Contain(s => s.DurationMinutes >= HistoryTimelineBuilder.ParkingMinutes);
+    }
+
+    [Fact]
+    public void ToStops_KeepsAStandstillStillUnderWay()
+    {
+        var (fixes, stoppedAt, end) = DriveThenStandUntilTheEnd();
+        var built = HistoryTimelineBuilder.Build(fixes, T0, end, Karachi, nowUtc: end);
+
+        var stops = HistoryTimelineBuilder.ToStops(built);
+
+        stops.Should().HaveCount(Standstills(built).Count);
+        stops[^1].StartTime.Should().Be(stoppedAt);
+        stops[^1].EndTime.Should().Be(end, "a stop still under way runs to the window end");
+        stops[^1].DurationMinutes.Should().Be(52);
     }
 }

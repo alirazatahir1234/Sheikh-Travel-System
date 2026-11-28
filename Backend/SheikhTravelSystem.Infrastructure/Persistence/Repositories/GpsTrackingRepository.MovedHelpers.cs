@@ -735,9 +735,11 @@ public sealed partial class GpsTrackingRepository
         if (bundle.Stops.Count == 0 && bundle.Route.Count >= 2)
             bundle = bundle with { Stops = ReplayStopDetector.Detect(bundle.Route, fromDate, toDate) };
 
-        bundle = await TripReplayAddressEnricher.EnrichAsync(
+        // Names from the address cache only; unknown places are looked up after the response.
+        bundle = await TripReplayAddressEnricher.EnrichFromCacheAsync(
             bundle,
             geocoder,
+            addressLookups,
             cancellationToken);
 
         // TripReplayLoader already fetched Traccar summary for the route window — do not re-query trips/summary here (60s+ on busy days).
@@ -812,7 +814,7 @@ public sealed partial class GpsTrackingRepository
         try
         {
             var timeline = HistoryTimelineBuilder.Build(fixes, fromDate, toDate, timeZone, DateTime.UtcNow);
-            return await HistoryTimelineBuilder.WithAddressesAsync(timeline, geocoder, cancellationToken, namedStops);
+            return await HistoryTimelineBuilder.WithAddressesAsync(timeline, geocoder, cancellationToken, namedStops, addressLookups);
         }
         catch (OperationCanceledException)
         {

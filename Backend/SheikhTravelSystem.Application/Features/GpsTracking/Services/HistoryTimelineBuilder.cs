@@ -37,13 +37,6 @@ public static class HistoryTimelineBuilder
     /// <summary>A jump faster than this between two fixes is a position glitch, not travel.</summary>
     public const double MaxPlausibleSpeedKmh = 160;
 
-    /// <summary>
-    /// Most uncached address lookups for one timeline. A cache miss waits for the free geocoder's
-    /// rate limit (about one a second), so this bounds the first load of a long window. Answers
-    /// from the address cache do not count, so later loads name the places left over.
-    /// </summary>
-    public const int MaxPlaceLookups = 40;
-
     /// <summary>A pause shorter than this inside a trip is not worth listing.</summary>
     public const int MinBriefStopSeconds = 60;
 
@@ -95,20 +88,22 @@ public static class HistoryTimelineBuilder
     }
 
     /// <summary>
-    /// Names the places on the timeline. A place within <see cref="StopRadiusMeters"/> of one
-    /// already named (the replay's stops, or an earlier standstill) takes that name; anything else
-    /// is looked up once, cache first and never through a paid provider. After
-    /// <see cref="MaxPlaceLookups"/> lookups that missed the cache, only cached answers are used,
-    /// longest standstills first, because a miss waits for the free geocoder's rate limit; a place
-    /// left unnamed keeps its coordinates until a later load. A trip takes the names of the
-    /// standstills it leaves and reaches, so a trip row and the stop rows around it read the same.
+    /// Names the places on the timeline from the address cache only, so a replay never waits for a
+    /// geocoder. A place within <see cref="StopRadiusMeters"/> of one already named (a known stop, or
+    /// an earlier standstill) takes that name; anything else is read from the cache once, longest
+    /// standstills first. A place the cache does not know keeps its coordinates and is queued for a
+    /// background lookup, so a later load shows its name. A trip takes the names of the standstills
+    /// it leaves and reaches, so a trip row and the stop rows around it read the same.
     /// </summary>
     /// <param name="knownPlaces">Stops already named for this window; reused before any lookup.</param>
+    /// <param name="queue">Takes the places the cache does not know; nothing is queued without it.</param>
     public static async Task<HistoryTimelineDto> WithAddressesAsync(
         HistoryTimelineDto timeline,
         IReverseGeocodingService geocoder,
         CancellationToken cancellationToken,
-        IReadOnlyList<TripStopDto>? knownPlaces = null)
+        IReadOnlyList<TripStopDto>? knownPlaces = null,
+        IGpsAddressLookupQueue? queue = null,
+        AddressLookupTally? tally = null)
     {
         var segments = timeline.Segments;
         if (segments.Count == 0) return timeline;
@@ -149,7 +144,6 @@ public static class HistoryTimelineBuilder
                 wanted.Add((s.EndLatitude, s.EndLongitude, s.EndAddress, 0));
         }
 
-        var misses = 0;
         foreach (var w in wanted.OrderByDescending(w => w.Weight))
         {
             if (Nearby(w.Latitude, w.Longitude) is not null) continue;
@@ -158,12 +152,18 @@ public static class HistoryTimelineBuilder
                 named.Add((w.Latitude, w.Longitude, w.Address!.Trim()));
                 continue;
             }
-            if (misses >= MaxPlaceLookups) continue;
 
-            var (address, fromCache) = await LookUpAsync(geocoder, w.Latitude, w.Longitude, cancellationToken);
-            if (!fromCache) misses++;
+            var address = await CachedNameAsync(geocoder, w.Latitude, w.Longitude, cancellationToken);
             if (address is not null)
+            {
                 named.Add((w.Latitude, w.Longitude, address));
+                if (tally is not null) tally.Named++;
+            }
+            else
+            {
+                queue?.Enqueue(w.Latitude, w.Longitude);
+                if (tally is not null) tally.Queued++;
+            }
         }
 
         var result = new List<HistoryTimelineSegmentDto>(segments.Count);
@@ -198,8 +198,19 @@ public static class HistoryTimelineBuilder
         return timeline with { Segments = result };
     }
 
-    /// <returns>The address, and whether the geocoder answered from its cache (no wait).</returns>
-    private static async Task<(string? Address, bool FromCache)> LookUpAsync(
+    /// <summary>
+    /// The timeline's standstills as the replay's stops (same times, place and duration; trips left
+    /// out). The replay's stops list and its stop and parking counts then follow the timeline, so the
+    /// ERP and the mobile app show the same stops.
+    /// </summary>
+    public static IReadOnlyList<TripStopDto> ToStops(HistoryTimelineDto timeline) =>
+        timeline.Segments
+            .Where(s => s.Kind != HistorySegmentKinds.Trip)
+            .Select(s => new TripStopDto(s.StartTime, s.EndTime, s.StartLatitude, s.StartLongitude, s.StartAddress, s.DurationMinutes))
+            .ToList();
+
+    /// <returns>The cached name of the place, or null when the cache does not know it (or cannot be read).</returns>
+    private static async Task<string?> CachedNameAsync(
         IReverseGeocodingService geocoder,
         double latitude,
         double longitude,
@@ -207,13 +218,8 @@ public static class HistoryTimelineBuilder
     {
         try
         {
-            var result = await geocoder.GetAddressAsync(
-                latitude,
-                longitude,
-                forceRefresh: false,
-                cancellationToken,
-                allowGoogle: false);
-            return (TripReplayAddressEnricher.FormatResolvedAddress(result), result?.FromCache == true);
+            return TripReplayAddressEnricher.FormatResolvedAddress(
+                await geocoder.GetCachedAddressAsync(latitude, longitude, cancellationToken));
         }
         catch (OperationCanceledException)
         {
@@ -221,7 +227,7 @@ public static class HistoryTimelineBuilder
         }
         catch
         {
-            return (null, false);
+            return null;
         }
     }
 

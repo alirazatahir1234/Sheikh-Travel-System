@@ -46,4 +46,15 @@ public interface IReverseGeocodingService
         bool forceRefresh = false,
         CancellationToken cancellationToken = default,
         bool allowGoogle = false);
+
+    /// <summary>
+    /// Whatever address GpsAddressCache holds for these coordinates, or null. Unlike the cache step of
+    /// <see cref="GetAddressAsync"/> it also returns an old or district-only answer: for display any
+    /// cached name beats coordinates. Never calls a provider, so a request can afford it for every
+    /// place it shows.
+    /// </summary>
+    Task<ReverseGeocodeResult?> GetCachedAddressAsync(
+        double latitude,
+        double longitude,
+        CancellationToken cancellationToken = default);
 }

@@ -65,6 +65,73 @@ public static class TripReplayAddressEnricher
     }
 
     /// <summary>
+    /// The History replay's naming. The same places as <c>EnrichAsync</c> (route and playback ends, stops,
+    /// events), named only from the address cache: a place the cache does not know keeps what it came
+    /// with and is queued for a background lookup, so the response never waits for the geocoder.
+    /// </summary>
+    /// <param name="includeStops">False when the stops were already named (the timeline's standstills).</param>
+    public static async Task<TripReplayBundleDto> EnrichFromCacheAsync(
+        TripReplayBundleDto bundle,
+        IReverseGeocodingService geocoder,
+        IGpsAddressLookupQueue queue,
+        CancellationToken cancellationToken,
+        bool includeStops = true,
+        AddressLookupTally? tally = null)
+    {
+        tally ??= new AddressLookupTally();
+        var route = bundle.Route.ToList();
+        var playback = bundle.Playback.ToList();
+        var stops = bundle.Stops.ToList();
+        var events = bundle.Events.ToList();
+
+        async Task<string?> NameAsync(double latitude, double longitude)
+        {
+            var address = FormatResolvedAddress(
+                await geocoder.GetCachedAddressAsync(latitude, longitude, cancellationToken));
+            if (address is null)
+            {
+                queue.Enqueue(latitude, longitude);
+                tally.Queued++;
+            }
+            else
+            {
+                tally.Named++;
+            }
+            return address;
+        }
+
+        foreach (var positions in new[] { route, playback })
+        {
+            foreach (var i in new[] { 0, positions.Count - 1 }.Distinct())
+            {
+                if (i < 0 || i >= positions.Count || !IsCoarseAddress(positions[i].Address)) continue;
+                var address = await NameAsync(positions[i].Latitude, positions[i].Longitude);
+                if (address is not null) positions[i] = positions[i] with { Address = address };
+            }
+        }
+
+        if (includeStops)
+        {
+            for (var i = 0; i < stops.Count; i++)
+            {
+                if (!IsCoarseAddress(stops[i].Address)) continue;
+                var address = await NameAsync(stops[i].Latitude, stops[i].Longitude);
+                if (address is not null) stops[i] = stops[i] with { Address = address };
+            }
+        }
+
+        for (var i = 0; i < events.Count; i++)
+        {
+            var e = events[i];
+            if (e.Latitude is not { } latitude || e.Longitude is not { } longitude || !IsCoarseAddress(e.Address)) continue;
+            var address = await NameAsync(latitude, longitude);
+            if (address is not null) events[i] = e with { Address = address };
+        }
+
+        return new TripReplayBundleDto(route, playback, stops, events, bundle.Summary);
+    }
+
+    /// <summary>
     /// Street/locality first. PlaceName is metadata only when distance-qualified by the geocoder —
     /// do not promote unchecked Nearby POIs into the stored address line.
     /// </summary>
